@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";
+
+const isolatedRoot = mkdtempSync(path.join(tmpdir(), "resource-api-callability-"));
+process.on("exit", () => rmSync(isolatedRoot, { recursive: true, force: true }));
 
 const sharedFiles = {
   "routes/example.js": "route marker requireUserJwt readback marker",
@@ -36,7 +42,7 @@ function contract(overrides = {}) {
 
 function validate(exampleContract, extraFiles = {}) {
   return validateDirectRouteCallabilityContracts({
-    root: process.cwd(),
+    root: isolatedRoot,
     manifest: { callability_gate: { direct_route_contracts: [exampleContract] } },
     fileOverrides: {
       ...sharedFiles,
@@ -100,7 +106,7 @@ assert.equal(policyMismatch.ok, false);
 assert(policyMismatch.findings.some((row) => row.type === "direct_route_contract_policy_mismatch" && row.field === "provider_calls_allowed"));
 
 const crossMigration = validateDirectRouteCallabilityContracts({
-  root: process.cwd(),
+  root: isolatedRoot,
   manifest: {
     callability_gate: {
       direct_route_contracts: [contract({
