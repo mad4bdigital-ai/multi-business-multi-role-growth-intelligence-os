@@ -1,0 +1,85 @@
+name: Governed Migration Dependency Gate
+
+on:
+  workflow_call:
+    inputs:
+      migration:
+        description: Repository migration filename to gate.
+        required: true
+        type: string
+      expected_checksum_sha256:
+        description: Exact lowercase SHA-256 of the target migration.
+        required: true
+        type: string
+      expected_statement_count:
+        description: Exact target migration statement count.
+        required: true
+        type: string
+    secrets:
+      BACKEND_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      migration:
+        description: Repository migration filename to gate.
+        required: true
+        type: string
+      expected_checksum_sha256:
+        description: Exact lowercase SHA-256 of the target migration.
+        required: true
+        type: string
+      expected_statement_count:
+        description: Exact target migration statement count.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governed-migration-dependency-gate-${{ inputs.migration }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-readback:
+    name: Verify exact governed migration dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      MIGRATION: ${{ inputs.migration }}
+      EXPECTED_CHECKSUM_SHA256: ${{ inputs.expected_checksum_sha256 }}
+      EXPECTED_STATEMENT_COUNT: ${{ inputs.expected_statement_count }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-migration-dependency-gate.json
+    steps:
+      - name: Checkout trusted dependency contract
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact dependency ledger state
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          node http-generic-api/scripts/governed-migration-dependency-gate.mjs >"$EVIDENCE_PATH" 2>&1
+          STATUS=$?
+          set -e
+          cat "$EVIDENCE_PATH"
+          exit "$STATUS"
+
+      - name: Upload no-secret dependency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-migration-dependency-gate-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
