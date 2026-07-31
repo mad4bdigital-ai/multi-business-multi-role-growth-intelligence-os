@@ -12,7 +12,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: finalize-hostinger-production-resync-policy-static-v5
+  group: finalize-hostinger-production-resync-policy-static-v6
   cancel-in-progress: false
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       REQUIRED_SOURCE_MERGE_SHA: 1b1cb8ef7ab5f91e57828469a7c0275351765bb5
       EXPECTED_MIGRATION_BLOB: 553e0ab987e04009ddced67c3ef986a2669a0f8b
       PROGRAM_PATH: .github/ops/hostinger-production-resync-policy-finalize.mjs
-      EXPECTED_PROGRAM_BLOB: 8c779ea7837e4f3b9cb0d9f33dd5c833f3726939
+      EXPECTED_PROGRAM_BLOB: 618fc02d15c5ff82155e094cc7cc28ab3409efeb
       RUNTIME_BASE_URL: https://auth.mad4b.com
 
     steps:
@@ -169,7 +169,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/hostinger-resync-policy-apply"
           cat > "$RUNNER_TEMP/hostinger-resync-policy-apply/finalization-manifest.json" <<JSON
           {
-            "schema_version": "hostinger_production_resync_policy_finalization.v5",
+            "schema_version": "hostinger_production_resync_policy_finalization.v6",
             "migration": "$MIGRATION_ID",
             "migration_checksum_sha256": "$MIGRATION_SHA256",
             "expected_statement_count": 8,
@@ -182,6 +182,7 @@ jobs:
             "reviewed_program_blob_sha": "$PROGRAM_BLOB",
             "required_source_merge_sha": "$REQUIRED_SOURCE_MERGE_SHA",
             "program_mode": "static_content_addressed",
+            "approval_readback_merge_preserves_dispatch_evidence": true,
             "apply_policy_bootstrap_skipped": true,
             "apply_policy_verification": "capability_resolution_envelope_apply_authorize",
             "apply_retry_allowed": false,
@@ -197,7 +198,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hostinger-production-resync-policy-finalization-v5
+          name: hostinger-production-resync-policy-finalization-v6
           path: ${{ runner.temp }}/hostinger-resync-policy-apply
           if-no-files-found: error
           retention-days: 30
