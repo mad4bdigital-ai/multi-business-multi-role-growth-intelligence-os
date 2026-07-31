@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_activity_kpi_bindings",
+  "source_table": "growth_control_activity_kpi_bindings",
+  "reason": "Excluded because this table is an internal governed mapping authority between activity-native metrics and normalized KPI definitions. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; reads remain bounded by dedicated Growth Control services.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}

@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_kpi_definitions",
+  "source_table": "growth_control_kpi_definitions",
+  "reason": "Excluded because this table is an internal governed KPI definition authority used by Growth Control analytics projections. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; reads remain bounded by the dedicated application services and APIs.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}
