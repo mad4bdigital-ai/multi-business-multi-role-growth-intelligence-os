@@ -22,6 +22,8 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-authority-catalog-census.mjs",
   "node test-authority-path-inventory-compiler.mjs",
   "node test-authority-data-foundation-planner.mjs",
+  "node test-authority-evidence-source-adapters.mjs",
+  "node test-authority-ownership-review.mjs",
 ]);
 
 const growthControlContinuationTestCommands = Object.freeze([
