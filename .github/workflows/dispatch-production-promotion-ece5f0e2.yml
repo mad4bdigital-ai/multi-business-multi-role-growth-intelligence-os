@@ -1,0 +1,109 @@
+name: Dispatch Integrated Production Promotion Wave ece5f0e2
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+    paths:
+      - ".github/workflows/dispatch-production-promotion-ece5f0e2.yml"
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dispatch-production-promotion-ece5f0e2
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.pull_request.head.ref == 'gpt/dispatch-production-promotion-ece5f0e2-20260731' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_MAIN_SHA: ece5f0e253beb50cf61cc9773e541e536834e4fc
+      EXPECTED_PRODUCTION_SHA: 792ff63af82791e9a482029f5078931fa0707c8c
+      RELEASE_BRANCH: release/production-sync-511ae3d5-792ff63a-20260731
+      VALIDATION_BRANCH: gpt/validate-production-candidate-ece5f0e2-20260731
+      VALIDATION_BASE_BRANCH: gpt/validate-production-base-ece5f0e2-20260731
+    steps:
+      - name: Verify protected refs and dispatch governed builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="${GITHUB_REPOSITORY}"
+          actual_main="$(gh api "/repos/${repository}/git/ref/heads/main" --jq '.object.sha')"
+          actual_production="$(gh api "/repos/${repository}/git/ref/heads/Production" --jq '.object.sha')"
+          test "$actual_main" = "$EXPECTED_MAIN_SHA"
+          test "$actual_production" = "$EXPECTED_PRODUCTION_SHA"
+
+          started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run production-promotion-candidate.yml \
+            --ref main \
+            -f expected_main_sha="$EXPECTED_MAIN_SHA" \
+            -f expected_production_sha="$EXPECTED_PRODUCTION_SHA" \
+            -f release_branch="$RELEASE_BRANCH" \
+            -f validation_branch="$VALIDATION_BRANCH" \
+            -f validation_base_branch="$VALIDATION_BASE_BRANCH" \
+            -f create_pull_requests=true
+
+          run_id=""
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list \
+              --workflow production-promotion-candidate.yml \
+              --event workflow_dispatch \
+              --branch main \
+              --limit 20 \
+              --json databaseId,createdAt \
+              --jq ".[] | select(.createdAt >= \"${started_at}\") | .databaseId" | head -n1)"
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          test -n "$run_id"
+          echo "BUILDER_RUN_ID=$run_id"
+          gh run watch "$run_id" --exit-status
+
+      - name: Verify candidate and exact-validation surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="${GITHUB_REPOSITORY}"
+          release_sha="$(gh api "/repos/${repository}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
+          validation_sha="$(gh api "/repos/${repository}/git/ref/heads/${VALIDATION_BRANCH}" --jq '.object.sha')"
+          validation_base_sha="$(gh api "/repos/${repository}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
+          test "$release_sha" = "$validation_sha"
+          test "$validation_base_sha" = "$EXPECTED_MAIN_SHA"
+
+          release_pr="$(gh pr list --state open --head "$RELEASE_BRANCH" --base Production --json number --jq '.[0].number')"
+          validation_pr="$(gh pr list --state open --head "$VALIDATION_BRANCH" --base "$VALIDATION_BASE_BRANCH" --json number --jq '.[0].number')"
+          test -n "$release_pr"
+          test -n "$validation_pr"
+
+          {
+            echo "RELEASE_PR=$release_pr"
+            echo "VALIDATION_PR=$validation_pr"
+            echo "CANDIDATE_SHA=$release_sha"
+          } >> "$GITHUB_ENV"
+
+      - name: Publish integrated wave summary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Integrated Production promotion wave dispatched
+
+          - pinned main: \`$EXPECTED_MAIN_SHA\`
+          - pinned Production: \`$EXPECTED_PRODUCTION_SHA\`
+          - candidate: \`$CANDIDATE_SHA\`
+          - release PR: #$RELEASE_PR
+          - validation PR: #$VALIDATION_PR
+          - merge executed: false
+          - deployment executed: false
+          - migration executed: false
+          EOF
