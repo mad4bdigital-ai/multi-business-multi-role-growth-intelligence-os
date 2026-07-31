@@ -1,0 +1,6 @@
+Execute the bounded Work Map semantic reconciliation.
+
+Expected Work Map head: 093e90e8994390b794c1f64ccc8db67e90f8399a
+Expected main: 467b10cf3ac29c839399324a8076ccab5f7c7988
+Conflict set: 6 exact files.
+No protected-branch, Production, database, deployment, provider, credential, or external-write authorization.
