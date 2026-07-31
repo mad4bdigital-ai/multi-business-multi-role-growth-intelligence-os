@@ -117,6 +117,16 @@ function assertWritableDefinition(definition) {
     );
   }
 }
+function assertServerClock(input = {}) {
+  if (Object.hasOwn(input, "now") || Object.hasOwn(input, "currentTime")) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_CALLER_CLOCK_FORBIDDEN",
+      "Metric observation freshness uses the server-authoritative clock.",
+      400,
+      [{ field: Object.hasOwn(input, "now") ? "now" : "currentTime", issue: "caller_clock_forbidden" }],
+    );
+  }
+}
 function platformOnly(items, tenantId) {
   return tenantId == null ? items.filter((item) => item.tenantId == null) : items;
 }
@@ -186,6 +196,7 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   }
 
   async function recordMetricObservation(input = {}) {
+    assertServerClock(input);
     const idempotencyKey = text(input.idempotencyKey ?? input.idempotency_key, "idempotencyKey");
     const tenantId = text(input.tenantId ?? input.tenant_id, "tenantId", 64);
     const activityBindingId = text(input.activityBindingId ?? input.activity_binding_id, "activityBindingId", 64);
@@ -198,7 +209,7 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     assertBindingScope(binding, input);
     const definition = await store.getKpiDefinition({ normalizedKpiKey: binding.normalizedKpiKey, definitionVersion: binding.definitionVersion });
     assertWritableDefinition(definition);
-    const observation = normalizeGrowthControlMetricObservation(input, { definition, binding, now: input.now || new Date() });
+    const observation = normalizeGrowthControlMetricObservation(input, { definition, binding, now: new Date() });
     const readback = await store.appendNormalizedMetricObservation({ observation, idempotencyKey });
     if (!readback || readback.observationSha256 !== observation.observationSha256) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_READBACK_MISMATCH", "Metric observation readback did not match the normalized observation.", 500);
     return Object.freeze({ observation: readback, idempotentReplay: Boolean(readback.idempotentReplay), sameCycleReadback: true, providerCalls: false, externalWrites: false, secretsIncluded: false });
@@ -224,4 +235,4 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   return Object.freeze({ projectAdminPortfolio, projectTenantPortfolio, projectKpiCatalog, projectAdminOperationalHealth, projectTenantOperationalHealth, recordMetricObservation, recordDecisionEvidence, recordObservabilitySample });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ READABLE_KPI_STATUSES, WRITABLE_KPI_STATUSES, text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope, assertWritableDefinition, platformOnly });
+export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ READABLE_KPI_STATUSES, WRITABLE_KPI_STATUSES, text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope, assertWritableDefinition, assertServerClock, platformOnly });
