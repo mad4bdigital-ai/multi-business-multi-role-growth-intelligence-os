@@ -24,6 +24,16 @@ Define the outcome in user and operational terms.
 
 - [non-goal]
 
+## Work Map integration and dimension discovery
+
+Generate `work-map-integration.json` using:
+
+```text
+node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --scaffold [NNN-feature-name] --owner [owner]
+```
+
+Review every generated Work Map, schema domain, cross-map dependency, and remaining taxonomy gap. Each dimension must resolve to `integrate`, `reuse`, `extend`, `not_applicable`, `deferred_with_risk`, or `blocked` with evidence and delivery references. Reuse or extend existing maps before proposing a new map. No schema object may remain unclassified unless an owned, expiring intentional exception exists in the canonical classification registry.
+
 ## Actors and authority
 
 | Actor | Principal/auth mode | Allowed responsibilities | Forbidden overrides |
@@ -44,7 +54,7 @@ Reference `operation-paths.md`. Every path must define entry point, precondition
 
 ## Cross-cutting concerns
 
-Reference `concerns.md`. At minimum cover security, tenant isolation, privacy, replay, idempotency, availability, performance, observability, compatibility, deployment, rollback, and documentation.
+Reference `concerns.md`. At minimum cover security, tenant isolation, privacy, replay, idempotency, availability, performance, observability, compatibility, deployment, rollback, documentation, and all relevant Work Map dimensions.
 
 ## Functional requirements
 
@@ -60,7 +70,7 @@ Reference `concerns.md`. At minimum cover security, tenant isolation, privacy, r
 
 ## State and data requirements
 
-Reference `data-model.md`; identify existing and proposed entities, ownership, retention, indexes, transitions, and no-secret rules.
+Reference `data-model.md`; identify existing and proposed entities, ownership, retention, indexes, transitions, classification, existing Work Map coverage, and no-secret rules.
 
 ## Contracts
 
@@ -94,4 +104,4 @@ Define feature flags, compatibility windows, migration/backfill, canary/dark dep
 
 ## Delivery state
 
-State what this specification branch does and does not authorize.
+State what this specification branch does and does not authorize. Implementation may not start until `work-map-integration.json` is `ready_for_implementation` with no unresolved or accidental unclassified dimensions.

@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "artifact_groups": [
+    {
+      "key": "platform_work_maps",
+      "root": "docs/work-maps",
+      "producer_signatures": [
+        "platform-work-map-generator.mjs --write",
+        "repo-maintenance-sync.mjs --write"
+      ],
+      "consumer_signatures": [
+        "platform-work-map-generator.mjs --check"
+      ],
+      "approved_producers": [
+        "spec-kit-work-map-autofix",
+        "docs-agent",
+        "openapi-auto-sync"
+      ],
+      "required_consumers": [
+        "spec-kit-work-map-integration"
+      ]
+    }
+  ],
+  "pipelines": [
+    {
+      "key": "spec-kit-work-map-integration",
+      "workflow": ".github/workflows/spec-kit-work-map-integration.yml",
+      "mode": "validate",
+      "required_permissions": {
+        "contents": "read"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "pull_request",
+        "push"
+      ],
+      "required_path_patterns": [
+        ".specify/pipeline-connectivity-contract.json",
+        "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+        "http-generic-api/test-pipeline-connectivity-check.mjs",
+        ".github/workflows/**"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --check"
+      ],
+      "forbidden_commands": [
+        "platform-work-map-generator.mjs --write",
+        "git push",
+        "git commit"
+      ]
+    },
+    {
+      "key": "spec-kit-work-map-autofix",
+      "workflow": ".github/workflows/spec-kit-work-map-autofix.yml",
+      "mode": "write",
+      "required_permissions": {
+        "actions": "write",
+        "contents": "write"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "pull_request"
+      ],
+      "forbidden_triggers": [
+        "push",
+        "schedule",
+        "workflow_run"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --write",
+        "platform-work-map-generator.mjs --check",
+        "expected_head_sha",
+        "git push origin",
+        "git rev-parse HEAD",
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
+        "Direct autofix writes to main are forbidden",
+        "github.event.action == 'reopened'",
+        "github.event.pull_request.head.repo.full_name == github.repository",
+        "github.actor != 'github-actions[bot]'",
+        "work-map-autofix:authorized",
+        "format('spec-kit-work-map-noop-{0}', github.run_id)"
+      ],
+      "forbidden_commands": [
+        "--force",
+        "--force-with-lease"
+      ]
+    },
+    {
+      "key": "docs-agent",
+      "workflow": ".github/workflows/docs-agent.yml",
+      "mode": "preview_and_followup_pr",
+      "required_permissions": {
+        "contents": "read"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "pull_request",
+        "push"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "platform-work-map-generator.mjs --write",
+        "Upload generated documentation preview",
+        "Report preview-only PR mode",
+        "Main follow-up docs PR",
+        "git checkout -b",
+        "gh pr create",
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
+        "github.actor != 'github-actions[bot]'",
+        "github.event.pull_request.head.repo.full_name == github.repository"
+      ],
+      "forbidden_commands": [
+        "docs-agent-write",
+        "docs-agent-automerge",
+        "Commit generated documentation to PR branch",
+        "HEAD:refs/heads/${TARGET_BRANCH}"
+      ]
+    },
+    {
+      "key": "openapi-auto-sync",
+      "workflow": ".github/workflows/openapi-auto-sync.yml",
+      "mode": "conditional_write",
+      "required_permissions": {
+        "contents": "write"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "push"
+      ],
+      "required_path_patterns": [
+        ".specify/pipeline-connectivity-contract.json",
+        "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+        "http-generic-api/test-pipeline-connectivity-check.mjs",
+        ".github/workflows/openapi-auto-sync.yml"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "repo-maintenance-sync.mjs --write",
+        "github.actor != 'github-actions[bot]'",
+        "peter-evans/create-pull-request@v6"
+      ],
+      "forbidden_commands": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "spec-kit-work-map-autofix",
+      "to": "platform_work_maps",
+      "type": "produces"
+    },
+    {
+      "from": "docs-agent",
+      "to": "platform_work_maps",
+      "type": "followup_pr_produces"
+    },
+    {
+      "from": "openapi-auto-sync",
+      "to": "platform_work_maps",
+      "type": "conditionally_produces"
+    },
+    {
+      "from": "platform_work_maps",
+      "to": "spec-kit-work-map-integration",
+      "type": "validated_by"
+    },
+    {
+      "from": "spec-kit-work-map-integration",
+      "to": "spec-kit-work-map-autofix",
+      "type": "governed_repair_handoff"
+    },
+    {
+      "from": "spec-kit-work-map-autofix",
+      "to": "spec-kit-work-map-integration",
+      "type": "dispatches_validation"
+    },
+    {
+      "from": "docs-agent",
+      "to": "spec-kit-work-map-integration",
+      "type": "followup_pr_dispatches_validation"
+    }
+  ]
+}
