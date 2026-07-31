@@ -48,7 +48,7 @@ jobs:
 
       - name: Enforce bounded write set
         run: |
-          allowed='^(http-generic-api/governedReconciliationKernel\.js|http-generic-api/test-governed-reconciliation-kernel\.mjs|http-generic-api/scripts/manifests/test-manifest-spec011\.mjs|specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave\.md|specs/011-durable-governed-execution-and-agent-delegation/tasks\.md|http-generic-api/frontend-surface-dispatch\.generated\.json)$'
+          allowed='^(http-generic-api/governedReconciliationKernel\.js|http-generic-api/test-governed-reconciliation-kernel\.mjs|http-generic-api/scripts/manifests/test-manifest-spec011\.mjs|specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave\.md|specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave-delivery\.json|specs/011-durable-governed-execution-and-agent-delegation/tasks\.md|http-generic-api/frontend-surface-dispatch\.generated\.json)$'
           unexpected="$(git diff --name-only origin/main...HEAD; git diff --name-only)"
           unexpected="$(printf '%s\n' "$unexpected" | sed '/^$/d' | sort -u | grep -Ev "$allowed" || true)"
           if [ -n "$unexpected" ]; then
