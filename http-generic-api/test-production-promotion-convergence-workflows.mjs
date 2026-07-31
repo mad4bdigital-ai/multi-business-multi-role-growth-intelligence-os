@@ -67,6 +67,7 @@ for (const required of [
 for (const required of [
   /name: Certified Production Release Cut Validation/,
   /pull_request_target:/,
+  /runs-on: ubuntu-24\.04-arm/,
   /issues: write/,
   /gpt\/validate-certified-release-base-\*/,
   /gpt\/validate-certified-release-candidate-/,
