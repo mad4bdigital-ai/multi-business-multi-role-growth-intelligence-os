@@ -76,10 +76,10 @@ The suite proves deterministic compilation, version pinning, visibility, tenant 
 
 ## Final head provenance
 
-- The branch was reconciled non-force through `main` commit `d05091ada231e4bd022f1c4b71a0267021129296`.
-- The later verified `main` delta through `a5baa11f99e8639a43b1c0ea5f5ee77d1de04dc5` added only `.github/local-connector-closure/trigger-3945-792ff63a.txt`; it did not overlap the 22-file phase write set.
-- Deterministic frontend artifacts were regenerated and bounded-write verified by the `Frontend surface dispatch / refresh-generated` job from source head `c969a48ec6eab13069ad7e3d599dbc6620323ada`, producing commit `d2154e34ce4f16a4cea55eb9654539ad03af68d6`.
-- The final human-authored verification head records that evidence without authorizing or applying migrations, wiring runtime routes, deploying, restarting, or mutating production.
+- The branch was reconciled non-force through `main` commit `2646e5cb9e1d0d59b0f7328af9bc74047d6e857b` at source head `a4d32345dcea58090dfd34637a6b11a40041ed6c`.
+- Deterministic frontend artifacts were regenerated from that source and committed by `PR Generated Artifact Refresh` at `a072b98aa52f3e1a59eb0b53b2e9031927ade17b`.
+- The generated delta is limited to `frontend-operation-governance.generated.json` and `frontend-surface-dispatch.generated.json`; it preserves the 20-file functional phase write set.
+- This human-authored provenance commit creates the exact verification head after automation output; it does not authorize or apply migrations, wire runtime routes, deploy, restart, or mutate production.
 
 ## Explicit non-effects
 
