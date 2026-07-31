@@ -1,0 +1,81 @@
+name: EC4 Mutation Validation Certification
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ec4-mutation-validation-certification
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'gpt/spec-012-ec3-closeout-and-ec4-stage-20260731'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact stage branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-ec3-closeout-and-ec4-stage-20260731
+          fetch-depth: 0
+
+      - name: Register EC4 test exactly once
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/scripts/test-manifest.mjs')
+          text = path.read_text()
+          entry = '  "node test-execution-capsule-mutation-validation-pilot.mjs",\n'
+          anchor = '  "node test-execution-capsule-read-dispatch-gate.mjs",\n'
+          if text.count(entry) != 0:
+              raise SystemExit('EC4 command already registered before bounded certification')
+          if text.count(anchor) != 1:
+              raise SystemExit('canonical EC3 registration anchor is not unique')
+          text = text.replace(anchor, anchor + entry, 1)
+          path.write_text(text)
+          if path.read_text().count(entry) != 1:
+              raise SystemExit('EC4 command registration count is not exactly one')
+          PY
+
+      - name: Run EC0 through EC4 certification regressions
+        working-directory: http-generic-api
+        run: |
+          node test-execution-capsule-contract.mjs
+          node test-execution-capsule-shadow-adapter.mjs
+          node test-execution-capsule-shadow-composition.mjs
+          node test-execution-capsule-selected-read-pilot.mjs
+          node test-execution-capsule-read-dispatch-gate.mjs
+          node test-execution-capsule-mutation-validation-pilot.mjs
+          node test-context-kernel-api-projection.mjs
+
+      - name: Remove one-shot workflow and verify bounded write set
+        run: |
+          rm .github/workflows/ec4-mutation-validation-certification.yml
+          python - <<'PY'
+          import subprocess
+
+          changed = sorted(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          expected = sorted([
+              '.github/workflows/ec4-mutation-validation-certification.yml',
+              'http-generic-api/scripts/test-manifest.mjs',
+          ])
+          if changed != expected:
+              raise SystemExit(f'unexpected EC4 certification write set: {changed}')
+          PY
+
+      - name: Commit bounded EC4 certification
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ec4-mutation-validation-certification.yml \
+            http-generic-api/scripts/test-manifest.mjs
+          git commit -m "test(spec-012): certify EC4 mutation validation pilot"
+          git push origin HEAD:gpt/spec-012-ec3-closeout-and-ec4-stage-20260731
