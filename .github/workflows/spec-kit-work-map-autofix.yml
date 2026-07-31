@@ -1,0 +1,118 @@
+name: Spec Kit Work Map Autofix
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Existing same-repository pull-request branch to update
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact branch head SHA authorized for regeneration
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec-kit-work-map-autofix-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Regenerate Work Maps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate authorized target
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          git check-ref-format --branch "${TARGET_BRANCH}"
+          if [[ "${TARGET_BRANCH}" == "main" ]]; then
+            echo "Direct autofix writes to main are forbidden; use a pull-request branch."
+            exit 1
+          fi
+          if [[ ! "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_head_sha must be a full lowercase 40-character commit SHA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.expected_head_sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Pin authorized branch head
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${actual_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Checked-out head mismatch. Expected ${EXPECTED_HEAD_SHA}, found ${actual_head_sha}."
+            exit 1
+          fi
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+
+      - name: Validate generator and classification contracts
+        run: |
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and verify idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Generator modified files outside docs/work-maps:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_diff_hash}" != "${second_diff_hash}" ]]; then
+            echo "Refusing to commit non-idempotent Work Map generation."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Commit generated artifacts
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/work-maps; then
+            echo "Generated Work Maps are already current; no commit created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps
+          git commit -m "docs(work-maps): regenerate governed platform maps"
+          git push --force-with-lease="refs/heads/${TARGET_BRANCH}:${EXPECTED_HEAD_SHA}" origin "HEAD:refs/heads/${TARGET_BRANCH}"
