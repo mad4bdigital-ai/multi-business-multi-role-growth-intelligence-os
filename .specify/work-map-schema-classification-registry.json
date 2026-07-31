@@ -34,6 +34,13 @@
       "rationale": "Dynamic containers, hierarchy, relationships, projections, overrides, canaries, and performance readbacks form the existing platform resource and authority graph."
     },
     {
+      "rule_key": "growth_control_configuration_authority",
+      "match": { "prefixes": ["growth_control_", "v_growth_control_"] },
+      "domain": "Governance & authority",
+      "existing_map_refs": ["policy-authority-map", "platform-resource-graph-map", "workflow-task-orchestration-map", "observability-release-map", "data-model-domain-map"],
+      "rationale": "Growth Control configuration versions, Activity Pack definitions, lifecycle bindings, compiled decisions, and parity readbacks are governed authority resources represented by the existing policy, resource, workflow, and observability maps."
+    },
+    {
       "rule_key": "growth_dashboard_intelligence",
       "match": { "prefixes": ["growth_dashboard_"] },
       "domain": "Agents & intelligence",
