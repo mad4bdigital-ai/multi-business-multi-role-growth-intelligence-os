@@ -62,6 +62,15 @@ jobs:
             fi
           }
 
+          require_sha256() {
+            local label="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "::error::$label must resolve to an exact lowercase 64-character SHA-256 digest"
+              return 1
+            fi
+          }
+
           resolve_run() {
             local workflow="$1"
             local earliest="$2"
@@ -280,12 +289,25 @@ jobs:
 
             ATTEMPT_EVIDENCE_DIR="$RUNNER_TEMP/production-promotion-exact-${attempt}"
             mkdir -p "$ATTEMPT_EVIDENCE_DIR"
-            gh run download "$EXACT_RUN_ID" \
-              --repo "$REPOSITORY" \
-              --name "production-promotion-exact-candidate-ci-${CANDIDATE_SHA}" \
-              --dir "$ATTEMPT_EVIDENCE_DIR"
+            ARTIFACT_DOWNLOADED=0
+            for _ in $(seq 1 5); do
+              if gh run download "$EXACT_RUN_ID" \
+                --repo "$REPOSITORY" \
+                --name "production-promotion-exact-candidate-ci-${CANDIDATE_SHA}" \
+                --dir "$ATTEMPT_EVIDENCE_DIR"; then
+                ARTIFACT_DOWNLOADED=1
+                break
+              fi
+              sleep 10
+            done
+            if [[ "$ARTIFACT_DOWNLOADED" != "1" ]]; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
             EVIDENCE_DIGEST="$(find "$ATTEMPT_EVIDENCE_DIR" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-            require_sha EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
+            require_sha256 EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
 
             jq -n \
               --arg main_sha "$MAIN_SHA" \
