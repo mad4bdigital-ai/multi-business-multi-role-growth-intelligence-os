@@ -57,7 +57,7 @@ jobs:
           npm run frontend:dispatch:generate
           node scripts/surface-contract-discovery.mjs --write
 
-      - name: Validate syntax and focused contracts
+      - name: Validate patched source syntax
         working-directory: http-generic-api
         run: |
           node --check routes/tenantLifecycleRoutes.js
@@ -67,11 +67,26 @@ jobs:
           node --check agentSurfaceRuntimeService.js
           node --check scripts/resource-api-callability-contracts.mjs
           node --check scripts/surface-contract-sql-registry-extractor.mjs
-          node test-surface-contract-sql-registry-extractor.mjs
-          node test-resource-api-callability-effect-classes.mjs
-          node test-multi-surface-agent-runtime.mjs
-          node test-resource-api-coverage.mjs
-          node test-surface-callability-full-closure.mjs
+
+      - name: Validate SQL registry extraction contracts
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Validate callability effect and auth contracts
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Validate multi-surface agent runtime
+        working-directory: http-generic-api
+        run: node test-multi-surface-agent-runtime.mjs
+
+      - name: Validate resource API coverage
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Validate full Surface queue closure
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
 
       - name: Enforce queue zero and bounded write set
         shell: bash
