@@ -24,6 +24,179 @@ jobs:
           ref: gpt/spec-012-ec3-closeout-and-ec4-stage-20260731
           fetch-depth: 0
 
+      - name: Bind refreshed evidence to mutation authorities
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/contextKernel/integration/executionCapsuleMutationValidationPilot.js')
+          text = path.read_text()
+          marker = '\nfunction safeExecutionContext(capsule) {'
+          binding = '''
+function requireDynamicEvidenceBindings(dynamicEvidence, {
+  capsule,
+  approval,
+  mutationDescriptor,
+}) {
+  const byKey = new Map(dynamicEvidence.refreshedEvidence.map((entry) => [entry.key, entry]));
+  const expectedRevisions = new Map([
+    ["approval_state", approval.approvalRevision],
+    ["capability_envelope", capsule.capabilityRevision],
+    ["connection_status", capsule.credentialReadinessRevision],
+    ["owner_authority", capsule.authorityRevision],
+    ["resource_version", mutationDescriptor.expectedResourceVersion],
+  ]);
+  const reasonCodes = [];
+  for (const [key, expectedRevision] of expectedRevisions.entries()) {
+    const evidence = byKey.get(key);
+    if (evidence && evidence.revision !== expectedRevision) {
+      reasonCodes.push(`execution_capsule_mutation_${key}_revision_mismatch`);
+    }
+  }
+  if (reasonCodes.length > 0) {
+    throw new ExecutionCapsuleMutationValidationError(
+      "execution_capsule_mutation_dynamic_evidence_binding_mismatch",
+      reasonCodes,
+    );
+  }
+}
+'''
+          if text.count(marker) != 1:
+              raise SystemExit('safeExecutionContext insertion marker is not unique')
+          text = text.replace(marker, '\n' + binding + marker, 1)
+
+          state_old = '''      let normalizedOperation = null;
+      let validation = null;
+      let executorInvoked = false;'''
+          state_new = '''      let normalizedOperation = null;
+      let validation = null;
+      let governance = null;
+      let approval = null;
+      let executorInvoked = false;'''
+          if text.count(state_old) != 1:
+              raise SystemExit('EC4 execution state marker is not unique')
+          text = text.replace(state_old, state_new, 1)
+
+          replacements = [
+              ('        const governance = requireGovernanceDecision(', '        governance = requireGovernanceDecision('),
+              ('        const approval = requireApprovalDecision(', '        approval = requireApprovalDecision('),
+              ('          governanceStatus: null,', '          governanceStatus: governance?.status || null,'),
+              ('          approvalStatus: null,', '          approvalStatus: approval?.status || null,'),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'EC4 binding repair marker is not unique: {old!r}')
+              text = text.replace(old, new, 1)
+
+          envelope_marker = '        const executionEnvelope = deepFreeze({'
+          binding_call = '''        requireDynamicEvidenceBindings(dynamicEvidence, {
+          capsule: canonicalCapsule,
+          approval,
+          mutationDescriptor: normalizedMutation,
+        });
+'''
+          if text.count(envelope_marker) != 1:
+              raise SystemExit('EC4 execution envelope marker is not unique')
+          text = text.replace(envelope_marker, binding_call + envelope_marker, 1)
+          path.write_text(text)
+          PY
+
+      - name: Strengthen EC4 dynamic-binding and rollback regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/test-execution-capsule-mutation-validation-pilot.mjs')
+          text = path.read_text()
+
+          evidence_old = '''const refreshedEvidence = Object.freeze(dynamicEvidenceKeys.map((key) => Object.freeze({
+  key,
+  revision: `${key}-revision-a`,
+  status: "current",
+})));'''
+          evidence_new = '''const dynamicEvidenceRevisions = Object.freeze({
+  approval_state: "approval-revision-a",
+  capability_envelope: "capability-revision-a",
+  connection_status: "credential-readiness-revision-a",
+  owner_authority: "authority-revision-a",
+  resource_version: "version-1",
+});
+const refreshedEvidence = Object.freeze(dynamicEvidenceKeys.map((key) => Object.freeze({
+  key,
+  revision: dynamicEvidenceRevisions[key],
+  status: "current",
+})));'''
+          if text.count(evidence_old) != 1:
+              raise SystemExit('EC4 refreshed evidence fixture marker is not unique')
+          text = text.replace(evidence_old, evidence_new, 1)
+
+          governance_marker = 'const governanceBlockedPilot = createExecutionCapsuleMutationValidationPilot({'
+          mismatch_test = '''const bindingMismatchPilot = createExecutionCapsuleMutationValidationPilot({
+  enabled: true,
+  capsuleService,
+  dynamicEvidenceProvider: async () => completeDynamicEvidence({
+    refreshedEvidence: refreshedEvidence.map((entry) => entry.key === "resource_version"
+      ? { ...entry, revision: "version-stale" }
+      : entry),
+  }),
+  async executeReversibleMutation() {
+    blockedExecutorCalls += 1;
+  },
+  emitTelemetry: async () => {},
+});
+await assert.rejects(
+  () => bindingMismatchPilot.execute({
+    capsule,
+    operationContract,
+    governanceDecision,
+    approvalDecision,
+    mutationDescriptor,
+  }),
+  (error) => error.code === "execution_capsule_mutation_dynamic_evidence_binding_mismatch" &&
+    error.reasonCodes.includes("execution_capsule_mutation_resource_version_revision_mismatch"),
+);
+assert.equal(blockedExecutorCalls, 0);
+
+'''
+          if text.count(governance_marker) != 1:
+              raise SystemExit('EC4 governance test insertion marker is not unique')
+          text = text.replace(governance_marker, mismatch_test + governance_marker, 1)
+
+          executor_old = '''assert.equal(executorFailureEvents[0].executorInvoked, true);
+assert.equal(executorFailureEvents[0].mutationApplied, false);'''
+          executor_new = '''assert.equal(executorFailureEvents[0].executorInvoked, true);
+assert.equal(executorFailureEvents[0].mutationApplied, false);
+assert.equal(executorFailureEvents[0].governanceStatus, "allowed");
+assert.equal(executorFailureEvents[0].approvalStatus, "approved");'''
+          if text.count(executor_old) != 1:
+              raise SystemExit('EC4 executor failure evidence marker is not unique')
+          text = text.replace(executor_old, executor_new, 1)
+
+          rollback_old = '''const rolledBack = pilot.rollback();
+assert.equal(rolledBack.enabled, false);
+assert.equal(await rolledBack.execute({ legacyInput }), receipt);'''
+          rollback_new = '''const rolledBack = createExecutionCapsuleMutationValidationPilot({
+  enabled: true,
+  capsuleService,
+  dynamicEvidenceProvider: async () => completeDynamicEvidence(),
+  executeReversibleMutation: async (input) => input === legacyInput ? receipt : legacyResult,
+  emitTelemetry: async () => {},
+}).rollback();
+assert.equal(rolledBack.enabled, false);
+assert.equal(await rolledBack.execute({ legacyInput }), receipt);'''
+          if text.count(rollback_old) != 1:
+              raise SystemExit('EC4 rollback regression marker is not unique')
+          text = text.replace(rollback_old, rollback_new, 1)
+
+          source_marker = 'assert.match(source, /dynamicRefreshComplete/);'
+          source_new = '''assert.match(source, /dynamicRefreshComplete/);
+assert.match(source, /dynamic_evidence_binding_mismatch/);'''
+          if text.count(source_marker) != 1:
+              raise SystemExit('EC4 source assertion marker is not unique')
+          text = text.replace(source_marker, source_new, 1)
+          path.write_text(text)
+          PY
+
       - name: Register EC4 test exactly once
         run: |
           python - <<'PY'
@@ -65,7 +238,9 @@ jobs:
           ).splitlines())
           expected = sorted([
               '.github/workflows/ec4-mutation-validation-certification.yml',
+              'http-generic-api/contextKernel/integration/executionCapsuleMutationValidationPilot.js',
               'http-generic-api/scripts/test-manifest.mjs',
+              'http-generic-api/test-execution-capsule-mutation-validation-pilot.mjs',
           ])
           if changed != expected:
               raise SystemExit(f'unexpected EC4 certification write set: {changed}')
@@ -76,6 +251,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/workflows/ec4-mutation-validation-certification.yml \
-            http-generic-api/scripts/test-manifest.mjs
+            http-generic-api/contextKernel/integration/executionCapsuleMutationValidationPilot.js \
+            http-generic-api/scripts/test-manifest.mjs \
+            http-generic-api/test-execution-capsule-mutation-validation-pilot.mjs
           git commit -m "test(spec-012): certify EC4 mutation validation pilot"
           git push origin HEAD:gpt/spec-012-ec3-closeout-and-ec4-stage-20260731
