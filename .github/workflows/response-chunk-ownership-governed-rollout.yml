@@ -1,0 +1,168 @@
+name: Governed Response Chunk Ownership Rollout
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  readiness:
+    name: Authorize and dry-run response chunk ownership
+    if: >-
+      github.event.issue.number == 4191 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: response-chunk-ownership-readiness
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: readiness
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4191'
+      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-readiness
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Record readiness start
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/${{ github.repository }}/issues/4191/comments' \
+            -f body="GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
+
+      - name: Execute integrated readiness wave
+        run: node .github/ops/response-chunk-ownership-governed-rollout.mjs
+
+      - name: Upload no-secret readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: response-chunk-ownership-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record readiness outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE' >"${RUNNER_TEMP}/readiness-comment.txt"
+          const fs = require('node:fs');
+          const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
+          const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
+          let body;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} migration_blob=${s.migration_blob_sha} checksum=${s.checksum} statement_count=${s.statement_count} authorization=${s.authorization || 'already_applied'} dry_run=${s.dry_run || 'already_applied'} artifact=response-chunk-ownership-readiness-${process.env.GITHUB_RUN_ID}`;
+          } else {
+            const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
+            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} apply_sent=${f.apply_sent || false} error_code=${f.error?.code || 'workflow_failed'} artifact=response-chunk-ownership-readiness-${process.env.GITHUB_RUN_ID}`;
+          }
+          process.stdout.write(body);
+          NODE
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/${{ github.repository }}/issues/4191/comments' \
+            -f body="$(cat "${RUNNER_TEMP}/readiness-comment.txt")"
+
+  apply:
+    name: Apply and certify response chunk ownership
+    if: >-
+      github.event.issue.number == 4191 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: response-chunk-ownership-apply
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: apply
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4191'
+      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-apply
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Record apply start
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/${{ github.repository }}/issues/4191/comments' \
+            -f body="GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
+
+      - name: Execute integrated apply and certification wave
+        run: node .github/ops/response-chunk-ownership-governed-rollout.mjs
+
+      - name: Upload no-secret apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: response-chunk-ownership-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record apply outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE' >"${RUNNER_TEMP}/apply-comment.txt"
+          const fs = require('node:fs');
+          const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
+          const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
+          let body;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} migration_blob=${s.migration_blob_sha} checksum=${s.checksum} statement_count=${s.statement_count} apply_sent=${s.apply_sent_by_this_run} apply_retried=false ledger=pass readiness=pass artifact=response-chunk-ownership-apply-${process.env.GITHUB_RUN_ID}`;
+          } else {
+            const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
+            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} apply_sent=${f.apply_sent || false} error_code=${f.error?.code || 'workflow_failed'} artifact=response-chunk-ownership-apply-${process.env.GITHUB_RUN_ID}`;
+          }
+          process.stdout.write(body);
+          NODE
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/${{ github.repository }}/issues/4191/comments' \
+            -f body="$(cat "${RUNNER_TEMP}/apply-comment.txt")"
