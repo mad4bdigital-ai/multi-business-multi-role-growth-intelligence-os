@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const MUTATION_CONTRACT_FILE = "resource-api-mutation-callability.manifest.json";
+const CONTRACT_MANIFEST_FILES = Object.freeze([
+  { file: "resource-api-mutation-callability.manifest.json", schemaVersion: "resource-api-mutation-callability-v1" },
+  { file: "resource-api-surface-callability.manifest.json", schemaVersion: "resource-api-surface-callability-v1" },
+]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const EFFECT_PROFILES = Object.freeze({
   read_only: Object.freeze({
@@ -86,20 +89,23 @@ function requireMarkers({ source, markers, findings, contractKey, role, file }) 
   }
 }
 
-function loadMutationContracts(root, findings) {
-  const filePath = path.join(path.resolve(root), MUTATION_CONTRACT_FILE);
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    if (payload.schema_version !== "resource-api-mutation-callability-v1" || !Array.isArray(payload.contracts)) {
-      findings.push({ type: "mutation_callability_manifest_invalid", file: MUTATION_CONTRACT_FILE });
-      return [];
+function loadContractManifests(root, findings) {
+  const contracts = [];
+  for (const definition of CONTRACT_MANIFEST_FILES) {
+    const filePath = path.join(path.resolve(root), definition.file);
+    if (!fs.existsSync(filePath)) continue;
+    try {
+      const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (payload.schema_version !== definition.schemaVersion || !Array.isArray(payload.contracts)) {
+        findings.push({ type: "callability_manifest_invalid", file: definition.file, expected_schema_version: definition.schemaVersion });
+        continue;
+      }
+      contracts.push(...payload.contracts);
+    } catch (error) {
+      findings.push({ type: "callability_manifest_invalid", file: definition.file, message: String(error?.message || error) });
     }
-    return payload.contracts;
-  } catch (error) {
-    findings.push({ type: "mutation_callability_manifest_invalid", file: MUTATION_CONTRACT_FILE, message: String(error?.message || error) });
-    return [];
   }
+  return contracts;
 }
 
 function contractToolBindings(contract, findings, contractKey) {
@@ -169,7 +175,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
   const findings = [];
   const baseContracts = manifest?.callability_gate?.direct_route_contracts;
   if (baseContracts !== undefined && !Array.isArray(baseContracts)) findings.push({ type: "direct_route_contracts_invalid" });
-  const contracts = [...(Array.isArray(baseContracts) ? baseContracts : []), ...loadMutationContracts(root, findings)];
+  const contracts = [...(Array.isArray(baseContracts) ? baseContracts : []), ...loadContractManifests(root, findings)];
   if (baseContracts === undefined && contracts.length === 0) return { ok: findings.length === 0, findings, contracts: [], covered_contracts: [], covered_tool_keys: [], covered_route_signatures: [], covered_migration_files: [], secrets_included: false };
 
   const seenContractKeys = new Set();
