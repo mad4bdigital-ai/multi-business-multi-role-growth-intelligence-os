@@ -46,11 +46,11 @@ function inferOperationFromSignal(signal = "") {
   const normalized = normalize(signal);
   const rules = [
     [/(?:^|[\s._-])(delete|remove|revoke)(?:$|[\s._-])/, "delete"],
+    [/(?:^|[\s._-])(deploy|restart|apply|execute|run|migrate|rollback|install|uninstall|start|stop|approve)(?:$|[\s._-])/, "execute"],
     [/(?:^|[\s._-])(publish|send)(?:$|[\s._-])/, "publish"],
+    [/(?:^|[\s._-])(dispatch|trigger)(?:$|[\s._-])/, "dispatch"],
     [/(?:^|[\s._-])(create|insert|add)(?:$|[\s._-])/, "create"],
     [/(?:^|[\s._-])(update|edit|patch|write|sync)(?:$|[\s._-])/, "update"],
-    [/(?:^|[\s._-])(dispatch|trigger)(?:$|[\s._-])/, "dispatch"],
-    [/(?:^|[\s._-])(deploy|restart|apply|execute|run|migrate|rollback|install|uninstall|start|stop|approve)(?:$|[\s._-])/, "execute"],
   ];
   for (const [pattern, operation] of rules) {
     if (pattern.test(normalized)) return operation;
