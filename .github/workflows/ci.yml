@@ -74,25 +74,10 @@ jobs:
             node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
           done
 
-  test-diagnostics:
-    name: Unit & Integration Tests · ${{ matrix.shard }}
+  test:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
     needs: syntax
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      max-parallel: 9
-      matrix:
-        shard:
-          - boundary-contracts
-          - manifest-1
-          - manifest-2
-          - manifest-3
-          - manifest-4
-          - managed-transport
-          - adaptive-authorization
-          - startup
-          - governance
     steps:
       - uses: actions/checkout@v5
         with:
@@ -109,7 +94,6 @@ jobs:
         run: npm ci
 
       - name: Determine context-kernel hardcoding ratchet scope
-        if: matrix.shard == 'boundary-contracts'
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -138,99 +122,68 @@ jobs:
           echo "Changed files considered by the ratchet:"
           cat "$CHANGED_FILES"
 
-      - name: Capture interruption readiness evidence
-        id: readiness-baseline
+      - name: Block context-kernel runtime hardcoding regressions
+        working-directory: http-generic-api
+        run: node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
+
+      - name: Validate Connect auth, secret boundary, and atomic bootstrap
+        working-directory: http-generic-api
+        run: |
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
+
+      - name: Guard dependency and runtime interruption readiness
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
-      - name: Run diagnostic shard
+      - name: Run tests
         working-directory: http-generic-api
-        shell: bash
         env:
-          DIAGNOSTIC_SHARD: ${{ matrix.shard }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Upload ordered test progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-integration-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
           DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
           DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
         run: |
-          set -euo pipefail
-          echo "Running diagnostic shard: $DIAGNOSTIC_SHARD"
-          case "$DIAGNOSTIC_SHARD" in
-            boundary-contracts)
-              node test-run-test-manifest-sharding.mjs
-              node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
-              node test-user-jwt-auth.mjs
-              node test-connect-secret-boundary.mjs
-              node test-tenant-connect-bootstrap-transaction.mjs
-              node test-tenant-connection-self-repair-routes.mjs
-              node test-brand-skill-migration-preflight.mjs
-              node test-brand-skill-mariadb-certification-contract.mjs
-              ;;
-            manifest-*)
-              SHARD_INDEX="${DIAGNOSTIC_SHARD#manifest-}"
-              node scripts/run-test-manifest.mjs --shard-index="$SHARD_INDEX" --shard-count=4
-              ;;
-            managed-transport)
-              node test-managed-git-remote-transport.mjs
-              node test-operation-orchestrator-managed-git-transport.mjs
-              node test-managed-git-remote-transport-input-hardening.mjs
-              node test-dynamic-container-override-governance-smoke.mjs
-              ;;
-            adaptive-authorization)
-              node scripts/run-adaptive-authorization-verification-manifest.mjs
-              ;;
-            startup)
-              node test-deployment-manifest-generator.mjs
-              npm run manifest:deployment
-              node test-server-startup-smoke.mjs
-              ;;
-            governance)
-              node test-custom-gpt-schemas.mjs
-              node test-tenant-activation-contract-inventory-parity.mjs
-              node test-activation-lifecycle-contract-foundation.mjs
-              node test-activation-lifecycle-state-machine.mjs
-              node test-activation-lifecycle-operation-service.mjs
-              node test-activation-reconnect-guidance-policy.mjs
-              node test-activation-contract-finalization.mjs
-              node test-activation-operation-projection-foundation.mjs
-              node test-activation-operation-persistence-repository.mjs
-              node test-activation-delivery-acknowledgement-repository.mjs
-              node test-openapi-split-governance.mjs
-              node test-openapi-split-regeneration-parity.mjs
-              node test-local-connector-capability-installer-grants.mjs
-              ;;
-            *)
-              echo "Unknown diagnostic shard: $DIAGNOSTIC_SHARD" >&2
-              exit 1
-              ;;
-          esac
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run explicit governance contract checks
+        working-directory: http-generic-api
+        run: |
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
+          node test-activation-lifecycle-operation-service.mjs
+          node test-activation-reconnect-guidance-policy.mjs
+          node test-activation-contract-finalization.mjs
+          node test-activation-operation-projection-foundation.mjs
+          node test-activation-operation-persistence-repository.mjs
+          node test-activation-delivery-acknowledgement-repository.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+          node test-local-connector-capability-installer-grants.mjs
 
       - name: Reject stale readiness evidence
-        if: always() && steps.readiness-baseline.outcome == 'success'
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
-
-  test:
-    name: Unit & Integration Tests
-    if: always()
-    runs-on: ubuntu-latest
-    needs:
-      - syntax
-      - test-diagnostics
-    steps:
-      - name: Require every diagnostic shard
-        shell: bash
-        env:
-          SYNTAX_RESULT: ${{ needs.syntax.result }}
-          DIAGNOSTIC_RESULT: ${{ needs.test-diagnostics.result }}
-        run: |
-          set -euo pipefail
-          echo "Syntax Check: $SYNTAX_RESULT"
-          echo "Diagnostic shards: $DIAGNOSTIC_RESULT"
-          if [[ "$SYNTAX_RESULT" != "success" || "$DIAGNOSTIC_RESULT" != "success" ]]; then
-            echo "One or more Unit & Integration diagnostic shards did not succeed." >&2
-            exit 1
-          fi
-          echo "All Unit & Integration diagnostic shards succeeded."
 
   execution-resolver-gate:
     name: Execution Resolver Gate
