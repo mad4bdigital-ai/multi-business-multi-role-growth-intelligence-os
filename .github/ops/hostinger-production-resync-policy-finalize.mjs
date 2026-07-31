@@ -179,7 +179,15 @@ async function createReadyExecutionEnvelope(bindingSha) {
         '--ttl-minutes=30',
       ],
     )), 'governed_migration_execute_envelope_approve');
-    envelope = findObjectWithKey(approved, 'envelope_id') || envelope;
+    const approvedEnvelope = findObjectWithKey(approved, 'envelope_id');
+    if (approvedEnvelope) {
+      envelope = {
+        ...envelope,
+        ...approvedEnvelope,
+        dispatch_allowed: approvedEnvelope.dispatch_allowed ?? envelope.dispatch_allowed,
+        approval_required: false,
+      };
+    }
   }
 
   assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Execution envelope is not ready_for_dispatch');
