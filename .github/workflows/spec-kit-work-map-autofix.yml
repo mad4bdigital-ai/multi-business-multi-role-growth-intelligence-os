@@ -81,6 +81,20 @@ jobs:
 
       - name: Validate generator, classification, and pipeline contracts
         run: |
+          set -euo pipefail
+          set -x
+          echo "WORK_MAP_DIAGNOSTIC_HEAD=$(git rev-parse HEAD)"
+          echo "WORK_MAP_DIAGNOSTIC_NODE=$(command -v node)"
+          node --version
+          env | sort | grep -E '^(NODE|PATH|RUNNER|GITHUB_WORKSPACE)=' || true
+          echo "WORK_MAP_DIAGNOSTIC_MATCHING_PATHS"
+          git ls-files | grep -iE 'work-map-schema-classification(-contract)?\.mjs$' || true
+          echo "WORK_MAP_DIAGNOSTIC_CONTRACT_HASH"
+          sha256sum http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          echo "WORK_MAP_DIAGNOSTIC_SOURCE_TERMS"
+          grep -RInE 'primaryFamilies|SCHEMA_CLASSIFICATION_CONTRACT|UNKNOWN_DOMAIN' .specify http-generic-api --exclude-dir=node_modules || true
+
+          echo "WORK_MAP_COMMAND=syntax_checks"
           node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
@@ -88,11 +102,18 @@ jobs:
           node --check http-generic-api/test-work-map-schema-classification.mjs
           node --check http-generic-api/test-work-map-schema-classification-contract.mjs
           node --check http-generic-api/test-pipeline-connectivity-check.mjs
+
+          echo "WORK_MAP_COMMAND=pipeline_connectivity"
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          echo "WORK_MAP_COMMAND=pipeline_connectivity_regression"
           node http-generic-api/test-pipeline-connectivity-check.mjs
+          echo "WORK_MAP_COMMAND=schema_classification_contract"
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          echo "WORK_MAP_COMMAND=schema_classification"
           node http-generic-api/scripts/work-map-schema-classification.mjs
+          echo "WORK_MAP_COMMAND=schema_classification_regression"
           node http-generic-api/test-work-map-schema-classification.mjs
+          echo "WORK_MAP_COMMAND=schema_classification_contract_regression"
           node http-generic-api/test-work-map-schema-classification-contract.mjs
 
       - name: Regenerate and verify idempotency
