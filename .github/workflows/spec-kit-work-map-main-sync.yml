@@ -55,11 +55,9 @@ jobs:
             git clean -fd
 
             echo "Branch ${branch_sha}; main ${main_sha}."
+            merged_main=false
             if git merge-base --is-ancestor "${main_sha}" "${branch_sha}"; then
-              echo "Branch already contains latest main; only removing the temporary synchronizer."
-              rm -f .github/workflows/spec-kit-work-map-main-sync.yml
-              git add -A .github/workflows/spec-kit-work-map-main-sync.yml
-              git commit -m "chore: remove completed Work Map synchronizer"
+              echo "Branch already contains latest main; regenerating Work Maps before cleanup."
             else
               set +e
               git merge --no-ff --no-commit "${main_sha}"
@@ -90,19 +88,28 @@ jobs:
                 printf '%s\n' "${unresolved}"
                 exit 1
               fi
+              merged_main=true
+            fi
 
-              node http-generic-api/scripts/platform-work-map-generator.mjs --write
-              node http-generic-api/scripts/platform-work-map-generator.mjs --check
-              git add docs/work-maps
-              rm -f .github/workflows/spec-kit-work-map-main-sync.yml
-              git add -A .github/workflows/spec-kit-work-map-main-sync.yml
+            node http-generic-api/scripts/platform-work-map-generator.mjs --write
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            git add docs/work-maps
+            rm -f .github/workflows/spec-kit-work-map-main-sync.yml
+            git add -A .github/workflows/spec-kit-work-map-main-sync.yml
 
-              if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- . ':!http-generic-api/package-lock.json'; then
-                echo "Conflict markers detected."
-                exit 1
-              fi
+            if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- . ':!http-generic-api/package-lock.json'; then
+              echo "Conflict markers detected."
+              exit 1
+            fi
 
+            if git diff --cached --quiet; then
+              echo "No synchronized changes were produced."
+              exit 1
+            fi
+            if [[ "${merged_main}" == "true" ]]; then
               git commit -m "chore: merge latest main into Work Map integration branch"
+            else
+              git commit -m "chore: refresh Work Maps and remove completed synchronizer"
             fi
 
             node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
