@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "74417d9296243b5061d6d5e10f2a79706e6d740c748b72457ec540e0d2dca357",
+    "source_digest": "1caf04da6ef5bdfcc40c4169cc0616758fb51f8df4930810457bfc3110dd4d96",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -82,6 +82,11 @@
       {
         "file": "openapi/github-repository-main-moved-webhook.yaml",
         "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
+        "present": true
+      },
+      {
+        "file": "openapi/growth-control-plane-admin-ui.openapi.yaml",
+        "sha256": "e1a4a3f90ea743b0da3f9b680cac7d97a637a1a73f0644880227f0e13caf2212",
         "present": true
       },
       {
@@ -516,7 +521,7 @@
       },
       {
         "file": "routes/dynamicGrowthControlPlaneRoutes.js",
-        "sha256": "15b070604639d7fa52fbfc45ca7d3ff3cf0e5f617b51f0e037ba4154e3ae1cc3",
+        "sha256": "06d8502323d0ae6959bef5d0f431f34b53949ed455c2e1477bbfecdc0764473b",
         "present": true
       },
       {
@@ -1024,15 +1029,15 @@
     "mounted_family_count": 170,
     "mounted_route_file_count": 137,
     "mixed_scope_route_file_count": 25,
-    "operation_count": 1021,
-    "openapi_documented_count": 1005,
-    "openapi_canonical_documented_count": 628,
+    "operation_count": 1022,
+    "openapi_documented_count": 1006,
+    "openapi_canonical_documented_count": 629,
     "openapi_generated_index_count": 377,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
-      "equivalent": 1005,
+      "equivalent": 1006,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1046,7 +1051,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 170,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1018,
+    "untested_operation_count": 1019,
     "ready_task_count": 0,
     "blocked_task_count": 170,
     "coverage_complete": false
@@ -23866,7 +23871,7 @@
       "family_key": "dynamic-growth-control-plane",
       "label": "dynamic growth control plane",
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-      "source_digest": "15b070604639d7fa52fbfc45ca7d3ff3cf0e5f617b51f0e037ba4154e3ae1cc3",
+      "source_digest": "06d8502323d0ae6959bef5d0f431f34b53949ed455c2e1477bbfecdc0764473b",
       "mount_prefix": "/",
       "mount_order": 15780,
       "split_from_mixed_scope_file": false,
@@ -23909,6 +23914,76 @@
           },
           "openapi_auth": {
             "source_file": "openapi/growth-control-plane.openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/control-plane/configurations/{configKey}/ui-projection",
+          "signature": "GET /admin/control-plane/configurations/{configKey}/ui-projection",
+          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/growth-control-plane-admin-ui.openapi.yaml",
             "security_declared": false,
             "security_alternatives": [
               [
@@ -24744,6 +24819,7 @@
       "tests": [],
       "untested_operations": [
         "GET /admin/control-plane/configurations",
+        "GET /admin/control-plane/configurations/{configKey}/ui-projection",
         "POST /admin/control-plane/configurations",
         "POST /admin/control-plane/configurations/{configKey}/versions",
         "POST /admin/control-plane/configurations/{configKey}/resolve",
@@ -24766,6 +24842,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
@@ -87675,6 +87752,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
