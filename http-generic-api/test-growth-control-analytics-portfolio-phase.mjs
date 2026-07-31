@@ -151,7 +151,9 @@ const repository = {
   },
   async listKpiDefinitions() { return [definition]; },
   async getKpiDefinition() { return definition; },
-  async listActivityKpiBindings() { return bindings; },
+  async listActivityKpiBindings(input = {}) {
+    return bindings.filter((item) => !input.activityBindingIds?.length || input.activityBindingIds.includes(item.activityBindingId));
+  },
   async getActivityKpiBinding(input) { return bindings.find((item) => item.activityBindingId === input.activityBindingId && item.nativeKpiKey === input.nativeKpiKey) || null; },
   async listNormalizedMetricObservations(input) {
     return persistedObservations.filter((item) => item.tenantId === input.tenantId && (!input.workspaceIds?.length || input.workspaceIds.includes(item.workspaceId)) && (!input.brandKeys?.length || input.brandKeys.includes(item.brandKey)));
@@ -186,12 +188,22 @@ const scopedBinding = Object.freeze({
 });
 const scopedRepository = {
   ...repository,
-  async getActivityKpiBinding() { return scopedBinding; },
+  async listActivityKpiBindings() { return [scopedBinding]; },
 };
 const scopedService = createGrowthControlAnalyticsObservabilityService({ repository: scopedRepository });
 await assert.rejects(
   () => scopedService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-cross-scope", now }),
   (error) => error?.code === "GROWTH_CONTROL_KPI_BINDING_SCOPE_MISMATCH" && error?.status === 403,
+);
+
+const inactiveRepository = {
+  ...repository,
+  async getKpiDefinition() { return { ...definition, status: "draft" }; },
+};
+const inactiveService = createGrowthControlAnalyticsObservabilityService({ repository: inactiveRepository });
+await assert.rejects(
+  () => inactiveService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-inactive-definition", now }),
+  (error) => error?.code === "GROWTH_CONTROL_KPI_DEFINITION_NOT_ACTIVE" && error?.status === 409,
 );
 
 const mismatchingRepository = { ...repository, async appendNormalizedMetricObservation() { return { observationSha256: "0".repeat(64) }; } };
