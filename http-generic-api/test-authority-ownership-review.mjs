@@ -185,8 +185,8 @@ assert.equal(report.credential_payload_read, false);
 assert.equal(report.external_writes, false);
 assert.equal(report.secrets_included, false);
 assert.match(report.bindings.catalog_sha256, /^[a-f0-9]{64}$/);
-assert.match(report.bindings.source_bundle_sha256, /^[a-f0-9]{64}$/);
-assert.match(report.bindings.inventory_sha256, /^[a-f0-9]{64}$/);
+assert.equal(report.bindings.source_bundle_sha256, bundle.bundle_sha256);
+assert.equal(report.bindings.inventory_sha256, bundle.inventory.inventory_sha256);
 assert.match(report.review_sha256, /^[a-f0-9]{64}$/);
 assert.equal(Object.isFrozen(report), true);
 
@@ -205,6 +205,18 @@ const notLive = assessAuthorityOwnershipReview({
 assert.equal(notLive.status, "blocked");
 assert.ok(notLive.gaps.blocking_issues.includes("catalog_not_live_observation"));
 assert.ok(notLive.gaps.blocking_issues.includes("same_cycle_readback_missing"));
+
+const observedAfterReview = assessAuthorityOwnershipReview({
+  catalog_census: {
+    ...catalog(),
+    database_server: { ...catalog().database_server, observed_at: "2030-01-01T00:20:00Z" },
+  },
+  source_bundle: bundle,
+  review_entries: reviewEntries(),
+  review_metadata: metadata(),
+});
+assert.equal(observedAfterReview.status, "blocked");
+assert.ok(observedAfterReview.gaps.blocking_issues.includes("catalog_observed_after_review"));
 
 const missingReview = assessAuthorityOwnershipReview({
   catalog_census: catalog(),
@@ -242,6 +254,31 @@ const invalidSharing = assessAuthorityOwnershipReview({
   review_metadata: metadata(),
 });
 assert.ok(invalidSharing.gaps.blocking_issues.includes("shared_ownership_contract_invalid"));
+
+assert.throws(
+  () => assessAuthorityOwnershipReview({
+    catalog_census: catalog(),
+    source_bundle: { ...bundle, status: "tampered" },
+    review_entries: reviewEntries(),
+    review_metadata: metadata(),
+  }),
+  (error) => error instanceof AuthorityOwnershipReviewError
+    && error.code === "authority_ownership_stale_source_bundle_hash",
+);
+
+assert.throws(
+  () => assessAuthorityOwnershipReview({
+    catalog_census: {
+      ...catalog(),
+      objects: [...catalog().objects, catalog().objects[0]],
+    },
+    source_bundle: bundle,
+    review_entries: reviewEntries(),
+    review_metadata: metadata(),
+  }),
+  (error) => error instanceof AuthorityOwnershipReviewError
+    && error.code === "authority_ownership_duplicate_catalog_record",
+);
 
 assert.throws(
   () => assessAuthorityOwnershipReview({
