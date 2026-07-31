@@ -3,6 +3,10 @@ import {
   createGovernedExecutionBaselineTrace,
   emitGovernedExecutionBaselineSnapshot,
 } from "./governedExecutionBaselineTelemetry.js";
+import {
+  assertDelegationApprovalDecision,
+  evaluateSequentialStepDelegationPolicy,
+} from "./delegationExecutionPolicyService.js";
 
 const STEP_TYPES = new Set(["workflow", "analysis", "checkpoint", "approval", "stop"]);
 const TERMINAL_STEP_STATUSES = new Set(["completed", "failed", "skipped", "cancelled"]);
@@ -241,7 +245,7 @@ export function verifySequentialStepResult(step, result) {
   return { passed: failures.length === 0, failures };
 }
 
-async function createApprovalHold(connection, plan, step, actorId) {
+async function createApprovalHold(connection, plan, step, actorId, delegationDecision = null) {
   const holdId = randomUUID();
   await connection.query(
     `INSERT INTO workflow_runs
@@ -253,7 +257,7 @@ async function createApprovalHold(connection, plan, step, actorId) {
     [
       plan.plan_id, plan.tenant_id, plan.user_id || null, plan.plan_id,
       plan.service_mode || "self_serve", step.step_key,
-      json({ source: "sequential_plan_orchestrator", plan_step_id: step.plan_step_id, secrets_included: false }),
+      json({ source: "sequential_plan_orchestrator", plan_step_id: step.plan_step_id, delegation_approval_requirements: delegationDecision?.approval_requirements || null, secrets_included: false }),
     ]
   );
   await connection.query(
@@ -263,7 +267,7 @@ async function createApprovalHold(connection, plan, step, actorId) {
     [
       holdId, plan.plan_id, plan.tenant_id, actorId,
       parseJson(step.approval_policy_json, {}).required_role || "supervisor",
-      json({ source: "sequential_plan_orchestrator", plan_id: plan.plan_id, plan_step_id: step.plan_step_id, secrets_included: false }),
+      json({ source: "sequential_plan_orchestrator", plan_id: plan.plan_id, plan_step_id: step.plan_step_id, delegation_approval_requirements: delegationDecision?.approval_requirements || null, secrets_included: false }),
     ]
   );
   return holdId;
@@ -301,7 +305,80 @@ async function claimNextStep(pool, planId, actorId, baselineTrace = null) {
       await appendEvent(connection, { planId, tenantId: plan.tenant_id, eventType: "plan_checkpoint", fromStatus: effectivePlanStatus(plan), toStatus: status, actorId, evidence: { reason: completed ? "all_steps_terminal" : "no_ready_step" } });
       return { stop: true, reason: completed ? "completed" : awaitingApproval ? "awaiting_approval" : "no_ready_step", plan_status: status };
     }
-    if (approvalRequired(next)) {
+    const delegationDecision = evaluateSequentialStepDelegationPolicy({ plan, step: next, actorId });
+    if (delegationDecision) {
+      await appendEvent(connection, {
+        planId,
+        planStepId: next.plan_step_id,
+        tenantId: plan.tenant_id,
+        eventType: "delegation_policy_decided",
+        fromStatus: "ready",
+        toStatus: delegationDecision.dispatch_allowed ? "ready" : delegationDecision.pause_required ? "paused" : delegationDecision.approval_required ? "awaiting_approval" : "blocked",
+        actorId,
+        evidence: {
+          decision: delegationDecision.decision,
+          approval_mode: delegationDecision.approval_mode,
+          blockers: delegationDecision.blockers,
+          step_fingerprint: delegationDecision.step_fingerprint,
+          next_action: delegationDecision.next_action,
+        },
+      });
+      if (!delegationDecision.dispatch_allowed) {
+        if (delegationDecision.approval_required) {
+          const holdId = await createApprovalHold(connection, plan, next, actorId, delegationDecision);
+          await connection.query("UPDATE execution_plan_steps SET status = 'awaiting_approval' WHERE plan_step_id = ?", [next.plan_step_id]);
+          await updatePlanRuntimeStatus(connection, planId, "awaiting_approval", plan.tenant_id);
+          await appendEvent(connection, {
+            planId,
+            planStepId: next.plan_step_id,
+            tenantId: plan.tenant_id,
+            eventType: "approval_requested",
+            fromStatus: "ready",
+            toStatus: "awaiting_approval",
+            actorId,
+            evidence: {
+              hold_id: holdId,
+              delegation_policy_decision: delegationDecision.decision,
+              expected_step_fingerprint: delegationDecision.step_fingerprint,
+            },
+          });
+          return {
+            stop: true,
+            reason: delegationDecision.decision,
+            plan_status: "awaiting_approval",
+            hold_id: holdId,
+            step: next,
+            delegation_policy: delegationDecision,
+          };
+        }
+        const stepStatus = delegationDecision.pause_required ? "paused" : "blocked";
+        const planStatus = delegationDecision.pause_required ? "paused" : "blocked";
+        await connection.query("UPDATE execution_plan_steps SET status = ? WHERE plan_step_id = ? AND status = 'ready'", [stepStatus, next.plan_step_id]);
+        await updatePlanRuntimeStatus(connection, planId, planStatus, plan.tenant_id);
+        await appendEvent(connection, {
+          planId,
+          planStepId: next.plan_step_id,
+          tenantId: plan.tenant_id,
+          eventType: delegationDecision.decision === "paused_on_drift" ? "delegation_boundary_drift" : "delegation_policy_blocked",
+          fromStatus: "ready",
+          toStatus: stepStatus,
+          actorId,
+          evidence: {
+            decision: delegationDecision.decision,
+            blockers: delegationDecision.blockers,
+            next_action: delegationDecision.next_action,
+          },
+        });
+        return {
+          stop: true,
+          reason: delegationDecision.decision,
+          plan_status: planStatus,
+          step: next,
+          delegation_policy: delegationDecision,
+        };
+      }
+    }
+    if (!delegationDecision && approvalRequired(next)) {
       const holdId = await createApprovalHold(connection, plan, next, actorId);
       await connection.query("UPDATE execution_plan_steps SET status = 'awaiting_approval' WHERE plan_step_id = ?", [next.plan_step_id]);
       await updatePlanRuntimeStatus(connection, planId, "awaiting_approval", plan.tenant_id);
@@ -321,7 +398,7 @@ async function claimNextStep(pool, planId, actorId, baselineTrace = null) {
   });
 }
 
-async function defaultStepExecutor(step, { pool, actorId = null }) {
+export async function defaultSequentialStepExecutor(step, { pool, actorId = null }) {
   if (step.step_type === "stop") return { ok: true, stopped: true };
   if (step.step_type === "analysis" || step.step_type === "checkpoint") {
     return { ok: true, output: parseJson(step.input_json, {}), execution_mode: "internal" };
@@ -358,7 +435,7 @@ async function finalizeClaim(pool, claim, result, error, actorId) {
     });
     if (!step) throw validationError("Plan step claim was lost.", "sequential_step_claim_lost");
     const succeeded = !error && result?.ok !== false;
-    const retryable = !succeeded && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
+    const retryable = !succeeded && !error?.non_retryable && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
     const status = succeeded ? "completed" : retryable ? "retrying" : "failed";
     const safeResult = succeeded ? sanitizeSecretPayload(result) : null;
     const safeError = error ? sanitizeSecretPayload({ code: error.code || "step_execution_failed", message: error.message }) : null;
@@ -381,7 +458,7 @@ export async function tickSequentialPlan({
   pool,
   planId,
   actorId = null,
-  executeStep = defaultStepExecutor,
+  executeStep = defaultSequentialStepExecutor,
   baselineTrace = null,
   observeProviderDispatch = false,
 }) {
@@ -442,7 +519,7 @@ export async function runSequentialPlan({
   baselineTraceInput = {},
   baselineProviderDispatch = false,
 }) {
-  const executor = executeStep || defaultStepExecutor;
+  const executor = executeStep || defaultSequentialStepExecutor;
   const baselineTrace = typeof baselineEmitter === "function"
     ? createGovernedExecutionBaselineTrace({
         ...baselineTraceInput,
@@ -543,6 +620,14 @@ export async function decideSequentialPlanApproval({
       error.status = 409;
       throw error;
     }
+    assertDelegationApprovalDecision({
+      approvalPolicy: step.approval_policy_json,
+      decision,
+      decisionBy,
+      holdContext: context,
+    });
+    const delegationApprovalRequirements = parseJson(context.delegation_approval_requirements, {});
+    const approvedStepFingerprint = delegationApprovalRequirements.expected_step_fingerprint || null;
 
     const stepStatus = decision === "approved"
       ? (step.step_type === "approval" ? "completed" : "ready")
@@ -562,10 +647,23 @@ export async function decideSequentialPlanApproval({
     const [stepUpdate] = await connection.query(
       `UPDATE execution_plan_steps
           SET status = ?,
-              approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?),
+              approval_policy_json = JSON_SET(
+                COALESCE(approval_policy_json, JSON_OBJECT()),
+                '$.approved', ?,
+                '$.approved_by', ?,
+                '$.expected_step_fingerprint', ?
+              ),
               completed_at = CASE WHEN ? IN ('completed','failed') THEN NOW() ELSE completed_at END
         WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
-      [stepStatus, decision === "approved", stepStatus, step.plan_step_id, step.plan_id]
+      [
+        stepStatus,
+        decision === "approved",
+        decision === "approved" ? decisionBy : null,
+        decision === "approved" ? approvedStepFingerprint : null,
+        stepStatus,
+        step.plan_step_id,
+        step.plan_id,
+      ]
     );
     if (Number(stepUpdate?.affectedRows || 0) !== 1) {
       const error = validationError("Sequential plan step changed before the decision could be recorded.", "sequential_plan_approval_step_race");

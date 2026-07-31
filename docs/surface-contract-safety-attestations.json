@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 147,
+  "item_count": 148,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -6628,6 +6628,50 @@
           "targets": [
             "admin_platform_tool",
             "bind_tool_dynamic_container_topology_verification"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260725_growth_control_shadow_parity.sql",
+      "migration_sha256": "af7a56bed4efdee59cdd385dccf90231e5eab0e34a8171c992f4963f89316f0e",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 3,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_growth_control_shadow_parity_summary"
           ]
         }
       ],

@@ -24,6 +24,7 @@ on:
       - "http-generic-api/test-openapi-response-object-guard.mjs"
       - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
       - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/ciGuardWorkflowOutcome.js"
       - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
       - "http-generic-api/activationAwarenessService.js"
       - "http-generic-api/routes/activationAwarenessRoutes.js"
@@ -76,6 +77,7 @@ on:
       - "http-generic-api/test-openapi-response-object-guard.mjs"
       - "http-generic-api/test-openapi-lint-and-compatibility.mjs"
       - "http-generic-api/ciGuardOperationalAlertService.js"
+      - "http-generic-api/ciGuardWorkflowOutcome.js"
       - "http-generic-api/test-ci-guard-operational-alert-service.mjs"
       - "http-generic-api/activationAwarenessService.js"
       - "http-generic-api/routes/activationAwarenessRoutes.js"
@@ -159,7 +161,10 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Ingest SQL operational signal
+      - uses: actions/checkout@v5
+
+      - name: Classify and ingest SQL operational signal
+        id: classify
         continue-on-error: true
         uses: actions/github-script@v7
         env:
@@ -168,30 +173,55 @@ jobs:
           RUNTIME_BASE_URL: https://auth.mad4b.com
         with:
           script: |
-            const apiKey = process.env.BACKEND_API_KEY || "";
-            if (!apiKey) {
-              core.warning("BACKEND_API_KEY is unavailable; SQL guard signal ingestion was skipped.");
-              return;
-            }
+            const { pathToFileURL } = require("node:url");
+            const moduleUrl = pathToFileURL(`${process.env.GITHUB_WORKSPACE}/http-generic-api/ciGuardWorkflowOutcome.js`).href;
+            const { classifyCiGuardWorkflowOutcome } = await import(moduleUrl);
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const guardResult = process.env.GUARD_RESULT || "unknown";
-            const status = guardResult === "success"
-              ? "success"
-              : guardResult === "cancelled"
-                ? "cancelled"
-                : "failure";
             const run = await github.rest.actions.getWorkflowRun({
               owner,
               repo,
               run_id: context.runId,
             });
+            const listParams = {
+              owner,
+              repo,
+              workflow_id: run.data.workflow_id,
+              per_page: 100,
+            };
+            if (run.data.head_branch) listParams.branch = run.data.head_branch;
+            const workflowRuns = guardResult === "cancelled"
+              ? await github.paginate(github.rest.actions.listWorkflowRuns, listParams)
+              : [];
+            const outcome = classifyCiGuardWorkflowOutcome({
+              guardResult,
+              currentRun: run.data,
+              workflowRuns,
+            });
+            core.setOutput("outcome_classification", outcome.classification);
+            core.setOutput("superseding_run_url", outcome.superseding_run?.html_url || "");
+            if (outcome.neutral) {
+              core.info(`CI guard cancellation classified as ${outcome.classification}; superseding run=${outcome.superseding_run?.id || "unknown"}. No SQL alert mutation will occur.`);
+              return;
+            }
+
+            const apiKey = process.env.BACKEND_API_KEY || "";
+            if (!apiKey) {
+              core.warning("BACKEND_API_KEY is unavailable; SQL guard signal ingestion was skipped.");
+              return;
+            }
+            const status = guardResult === "success"
+              ? "success"
+              : guardResult === "cancelled"
+                ? "cancelled"
+                : "failure";
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
             const observedAt = new Date().toISOString();
             const payload = {
               signal_key: "custom_gpt_contract_guard",
               status,
-              idempotency_key: `custom-gpt-contract-guard:${context.runId}:${process.env.GITHUB_RUN_ATTEMPT || "1"}:${status}`,
+              idempotency_key: `custom-gpt-contract-guard:${context.runId}:${process.env.GITHUB_RUN_ATTEMPT || "1"}:${outcome.classification}`,
               workflow_name: "Custom GPT Contract Guard",
               workflow_run_id: String(context.runId),
               workflow_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
@@ -205,11 +235,12 @@ jobs:
               title: status === "success"
                 ? "Custom GPT Contract Guard recovered"
                 : "Custom GPT Contract Guard failed",
-              summary: `Default-branch guard result: ${guardResult}.`,
+              summary: `Default-branch guard result: ${guardResult}; classification: ${outcome.classification}.`,
               evidence: {
                 event_name: context.eventName,
                 drill_mode: context.payload.inputs?.drill_mode || "none",
                 run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+                outcome_classification: outcome.classification,
               },
             };
             const response = await fetch(`${process.env.RUNTIME_BASE_URL}/activation/operational-attention/ci-signals`, {
@@ -233,6 +264,8 @@ jobs:
         uses: actions/github-script@v7
         env:
           GUARD_RESULT: ${{ needs.guard.result }}
+          OUTCOME_CLASSIFICATION: ${{ steps.classify.outputs.outcome_classification }}
+          SUPERSEDING_RUN_URL: ${{ steps.classify.outputs.superseding_run_url }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -240,8 +273,14 @@ jobs:
             const marker = "<!-- openapi-response-object-guard-alert -->";
             const title = "[OpenAPI Guard] Custom GPT Contract Guard failing";
             const guardResult = process.env.GUARD_RESULT || "unknown";
+            const outcomeClassification = process.env.OUTCOME_CLASSIFICATION || guardResult;
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
             const observedAt = new Date().toISOString();
+
+            if (outcomeClassification === "cancelled_due_to_superseding_run") {
+              core.info(`Superseded cancellation is neutral; no OpenAPI guard incident mutation will occur. Superseding run: ${process.env.SUPERSEDING_RUN_URL || "unknown"}.`);
+              return;
+            }
 
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
@@ -283,6 +322,7 @@ jobs:
             The default-branch **Custom GPT Contract Guard** did not succeed.
 
             - Result: **${guardResult}**
+            - Classification: **${outcomeClassification}**
             - Observed: ${observedAt}
             - Workflow run: ${runUrl}
             - Ref: \`${context.ref}\`

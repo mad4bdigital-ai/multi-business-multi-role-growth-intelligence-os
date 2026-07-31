@@ -1,0 +1,221 @@
+openapi: 3.1.0
+info:
+  title: Growth Control Plane Admin UI Projection API
+  version: 1.0.0
+  description: >-
+    Read-only Admin projection of governed configuration schemas into bounded form
+    manifests, with optional immutable version diff and lineage. The operation does
+    not mutate configuration state or call providers.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - adminBearerAuth: []
+  - backendApiKeyAuth: []
+tags:
+  - name: growth-control-plane-admin-ui
+paths:
+  /admin/control-plane/configurations/{configKey}/ui-projection:
+    get:
+      tags: [growth-control-plane-admin-ui]
+      operationId: getGrowthControlAdminUiProjection
+      summary: Project a configuration schema, optional diff, and lineage for Admin UI
+      x-contract-completeness: canonical
+      parameters:
+        - name: configKey
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9_.-]{2,127}$'
+        - name: baseVersionId
+          in: query
+          required: false
+          description: Required together with compareVersionId.
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: compareVersionId
+          in: query
+          required: false
+          description: Required together with baseVersionId.
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: Read-only Admin form manifest with optional diff and lineage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminConfigurationUiProjection'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    AdminConfigurationUiProjection:
+      type: object
+      additionalProperties: false
+      required: [definition, form, comparison, adminFacing, metadataOnly, readOnly, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        definition:
+          $ref: '#/components/schemas/DefinitionLineage'
+        form:
+          $ref: '#/components/schemas/AdminFormManifest'
+        comparison:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/AdminConfigurationDiff'
+        adminFacing: { type: boolean, const: true }
+        metadataOnly: { type: boolean }
+        readOnly: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    DefinitionLineage:
+      type: object
+      additionalProperties: false
+      required: [configKey, status, revision, schemaVersion, checksumSha256, updatedAt]
+      properties:
+        configKey: { type: string }
+        status: { type: string }
+        revision: { type: integer, minimum: 0 }
+        schemaVersion: { type: integer, minimum: 1 }
+        checksumSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        updatedAt: { type: [string, 'null'], format: date-time }
+    AdminFormManifest:
+      type: object
+      additionalProperties: false
+      required: [contract, manifestVersion, configKey, title, description, definitionRevision, schemaVersion, definitionChecksumSha256, allowedScopes, securityClassification, fields, readOnlyProjection, backendValidationRequired, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.admin-form.v1 }
+        manifestVersion: { type: integer, const: 1 }
+        configKey: { type: string }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        definitionRevision: { type: integer, minimum: 0 }
+        schemaVersion: { type: integer, minimum: 1 }
+        definitionChecksumSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        allowedScopes:
+          type: array
+          items: { type: string }
+        securityClassification: { type: string }
+        fields:
+          type: array
+          maxItems: 300
+          items:
+            $ref: '#/components/schemas/AdminFormField'
+        readOnlyProjection: { type: boolean, const: true }
+        backendValidationRequired: { type: boolean, const: true }
+        secretsIncluded: { type: boolean, const: false }
+    AdminFormField:
+      type: object
+      additionalProperties: false
+      required: [fieldId, path, label, description, component, valueType, nullable, required, readOnly, constraints, defaultValue, options, constantValue, item, secretsIncluded]
+      properties:
+        fieldId: { type: string, pattern: '^[0-9a-f]{20}$' }
+        path: { type: string }
+        label: { type: string }
+        description: { type: [string, 'null'] }
+        component: { type: string, enum: [text, email, url, date, datetime, checkbox, number, select, list, group, json, constant] }
+        valueType: { type: string, enum: [string, boolean, integer, number, array, object] }
+        nullable: { type: boolean }
+        required: { type: boolean }
+        readOnly: { type: boolean }
+        constraints: { type: object, additionalProperties: true }
+        defaultValue: {}
+        options: { type: [array, 'null'] }
+        constantValue: {}
+        item: { type: [object, 'null'], additionalProperties: true }
+        secretsIncluded: { type: boolean, const: false }
+    AdminConfigurationDiff:
+      type: object
+      additionalProperties: false
+      required: [contract, base, compare, changes, changed, diffSha256, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.admin-diff.v1 }
+        base: { $ref: '#/components/schemas/VersionLineage' }
+        compare: { $ref: '#/components/schemas/VersionLineage' }
+        changes:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/DiffEntry'
+        changed: { type: boolean }
+        diffSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        secretsIncluded: { type: boolean, const: false }
+    VersionLineage:
+      type: object
+      additionalProperties: false
+      required: [configVersionId, configKey, versionNumber, scopeType, scopeKey, tenantId, workspaceId, brandKey, activityTypeKey, activityBindingId, profileKey, workflowKey, workflowVersion, workflowNodeId, planId, executionId, lifecycle, revision, checksumSha256, createdAt, secretsIncluded]
+      properties:
+        configVersionId: { type: string }
+        configKey: { type: string }
+        versionNumber: { type: integer, minimum: 1 }
+        scopeType: { type: string }
+        scopeKey: { type: string }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        activityTypeKey: { type: [string, 'null'] }
+        activityBindingId: { type: [string, 'null'] }
+        profileKey: { type: [string, 'null'] }
+        workflowKey: { type: [string, 'null'] }
+        workflowVersion: { type: [integer, 'null'] }
+        workflowNodeId: { type: [string, 'null'] }
+        planId: { type: [string, 'null'] }
+        executionId: { type: [string, 'null'] }
+        lifecycle: { type: string }
+        revision: { type: integer, minimum: 0 }
+        checksumSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        createdAt: { type: [string, 'null'], format: date-time }
+        secretsIncluded: { type: boolean, const: false }
+    DiffEntry:
+      type: object
+      additionalProperties: false
+      required: [path, changeType, before, after]
+      properties:
+        path: { type: string }
+        changeType: { type: string, enum: [added, removed, changed] }
+        before: {}
+        after: {}
+    ErrorEnvelope:
+      type: object
+      required: [error, secretsIncluded]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: { type: object } }
+            requestId: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+  responses:
+    BadRequest:
+      description: Invalid query or comparison pair.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Admin authority required.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Definition or version not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Schema cannot be projected by the bounded component catalog.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Internal failure.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

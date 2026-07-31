@@ -68,8 +68,14 @@ function run(command, { inherit = true } = {}) {
   return { status: result.status ?? 1, stdout: result.stdout || "", stderr: result.stderr || "" };
 }
 
-function assertFresh(evidenceFile, maxAgeMinutes) {
-  const command = `node scripts/interruption-readiness.mjs --skip-dependencies --skip-merge --skip-worktree --verify-evidence "${evidenceFile}" --max-age-minutes ${maxAgeMinutes}`;
+function assertFresh(evidenceFile, evidence, maxAgeMinutes) {
+  const targetSha = String(evidence?.continuity_snapshot?.target_sha || "").trim();
+  if (!/^[a-f0-9]{40}$/i.test(targetSha)) {
+    const error = new Error("Readiness evidence does not contain a valid pinned target SHA.");
+    error.code = "readiness_evidence_target_invalid";
+    throw error;
+  }
+  const command = `node scripts/interruption-readiness.mjs --target "${targetSha}" --skip-dependencies --skip-merge --skip-worktree --verify-evidence "${evidenceFile}" --max-age-minutes ${maxAgeMinutes}`;
   const result = run(command, { inherit: false });
   if (result.status !== 0) {
     throw new Error(`Readiness evidence is stale or blocked.\n${result.stdout}${result.stderr}`.trim());
@@ -249,13 +255,13 @@ function main() {
       writeResult(options.resultFile, result);
       throw new Error(`Verification plan contains unauthorized command(s): ${unauthorized.join(", ")}`);
     }
-    assertFresh(evidenceFile, options.maxAgeMinutes);
+    assertFresh(evidenceFile, evidence, options.maxAgeMinutes);
     writeResult(options.resultFile, result);
     for (const step of result.steps) {
       if (step.status === "passed") continue;
       const command = step.command;
       heartbeatLease(leaseState);
-      assertFresh(evidenceFile, options.maxAgeMinutes);
+      assertFresh(evidenceFile, evidence, options.maxAgeMinutes);
       if (options.dryRun) continue;
       step.status = "running";
       appendEvent(result, "step_started", { command });
@@ -274,7 +280,7 @@ function main() {
         throw stepError;
       }
     }
-    assertFresh(evidenceFile, options.maxAgeMinutes);
+    assertFresh(evidenceFile, evidence, options.maxAgeMinutes);
     result.status = options.dryRun ? "planned" : "passed";
     result.completed_at = new Date().toISOString();
     appendEvent(result, options.dryRun ? "execution_planned" : "execution_passed", { step_count: commands.length });

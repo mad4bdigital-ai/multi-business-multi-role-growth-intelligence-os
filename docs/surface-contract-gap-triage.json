@@ -48,7 +48,7 @@
     },
     {
       "migration_file": "193_sprint67_workspace_resource_authority_foundation.sql",
-      "score": 1084,
+      "score": 1083,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",

@@ -1,0 +1,231 @@
+name: Governed Production Promotion Request Launcher
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-promotion-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch-source-pinned-candidate:
+    name: Dispatch current source-pinned Production candidate
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/request-production-promotion-') &&
+      github.event.pull_request.title == 'ops: request governed Production synchronization'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-request.json
+    steps:
+      - name: Resolve exact protected branch heads
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+
+          for value in "$MAIN_SHA" "$PRODUCTION_SHA"; do
+            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::protected branch readback did not return an exact lowercase SHA"
+              exit 1
+            fi
+          done
+
+          MAIN_SHORT="${MAIN_SHA:0:12}"
+          PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
+          RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}"
+          VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}"
+          VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}"
+
+          {
+            echo "main_sha=$MAIN_SHA"
+            echo "production_sha=$PRODUCTION_SHA"
+            echo "release_branch=$RELEASE_BRANCH"
+            echo "validation_branch=$VALIDATION_BRANCH"
+            echo "validation_base_branch=$VALIDATION_BASE_BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch official governed candidate builder
+        id: dispatch
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
+          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
+          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
+        run: |
+          set -euo pipefail
+
+          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run production-promotion-candidate.yml \
+            --repo "$REPOSITORY" \
+            --ref main \
+            --field expected_main_sha="$MAIN_SHA" \
+            --field expected_production_sha="$PRODUCTION_SHA" \
+            --field release_branch="$RELEASE_BRANCH" \
+            --field validation_branch="$VALIDATION_BRANCH" \
+            --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
+            --field create_pull_requests=true
+
+          RUN_ID=""
+          for attempt in $(seq 1 30); do
+            RUN_ID="$(gh run list \
+              --repo "$REPOSITORY" \
+              --workflow production-promotion-candidate.yml \
+              --event workflow_dispatch \
+              --limit 30 \
+              --json databaseId,headSha,createdAt \
+              --jq "map(select(.headSha == \"$MAIN_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
+            if [[ -n "$RUN_ID" ]]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::error::unable to resolve governed candidate builder run"
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          gh run watch "$RUN_ID" --repo "$REPOSITORY" --exit-status --interval 15
+
+      - name: Verify builder outputs and review surfaces
+        id: verify
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
+          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
+          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
+          BUILDER_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_JSON="$(gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --head "$RELEASE_BRANCH" \
+            --base Production \
+            --limit 1 \
+            --json number,url,headRefOid,baseRefName,headRefName)"
+          VALIDATION_JSON="$(gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --head "$VALIDATION_BRANCH" \
+            --base "$VALIDATION_BASE_BRANCH" \
+            --limit 1 \
+            --json number,url,headRefOid,baseRefName,headRefName)"
+
+          RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
+          VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
+          CANDIDATE_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$RELEASE_JSON")"
+          VALIDATION_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$VALIDATION_JSON")"
+          VALIDATION_BASE_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
+
+          if [[ -z "$RELEASE_PR" || -z "$VALIDATION_PR" ]]; then
+            echo "::error::builder did not create both governed review surfaces"
+            exit 1
+          fi
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ || "$VALIDATION_SHA" != "$CANDIDATE_SHA" ]]; then
+            echo "::error::release and validation candidates do not resolve to the same exact SHA"
+            exit 1
+          fi
+          if [[ "$VALIDATION_BASE_SHA" != "$MAIN_SHA" ]]; then
+            echo "::error::validation base is not pinned to the resolved main SHA"
+            exit 1
+          fi
+
+          jq -n \
+            --arg main_sha "$MAIN_SHA" \
+            --arg production_sha "$PRODUCTION_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg release_branch "$RELEASE_BRANCH" \
+            --arg validation_branch "$VALIDATION_BRANCH" \
+            --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
+            --arg builder_run_id "$BUILDER_RUN_ID" \
+            --arg release_pr "$RELEASE_PR" \
+            --arg validation_pr "$VALIDATION_PR" \
+            '{
+              schema_version: "governed_production_promotion_request.v1",
+              ok: true,
+              main_sha: $main_sha,
+              production_sha: $production_sha,
+              candidate_sha: $candidate_sha,
+              release_branch: $release_branch,
+              validation_branch: $validation_branch,
+              validation_base_branch: $validation_base_branch,
+              builder_run_id: $builder_run_id,
+              release_pr: $release_pr,
+              validation_pr: $validation_pr,
+              merge_executed: false,
+              deployment_executed: false,
+              migration_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              secrets_included: false
+            }' > "$EVIDENCE_PATH"
+
+          {
+            echo "candidate_sha=$CANDIDATE_SHA"
+            echo "release_pr=$RELEASE_PR"
+            echo "validation_pr=$VALIDATION_PR"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload governed request evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-production-promotion-request-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record request outcome
+        if: always()
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.verify.outputs.candidate_sha }}
+          BUILDER_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RELEASE_PR: ${{ steps.verify.outputs.release_pr }}
+          VALIDATION_PR: ${{ steps.verify.outputs.validation_pr }}
+        run: |
+          set -euo pipefail
+          BODY="GOVERNED_PRODUCTION_PROMOTION_REQUEST run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID:-unresolved} main_sha=${MAIN_SHA:-unresolved} production_sha=${PRODUCTION_SHA:-unresolved} candidate_sha=${CANDIDATE_SHA:-unresolved} release_pr=${RELEASE_PR:-unresolved} validation_pr=${VALIDATION_PR:-unresolved} merge_executed=false deployment_executed=false"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Governed Production promotion request
+
+          - main: \`${{ steps.refs.outputs.main_sha }}\`
+          - Production: \`${{ steps.refs.outputs.production_sha }}\`
+          - candidate: \`${{ steps.verify.outputs.candidate_sha }}\`
+          - builder run: \`${{ steps.dispatch.outputs.run_id }}\`
+          - release PR: \`${{ steps.verify.outputs.release_pr }}\`
+          - validation PR: \`${{ steps.verify.outputs.validation_pr }}\`
+          - merge executed: false
+          - deployment executed: false
+          EOF

@@ -8,3 +8,7 @@ export {
 export {
   createExecutionCapsuleResourceApiShadowComposition,
 } from "./executionCapsuleShadowComposition.js";
+export {
+  ExecutionCapsuleReadDispatchError,
+  createExecutionCapsuleReadDispatchGate,
+} from "./executionCapsuleReadDispatchGate.js";

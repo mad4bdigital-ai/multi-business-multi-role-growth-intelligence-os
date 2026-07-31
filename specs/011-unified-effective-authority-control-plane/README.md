@@ -44,13 +44,23 @@ The design introduces one Unified Effective Authority Control Plane (UEACP). Adm
   - required CI run `30578711549`: 4/4 success
   - supporting checks: 7/7 success
   - post-merge Custom GPT Contract Guard, Frontend dispatch, and HTTP Generic API Fanout Relocation succeeded
+- Merged T019 slice: PR `#3863`
+  - bounded shadow-only comparator between canonical legacy-authority and UEACP effective-authority snapshots
+  - exact resource, capability, connection, and action identities are compared with authority/execution eligibility, reason codes, readiness, freshness, data quality, and unsupported semantics
+  - directional legacy/new-resolver over-grant and under-grant classifications block rollout on mismatch
+  - side-effect evidence is a security-relevant invariant violation
+  - reviewed head `73b7bd5f143010b02c4555b324f8baec7df17268`
+  - merge SHA `16c5065efeaa6db0b881f535339cff0c5744d5f0`
+  - required CI run `30582655383`: 4/4 success
+  - supporting checks: 7/7 success
+  - post-merge Frontend dispatch, Fanout Relocation, Custom GPT Contract Guard, and Spec 011 Delegation MariaDB Certification succeeded
 - Superseded implementation recovery: PR `#3351`
 - Delivery: multi-PR, additive, shadow-first
 - Runtime effect of the specification recovery: none
-- Runtime enforcement or PEP cutover from T010–T016: none
-- Migration execution, provider calls, external writes, deployment, or Production promotion from this delivery chain: none
+- Runtime enforcement or PEP cutover from T010–T019: none
+- Migration execution, provider calls, credential reads, external writes, deployment, or Production promotion from this delivery chain: none
 
-The stale recovery chain and bounded T010–T016 delivery chain are closed. The overall Spec remains `in_progress`; remaining tasks must be delivered through bounded PRs based on current `main`.
+The stale recovery chain and bounded T010–T019 shadow-decision delivery chain are closed. The overall Spec remains `in_progress`; data/migration, projection, invalidation, enforcement rollout, cutover, and closure tasks remain separate.
 
 ## Normative documents
 
@@ -81,8 +91,9 @@ Current merged evidence is recorded in `completion.json` and `manifest.json`:
 - T013: PR `#3711`, reviewed head `57de7a570fee96ccb2fe90a59f063ac0a69a9685`, merge SHA `f1c1cf1ebf9c28d2799ec9537a5c13bd8bfbced2`.
 - T014: PR `#3758`, reviewed head `46b226b85f1a28ad978c9d912332c31091f0b3b0`, merge SHA `5ff7748ed1bb9fba6301001be0a0069057c03bdd`.
 - T016: PR `#3811`, reviewed head `71a84a874740d9b90ee5f0e92017b0b758245783`, merge SHA `53731f12575866e59e4645abff52f8c9446b1d8a`.
+- T019: PR `#3863`, reviewed head `73b7bd5f143010b02c4555b324f8baec7df17268`, merge SHA `16c5065efeaa6db0b881f535339cff0c5744d5f0`.
 
-T014 and T016 remain non-authoritative even when their evidence resolves to `allow`: they emit `authorityGranted=false` and `executionAuthorized=false`. They do not wire runtime dispatch, call a provider, read credentials, write state, execute a migration, deploy, or promote Production.
+T014, T016, and T019 remain non-authoritative even when their evidence resolves to `allow`, `resolved`, or `matched`. They do not grant authority, approve rollout, execute, call a provider, read credentials, persist comparison evidence, write state, execute a migration, deploy, or promote Production.
 
 ## Relationship to existing specifications
 

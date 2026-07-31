@@ -204,3 +204,11 @@ dispatch bindings are active, `platform_tool_binding_integrity_audit` reports
 `gap_count=0`, and live read-only GitHub ref/workflow-runs evidence returns through
 `runtime_endpoint_call`. Record these states separately from `/health` and `/version`
 runtime parity; never mark the SQL/dispatcher state complete from deploy evidence alone.
+
+## Superseded guard runs and historical deployment observations
+
+When a Custom GPT Contract Guard run is cancelled, first search for a newer run with the same workflow identity, event, and head branch. Classify the cancelled run as `cancelled_due_to_superseding_run` only when the newer run number is greater. This classification is neutral: skip SQL signal ingestion and skip GitHub issue open, update, or resolution mutations. Continue the release decision from the newer run. If no matching newer run exists, preserve the original cancellation/failure handling.
+
+The deployment-observation foundation may be used only for bounded historical correlation. Each observation must carry independent source metadata for expected release, deployed release, health, contract, and optional migration evidence. For a request timestamp, select the latest observation whose `observed_at` is not later than the request; ignore future observations so later recovery cannot rewrite earlier evidence. Source references must be opaque governed references without query parameters or secret-like names, metadata is sanitized, evidence is size-bounded, and the correlation read is capped at 256 observations.
+
+The current foundation deliberately emits `classification_status=not_computed`. Do not translate it into `current`, `stale`, `diverged`, or another deployment state, and do not expose the full evidence object to Tenant or public callers. Direct `/health`, `/version`, and `/deployment-info` readback against the exact protected `Production` SHA remains mandatory after Hostinger auto-deploy. Persistence migration, public runtime wiring, exposure policy, classification policy, rollback certification, and Production activation require separate governed work and authorization.
