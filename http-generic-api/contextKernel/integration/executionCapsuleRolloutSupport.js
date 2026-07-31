@@ -10,17 +10,33 @@ const REVISION_FIELDS = Object.freeze([
   "contextRevision", "authorityRevision", "capabilityRevision", "registryRevision",
   "credentialReadinessRevision",
 ]);
+const CERTIFICATION_CONTEXT_FIELDS = Object.freeze([
+  "implementationRevision", "policyRevision", "evidenceRevision",
+]);
 
 export function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return value;
   seen.add(value);
-  for (const key of Reflect.ownKeys(value)) deepFreeze(value[key], seen);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor && Object.hasOwn(descriptor, "value")) deepFreeze(descriptor.value, seen);
+  }
   return Object.freeze(value);
 }
 
 export function requireObject(value, fieldName) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new TypeError(`${fieldName} must be an object.`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError(`${fieldName} must be a plain object.`);
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || descriptor.get || descriptor.set) {
+      throw new TypeError(`${fieldName} must contain data properties only.`);
+    }
   }
   return value;
 }
@@ -40,6 +56,11 @@ export function optionalToken(value, fieldName) {
   return value == null || value === "" ? null : requireToken(value, fieldName);
 }
 
+export function safeReasonCode(value, fallback = "execution_capsule_rollout_failed") {
+  const candidate = typeof value === "string" ? value.trim() : "";
+  return TOKEN_PATTERN.test(candidate) ? candidate : fallback;
+}
+
 export function requireNonNegativeFinite(value, fieldName) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric < 0) {
@@ -54,6 +75,19 @@ export function requireRatio(value, fieldName) {
     throw new TypeError(`${fieldName} must be between 0 and 1.`);
   }
   return numeric;
+}
+
+export function normalizeCertificationContext(value, fieldName = "certificationContext") {
+  const context = requireObject(value, fieldName);
+  const normalized = Object.create(null);
+  for (const field of CERTIFICATION_CONTEXT_FIELDS) {
+    normalized[field] = requireToken(context[field], `${fieldName}.${field}`);
+  }
+  return deepFreeze(normalized);
+}
+
+export function certificationContextMismatchFields(left, right) {
+  return CERTIFICATION_CONTEXT_FIELDS.filter((field) => left[field] !== right[field]);
 }
 
 export function median(values) {
