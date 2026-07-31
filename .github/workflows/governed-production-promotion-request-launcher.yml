@@ -310,6 +310,7 @@ jobs:
             require_sha256 EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
 
             jq -n \
+              --arg request_pr "$REQUEST_PR" \
               --arg main_sha "$MAIN_SHA" \
               --arg production_sha "$PRODUCTION_SHA" \
               --arg candidate_sha "$CANDIDATE_SHA" \
@@ -327,6 +328,7 @@ jobs:
                 schema_version: "governed_production_promotion_convergence.v1",
                 ok: true,
                 attempt: $attempt,
+                request_pr: $request_pr,
                 main_sha: $main_sha,
                 production_sha: $production_sha,
                 candidate_sha: $candidate_sha,
