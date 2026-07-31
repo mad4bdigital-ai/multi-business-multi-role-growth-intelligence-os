@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "7aeff9e7a4abdfee30889d8d1ef692f3b6106b75c222884fb92371e9c1b6f20f",
+    "source_digest": "add8368f17ea19c1953c06d449b7a8ad3781072a4c732d51fda862c6424456b1",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -86,7 +86,7 @@
       },
       {
         "file": "openapi/growth-control-plane-admin-ui.openapi.yaml",
-        "sha256": "cf03e2e5da73af38fab7c0c6d65f02a20ca853024f73eb69970e5c73af5b2aa9",
+        "sha256": "e1a4a3f90ea743b0da3f9b680cac7d97a637a1a73f0644880227f0e13caf2212",
         "present": true
       },
       {
@@ -1037,11 +1037,10 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
-      "equivalent": 1005,
-      "exempt": 16,
-      "mismatch": 1
+      "equivalent": 1006,
+      "exempt": 16
     },
-    "auth_contract_gap_count": 1,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 622,
     "unresolved_operation_class_count": 562,
@@ -23988,18 +23987,17 @@
             "security_declared": false,
             "security_alternatives": [
               [
-                "adminBearerAuth",
+                "adminBearerAuth"
+              ],
+              [
                 "backendApiKeyAuth"
               ]
             ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "mismatch",
-            "reasons": [
-              "runtime:adminBearerAuth|backendApiKeyAuth",
-              "openapi:adminBearerAuth+backendApiKeyAuth"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -24816,16 +24814,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /admin/control-plane/configurations/{configKey}/ui-projection",
-          "state": "mismatch",
-          "reasons": [
-            "runtime:adminBearerAuth|backendApiKeyAuth",
-            "openapi:adminBearerAuth+backendApiKeyAuth"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -24930,7 +24919,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -87747,7 +87736,6 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
