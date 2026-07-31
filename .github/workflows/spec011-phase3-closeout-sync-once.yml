@@ -6,6 +6,13 @@ on:
       - gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731
     paths:
       - .github/workflows/spec011-phase3-closeout-sync-once.yml
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -16,6 +23,7 @@ concurrency:
 
 jobs:
   reconcile:
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
