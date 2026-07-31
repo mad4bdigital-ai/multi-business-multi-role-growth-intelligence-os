@@ -134,6 +134,21 @@ The Spec Kit manifest binds:
 
 When maps, migrations, schema taxonomy, classification rules, or exception records change, generated documentation and Spec Kit manifests become stale and must be regenerated or reviewed again.
 
+## Generated-map synchronization
+
+The dedicated pull-request workflow runs the canonical generator with `--write` before validation. On a same-repository PR it commits only when `docs/work-maps` contains a real generated diff, using the exact generator output. When the generated files are already current, it exits without creating a commit.
+
+```text
+run generator
+→ inspect docs/work-maps diff
+→ no diff: create no commit
+→ real diff: commit generated files
+→ verify with --check
+→ run classification and Spec Kit gates
+```
+
+The bot-generated commit does not weaken review: GitHub starts a fresh validation cycle for the resulting head, or the head is explicitly revalidated before merge. Direct manual editing of generated maps remains prohibited.
+
 ## Implementation readiness
 
 A runtime or repository-governance change is blocked unless:
