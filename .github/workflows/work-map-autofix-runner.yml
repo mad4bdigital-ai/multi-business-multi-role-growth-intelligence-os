@@ -17,11 +17,11 @@ concurrency:
 
 jobs:
   regenerate:
-    name: Regenerate target Work Maps
+    name: Regenerate target Work Maps and dispatch gates
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
-      EXPECTED_HEAD_SHA: d2ad7db6d8abb375aa3cb030bdb451e581a8af08
+      EXPECTED_HEAD_SHA: 416d19e65d654678e71fc5119934ec0032c5e8dc
     steps:
       - uses: actions/checkout@v5
         with:
@@ -76,29 +76,35 @@ jobs:
           test "${first_hash}" = "${second_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Commit with branch lease and dispatch gates
+      - name: Commit if needed, read back exact target, and dispatch gates
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs/work-maps; then
+          final_sha="${EXPECTED_HEAD_SHA}"
+          if ! git diff --quiet -- docs/work-maps; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/work-maps
+            git commit -m "docs(work-maps): regenerate governed platform maps"
+            remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+              echo "Target moved to ${remote_head_sha}; refusing stale push."
+              exit 1
+            fi
+            git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+            final_sha="$(git rev-parse HEAD)"
+          else
             echo "Generated Work Maps are already current."
-            exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/work-maps
-          git commit -m "docs(work-maps): regenerate governed platform maps"
-          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
-            echo "Target moved to ${remote_head_sha}; refusing stale push."
+
+          readback_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${readback_sha}" != "${final_sha}" ]]; then
+            echo "Target readback mismatch. Expected ${final_sha}, found ${readback_sha}."
             exit 1
           fi
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          pushed_sha="$(git rev-parse HEAD)"
-          readback_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${pushed_sha}" = "${readback_sha}"
+
           gh workflow run ci.yml --ref "${TARGET_BRANCH}"
           gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
-          echo "Updated target to ${pushed_sha}."
+          echo "Dispatched exact-target gates for ${final_sha}."
