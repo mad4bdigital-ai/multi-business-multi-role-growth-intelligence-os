@@ -68,13 +68,17 @@ jobs:
             exit 1
           fi
 
-      - name: Validate generator and classification contracts
+      - name: Validate generator, classification, and pipeline contracts
         run: |
           node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
           node --check http-generic-api/test-work-map-schema-classification.mjs
           node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
           node http-generic-api/test-work-map-schema-classification.mjs
