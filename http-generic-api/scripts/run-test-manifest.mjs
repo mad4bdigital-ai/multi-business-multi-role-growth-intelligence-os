@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
@@ -35,6 +37,7 @@ const growthControlContinuationTestCommands = Object.freeze([
 
 const diagnosticAutomationTestCommands = Object.freeze([
   "node test-branch-test-diagnostic-shards.mjs",
+  "node test-sequential-test-progress-report.mjs",
 ]);
 
 export const testCommands = Object.freeze([
@@ -44,28 +47,36 @@ export const testCommands = Object.freeze([
   ...diagnosticAutomationTestCommands,
 ]);
 
+function defaultReportFile() {
+  if (process.env.TEST_MANIFEST_REPORT_FILE) return process.env.TEST_MANIFEST_REPORT_FILE;
+  if (process.env.TEST_SUITE_REPORT_DIR) {
+    return path.join(process.env.TEST_SUITE_REPORT_DIR, "test-manifest.json");
+  }
+  return null;
+}
+
 function parseArgs(argv) {
   const options = {
     grep: null,
     list: false,
+    reportFile: defaultReportFile(),
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--list") {
-      options.list = true;
-      continue;
-    }
-    if (arg === "--grep") {
-      options.grep = argv[i + 1] || "";
+    const readValue = (name) => {
+      const value = argv[i + 1];
+      if (value == null || value.startsWith("--")) throw new Error(`${name} requires a value.`);
       i += 1;
-      continue;
-    }
-    if (arg.startsWith("--grep=")) {
-      options.grep = arg.slice("--grep=".length);
-      continue;
-    }
-    throw new Error(`Unknown argument: ${arg}`);
+      return value;
+    };
+
+    if (arg === "--list") options.list = true;
+    else if (arg === "--grep") options.grep = readValue("--grep");
+    else if (arg.startsWith("--grep=")) options.grep = arg.slice("--grep=".length);
+    else if (arg === "--report-file") options.reportFile = readValue("--report-file");
+    else if (arg.startsWith("--report-file=")) options.reportFile = arg.slice("--report-file=".length);
+    else throw new Error(`Unknown argument: ${arg}`);
   }
 
   return options;
@@ -78,11 +89,8 @@ function splitCommand(command) {
 
   for (const char of command) {
     if (quote) {
-      if (char === quote) {
-        quote = null;
-      } else {
-        current += char;
-      }
+      if (char === quote) quote = null;
+      else current += char;
       continue;
     }
 
@@ -102,19 +110,15 @@ function splitCommand(command) {
     current += char;
   }
 
-  if (quote) {
-    throw new Error(`Unclosed quote in command: ${command}`);
-  }
-  if (current) {
-    parts.push(current);
-  }
-
+  if (quote) throw new Error(`Unclosed quote in command: ${command}`);
+  if (current) parts.push(current);
   return parts;
 }
 
 function runCommand(command) {
   const [program, ...args] = splitCommand(command);
   const executable = program === "node" ? process.execPath : program;
+  const startedAt = Date.now();
   const result = spawnSync(executable, args, {
     cwd: process.cwd(),
     env: process.env,
@@ -122,41 +126,121 @@ function runCommand(command) {
     stdio: "inherit",
   });
 
-  if (result.error) {
-    throw result.error;
-  }
+  return Object.freeze({
+    status: result.error ? 1 : (result.status ?? 1),
+    durationMs: Date.now() - startedAt,
+    ...(result.error ? { error: result.error.message || String(result.error) } : {}),
+  });
+}
 
-  return result.status ?? 1;
+function catalogSha256() {
+  return createHash("sha256").update(JSON.stringify(testCommands)).digest("hex");
+}
+
+function writeReport(reportFile, report) {
+  if (!reportFile) return;
+  const resolved = path.resolve(process.cwd(), reportFile);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  const temporary = `${resolved}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(report, null, 2)}\n`);
+  renameSync(temporary, resolved);
+}
+
+function escapedAnnotation(value) {
+  return String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+}
+
+function createReport(options, selectedCommands) {
+  return {
+    contract: "mad4b.test-manifest-progress-report.v1",
+    generatedAt: new Date().toISOString(),
+    repository: process.env.GITHUB_REPOSITORY || null,
+    ref: process.env.GITHUB_REF || null,
+    headRef: process.env.GITHUB_HEAD_REF || null,
+    baseRef: process.env.GITHUB_BASE_REF || null,
+    commitSha: process.env.GITHUB_SHA || null,
+    catalogSha256: catalogSha256(),
+    totalCommands: testCommands.length,
+    grep: options.grep,
+    selectedCount: selectedCommands.length,
+    status: options.list ? "listed" : "pending",
+    currentCommand: null,
+    lastPassed: null,
+    firstFailure: null,
+    commands: selectedCommands.map(({ command, commandIndex }, selectionIndex) => ({
+      command,
+      commandIndex,
+      selectionIndex,
+      status: options.list ? "listed" : "pending",
+    })),
+    secretsIncluded: false,
+  };
 }
 
 export function runTestManifest(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
+  const indexedCommands = testCommands.map((command, commandIndex) => Object.freeze({ command, commandIndex }));
   const selectedCommands = options.grep
-    ? testCommands.filter((command) => command.includes(options.grep))
-    : testCommands;
+    ? indexedCommands.filter(({ command }) => command.includes(options.grep))
+    : indexedCommands;
+  const report = createReport(options, selectedCommands);
 
   if (options.list) {
-    selectedCommands.forEach((command, index) => {
-      console.log(`${index + 1}. ${command}`);
+    selectedCommands.forEach(({ command, commandIndex }, selectionIndex) => {
+      console.log(`${selectionIndex + 1}. [test:${commandIndex}] ${command}`);
     });
+    report.completedAt = new Date().toISOString();
+    writeReport(options.reportFile, report);
     return 0;
   }
 
   if (!selectedCommands.length) {
+    report.status = "no_matches";
+    report.completedAt = new Date().toISOString();
+    writeReport(options.reportFile, report);
     console.error("No test commands matched.");
     return 1;
   }
 
-  for (let index = 0; index < selectedCommands.length; index += 1) {
-    const command = selectedCommands[index];
-    console.log(`\n[${index + 1}/${selectedCommands.length}] ${command}`);
-    const status = runCommand(command);
-    if (status !== 0) {
-      const escaped = command.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-      console.error(`::error title=Test command failed::${escaped} exited with status ${status}`);
-      return status;
+  report.status = "running";
+  writeReport(options.reportFile, report);
+
+  for (let selectionIndex = 0; selectionIndex < selectedCommands.length; selectionIndex += 1) {
+    const { command, commandIndex } = selectedCommands[selectionIndex];
+    const current = { command, commandIndex, selectionIndex };
+    report.currentCommand = current;
+    report.commands[selectionIndex] = { ...current, status: "running", startedAt: new Date().toISOString() };
+    writeReport(options.reportFile, report);
+
+    console.log(`\n[${selectionIndex + 1}/${selectedCommands.length}][test:${commandIndex}] ${command}`);
+    const execution = runCommand(command);
+    const completedCommand = {
+      ...current,
+      status: execution.status === 0 ? "passed" : "failed",
+      exitCode: execution.status,
+      durationMs: execution.durationMs,
+      ...(execution.error ? { error: execution.error } : {}),
+    };
+    report.commands[selectionIndex] = completedCommand;
+    report.currentCommand = null;
+
+    if (execution.status === 0) {
+      report.lastPassed = completedCommand;
+      writeReport(options.reportFile, report);
+      continue;
     }
+
+    report.status = "failed";
+    report.firstFailure = completedCommand;
+    report.completedAt = new Date().toISOString();
+    writeReport(options.reportFile, report);
+    console.error(`::error title=Sequential test command failed::${escapedAnnotation(command)} (#${commandIndex}) exited with status ${execution.status}`);
+    return execution.status;
   }
+
+  report.status = "passed";
+  report.completedAt = new Date().toISOString();
+  writeReport(options.reportFile, report);
   return 0;
 }
 
