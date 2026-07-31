@@ -162,9 +162,25 @@ function normalizeProviderBinding(binding = {}) {
   };
 }
 
+function clonePolicies(policies) {
+  if (!Array.isArray(policies)) return [];
+  try {
+    return JSON.parse(JSON.stringify(policies));
+  } catch {
+    throw boundaryError(
+      "growth_control_final_boundary_input_invalid",
+      "policies must be JSON-serializable.",
+      422,
+      { field: "policies" },
+    );
+  }
+}
+
 function normalizeInput(input = {}) {
-  assertBoundedInput(input);
-  assertSafeInput(input);
+  const inputWithoutPool = { ...input };
+  delete inputWithoutPool.pool;
+  assertBoundedInput(inputWithoutPool);
+  assertSafeInput(inputWithoutPool);
   const principal = normalizePrincipal(input.principal);
   const effectiveSubject = normalizeEffectiveSubject(input.effectiveSubject);
   if (!principal.authorizedTenantRefs.includes("*") && !principal.authorizedTenantRefs.includes(effectiveSubject.tenantRef)) {
@@ -187,7 +203,6 @@ function normalizeInput(input = {}) {
     throw boundaryError("growth_control_final_boundary_input_invalid", "now must be a valid instant.", 422);
   }
   return deepFreeze({
-    pool: input.pool || null,
     principal,
     effectiveSubject,
     tenantId,
@@ -214,7 +229,7 @@ function normalizeInput(input = {}) {
     nodeId: canonical(input.nodeId, "nodeId"),
     planHashSha256: sha256(input.planHashSha256, "planHashSha256"),
     requestHashSha256: sha256(input.requestHashSha256, "requestHashSha256"),
-    policies: Array.isArray(input.policies) ? input.policies : [],
+    policies: clonePolicies(input.policies),
     typedConfirmationKeys: sortedUnique(input.typedConfirmationKeys, "typedConfirmationKeys", { normalize: canonical }),
     plannedReadbackKeys: sortedUnique(input.plannedReadbackKeys, "plannedReadbackKeys", { normalize: canonical }),
     plannedRollbackKeys: sortedUnique(input.plannedRollbackKeys, "plannedRollbackKeys", { normalize: canonical }),
@@ -415,6 +430,7 @@ export function createGrowthControlFinalBoundaryService({
   if (typeof policyCompiler !== "function") throw new TypeError("policyCompiler must be a function.");
 
   async function evaluate(input = {}) {
+    const pool = input?.pool || null;
     const normalized = normalizeInput(input);
     let semanticResult;
     try {
@@ -616,7 +632,7 @@ export function createGrowthControlFinalBoundaryService({
     const effectful = normalized.intent.dispatchRequested || normalized.intent.applyRequested || normalized.intent.externalWriteRequested;
     let approvalEvidence = null;
     if (effectful || approvalRequirement) {
-      if (!normalized.holdId || !normalized.pool) {
+      if (!normalized.holdId || !pool) {
         return failureResult(normalized, "approval", "FINAL_BOUNDARY_APPROVAL_REQUIRED", {
           semantic: semanticSummary,
           resource: resourceSummary,
@@ -627,7 +643,7 @@ export function createGrowthControlFinalBoundaryService({
       }
       try {
         approvalEvidence = await readApprovalHold({
-          pool: normalized.pool,
+          pool,
           holdId: normalized.holdId,
           planId: normalized.planId,
           planStepId: normalized.planStepId,
