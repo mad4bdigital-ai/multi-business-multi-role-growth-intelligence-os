@@ -1,0 +1,781 @@
+openapi: 3.1.0
+info:
+  title: Growth Control Analytics and Observability API
+  version: 1.0.0
+  description: >-
+    Governed KPI catalog, tenant-isolated portfolio projections, bounded SLO and
+    reconciliation dashboards, and internal evidence ingestion for Spec 011.
+    These contracts do not authorize provider dispatch, external sends, migration
+    application, automatic remediation, or production activation.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: growth-control-analytics
+  - name: growth-control-operations
+  - name: growth-control-internal-evidence
+paths:
+  /admin/control-plane/analytics/kpis:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getAdminGrowthControlKpiCatalog
+      summary: Project governed KPI definitions and activity mappings
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdOptional'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/ActivityBindingIds'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+      responses:
+        '200':
+          description: Read-only KPI catalog projection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KpiCatalogProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/control-plane/analytics/portfolio:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getAdminGrowthControlPortfolio
+      summary: Project normalized cross-brand KPI series for one tenant
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdRequired'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant-isolated portfolio projection retaining native lineage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PortfolioProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /tenant/control-plane/analytics/portfolio:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getTenantGrowthControlPortfolio
+      summary: Project a Tenant-safe brand portfolio
+      description: >-
+        Tenant and user identity come from the signed JWT. Workspace, brand and
+        role are confirmed by active membership and workspace readback.
+      x-contract-completeness: canonical
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceIdRequired'
+        - $ref: '#/components/parameters/BrandKeyRequired'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant-safe portfolio projection for the authorized brand.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantPortfolioProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/control-plane/operations/dashboard:
+    get:
+      tags: [growth-control-operations]
+      operationId: getAdminGrowthControlOperationalDashboard
+      summary: Project SLO, alert and reconciliation health
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdOptional'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/WindowStart'
+        - $ref: '#/components/parameters/WindowEnd'
+        - $ref: '#/components/parameters/SampleLimit'
+        - $ref: '#/components/parameters/FindingLimit'
+        - $ref: '#/components/parameters/IncludePortfolio'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Read-only Admin operational projection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalDashboard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /tenant/control-plane/operations/dashboard:
+    get:
+      tags: [growth-control-operations]
+      operationId: getTenantGrowthControlOperationalDashboard
+      summary: Project Tenant-safe SLO and reconciliation health
+      x-contract-completeness: canonical
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceIdRequired'
+        - $ref: '#/components/parameters/BrandKeyRequired'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/WindowStart'
+        - $ref: '#/components/parameters/WindowEnd'
+        - $ref: '#/components/parameters/SampleLimit'
+        - $ref: '#/components/parameters/FindingLimit'
+        - $ref: '#/components/parameters/IncludePortfolio'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant-safe dashboard with internal authority references removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantOperationalDashboard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/analytics/observations:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlMetricObservation
+      summary: Normalize and append one governed metric observation
+      x-contract-completeness: canonical
+      security:
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MetricObservationRequest' }
+      responses:
+        '201':
+          description: Observation appended with same-cycle readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetricObservationWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/operations/samples:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlObservabilitySample
+      summary: Append one bounded SLO metric sample
+      x-contract-completeness: canonical
+      security:
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObservabilitySampleRequest' }
+      responses:
+        '201':
+          description: Sample appended with same-cycle readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObservabilitySampleWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/operations/decision-evidence:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlDecisionEvidence
+      summary: Append bounded decision evidence and a no-secret telemetry span
+      x-contract-completeness: canonical
+      security:
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionEvidenceRequest' }
+      responses:
+        '201':
+          description: Decision evidence and telemetry span recorded transactionally.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecisionEvidenceWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API key
+      description: Backend key carried as an Authorization bearer credential, followed by Admin-principal enforcement.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Backend key carried in x-api-key; Admin operations additionally enforce an Admin principal.
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed non-admin tenant user JWT with authoritative membership and workspace readback.
+  parameters:
+    TenantIdRequired:
+      name: tenantId
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    TenantIdOptional:
+      name: tenantId
+      in: query
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    WorkspaceIdRequired:
+      name: workspaceId
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    BrandKeyRequired:
+      name: brandKey
+      in: query
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    WorkspaceIds:
+      name: workspaceIds
+      in: query
+      required: false
+      description: Comma-separated workspace identifiers.
+      schema: { type: string, maxLength: 4096 }
+    BrandKeys:
+      name: brandKeys
+      in: query
+      required: false
+      description: Comma-separated brand keys.
+      schema: { type: string, maxLength: 4096 }
+    ActivityBindingIds:
+      name: activityBindingIds
+      in: query
+      required: false
+      description: Comma-separated activity binding identifiers.
+      schema: { type: string, maxLength: 4096 }
+    NormalizedKpiKeys:
+      name: normalizedKpiKeys
+      in: query
+      required: false
+      description: Comma-separated canonical KPI keys.
+      schema: { type: string, maxLength: 4096 }
+    PeriodStart:
+      name: periodStart
+      in: query
+      required: false
+      schema: { type: string, format: date-time }
+    PeriodEnd:
+      name: periodEnd
+      in: query
+      required: false
+      schema: { type: string, format: date-time }
+    WindowStart:
+      name: windowStart
+      in: query
+      required: false
+      schema: { type: string, format: date-time }
+    WindowEnd:
+      name: windowEnd
+      in: query
+      required: false
+      schema: { type: string, format: date-time }
+    Environment:
+      name: environment
+      in: query
+      required: false
+      schema: { type: string, maxLength: 32 }
+    SampleLimit:
+      name: sampleLimit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 5000, default: 5000 }
+    FindingLimit:
+      name: findingLimit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 1000 }
+    IncludePortfolio:
+      name: includePortfolio
+      in: query
+      required: false
+      schema: { type: boolean, default: false }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 5000, default: 5000 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+  responses:
+    BadRequest:
+      description: Request shape or query validation failed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Required backend key or tenant JWT is missing or invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Admin principal or tenant scope readback rejected the request.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Governed KPI definition or mapping was not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Idempotency, active identity, mapping or readback conflict.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unprocessable:
+      description: KPI units, periods, lineage, SLO samples or evidence are invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalError:
+      description: Internal persistence or same-cycle readback failure.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error, secretsIncluded]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string, maxLength: 512 }
+            details:
+              type: array
+              maxItems: 100
+              items: { type: object, additionalProperties: true }
+            requestId: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    Sha256:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    KpiDefinition:
+      type: object
+      additionalProperties: false
+      required: [kpiDefinitionId, normalizedKpiKey, displayName, valueType, unitKey, aggregation, direction, definitionVersion, freshnessSeconds, status, revision, metadata, checksumSha256, secretsIncluded]
+      properties:
+        kpiDefinitionId: { type: string }
+        normalizedKpiKey: { type: string }
+        displayName: { type: string }
+        description: { type: [string, 'null'] }
+        valueType: { type: string, enum: [integer, number, ratio, percentage, currency, duration] }
+        unitKey: { type: string }
+        aggregation: { type: string, enum: [sum, average, weighted_average, minimum, maximum, latest] }
+        direction: { type: string, enum: [higher_is_better, lower_is_better, target, neutral] }
+        definitionVersion: { type: integer, minimum: 1 }
+        freshnessSeconds: { type: integer, minimum: 1 }
+        status: { type: string }
+        revision: { type: integer, minimum: 1 }
+        metadata: { type: object, additionalProperties: true }
+        checksumSha256: { $ref: '#/components/schemas/Sha256' }
+        secretsIncluded: { type: boolean, const: false }
+    KpiBinding:
+      type: object
+      additionalProperties: false
+      required: [activityKpiBindingId, activityBindingId, activityTypeKey, activityPackKey, nativeKpiKey, normalizedKpiKey, definitionVersion, nativeUnitKey, normalizedUnitKey, conversionKind, scaleMultiplier, mappingConfidence, status, revision, bindingSha256, secretsIncluded]
+      properties:
+        activityKpiBindingId: { type: string }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        activityBindingId: { type: string }
+        activityTypeKey: { type: string }
+        activityPackKey: { type: string }
+        nativeKpiKey: { type: string }
+        normalizedKpiKey: { type: string }
+        definitionVersion: { type: integer, minimum: 1 }
+        nativeUnitKey: { type: string }
+        normalizedUnitKey: { type: string }
+        conversionKind: { type: string, enum: [identity, scale] }
+        scaleMultiplier: { type: number, exclusiveMinimum: 0 }
+        mappingConfidence: { type: number, minimum: 0, maximum: 1 }
+        status: { type: string }
+        revision: { type: integer, minimum: 1 }
+        bindingSha256: { $ref: '#/components/schemas/Sha256' }
+        secretsIncluded: { type: boolean, const: false }
+    KpiCatalogProjection:
+      type: object
+      additionalProperties: false
+      required: [contract, definitions, bindings, catalogSha256, readOnly, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.kpi-catalog-projection.v1 }
+        definitions: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/KpiDefinition' } }
+        bindings: { type: array, maxItems: 5000, items: { $ref: '#/components/schemas/KpiBinding' } }
+        catalogSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    NativeDefinition:
+      type: object
+      additionalProperties: false
+      required: [activityTypeKey, nativeKpiKey, nativeUnitKey, definitionVersion, sourceSystemKeys]
+      properties:
+        activityTypeKey: { type: string }
+        nativeKpiKey: { type: string }
+        nativeUnitKey: { type: string }
+        definitionVersion: { type: integer, minimum: 1 }
+        sourceSystemKeys: { type: array, uniqueItems: true, items: { type: string } }
+    BrandPoint:
+      type: object
+      additionalProperties: false
+      required: [brandKey, value, confidence, observationCount, staleObservationCount, latestObservedAt, lineageSha256]
+      properties:
+        brandKey: { type: string }
+        value: { type: number }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        observationCount: { type: integer, minimum: 1 }
+        staleObservationCount: { type: integer, minimum: 0 }
+        latestObservedAt: { type: string, format: date-time }
+        lineageSha256: { $ref: '#/components/schemas/Sha256' }
+    PortfolioSeries:
+      type: object
+      additionalProperties: false
+      required: [normalizedKpiKey, definitionVersion, unitKey, aggregation, direction, periodStart, periodEnd, portfolioValue, portfolioConfidence, observationCount, staleObservationCount, p95FreshnessAgeSeconds, brandPoints, nativeDefinitions, lineagePreserved, rawMetricsMergedAcrossTenants]
+      properties:
+        normalizedKpiKey: { type: string }
+        definitionVersion: { type: integer, minimum: 1 }
+        unitKey: { type: string }
+        aggregation: { type: string }
+        direction: { type: string }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        portfolioValue: { type: number }
+        portfolioConfidence: { type: number, minimum: 0, maximum: 1 }
+        observationCount: { type: integer, minimum: 1 }
+        staleObservationCount: { type: integer, minimum: 0 }
+        p95FreshnessAgeSeconds: { type: integer, minimum: 0 }
+        brandPoints: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/BrandPoint' } }
+        nativeDefinitions: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/NativeDefinition' } }
+        lineagePreserved: { type: boolean, const: true }
+        rawMetricsMergedAcrossTenants: { type: boolean, const: false }
+    PortfolioProjection:
+      type: object
+      additionalProperties: false
+      required: [contract, tenantId, workspaceIds, brandKeys, normalizedKpiKeys, observationCount, series, projectionSha256, readOnly, tenantIsolated, lineagePreserved, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.portfolio-projection.v1 }
+        tenantId: { type: string }
+        workspaceIds: { type: array, uniqueItems: true, items: { type: string } }
+        brandKeys: { type: array, uniqueItems: true, items: { type: string } }
+        normalizedKpiKeys: { type: array, uniqueItems: true, items: { type: string } }
+        observationCount: { type: integer, minimum: 0 }
+        series: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/PortfolioSeries' } }
+        projectionSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        tenantIsolated: { type: boolean, const: true }
+        lineagePreserved: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    TenantPortfolioProjection:
+      allOf:
+        - $ref: '#/components/schemas/PortfolioProjection'
+        - type: object
+          required: [audience, tenantRole, tenantSafe, otherTenantsIncluded]
+          properties:
+            audience: { type: string, const: tenant }
+            tenantRole: { type: [string, 'null'] }
+            tenantSafe: { type: boolean, const: true }
+            otherTenantsIncluded: { type: boolean, const: false }
+    SloResult:
+      type: object
+      additionalProperties: false
+      required: [sloKey, metricKey, evaluator, target, severity, actual, sampleCount, status, breached]
+      properties:
+        sloKey: { type: string }
+        metricKey: { type: string }
+        evaluator: { type: string }
+        target: { type: number }
+        severity: { type: string, enum: [high, critical] }
+        actual: { type: [number, 'null'] }
+        sampleCount: { type: integer, minimum: 0 }
+        status: { type: string, enum: [insufficient_data, breached, met] }
+        breached: { type: boolean }
+    AlertProjection:
+      type: object
+      additionalProperties: false
+      required: [alertKey, severity, status, reasonCode, metricKey, target, actual, evidenceSha256, autoRemediationAllowed, secretsIncluded]
+      properties:
+        alertKey: { type: string }
+        severity: { type: string, enum: [high, critical] }
+        status: { type: string, const: firing }
+        reasonCode: { type: string }
+        metricKey: { type: string }
+        target: { type: number }
+        actual: { type: number }
+        evidenceSha256: { $ref: '#/components/schemas/Sha256' }
+        autoRemediationAllowed: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    ReconciliationFinding:
+      type: object
+      additionalProperties: false
+      required: [findingId, findingType, brandKey, severity, status, reasonCode, detectedAt]
+      properties:
+        findingId: { type: string }
+        findingType: { type: string }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        severity: { type: string, enum: [info, low, medium, high, critical] }
+        status: { type: string, enum: [open, acknowledged, resolved, blocked] }
+        reasonCode: { type: string }
+        authorityRef: { type: [string, 'null'] }
+        evidenceRef: { type: [string, 'null'] }
+        detectedAt: { type: string, format: date-time }
+        highRisk: { type: boolean }
+        secretsIncluded: { type: boolean, const: false }
+    ReconciliationSummary:
+      type: object
+      additionalProperties: false
+      required: [findingCount, openFindingCount, criticalOpenCount, findings]
+      properties:
+        findingCount: { type: integer, minimum: 0 }
+        openFindingCount: { type: integer, minimum: 0 }
+        criticalOpenCount: { type: integer, minimum: 0 }
+        findings: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/ReconciliationFinding' } }
+    PortfolioSummary:
+      type: [object, 'null']
+      additionalProperties: false
+      properties:
+        observationCount: { type: integer, minimum: 0 }
+        seriesCount: { type: integer, minimum: 0 }
+        staleObservationCount: { type: integer, minimum: 0 }
+        projectionSha256: { type: [string, 'null'] }
+    OperationalDashboard:
+      type: object
+      additionalProperties: false
+      required: [contract, audience, scope, health, sloResults, alerts, reconciliation, portfolioSummary, dashboardSha256, readOnly, tenantSafe, platformInternalPolicyPayloadsIncluded, otherTenantsIncluded, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.operational-dashboard.v1 }
+        audience: { type: string, enum: [admin, tenant] }
+        scope:
+          type: object
+          additionalProperties: false
+          required: [tenantId, workspaceId, brandKeys]
+          properties:
+            tenantId: { type: [string, 'null'] }
+            workspaceId: { type: [string, 'null'] }
+            brandKeys: { type: array, uniqueItems: true, items: { type: string } }
+        health: { type: string, enum: [healthy, degraded, critical, insufficient_data] }
+        sloResults: { type: array, items: { $ref: '#/components/schemas/SloResult' } }
+        alerts: { type: array, items: { $ref: '#/components/schemas/AlertProjection' } }
+        reconciliation: { $ref: '#/components/schemas/ReconciliationSummary' }
+        portfolioSummary: { $ref: '#/components/schemas/PortfolioSummary' }
+        dashboardSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        tenantSafe: { type: boolean }
+        platformInternalPolicyPayloadsIncluded: { type: boolean, const: false }
+        otherTenantsIncluded: { type: boolean, const: false }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    TenantOperationalDashboard:
+      allOf:
+        - $ref: '#/components/schemas/OperationalDashboard'
+        - type: object
+          properties:
+            audience: { type: string, const: tenant }
+            tenantSafe: { type: boolean, const: true }
+    MetricObservationRequest:
+      type: object
+      additionalProperties: false
+      required: [observationId, tenantId, workspaceId, brandKey, activityBindingId, nativeKpiKey, nativeValue, periodStart, periodEnd, observedAt, confidence, sourceSystemKey, sourceObservationId]
+      properties:
+        observationId: { type: string, maxLength: 64 }
+        tenantId: { type: string, maxLength: 64 }
+        workspaceId: { type: string, maxLength: 64 }
+        brandKey: { type: string, maxLength: 128 }
+        activityBindingId: { type: string, maxLength: 64 }
+        nativeKpiKey: { type: string, maxLength: 128 }
+        nativeValue: { type: number }
+        weight: { type: number, exclusiveMinimum: 0, default: 1 }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        observedAt: { type: string, format: date-time }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        sourceSystemKey: { type: string, maxLength: 128 }
+        sourceObservationId: { type: string, maxLength: 191 }
+        sourceEventId: { type: [string, 'null'], maxLength: 191 }
+        now: { type: string, format: date-time }
+    MetricObservation:
+      type: object
+      additionalProperties: true
+      required: [observationId, tenantId, workspaceId, brandKey, activityBindingId, normalizedKpiKey, nativeKpiKey, normalizedValue, observationSha256, secretsIncluded]
+      properties:
+        observationId: { type: string }
+        tenantId: { type: string }
+        workspaceId: { type: string }
+        brandKey: { type: string }
+        activityBindingId: { type: string }
+        normalizedKpiKey: { type: string }
+        nativeKpiKey: { type: string }
+        normalizedValue: { type: number }
+        observationSha256: { $ref: '#/components/schemas/Sha256' }
+        secretsIncluded: { type: boolean, const: false }
+    MetricObservationWriteResponse:
+      type: object
+      additionalProperties: false
+      required: [observation, idempotentReplay, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        observation: { $ref: '#/components/schemas/MetricObservation' }
+        idempotentReplay: { type: boolean }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    ObservabilitySampleRequest:
+      type: object
+      additionalProperties: false
+      required: [sampleId, metricKey, environment, value, observedAt, sourceEvidenceSha256]
+      properties:
+        sampleId: { type: string, maxLength: 64 }
+        metricKey: { type: string, maxLength: 128 }
+        tenantId: { type: [string, 'null'], maxLength: 64 }
+        workspaceId: { type: [string, 'null'], maxLength: 64 }
+        brandKey: { type: [string, 'null'], maxLength: 128 }
+        environment: { type: string, maxLength: 32 }
+        value: { type: number }
+        weight: { type: number, exclusiveMinimum: 0, default: 1 }
+        observedAt: { type: string, format: date-time }
+        sourceEvidenceSha256: { $ref: '#/components/schemas/Sha256' }
+    ObservabilitySample:
+      type: object
+      additionalProperties: true
+      required: [sampleId, metricKey, environment, value, observedAt, sourceEvidenceSha256, sampleSha256, secretsIncluded]
+      properties:
+        sampleId: { type: string }
+        metricKey: { type: string }
+        environment: { type: string }
+        value: { type: number }
+        observedAt: { type: string, format: date-time }
+        sourceEvidenceSha256: { $ref: '#/components/schemas/Sha256' }
+        sampleSha256: { $ref: '#/components/schemas/Sha256' }
+        secretsIncluded: { type: boolean, const: false }
+    ObservabilitySampleWriteResponse:
+      type: object
+      additionalProperties: false
+      required: [sample, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        sample: { $ref: '#/components/schemas/ObservabilitySample' }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    GateResult:
+      type: object
+      additionalProperties: false
+      required: [gateKey, status]
+      properties:
+        gateKey: { type: string }
+        status: { type: string, enum: [passed, blocked, failed, not_applicable] }
+        reasonCode: { type: [string, 'null'] }
+        evidenceRef: { type: [string, 'null'] }
+    DecisionEvidenceRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, traceId, gateResults, reasonCodes, durationMs, resultClassification, readbackStatus]
+      properties:
+        requestId: { type: string, maxLength: 191 }
+        traceId: { type: string, maxLength: 191 }
+        tenantId: { type: [string, 'null'], maxLength: 64 }
+        workspaceId: { type: [string, 'null'], maxLength: 64 }
+        brandKey: { type: [string, 'null'], maxLength: 128 }
+        activityBindingId: { type: [string, 'null'], maxLength: 64 }
+        planId: { type: [string, 'null'], maxLength: 64 }
+        runId: { type: [string, 'null'], maxLength: 64 }
+        capabilityKey: { type: [string, 'null'], maxLength: 128 }
+        workflowVersion: { type: [integer, 'null'], minimum: 1 }
+        configSnapshotId: { type: [string, 'null'], maxLength: 64 }
+        policySnapshotId: { type: [string, 'null'], maxLength: 64 }
+        selectedAdapterKey: { type: [string, 'null'], maxLength: 128 }
+        gateResults: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/GateResult' } }
+        reasonCodes: { type: array, maxItems: 50, uniqueItems: true, items: { type: string } }
+        durationMs: { type: integer, minimum: 0 }
+        resultClassification: { type: string, maxLength: 64 }
+        readbackStatus: { type: string, maxLength: 64 }
+    DecisionEvidence:
+      type: object
+      additionalProperties: true
+      required: [requestId, traceId, gateResults, reasonCodes, durationMs, resultClassification, readbackStatus, evidenceSha256, secretsIncluded]
+      properties:
+        requestId: { type: string }
+        traceId: { type: string }
+        gateResults: { type: array, items: { $ref: '#/components/schemas/GateResult' } }
+        reasonCodes: { type: array, items: { type: string } }
+        durationMs: { type: integer, minimum: 0 }
+        resultClassification: { type: string }
+        readbackStatus: { type: string }
+        evidenceSha256: { $ref: '#/components/schemas/Sha256' }
+        secretsIncluded: { type: boolean, const: false }
+    DecisionEvidenceWriteResponse:
+      type: object
+      additionalProperties: false
+      required: [evidence, telemetrySpanRecorded, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        evidence: { $ref: '#/components/schemas/DecisionEvidence' }
+        telemetrySpanRecorded: { type: boolean, const: true }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
