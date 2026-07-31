@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 21
+- Total queue items: 22
 - Critical review: 20
 - High review: 1
-- Medium review: 0
+- Medium review: 1
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -226,20 +226,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_dry_run`
 
-### 17. `196_sprint66_tenant_database_schema_read_tool.sql`
-
-- Queue class: critical_review
-- Score: 719
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/schema`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_schema_read`
-
-### 18. `197_sprint66_tenant_database_query_readonly_tool.sql`
+### 17. `197_sprint66_tenant_database_query_readonly_tool.sql`
 
 - Queue class: critical_review
 - Score: 719
@@ -252,7 +239,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/query-readonly`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_query_readonly`
 
-### 19. `198_sprint66_tenant_ssh_probe_tool.sql`
+### 18. `198_sprint66_tenant_ssh_probe_tool.sql`
 
 - Queue class: critical_review
 - Score: 719
@@ -264,6 +251,19 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/probe`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_probe`
+
+### 19. `196_sprint66_tenant_database_schema_read_tool.sql`
+
+- Queue class: critical_review
+- Score: 718
+- Gap severity: high
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/schema`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_schema_read`
 
 ### 20. `191_sprint66_tenant_credential_intake_connection_status.sql`
 
@@ -291,4 +291,17 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `repository_main_moved_trigger_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 22. `20260728_governed_response_chunk_ownership.sql`
+
+- Queue class: medium_review
+- Score: 318
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_ownership_readiness`
 
