@@ -171,6 +171,24 @@ function validateEffectPolicy({ contract, method, findings, contractKey }) {
   return effectClass;
 }
 
+function validateEvidenceFiles({ contract, root, fileOverrides, findings, contractKey }) {
+  if (contract?.evidence_files === undefined) return;
+  if (!Array.isArray(contract.evidence_files)) {
+    findings.push({ type: "direct_route_contract_evidence_files_invalid", contract_key: contractKey || null });
+    return;
+  }
+  for (const [index, evidence] of contract.evidence_files.entries()) {
+    if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
+      findings.push({ type: "direct_route_contract_evidence_file_invalid", contract_key: contractKey || null, index });
+      continue;
+    }
+    const role = String(evidence.role || `evidence_${index + 1}`).trim() || `evidence_${index + 1}`;
+    const relativePath = String(evidence.file || "").trim();
+    const source = readContractSource({ root, relativePath, fileOverrides, findings, contractKey: contractKey || null, role });
+    requireMarkers({ source, markers: evidence.markers, findings, contractKey: contractKey || null, role, file: relativePath || null });
+  }
+}
+
 export function validateDirectRouteCallabilityContracts({ root = process.cwd(), manifest, fileOverrides = {} } = {}) {
   const findings = [];
   const baseContracts = manifest?.callability_gate?.direct_route_contracts;
@@ -228,6 +246,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
       const source = readContractSource({ root, relativePath, fileOverrides, findings, contractKey: contractKey || null, role });
       requireMarkers({ source, markers: contract?.[markerField], findings, contractKey: contractKey || null, role, file: relativePath || null });
     }
+    validateEvidenceFiles({ contract, root, fileOverrides, findings, contractKey });
 
     const valid = findings.length === startFindingCount;
     const toolKeys = unique(toolBindings.map((binding) => binding.tool_key));
