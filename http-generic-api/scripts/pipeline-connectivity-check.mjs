@@ -38,6 +38,37 @@ function topLevelBlock(text, key) {
   return collected.join("\n");
 }
 
+function indentation(line) {
+  return line.match(/^\s*/)?.[0].length || 0;
+}
+
+function executableCommands(text) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const commands = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const inline = line.match(/^\s*run:\s*(?![|>][-+0-9]*\s*$)(.+)$/);
+    if (inline) {
+      commands.push(inline[1]);
+      continue;
+    }
+
+    if (!/^\s*run:\s*[|>][-+0-9]*\s*$/.test(line)) continue;
+    const baseIndent = indentation(line);
+    const block = [];
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const candidate = lines[cursor];
+      if (candidate.trim() && indentation(candidate) <= baseIndent) break;
+      block.push(candidate);
+      index = cursor;
+    }
+    commands.push(block.join("\n"));
+  }
+
+  return commands.join("\n");
+}
+
 function detectTriggers(text) {
   const block = topLevelBlock(text, "on");
   return ["workflow_dispatch", "pull_request", "push", "schedule", "workflow_run"]
@@ -153,12 +184,12 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
     const approvedProducers = new Set(artifact.approved_producers || []);
     const requiredConsumers = new Set(artifact.required_consumers || []);
     const actualProducerPaths = workflowFiles.filter((file) => {
-      const text = readText(file);
-      return (artifact.producer_signatures || []).some((signature) => text.includes(signature));
+      const commandText = executableCommands(readText(file));
+      return (artifact.producer_signatures || []).some((signature) => commandText.includes(signature));
     });
     const actualConsumerPaths = workflowFiles.filter((file) => {
-      const text = readText(file);
-      return (artifact.consumer_signatures || []).some((signature) => text.includes(signature));
+      const commandText = executableCommands(readText(file));
+      return (artifact.consumer_signatures || []).some((signature) => commandText.includes(signature));
     });
     const actualProducerKeys = new Set(actualProducerPaths.map((file) => workflowPathToKey.get(path.resolve(file)) || `unregistered:${path.relative(repoRoot, file).replaceAll("\\", "/")}`));
     const actualConsumerKeys = new Set(actualConsumerPaths.map((file) => workflowPathToKey.get(path.resolve(file)) || `unregistered:${path.relative(repoRoot, file).replaceAll("\\", "/")}`));
