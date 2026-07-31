@@ -2,7 +2,7 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
 EC3 introduces a framework-independent, default-off integration gate between the canonical Execution Capsule validation port and an injected read-only dispatcher.
 
@@ -69,13 +69,20 @@ Telemetry failure cannot change validation or dispatch behavior. A dispatcher ex
 - rollback restores the exact legacy call shape;
 - no environment, network, database, cloud SDK, or provider dependency.
 
-## Reconciliation status
+## Completion evidence
 
-The EC3 source and contract have been rebuilt on current `main` after discarding stale generated artifacts from the pre-reconciliation baseline. Test registration and generator-owned artifacts must be certified again on the reconciled head.
-
-## Completion gates
-
-EC3 completes only after exact-once test registration, generator-owned evidence refresh, exact-head required CI and side workflows, Human Architecture/Security Review, latest-main reconciliation, and post-merge readback.
+- merged PR: `#3858`;
+- validated exact head: `413aaada58655ad4d6bcf898e96021b3d98dd28c`;
+- merge SHA: `2ce9f7e43f7a3c5e9ee6cb7322d46af1c0ba5c83`;
+- required CI run `30584106526`: 4/4 required jobs passed;
+- generator run `30584106613`: passed on the exact head;
+- Frontend Surface Dispatch run `30584106628`: passed;
+- Custom GPT Contract Guard run `30584106505`: passed;
+- overlap, hardcoding, fanout, docs, scorecards, and cleanup workflows passed;
+- two Human Architecture/Security Reviews passed on the exact head;
+- unresolved review threads: zero;
+- post-merge `main` readback confirmed the gate, exact-once test registration, and generator-owned evidence;
+- runtime authority and Production activation remain false.
 
 ## Safety boundaries
 
