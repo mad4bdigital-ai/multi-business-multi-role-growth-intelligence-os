@@ -2,19 +2,19 @@
 
 ## الغرض
 
-تحول هذه الحزمة تجربة RetailOS إلى مواصفة Brownfield قابلة للتنفيذ داخل منصة **Multi-Business Multi-Role Growth Intelligence OS**، وتوسعها بحيث تساعد كل Tenant وBrand على اكتشاف الإمكانات المتاحة، مقارنة أنماط تنفيذ متعددة، اختيار Solution Blueprint، معرفة الفجوات والاتصالات والموافقات، توليد خطة تنفيذ محكومة، ومتابعة التشغيل بعد الإطلاق.
+تحول هذه الحزمة تجربة RetailOS إلى مواصفة Brownfield داخل **Multi-Business Multi-Role Growth Intelligence OS**، وتساعد كل Tenant وBrand على اكتشاف الإمكانات، مقارنة أنماط تنفيذ، اختيار Solution Blueprint، معرفة الفجوات والاتصالات، توليد خطة محكومة، ومتابعة التشغيل بعد الإطلاق.
 
-تشمل الأنماط المخططة Platform Native وERPNext وWordPress وWooCommerce بأنماطها القياسية والمحكومة والهجينة، إلى جانب Workspace File Fabric وGoogle Drive.
+تشمل Platform Native وERPNext وWordPress وWooCommerce بأنماطها القياسية والمحكومة والهجينة، إضافة إلى Workspace File Fabric وGoogle Drive.
 
-هذه الحزمة Specification فقط. لا تنفذ Provider Calls أو Migrations أو Production Writes.
+هذه الحزمة Specification فقط؛ لا تنفذ Provider Calls أو Migrations أو Production Writes.
 
-## Brand هي نطاق التجارة الإلزامي
+## Brand هي نطاق التجارة
 
 ```text
 One Authoritative Writer per Bounded Domain per Brand Scope
 ```
 
-الـWorkspace حاوية إدارية وتعاونية، لكنها لا تكفي وحدها كسلطة تجارة. كل Product وStock Unit وReservation وOrder وPOS Sale وPayment وShipment وReturn وPublication وMeasurement Event وCustomer Communication وCommerce File Operation تتطلب Brand دقيقة وBrand Commerce Profile نشطة.
+الـWorkspace حاوية إدارية وتعاونية، لكنها ليست سلطة تجارة كافية. كل Product وStock Unit وReservation وOrder وPOS Sale وPayment وShipment وReturn وPublication وMeasurement Event وCustomer Communication وCommerce File Operation تتطلب Brand دقيقة وBrand Commerce Profile نشطة.
 
 ## Commerce Enablement Fabric
 
@@ -34,9 +34,9 @@ Tenant
 
 ### Capability Catalog
 
-يسجل النتيجة التجارية، الأنماط المدعومة، المجالات والاتصالات والـScopes والـGrants والأدوار والموافقات والـPlugins والـLocalization، بالإضافة إلى Readiness Probe وTemplate وRunbook واختبارات القبول والتكلفة والمخاطر.
+يسجل Business Outcome والأنماط والمجالات والاتصالات والـScopes والـGrants والأدوار والموافقات والـPlugins والـLocalization وReadiness Probe وTemplate وRunbook واختبارات القبول والتكلفة والمخاطر.
 
-ويفصل بين:
+يفصل بين:
 
 ```text
 inventory_only
@@ -54,7 +54,7 @@ production_certified
 - ERPNext Commerce Authority؛
 - WooCommerce Standard Brand Store؛
 - WooCommerce Governed Bridge؛
-- WooCommerce + ERPNext بنمطين واضحين للسلطة؛
+- WooCommerce + ERPNext بنمطين للسلطة؛
 - Headless WooCommerce؛
 - WordPress Content + External Commerce؛
 - Existing Store Operational Takeover؛
@@ -64,22 +64,22 @@ production_certified
 
 ## WooCommerce
 
-### Standard Brand Store
+### Standard Store
 
-WooCommerce يملك Catalog وInventory وCheckout وOrders وCoupons في النطاق المحدد. المنصة توفر الحوكمة، الموقع والمحتوى وSEO، Analytics وConsent، التشغيل والمراقبة، الملفات والوسائط، Growth Intelligence، التنبيهات والمصالحة.
+WooCommerce يملك المجالات المحددة مثل Catalog وInventory وCheckout وOrders، والمنصة توفر الحوكمة والمحتوى وSEO والقياس والتشغيل والملفات والنمو والتنبيهات والمصالحة.
 
 هذا النمط لا يدعي Atomic Unique-item Reservation بين WooCommerce وPOS وLive.
 
 ### Governed Bridge
 
-Bridge Plugin معتمدة تضيف Brand/Site identity، Signed Requests، Replay Protection، Idempotency، Expected Version، Reservation/Release/Commit، Operation Ledger، Readback، Webhook Inspection، وحماية القطعة الفريدة بين القنوات.
+Bridge Plugin معتمدة تضيف Brand/Site identity وSigned Requests وReplay Protection وIdempotency وExpected Version وReservation/Release/Commit وOperation Ledger وReadback وWebhook Inspection.
 
 ### WooCommerce + ERPNext
 
-1. WooCommerce يملك Orders/Inventory وERPNext Mirror/Accounting downstream.
-2. ERPNext يملك Catalog/Inventory/Orders وWooCommerce Projection وCheckout Mediated عبر Bridge.
+- WooCommerce authority وERPNext downstream mirror/accounting؛ أو
+- ERPNext authority وWooCommerce projection وmediated checkout.
 
-لا يسمح للنظامين بالكتابة في نفس المجال.
+لا يسمح للنظامين بالكتابة في المجال نفسه.
 
 ### Adapter tiers
 
@@ -92,9 +92,7 @@ Tier 3 — Certified Extension Profiles
 
 تشمل Extension Profiles: Subscriptions وBookings وMemberships وBundles وMultilingual وMulti-currency وMulti-vendor وMulti-location وPayment/Shipping plugins.
 
-## إعادة استخدام WordPress A–P
-
-المراحل الحالية تصبح Site Lifecycle Capability Packs:
+## WordPress A–P كقدرات تشغيل
 
 | المرحلة | Capability Pack |
 |---|---|
@@ -115,21 +113,21 @@ Tier 3 — Certified Extension Profiles
 | O | QA and Acceptance |
 | P | Production Cutover |
 
-كل Pack تدعم بصورة صريحة Assessment وMigration/Change وContinuous Control.
+كل Pack تدعم Assessment وMigration/Change وContinuous Control.
 
 ## Brownfield findings
 
-يحتوي الريبو بالفعل على WordPress A–P، Blog Publishing، Credential Intake Recovery، CMS Site Grants، Workspace Resource Grants، Capability Envelopes، Connector Executor، Hosting Inventory، Analytics، Security، Backup، Release، Audit وEvidence.
+الريبو يحتوي WordPress A–P وBlog Publishing وCredential Intake Recovery وCMS/Resource Grants وCapability Envelopes وConnector Executor وHosting Inventory وAnalytics وSecurity وBackup وRelease وAudit/Evidence.
 
-لكن المراجعة لم تثبت WooCommerce `wc/v3` Adapter كاملة. كما يجب علاج Fuzzy connection selection، Legacy Brand secrets، Site context غير المكتملة، وبعض Sheet-primary inventories، والفصل بين Inventory/Dry-run وCertified Apply.
+لم تثبت المراجعة WooCommerce `wc/v3` Adapter كاملة. كما يجب إصلاح Fuzzy connection selection وLegacy Brand secrets وSite context غير المكتملة وبعض Sheet-primary inventories، مع فصل Inventory/Dry-run عن Certified Apply.
 
-## Brand Commerce Profile وBrand Site Profile
+## Brand profiles and connections
 
 Brand Commerce Profile تجمع السياسات والفروع والقنوات وDomain Authorities والدفع والشحن والكتالوجات والقياس وWhatsApp وBrand File Profile.
 
-Brand Site Profile تجمع Brand/Site identity، Canonical hostname، Site role، WordPress/WooCommerce mode، الاتصالات الدقيقة، Analytics bindings، Staging/Production topology، Revision وStatus.
+Brand Site Profile تجمع Brand/Site identity وCanonical hostname وSite role وWordPress/Woo mode والاتصالات الدقيقة وAnalytics bindings وEnvironment topology وRevision وStatus.
 
-## الاتصالات
+الاتصالات:
 
 ```text
 brand_owned
@@ -137,21 +135,19 @@ workspace_delegated
 platform_managed
 ```
 
-لا يوجد Silent Fallback من Brand إلى Workspace أو Personal أو Brand أخرى. IDs القادمة من العميل Constraints فقط.
+لا يوجد Silent Fallback بين Brand وWorkspace وPersonal أو بين البراندات.
 
-## Workspace File Fabric وGoogle Drive
+## Workspace File Fabric
 
 تدعم Personal وCompany Workspace وBrand File Areas، لكن ملفات التجارة تستخدم Brand File Profile واتصال Brand-owned أو مفوضًا صراحةً.
 
-تشمل List/Search/Read/Export، folders، Multipart/Resumable Upload، Docs/Sheets/Slides، Rename/Move/Copy، Trash/Restore، Permissions، Revisions، Shared Drives، Changes API، Batch Recovery، Manifest، Checksums وReadback.
+تشمل List/Search/Read/Export، folders، Multipart/Resumable Upload، Docs/Sheets/Slides، Rename/Move/Copy، Trash/Restore، Permissions، Revisions، Shared Drives، Changes API، Batch Recovery، Manifest وChecksums وReadback.
 
-## Enablement Center
+## Enablement Center وOperations Cockpit
 
-واجهة Brand-scoped تعرض Goal وBlueprint، البدائل، Domain Authority Matrix، Capability Map، Readiness، Dependency-ordered gaps، Connection setup، Durable Implementation Plan، Acceptance Evidence والتقدم.
+Enablement Center تعرض Goal وBlueprint والبدائل وAuthority Matrix وCapability Map وReadiness وGaps وConnection setup وImplementation Plan وAcceptance Evidence.
 
-## Operations Cockpit
-
-تعرض Site/Storefront/Checkout health، Orders/Payments/Inventory/Refunds/Fulfillment، Woo Webhooks وScheduled Actions، Outbox/Inbox، WordPress errors/Performance/Security، Backups، SEO/Analytics/Consent، Feeds، Campaign performance، Incidents وReconciliation.
+Operations Cockpit تعرض Site/Storefront/Checkout health، Orders/Payments/Inventory/Refunds/Fulfillment، Woo Webhooks وScheduled Actions، Outbox/Inbox، WordPress Performance/Security/Errors، Backups، SEO/Analytics/Consent، Feeds، Campaign performance، Incidents وReconciliation.
 
 ## الوثائق الرئيسية
 
@@ -172,12 +168,12 @@ platform_managed
 
 1. Brand إلزامية لكل تجارة.
 2. مصدر كتابة واحد لكل Domain داخل Brand.
-3. Capability Discovery أو Blueprint Recommendation لا تمنح Authority.
+3. Discovery أو Recommendation لا تمنح Authority.
 4. Active Plugin لا يثبت Compatibility.
 5. Inventory-only لا تعني Apply Support.
 6. Woo Standard لا يدعي Atomic Unique-item Reservation بين القنوات.
-7. Governed Bridge مطلوبة عند مشاركة Strict Inventory Invariants.
-8. WordPress/Woo credentials تأتي من Exact Governed Connection.
+7. Governed Bridge مطلوبة للـStrict Shared Inventory Invariants.
+8. Credentials تأتي من Exact Governed Connection.
 9. Webhooks تدخل Provider Webhook Inbox.
 10. Unknown outcome لا يعاد قبل Readback.
 11. كل Launch تشمل Backup وRollback وQA وObservability وReconciliation.
