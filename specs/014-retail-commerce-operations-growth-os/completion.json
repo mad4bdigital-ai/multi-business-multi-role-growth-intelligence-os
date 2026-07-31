@@ -18,17 +18,12 @@
   "post_merge_audit_completed": false,
   "secrets_included": false,
   "pending": [
-    "Capability Catalog implementation",
-    "Solution Blueprint Registry implementation",
-    "Brand Site Profile implementation",
+    "Capability Catalog and Blueprint Registry runtime implementation",
+    "Brand Site Profile and exact connection resolution",
     "WordPress lifecycle capability registration",
-    "WooCommerce discovery and adapter implementation",
-    "Provider Webhook Inbox implementation",
-    "WooCommerce bridge certification",
-    "Enablement Center and Operations Cockpit implementation",
-    "governed migrations",
-    "sandbox and staging certification",
-    "production verification",
-    "post-merge audit"
+    "WooCommerce discovery, REST, bridge, and webhook implementation",
+    "Enablement Center and Operations Cockpit",
+    "governed migrations and adapter certification",
+    "production verification and post-merge audit"
   ]
 }
