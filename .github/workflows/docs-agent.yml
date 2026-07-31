@@ -9,9 +9,8 @@ on:
     branches: [main]
 
 permissions:
-  actions: write
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
@@ -19,7 +18,7 @@ concurrency:
 
 jobs:
   pr-impact-note:
-    name: PR docs impact note
+    name: PR docs impact preview
     if: >-
       github.event_name == 'pull_request' &&
       !startsWith(github.event.pull_request.head.ref, 'gpt/no-docs-agent/') &&
@@ -32,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v6
@@ -54,58 +53,25 @@ jobs:
       - name: Upload generated documentation preview
         uses: actions/upload-artifact@v4
         with:
-          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}
+          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           path: |
             docs/auto-docs-agent
             docs/work-maps
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Report non-mutating default
-        if: >-
-          !contains(github.event.pull_request.labels.*.name, 'docs-agent-write') &&
-          !contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        run: echo "Docs Agent generated a preview artifact only. Add the docs-agent-write label to commit generated documentation to the PR branch."
-
-      - name: Commit generated documentation to PR branch
-        if: >-
-          contains(github.event.pull_request.labels.*.name, 'docs-agent-write') ||
-          contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
-            echo "Docs Agent: no generated docs or work-map changes to commit."
-            exit 0
-          fi
-          git config user.name "docs-agent[bot]"
-          git config user.email "docs-agent[bot]@users.noreply.github.com"
-          git add docs/auto-docs-agent docs/work-maps
-          git commit -m "Docs agent: update generated documentation"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          pushed_head_sha="$(git rev-parse HEAD)"
-          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
-            echo "Generated documentation push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
-            exit 1
-          fi
-          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
-          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
-
-      - name: Enable auto-merge when explicitly labeled
-        if: contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge ${{ github.event.pull_request.number }} --auto --squash || true
+      - name: Report preview-only PR mode
+        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, or merge. Use the governed manual autofix workflow for generated Work Map updates."
 
   main-followup-pr:
     name: Main follow-up docs PR
     if: >-
       github.event_name == 'push' &&
       github.actor != 'github-actions[bot]'
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
