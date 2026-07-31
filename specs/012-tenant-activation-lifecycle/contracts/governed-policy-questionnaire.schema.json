@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/governed-policy-questionnaire-v1.json",
+  "title": "Governed Policy Questionnaire Lifecycle",
+  "description": "Versioned questionnaire, compilation, proposal, approval, activation, readback, and rollback contracts. Questionnaire data is never runtime authority.",
+  "oneOf": [
+    { "$ref": "#/$defs/questionnaireDefinition" },
+    { "$ref": "#/$defs/questionnaireSession" },
+    { "$ref": "#/$defs/answerSubmission" },
+    { "$ref": "#/$defs/policyCompilation" },
+    { "$ref": "#/$defs/policyProposal" },
+    { "$ref": "#/$defs/policyApproval" },
+    { "$ref": "#/$defs/policyActivation" },
+    { "$ref": "#/$defs/policyReadback" },
+    { "$ref": "#/$defs/policyRollback" }
+  ],
+  "$defs": {
+    "canonicalKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{2,191}$"
+    },
+    "opaqueId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{0,190}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "noSecretDeclaration": {
+      "type": "object",
+      "properties": {
+        "secrets_included": { "const": false }
+      },
+      "required": ["secrets_included"]
+    },
+    "visibilityCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["answer", "context", "role", "mode"] },
+        "key": { "type": "string", "maxLength": 191 },
+        "operator": { "enum": ["equals", "not_equals", "in", "not_in", "exists", "contains"] },
+        "value": {}
+      },
+      "required": ["source", "key", "operator"]
+    },
+    "visibilityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["all", "any"] },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/visibilityCondition" }
+        }
+      },
+      "required": ["mode", "conditions"]
+    },
+    "questionDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "question_key": { "$ref": "#/$defs/canonicalKey" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "description": { "type": ["string", "null"], "maxLength": 2000 },
+        "answer_type": { "enum": ["boolean", "enum", "integer", "number", "string", "multi_select", "object"] },
+        "allowed_values": { "type": ["array", "null"], "maxItems": 100 },
+        "constraints": { "type": "object", "maxProperties": 20 },
+        "required": { "type": "boolean" },
+        "visibility_rule": {
+          "oneOf": [
+            { "$ref": "#/$defs/visibilityRule" },
+            { "type": "null" }
+          ]
+        },
+        "dependency_questions": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/canonicalKey" }
+        },
+        "risk_weight": { "type": "number", "minimum": 0, "maximum": 100 },
+        "default_strategy_key": {
+          "oneOf": [
+            { "$ref": "#/$defs/canonicalKey" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["question_key", "label", "answer_type", "constraints", "required", "dependency_questions", "risk_weight"]
+    },
+    "questionnaireDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "questionnaire_key": { "$ref": "#/$defs/canonicalKey" },
+        "version": { "$ref": "#/$defs/version" },
+        "domain_key": { "$ref": "#/$defs/canonicalKey" },
+        "purpose_key": { "$ref": "#/$defs/canonicalKey" },
+        "applicable_actor_roles": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/canonicalKey" }
+        },
+        "interaction_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["guided", "advanced", "expert_governed"] }
+        },
+        "context_rule_key": {
+          "oneOf": [
+            { "$ref": "#/$defs/canonicalKey" },
+            { "type": "null" }
+          ]
+        },
+        "policy_template_key": { "$ref": "#/$defs/canonicalKey" },
+        "policy_template_version": { "$ref": "#/$defs/version" },
+        "compiler_key": { "$ref": "#/$defs/canonicalKey" },
+        "compiler_version": { "$ref": "#/$defs/version" },
+        "impact_model_key": { "$ref": "#/$defs/canonicalKey" },
+        "impact_model_version": { "$ref": "#/$defs/version" },
+        "approval_policy_key": { "$ref": "#/$defs/canonicalKey" },
+        "approval_policy_version": { "$ref": "#/$defs/version" },
+        "status": { "enum": ["draft", "active", "deprecated", "disabled", "expired"] },
+        "effective_at": { "$ref": "#/$defs/instant" },
+        "expires_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/instant" },
+            { "type": "null" }
+          ]
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/questionDefinition" }
+        },
+        "definition_sha256": { "$ref": "#/$defs/sha256" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "questionnaire_key", "version", "domain_key", "purpose_key",
+        "applicable_actor_roles", "interaction_modes", "policy_template_key",
+        "policy_template_version", "compiler_key", "compiler_version",
+        "impact_model_key", "impact_model_version", "approval_policy_key",
+        "approval_policy_version", "status", "effective_at", "questions",
+        "definition_sha256", "secrets_included"
+      ]
+    },
+    "questionnaireSession": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": { "$ref": "#/$defs/opaqueId" },
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "user_id": { "$ref": "#/$defs/opaqueId" },
+        "questionnaire_key": { "$ref": "#/$defs/canonicalKey" },
+        "questionnaire_version": { "$ref": "#/$defs/version" },
+        "definition_sha256": { "$ref": "#/$defs/sha256" },
+        "domain_key": { "$ref": "#/$defs/canonicalKey" },
+        "purpose_key": { "$ref": "#/$defs/canonicalKey" },
+        "interaction_mode": { "enum": ["guided", "advanced", "expert_governed"] },
+        "actor_roles": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/canonicalKey" }
+        },
+        "context_snapshot": { "type": "object", "maxProperties": 100 },
+        "status": { "enum": ["open", "ready_for_preview", "submitted", "expired", "cancelled"] },
+        "revision": { "type": "integer", "minimum": 1 },
+        "created_at": { "$ref": "#/$defs/instant" },
+        "expires_at": { "$ref": "#/$defs/instant" },
+        "session_binding_sha256": { "$ref": "#/$defs/sha256" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "session_id", "tenant_id", "user_id", "questionnaire_key",
+        "questionnaire_version", "definition_sha256", "domain_key", "purpose_key",
+        "interaction_mode", "actor_roles", "context_snapshot", "status", "revision",
+        "created_at", "expires_at", "session_binding_sha256", "secrets_included"
+      ]
+    },
+    "answerSubmission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": { "$ref": "#/$defs/opaqueId" },
+        "expected_revision": { "type": "integer", "minimum": 1 },
+        "answers": { "type": "object", "maxProperties": 200 },
+        "source": { "enum": ["user", "recommended_profile", "admin_override"] },
+        "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "secrets_included": { "const": false }
+      },
+      "required": ["session_id", "expected_revision", "answers", "source", "idempotency_key", "secrets_included"]
+    },
+    "policyCompilation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compilation_id": { "$ref": "#/$defs/opaqueId" },
+        "session_id": { "$ref": "#/$defs/opaqueId" },
+        "policy_type": { "$ref": "#/$defs/canonicalKey" },
+        "proposed_version": { "$ref": "#/$defs/version" },
+        "normalized_input_sha256": { "$ref": "#/$defs/sha256" },
+        "compiled_policy": { "type": "object" },
+        "compiled_policy_sha256": { "$ref": "#/$defs/sha256" },
+        "safety_validation": { "type": "object" },
+        "safety_bounds_key": { "$ref": "#/$defs/canonicalKey" },
+        "safety_bounds_version": { "$ref": "#/$defs/version" },
+        "safety_bounds_sha256": { "$ref": "#/$defs/sha256" },
+        "risk_tier": { "enum": ["low", "medium", "high", "critical"] },
+        "required_approval_class": { "$ref": "#/$defs/canonicalKey" },
+        "typed_confirmation_required": { "type": "boolean" },
+        "impact_preview": { "type": "object" },
+        "provenance": { "type": "object" },
+        "status": { "enum": ["compiled", "invalid", "blocked"] },
+        "created_at": { "$ref": "#/$defs/instant" },
+        "compilation_sha256": { "$ref": "#/$defs/sha256" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "compilation_id", "session_id", "policy_type", "proposed_version",
+        "normalized_input_sha256", "compiled_policy", "compiled_policy_sha256",
+        "safety_validation", "safety_bounds_key", "safety_bounds_version",
+        "safety_bounds_sha256", "risk_tier", "required_approval_class",
+        "typed_confirmation_required", "impact_preview", "provenance", "status",
+        "created_at", "compilation_sha256", "secrets_included"
+      ]
+    },
+    "policyProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "proposal_id": { "$ref": "#/$defs/opaqueId" },
+        "compilation_id": { "$ref": "#/$defs/opaqueId" },
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "policy_type": { "$ref": "#/$defs/canonicalKey" },
+        "proposed_version": { "$ref": "#/$defs/version" },
+        "resource_uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "status": { "enum": ["draft", "submitted", "approved", "rejected", "activation_pending", "active", "superseded", "rolled_back", "expired"] },
+        "risk_tier": { "enum": ["low", "medium", "high", "critical"] },
+        "required_approval_class": { "$ref": "#/$defs/canonicalKey" },
+        "typed_confirmation_required": { "type": "boolean" },
+        "proposal_hash_sha256": { "$ref": "#/$defs/sha256" },
+        "created_by": { "$ref": "#/$defs/opaqueId" },
+        "created_at": { "$ref": "#/$defs/instant" },
+        "updated_at": { "$ref": "#/$defs/instant" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "proposal_id", "compilation_id", "tenant_id", "policy_type", "proposed_version",
+        "resource_uri", "status", "risk_tier", "required_approval_class",
+        "typed_confirmation_required", "proposal_hash_sha256", "created_by",
+        "created_at", "updated_at", "secrets_included"
+      ]
+    },
+    "policyApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approval_id": { "$ref": "#/$defs/opaqueId" },
+        "proposal_id": { "$ref": "#/$defs/opaqueId" },
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "resource_uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "proposal_hash_sha256": { "$ref": "#/$defs/sha256" },
+        "approval_class": { "$ref": "#/$defs/canonicalKey" },
+        "decision": { "enum": ["approved", "rejected", "expired", "revoked"] },
+        "approved_by": { "$ref": "#/$defs/opaqueId" },
+        "typed_confirmation_hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "created_at": { "$ref": "#/$defs/instant" },
+        "expires_at": { "$ref": "#/$defs/instant" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "approval_id", "proposal_id", "tenant_id", "resource_uri",
+        "proposal_hash_sha256", "approval_class", "decision", "approved_by",
+        "created_at", "expires_at", "secrets_included"
+      ]
+    },
+    "policyActivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "activation_id": { "$ref": "#/$defs/opaqueId" },
+        "proposal_id": { "$ref": "#/$defs/opaqueId" },
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "policy_key": { "$ref": "#/$defs/canonicalKey" },
+        "policy_version": { "$ref": "#/$defs/version" },
+        "resource_uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "policy_sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "enum": ["activation_pending", "active", "failed"] },
+        "invalidation_event_id": { "$ref": "#/$defs/opaqueId" },
+        "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "activation_id", "proposal_id", "tenant_id", "policy_key", "policy_version",
+        "resource_uri", "policy_sha256", "status", "invalidation_event_id",
+        "idempotency_key", "secrets_included"
+      ]
+    },
+    "policyReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "policy_key": { "$ref": "#/$defs/canonicalKey" },
+        "policy_version": { "$ref": "#/$defs/version" },
+        "resource_uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "policy_sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "const": "active" },
+        "invalidation_evidence_sha256": { "$ref": "#/$defs/sha256" },
+        "read_at": { "$ref": "#/$defs/instant" },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "tenant_id", "policy_key", "policy_version", "resource_uri",
+        "policy_sha256", "status", "invalidation_evidence_sha256", "read_at",
+        "secrets_included"
+      ]
+    },
+    "policyRollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rollback_id": { "$ref": "#/$defs/opaqueId" },
+        "tenant_id": { "$ref": "#/$defs/opaqueId" },
+        "policy_key": { "$ref": "#/$defs/canonicalKey" },
+        "active_version": { "$ref": "#/$defs/version" },
+        "target_version": { "$ref": "#/$defs/version" },
+        "resource_uri": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "approved_proposal_id": { "$ref": "#/$defs/opaqueId" },
+        "proposal_hash_sha256": { "$ref": "#/$defs/sha256" },
+        "status": { "enum": ["activation_pending", "active", "failed"] },
+        "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "secrets_included": { "const": false }
+      },
+      "required": [
+        "rollback_id", "tenant_id", "policy_key", "active_version", "target_version",
+        "resource_uri", "approved_proposal_id", "proposal_hash_sha256", "status",
+        "idempotency_key", "secrets_included"
+      ]
+    }
+  }
+}
