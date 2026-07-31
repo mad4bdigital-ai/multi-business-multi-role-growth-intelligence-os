@@ -18,18 +18,6 @@
     "runtime_implementation_started": false,
     "provider_execution_started": false
   },
-  "artifacts": {
-    "specification": "spec.md",
-    "brand_authority": "brand-scoped-commerce-authority.md",
-    "commerce_enablement": "commerce-enablement-and-solution-blueprints.md",
-    "wordpress_woocommerce": "wordpress-woocommerce-authority-and-operations.md",
-    "workspace_files": "external-system-and-workspace-file-fabric.md",
-    "plan": "plan.md",
-    "tasks": "tasks.md",
-    "commerce_enablement_tasks": "commerce-enablement-tasks.md",
-    "acceptance": "acceptance-matrix.md",
-    "commerce_enablement_acceptance": "commerce-enablement-acceptance.md"
-  },
   "implementation": {
     "status": "not_started",
     "implementation_prs": [],
@@ -67,14 +55,12 @@
     "run production verification",
     "complete post-merge audit"
   ],
-  "safety": {
-    "production_mutation": false,
-    "provider_write": false,
-    "wordpress_woocommerce_write": false,
-    "google_drive_write": false,
-    "migration_apply": false,
-    "deployment": false,
-    "protected_branch_write": false,
-    "secrets_included": false
-  }
+  "production_mutation": false,
+  "provider_write": false,
+  "wordpress_woocommerce_write": false,
+  "google_drive_write": false,
+  "migration_apply": false,
+  "deployment_required": false,
+  "post_merge_audit_completed": false,
+  "secrets_included": false
 }
