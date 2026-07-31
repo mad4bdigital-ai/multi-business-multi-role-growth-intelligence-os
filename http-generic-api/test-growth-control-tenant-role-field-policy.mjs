@@ -157,26 +157,28 @@ assert.deepEqual(applied.record, {
 });
 assert.equal(Object.hasOwn(applied.record, "values"), false);
 
-const repository = {
-  async resolveTenantWorkspaceScope() {
-    return {
-      tenantId: TENANT_ID,
-      tenantRole: "member",
-      workspaceId: WORKSPACE_ID,
-      workspaceKey: "example-workspace",
-      workspaceType: "company",
-      bootstrapStatus: "ready",
-      brandKey: BRAND_KEY,
-    };
-  },
-  async listConfigurationVersions() {
-    return [versionRow];
-  },
-  async listActivityBindings() {
-    return [bindingRow];
-  },
-};
-const service = createTenantGrowthControlProjectionService({ repository });
+function createRepository(tenantRole) {
+  return {
+    async resolveTenantWorkspaceScope() {
+      return {
+        tenantId: TENANT_ID,
+        tenantRole,
+        workspaceId: WORKSPACE_ID,
+        workspaceKey: "example-workspace",
+        workspaceType: "company",
+        bootstrapStatus: "ready",
+        brandKey: BRAND_KEY,
+      };
+    },
+    async listConfigurationVersions() {
+      return [versionRow];
+    },
+    async listActivityBindings() {
+      return [bindingRow];
+    },
+  };
+}
+
 const memberAuth = {
   mode: "user_jwt",
   user_id: USER_ID,
@@ -184,7 +186,8 @@ const memberAuth = {
   tenant_role: "member",
   is_admin: false,
 };
-const memberResponse = await service.listConfigurationVersions(memberAuth, {
+const viewerService = createTenantGrowthControlProjectionService({ repository: createRepository("member") });
+const memberResponse = await viewerService.listConfigurationVersions(memberAuth, {
   workspaceId: WORKSPACE_ID,
   brandKey: BRAND_KEY,
 });
@@ -195,16 +198,39 @@ assert.equal(Object.hasOwn(memberResponse.items[0], "tenantId"), false);
 assert.equal(memberResponse.scope.tenantId, TENANT_ID);
 assert.equal(memberResponse.scope.workspaceId, WORKSPACE_ID);
 assert.equal(memberResponse.scope.brandKey, BRAND_KEY);
+assert.equal(memberResponse.scope.tenantRole, "member");
 
-const managerResponse = await service.listActivityBindings({ ...memberAuth, tenant_role: "owner" }, {
+const staleElevatedJwtResponse = await viewerService.listActivityBindings({ ...memberAuth, tenant_role: "owner" }, {
   workspaceId: WORKSPACE_ID,
   brandKey: BRAND_KEY,
 });
-assert.equal(managerResponse.fieldPolicy.profile, "manager");
-assert.equal(managerResponse.items[0].tenantId, TENANT_ID);
-assert.equal(managerResponse.items[0].createdAt, bindingRow.createdAt);
-assert.equal(managerResponse.providerCalls, false);
-assert.equal(managerResponse.externalWrites, false);
-assert.equal(managerResponse.secretsIncluded, false);
+assert.equal(staleElevatedJwtResponse.fieldPolicy.profile, "viewer");
+assert.equal(staleElevatedJwtResponse.fieldPolicy.role, "member");
+assert.equal(Object.hasOwn(staleElevatedJwtResponse.items[0], "tenantId"), false);
+assert.equal(Object.hasOwn(staleElevatedJwtResponse.items[0], "createdAt"), false);
+
+const managerService = createTenantGrowthControlProjectionService({ repository: createRepository("owner") });
+const authoritativeManagerResponse = await managerService.listActivityBindings(memberAuth, {
+  workspaceId: WORKSPACE_ID,
+  brandKey: BRAND_KEY,
+});
+assert.equal(authoritativeManagerResponse.fieldPolicy.profile, "manager");
+assert.equal(authoritativeManagerResponse.fieldPolicy.role, "owner");
+assert.equal(authoritativeManagerResponse.items[0].tenantId, TENANT_ID);
+assert.equal(authoritativeManagerResponse.items[0].createdAt, bindingRow.createdAt);
+assert.equal(authoritativeManagerResponse.scope.tenantRole, "owner");
+assert.equal(authoritativeManagerResponse.providerCalls, false);
+assert.equal(authoritativeManagerResponse.externalWrites, false);
+assert.equal(authoritativeManagerResponse.secretsIncluded, false);
+
+const missingRoleService = createTenantGrowthControlProjectionService({ repository: createRepository(null) });
+const missingRoleResponse = await missingRoleService.listConfigurationVersions({ ...memberAuth, tenant_role: "owner" }, {
+  workspaceId: WORKSPACE_ID,
+  brandKey: BRAND_KEY,
+});
+assert.equal(missingRoleResponse.fieldPolicy.profile, "viewer");
+assert.equal(missingRoleResponse.fieldPolicy.fallbackApplied, true);
+assert.equal(missingRoleResponse.scope.tenantRole, null);
+assert.equal(Object.hasOwn(missingRoleResponse.items[0], "tenantId"), false);
 
 console.log("growth control tenant role field policy tests passed");
