@@ -53,7 +53,7 @@ function fixture() {
     intentional_unclassified: [],
     secrets_included: false,
   }));
-  write(root, "docs/work-maps/README.md", `# Dynamic Platform Work Maps\n\n> Source hash: \`${"a".repeat(64)}\`\n\n## Maps\n\n- [platform resource graph map](./platform-resource-graph-map.md)\n- [policy authority map](./policy-authority-map.md)\n`);
+  write(root, "docs/work-maps/README.md", `# Dynamic Platform Work Maps\n\n> Source hash: \`${"a".repeat(64)}\`\n\n## Maps\n\n- [platform resource graph map](./platform-resource-graph-map.md)\n- [policy authority map](./policy-authority-map.md)\n- [work map coverage matrix](./work-map-coverage-matrix.md)\n`);
   write(root, "docs/work-maps/platform-resource-graph-map.md", "# Platform Resource Graph\n");
   write(root, "docs/work-maps/policy-authority-map.md", "# Policy Authority\n");
   write(root, "docs/work-maps/work-map-coverage-matrix.md", `# Coverage\n\n> Source hash: \`${"b".repeat(64)}\`\n\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n| Platform resources & graph | 1 | 0 | \`platform-resource-graph-map.md\` | covered |\n| Governance & authority | 1 | 0 | \`policy-authority-map.md\` | covered |\n\n## Unresolved schema objects\n\n- None.\n\n## Intentionally unclassified schema objects\n\n- None.\n`);
