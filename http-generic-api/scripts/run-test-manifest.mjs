@@ -17,9 +17,13 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-context-kernel-shadow-authority-parity-fail-closed.mjs",
   "node test-authority-catalog-census.mjs",
 ]);
+const growthControlContinuationTestCommands = Object.freeze([
+  "node test-growth-control-internal-reference-workflow.mjs",
+]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,
   ...authorityRecoveryTestCommands,
+  ...growthControlContinuationTestCommands,
 ]);
 
 function parseArgs(argv) {
