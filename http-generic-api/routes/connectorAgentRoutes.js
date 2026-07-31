@@ -396,6 +396,7 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
     `CONNECTOR_SECRET=${connectorSecret}`,
     ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
+    "CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
     "CONNECTOR_FILES_ENABLED=true",
