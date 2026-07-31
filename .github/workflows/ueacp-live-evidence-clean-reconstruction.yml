@@ -55,21 +55,47 @@ jobs:
 
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('http-generic-api/scripts/run-test-manifest.mjs')
           text = path.read_text()
-          anchor = '  "node test-authority-ownership-review.mjs",\n'
-          additions = ''.join([
-              '  "node test-authority-live-census-observer-contract.mjs",\n',
-              '  "node test-authority-live-census-adapter.mjs",\n',
-              '  "node test-authority-live-evidence-orchestrator.mjs",\n',
-              '  "node test-authority-live-evidence-fail-closed.mjs",\n',
-          ])
-          if anchor not in text:
-              raise SystemExit('authority ownership review manifest anchor is missing')
-          for line in additions.splitlines(keepends=True):
-              text = text.replace(line, '')
-          text = text.replace(anchor, anchor + additions)
-          path.write_text(text)
+          newline = '\r\n' if '\r\n' in text else '\n'
+          commands = [
+              'node test-authority-live-census-observer-contract.mjs',
+              'node test-authority-live-census-adapter.mjs',
+              'node test-authority-live-evidence-orchestrator.mjs',
+              'node test-authority-live-evidence-fail-closed.mjs',
+          ]
+
+          pattern = re.compile(
+              r'(const\s+authorityRecoveryTestCommands\s*=\s*Object\.freeze\(\[\r?\n)'
+              r'(.*?)'
+              r'(^\]\);\r?\n)',
+              re.MULTILINE | re.DOTALL,
+          )
+          match = pattern.search(text)
+          if not match:
+              raise SystemExit('authorityRecoveryTestCommands block is missing from current main manifest')
+
+          body = match.group(2)
+          for command in commands:
+              body = re.sub(
+                  rf'^[ \t]*"{re.escape(command)}",[ \t]*\r?\n',
+                  '',
+                  body,
+                  flags=re.MULTILINE,
+              )
+
+          if body and not body.endswith(('\n', '\r')):
+              body += newline
+          body += ''.join(f'  "{command}",{newline}' for command in commands)
+          text = text[:match.start()] + match.group(1) + body + match.group(3) + text[match.end():]
+
+          for command in commands:
+              if text.count(command) != 1:
+                  raise SystemExit(f'{command} must be registered exactly once')
+
+          path.write_text(text, newline='')
           PY
 
           rm -f "$WORKFLOW"
