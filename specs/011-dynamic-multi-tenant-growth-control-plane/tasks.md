@@ -48,7 +48,7 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 
 - [x] T501 Implement bounded policy compiler and approval profiles.
 - [x] T502 Enforce final-boundary capability/resource/approval/certification checks.
-- [ ] T503 Implement adapter registry, ranking, readiness and tie blocking.
+- [x] T503 Implement adapter registry, ranking, readiness and tie blocking.
 - [ ] T504 Implement unknown/partial effect reconciliation and rollback contracts.
 - [ ] T505 Add idempotency, lease and outbox integration tests.
 
