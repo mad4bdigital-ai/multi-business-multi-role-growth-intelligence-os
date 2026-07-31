@@ -600,7 +600,77 @@ async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null,
         WHERE config_id = ?
           AND route_type = 'cloudflare_tunnel'
           AND REPLACE(TRIM(TRAILING '/' FROM endpoint_url), '\\n', '') = ?`;
-  await getPool().query(sql, params).catch(() => {});
+  const [updateResult] = await getPool().query(sql, params);
+  if (Number(updateResult?.affectedRows || 0) > 0) return;
+
+  const routeMetadata = JSON.stringify({
+    source: "connector_heartbeat",
+    default_route: true,
+    secrets_included: false,
+  });
+  const routeIdentity = [
+    crypto.randomUUID(),
+    config.config_id,
+    config.user_id || null,
+    config.tenant_id || null,
+    config.device_id || null,
+    primaryUrl,
+  ];
+
+  if (status === "failed") {
+    await getPool().query(
+      `INSERT INTO \`local_connector_device_routes\`
+         (route_id, config_id, user_id, tenant_id, device_id, route_type, route_label, endpoint_url,
+          priority, is_enabled, is_customer_selectable, requires_admin_setup, requires_router_config,
+          requires_vpn_agent, tls_mode, auth_mode, health_status, last_health_at, last_failure_at,
+          last_error_code, last_error_message, route_metadata)
+       VALUES (?, ?, ?, ?, ?, 'cloudflare_tunnel', 'Cloudflare Tunnel', ?,
+               50, 1, 1, 0, 0, 0, 'required', 'bearer_connector_secret', ?, NOW(), NOW(), ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         user_id = VALUES(user_id),
+         tenant_id = VALUES(tenant_id),
+         device_id = VALUES(device_id),
+         is_enabled = 1,
+         health_status = VALUES(health_status),
+         last_health_at = NOW(),
+         last_failure_at = NOW(),
+         last_error_code = VALUES(last_error_code),
+         last_error_message = VALUES(last_error_message),
+         route_metadata = VALUES(route_metadata),
+         updated_at = NOW()`,
+      [
+        ...routeIdentity,
+        routeHealth,
+        String(errorCode || "heartbeat_failed").slice(0, 128),
+        String(errorMessage || "Connector heartbeat reported failure.").slice(0, 1000),
+        routeMetadata,
+      ]
+    );
+    return;
+  }
+
+  await getPool().query(
+    `INSERT INTO \`local_connector_device_routes\`
+       (route_id, config_id, user_id, tenant_id, device_id, route_type, route_label, endpoint_url,
+        priority, is_enabled, is_customer_selectable, requires_admin_setup, requires_router_config,
+        requires_vpn_agent, tls_mode, auth_mode, health_status, last_health_at, last_success_at,
+        last_error_code, last_error_message, route_metadata)
+     VALUES (?, ?, ?, ?, ?, 'cloudflare_tunnel', 'Cloudflare Tunnel', ?,
+             50, 1, 1, 0, 0, 0, 'required', 'bearer_connector_secret', ?, NOW(), NOW(), NULL, NULL, ?)
+     ON DUPLICATE KEY UPDATE
+       user_id = VALUES(user_id),
+       tenant_id = VALUES(tenant_id),
+       device_id = VALUES(device_id),
+       is_enabled = 1,
+       health_status = VALUES(health_status),
+       last_health_at = NOW(),
+       last_success_at = NOW(),
+       last_error_code = NULL,
+       last_error_message = NULL,
+       route_metadata = VALUES(route_metadata),
+       updated_at = NOW()`,
+    [...routeIdentity, routeHealth, routeMetadata]
+  );
 }
 
 async function writeHeartbeat(config, body = {}) {
