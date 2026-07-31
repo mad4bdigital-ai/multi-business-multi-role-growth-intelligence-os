@@ -4,11 +4,36 @@
   "title": "UEACP Authority Foundation Classification",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract", "census_sha256", "classification_source", "classifications"],
+  "required": [
+    "contract",
+    "census_sha256",
+    "authority_path_inventory_sha256",
+    "authority_path_inventory_ref",
+    "classification_source",
+    "classifications"
+  ],
   "properties": {
-    "contract": { "const": "mad4b.ueacp-authority-foundation-classification.v1" },
-    "census_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "classification_source": { "type": "string", "minLength": 3, "maxLength": 300 },
+    "contract": {
+      "const": "mad4b.ueacp-authority-foundation-classification.v1"
+    },
+    "census_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "authority_path_inventory_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "authority_path_inventory_ref": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 300
+    },
+    "classification_source": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 300
+    },
     "classifications": {
       "type": "array",
       "minItems": 12,
@@ -44,11 +69,28 @@
               "drift_finding_ledger"
             ]
           },
-          "disposition": { "enum": ["reuse", "extend", "create", "blocked"] },
-          "owner_key": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,190}$" },
-          "approved": { "type": "boolean" },
+          "disposition": {
+            "enum": [
+              "reuse",
+              "extend",
+              "create",
+              "blocked"
+            ]
+          },
+          "owner_key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,190}$"
+          },
+          "approved": {
+            "type": "boolean"
+          },
           "storage_semantics": {
-            "enum": ["source_authority", "derived_projection", "append_only_evidence", "append_only_event"]
+            "enum": [
+              "source_authority",
+              "derived_projection",
+              "append_only_evidence",
+              "append_only_event"
+            ]
           },
           "revision_strategy": {
             "enum": [
@@ -63,22 +105,46 @@
             "type": "array",
             "maxItems": 20,
             "uniqueItems": true,
-            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,190}$" }
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{1,190}$"
+            }
           },
           "proposed_object_name": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^[a-z][a-z0-9_]{1,190}$"
           },
-          "shared_object": { "type": "boolean", "default": false },
-          "shared_reason": { "type": ["string", "null"], "minLength": 12, "maxLength": 1000 },
+          "shared_object": {
+            "type": "boolean",
+            "default": false
+          },
+          "shared_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 12,
+            "maxLength": 1000
+          },
           "evidence_refs": {
             "type": "array",
             "minItems": 1,
             "maxItems": 20,
             "uniqueItems": true,
-            "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            }
           },
-          "rationale": { "type": "string", "minLength": 12, "maxLength": 2000 }
+          "rationale": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 2000
+          }
         }
       }
     }
