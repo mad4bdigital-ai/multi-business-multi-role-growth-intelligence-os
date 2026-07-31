@@ -16,6 +16,7 @@ import {
 } from "../../domain/growthControlPlane/growthControlObservability.js";
 
 const READABLE_KPI_STATUSES = Object.freeze(["ready", "active", "deprecated"]);
+const WRITABLE_KPI_STATUSES = Object.freeze(["active"]);
 
 function text(value, field, max = 191) {
   const normalized = String(value ?? "").trim();
@@ -106,15 +107,18 @@ function assertBindingScope(binding, input = {}) {
     );
   }
 }
-function assertReadableDefinition(definition) {
-  if (!definition || !READABLE_KPI_STATUSES.includes(String(definition.status))) {
+function assertWritableDefinition(definition) {
+  if (!definition || String(definition.status) !== "active") {
     throw new GrowthControlPlaneError(
-      "GROWTH_CONTROL_KPI_DEFINITION_NOT_READY",
-      "The governed KPI definition is unavailable or not ready for observations.",
+      "GROWTH_CONTROL_KPI_DEFINITION_NOT_ACTIVE",
+      "The governed KPI definition is unavailable or not active for new observations.",
       409,
       [],
     );
   }
+}
+function platformOnly(items, tenantId) {
+  return tenantId == null ? items.filter((item) => item.tenantId == null) : items;
 }
 
 export function createGrowthControlAnalyticsObservabilityService({ repository } = {}) {
@@ -161,8 +165,10 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const workspaceIds = fixedScope ? [fixedScope.workspaceId] : list(input.workspaceIds ?? input.workspace_ids, "workspaceIds");
     const brandKeys = fixedScope ? [fixedScope.brandKey] : list(input.brandKeys ?? input.brand_keys, "brandKeys");
     const environment = input.environment == null ? null : String(input.environment);
-    const samples = await store.listObservabilitySamples({ tenantId, workspaceIds, brandKeys, environment, windowStart: observationWindow.windowStart, windowEnd: observationWindow.windowEnd, limit: limit(input.sampleLimit ?? input.sample_limit, 5000) });
-    const findings = await store.listReconciliationFindings({ tenantId, workspaceIds, brandKeys, statuses: ["open", "acknowledged", "blocked"], limit: limit(input.findingLimit ?? input.finding_limit, 1000) });
+    const sampleRows = await store.listObservabilitySamples({ tenantId, workspaceIds, brandKeys, environment, windowStart: observationWindow.windowStart, windowEnd: observationWindow.windowEnd, limit: limit(input.sampleLimit ?? input.sample_limit, 5000) });
+    const findingRows = await store.listReconciliationFindings({ tenantId, workspaceIds, brandKeys, statuses: ["open", "acknowledged", "blocked"], limit: limit(input.findingLimit ?? input.finding_limit, 1000) });
+    const samples = platformOnly(sampleRows, tenantId);
+    const findings = platformOnly(findingRows, tenantId);
     const sloSnapshot = evaluateGrowthControlSloSnapshot({ samples, tenantId, brandKeys, environment, ...observationWindow });
     const reconciliation = buildGrowthControlReconciliationProjection({ findings, tenantId, brandKeys });
     let portfolioSummary = null;
@@ -181,13 +187,17 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
 
   async function recordMetricObservation(input = {}) {
     const idempotencyKey = text(input.idempotencyKey ?? input.idempotency_key, "idempotencyKey");
+    const tenantId = text(input.tenantId ?? input.tenant_id, "tenantId", 64);
     const activityBindingId = text(input.activityBindingId ?? input.activity_binding_id, "activityBindingId", 64);
     const nativeKpiKey = text(input.nativeKpiKey ?? input.native_kpi_key, "nativeKpiKey", 128);
-    const binding = await store.getActivityKpiBinding({ activityBindingId, nativeKpiKey });
-    if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No governed KPI binding exists for the observation.", 404);
+    const candidates = await store.listActivityKpiBindings({ tenantId, activityBindingIds: [activityBindingId], statuses: WRITABLE_KPI_STATUSES, limit: 10 });
+    const matches = candidates.filter((binding) => binding.activityBindingId === activityBindingId && binding.nativeKpiKey === nativeKpiKey);
+    if (!matches.length) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No active governed KPI binding exists for the observation.", 404);
+    if (matches.length > 1) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_AMBIGUOUS", "More than one active governed KPI binding matched the observation.", 409);
+    const [binding] = matches;
     assertBindingScope(binding, input);
     const definition = await store.getKpiDefinition({ normalizedKpiKey: binding.normalizedKpiKey, definitionVersion: binding.definitionVersion });
-    assertReadableDefinition(definition);
+    assertWritableDefinition(definition);
     const observation = normalizeGrowthControlMetricObservation(input, { definition, binding, now: input.now || new Date() });
     const readback = await store.appendNormalizedMetricObservation({ observation, idempotencyKey });
     if (!readback || readback.observationSha256 !== observation.observationSha256) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_READBACK_MISMATCH", "Metric observation readback did not match the normalized observation.", 500);
@@ -214,4 +224,4 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   return Object.freeze({ projectAdminPortfolio, projectTenantPortfolio, projectKpiCatalog, projectAdminOperationalHealth, projectTenantOperationalHealth, recordMetricObservation, recordDecisionEvidence, recordObservabilitySample });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ READABLE_KPI_STATUSES, text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope, assertReadableDefinition });
+export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ READABLE_KPI_STATUSES, WRITABLE_KPI_STATUSES, text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope, assertWritableDefinition, platformOnly });
