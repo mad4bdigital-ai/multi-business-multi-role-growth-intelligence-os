@@ -28,6 +28,9 @@
     "http-generic-api/migrations/20260731_governed_policy_questionnaire_foundation.sql",
     "http-generic-api/migrations/20260731_governed_policy_registry_authority.sql"
   ],
+  "generated_artifacts_refreshed": true,
+  "generated_refresh_source_head": "f5cab3b22b721d3bee361d3269c62a5a1e831ff6",
+  "generated_refresh_commit": "89b1b850f162c8f25c9abf368bc43399d7ab7af6",
   "migration_authorized": false,
   "migration_applied": false,
   "active_seed_written": false,
