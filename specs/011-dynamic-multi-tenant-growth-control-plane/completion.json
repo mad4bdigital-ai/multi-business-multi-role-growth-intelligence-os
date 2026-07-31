@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-dynamic-multi-tenant-growth-control-plane",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/011-dynamic-multi-tenant-growth-control-plane-clean-20260720",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "specification": {
+    "complete": true,
+    "file_count_expected": 26,
+    "file_count_recorded": 26,
+    "functional_requirements": 50,
+    "success_criteria": 10,
+    "use_cases": 18,
+    "threats": 18,
+    "risks": 30
+  },
+  "verification": {
+    "json_parse": "pending_ci",
+    "json_schema_validation": "pending_ci",
+    "openapi_validation": "pending_ci",
+    "inventory_check": "passed_github_readback",
+    "traceability_review": "pending_pr_review",
+    "security_review": "pending_implementation",
+    "architecture_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": true,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "tenant_projection_changed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "production_activated": false
+  },
+  "evidence": {
+    "ci": {
+      "status": "passed_required_checks",
+      "head_sha": "99b1fd3cef4c15926ceccfe8cb4741f7a6d99ad6"
+    },
+    "reference_packs": {
+      "status": "passed_catalog_and_manifest_validation",
+      "head_sha": "53c3a1c657485790ac743d5f46b389e31663b585",
+      "active_profile_count": 25,
+      "specialized_profile_count": 1,
+      "baseline_profile_count": 24
+    },
+    "multi_activity_selection": {
+      "status": "passed_ambiguity_and_isolation_validation",
+      "head_sha": "09d68fe075d6b979781598ca5b823c4bb1d46568",
+      "selector_contract": "explicit_activity_intent_required_for_multiple_selectable_bindings",
+      "provider_calls": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "semantic_capability_resolution": {
+      "status": "passed_spec_007_preview_integration",
+      "head_sha": "7476ba1145adb0e43fad70b15a1d4c1890a65bf4",
+      "resolver": "tenant_effective_capability_resolver_v1",
+      "integration": "growth_control_plane_semantic_capability_adapter_v1",
+      "preview_only": true,
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "workflow_plan_compiler": {
+      "status": "passed_spec_006_immutable_plan_compilation",
+      "head_sha": "ed2a9f63e0f3267bdce72f358a5614de06fa740f",
+      "contract": "spec-006-workflow-compiled-plan-v1",
+      "compiler": "spec-006-workflow-compiler-v1",
+      "immutable": true,
+      "canonical_hash": "sha256",
+      "extension_composition": true,
+      "approval_checkpoints": true,
+      "compensation_graph": true,
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
+      "external_writes": false,
+      "secrets_included": false
+    },
+    "workflow_plan_snapshot_persistence": {
+      "status": "passed_immutable_append_only_snapshot_persistence",
+      "head_sha": "99b1fd3cef4c15926ceccfe8cb4741f7a6d99ad6",
+      "task_key": "T403",
+      "migration": "20260731_growth_control_plan_snapshot_persistence.sql",
+      "tables": [
+        "growth_control_compiled_policy_snapshots",
+        "growth_control_compiled_plan_snapshots"
+      ],
+      "activation_surfaces": [
+        "growth_control_compiled_policy_snapshots",
+        "growth_control_compiled_plan_snapshots"
+      ],
+      "same_cycle_readback": true,
+      "idempotent_replay": true,
+      "immutable": true,
+      "canonical_hash": "sha256",
+      "provider_calls": false,
+      "provider_dispatch_allowed": false,
+      "provider_apply_allowed": false,
+      "external_writes": false,
+      "secrets_included": false,
+      "migration_applied": false
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_started"
+    },
+    "production_verification": {
+      "status": "not_started"
+    },
+    "post_merge_audit": {
+      "status": "not_started"
+    }
+  },
+  "required_closeout_evidence": [
+    "resource_and_registry_mapping",
+    "migration_ledger_and_readback",
+    "ci_and_release_readiness",
+    "dev_and_staging_shadow_parity",
+    "internal_pilot_readback",
+    "staging_provider_rollback",
+    "production_canary_approval_and_readback",
+    "production_parity",
+    "post_merge_audit",
+    "canonical_openapi_and_knowledge_updates"
+  ],
+  "notes": [
+    "Specification completion does not authorize implementation or execution.",
+    "Specs 006 and 007 remain the workflow and capability authorities.",
+    "All provider and production effects require separate plan-bound approval.",
+    "Status remains in_progress until the governed multi-PR implementation and closeout evidence are complete."
+  ]
+}
