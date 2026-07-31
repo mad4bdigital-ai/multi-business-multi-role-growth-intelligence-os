@@ -36,7 +36,6 @@ flowchart TD
   n_connected_execution_resume_actions["connected_execution_resume_actions<br/>table"]
   n_growth_control_compiled_policy_snapshots["growth_control_compiled_policy_snapshots<br/>table"]
   n_growth_control_config_resolution_snapshots["growth_control_config_resolution_snapshots<br/>table"]
-  n_growth_control_config_versions["growth_control_config_versions<br/>table"]
   n_local_connector_device_routes["local_connector_device_routes<br/>table"]
   n_operation_managed_git_worker_leases["operation_managed_git_worker_leases<br/>table"]
   n_platform_backup_approvals["platform_backup_approvals<br/>table"]
@@ -69,6 +68,7 @@ flowchart TD
   n_database_lifecycle_report_snapshot_scheduler_bindings["database_lifecycle_report_snapshot_scheduler_bindings<br/>table"]
   n_database_lifecycle_report_snapshot_schedules["database_lifecycle_report_snapshot_schedules<br/>table"]
   n_database_lifecycle_report_snapshots["database_lifecycle_report_snapshots<br/>table"]
+  n_database_lifecycle_scheduler_approval_events["database_lifecycle_scheduler_approval_events<br/>table"]
   n_approval_holds --> n_step_runs
   n_growth_control_activity_binding_readiness_evidence --> n_growth_control_brand_activity_bindings
   n_growth_control_compiled_plan_snapshots --> n_growth_control_brand_activity_bindings
@@ -109,17 +109,15 @@ flowchart TD
 | `execution_plan_mutation_receipts` | table | Tenancy & identity | generated_domain_rule | - | 1 | - | - |
 | `execution_plan_steps` | table | Tenancy & identity | generated_domain_rule | - | 1 | - | - |
 | `execution_plans` | table | Tenancy & identity | generated_domain_rule | - | 5 | 18 | `plans`, `tenants`, `users` |
-| `growth_control_activity_binding_readiness_evidence` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | `growth_control_brand_activity_bindings` |
-| `growth_control_activity_pack_definitions` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 10 | - |
-| `growth_control_activity_pack_versions` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 13 | - |
-| `growth_control_brand_activity_bindings` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 22 | `tenants` |
-| `growth_control_compiled_plan_snapshots` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 26 | `growth_control_brand_activity_bindings`, `growth_control_compiled_policy_snapshots`, `growth_control_config_resolution_snapshots`, `tenants` |
-| `growth_control_compiled_policy_snapshots` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 19 | `growth_control_brand_activity_bindings`, `tenants` |
-| `growth_control_config_definitions` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 14 | - |
-| `growth_control_config_resolution_snapshots` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 19 | `plans`, `tenants` |
-| `growth_control_config_versions` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 29 | `plans`, `tenants` |
-| `growth_control_shadow_parity_evidence` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
-| `growth_control_shadow_parity_mappings` | table | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
+| `growth_control_activity_binding_readiness_evidence` | table | Observability & release | registry:growth_control_evidence_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | `growth_control_brand_activity_bindings` |
+| `growth_control_activity_pack_definitions` | table | Workflow & tasks | registry:growth_control_activity_objects | `data-model-domain-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 10 | - |
+| `growth_control_activity_pack_versions` | table | Workflow & tasks | registry:growth_control_activity_objects | `data-model-domain-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 13 | - |
+| `growth_control_brand_activity_bindings` | table | Workflow & tasks | registry:growth_control_activity_objects | `data-model-domain-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 22 | `tenants` |
+| `growth_control_compiled_plan_snapshots` | table | Governance & authority | registry:growth_control_compiled_snapshot_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 26 | `growth_control_brand_activity_bindings`, `growth_control_compiled_policy_snapshots`, `growth_control_config_resolution_snapshots`, `tenants` |
+| `growth_control_compiled_policy_snapshots` | table | Governance & authority | registry:growth_control_compiled_snapshot_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | 19 | `growth_control_brand_activity_bindings`, `tenants` |
+| `growth_control_config_resolution_snapshots` | table | Governance & authority | registry:growth_control_configuration_objects | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map` | 1 | 19 | `plans`, `tenants` |
+| `growth_control_shadow_parity_evidence` | table | Observability & release | registry:growth_control_evidence_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
+| `growth_control_shadow_parity_mappings` | table | Observability & release | registry:growth_control_evidence_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
 | `growth_intelligence_actions` | table | Agents & intelligence | generated_domain_rule | - | 1 | - | - |
 | `local_connector_app_routes` | table | Workflow & tasks | generated_domain_rule | - | 1 | 12 | `local_connector_user_configs` |
 | `local_connector_device_routes` | table | Workflow & tasks | generated_domain_rule | - | 1 | 25 | `tenants`, `users` |
@@ -176,7 +174,7 @@ flowchart TD
 | `v_database_lifecycle_backup_snapshot_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
 | `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
 | `v_database_lifecycle_report_snapshot_summary` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
-| `v_growth_control_shadow_parity_summary` | view | Governance & authority | registry:growth_control_configuration_authority | `data-model-domain-map`, `observability-release-map`, `platform-resource-graph-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
+| `v_growth_control_shadow_parity_summary` | view | Observability & release | registry:growth_control_evidence_objects | `data-model-domain-map`, `observability-release-map`, `policy-authority-map`, `workflow-task-orchestration-map` | 1 | - | - |
 | `v_operational_alerts_open` | view | Observability & release | registry:operational_alert_lifecycle | `data-model-domain-map`, `delivery-support-map`, `observability-release-map`, `workflow-task-orchestration-map` | 1 | - | - |
 | `v_platform_orchestration_ads_governance_readiness` | view | Workflow & tasks | generated_domain_rule | - | 1 | - | - |
 | `v_platform_orchestration_external_delivery_readiness` | view | Delivery & support | generated_domain_rule | - | 1 | - | - |
@@ -187,6 +185,6 @@ flowchart TD
 
 ## Coverage counters
 
-- Matching schema objects: **96**
+- Matching schema objects: **94**
 - Diagram objects shown: **45**
 - Source migrations: **66**
