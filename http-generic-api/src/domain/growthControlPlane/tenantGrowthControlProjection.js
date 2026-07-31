@@ -1,3 +1,7 @@
+import {
+  applyTenantGrowthControlFieldPolicy,
+} from "./tenantGrowthControlViewPolicy.js";
+
 const FORBIDDEN_PROJECTION_FIELDS = new Set([
   "values", "valuesJson", "values_json", "schema", "schemaJson", "schema_json",
   "defaultValues", "default_values_json", "mergeProfile", "merge_profile_json",
@@ -96,8 +100,8 @@ function assertProjectionSafe(record) {
   return record;
 }
 
-export function projectTenantConfigurationVersion(row = {}) {
-  return Object.freeze(assertProjectionSafe({
+function configurationVersionCandidate(row = {}) {
+  return assertProjectionSafe({
     configVersionId: row.configVersionId,
     configKey: row.configKey,
     versionNumber: Number(row.versionNumber),
@@ -122,11 +126,11 @@ export function projectTenantConfigurationVersion(row = {}) {
     createdAt: row.createdAt || null,
     metadataOnly: true,
     secretsIncluded: false
-  }));
+  });
 }
 
-export function projectTenantActivityBinding(row = {}) {
-  return Object.freeze(assertProjectionSafe({
+function activityBindingCandidate(row = {}) {
+  return assertProjectionSafe({
     activityBindingId: row.activityBindingId,
     tenantId: row.tenantId,
     workspaceId: row.workspaceId,
@@ -144,10 +148,36 @@ export function projectTenantActivityBinding(row = {}) {
     updatedAt: row.updatedAt || null,
     metadataOnly: true,
     secretsIncluded: false
-  }));
+  });
+}
+
+export function projectTenantConfigurationVersionWithPolicy(row = {}, tenantRole = null) {
+  return applyTenantGrowthControlFieldPolicy(
+    "configuration_version",
+    configurationVersionCandidate(row),
+    tenantRole,
+  );
+}
+
+export function projectTenantConfigurationVersion(row = {}, tenantRole = null) {
+  return projectTenantConfigurationVersionWithPolicy(row, tenantRole).record;
+}
+
+export function projectTenantActivityBindingWithPolicy(row = {}, tenantRole = null) {
+  return applyTenantGrowthControlFieldPolicy(
+    "activity_binding",
+    activityBindingCandidate(row),
+    tenantRole,
+  );
+}
+
+export function projectTenantActivityBinding(row = {}, tenantRole = null) {
+  return projectTenantActivityBindingWithPolicy(row, tenantRole).record;
 }
 
 export const _testingTenantGrowthControlProjection = Object.freeze({
   decodeCursor,
-  forbiddenProjectionFields: FORBIDDEN_PROJECTION_FIELDS
+  forbiddenProjectionFields: FORBIDDEN_PROJECTION_FIELDS,
+  configurationVersionCandidate,
+  activityBindingCandidate,
 });

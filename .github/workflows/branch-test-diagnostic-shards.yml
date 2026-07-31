@@ -1,0 +1,366 @@
+name: Branch Test Diagnostic Shards
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "http-generic-api/**"
+      - ".github/workflows/**"
+      - "memory_schema.json"
+      - "system_bootstrap.md"
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Optional exact diagnostic family, such as growth-control
+        required: false
+        default: ""
+      parent_index:
+        description: Parent shard index to subdivide
+        required: true
+        default: "0"
+      parent_count:
+        description: Parent shard count
+        required: true
+        default: "1"
+      target_size:
+        description: Approximate tests per diagnostic job
+        required: true
+        type: choice
+        default: "8"
+        options:
+          - "1"
+          - "2"
+          - "4"
+          - "8"
+          - "12"
+          - "16"
+      grep:
+        description: Optional substring filter for test commands
+        required: false
+        default: ""
+      fail_fast:
+        description: Stop each diagnostic job after its first failed command
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-test-diagnostic-${{ github.event.pull_request.number || github.ref }}-${{ inputs.family || 'all' }}-${{ inputs.parent_index || '0' }}-${{ inputs.parent_count || '1' }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Build family diagnostic matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      family: ${{ steps.matrix.outputs.family }}
+      parent_index: ${{ steps.matrix.outputs.parent_index }}
+      parent_count: ${{ steps.matrix.outputs.parent_count }}
+      target_size: ${{ steps.matrix.outputs.target_size }}
+      grep: ${{ steps.matrix.outputs.grep }}
+      fail_fast: ${{ steps.matrix.outputs.fail_fast }}
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - id: matrix
+        name: Resolve dynamic family plan
+        working-directory: http-generic-api
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_FAMILY: ${{ inputs.family }}
+          INPUT_PARENT_INDEX: ${{ inputs.parent_index }}
+          INPUT_PARENT_COUNT: ${{ inputs.parent_count }}
+          INPUT_TARGET_SIZE: ${{ inputs.target_size }}
+          INPUT_GREP: ${{ inputs.grep }}
+          INPUT_FAIL_FAST: ${{ inputs.fail_fast }}
+        run: |
+          dispatch=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            dispatch=true
+          fi
+
+          family=""
+          parent_index="0"
+          parent_count="1"
+          target_size="8"
+          grep=""
+          fail_fast="false"
+
+          if [[ "$dispatch" == "true" ]]; then
+            family="$INPUT_FAMILY"
+            parent_index="$INPUT_PARENT_INDEX"
+            parent_count="$INPUT_PARENT_COUNT"
+            target_size="$INPUT_TARGET_SIZE"
+            grep="$INPUT_GREP"
+            if [[ "${INPUT_FAIL_FAST,,}" == "true" ]]; then
+              fail_fast="true"
+            fi
+          fi
+
+          args=(
+            --emit-matrix
+            --parent-index "$parent_index"
+            --parent-count "$parent_count"
+            --target-size "$target_size"
+            --max-jobs 64
+          )
+          if [[ -n "$family" ]]; then
+            args+=(--family "$family")
+          fi
+          if [[ -n "$grep" ]]; then
+            args+=(--grep "$grep")
+          fi
+
+          plan="$(node scripts/run-test-diagnostic-shard.mjs "${args[@]}")"
+          matrix="$(node -e 'const plan=JSON.parse(process.argv[1]); process.stdout.write(JSON.stringify({include:plan.include}));' "$plan")"
+          echo "Resolved diagnostic plan: $plan"
+          {
+            echo "matrix=$matrix"
+            echo "family=${family//$'\n'/ }"
+            echo "parent_index=$parent_index"
+            echo "parent_count=$parent_count"
+            echo "target_size=$target_size"
+            echo "grep=${grep//$'\n'/ }"
+            echo "fail_fast=$fail_fast"
+          } >> "$GITHUB_OUTPUT"
+
+  shard:
+    name: ${{ matrix.family }} ${{ matrix.shard_number }}/${{ matrix.shard_count }} · ${{ matrix.command_count }} tests
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run family diagnostic shard
+        env:
+          DIAGNOSTIC_FAMILY: ${{ matrix.family }}
+          FAMILY_SLUG: ${{ matrix.family_slug }}
+          PARENT_INDEX: ${{ needs.plan.outputs.parent_index }}
+          PARENT_COUNT: ${{ needs.plan.outputs.parent_count }}
+          SHARD_COUNT: ${{ matrix.shard_count }}
+          SHARD_INDEX: ${{ matrix.shard_index }}
+          DIAGNOSTIC_GREP: ${{ needs.plan.outputs.grep }}
+          DIAGNOSTIC_FAIL_FAST: ${{ needs.plan.outputs.fail_fast }}
+        run: |
+          args=(
+            --family "$DIAGNOSTIC_FAMILY"
+            --parent-index "$PARENT_INDEX"
+            --parent-count "$PARENT_COUNT"
+            --shard-index "$SHARD_INDEX"
+            --shard-count "$SHARD_COUNT"
+            --report-file "diagnostic-reports/${FAMILY_SLUG}-${SHARD_INDEX}.json"
+          )
+          if [[ -n "$DIAGNOSTIC_GREP" ]]; then
+            args+=(--grep "$DIAGNOSTIC_GREP")
+          fi
+          if [[ "$DIAGNOSTIC_FAIL_FAST" == "true" ]]; then
+            args+=(--fail-fast)
+          fi
+          node scripts/run-test-diagnostic-shard.mjs "${args[@]}"
+      - name: Upload family diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.run_id }}-${{ matrix.family_slug }}-${{ matrix.shard_index }}
+          path: http-generic-api/diagnostic-reports/${{ matrix.family_slug }}-${{ matrix.shard_index }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  sequential:
+    name: Sequential manifest order · full npm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ordered test suite with durable progress reports
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+      - name: Upload sequential progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.run_id }}-sequential
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  summarize:
+    name: Summarize diagnostic failures
+    needs:
+      - plan
+      - shard
+      - sequential
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download diagnostic reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: branch-test-diagnostic-${{ github.run_id }}-*
+          path: diagnostic-reports
+          merge-multiple: true
+      - name: Build human-readable summary
+        env:
+          TESTED_REPOSITORY: ${{ github.repository }}
+          TESTED_REF: ${{ github.ref }}
+          TESTED_SHA: ${{ github.sha }}
+          SEQUENTIAL_JOB_RESULT: ${{ needs.sequential.result }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const root = path.resolve('diagnostic-reports');
+          const walk = (directory) => fs.existsSync(directory)
+            ? fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+                const resolved = path.join(directory, entry.name);
+                return entry.isDirectory() ? walk(resolved) : (entry.name.endsWith('.json') ? [resolved] : []);
+              })
+            : [];
+          const files = walk(root).sort();
+          const allReports = files.map((file) => JSON.parse(fs.readFileSync(file, 'utf8')));
+          const reports = allReports
+            .filter((report) => report.contract === 'mad4b.test-diagnostic-shard-report.v2')
+            .sort((left, right) => `${left.family}:${left.shardIndex}`.localeCompare(`${right.family}:${right.shardIndex}`));
+          if (!reports.length) throw new Error('No diagnostic shard reports were produced.');
+
+          const suiteReport = allReports.find((report) => report.contract === 'mad4b.sequential-test-suite-progress-report.v1') || null;
+          const manifestReport = allReports.find((report) => report.contract === 'mad4b.test-manifest-progress-report.v1') || null;
+          const failures = reports.flatMap((report) => report.failures.map((failure) => ({
+            ...failure,
+            shardIndex: report.shardIndex,
+            shardCount: report.shardCount,
+            rerun: report.rerun,
+          })));
+          const summary = {
+            contract: 'mad4b.test-diagnostic-summary.v2',
+            generatedAt: new Date().toISOString(),
+            repository: process.env.TESTED_REPOSITORY,
+            ref: process.env.TESTED_REF,
+            commitSha: process.env.TESTED_SHA,
+            reportCount: reports.length,
+            familyCount: new Set(reports.map((report) => report.family)).size,
+            selectedCount: reports.reduce((total, report) => total + report.selectedCount, 0),
+            passedCount: reports.reduce((total, report) => total + report.commands.filter((item) => item.status === 'passed').length, 0),
+            failedCount: failures.length,
+            failures,
+            sequentialJobResult: process.env.SEQUENTIAL_JOB_RESULT,
+            sequentialSuite: suiteReport,
+            sequentialManifest: manifestReport,
+            secretsIncluded: false,
+          };
+          fs.writeFileSync('diagnostic-summary.json', `${JSON.stringify(summary, null, 2)}\n`);
+
+          const lines = [
+            '# Branch test diagnostic summary',
+            '',
+            `- Ref: \`${summary.ref}\``,
+            `- Commit: \`${summary.commitSha}\``,
+            `- Families: **${summary.familyCount}**`,
+            `- Family reports: **${summary.reportCount}**`,
+            `- Family tests observed: **${summary.selectedCount}**`,
+            `- Family failures: **${summary.failedCount}**`,
+            `- Sequential job: **${summary.sequentialJobResult}**`,
+          ];
+
+          if (suiteReport) {
+            lines.push(`- Sequential suite status: **${suiteReport.status}**`);
+            if (suiteReport.lastPassed) lines.push(`- Last passed phase: \`${suiteReport.lastPassed.id}\``);
+            if (suiteReport.firstFailure) lines.push(`- First failed phase: \`${suiteReport.firstFailure.id}\` (\`${suiteReport.firstFailure.script}\`)`);
+          } else {
+            lines.push('- Sequential suite report: **missing**');
+          }
+
+          if (manifestReport) {
+            lines.push(`- Sequential manifest status: **${manifestReport.status}**`);
+            if (manifestReport.lastPassed) {
+              lines.push(`- Last passed test: \`${manifestReport.lastPassed.command}\` (#${manifestReport.lastPassed.commandIndex})`);
+            }
+            if (manifestReport.firstFailure) {
+              lines.push(`- First failed test: \`${manifestReport.firstFailure.command}\` (#${manifestReport.firstFailure.commandIndex})`);
+            }
+          }
+
+          lines.push(
+            '',
+            '| Family | Shard | Tests | Status | Failed commands |',
+            '|---|---:|---:|---|---|',
+          );
+          for (const report of reports) {
+            const failed = report.failures.length
+              ? report.failures.map((item) => `\`${item.command}\` (#${item.commandIndex})`).join('<br>')
+              : '—';
+            lines.push(`| \`${report.family}\` | ${report.shardIndex + 1}/${report.shardCount} | ${report.selectedCount} | ${report.status} | ${failed} |`);
+          }
+
+          if (failures.length) {
+            lines.push('', '## Exact family rerun coordinates', '');
+            for (const failure of failures) {
+              lines.push(
+                `- \`${failure.family}\` / \`${failure.command}\`: set family=\`${failure.family}\`, parent_index=\`${failure.shardIndex}\`, parent_count=\`${failure.shardCount}\`, then target_size=\`1\` for per-test isolation.`,
+              );
+              const title = `${failure.family} test failed`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+              const message = `${failure.command} (#${failure.commandIndex})`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+              console.log(`::error title=${title}::${message}`);
+            }
+          }
+
+          if (suiteReport?.firstFailure) {
+            const phase = suiteReport.firstFailure;
+            console.log(`::error title=Sequential phase failed::${phase.id} (${phase.script})`);
+          }
+          if (manifestReport?.firstFailure) {
+            const failure = manifestReport.firstFailure;
+            console.log(`::error title=First ordered test failure::${failure.command} (#${failure.commandIndex}); previous=${manifestReport.lastPassed?.command || 'none'}`);
+          }
+
+          const markdown = `${lines.join('\n')}\n`;
+          fs.writeFileSync('diagnostic-summary.md', markdown);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
+          NODE
+      - name: Upload diagnostic summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.run_id }}-summary
+          path: |
+            diagnostic-summary.json
+            diagnostic-summary.md
+          if-no-files-found: error
+          retention-days: 14

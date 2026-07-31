@@ -20,6 +20,8 @@ try {
   const resultFile = path.join(temporaryDirectory, "result.json");
   const readiness = run([
     "scripts/interruption-readiness.mjs",
+    "--target",
+    "HEAD",
     "--skip-dependencies",
     "--skip-merge",
     "--skip-worktree",
@@ -28,6 +30,8 @@ try {
   ]);
   assert.equal(readiness.status, 0, readiness.stderr || readiness.stdout);
   const evidence = JSON.parse(readFileSync(evidenceFile, "utf8"));
+  assert.match(evidence.continuity_snapshot.target_sha, /^[a-f0-9]{40}$/i);
+  assert.equal(evidence.continuity_snapshot.target_sha, evidence.continuity_snapshot.head_sha);
   evidence.verification_plan = { changed_files: [], matched_rules: [], commands: ["node test-interruption-readiness.mjs"] };
   writeFileSync(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`);
 
@@ -94,6 +98,29 @@ try {
   assert.equal(blockedResult.status, "blocked");
   assert.equal(blockedResult.blocker.code, "readiness_evidence_invalid");
   assert.equal(blockedResult.steps.some((step) => step.status === "passed"), false);
+
+  const invalidTargetEvidenceFile = path.join(temporaryDirectory, "invalid-target-evidence.json");
+  const invalidTargetResultFile = path.join(temporaryDirectory, "invalid-target-result.json");
+  writeFileSync(invalidTargetEvidenceFile, `${JSON.stringify({
+    ...evidence,
+    continuity_snapshot: {
+      ...evidence.continuity_snapshot,
+      target_sha: "not-a-commit-sha",
+    },
+  }, null, 2)}\n`);
+  const invalidTarget = run([
+    "scripts/run-interruption-verification-plan.mjs",
+    "--evidence",
+    invalidTargetEvidenceFile,
+    "--result-file",
+    invalidTargetResultFile,
+    "--dry-run",
+  ]);
+  assert.equal(invalidTarget.status, 1);
+  assert.match(invalidTarget.stderr, /valid pinned target SHA/);
+  const invalidTargetResult = JSON.parse(readFileSync(invalidTargetResultFile, "utf8"));
+  assert.equal(invalidTargetResult.status, "blocked");
+  assert.equal(invalidTargetResult.blocker.code, "verification_continuity_blocked");
 
   const activeResultFile = path.join(temporaryDirectory, "active-result.json");
   writeFileSync(`${activeResultFile}.lease`, JSON.stringify({

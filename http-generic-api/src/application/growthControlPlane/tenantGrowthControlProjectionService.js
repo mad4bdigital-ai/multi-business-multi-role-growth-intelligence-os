@@ -6,6 +6,9 @@ import {
   projectTenantActivityBinding,
   projectTenantConfigurationVersion
 } from "../../domain/growthControlPlane/tenantGrowthControlProjection.js";
+import {
+  buildTenantGrowthControlFieldPolicy,
+} from "../../domain/growthControlPlane/tenantGrowthControlViewPolicy.js";
 
 function buildPage(items, limit, offset) {
   const hasMore = items.length > limit;
@@ -15,6 +18,16 @@ function buildPage(items, limit, offset) {
       nextCursor: hasMore ? encodeTenantGrowthControlCursor(offset + limit) : null,
       hasMore
     })
+  });
+}
+
+function projectionScope(principal, scope, effectiveRole) {
+  return Object.freeze({
+    tenantId: principal.tenantId,
+    workspaceId: scope.workspaceId,
+    brandKey: scope.brandKey,
+    tenantRole: effectiveRole,
+    workspaceBootstrapStatus: scope.bootstrapStatus
   });
 }
 
@@ -37,11 +50,14 @@ export function createTenantGrowthControlProjectionService({ repository }) {
         403
       );
     }
-    return Object.freeze({ principal, query, scope });
+    const effectiveRole = scope.tenantRole == null || scope.tenantRole === ""
+      ? null
+      : String(scope.tenantRole);
+    return Object.freeze({ principal, query, scope, effectiveRole });
   }
 
   async function listConfigurationVersions(auth, input = {}) {
-    const { principal, query, scope } = await resolveAuthorizedScope(auth, input);
+    const { principal, query, scope, effectiveRole } = await resolveAuthorizedScope(auth, input);
     const rows = await repository.listConfigurationVersions({
       tenantId: principal.tenantId,
       workspaceId: scope.workspaceId,
@@ -49,16 +65,15 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       limit: query.limit + 1,
       offset: query.offset
     });
-    const result = buildPage(rows.map(projectTenantConfigurationVersion), query.limit, query.offset);
+    const result = buildPage(
+      rows.map((row) => projectTenantConfigurationVersion(row, effectiveRole)),
+      query.limit,
+      query.offset
+    );
     return Object.freeze({
       ...result,
-      scope: Object.freeze({
-        tenantId: principal.tenantId,
-        workspaceId: scope.workspaceId,
-        brandKey: scope.brandKey,
-        tenantRole: principal.tenantRole,
-        workspaceBootstrapStatus: scope.bootstrapStatus
-      }),
+      scope: projectionScope(principal, scope, effectiveRole),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("configuration_version", effectiveRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
@@ -68,7 +83,7 @@ export function createTenantGrowthControlProjectionService({ repository }) {
   }
 
   async function listActivityBindings(auth, input = {}) {
-    const { principal, query, scope } = await resolveAuthorizedScope(auth, input);
+    const { principal, query, scope, effectiveRole } = await resolveAuthorizedScope(auth, input);
     const rows = await repository.listActivityBindings({
       tenantId: principal.tenantId,
       workspaceId: scope.workspaceId,
@@ -76,16 +91,15 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       limit: query.limit + 1,
       offset: query.offset
     });
-    const result = buildPage(rows.map(projectTenantActivityBinding), query.limit, query.offset);
+    const result = buildPage(
+      rows.map((row) => projectTenantActivityBinding(row, effectiveRole)),
+      query.limit,
+      query.offset
+    );
     return Object.freeze({
       ...result,
-      scope: Object.freeze({
-        tenantId: principal.tenantId,
-        workspaceId: scope.workspaceId,
-        brandKey: scope.brandKey,
-        tenantRole: principal.tenantRole,
-        workspaceBootstrapStatus: scope.bootstrapStatus
-      }),
+      scope: projectionScope(principal, scope, effectiveRole),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("activity_binding", effectiveRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
@@ -96,3 +110,8 @@ export function createTenantGrowthControlProjectionService({ repository }) {
 
   return Object.freeze({ listConfigurationVersions, listActivityBindings });
 }
+
+export const _testingTenantGrowthControlProjectionService = Object.freeze({
+  buildPage,
+  projectionScope,
+});
