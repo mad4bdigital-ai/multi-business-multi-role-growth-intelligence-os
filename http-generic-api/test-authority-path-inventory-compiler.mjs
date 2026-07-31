@@ -41,6 +41,8 @@ function basePath(overrides = {}) {
       readback: false,
       rollback: false,
     },
+    secrets_included: false,
+    credential_payload_read: false,
     ...overrides,
   };
 }
@@ -54,13 +56,15 @@ const report = compileAuthorityPathInventory({
       observed_at: "2030-01-01T00:00:00Z",
       complete: true,
       paths: [basePath()],
+      secrets_included: false,
     },
     {
       source_key: "system_tool_registry",
       source_identity: "system_tool_registry.snapshot-1",
       observed_at: "2030-01-01T00:00:01Z",
       complete: true,
-      paths: [basePath()],
+      paths: [basePath({ source_registry: "system_tool_registry" })],
+      secrets_included: false,
     },
   ],
 });
@@ -73,6 +77,7 @@ assert.equal(report.summary.canonical_path_count, 1);
 assert.equal(report.summary.shared_count, 1);
 assert.equal(report.summary.blocking_gap_count, 0);
 assert.deepEqual(report.paths[0].source_keys, ["admin_endpoint_catalog", "system_tool_registry"]);
+assert.deepEqual(report.paths[0].source_registries, ["admin_endpoint_catalog", "system_tool_registry"]);
 assert.equal(report.closure_state.t001_complete, false);
 assert.equal(report.closure_state.t001_ready_for_human_review, true);
 assert.equal(report.provider_calls, false);
@@ -109,14 +114,14 @@ const conflict = compileAuthorityPathInventory({
       source_identity: "source_a.snapshot",
       observed_at: "2030-01-01T00:00:00Z",
       complete: true,
-      paths: [basePath()],
+      paths: [basePath({ source_registry: "registry_a" })],
     },
     {
       source_key: "source_b",
       source_identity: "source_b.snapshot",
       observed_at: "2030-01-01T00:00:00Z",
       complete: true,
-      paths: [basePath({ risk_class: "high" })],
+      paths: [basePath({ source_registry: "registry_b", risk_class: "high" })],
     },
   ],
 });
@@ -163,6 +168,23 @@ assert.throws(
   }),
   (error) => error instanceof AuthorityPathInventoryError
     && error.code === "authority_path_secret_field_forbidden",
+);
+
+assert.throws(
+  () => compileAuthorityPathInventory({
+    source_snapshots: [
+      { source_key: "duplicate", source_identity: "duplicate.a", observed_at: "2030-01-01T00:00:00Z", complete: true, paths: [] },
+      { source_key: "duplicate", source_identity: "duplicate.b", observed_at: "2030-01-01T00:00:01Z", complete: true, paths: [] },
+    ],
+  }),
+  (error) => error instanceof AuthorityPathInventoryError
+    && error.code === "authority_path_duplicate_source",
+);
+
+assert.throws(
+  () => compileAuthorityPathInventory({ source_snapshots: [], limits: { maxSources: 0 } }),
+  (error) => error instanceof AuthorityPathInventoryError
+    && error.code === "authority_path_invalid_limit",
 );
 
 assert.throws(
