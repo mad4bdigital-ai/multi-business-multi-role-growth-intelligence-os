@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
+import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
 
 const testCommands = Object.freeze([
-  ...canonicalTestCommands,
+  ...spec011Commands,
 ]);
 
 function parseArgs(argv) {
