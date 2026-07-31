@@ -275,7 +275,9 @@ export function buildTenantActivationOverlayRoutes({
               max_chars: maxChars,
               chunk_ttl_minutes: chunkTtlMinutes,
             },
+            auth: req.auth,
             source_tool_key: "tenant_activation_session_context",
+            source_surface: "tenant_activation_session_context",
           })
         : responseBody;
       return res.status(200).json(transportBody);

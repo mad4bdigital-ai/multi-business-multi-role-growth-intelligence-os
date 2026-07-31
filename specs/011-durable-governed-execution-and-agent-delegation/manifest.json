@@ -279,5 +279,10 @@
   "phase3_delegation_policy_runtime_runtime_binding_enabled": false,
   "phase3_delegation_policy_runtime_runtime_policy_ready": false,
   "phase3_delegation_policy_runtime_provider_write": false,
-  "phase3_delegation_policy_runtime_deployment_required": false
+  "phase3_delegation_policy_runtime_deployment_required": false,
+  "phase3_delegation_policy_runtime_closeout_status": "merged_complete_on_main",
+  "phase3_delegation_policy_runtime_closeout_head_sha": "b44a8989d41b5f75a14b63ce333b6182ace13eb7",
+  "phase3_delegation_policy_runtime_closeout_merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+  "phase3_delegation_policy_runtime_closeout_ci_run_id": 30626066301,
+  "phase3_delegation_policy_runtime_closeout_required_checks": "4_of_4_passed"
 }
