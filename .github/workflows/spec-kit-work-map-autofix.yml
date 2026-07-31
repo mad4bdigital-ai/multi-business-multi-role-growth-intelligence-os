@@ -1,0 +1,144 @@
+name: Spec Kit Work Map Autofix
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Existing same-repository pull-request branch to update
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact branch head SHA authorized for regeneration
+        required: true
+        type: string
+  pull_request:
+    branches: [main]
+    types: [reopened]
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || (github.event.action == 'reopened' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]' && contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')) && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    name: Regenerate Work Maps
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'reopened' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'github-actions[bot]' &&
+        contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')
+      )
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+    steps:
+      - name: Validate authorized target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git check-ref-format --branch "${TARGET_BRANCH}"
+          if [[ "${TARGET_BRANCH}" == "main" ]]; then
+            echo "Direct autofix writes to main are forbidden; use a pull-request branch."
+            exit 1
+          fi
+          if [[ ! "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_head_sha must be a full lowercase 40-character commit SHA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Pin authorized branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${actual_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Checked-out head mismatch. Expected ${EXPECTED_HEAD_SHA}, found ${actual_head_sha}."
+            exit 1
+          fi
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+
+      - name: Validate generator, classification, and pipeline contracts
+        run: |
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and verify idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Generator modified files outside docs/work-maps:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_diff_hash}" != "${second_diff_hash}" ]]; then
+            echo "Refusing to commit non-idempotent Work Map generation."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Commit generated artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/work-maps; then
+            echo "Generated Work Maps are already current; no commit created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps
+          git commit -m "docs(work-maps): regenerate governed platform maps"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix push. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
+            echo "Autofix push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
