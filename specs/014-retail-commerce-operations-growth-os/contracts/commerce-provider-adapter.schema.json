@@ -24,7 +24,7 @@
     "schema_version": { "const": "commerce-authority-adapter-v1" },
     "adapter_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{2,127}$" },
     "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
-    "backend_mode": { "type": "string", "enum": ["platform_native", "erpnext"] },
+    "backend_mode": { "type": "string", "enum": ["platform_native", "erpnext", "woocommerce"] },
     "provider_family": { "type": ["string", "null"], "maxLength": 128 },
     "status": { "type": "string", "enum": ["planned", "sandbox", "certified", "degraded", "disabled", "retired"] },
     "authority_domains": {
@@ -33,7 +33,24 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "enum": ["catalog", "inventory", "orders", "pos", "payments", "procurement", "suppliers", "returns", "media", "publications", "hr", "accounting"]
+        "enum": [
+          "catalog",
+          "inventory",
+          "checkout",
+          "orders",
+          "customers",
+          "coupons",
+          "pos",
+          "payments",
+          "fulfillment",
+          "procurement",
+          "suppliers",
+          "returns",
+          "media",
+          "publications",
+          "hr",
+          "accounting"
+        ]
       }
     },
     "supported_operations": {
@@ -44,14 +61,26 @@
         "type": "string",
         "enum": [
           "resolve_readiness",
+          "system_status_read",
           "catalog_list",
           "product_get",
+          "product_create",
+          "product_update",
+          "variation_list",
+          "variation_get",
           "inventory_get",
           "reserve_stock",
           "release_reservation",
           "commit_reservation",
           "create_order",
           "order_get",
+          "customer_list",
+          "customer_get",
+          "coupon_list",
+          "coupon_get",
+          "webhook_list",
+          "webhook_manage",
+          "scheduled_actions_read",
           "submit_pos_sale",
           "payment_create",
           "payment_reconcile",
@@ -235,7 +264,7 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "status": { "const": "certified" } } },
+      "if": { "properties": { "status": { "const": "certified" } }, "required": ["status"] },
       "then": {
         "properties": {
           "certification": {
@@ -250,7 +279,7 @@
       }
     },
     {
-      "if": { "properties": { "backend_mode": { "const": "erpnext" } } },
+      "if": { "properties": { "backend_mode": { "enum": ["erpnext", "woocommerce"] } }, "required": ["backend_mode"] },
       "then": { "properties": { "provider_family": { "type": "string", "minLength": 1 } } }
     }
   ]
