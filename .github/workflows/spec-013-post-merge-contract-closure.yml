@@ -22,12 +22,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out synchronized repair branch
+      - name: Check out repair branch
         uses: actions/checkout@v5
         with:
           ref: fix/spec-013-post-merge-contract-closure-20260731
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Synchronize latest main without force
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge --no-edit origin/main
+          fi
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -47,26 +57,32 @@ jobs:
           from pathlib import Path
           from textwrap import dedent
 
-          def replace_once(text, old, new, label):
+          def replace_or_confirm(text, old, new, label):
+              if new in text:
+                  return text
               count = text.count(old)
-              assert count == 1, f'{label}: expected exactly one match, found {count}'
+              assert count == 1, f'{label}: expected exactly one legacy match, found {count}'
               return text.replace(old, new)
 
           routes_path = Path('http-generic-api/routes/systemLayerRoutes.js')
           routes = routes_path.read_text()
-          old_admin = '''  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-            const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-            return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
-          });'''
-          new_admin = '''  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-            try {
-              const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-              return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));
-            } catch (error) {
-              return sendSystemToolCatalogError(res, error, "admin_system_tool_catalog_list_failed");
-            }
-          });'''
-          routes_path.write_text(replace_once(routes, old_admin, new_admin, 'admin Catalog V2 handler'))
+          old_admin = (
+              '  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {\n'
+              '    const body = await buildSystemToolsListResponse(req.auth, req.query || {});\n'
+              '    return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));\n'
+              '  });'
+          )
+          new_admin = (
+              '  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {\n'
+              '    try {\n'
+              '      const body = await buildSystemToolsListResponse(req.auth, req.query || {});\n'
+              '      return res.status(200).json(await chunkSystemLayerResponse(body, req.query || {}));\n'
+              '    } catch (error) {\n'
+              '      return sendSystemToolCatalogError(res, error, "admin_system_tool_catalog_list_failed");\n'
+              '    }\n'
+              '  });'
+          )
+          routes_path.write_text(replace_or_confirm(routes, old_admin, new_admin, 'admin Catalog V2 handler'))
 
           root_path = Path('http-generic-api/openapi.yaml')
           root = root_path.read_text()
@@ -78,71 +94,64 @@ jobs:
               ('/system/tools/call', 'post', 'backendBearerAuth'),
           ]
           for path, method, bearer in root_targets:
-              old = f'''  {path}:
-                {method}:
-                  tags: [system-layer]
-                  security: [{bearer}: [], backendApiKeyAuth: []]'''
-              new = f'''  {path}:
-                {method}:
-                  tags: [system-layer]
-                  security: [{{ {bearer}: [] }}, {{ backendApiKeyAuth: [] }}]'''
-              root = replace_once(root, old, new, f'root OpenAPI auth alternatives for {method.upper()} {path}')
+              old = (
+                  f'  {path}:\n'
+                  f'    {method}:\n'
+                  '      tags: [system-layer]\n'
+                  f'      security: [{bearer}: [], backendApiKeyAuth: []]'
+              )
+              new = (
+                  f'  {path}:\n'
+                  f'    {method}:\n'
+                  '      tags: [system-layer]\n'
+                  f'      security: [{{ {bearer}: [] }}, {{ backendApiKeyAuth: [] }}]'
+              )
+              root = replace_or_confirm(root, old, new, f'root OpenAPI auth alternatives for {method.upper()} {path}')
           root_path.write_text(root)
 
           contract_path = Path('specs/013-system-tool-catalog-v2/contracts/system-tool-catalog-v2.openapi.yaml')
           contract = contract_path.read_text()
-          contract = replace_once(
+          contract = replace_or_confirm(
               contract,
-              '''security:
-                - bearerAuth: []''',
-              '''security:
-                - bearerAuth: []
-                - backendApiKeyAuth: []''',
+              'security:\n  - bearerAuth: []',
+              'security:\n  - bearerAuth: []\n  - backendApiKeyAuth: []',
               'Spec 013 global auth alternatives',
           )
-          contract = replace_once(
+          contract = replace_or_confirm(
               contract,
-              '''      security:
-                    - bearerAuth: [admin]''',
-              '''      security:
-                    - bearerAuth: [admin]
-                    - backendApiKeyAuth: []''',
+              '      security:\n        - bearerAuth: [admin]',
+              '      security:\n        - bearerAuth: [admin]\n        - backendApiKeyAuth: []',
               'Spec 013 observability auth alternatives',
           )
-          contract = replace_once(
+          contract = replace_or_confirm(
               contract,
-              '''    bearerAuth:
-                    type: http
-                    scheme: bearer
-                    bearerFormat: JWT''',
-              '''    bearerAuth:
-                    type: http
-                    scheme: bearer
-                    bearerFormat: JWT
-                  backendApiKeyAuth:
-                    type: apiKey
-                    in: header
-                    name: x-api-key''',
+              '    bearerAuth:\n      type: http\n      scheme: bearer\n      bearerFormat: JWT',
+              '    bearerAuth:\n      type: http\n      scheme: bearer\n      bearerFormat: JWT\n'
+              '    backendApiKeyAuth:\n      type: apiKey\n      in: header\n      name: x-api-key',
               'Spec 013 API-key security scheme',
           )
           contract_path.write_text(contract)
 
           platform_test_path = Path('http-generic-api/test-platform-routes.mjs')
           platform_test = platform_test_path.read_text()
-          anchor = '''{
-            const r = await get("/system/tools/runtime_endpoint_preview");'''
-          inserted = '''{
-            const r = await get("/admin/system/tools?cursor=not-a-valid-catalog-cursor");
-            ok("Catalog V2 admin invalid cursor returns 400", r.status === 400, `got ${r.status}`);
-            ok("Catalog V2 admin invalid cursor returns stable error", r.body.error?.code === "SYSTEM_TOOL_CATALOG_CURSOR_INVALID", JSON.stringify(r.body));
-            ok("Catalog V2 admin invalid cursor excludes secrets", r.body.secrets_included === false, JSON.stringify(r.body));
-          }
-          {
-            const r = await get("/system/tools/runtime_endpoint_preview");'''
-          platform_test_path.write_text(replace_once(platform_test, anchor, inserted, 'Catalog V2 HTTP regression anchor'))
+          marker = 'Catalog V2 admin invalid cursor returns stable error'
+          if marker not in platform_test:
+              anchor = '{\n  const r = await get("/system/tools/runtime_endpoint_preview");'
+              inserted = (
+                  '{\n'
+                  '  const r = await get("/admin/system/tools?cursor=not-a-valid-catalog-cursor");\n'
+                  '  ok("Catalog V2 admin invalid cursor returns 400", r.status === 400, `got ${r.status}`);\n'
+                  '  ok("Catalog V2 admin invalid cursor returns stable error", r.body.error?.code === "SYSTEM_TOOL_CATALOG_CURSOR_INVALID", JSON.stringify(r.body));\n'
+                  '  ok("Catalog V2 admin invalid cursor excludes secrets", r.body.secrets_included === false, JSON.stringify(r.body));\n'
+                  '}\n'
+                  '{\n'
+                  '  const r = await get("/system/tools/runtime_endpoint_preview");'
+              )
+              platform_test = replace_or_confirm(platform_test, anchor, inserted, 'Catalog V2 HTTP regression anchor')
+              platform_test_path.write_text(platform_test)
 
           regression_path = Path('http-generic-api/test-system-tool-catalog-v2-post-merge-contract.mjs')
-          regression_path.write_text(dedent(r'''
+          regression = dedent(r'''
               import assert from "node:assert/strict";
               import { readFileSync } from "node:fs";
               import YAML from "yaml";
@@ -188,14 +197,24 @@ jobs:
               assert.equal(spec.components?.securitySchemes?.backendApiKeyAuth?.in, "header");
 
               console.log("System Tool Catalog V2 post-merge runtime and OpenAPI contract regressions passed");
-          ''').lstrip())
+          ''').lstrip()
+          if regression_path.exists():
+              assert regression_path.read_text() == regression, 'existing post-merge regression differs from bounded closure contract'
+          else:
+              regression_path.write_text(regression)
 
           manifest_path = Path('http-generic-api/scripts/test-manifest.mjs')
           manifest = manifest_path.read_text()
           command = '  "node test-system-tool-catalog-v2-post-merge-contract.mjs",\n'
-          assert command not in manifest, 'post-merge Catalog V2 regression already registered unexpectedly'
-          anchor = '  "node test-status-component-readiness-freshness.mjs",\n'
-          manifest_path.write_text(replace_once(manifest, anchor, command + anchor, 'test manifest registration'))
+          if command not in manifest:
+              anchor = '  "node test-status-component-readiness-freshness.mjs",\n'
+              if anchor in manifest:
+                  manifest = manifest.replace(anchor, command + anchor, 1)
+              else:
+                  closing = manifest.rfind('];')
+                  assert closing >= 0, 'test manifest command array closing marker not found'
+                  manifest = manifest[:closing] + command + manifest[closing:]
+              manifest_path.write_text(manifest)
           PY
 
       - name: Run focused Catalog V2 closure regressions
@@ -211,8 +230,8 @@ jobs:
       - name: Refresh bounded generated artifacts and contract guards
         working-directory: http-generic-api
         run: |
-          git fetch origin main --depth=1
-          npm run frontend:dispatch:generate -- --baseline-ref=main
+          git fetch origin main
+          npm run frontend:dispatch:generate -- --baseline-ref=origin/main
           node scripts/generate-custom-gpt-schemas.mjs --write
           node test-frontend-operation-governance-generator.mjs
           node test-frontend-surface-dispatch.mjs
@@ -257,8 +276,6 @@ jobs:
       - name: Commit bounded repair and remove temporary workflow
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -f .github/workflows/spec-013-post-merge-contract-closure.yml
           git add --all
           git diff --cached --check
