@@ -164,7 +164,10 @@ assert.deepEqual(openApi.paths["/admin/control-plane/analytics/kpis"].get.securi
   { backendApiKeyAuth: [] },
 ]);
 assert.deepEqual(openApi.paths["/tenant/control-plane/analytics/portfolio"].get.security, [{ userJwtAuth: [] }]);
-assert.deepEqual(openApi.paths["/internal/control-plane/operations/samples"].post.security, [{ backendApiKeyAuth: [] }]);
+assert.deepEqual(openApi.paths["/internal/control-plane/operations/samples"].post.security, [
+  { backendBearerAuth: [] },
+  { backendApiKeyAuth: [] },
+]);
 const operationIds = Object.values(openApi.paths).flatMap((pathItem) => Object.values(pathItem).map((operation) => operation.operationId));
 assert.equal(new Set(operationIds).size, operationIds.length);
 assert.equal(openApi.components.schemas.AlertProjection.properties.autoRemediationAllowed.const, false);
