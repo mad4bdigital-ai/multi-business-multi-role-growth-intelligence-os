@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "add8368f17ea19c1953c06d449b7a8ad3781072a4c732d51fda862c6424456b1",
+    "source_digest": "915a0c8ed94731b7c9340743272e678ee101e44af947bcd93ced9322c46d4848",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "51f3a824ff6c05411696de1b4b86de711f4239db834bb4c0e5d5e833d699046b",
+        "sha256": "fbb012906b5def85493eaa394f154fdca4707b18a375c3c70dc87542c1ff2b97",
         "present": true
       },
       {
@@ -571,7 +571,7 @@
       },
       {
         "file": "routes/jobRoutes.js",
-        "sha256": "c7e41224925bcef92d520e4d6390017b6c88949dc8a5f7fba9946fb7fd889606",
+        "sha256": "8277390366724ee2da6ec710343ee1d79dbc2473fb47baa22336a82c7b5b7b6d",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "56c4ed6dd2503daf75ea8ab03a28333cd758f2f7078ebdf2c93468e72219ea8e",
+        "sha256": "933f95eee2f4e38de7f491cc266af9310a2f721bc801aad0ebb72c843d3136fb",
         "present": true
       },
       {
@@ -55813,7 +55813,7 @@
       "family_key": "job",
       "label": "job",
       "source_file": "routes/jobRoutes.js",
-      "source_digest": "c7e41224925bcef92d520e4d6390017b6c88949dc8a5f7fba9946fb7fd889606",
+      "source_digest": "8277390366724ee2da6ec710343ee1d79dbc2473fb47baa22336a82c7b5b7b6d",
       "mount_prefix": "/",
       "mount_order": 19907,
       "split_from_mixed_scope_file": false,
