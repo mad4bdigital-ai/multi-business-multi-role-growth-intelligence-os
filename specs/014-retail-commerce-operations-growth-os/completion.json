@@ -16,14 +16,5 @@
   "migration_apply": false,
   "deployment_required": false,
   "post_merge_audit_completed": false,
-  "secrets_included": false,
-  "pending": [
-    "Capability Catalog and Blueprint Registry runtime implementation",
-    "Brand Site Profile and exact connection resolution",
-    "WordPress lifecycle capability registration",
-    "WooCommerce discovery, REST, bridge, and webhook implementation",
-    "Enablement Center and Operations Cockpit",
-    "governed migrations and adapter certification",
-    "production verification and post-merge audit"
-  ]
+  "secrets_included": false
 }
