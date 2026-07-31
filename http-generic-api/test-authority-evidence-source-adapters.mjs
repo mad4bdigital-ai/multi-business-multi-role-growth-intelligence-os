@@ -67,19 +67,22 @@ function source(family, overrides = {}) {
   };
 }
 
-const expectedFamilies = ["system_tool_registry", "admin_endpoint_catalog"];
+function allSources(overridesByFamily = {}) {
+  return AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map((family) => source(family, overridesByFamily[family] || {}));
+}
+
 const bundle = buildAuthorityEvidenceSourceBundle({
-  expected_source_families: expectedFamilies,
-  sources: expectedFamilies.map((family) => source(family)),
+  sources: allSources(),
 });
 
 assert.equal(bundle.contract, "mad4b.ueacp.authority-evidence-source-bundle.v1");
 assert.equal(bundle.status, "ready_for_ownership_review");
-assert.equal(bundle.source_family_count, 2);
+assert.equal(bundle.source_family_count, 8);
 assert.equal(bundle.blocking_gap_count, 0);
 assert.equal(bundle.inventory.status, "ready_for_human_closure_review");
 assert.equal(bundle.inventory.summary.canonical_path_count, 1);
-assert.deepEqual(bundle.inventory.paths[0].source_registries, expectedFamilies.slice().sort());
+assert.deepEqual(bundle.inventory.paths[0].source_registries, [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
+assert.deepEqual(bundle.expected_source_families, [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort());
 assert.equal(bundle.closure_state.t001_complete, false);
 assert.equal(bundle.closure_state.source_evidence_ready_for_human_review, true);
 assert.equal(bundle.read_only, true);
@@ -92,7 +95,6 @@ assert.equal(Object.isFrozen(bundle), true);
 assert.equal(Object.isFrozen(bundle.sources), true);
 
 const incomplete = buildAuthorityEvidenceSourceBundle({
-  expected_source_families: expectedFamilies,
   sources: [source("system_tool_registry", {
     pagination: {
       expected_count: 2,
@@ -104,35 +106,33 @@ const incomplete = buildAuthorityEvidenceSourceBundle({
   })],
 });
 assert.equal(incomplete.status, "incomplete");
-assert.ok(incomplete.gaps.some((gap) => gap.code === "missing_source_family"));
+assert.equal(incomplete.gaps.filter((gap) => gap.code === "missing_source_family").length, 7);
 assert.ok(incomplete.gaps.some((gap) => gap.code === "incomplete_source_family"));
 assert.equal(incomplete.closure_state.source_evidence_ready_for_human_review, false);
 
-const conflictingRecords = [
-  source("system_tool_registry"),
-  source("admin_endpoint_catalog", {
-    records: [pathRecord("admin_endpoint_catalog")].map((record) => ({ ...record, risk_class: "high" })),
-  }),
-];
 const conflicting = buildAuthorityEvidenceSourceBundle({
-  expected_source_families: expectedFamilies,
-  sources: conflictingRecords,
+  sources: allSources({
+    admin_endpoint_catalog: {
+      records: [{ ...pathRecord("admin_endpoint_catalog"), risk_class: "high" }],
+    },
+  }),
 });
 assert.equal(conflicting.status, "incomplete");
 assert.ok(conflicting.gaps.some((gap) => gap.code === "conflicting_path_contract"));
 
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
-    expected_source_families: ["system_tool_registry"],
-    sources: [source("system_tool_registry", {
-      safety: {
-        read_only: true,
-        provider_calls: true,
-        credential_payload_read: false,
-        external_writes: false,
-        secrets_included: false,
+    sources: allSources({
+      system_tool_registry: {
+        safety: {
+          read_only: true,
+          provider_calls: true,
+          credential_payload_read: false,
+          external_writes: false,
+          secrets_included: false,
+        },
       },
-    })],
+    }),
   }),
   (error) => error instanceof AuthorityEvidenceSourceError
     && error.code === "authority_evidence_unsafe_source",
@@ -140,10 +140,11 @@ assert.throws(
 
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
-    expected_source_families: ["system_tool_registry"],
-    sources: [source("system_tool_registry", {
-      records: [{ ...pathRecord("system_tool_registry"), access_token: "forbidden" }],
-    })],
+    sources: allSources({
+      system_tool_registry: {
+        records: [{ ...pathRecord("system_tool_registry"), access_token: "forbidden" }],
+      },
+    }),
   }),
   (error) => error instanceof AuthorityEvidenceSourceError
     && error.code === "authority_evidence_secret_value_forbidden",
@@ -151,8 +152,21 @@ assert.throws(
 
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
-    expected_source_families: ["unknown_family"],
-    sources: [],
+    expected_source_families: ["system_tool_registry"],
+    sources: [source("system_tool_registry")],
+  }),
+  (error) => error instanceof AuthorityEvidenceSourceError
+    && error.code === "authority_evidence_incomplete_family_contract"
+    && error.details.missing_source_families.length === 7,
+);
+
+assert.throws(
+  () => buildAuthorityEvidenceSourceBundle({
+    expected_source_families: AUTHORITY_EVIDENCE_SOURCE_FAMILIES,
+    sources: [
+      ...allSources().slice(0, -1),
+      source("unknown_family"),
+    ],
   }),
   (error) => error instanceof AuthorityEvidenceSourceError
     && error.code === "authority_evidence_unknown_source_family",
@@ -160,8 +174,7 @@ assert.throws(
 
 assert.throws(
   () => buildAuthorityEvidenceSourceBundle({
-    expected_source_families: ["system_tool_registry"],
-    sources: [source("system_tool_registry"), source("system_tool_registry", { source_key: "other.snapshot" })],
+    sources: [...allSources(), source("system_tool_registry", { source_key: "other.snapshot" })],
   }),
   (error) => error instanceof AuthorityEvidenceSourceError
     && error.code === "authority_evidence_duplicate_source_family",
