@@ -67,6 +67,7 @@ const staticDiscoveryCommands = [
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-repository-main-moved-trigger-coordinator.mjs",
   "node test-resource-api-callability-effect-classes.mjs",
+  "node test-response-chunk-ownership-governed-rollout-control.mjs",
   "node test-security-decision-engine.mjs",
   "node test-security-decision-trace-contract.mjs",
   "node test-smoke-branch-cleanup-gate.mjs",
