@@ -1,10 +1,9 @@
-# certification-trigger: hardened-ec4-v2
 name: EC4 Mutation Validation Certification
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    branches: [main]
+  push:
+    branches:
+      - gpt/spec-012-ec3-closeout-and-ec4-stage-20260731
   workflow_dispatch:
 
 permissions:
@@ -16,7 +15,6 @@ concurrency:
 
 jobs:
   certify:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'gpt/spec-012-ec3-closeout-and-ec4-stage-20260731'
     runs-on: ubuntu-latest
     steps:
       - name: Check out exact stage branch
