@@ -40,6 +40,8 @@ const staticDiscoveryCommands = [
   "node test-dynamic-container-rollout-safety.mjs",
   "node test-execution-capsule-read-dispatch-gate.mjs",
   "node test-execution-capsule-mutation-validation-pilot.mjs",
+  "node test-execution-capsule-rollout-evaluator.mjs",
+  "node test-execution-capsule-rollout-coordinator.mjs",
   "node test-execution-intent-binding-migration-contract.mjs",
   "node test-f5-f6-positive-smoke-certification.mjs",
   "node test-frontend-operation-governance-generator.mjs",
