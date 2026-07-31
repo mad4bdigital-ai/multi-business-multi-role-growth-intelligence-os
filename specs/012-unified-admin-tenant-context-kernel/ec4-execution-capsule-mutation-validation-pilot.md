@@ -2,9 +2,9 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
-EC4 adds a framework-independent, default-off mutation validation pilot. It proves one reversible mutation boundary without mounting a route, connecting a provider, writing a database, applying a migration, or activating Production behavior.
+EC4 delivers a framework-independent, default-off mutation validation pilot. It proves one reversible mutation boundary without mounting a route, connecting a provider, writing a database, applying a migration, or activating Production behavior.
 
 ## Independent authority requirements
 
@@ -78,9 +78,32 @@ Extra receipt fields are rejected to prevent provider or secret payloads crossin
 - exact disabled rollback;
 - no environment, network, database, cloud SDK, or provider dependency.
 
-## Completion gates
+The canonical test manifest retains both the pre-existing generalized resource-callability regression and the EC4 regression exactly once.
 
-EC4 completes after exact-head required CI and side workflows, generator-owned evidence refresh, Human Architecture/Security Review, latest-main reconciliation, merge, and post-merge readback.
+## Completion evidence
+
+EC4 was certified and merged through PR #3993.
+
+- Certified exact head: `71bfc219ccf9f2aba53a88a73190a6af5327b82b`.
+- Merge SHA: `9542f2a615ce9783273cc01b4777bd0944e6c1c7`.
+- Required CI: run `30626124261`, 4/4 required jobs successful.
+- Frontend deterministic generation: run `30626124191`, successful deterministic output and bounded refresh.
+- Diagnostic coverage: run `30626124218`; sequential suite and every family shard succeeded, including all five execution shards.
+- The diagnostic `summarize` job was still queued for runner capacity at merge. It is presentation-only and does not execute or validate code; all prerequisite shard reports were successful and present.
+- Human Architecture Review: `PRR_kwDOSFDYfs8AAAABH8U2OA`, no requested changes.
+- Human Security Review: `PRR_kwDOSFDYfs8AAAABH8U8cA`, no requested changes.
+- Unresolved review threads: zero.
+- Latest-main reconciliation before merge observed `8d05f8d9ed825cf08dc51f38d7d1b93930476174`; 25 newer commits had zero overlap with the EC4 11-file scope.
+
+## Post-merge readback
+
+Readback from merge SHA `9542f2a615ce9783273cc01b4777bd0944e6c1c7` confirmed:
+
+- EC4 source blob: `48d846d1042a4cd366c27174bfcd7ff5feb31de6`;
+- canonical test manifest blob: `16997a53e42c5674431fdc6208eeebe5960fdc63`;
+- generated operation-governance blob: `5c1778d945ef9dbb518262536d9230cae8f6b703`;
+- generated frontend-surface blob: `604128a2d3a53295bf580247c6236db056a0f808`;
+- both Callability and EC4 test registrations remain present exactly once.
 
 ## Safety boundaries
 
@@ -92,3 +115,5 @@ EC4 completes after exact-head required CI and side workflows, generator-owned e
 - no database write or migration apply;
 - no credential mutation;
 - no deployment or Production synchronization.
+
+EC4 is complete. EC5 rollout and duplicate-resolver retirement remains a separate, not-started phase.

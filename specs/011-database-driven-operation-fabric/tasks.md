@@ -43,7 +43,11 @@
 - [x] Harden branch/workspace input validation through PR #3553 at `bdf3c72143d8942b04da6ef3d83919d0502e5985`.
 - [x] Pass hardening CI in run `30536413250` and verify the final source/test blobs on `main`.
 
-## Remaining feature scope
+## Governed migration and production readback
 
-- [ ] Apply the additive ephemeral-checkout migration through governed migration authority.
-- [ ] Record migration ledger and runtime readback evidence.
+- [x] Merge the exact checksum-bound migration preflight contract through PR #3818 at `ae93d1557bf259a1272333951f27852c271aa4ab`.
+- [x] Apply `20260728_operation_managed_git_ephemeral_checkout.sql` through governed Production migration authority in workflow run `30618204241`.
+- [x] Record governed ledger run `99f726d7-4f09-4d1c-900d-378d5c89d5b9` with mode `apply`, preflight `pass`, risk count `0`, and one executed statement.
+- [x] Verify `operation_managed_git_worker_leases.checkout_strategy` as `enum('virtual_git_tree','ephemeral_checkout') NOT NULL` in read-only workflow run `30619520100`.
+- [x] Close temporary operational PRs #3880 and #3971 without merging their one-off workflows.
+- [x] Record final Spec 011 completion evidence without secrets, provider calls, freeform SQL, or workspace-path exposure.
