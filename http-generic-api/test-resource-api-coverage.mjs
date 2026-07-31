@@ -103,6 +103,50 @@ const groupedCallability = validateDirectRouteCallabilityContracts({
 assert.equal(groupedCallability.ok, true, JSON.stringify(groupedCallability.findings));
 assert.deepEqual(groupedCallability.covered_tool_keys.filter((key) => key.startsWith("grouped_tool_")), ["grouped_tool_alpha", "grouped_tool_beta"]);
 assert.equal(groupedCallability.covered_contracts.filter((row) => row.contract_key === "grouped_route_example").length, 2);
+
+const crossMigrationContract = {
+  contract_key: "shared_dispatch_example",
+  tool_bindings: [
+    { tool_key: "shared_tool_alpha", migration_file: "migrations/shared-alpha.sql", migration_markers: ["shared_tool_alpha"] },
+    { tool_key: "shared_tool_beta", migration_file: "migrations/shared-beta.sql", migration_markers: ["shared_tool_beta"] },
+  ],
+  route_signature: "POST /system/tools/call",
+  route_file: "routes/shared-dispatch.js",
+  mount_file: "routes/shared-index.js",
+  test_file: "test-shared-dispatch.mjs",
+  openapi_file: "openapi-shared-dispatch.yaml",
+  route_markers: ["shared dispatcher", "requireUserJwt", "readback marker"],
+  mount_markers: ["mount shared dispatcher"],
+  test_markers: ["shared dispatcher test"],
+  openapi_markers: ["/system/tools/call:", "operationId: callSystemTool"],
+  auth_model: "user_jwt",
+  read_only: false,
+  runtime_execution_allowed: true,
+  provider_calls_allowed: false,
+  external_writes_allowed: false,
+  credential_payload_reads_allowed: false,
+  secrets_included: false,
+  database_writes_allowed: true,
+  transaction_required: true,
+  same_cycle_readback_required: true,
+};
+const crossMigrationCallability = validateDirectRouteCallabilityContracts({
+  root: process.cwd(),
+  manifest: { callability_gate: { direct_route_contracts: [crossMigrationContract] } },
+  fileOverrides: {
+    "migrations/shared-alpha.sql": "shared_tool_alpha",
+    "migrations/shared-beta.sql": "shared_tool_beta",
+    "routes/shared-dispatch.js": "shared dispatcher requireUserJwt readback marker",
+    "routes/shared-index.js": "mount shared dispatcher",
+    "test-shared-dispatch.mjs": "shared dispatcher test",
+    "openapi-shared-dispatch.yaml": "/system/tools/call:\noperationId: callSystemTool",
+  },
+});
+assert.equal(crossMigrationCallability.ok, true, JSON.stringify(crossMigrationCallability.findings));
+assert(crossMigrationCallability.covered_contracts.some((row) => row.tool_key === "shared_tool_alpha" && row.migration_file === "migrations/shared-alpha.sql"));
+assert(crossMigrationCallability.covered_contracts.some((row) => row.tool_key === "shared_tool_beta" && row.migration_file === "migrations/shared-beta.sql"));
+assert.deepEqual(crossMigrationCallability.covered_migration_files.filter((file) => file.startsWith("migrations/shared-")), ["migrations/shared-alpha.sql", "migrations/shared-beta.sql"]);
+
 const duplicateGroupedCallability = validateDirectRouteCallabilityContracts({
   root: process.cwd(),
   manifest: { callability_gate: { direct_route_contracts: [groupedContract, { ...groupedContract, contract_key: "grouped_route_duplicate", route_signature: "GET /me/grouped-example-duplicate", tool_keys: ["grouped_tool_beta"] }] } },
