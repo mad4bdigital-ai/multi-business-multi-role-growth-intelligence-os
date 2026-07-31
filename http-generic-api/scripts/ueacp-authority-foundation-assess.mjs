@@ -9,6 +9,7 @@ import { assessUeacpAuthorityFoundation } from "../ueacpAuthorityFoundationAsses
 function parseArgs(argv) {
   const options = {
     classificationFile: null,
+    authorityPathInventoryFile: null,
     censusFile: null,
     reportFile: null,
   };
@@ -22,6 +23,8 @@ function parseArgs(argv) {
     };
     if (argument === "--classification-file") options.classificationFile = readValue(argument);
     else if (argument.startsWith("--classification-file=")) options.classificationFile = argument.slice(argument.indexOf("=") + 1);
+    else if (argument === "--authority-path-inventory-file") options.authorityPathInventoryFile = readValue(argument);
+    else if (argument.startsWith("--authority-path-inventory-file=")) options.authorityPathInventoryFile = argument.slice(argument.indexOf("=") + 1);
     else if (argument === "--census-file") options.censusFile = readValue(argument);
     else if (argument.startsWith("--census-file=")) options.censusFile = argument.slice(argument.indexOf("=") + 1);
     else if (argument === "--report-file") options.reportFile = readValue(argument);
@@ -29,6 +32,7 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${argument}`);
   }
   if (!options.classificationFile) throw new Error("--classification-file is required.");
+  if (!options.authorityPathInventoryFile) throw new Error("--authority-path-inventory-file is required.");
   return options;
 }
 
@@ -53,10 +57,15 @@ function writeReport(filePath, report) {
 export async function runUeacpAuthorityFoundationAssessment(argv = process.argv.slice(2), dependencies = {}) {
   const options = parseArgs(argv);
   const classificationBundle = readJson(options.classificationFile, "classification");
+  const authorityPathInventory = readJson(options.authorityPathInventoryFile, "authority-path inventory");
   const census = options.censusFile
     ? readJson(options.censusFile, "census")
     : await (dependencies.collectCensus ?? collectAuthorityCatalogCensus)();
-  const report = assessUeacpAuthorityFoundation({ census, classificationBundle });
+  const report = assessUeacpAuthorityFoundation({
+    census,
+    authorityPathInventory,
+    classificationBundle,
+  });
   writeReport(options.reportFile, report);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   return report.ok ? 0 : 2;
