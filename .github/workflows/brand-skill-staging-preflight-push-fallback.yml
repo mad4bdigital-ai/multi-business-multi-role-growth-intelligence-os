@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'push' && 'brand-skill-staging-preflight-push-fallback-3809' || format('brand-skill-staging-preflight-push-fallback-pr-{0}', github.event.pull_request.number) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC') && 'brand-skill-staging-preflight-push-fallback-3809-v2' || format('brand-skill-staging-preflight-observation-{0}', github.run_id) }}
+  cancel-in-progress: false
 
 jobs:
   static-contract:
@@ -34,12 +34,19 @@ jobs:
           const path = '.github/workflows/brand-skill-staging-preflight-push-fallback.yml';
           const source = fs.readFileSync(path, 'utf8');
           const execute = source.slice(source.indexOf('  execute-staging-read-only-preflight:'));
+          const executeHeader = execute.slice(0, execute.indexOf('    permissions:'));
           const required = [
             'push:',
             'branches: [main]',
             'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC',
-            "github.actor_id == '271942579'",
+            'brand-skill-staging-preflight-push-fallback-3809-v2',
+            'brand-skill-staging-preflight-observation-{0}',
+            'github.run_id',
+            'id: eligibility',
+            'TRIGGER_ACTOR_ID: ${{ github.actor_id }}',
             'TRIGGER_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}',
+            'eligible=true',
+            "if: steps.eligibility.outputs.eligible == 'true'",
             'AUTHORIZATION_COMMENT_ID: "5136135941"',
             'e1084397317a7f2645d78fc43a3064eef98fabaf',
             'eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802',
@@ -47,6 +54,7 @@ jobs:
             '1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7',
             '/actions/workflows/${TARGET_WORKFLOW}/dispatches',
             'brand-skill-staging-read-only-preflight',
+            "evidence_contract: 'brand_skill_staging_read_only_preflight_v1'",
             'applies_sql: false',
             'records_ledger: false',
             'migration_apply_authorized: false',
@@ -72,15 +80,13 @@ jobs:
           for (const marker of forbidden) {
             if (execute.includes(marker)) throw new Error(`fallback execute surface contains ${marker}`);
           }
+          if (/\n\s+if:/.test(executeHeader)) {
+            throw new Error('fallback execution job must classify eligibility on-runner, not at job level');
+          }
           NODE
 
   execute-staging-read-only-preflight:
     name: Execute checksum-bound Staging read-only preflight fallback
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.actor_id == '271942579' &&
-      contains(github.event.head_commit.message, 'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC')
     permissions:
       contents: read
       actions: write
@@ -106,18 +112,46 @@ jobs:
       TARGET_MIGRATION_PATH: http-generic-api/migrations/20260728_brand_scoped_user_skill_activation.sql
       BINDING_ID: e1084397317a7f2645d78fc43a3064eef98fabaf:eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802:3
     steps:
-      - name: Verify authorization and immutable target bindings
-        id: binding
+      - name: Classify governed trigger eligibility
+        id: eligibility
         env:
-          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_REF: ${{ github.ref }}
           TRIGGER_ACTOR_ID: ${{ github.actor_id }}
           TRIGGER_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         shell: bash
         run: |
           set -euo pipefail
+          echo "eligible=false" >> "${GITHUB_OUTPUT}"
 
-          test "${TRIGGER_ACTOR_ID}" = "${AUTHORIZATION_USER_ID}"
-          grep -Fq "${TRIGGER_MARKER}" <<<"${TRIGGER_COMMIT_MESSAGE}"
+          if [[ "${EVENT_NAME}" != "push" ]]; then
+            echo "reason=non_push_event" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ "${TRIGGER_REF}" != "refs/heads/main" ]]; then
+            echo "reason=non_main_ref" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ "${TRIGGER_ACTOR_ID}" != "${AUTHORIZATION_USER_ID}" ]]; then
+            echo "reason=unauthorized_actor" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if ! grep -Fq "${TRIGGER_MARKER}" <<<"${TRIGGER_COMMIT_MESSAGE}"; then
+            echo "reason=marker_absent" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "${GITHUB_OUTPUT}"
+          echo "reason=authorized_marker_push" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify authorization and immutable target bindings
+        id: binding
+        if: steps.eligibility.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
 
           AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
           AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
@@ -157,7 +191,7 @@ jobs:
           echo "skip=false" >> "${GITHUB_OUTPUT}"
 
       - name: Record one-time fallback claim
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -167,7 +201,7 @@ jobs:
           gh api --method POST -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${BODY}"
 
       - name: Dispatch unchanged reviewed workflow
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -177,7 +211,7 @@ jobs:
 
       - name: Resolve dispatched run
         id: target
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE_RUN_ID: ${{ steps.binding.outputs.before_run_id }}
@@ -197,7 +231,7 @@ jobs:
 
       - name: Wait for governed target completion
         id: completion
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
@@ -219,7 +253,7 @@ jobs:
 
       - name: Download and validate bounded Staging evidence
         id: evidence
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
@@ -261,7 +295,7 @@ jobs:
           echo "artifact_id=${ARTIFACT_ID}" >> "${GITHUB_OUTPUT}"
 
       - name: Record completion and close authorization issue
-        if: steps.binding.outputs.skip != 'true'
+        if: steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
@@ -274,7 +308,7 @@ jobs:
           gh api --method PATCH -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" -f state=closed -f state_reason=completed
 
       - name: Record fail-closed fallback outcome
-        if: failure() && steps.binding.outputs.skip != 'true'
+        if: failure() && steps.eligibility.outputs.eligible == 'true' && steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
