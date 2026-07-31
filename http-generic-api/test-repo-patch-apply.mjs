@@ -4,7 +4,8 @@
  *
  * Covers:
  *   - unified-diff parser correctness for a realistic single-file diff
- *   - context mismatch detection
+ *   - exact-context relocation when independent lines shift a hunk
+ *   - ambiguity and genuine context mismatch detection
  *   - bad action / missing path / blocked path / missing message rejections
  *   - replace_block ambiguity detection (no network call)
  *   - delete_file action is exposed and wired to GitHub Contents DELETE
@@ -63,6 +64,7 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
 {
   const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
   const lifecycleSource = readFileSync(new URL("./githubRepositoryLifecycle.js", import.meta.url), "utf8");
+  const unifiedDiffSource = readFileSync(new URL("./unifiedDiff.js", import.meta.url), "utf8");
   assert.ok(source.includes("repo_patch_protected_branch"));
   assert.ok(source.includes("REPO_PATCH_ALLOW_PROTECTED_BRANCH"));
   assert.ok(source.includes("defaultRepoPatchBranch"));
@@ -103,6 +105,8 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(source.includes("expected_head_sha"), "existing-blob tool must require optimistic branch-head validation");
   assert.ok(source.includes("blob_sha"), "existing-blob tool must accept content-addressed Git blob references");
   assert.ok(!source.includes("Defaults to main"));
+  assert.ok(unifiedDiffSource.includes("exactSequenceMatches"), "unified diff application must support exact-context relocation");
+  assert.ok(unifiedDiffSource.includes("repo_patch_hunk_ambiguous"), "ambiguous relocation must fail closed");
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/openapi.yaml"), 2_000_000);
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/server.js"), 1_000_000);
   const dedupeFixture = [
@@ -124,10 +128,7 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   pass("repo_patch_apply blocks protected branches and supports bounded large OpenAPI patches and dedupe");
 }
 
-// ── Unified-diff parser (call applyUnifiedDiffToText indirectly) ──────────────
-// Re-import the diff helper through a side-channel: re-evaluate the module to grab the
-// internal function. We instead exercise applyRepoPatch with a stubbed network shouldn't
-// be needed; we rebuild the helper test inline by re-importing.
+// ── Unified-diff parser ───────────────────────────────────────────────────────
 const internals = await import("./routes/gptToolsRoutes.js");
 const parser = internals.applyUnifiedDiffToText || null;
 
@@ -145,6 +146,43 @@ if (parser) {
   const result = parser(original, diff);
   assert.equal(result.split("\n")[1], "line two updated");
   pass("applyUnifiedDiffToText replaces a single line correctly");
+
+  const shiftedOriginal = "independent header\nsecond inserted line\nline one\nline two\nline three\n";
+  const shiftedResult = parser(shiftedOriginal, diff);
+  assert.deepEqual(shiftedResult.split("\n").slice(0, 5), [
+    "independent header",
+    "second inserted line",
+    "line one",
+    "line two updated",
+    "line three",
+  ]);
+  pass("applyUnifiedDiffToText relocates a uniquely matching hunk after independent line shifts");
+
+  const ambiguousOriginal = [
+    "prefix",
+    "line one",
+    "line two",
+    "line three",
+    "middle",
+    "line one",
+    "line two",
+    "line three",
+    "suffix",
+    "",
+  ].join("\n");
+  const ambiguousDiff = [
+    "@@ -20,3 +20,3 @@",
+    " line one",
+    "-line two",
+    "+line two updated",
+    " line three",
+  ].join("\n");
+  let ambiguous;
+  try { parser(ambiguousOriginal, ambiguousDiff); } catch (err) { ambiguous = err; }
+  assert.ok(ambiguous, "expected ambiguous hunk rejection");
+  assert.equal(ambiguous.code, "repo_patch_hunk_ambiguous");
+  assert.deepEqual(ambiguous.details.candidate_lines, [2, 6]);
+  pass("applyUnifiedDiffToText refuses ambiguous exact-context relocation");
 
   const badDiff = [
     "@@ -1,2 +1,2 @@",

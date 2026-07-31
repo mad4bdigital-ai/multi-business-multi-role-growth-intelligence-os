@@ -321,7 +321,7 @@ async function claimNextStep(pool, planId, actorId, baselineTrace = null) {
   });
 }
 
-async function defaultStepExecutor(step, { pool, actorId = null }) {
+export async function defaultSequentialStepExecutor(step, { pool, actorId = null }) {
   if (step.step_type === "stop") return { ok: true, stopped: true };
   if (step.step_type === "analysis" || step.step_type === "checkpoint") {
     return { ok: true, output: parseJson(step.input_json, {}), execution_mode: "internal" };
@@ -358,7 +358,7 @@ async function finalizeClaim(pool, claim, result, error, actorId) {
     });
     if (!step) throw validationError("Plan step claim was lost.", "sequential_step_claim_lost");
     const succeeded = !error && result?.ok !== false;
-    const retryable = !succeeded && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
+    const retryable = !succeeded && !error?.non_retryable && Number(step.attempt_count || 0) < Number(step.max_attempts || 1);
     const status = succeeded ? "completed" : retryable ? "retrying" : "failed";
     const safeResult = succeeded ? sanitizeSecretPayload(result) : null;
     const safeError = error ? sanitizeSecretPayload({ code: error.code || "step_execution_failed", message: error.message }) : null;
@@ -381,7 +381,7 @@ export async function tickSequentialPlan({
   pool,
   planId,
   actorId = null,
-  executeStep = defaultStepExecutor,
+  executeStep = defaultSequentialStepExecutor,
   baselineTrace = null,
   observeProviderDispatch = false,
 }) {
@@ -442,7 +442,7 @@ export async function runSequentialPlan({
   baselineTraceInput = {},
   baselineProviderDispatch = false,
 }) {
-  const executor = executeStep || defaultStepExecutor;
+  const executor = executeStep || defaultSequentialStepExecutor;
   const baselineTrace = typeof baselineEmitter === "function"
     ? createGovernedExecutionBaselineTrace({
         ...baselineTraceInput,

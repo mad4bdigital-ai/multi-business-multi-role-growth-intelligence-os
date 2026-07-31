@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_invalidation_revisions",
+  "source_table": "growth_control_invalidation_revisions",
+  "reason": "Excluded because this table is an internal revision and cache-invalidation ledger for Growth Control lifecycle consumers. It does not grant authority, expose activation state, or define user-visible access; tenant and admin projections remain governed by the dedicated Growth Control projection services and APIs.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

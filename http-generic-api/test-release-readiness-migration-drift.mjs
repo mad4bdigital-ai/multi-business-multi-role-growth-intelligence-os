@@ -313,6 +313,31 @@ assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags wid
 assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
 assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
 
+const ephemeralCheckoutMigrationName = "20260728_operation_managed_git_ephemeral_checkout.sql";
+const ephemeralCheckoutMigration = readFileSync(
+  new URL(`migrations/${ephemeralCheckoutMigrationName}`, import.meta.url),
+  "utf8"
+);
+const ephemeralCheckoutPreflight = assessMigrationSqlPreflight(
+  ephemeralCheckoutMigrationName,
+  ephemeralCheckoutMigration
+);
+assert.equal(ephemeralCheckoutPreflight.status, "pass", "reviewed Spec 011 enum widening must pass governed migration preflight");
+assert.equal(ephemeralCheckoutPreflight.risk_count, 0, "reviewed Spec 011 enum widening must have zero preflight risks");
+assert.equal(ephemeralCheckoutPreflight.counts.statements, 1, "Spec 011 enum widening must remain one bounded statement");
+assert.equal(ephemeralCheckoutPreflight.counts.alter_table, 1, "Spec 011 enum widening must remain an ALTER TABLE");
+assert.equal(ephemeralCheckoutPreflight.counts.alter_table_idempotent, 1, "the exact reviewed Spec 011 ALTER must be counted as approved/idempotent");
+
+const unboundEphemeralCheckoutPreflight = assessMigrationSqlPreflight(
+  "unreviewed-ephemeral-checkout.sql",
+  ephemeralCheckoutMigration
+);
+assert.equal(unboundEphemeralCheckoutPreflight.status, "warn", "the same ALTER under another migration identity must remain review-gated");
+assert(
+  unboundEphemeralCheckoutPreflight.risks.some((risk) => risk.code === "alter_table_requires_manual_idempotency_review"),
+  "unbound enum ALTER must retain the manual idempotency review warning"
+);
+
 const approvalHoldCollationMigrationName = "1013_sprint69_approval_hold_identity_collation_alignment.sql";
 const approvalHoldCollationMigration = readFileSync(
   new URL(`migrations/${approvalHoldCollationMigrationName}`, import.meta.url),

@@ -52,6 +52,12 @@ export {
 } from "./resourceGraphPolicy.js";
 
 export {
+  SHADOW_PARITY_IDENTITY_DIMENSIONS,
+  SHADOW_PARITY_LIMITS,
+  evaluateShadowAuthorityParity,
+} from "./shadowAuthorityParityDecision.js";
+
+export {
   SUPPORT_DELEGATION_MODES,
   createSupportDelegationEvidence,
   evaluateSupportDelegation,

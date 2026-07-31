@@ -1,0 +1,237 @@
+openapi: 3.1.0
+info:
+  title: Growth Control Plane Activity Binding Lifecycle API
+  version: 1.0.0
+  description: >-
+    Admin-only readiness assessment and lifecycle transition operations for
+    brand activity bindings. Operations are internal-only, perform no provider
+    calls or external writes, and never return credential payloads.
+tags:
+  - name: Growth Control Plane Activity Bindings
+paths:
+  /admin/control-plane/brand-activity-bindings/{activityBindingId}/readiness:
+    post:
+      operationId: assessBrandActivityBindingReadiness
+      summary: Assess activity binding readiness
+      tags: [Growth Control Plane Activity Bindings]
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ActivityBindingId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadinessRequest'
+            example:
+              tenantId: 11111111-1111-4111-8111-111111111111
+              workspaceId: 22222222-2222-4222-8222-222222222222
+              brandKey: example.brand
+              expectedRevision: 3
+      responses:
+        '200':
+          description: Readiness evidence recorded and binding moved to ready or blocked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityBindingEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/control-plane/brand-activity-bindings/{activityBindingId}/transitions:
+    post:
+      operationId: transitionBrandActivityBinding
+      summary: Apply a legal activity binding lifecycle transition
+      tags: [Growth Control Plane Activity Bindings]
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ActivityBindingId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+            example:
+              tenantId: 11111111-1111-4111-8111-111111111111
+              workspaceId: 22222222-2222-4222-8222-222222222222
+              brandKey: example.brand
+              targetStatus: active
+              expectedRevision: 4
+              reason: Readiness evidence reviewed.
+      responses:
+        '200':
+          description: Lifecycle transition applied atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityBindingEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    BackendBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Compatibility alias for the canonical adminBearerAuth scheme.
+    BackendApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Compatibility alias for the canonical backendApiKeyAuth scheme.
+  parameters:
+    ActivityBindingId:
+      name: activityBindingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: x-request-id
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 191
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 191
+  schemas:
+    ScopeFields:
+      type: object
+      required: [tenantId, workspaceId, brandKey, expectedRevision]
+      properties:
+        tenantId: { type: string, format: uuid }
+        workspaceId: { type: string, format: uuid }
+        brandKey: { type: string, minLength: 1, maxLength: 128 }
+        expectedRevision: { type: integer, minimum: 0 }
+      additionalProperties: false
+    ReadinessRequest:
+      allOf:
+        - $ref: '#/components/schemas/ScopeFields'
+    TransitionRequest:
+      allOf:
+        - $ref: '#/components/schemas/ScopeFields'
+        - type: object
+          required: [targetStatus]
+          properties:
+            targetStatus:
+              type: string
+              enum: [validating, ready, active, blocked, deprecated, archived]
+            reason:
+              type: string
+              maxLength: 1000
+          additionalProperties: false
+    ReadinessCheck:
+      type: object
+      required: [code, pass, severity]
+      properties:
+        code: { type: string }
+        pass: { type: boolean }
+        severity: { type: string, enum: [info, low, medium, high, critical] }
+      additionalProperties: true
+    ActivityBindingResult:
+      type: object
+      required: [activityBindingId, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        activityBindingId: { type: string, format: uuid }
+        bindingRevision: { type: integer, minimum: 0 }
+        revision: { type: integer, minimum: 0 }
+        fromStatus: { type: [string, 'null'] }
+        status: { type: string }
+        ready: { type: boolean }
+        evidenceId: { type: [string, 'null'], format: uuid }
+        evidenceSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        checks:
+          type: array
+          items: { $ref: '#/components/schemas/ReadinessCheck' }
+        approvedBy: { type: [string, 'null'] }
+        effectiveFrom: { type: [string, 'null'], format: date-time }
+        effectiveTo: { type: [string, 'null'], format: date-time }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+      additionalProperties: false
+    ActivityBindingEnvelope:
+      type: object
+      required: [activityBinding]
+      properties:
+        activityBinding:
+          $ref: '#/components/schemas/ActivityBindingResult'
+      additionalProperties: false
+    ErrorDetail:
+      type: object
+      properties:
+        field: { type: string }
+        issue: { type: string }
+      additionalProperties: true
+    ErrorObject:
+      type: object
+      required: [code, message, details]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: array
+          items: { $ref: '#/components/schemas/ErrorDetail' }
+        requestId: { type: [string, 'null'] }
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { $ref: '#/components/schemas/ErrorObject' }
+      additionalProperties: false
+  responses:
+    BadRequest:
+      description: Invalid request shape or missing scope.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Missing or invalid Admin authentication.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Authenticated principal is not authorized for the binding scope.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Activity binding not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Revision conflict or current readiness evidence is missing.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    UnprocessableEntity:
+      description: Illegal lifecycle transition or invalid semantic input.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Unexpected internal failure.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

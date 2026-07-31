@@ -30,7 +30,7 @@
 ### 2. `193_sprint67_workspace_resource_authority_foundation.sql`
 
 - Queue class: critical_review
-- Score: 1084
+- Score: 1083
 - Gap severity: high
 - Missing docs: none
 - Missing OpenAPI routes: none

@@ -21,21 +21,21 @@
 
 ## Phase 1 — Durable Execution Kernel
 
-- [ ] T100 Add durable operation and step lifecycle persistence.
-- [ ] T101 Add transition guards and terminal-state invariants.
-- [ ] T102 Add idempotency scope and pending mutation receipt before dispatch.
-- [ ] T103 Add status, resume, cancel, and explain operations.
-- [ ] T104 Add canonical `next_action` and blocker response.
-- [ ] T105 Add bounded operation timeline and evidence references.
-- [ ] T106 Add read-only pilot and low-risk internal mutation pilot.
+- [x] T100 Add durable operation and step lifecycle persistence.
+- [x] T101 Add transition guards and terminal-state invariants.
+- [x] T102 Add idempotency scope and pending mutation receipt before dispatch.
+- [x] T103 Add status, resume, cancel, and explain operations.
+- [x] T104 Add canonical `next_action` and blocker response.
+- [x] T105 Add bounded operation timeline and evidence references.
+- [x] T106 Add read-only pilot and low-risk internal mutation pilot.
 
 ## Phase 2 — Canonical Execution Resolver
 
 - [x] T120 Add execution-contract registry and exact resolution rules.
 - [x] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
 - [x] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
-- [ ] T123 Convert selected operations to intent-first input.
-- [ ] T124 Add Admin and Tenant isolation and no-secret resolver tests.
+- [x] T123 Convert selected operations to intent-first input.
+- [x] T124 Add Admin and Tenant isolation and no-secret resolver tests.
 
 ## Phase 3 — Plan-Bound Sessions and Delegation
 
