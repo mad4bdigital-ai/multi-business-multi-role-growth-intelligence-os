@@ -11,21 +11,11 @@ permissions:
   issues: write
   pull-requests: write
 
-concurrency:
-  group: governed-local-connector-production-closure-windows-v10-marker-contract
-  cancel-in-progress: false
-
 jobs:
   local-connector-production-closure:
-    name: Governed Local Connector Production Closure Windows
-    runs-on: windows-latest
+    name: Governed Local Connector Production Closure Ubuntu
+    runs-on: ubuntu-latest
     timeout-minutes: 90
-    defaults:
-      run:
-        shell: bash
-    concurrency:
-      group: governed-local-connector-production-closure-pr-3945-final-v7
-      cancel-in-progress: false
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
@@ -50,8 +40,8 @@ jobs:
           test -f "$MARKER"
           grep -Fxq 'production_pr=3945' "$MARKER"
           grep -Fxq 'production_merge_sha=792ff63af82791e9a482029f5078931fa0707c8c' "$MARKER"
-          grep -Fxq 'trigger_revision=windows-v10-marker-contract' "$MARKER"
-          grep -Fxq 'runner=windows-latest' "$MARKER"
+          grep -Fxq 'trigger_revision=ubuntu-v11-minimal' "$MARKER"
+          grep -Fxq 'runner=ubuntu-latest' "$MARKER"
           grep -Fxq 'event_scope=marker_path_only' "$MARKER"
           grep -Fxq 'migrations_authorized=false' "$MARKER"
           grep -Fxq 'provider_mutation_authorized=false' "$MARKER"
@@ -70,7 +60,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=windows-v10-marker-contract trusted_ref=main runner=windows-latest shared_concurrency=final-v7 non_cancelling=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=ubuntu-v11-minimal trusted_ref=main runner=ubuntu-latest event_scope=marker_path_only concurrency=none"
 
       - name: Verify exact merged Production PR
         env:
@@ -108,7 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=windows-v10-marker-contract trusted_ref=main runner=windows-latest production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} shared_concurrency=final-v7 non_cancelling=true"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=ubuntu-v11-minimal trusted_ref=main runner=ubuntu-latest production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} event_scope=marker_path_only concurrency=none"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
