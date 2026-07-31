@@ -109,6 +109,11 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
     threshold_chars: SMOKE_MAX_CHARS,
   });
 
+  const smokePrincipal = {
+    trustedInternal: true,
+    principalId: GOVERNED_RESPONSE_CHUNK_DURABLE_RECOVERY_SOURCE_TOOL,
+    source_surface: "response_chunk_durable_recovery_smoke",
+  };
   const createdNow = nowMs(deps);
   const firstPage = await maybeChunk(payload, {
     response_options: {
@@ -116,6 +121,7 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
       chunk_ttl_minutes: ttlMinutes,
     },
     source_tool_key: GOVERNED_RESPONSE_CHUNK_DURABLE_RECOVERY_SOURCE_TOOL,
+    ...smokePrincipal,
   }, { pool, now: createdNow });
 
   assertSmoke(firstPage?.response_chunked === true, "response_chunk_smoke_not_chunked", "The smoke response was not chunked.");
@@ -148,6 +154,7 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
       cursor,
       max_chars: SMOKE_MAX_CHARS,
       chunk_ttl_minutes: ttlMinutes,
+      ...smokePrincipal,
     }, {
       pool,
       now: createdNow + 1000 + pageCount,
