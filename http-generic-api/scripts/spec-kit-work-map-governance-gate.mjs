@@ -37,15 +37,16 @@ export function buildEffectiveWorkMapRegistry(options = {}) {
 export function validateGovernedRepository(options = {}) {
   const { root, policy, effectiveRegistry } = buildEffectiveWorkMapRegistry(options);
   const classification = validateSchemaClassification({ root, policy });
-  const integration = validateRepository({
+  const repositoryOptions = {
     root,
     policy,
     registry: effectiveRegistry,
     all: options.all === true,
-    changedFiles: options.changedFiles,
-    newFeatures: options.newFeatures,
-    implementationChanged: options.implementationChanged,
-  });
+  };
+  if (Object.prototype.hasOwnProperty.call(options, "changedFiles")) repositoryOptions.changedFiles = options.changedFiles;
+  if (Object.prototype.hasOwnProperty.call(options, "newFeatures")) repositoryOptions.newFeatures = options.newFeatures;
+  if (Object.prototype.hasOwnProperty.call(options, "implementationChanged")) repositoryOptions.implementationChanged = options.implementationChanged;
+  const integration = validateRepository(repositoryOptions);
   return {
     ok: classification.ok && integration.findings.length === 0,
     findings: [
