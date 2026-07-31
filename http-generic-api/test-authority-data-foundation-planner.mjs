@@ -35,6 +35,8 @@ function pathRecord() {
     atomicity_policy: "read_only_snapshot",
     aliases: [],
     requirements: {},
+    credential_payload_read: false,
+    secrets_included: false,
   };
 }
 
@@ -46,10 +48,11 @@ const inventory = compileAuthorityPathInventory({
     observed_at: "2030-01-01T00:00:00Z",
     complete: true,
     paths: [pathRecord()],
+    secrets_included: false,
   }],
 });
 
-function catalog({ exact = false, t002Complete = false } = {}) {
+function catalog({ exact = false, t002Complete = false, capabilityRevisionSupport = "explicit_revision" } = {}) {
   const storageObjects = exact
     ? [
       "resource_nodes",
@@ -86,15 +89,21 @@ function catalog({ exact = false, t002Complete = false } = {}) {
     database_server: { observed_at: "2030-01-01T00:00:00Z" },
     summary: { object_count: objects.length },
     objects,
-    revision_support: objects.map((object) => ({
-      object_name: object.object_name,
-      ownership_classification: object.ownership_classification,
-      support: "explicit_revision",
-      explicit_revision_columns: ["revision"],
-      temporal_freshness_columns: ["updated_at"],
-      requires_authoritative_owner_review: true,
-    })),
+    revision_support: objects.map((object) => {
+      const support = object.object_name === "platform_semantic_capabilities"
+        ? capabilityRevisionSupport
+        : "explicit_revision";
+      return {
+        object_name: object.object_name,
+        ownership_classification: object.ownership_classification,
+        support,
+        explicit_revision_columns: support === "explicit_revision" ? ["revision"] : [],
+        temporal_freshness_columns: support === "temporal_freshness_only" ? ["updated_at"] : [],
+        requires_authoritative_owner_review: true,
+      };
+    }),
     closure_state: { t002_complete: t002Complete },
+    credential_payload_read: false,
     external_writes: false,
     secrets_included: false,
   };
@@ -140,6 +149,7 @@ const ready = buildAuthorityDataFoundationPlan({
 assert.equal(ready.status, "ready_for_migration_design_review");
 assert.deepEqual(ready.blocking_issues, []);
 assert.equal(ready.revision_plan.unresolved_reference_count, 0);
+assert.equal(ready.revision_plan.migration_candidate_count, 0);
 assert.equal(ready.storage_task_plans.T022.exact_reuse_count, 4);
 assert.equal(ready.storage_task_plans.T023.exact_reuse_count, 1);
 assert.equal(ready.storage_task_plans.T024.exact_reuse_count, 6);
@@ -150,6 +160,25 @@ assert.deepEqual(ready.migration_batches.map((batch) => batch.tasks), [
   ["T022", "T023"],
   ["T024"],
 ]);
+
+const temporalCandidate = buildAuthorityDataFoundationPlan({
+  catalog_census: catalog({
+    exact: true,
+    t002Complete: true,
+    capabilityRevisionSupport: "temporal_freshness_only",
+  }),
+  path_inventory: reviewedInventory,
+});
+assert.equal(temporalCandidate.status, "ready_for_migration_design_review");
+assert.deepEqual(temporalCandidate.blocking_issues, []);
+assert.equal(temporalCandidate.revision_plan.unresolved_reference_count, 0);
+assert.equal(temporalCandidate.revision_plan.migration_candidate_count, 1);
+assert.equal(temporalCandidate.revision_plan.referenced_sources[0].requires_migration_candidate, true);
+assert.equal(
+  temporalCandidate.revision_plan.referenced_sources[0].disposition,
+  "add_explicit_revision_candidate_after_owner_review",
+);
+assert.equal(temporalCandidate.closure_state.migration_execution_authorized, false);
 
 assert.throws(
   () => buildAuthorityDataFoundationPlan({
