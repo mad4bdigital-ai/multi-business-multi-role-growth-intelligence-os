@@ -5,6 +5,7 @@ export {
   sanitizeApplicationValue,
 } from "./applicationSupport.js";
 
+export { createAuthenticatedProviderConsentUseCaseService } from "./authenticatedProviderConsentUseCaseBoundary.js";
 export { createContextPinService } from "./contextPinService.js";
 export { createContextResolutionService } from "./contextResolutionService.js";
 export { createContextSwitchService } from "./contextSwitchService.js";
@@ -29,6 +30,7 @@ export {
   assertDelegationContextRepository,
   assertAuthorizedScopeRepository,
   assertBoundedResourceGraphRepository,
+  assertBrandManagementAuthorityRepository,
   assertCapabilityReadinessRepository,
   assertConnectionOwnershipRepository,
   assertContextPinRepository,
@@ -37,6 +39,8 @@ export {
   assertExecutionLedgerRepository,
   assertPolicyGrantEvidenceRepository,
   assertProviderAuthorizationStateRepository,
+  assertProviderConnectionAccessRepository,
+  assertProviderConsentReadinessRepository,
   assertProviderConsentStateRepository,
   assertResourceGraphRepository,
   assertWorkspaceOwnershipRepository,
