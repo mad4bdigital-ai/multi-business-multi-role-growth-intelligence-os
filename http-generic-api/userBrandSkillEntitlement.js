@@ -25,10 +25,8 @@ function operationAllowed(value, operation) {
 function inferOperationFromSignal(signal = "") {
   const normalized = normalize(signal);
   const rules = [
-    [/(?:^|[\s._-])(delete|remove)(?:$|[\s._-])/, "delete"],
-    [/(?:^|[\s._-])revoke(?:$|[\s._-])/, "revoke"],
-    [/(?:^|[\s._-])publish(?:$|[\s._-])/, "publish"],
-    [/(?:^|[\s._-])send(?:$|[\s._-])/, "send"],
+    [/(?:^|[\s._-])(delete|remove|revoke)(?:$|[\s._-])/, "delete"],
+    [/(?:^|[\s._-])(publish|send)(?:$|[\s._-])/, "publish"],
     [/(?:^|[\s._-])(create|insert|add)(?:$|[\s._-])/, "create"],
     [/(?:^|[\s._-])(update|edit|patch|write|sync)(?:$|[\s._-])/, "update"],
     [/(?:^|[\s._-])(dispatch|trigger)(?:$|[\s._-])/, "dispatch"],
