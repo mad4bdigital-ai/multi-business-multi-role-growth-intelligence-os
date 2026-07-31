@@ -39,6 +39,7 @@ jobs:
             'branches: [main]',
             'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC',
             "github.actor_id == '271942579'",
+            'TRIGGER_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}',
             'AUTHORIZATION_COMMENT_ID: "5136135941"',
             'e1084397317a7f2645d78fc43a3064eef98fabaf',
             'eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802',
@@ -66,6 +67,7 @@ jobs:
             '--apply',
             'environment: production',
             'PRODUCTION_DB_',
+            '<<<"${{ github.event.head_commit.message }}"',
           ];
           for (const marker of forbidden) {
             if (execute.includes(marker)) throw new Error(`fallback execute surface contains ${marker}`);
@@ -109,12 +111,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TRIGGER_ACTOR_ID: ${{ github.actor_id }}
+          TRIGGER_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         shell: bash
         run: |
           set -euo pipefail
 
           test "${TRIGGER_ACTOR_ID}" = "${AUTHORIZATION_USER_ID}"
-          grep -Fq "${TRIGGER_MARKER}" <<<"${{ github.event.head_commit.message }}"
+          grep -Fq "${TRIGGER_MARKER}" <<<"${TRIGGER_COMMIT_MESSAGE}"
 
           AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
           AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
@@ -237,6 +240,7 @@ jobs:
           const expected = {
             ok: true,
             ready: true,
+            evidence_contract: 'brand_skill_staging_read_only_preflight_v1',
             target_environment: 'staging',
             commit_sha: commit,
             migration_checksum_sha256: checksum,
