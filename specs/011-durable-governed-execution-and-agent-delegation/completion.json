@@ -234,8 +234,9 @@
       "number": 4004,
       "branch": "gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731",
       "role": "phase3_delegation_policy_runtime_evidence_closeout",
-      "status": "open_evidence_ready",
-      "merge_sha": null
+      "status": "merged",
+      "merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+      "merged_at": "2026-07-31T11:25:11Z"
     }
   },
   "evidence": {
@@ -974,6 +975,30 @@
         "Execution Resolver Gate",
         "Unit & Integration Tests"
       ]
+    },
+    "phase3_delegation_policy_runtime_closeout": {
+      "status": "complete_on_main",
+      "pull_request": 4004,
+      "branch": "gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731",
+      "head_sha": "b44a8989d41b5f75a14b63ce333b6182ace13eb7",
+      "merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+      "merged_at": "2026-07-31T11:25:11Z",
+      "ci_run_id": 30626066301,
+      "required_checks": {
+        "Syntax Check": "success",
+        "Architecture Drift Detection": "success",
+        "Execution Resolver Gate": "success",
+        "Unit & Integration Tests": "success"
+      },
+      "human_contract_review_id": 4827947274,
+      "changed_files": 2,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "runtime_binding_enabled": false,
+      "runtime_policy_ready": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "secrets_included": false
     }
   },
   "sensitive_values_included": false

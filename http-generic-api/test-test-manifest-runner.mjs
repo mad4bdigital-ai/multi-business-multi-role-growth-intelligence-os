@@ -36,6 +36,7 @@ for (const requiredCommand of [
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-governed-migration-dependency-gate.mjs",
   "node test-platform-engine-orchestration.mjs",
+  "node test-sprint69-1006-governed-rollout-control.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
   "node test-canonical-execution-intent-isolation.mjs",
