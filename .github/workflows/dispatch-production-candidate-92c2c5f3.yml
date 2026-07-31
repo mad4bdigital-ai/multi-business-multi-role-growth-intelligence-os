@@ -1,4 +1,4 @@
-name: Dispatch Current Production Candidate
+name: Orchestrate Current Production Candidate Phase
 
 on:
   pull_request:
@@ -7,21 +7,30 @@ on:
 permissions:
   actions: write
   contents: read
+  pull-requests: write
 
 jobs:
-  dispatch:
+  orchestrate:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/dispatch-production-candidate-92c2c5f3-20260730'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
-      - name: Dispatch current governed candidate with bounded ref-drift retries
+      - name: Build and exact-validate latest stable Production candidate
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+
+          close_pr() {
+            local number="$1"
+            local reason="$2"
+            if [[ -n "$number" ]]; then
+              gh pr close "$number" --repo "$GITHUB_REPOSITORY" --comment "$reason" || true
+            fi
+          }
 
           for attempt in $(seq 1 8); do
             MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
@@ -29,12 +38,12 @@ jobs:
             MAIN_SHORT="${MAIN_SHA:0:8}"
             PRODUCTION_SHORT="${PRODUCTION_SHA:0:8}"
             SUFFIX="${MAIN_SHORT}-${PRODUCTION_SHORT}-${GITHUB_RUN_ID}-${attempt}"
-            RELEASE_BRANCH="release/production-candidate-auto-${SUFFIX}"
-            VALIDATION_BRANCH="gpt/validate-production-candidate-auto-${SUFFIX}"
-            VALIDATION_BASE_BRANCH="gpt/validate-production-base-auto-${SUFFIX}"
+            RELEASE_BRANCH="release/production-candidate-stage-${SUFFIX}"
+            VALIDATION_BRANCH="gpt/validate-production-candidate-stage-${SUFFIX}"
+            VALIDATION_BASE_BRANCH="gpt/validate-production-base-stage-${SUFFIX}"
 
             echo "attempt=$attempt main=$MAIN_SHA Production=$PRODUCTION_SHA"
-            RUN_URL="$(gh workflow run production-promotion-candidate.yml \
+            BUILDER_URL="$(gh workflow run production-promotion-candidate.yml \
               --repo "$GITHUB_REPOSITORY" \
               --ref main \
               -f expected_main_sha="$MAIN_SHA" \
@@ -43,32 +52,157 @@ jobs:
               -f validation_branch="$VALIDATION_BRANCH" \
               -f validation_base_branch="$VALIDATION_BASE_BRANCH" \
               -f create_pull_requests=true)"
-            printf '%s\n' "$RUN_URL"
-            RUN_ID="${RUN_URL##*/}"
-            if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
-              echo "Unable to parse governed builder run ID from: $RUN_URL" >&2
+            BUILDER_RUN_ID="${BUILDER_URL##*/}"
+            if [[ ! "$BUILDER_RUN_ID" =~ ^[0-9]+$ ]]; then
+              echo "::error::unable to parse builder run ID from $BUILDER_URL"
               exit 1
             fi
-            echo "builder_run_id=$RUN_ID"
 
-            if gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
-              gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,headSha,jobs
-              echo "Governed candidate builder completed successfully on attempt $attempt."
-              echo 'This observer performed no merge, deployment, migration, provider call, credential read, or external send.'
-              exit 0
+            if ! gh run watch "$BUILDER_RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
+              BUILDER_LOG="$RUNNER_TEMP/production-builder-${attempt}.log"
+              gh run view "$BUILDER_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed 2>&1 | tee "$BUILDER_LOG" || true
+              if grep -Eq 'main moved:|Production moved:|protected refs moved during candidate construction' "$BUILDER_LOG"; then
+                echo "Protected refs moved during builder attempt $attempt; retrying from fresh readback."
+                sleep 5
+                continue
+              fi
+              echo "::error::governed candidate builder failed for a non-ref-drift reason"
+              exit 1
             fi
 
-            LOG_FILE="$RUNNER_TEMP/production-candidate-builder-${attempt}.log"
-            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed 2>&1 | tee "$LOG_FILE" || true
-            if grep -Eq 'main moved:|Production moved:|protected refs moved during candidate construction' "$LOG_FILE"; then
-              echo "Protected refs moved during attempt $attempt; retrying from fresh readback."
+            RELEASE_JSON="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$RELEASE_BRANCH" --base Production --limit 1 --json number,url,headRefOid,baseRefOid)"
+            VALIDATION_JSON="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$VALIDATION_BRANCH" --base "$VALIDATION_BASE_BRANCH" --limit 1 --json number,url,headRefOid,baseRefOid)"
+            RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
+            VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
+            CANDIDATE_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$RELEASE_JSON")"
+            RELEASE_BASE_SHA="$(jq -r '.[0].baseRefOid // empty' <<<"$RELEASE_JSON")"
+            VALIDATION_HEAD_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$VALIDATION_JSON")"
+            VALIDATION_BASE_SHA="$(jq -r '.[0].baseRefOid // empty' <<<"$VALIDATION_JSON")"
+
+            for value in "$CANDIDATE_SHA" "$RELEASE_BASE_SHA" "$VALIDATION_HEAD_SHA" "$VALIDATION_BASE_SHA"; do
+              if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "::error::builder did not produce complete exact PR readback"
+                exit 1
+              fi
+            done
+            if [[ "$RELEASE_BASE_SHA" != "$PRODUCTION_SHA" || "$VALIDATION_BASE_SHA" != "$MAIN_SHA" || "$VALIDATION_HEAD_SHA" != "$CANDIDATE_SHA" ]]; then
+              close_pr "$VALIDATION_PR" "Superseded: candidate PR readback did not match the pinned refs."
+              close_pr "$RELEASE_PR" "Superseded: candidate PR readback did not match the pinned refs."
               sleep 5
               continue
             fi
 
-            echo "Governed candidate builder failed for a non-ref-drift reason on attempt $attempt." >&2
-            exit 1
+            MAIN_TREE="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$MAIN_SHA" --jq '.tree.sha')"
+            CANDIDATE_TREE="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$CANDIDATE_SHA" --jq '.tree.sha')"
+            if [[ "$MAIN_TREE" != "$CANDIDATE_TREE" ]]; then
+              echo "::error::candidate tree differs from pinned main"
+              exit 1
+            fi
+
+            CI_DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            CI_URL="$(gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$VALIDATION_BRANCH")"
+            CI_RUN_ID="${CI_URL##*/}"
+            if [[ ! "$CI_RUN_ID" =~ ^[0-9]+$ ]]; then
+              CI_RUN_ID=""
+              for lookup in $(seq 1 30); do
+                CI_RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch "$VALIDATION_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha,createdAt --jq "map(select(.headSha == \"$CANDIDATE_SHA\" and .createdAt >= \"$CI_DISPATCHED_AT\"))[0].databaseId // empty")"
+                [[ -n "$CI_RUN_ID" ]] && break
+                sleep 5
+              done
+            fi
+            if [[ ! "$CI_RUN_ID" =~ ^[0-9]+$ ]]; then
+              echo "::error::unable to resolve exact Full CI run"
+              exit 1
+            fi
+
+            if ! gh run watch "$CI_RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 15; then
+              gh run view "$CI_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+              echo "::error::exact Full CI failed for candidate $CANDIDATE_SHA"
+              exit 1
+            fi
+
+            gh run view "$CI_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,event,headSha,status,conclusion,jobs > "$RUNNER_TEMP/exact-ci-run.json"
+            node - "$RUNNER_TEMP/exact-ci-run.json" "$CANDIDATE_SHA" <<'NODE'
+            const fs = require('node:fs');
+            const [file, expectedSha] = process.argv.slice(2);
+            const run = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (run.event !== 'workflow_dispatch') throw new Error(`unexpected event: ${run.event}`);
+            if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
+            if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
+            const required = new Set(['Syntax Check', 'Unit & Integration Tests', 'Execution Resolver Gate', 'Architecture Drift Detection']);
+            for (const job of run.jobs || []) if (job.conclusion === 'success') required.delete(job.name);
+            if (required.size) throw new Error(`missing successful jobs: ${[...required].join(', ')}`);
+            NODE
+
+            CURRENT_MAIN="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            CURRENT_PRODUCTION="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/Production" --jq '.object.sha')"
+            RELEASE_AFTER="$(gh pr view "$RELEASE_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid,baseRefOid,state)"
+            VALIDATION_AFTER="$(gh pr view "$VALIDATION_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid,baseRefOid,state)"
+            RELEASE_HEAD_AFTER="$(jq -r '.headRefOid' <<<"$RELEASE_AFTER")"
+            RELEASE_BASE_AFTER="$(jq -r '.baseRefOid' <<<"$RELEASE_AFTER")"
+            VALIDATION_HEAD_AFTER="$(jq -r '.headRefOid' <<<"$VALIDATION_AFTER")"
+            VALIDATION_BASE_AFTER="$(jq -r '.baseRefOid' <<<"$VALIDATION_AFTER")"
+
+            if [[ "$CURRENT_MAIN" != "$MAIN_SHA" || "$CURRENT_PRODUCTION" != "$PRODUCTION_SHA" || "$RELEASE_HEAD_AFTER" != "$CANDIDATE_SHA" || "$RELEASE_BASE_AFTER" != "$PRODUCTION_SHA" || "$VALIDATION_HEAD_AFTER" != "$CANDIDATE_SHA" || "$VALIDATION_BASE_AFTER" != "$MAIN_SHA" ]]; then
+              close_pr "$VALIDATION_PR" "Superseded: protected refs or candidate branches moved during exact Full CI."
+              close_pr "$RELEASE_PR" "Superseded: protected refs or candidate branches moved during exact Full CI."
+              echo "Candidate became stale during exact CI; retrying the complete phase."
+              sleep 5
+              continue
+            fi
+
+            close_pr "$VALIDATION_PR" "Exact candidate Full CI succeeded; validation surface closed without merge after evidence readback."
+
+            jq -n \
+              --arg main_sha "$MAIN_SHA" \
+              --arg production_sha "$PRODUCTION_SHA" \
+              --arg candidate_sha "$CANDIDATE_SHA" \
+              --arg candidate_tree "$CANDIDATE_TREE" \
+              --arg release_branch "$RELEASE_BRANCH" \
+              --arg validation_branch "$VALIDATION_BRANCH" \
+              --arg release_pr "$RELEASE_PR" \
+              --arg validation_pr "$VALIDATION_PR" \
+              --arg builder_run_id "$BUILDER_RUN_ID" \
+              --arg ci_run_id "$CI_RUN_ID" \
+              '{
+                schema_version: "production_promotion_stage_ready.v1",
+                ok: true,
+                main_sha: $main_sha,
+                production_sha: $production_sha,
+                candidate_sha: $candidate_sha,
+                candidate_tree: $candidate_tree,
+                release_branch: $release_branch,
+                validation_branch: $validation_branch,
+                release_pr: ($release_pr | tonumber),
+                validation_pr: ($validation_pr | tonumber),
+                builder_run_id: ($builder_run_id | tonumber),
+                exact_ci_run_id: ($ci_run_id | tonumber),
+                candidate_tree_matches_main: true,
+                protected_refs_fresh_after_ci: true,
+                required_ci_jobs_passed: true,
+                merge_executed: false,
+                deployment_executed: false,
+                migration_executed: false,
+                provider_call_executed: false,
+                credential_payload_read: false,
+                external_send_executed: false,
+                secrets_included: false
+              }' > "$RUNNER_TEMP/production-promotion-stage-ready.json"
+            test -s "$RUNNER_TEMP/production-promotion-stage-ready.json"
+            cat "$RUNNER_TEMP/production-promotion-stage-ready.json"
+            echo "Production candidate phase completed successfully on attempt $attempt."
+            exit 0
           done
 
-          echo 'Protected refs did not remain stable within the bounded retry window; no Production merge was attempted.' >&2
+          echo 'Protected refs did not remain stable through build and exact Full CI within the bounded retry window.' >&2
           exit 1
+
+      - name: Upload integrated Production readiness evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-promotion-stage-ready-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/production-promotion-stage-ready.json
+            ${{ runner.temp }}/exact-ci-run.json
+          if-no-files-found: error
+          retention-days: 30
