@@ -9,6 +9,10 @@ const postFinalizationGuard = readFileSync(
   new URL("../.github/workflows/governed-production-promotion-post-finalization-guard.yml", import.meta.url),
   "utf8",
 );
+const dispatchBridge = readFileSync(
+  new URL("../.github/workflows/governed-production-candidate-dispatch-bridge.yml", import.meta.url),
+  "utf8",
+);
 
 for (const required of [
   /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/,
@@ -60,7 +64,32 @@ for (const required of [
   assert.match(postFinalizationGuard, required);
 }
 
-for (const workflow of [launcher, postFinalizationGuard]) {
+for (const required of [
+  /issue_comment:/,
+  /DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER/,
+  /id: eligibility/,
+  /Evaluate event eligibility fail closed/,
+  /eligible=\$ELIGIBLE/,
+  /steps\.eligibility\.outputs\.eligible == 'true'/,
+  /isCrossRepository/,
+  /headRepository\.nameWithOwner/,
+  /duplicate_suppressed/,
+  /production-promotion-candidate\.yml/,
+  /create_pull_requests=true/,
+  /merge_executed=false/,
+  /deployment_executed=false/,
+  /migration_executed=false/,
+]) {
+  assert.match(dispatchBridge, required);
+}
+
+assert.doesNotMatch(
+  dispatchBridge,
+  /dispatch-exact-candidate-builder:\n(?:.*\n){0,8}\s+if:/,
+  "Dispatch job eligibility must be evaluated inside a running job, not by a job-level if",
+);
+
+for (const workflow of [launcher, postFinalizationGuard, dispatchBridge]) {
   assert.doesNotMatch(workflow, /gh pr merge/i);
   assert.doesNotMatch(workflow, /git push\s+--force/i);
   assert.doesNotMatch(workflow, /force-with-lease/i);
