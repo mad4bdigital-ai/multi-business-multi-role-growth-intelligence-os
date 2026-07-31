@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
+const connectorWatchdog = readFileSync('../local-connector/connector-watchdog.ps1', 'utf8');
 const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
 const localManagerDeviceLinkService = readFileSync('services/localManagerDeviceLinkService.js', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
