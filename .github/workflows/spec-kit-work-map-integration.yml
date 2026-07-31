@@ -19,9 +19,7 @@ on:
       - "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       - "http-generic-api/test-pipeline-connectivity-check.mjs"
       - ".specify/pipeline-connectivity-contract.json"
-      - ".github/workflows/spec-kit-work-map-integration.yml"
-      - ".github/workflows/spec-kit-work-map-autofix.yml"
-      - ".github/workflows/docs-agent.yml"
+      - ".github/workflows/**"
   push:
     branches: [main]
 
