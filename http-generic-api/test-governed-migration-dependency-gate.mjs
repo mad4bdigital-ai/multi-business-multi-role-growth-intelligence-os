@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 import {
   checkGovernedMigrationDependencies,
   loadGovernedMigrationDependencyRegistry,
@@ -9,6 +12,23 @@ const MIGRATION_1006 = "1006_sprint69_agent_capability_evidence_coverage.sql";
 const CHECKSUM_1006 = "995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374";
 const MIGRATION_1007 = "1007_sprint69_agent_capability_coverage_admin_tools.sql";
 const CHECKSUM_1007 = "11b93401bbd0ed64e3e564d183c5a5d9775bcabbe3ccd7002d97e38b0d107a40";
+
+function migrationEvidence(migration) {
+  const sql = readFileSync(new URL(`./migrations/${migration}`, import.meta.url), "utf8");
+  return {
+    checksum_sha256: createHash("sha256").update(sql, "utf8").digest("hex"),
+    statement_count: splitMigrationSqlStatements(sql).length,
+  };
+}
+
+assert.deepEqual(migrationEvidence(MIGRATION_1006), {
+  checksum_sha256: CHECKSUM_1006,
+  statement_count: 5,
+});
+assert.deepEqual(migrationEvidence(MIGRATION_1007), {
+  checksum_sha256: CHECKSUM_1007,
+  statement_count: 1,
+});
 
 const registry = await loadGovernedMigrationDependencyRegistry();
 assert.equal(registry.schema_version, "governed_migration_dependencies.v1");
