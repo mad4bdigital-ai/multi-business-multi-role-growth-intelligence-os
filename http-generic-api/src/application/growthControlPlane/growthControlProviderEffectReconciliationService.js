@@ -46,6 +46,51 @@ async function withTransaction(pool, operation) {
   }
 }
 
+function parseInstant(value, field) {
+  const parsed = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw reconciliationError(
+      "growth_control_reconciliation_timestamp_invalid",
+      `${field} must be a valid instant.`,
+      422,
+      { field },
+    );
+  }
+  return parsed;
+}
+
+function assertFreshReadback(receipt, readback) {
+  const attemptedValue = receipt.last_attempt_at
+    ?? receipt.dispatched_at
+    ?? receipt.created_at
+    ?? receipt.updated_at;
+  if (!attemptedValue) {
+    throw reconciliationError(
+      "growth_control_reconciliation_attempt_timestamp_missing",
+      "Mutation receipt does not expose an authoritative attempt timestamp.",
+      409,
+    );
+  }
+  const observedValue = readback?.observedAt ?? readback?.observed_at;
+  const attemptedAt = parseInstant(attemptedValue, "receipt.attempted_at");
+  const observedAt = parseInstant(observedValue, "readback.observed_at");
+  if (observedAt.getTime() < attemptedAt.getTime()) {
+    throw reconciliationError(
+      "growth_control_reconciliation_readback_stale",
+      "Readback evidence predates the mutation attempt and cannot reconcile its effect.",
+      409,
+      {
+        attempted_at: attemptedAt.toISOString(),
+        observed_at: observedAt.toISOString(),
+      },
+    );
+  }
+  return Object.freeze({
+    attempted_at: attemptedAt.toISOString(),
+    observed_at: observedAt.toISOString(),
+  });
+}
+
 function stepBinding(receipt, step) {
   const input = parseJson(step.input_json, {});
   return {
@@ -130,6 +175,8 @@ async function appendEvent(connection, {
   planStepId,
   tenantId,
   eventType,
+  fromStatus,
+  toStatus,
   actorId,
   evidence,
 }) {
@@ -143,8 +190,8 @@ async function appendEvent(connection, {
       planStepId,
       tenantId,
       eventType,
-      "blocked",
-      eventType === "provider_effect_reconciled_applied" ? "completed" : "blocked",
+      fromStatus,
+      toStatus,
       actorId,
       JSON.stringify({ ...evidence, secrets_included: false }),
     ],
@@ -187,6 +234,8 @@ async function persistAppliedReconciliation(connection, receipt, step, decision,
     planStepId: step.plan_step_id,
     tenantId: step.tenant_id,
     eventType: "provider_effect_reconciled_applied",
+    fromStatus: step.status,
+    toStatus: "completed",
     actorId,
     evidence: {
       receipt_id: receipt.receipt_id,
@@ -227,6 +276,8 @@ async function persistBlockedReconciliation(connection, receipt, step, decision,
     planStepId: step.plan_step_id,
     tenantId: step.tenant_id,
     eventType,
+    fromStatus: step.status,
+    toStatus: "blocked",
     actorId,
     evidence: {
       receipt_id: receipt.receipt_id,
@@ -264,6 +315,7 @@ export async function reconcileGrowthControlMutationReceipt({
     if (!receipt) {
       throw reconciliationError("growth_control_reconciliation_receipt_not_found", "Mutation receipt was not found for the requested scope.", 404);
     }
+    const freshness = assertFreshReadback(receipt, readback);
     const [stepRows] = await connection.query(
       `SELECT * FROM execution_plan_steps
         WHERE plan_step_id = ? AND plan_id = ? AND tenant_id = ? LIMIT 2 FOR UPDATE`,
@@ -295,6 +347,7 @@ export async function reconcileGrowthControlMutationReceipt({
           dispatch_status: "reconciled",
           reconciliation: existing,
           rollback_contract: rollbackContract,
+          freshness,
           provider_dispatch_performed: false,
           external_writes: false,
           secrets_included: false,
@@ -350,6 +403,7 @@ export async function reconcileGrowthControlMutationReceipt({
       dispatch_status: receiptStatus,
       reconciliation: decision,
       rollback_contract: rollbackContract,
+      freshness,
       step_status: lifecycle.step_status,
       plan_status: lifecycle.plan_status,
       next_action: decision.step_disposition,
@@ -418,6 +472,8 @@ export const growthControlProviderEffectReconciliationServiceContract = Object.f
   non_applied_step_disposition: "blocked",
   partial_step_disposition: "blocked",
   unknown_step_disposition: "blocked",
+  readback_must_follow_mutation_attempt: true,
+  exact_event_status_transition_required: true,
   blind_retry_allowed: false,
   automatic_retry_allowed: false,
   automatic_rollback_allowed: false,
@@ -429,8 +485,11 @@ export const growthControlProviderEffectReconciliationServiceContract = Object.f
 export const _testingGrowthControlProviderEffectReconciliationService = Object.freeze({
   parseJson,
   resolveUnique,
+  parseInstant,
+  assertFreshReadback,
   stepBinding,
   replayPayload,
   stepError,
+  appendEvent,
   withTransaction,
 });
