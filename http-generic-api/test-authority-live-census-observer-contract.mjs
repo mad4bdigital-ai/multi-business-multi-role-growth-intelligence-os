@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const source = readFileSync("../.github/scripts/authority-live-census-observation.mjs", "utf8");
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const observerPath = path.resolve(testDirectory, "../.github/scripts/authority-live-census-observation.mjs");
+const source = readFileSync(observerPath, "utf8");
 
 assert.match(source, /mode: "read_only_authority_catalog_census"/);
 assert.match(source, /database_mutation_executed: false/);
