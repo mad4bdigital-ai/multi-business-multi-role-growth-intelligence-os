@@ -11,7 +11,7 @@ on:
       - "http-generic-api/migrations/**"
       - "http-generic-api/scripts/platform-work-map-*.mjs"
       - "http-generic-api/scripts/spec-kit-work-map-*.mjs"
-      - "http-generic-api/scripts/work-map-schema-classification.mjs"
+      - "http-generic-api/scripts/work-map-classification-gate.mjs"
       - "http-generic-api/test-work-map-*.mjs"
       - "http-generic-api/test-spec-kit-work-map-*.mjs"
       - ".github/workflows/spec-kit-work-map-integration.yml"
@@ -38,14 +38,15 @@ jobs:
 
       - name: Validate gate module syntax
         run: |
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-classification-gate.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
-          node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-work-map-classification-gate.mjs
           node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
 
       - name: Require complete schema classification
-        run: node http-generic-api/scripts/work-map-schema-classification.mjs --ci
+        run: node http-generic-api/scripts/work-map-classification-gate.mjs --ci
 
       - name: Require complete Spec Kit Work Map integration
         run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
@@ -53,7 +54,7 @@ jobs:
       - name: Run Work Map governance regression tests
         working-directory: http-generic-api
         run: |
-          node test-work-map-schema-classification.mjs
+          node test-work-map-classification-gate.mjs
           node test-spec-kit-work-map-governance-gate.mjs
 
       - name: Run existing Spec Kit completion regressions
