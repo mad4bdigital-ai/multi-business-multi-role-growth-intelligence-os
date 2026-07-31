@@ -1,0 +1,9 @@
+Governed Local Connector Production closure execution trigger
+
+trigger_pr=4076
+production_pr=3945
+production_merge_sha=792ff63af82791e9a482029f5078931fa0707c8c
+workflow=automation-overlap-guard
+expected_job=Governed Local Connector Production Closure
+trusted_checkout=main
+never_merge=true
