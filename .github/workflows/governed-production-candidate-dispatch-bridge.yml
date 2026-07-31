@@ -1,0 +1,153 @@
+name: Governed Production Candidate Dispatch Bridge
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/governed-production-candidate-dispatch-bridge.yml"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governed-production-candidate-dispatch-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  static-contract:
+    name: Validate bounded dispatch bridge contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify fail-closed bridge surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=.github/workflows/governed-production-candidate-dispatch-bridge.yml
+          grep -Fq "DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER" "$FILE"
+          grep -Fq "production-promotion-candidate.yml" "$FILE"
+          grep -Fq "expected_main_sha" "$FILE"
+          grep -Fq "expected_production_sha" "$FILE"
+          grep -Fq "create_pull_requests=true" "$FILE"
+          grep -Fq "merge_executed=false" "$FILE"
+          grep -Fq "deployment_executed=false" "$FILE"
+          if grep -Eqi 'gh pr merge|git push[[:space:]]+--force|force-with-lease' "$FILE"; then
+            echo "::error::bridge must not merge or force-update refs"
+            exit 1
+          fi
+
+  dispatch-exact-candidate-builder:
+    name: Dispatch exact current-ref candidate builder
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      github.event.comment.body == 'DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ github.event.issue.number }}
+    steps:
+      - name: Validate request and pin protected refs
+        id: refs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REQUEST_JSON="$(gh pr view "$REQUEST_PR" --repo "$REPOSITORY" --json title,state,baseRefName,headRefName)"
+          test "$(jq -r '.title' <<<"$REQUEST_JSON")" = 'ops: request governed Production synchronization'
+          test "$(jq -r '.state' <<<"$REQUEST_JSON")" = 'OPEN'
+          test "$(jq -r '.baseRefName' <<<"$REQUEST_JSON")" = 'main'
+          HEAD_REF="$(jq -r '.headRefName' <<<"$REQUEST_JSON")"
+          [[ "$HEAD_REF" == gpt/request-production-promotion-* ]]
+
+          MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          MAIN_SHORT="${MAIN_SHA:0:12}"
+          PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
+          SUFFIX="bridge-${GITHUB_RUN_ID}"
+          RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
+          VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
+          VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
+          BEFORE_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" --jq '[.workflow_runs[].id] | max // 0')"
+
+          {
+            echo "main_sha=$MAIN_SHA"
+            echo "production_sha=$PRODUCTION_SHA"
+            echo "release_branch=$RELEASE_BRANCH"
+            echo "validation_branch=$VALIDATION_BRANCH"
+            echo "validation_base_branch=$VALIDATION_BASE_BRANCH"
+            echo "before_run_id=$BEFORE_RUN_ID"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch canonical exact-tree builder
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
+          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
+          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
+        run: |
+          set -Eeuo pipefail
+          gh workflow run production-promotion-candidate.yml \
+            --repo "$REPOSITORY" \
+            --ref main \
+            --field expected_main_sha="$MAIN_SHA" \
+            --field expected_production_sha="$PRODUCTION_SHA" \
+            --field release_branch="$RELEASE_BRANCH" \
+            --field validation_branch="$VALIDATION_BRANCH" \
+            --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
+            --field create_pull_requests=true
+
+      - name: Resolve dispatched builder and record evidence
+        shell: bash
+        env:
+          BEFORE_RUN_ID: ${{ steps.refs.outputs.before_run_id }}
+          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
+          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
+          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
+          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
+        run: |
+          set -Eeuo pipefail
+          BUILDER_RUN_ID=""
+          for _ in $(seq 1 60); do
+            BUILDER_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
+              --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID})) | sort_by(.id) | .[0].id // empty")"
+            if [[ -n "$BUILDER_RUN_ID" ]]; then break; fi
+            sleep 5
+          done
+          test -n "$BUILDER_RUN_ID"
+
+          BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} bridge_run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${RELEASE_BRANCH} validation_branch=${VALIDATION_BRANCH} validation_base_branch=${VALIDATION_BASE_BRANCH} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Governed Production candidate dispatch
+
+          - request PR: \`${REQUEST_PR}\`
+          - main: \`${{ steps.refs.outputs.main_sha }}\`
+          - Production: \`${{ steps.refs.outputs.production_sha }}\`
+          - release branch: \`${{ steps.refs.outputs.release_branch }}\`
+          - validation branch: \`${{ steps.refs.outputs.validation_branch }}\`
+          - merge executed: false
+          - deployment executed: false
+          - migration executed: false
+          EOF
