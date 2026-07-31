@@ -1,0 +1,4 @@
+Trigger exact Spec 014 synchronization.
+Expected Spec 014 head: 4bd74ae487298b7b27f5bb79c26f3614e1c1adbd
+Expected main head: 06e356d8ff47962311c7dc5667416a1966e1ce08
+No protected branch, Production, database, deployment, provider, credential, or external-write authority.
