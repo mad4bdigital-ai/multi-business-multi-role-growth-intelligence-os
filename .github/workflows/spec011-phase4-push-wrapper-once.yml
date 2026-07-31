@@ -1,0 +1,45 @@
+name: Spec 011 Phase 4 Push Wrapper Once
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-phase4-reconciliation-readback-wave-20260731
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-phase4-push-wrapper-once-v1
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Phase 4 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase4-reconciliation-readback-wave-20260731
+          fetch-depth: 0
+
+      - name: Execute reconciliation and remove wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_workflow=".github/workflows/spec011-phase4-reconcile-latest-main-once.yml"
+          wrapper=".github/workflows/spec011-phase4-push-wrapper-once.yml"
+          awk '
+            found { sub(/^          /, ""); print }
+            /^        run: \|$/ { found=1 }
+          ' "$source_workflow" > /tmp/spec011-phase4-reconcile.sh
+          test -s /tmp/spec011-phase4-reconcile.sh
+          bash /tmp/spec011-phase4-reconcile.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f "$wrapper"
+          git add "$wrapper"
+          if ! git diff --cached --quiet; then
+            git commit -m "ci(spec-011): remove Phase 4 push wrapper"
+            git push origin "HEAD:gpt/spec-011-phase4-reconciliation-readback-wave-20260731"
+          fi
