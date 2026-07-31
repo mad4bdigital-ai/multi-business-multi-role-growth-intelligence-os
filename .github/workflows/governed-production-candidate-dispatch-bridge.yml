@@ -36,8 +36,16 @@ jobs:
           grep -Fq "isCrossRepository" "$FILE"
           grep -Fq "headRepository.nameWithOwner" "$FILE"
           grep -Fq "duplicate_suppressed" "$FILE"
+          grep -Fq "id: trigger" "$FILE"
+          grep -Fq "eligible=false" "$FILE"
+          grep -Fq "steps.trigger.outputs.eligible == 'true'" "$FILE"
           grep -Fq "merge_executed=false" "$FILE"
           grep -Fq "deployment_executed=false" "$FILE"
+          JOB_HEADER="$(sed -n '/^  dispatch-exact-candidate-builder:/,/^    permissions:/p' "$FILE")"
+          if grep -Eq '^    if:' <<<"$JOB_HEADER"; then
+            echo "::error::dispatch bridge must not use a job-level event condition"
+            exit 1
+          fi
           if grep -Eqi 'gh pr merge|git push[[:space:]]+--force|force-with-lease' "$FILE"; then
             echo "::error::bridge must not merge or force-update refs"
             exit 1
@@ -45,11 +53,6 @@ jobs:
 
   dispatch-exact-candidate-builder:
     name: Dispatch exact current-ref candidate builder
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request != null &&
-      github.event.comment.body == 'DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER' &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     permissions:
       actions: write
       contents: read
@@ -60,10 +63,32 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      REQUEST_PR: ${{ github.event.issue.number }}
+      REQUEST_PR: ${{ github.event.issue.number || 0 }}
     steps:
+      - name: Classify trusted issue-comment trigger
+        id: trigger
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HAS_PULL_REQUEST: ${{ github.event.issue.pull_request != null }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
+        run: |
+          set -Eeuo pipefail
+          ELIGIBLE=false
+          if [[ "$EVENT_NAME" == 'issue_comment' \
+             && "$HAS_PULL_REQUEST" == 'true' \
+             && "$COMMENT_BODY" == 'DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER' ]]; then
+            case "$AUTHOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ELIGIBLE=true ;;
+              *) ELIGIBLE=false ;;
+            esac
+          fi
+          echo "eligible=$ELIGIBLE" >> "$GITHUB_OUTPUT"
+
       - name: Validate request, pin protected refs, and suppress duplicates
         id: refs
+        if: steps.trigger.outputs.eligible == 'true'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -127,7 +152,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Dispatch canonical exact-tree builder
-        if: steps.refs.outputs.dispatch_required == 'true'
+        if: steps.trigger.outputs.eligible == 'true' && steps.refs.outputs.dispatch_required == 'true'
         shell: bash
         env:
           MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
@@ -148,7 +173,7 @@ jobs:
             --field create_pull_requests=true
 
       - name: Resolve dispatched builder and record evidence
-        if: steps.refs.outputs.dispatch_required == 'true'
+        if: steps.trigger.outputs.eligible == 'true' && steps.refs.outputs.dispatch_required == 'true'
         shell: bash
         env:
           BEFORE_RUN_ID: ${{ steps.refs.outputs.before_run_id }}
@@ -172,12 +197,14 @@ jobs:
           gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
 
       - name: Publish summary
+        if: always()
         shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Governed Production candidate dispatch
 
           - request PR: \`${REQUEST_PR}\`
+          - trusted trigger eligible: \`${{ steps.trigger.outputs.eligible }}\`
           - dispatch required: \`${{ steps.refs.outputs.dispatch_required }}\`
           - main: \`${{ steps.refs.outputs.main_sha }}\`
           - Production: \`${{ steps.refs.outputs.production_sha }}\`
