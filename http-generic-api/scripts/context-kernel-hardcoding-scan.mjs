@@ -98,42 +98,71 @@ function lineIsChanged(rangesByFile, finding) {
   return ranges.some((range) => finding.line >= range.start && finding.line <= range.end);
 }
 
-function exactKeyPredicates(whereClause) {
-  if (!whereClause || /\b(?:OR|IN|LIKE|BETWEEN|GROUP\s+BY)\b/iu.test(whereClause)) return false;
+function tableEntity(tableName) {
+  const segments = String(tableName || "").toLowerCase().split("_").filter(Boolean);
+  const tail = segments.length > 0 ? segments[segments.length - 1] : "";
+  if (tail.endsWith("ies") && tail.length > 3) return `${tail.slice(0, -3)}y`;
+  if (tail.endsWith("s") && tail.length > 1) return tail.slice(0, -1);
+  return tail;
+}
+
+function assignedSelectQueries(context, variableName) {
+  const escaped = escapeRegex(variableName);
+  const assignment = new RegExp(`(?:const|let)\\s*\\[\\s*${escaped}\\s*\\]\\s*=\\s*await[\\s\\S]*?\\.query\\s*\\(`, "u");
+  const assignmentIndex = context.search(assignment);
+  if (assignmentIndex < 0) return [];
+  const compact = context.slice(assignmentIndex).replace(/\s+/gu, " ");
+  return compact.match(/\bSELECT\b[\s\S]*?\bLIMIT\s+(?:1|2)\b/giu) ?? [];
+}
+
+function exactKeyQueryVisible(query) {
+  const tableName = query.match(/\bFROM\s+`?([A-Za-z0-9_]+)`?/iu)?.[1] ?? "";
+  const entity = tableEntity(tableName);
+  const whereClause = query.match(/\bWHERE\b([\s\S]*?)\bLIMIT\s+(?:1|2)\b/iu)?.[1]?.trim();
+  if (!entity || !whereClause || /\b(?:OR|IN|LIKE|BETWEEN|GROUP\s+BY|ORDER\s+BY)\b/iu.test(whereClause)) return false;
   const predicates = whereClause.split(/\bAND\b/iu).map((value) => value.trim()).filter(Boolean);
-  let exactKeyCount = 0;
+  let primaryIdentityBound = false;
   for (const predicate of predicates) {
     const normalized = predicate.replace(/^\(+|\)+$/gu, "").trim();
     const parameterMatch = normalized.match(/^(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)\s*=\s*\?$/u);
     if (parameterMatch) {
-      if (/(?:^id$|_id$|_key$|_sha256$)/iu.test(parameterMatch[1])) exactKeyCount += 1;
-      else return false;
+      const column = parameterMatch[1].toLowerCase();
+      if (column === "id" || column === `${entity}_id` || column === `${entity}_key`) primaryIdentityBound = true;
+      else if (!/(?:_id|_key|_sha256)$/u.test(column)) return false;
       continue;
     }
     if (/^(?:[A-Za-z0-9_]+\.)?status\s*=\s*["'][A-Za-z0-9_-]+["']$/iu.test(normalized)) continue;
     return false;
   }
-  return exactKeyCount > 0;
+  return primaryIdentityBound;
 }
 
 function hasExactKeyQueryProof(context, variableName) {
-  const escaped = escapeRegex(variableName);
-  const assignment = new RegExp(`(?:const|let)\\s*\\[\\s*${escaped}\\s*\\]\\s*=\\s*await[\\s\\S]*?\\.query\\s*\\(`, "u");
-  if (!assignment.test(context)) return false;
-  const compact = context.replace(/\s+/gu, " ");
-  const queries = compact.match(/\bSELECT\b[\s\S]*?\bLIMIT\s+(?:1|2)\b/giu) ?? [];
-  return queries.some((query) => {
-    const where = query.match(/\bWHERE\b([\s\S]*?)\bLIMIT\s+(?:1|2)\b/iu)?.[1]?.trim();
-    return exactKeyPredicates(where);
+  return assignedSelectQueries(context, variableName).some(exactKeyQueryVisible);
+}
+
+function hasDeterministicOrderProof(context, variableName) {
+  return assignedSelectQueries(context, variableName).some((query) => {
+    if (!/\bLIMIT\s+2\b/iu.test(query)) return false;
+    const tableName = query.match(/\bFROM\s+`?([A-Za-z0-9_]+)`?/iu)?.[1] ?? "";
+    const entity = tableEntity(tableName);
+    const ordering = query.match(/\bORDER\s+BY\s+([\s\S]*?)\bLIMIT\s+2\b/iu)?.[1]?.trim();
+    if (!entity || !ordering) return false;
+    const terms = ordering.split(",").map((value) => value.trim()).filter(Boolean);
+    if (terms.length === 0) return false;
+    const finalTerm = terms[terms.length - 1].match(/^(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)(?:\s+(?:ASC|DESC))?$/iu);
+    if (!finalTerm) return false;
+    const column = finalTerm[1].toLowerCase();
+    return column === "id" || column === `${entity}_id` || column === `${entity}_key`;
   });
 }
 
 function hasCardinalityGuard(context, variableName) {
   const escaped = escapeRegex(variableName);
   const patterns = [
-    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*>\\s*1[^)]*\\)\\s*throw\\b`, "su"),
-    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*>=\\s*2[^)]*\\)\\s*throw\\b`, "su"),
-    new RegExp(`if\\s*\\([^)]*\\b${escaped}\\.length\\s*!={1,2}\\s*1[^)]*\\)\\s*throw\\b`, "su"),
+    new RegExp(`if\\s*\\([^&|)]*\\b${escaped}\\.length\\s*>\\s*1[^&|)]*\\)\\s*throw\\b`, "su"),
+    new RegExp(`if\\s*\\([^&|)]*\\b${escaped}\\.length\\s*>=\\s*2[^&|)]*\\)\\s*throw\\b`, "su"),
+    new RegExp(`if\\s*\\([^&|)]*\\b${escaped}\\.length\\s*!={1,2}\\s*1[^&|)]*\\)\\s*throw\\b`, "su"),
   ];
   return patterns.some((pattern) => pattern.test(context));
 }
@@ -150,7 +179,9 @@ export function hasScannerVisibleSelectionProof({ repositoryRoot, finding } = {}
   const selection = lines[lineIndex].match(DIRECT_SELECTION);
   if (!selection) return false;
   const context = lines.slice(Math.max(0, lineIndex - 24), Math.min(lines.length, lineIndex + 3)).join("\n");
-  return hasCardinalityGuard(context, selection[1]) || hasExactKeyQueryProof(context, selection[1]);
+  return hasCardinalityGuard(context, selection[1])
+    || hasExactKeyQueryProof(context, selection[1])
+    || hasDeterministicOrderProof(context, selection[1]);
 }
 
 function applyProofAwareSuppressions(findings, repositoryRoot) {
@@ -159,7 +190,7 @@ function applyProofAwareSuppressions(findings, repositoryRoot) {
     return {
       ...finding,
       suppressed: true,
-      suppression_reason: "Scanner-visible uniqueness proof rejects ambiguity before selecting the sole candidate.",
+      suppression_reason: "Scanner-visible uniqueness or deterministic authority proof precedes candidate selection.",
     };
   });
 }
