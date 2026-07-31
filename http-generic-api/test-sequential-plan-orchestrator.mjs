@@ -113,11 +113,13 @@ const connection = {
       return [{ affectedRows: run ? 1 : 0 }];
     }
     if (text.startsWith("UPDATE execution_plan_steps SET status = ?, approval_policy_json")) {
-      const step = state.steps.find((item) => item.plan_step_id === params[3]);
+      const step = state.steps.find((item) => item.plan_step_id === params.at(-2));
       if (step) {
         step.status = params[0];
         const policy = JSON.parse(step.approval_policy_json || "{}");
         policy.approved = params[1];
+        policy.approved_by = params[2];
+        policy.expected_step_fingerprint = params[3];
         step.approval_policy_json = JSON.stringify(policy);
       }
       return [{ affectedRows: step ? 1 : 0 }];
