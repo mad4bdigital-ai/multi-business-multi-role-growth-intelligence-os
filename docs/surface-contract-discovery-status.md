@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 459
+- Migrations with detected surfaces: 460
 - Migrations reported here: 80
 - OpenAPI operations detected: 1086
 - OpenAPI paths detected: 1002
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 458/459 (99.78%)
-- Documentation gap migrations: 1
-- Gap severity: high=20, medium=1, low=0
+- Documentation complete migrations: 458/460 (99.57%)
+- Documentation gap migrations: 2
+- Gap severity: high=20, medium=1, low=1
 - SQL route coverage in OpenAPI: 31/31 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 670/701
 - SQL routes missing OpenAPI path coverage: 0
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 15 | 12 |
 | tools | 783 | 282 |
-| views | 501 | 199 |
+| views | 502 | 200 |
 | policies | 195 | 134 |
 | routes | 701 | 289 |
 
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 1 |
-| `deployment_parity_checklist.md` | 1 |
-| `docs/ai-docs-agent-governance.md` | 1 |
-| `docs/auto-docs-agent/README.md` | 1 |
-| `docs/change-documentation-governance.md` | 1 |
+| `Updating Registry Patch Index.md` | 2 |
+| `deployment_parity_checklist.md` | 2 |
+| `docs/ai-docs-agent-governance.md` | 2 |
+| `docs/auto-docs-agent/README.md` | 2 |
+| `docs/change-documentation-governance.md` | 2 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 458 |
-| no_credential_payload_read | 458 |
-| no_raw_secrets | 458 |
-| no_external_send | 458 |
-| no_external_write | 459 |
-| secrets_included_false | 459 |
+| no_provider_call | 459 |
+| no_credential_payload_read | 459 |
+| no_raw_secrets | 459 |
+| no_external_send | 459 |
+| no_external_write | 460 |
+| secrets_included_false | 460 |
 
 ### Route Classification Coverage
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 21
+- Total queue items: 22
 - Critical review: 20
 - High review: 1
-- Medium review: 0
+- Medium review: 1
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
@@ -112,9 +112,9 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql` | critical_review | 737 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `200_sprint66_tenant_ssh_cli_approval_request_tool.sql` | critical_review | 730 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `199_sprint66_tenant_ssh_cli_dry_run_tool.sql` | critical_review | 720 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
-| `196_sprint66_tenant_database_schema_read_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `197_sprint66_tenant_database_query_readonly_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `198_sprint66_tenant_ssh_probe_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
+| `196_sprint66_tenant_database_schema_read_tool.sql` | critical_review | 718 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `191_sprint66_tenant_credential_intake_connection_status.sql` | critical_review | 717 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 
 
