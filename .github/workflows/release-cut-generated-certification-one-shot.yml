@@ -1,0 +1,119 @@
+name: Release Cut Generated Certification One Shot
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-cut-generated-certification-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/release-cut-9eb01a48-generated-certification-20260731' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_RELEASE_CUT: 9eb01a488a4ec20fedacf05d2bc1154cab9c76ad
+      EXPECTED_HEAD_BRANCH: gpt/release-cut-9eb01a48-generated-certification-20260731
+      ARTIFACT_ID: '8793019308'
+      ARTIFACT_ZIP_SHA256: f6cab21fd990a41ab62ac5406e19fb0fe54f198c915d3e857108d544b2161fe6
+      OPERATION_GOVERNANCE_SHA256: f60ba6af6f0750d7b172a503434b165970782ee87d88642bfde28904421c12a4
+      SURFACE_DISPATCH_SHA256: 66973a22d247d4d5692f0e492a7fe422eb2d494ee173145a075eb30e45e6931c
+      OPENAPI_INDEX_SHA256: 9502464445198b5d63ab5baf7460694d3b6437fdfbf3c9ae18e348ba7650f6e4
+      WORKFLOW_PATH: .github/workflows/release-cut-generated-certification-one-shot.yml
+    steps:
+      - name: Checkout exact same-repository head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate immutable release-cut ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_HEAD_REF}" = "${EXPECTED_HEAD_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git cat-file -e "${SOURCE_RELEASE_CUT}^{commit}"
+          git merge-base --is-ancestor "${SOURCE_RELEASE_CUT}" HEAD
+          test "$(git diff --name-only "${SOURCE_RELEASE_CUT}"...HEAD)" = "${WORKFLOW_PATH}"
+
+      - name: Download and verify workflow artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/release-cut-artifact
+          curl --fail --location --retry 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            -o /tmp/release-cut-artifact.zip
+          echo "${ARTIFACT_ZIP_SHA256}  /tmp/release-cut-artifact.zip" | sha256sum --check --strict
+          unzip -q /tmp/release-cut-artifact.zip -d /tmp/release-cut-artifact
+          echo "${OPERATION_GOVERNANCE_SHA256}  /tmp/release-cut-artifact/frontend-operation-governance.generated.json" | sha256sum --check --strict
+          echo "${SURFACE_DISPATCH_SHA256}  /tmp/release-cut-artifact/frontend-surface-dispatch.generated.json" | sha256sum --check --strict
+          echo "${OPENAPI_INDEX_SHA256}  /tmp/release-cut-artifact/openapi/frontend-runtime-routes.generated.yaml" | sha256sum --check --strict
+          cmp --silent \
+            /tmp/release-cut-artifact/openapi/frontend-runtime-routes.generated.yaml \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+
+      - name: Apply bounded generated evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/release-cut-artifact/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-operation-governance.generated.json
+          cp /tmp/release-cut-artifact/frontend-surface-dispatch.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json
+          rm -- "${WORKFLOW_PATH}"
+
+      - name: Verify generated contracts and exact write set
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm ci
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          echo "${OPERATION_GOVERNANCE_SHA256}  frontend-operation-governance.generated.json" | sha256sum --check --strict
+          echo "${SURFACE_DISPATCH_SHA256}  frontend-surface-dispatch.generated.json" | sha256sum --check --strict
+          echo "${OPENAPI_INDEX_SHA256}  openapi/frontend-runtime-routes.generated.yaml" | sha256sum --check --strict
+          actual="$(git -C .. diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/release-cut-generated-certification-one-shot.yml' \
+            'http-generic-api/frontend-operation-governance.generated.json' \
+            'http-generic-api/frontend-surface-dispatch.generated.json' | sort)"
+          test "${actual}" = "${expected}"
+
+      - name: Commit certified release-cut overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            "${WORKFLOW_PATH}" \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json
+          git commit -m 'chore(release): certify release-cut generated evidence'
+          test "$(git diff --name-only "${SOURCE_RELEASE_CUT}"...HEAD | sort)" = "$(printf '%s\n' \
+            'http-generic-api/frontend-operation-governance.generated.json' \
+            'http-generic-api/frontend-surface-dispatch.generated.json' | sort)"
+          git push origin "HEAD:${EXPECTED_HEAD_BRANCH}"
