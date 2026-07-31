@@ -73,8 +73,31 @@ function writeReport(filePath, report) {
 
 function collectorsFromSnapshots(snapshots) {
   if (!Array.isArray(snapshots)) throw new Error("The sources file must contain an array.");
-  const byFamily = new Map(snapshots.map((source) => [source?.source_family, source]));
-  return Object.fromEntries(AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map((family) => [
+  const required = [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES];
+  if (snapshots.length !== required.length) {
+    throw new Error(`The sources file must contain exactly ${required.length} authority source snapshots.`);
+  }
+  const allowed = new Set(required);
+  const byFamily = new Map();
+  for (let index = 0; index < snapshots.length; index += 1) {
+    const snapshot = snapshots[index];
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+      throw new Error(`Source snapshot at index ${index} must be an object.`);
+    }
+    const family = String(snapshot.source_family || "").trim();
+    if (!allowed.has(family)) {
+      throw new Error(`Unknown authority source family at index ${index}: ${family || "missing"}.`);
+    }
+    if (byFamily.has(family)) {
+      throw new Error(`Duplicate authority source snapshot: ${family}.`);
+    }
+    byFamily.set(family, snapshot);
+  }
+  const missing = required.filter((family) => !byFamily.has(family));
+  if (missing.length) {
+    throw new Error(`Missing authority source snapshots: ${missing.join(", ")}.`);
+  }
+  return Object.fromEntries(required.map((family) => [
     family,
     async () => byFamily.get(family),
   ]));
@@ -118,6 +141,11 @@ function isDirectExecution() {
   if (!process.argv[1]) return false;
   return pathToFileURL(path.resolve(process.argv[1])).href === pathToFileURL(fileURLToPath(import.meta.url)).href;
 }
+
+export const _testingAuthorityLiveEvidenceReview = Object.freeze({
+  parseArgs,
+  collectorsFromSnapshots,
+});
 
 if (isDirectExecution()) {
   try {
