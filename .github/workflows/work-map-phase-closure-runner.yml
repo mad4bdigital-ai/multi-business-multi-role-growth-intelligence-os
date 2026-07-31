@@ -1,0 +1,113 @@
+name: Work Map Phase Closure Runner
+
+on:
+  push:
+    branches:
+      - gpt/spec-kit-work-map-integration-fabric-20260731
+    paths:
+      - .github/workflows/work-map-phase-closure-runner.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-phase-closure-gpt-spec-kit-work-map-integration-fabric-20260731
+  cancel-in-progress: false
+
+jobs:
+  regenerate-and-self-remove:
+    name: Regenerate governed Work Maps and self-remove
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Pin exact branch head
+        shell: bash
+        env:
+          TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale phase closure. Expected ${EXPECTED_HEAD_SHA}, found ${remote_head_sha}."
+            exit 1
+          fi
+
+      - name: Remove temporary runner before generation
+        run: rm .github/workflows/work-map-phase-closure-runner.yml
+
+      - name: Validate generator and governance contracts
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and prove idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|\.github/workflows/work-map-phase-closure-runner\.yml$)' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Unexpected files modified by phase closure:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_diff_hash}" != "${second_diff_hash}" ]]; then
+            echo "Refusing non-idempotent Work Map generation."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Commit generated union and remove runner
+        shell: bash
+        env:
+          TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps .github/workflows/work-map-phase-closure-runner.yml
+          if git diff --cached --quiet; then
+            echo "No generated or cleanup changes to commit."
+            exit 1
+          fi
+          git commit -m "docs(work-maps): regenerate final governed union"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale push. Expected ${EXPECTED_HEAD_SHA}, found ${remote_head_sha}."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
+            echo "Push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          echo "Final generated head: ${pushed_head_sha}"
