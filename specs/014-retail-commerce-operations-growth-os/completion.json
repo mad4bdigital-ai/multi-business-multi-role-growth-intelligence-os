@@ -9,83 +9,72 @@
     "production_verification": true,
     "post_merge_audit": true
   },
-  "specification": {
-    "artifacts_complete": true,
-    "brownfield_review_complete": true,
-    "contract_drafts_present": true,
-    "required_reviews_complete": false,
-    "blocking_questions": [
-      "initial_commerce_backend_pilot_mode",
-      "erpnext_frappe_version_and_topology",
-      "media_storage_and_processing_provider",
-      "payment_and_shipping_sandbox_providers",
-      "country_tax_and_einvoice_scope",
-      "production_slo_and_retention_values"
-    ]
+  "scope": {
+    "specification_complete_for_review": true,
+    "brand_commerce_authority_defined": true,
+    "commerce_enablement_fabric_defined": true,
+    "wordpress_woocommerce_blueprints_defined": true,
+    "workspace_file_fabric_defined": true,
+    "runtime_implementation_started": false,
+    "provider_execution_started": false
+  },
+  "artifacts": {
+    "specification": "spec.md",
+    "brand_authority": "brand-scoped-commerce-authority.md",
+    "commerce_enablement": "commerce-enablement-and-solution-blueprints.md",
+    "wordpress_woocommerce": "wordpress-woocommerce-authority-and-operations.md",
+    "workspace_files": "external-system-and-workspace-file-fabric.md",
+    "plan": "plan.md",
+    "tasks": "tasks.md",
+    "commerce_enablement_tasks": "commerce-enablement-tasks.md",
+    "acceptance": "acceptance-matrix.md",
+    "commerce_enablement_acceptance": "commerce-enablement-acceptance.md"
   },
   "implementation": {
-    "started": false,
-    "runtime_code_changed": false,
+    "status": "not_started",
+    "implementation_prs": [],
+    "runtime_routes_added": false,
     "database_migrations_created": false,
     "database_migrations_applied": false,
-    "providers_connected": false,
-    "frontend_deployed": false,
-    "implementation_prs": []
+    "wordpress_woocommerce_provider_writes": false,
+    "google_drive_provider_writes": false,
+    "deployment_performed": false
   },
   "verification": {
-    "artifact_readback": "complete",
-    "branch_freshness_at_pr_open": "complete",
-    "contract_validation": "pending_ci",
-    "unit_tests": "not_started",
-    "integration_tests": "not_started",
-    "cross_tenant_tests": "not_started",
-    "concurrency_tests": "not_started",
-    "fault_injection": "not_started",
-    "adapter_certification": "not_started",
-    "responsive_accessibility": "not_started",
-    "production_smoke": "not_started"
+    "spec_contract_validation_required": true,
+    "adapter_certification_required": true,
+    "wordpress_sandbox_required": true,
+    "woocommerce_standard_sandbox_required": true,
+    "woocommerce_bridge_sandbox_required": true,
+    "two_brand_isolation_pilot_required": true,
+    "production_behavior_verified": false,
+    "post_merge_audit_completed": false
   },
-  "delivery": {
-    "specification_pr": 3922,
-    "specification_pr_state": "open_draft",
-    "specification_base_sha_at_open": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
-    "implementation_prs": [],
-    "closeout_pr": {
-      "number": null,
-      "status": "pending",
-      "role": "completion"
-    },
-    "merged_to_main": false,
-    "merge_sha": null,
-    "deployed_commit_sha": null,
-    "production_main_parity": false
-  },
-  "evidence": {
-    "repository_review_started_sha": "06ed62c6d72fd9015294628efbff47c38545c6ad",
-    "synchronized_main_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
-    "demo_evidence_class": "design_and_contract_prototype_only",
-    "production_evidence_present": false,
-    "ci": {
-      "status": "pending",
-      "head_sha": null
-    },
-    "release_readiness": {
-      "status": "not_started"
-    },
-    "migration": {
-      "status": "not_started"
-    },
-    "production_verification": {
-      "status": "not_started"
-    },
-    "post_merge_audit": {
-      "status": "not_started"
-    },
+  "pending": [
+    "clarify first Commerce Enablement blueprints",
+    "select first two-Brand pilot Workspace",
+    "select first WordPress lifecycle inventory site",
+    "select first WooCommerce sandbox and authority mode",
+    "define WooCommerce bridge plugin boundary",
+    "define initial extension compatibility profiles",
+    "define ERPNext/WooCommerce hybrid topology when required",
+    "implement Capability Catalog and Blueprint Registry",
+    "implement Brand Site Profile and exact connection resolution",
+    "implement WooCommerce adapters and Webhook Inbox",
+    "implement Enablement Center and Operations Cockpit",
+    "create and apply governed migrations",
+    "run sandbox and staging certification",
+    "run production verification",
+    "complete post-merge audit"
+  ],
+  "safety": {
+    "production_mutation": false,
+    "provider_write": false,
+    "wordpress_woocommerce_write": false,
+    "google_drive_write": false,
+    "migration_apply": false,
+    "deployment": false,
+    "protected_branch_write": false,
     "secrets_included": false
-  },
-  "closeout": {
-    "eligible": false,
-    "reason": "Specification-only delivery; implementation, migration, deployment, runtime parity, and production evidence are not complete.",
-    "unresolved_work_classified": true
   }
 }
