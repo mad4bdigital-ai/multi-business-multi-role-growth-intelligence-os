@@ -1,19 +1,22 @@
 import assert from "node:assert/strict";
 
-import { buildAuthorityEvidenceSourceBundle } from "./authorityEvidenceSourceAdapters.js";
+import {
+  AUTHORITY_EVIDENCE_SOURCE_FAMILIES,
+  buildAuthorityEvidenceSourceBundle,
+} from "./authorityEvidenceSourceAdapters.js";
 import {
   AuthorityOwnershipReviewError,
   assessAuthorityOwnershipReview,
 } from "./authorityOwnershipReview.js";
 
-function pathRecord() {
+function pathRecord(sourceRegistry) {
   return {
     path_key: "authority.connector.inventory.read",
     canonical_tool_key: "connector_inventory_read",
     route: "/authority/connectors",
     method: "GET",
     surface_family: "connector_inventory",
-    source_registry: "system_tool_registry",
+    source_registry: sourceRegistry,
     handler_key: "getConnectorInventory",
     authority_mode: "shared",
     operation_mode: "read_only",
@@ -42,11 +45,10 @@ function pathRecord() {
 
 function sourceBundle() {
   return buildAuthorityEvidenceSourceBundle({
-    expected_source_families: ["system_tool_registry"],
-    sources: [{
-      source_family: "system_tool_registry",
-      source_key: "system_tool_registry.snapshot",
-      source_identity: "system_tool_registry.snapshot-2030-01-01",
+    sources: AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map((family) => ({
+      source_family: family,
+      source_key: `${family}.snapshot`,
+      source_identity: `${family}.snapshot-2030-01-01`,
       observed_at: "2030-01-01T00:00:00Z",
       pagination: {
         expected_count: 1,
@@ -55,8 +57,8 @@ function sourceBundle() {
         complete: true,
         next_cursor: null,
       },
-      evidence_refs: ["run:system-tools-1"],
-      records: [pathRecord()],
+      evidence_refs: [`run:${family}-1`],
+      records: [pathRecord(family)],
       safety: {
         read_only: true,
         provider_calls: false,
@@ -64,7 +66,7 @@ function sourceBundle() {
         external_writes: false,
         secrets_included: false,
       },
-    }],
+    })),
   });
 }
 
@@ -166,6 +168,7 @@ const report = assessAuthorityOwnershipReview({
 assert.equal(report.contract, "mad4b.ueacp.authority-ownership-review.v1");
 assert.equal(report.status, "ready_for_human_task_closure_review");
 assert.deepEqual(report.gaps.blocking_issues, []);
+assert.equal(bundle.source_family_count, 8);
 assert.equal(report.required_object_names.length, 4);
 assert.equal(report.reviewed_object_count, 4);
 assert.equal(report.closure_state.t001_complete, false);
