@@ -1,0 +1,7 @@
+Governed Local Connector Production closure trigger v2
+
+production_pr=3945
+production_merge_sha=792ff63af82791e9a482029f5078931fa0707c8c
+purpose=runtime-heartbeat-route-acceptance
+trusted_event=pull_request_target
+never_merge=true
