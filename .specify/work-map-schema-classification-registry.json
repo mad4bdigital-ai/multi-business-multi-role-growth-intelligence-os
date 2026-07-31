@@ -2,17 +2,33 @@
   "schema_version": 1,
   "registry_key": "work_map_schema_classification_registry_v1",
   "default_disposition": "blocked",
-  "classification_contract": "Every schema table or view reported by the generated Work Map coverage matrix must be classified by the generator or by exactly one explicit registry rule. An intentionally unclassified exception requires bounded governance and may never be inferred.",
+  "classification_contract": "Every schema table or view reported by the generated Work Map coverage matrix must be classified by the generator or by exactly one explicit registry rule. Explicit-only namespaces require an exact bounded rule per object and may never fall through to generated keyword rules. An intentionally unclassified exception requires bounded governance and may never be inferred.",
+  "explicit_only_namespaces": [
+    {
+      "namespace_key": "growth_control_schema",
+      "prefixes": ["growth_control_", "v_growth_control_"],
+      "owner": "platform-architecture",
+      "future_object_policy": "require_explicit_registry_rule",
+      "rationale": "Growth Control Plane schema carries configuration, workflow, policy, and evidence semantics. New objects must be classified individually so keyword fallback cannot silently assign the wrong domain."
+    }
+  ],
   "rules": [
     {
       "rule_key": "canonical_identifier_registries",
+      "scope": "governed_family",
       "match": { "prefixes": ["canonical_identifier_"] },
+      "family_owner": "platform-architecture",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only canonical identifier registries, contracts, and column-binding records belong to this family.",
+      "positive_examples": ["canonical_identifier_contract_registry"],
+      "negative_examples": ["customer_identifier_records"],
       "domain": "Platform resources & graph",
       "existing_map_refs": ["platform-resource-graph-map", "policy-authority-map", "data-model-domain-map"],
       "rationale": "Canonical identifier contracts and column bindings are shared platform graph and governance resources, so they extend the existing resource and authority maps."
     },
     {
       "rule_key": "connection_ownership_context",
+      "scope": "bounded_exact",
       "match": {
         "exact_names": [
           "connection_ownership_scopes",
@@ -25,47 +41,121 @@
     },
     {
       "rule_key": "dynamic_container_authority",
+      "scope": "governed_family",
       "match": {
         "exact_names": ["containers"],
         "prefixes": ["container_", "v_container_"]
       },
+      "family_owner": "platform-architecture",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only dynamic container hierarchy, relationship, projection, override, canary, and performance surfaces belong to this family.",
+      "positive_examples": ["container_relationships", "v_container_hierarchy_current"],
+      "negative_examples": ["asset_containers_archive"],
       "domain": "Platform resources & graph",
       "existing_map_refs": ["platform-resource-graph-map", "policy-authority-map", "observability-release-map", "data-model-domain-map"],
       "rationale": "Dynamic containers, hierarchy, relationships, projections, overrides, canaries, and performance readbacks form the existing platform resource and authority graph."
     },
     {
-      "rule_key": "growth_control_configuration_authority",
-      "match": { "prefixes": ["growth_control_", "v_growth_control_"] },
+      "rule_key": "growth_control_configuration_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_config_definitions",
+          "growth_control_config_versions",
+          "growth_control_config_resolution_snapshots"
+        ]
+      },
       "domain": "Governance & authority",
-      "existing_map_refs": ["policy-authority-map", "platform-resource-graph-map", "workflow-task-orchestration-map", "observability-release-map", "data-model-domain-map"],
-      "rationale": "Growth Control configuration versions, Activity Pack definitions, lifecycle bindings, compiled decisions, and parity readbacks are governed authority resources represented by the existing policy, resource, workflow, and observability maps."
+      "existing_map_refs": ["policy-authority-map", "platform-resource-graph-map", "observability-release-map", "data-model-domain-map"],
+      "rationale": "Growth Control configuration definitions, versions, and immutable resolution snapshots are governed authority resources and require explicit object-level classification."
+    },
+    {
+      "rule_key": "growth_control_activity_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_activity_pack_definitions",
+          "growth_control_activity_pack_versions",
+          "growth_control_brand_activity_bindings"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": ["workflow-task-orchestration-map", "policy-authority-map", "platform-resource-graph-map", "data-model-domain-map"],
+      "rationale": "Growth Control activity packs and brand bindings define governed workflow composition and are explicitly bound to existing workflow, authority, and resource maps."
+    },
+    {
+      "rule_key": "growth_control_evidence_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_activity_binding_readiness_evidence",
+          "growth_control_shadow_parity_mappings",
+          "growth_control_shadow_parity_evidence",
+          "v_growth_control_shadow_parity_summary"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": ["observability-release-map", "policy-authority-map", "workflow-task-orchestration-map", "data-model-domain-map"],
+      "rationale": "Growth Control readiness and shadow-parity records are evidence and release-governance surfaces and must be classified explicitly rather than by snapshot keywords."
+    },
+    {
+      "rule_key": "growth_control_compiled_snapshot_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_compiled_policy_snapshots",
+          "growth_control_compiled_plan_snapshots"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": ["policy-authority-map", "workflow-task-orchestration-map", "observability-release-map", "data-model-domain-map"],
+      "rationale": "Compiled policy and plan snapshots preserve immutable governed decisions and execution inputs, so each object is explicitly tied to authority, workflow, and evidence maps."
     },
     {
       "rule_key": "growth_dashboard_intelligence",
+      "scope": "governed_family",
       "match": { "prefixes": ["growth_dashboard_"] },
+      "family_owner": "growth-intelligence",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only dashboard instruction, metric, tab-profile, and intelligence registry objects belong to this family.",
+      "positive_examples": ["growth_dashboard_metric_definitions"],
+      "negative_examples": ["growth_control_config_versions"],
       "domain": "Agents & intelligence",
       "existing_map_refs": ["agent-skill-plugin-map", "platform-resource-graph-map", "data-model-domain-map"],
       "rationale": "Growth dashboard instructions, metrics, and tab profiles are intelligence registry resources consumed through existing agent and platform graph surfaces."
     },
     {
       "rule_key": "operation_artifacts_and_ownership",
+      "scope": "governed_family",
       "match": { "prefixes": ["operation_"] },
+      "family_owner": "workflow-platform",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only durable operation ownership, operation artifacts, and operation execution support objects belong to this family.",
+      "positive_examples": ["operation_artifacts"],
+      "negative_examples": ["operational_alerts"],
       "domain": "Workflow & tasks",
       "existing_map_refs": ["workflow-task-orchestration-map", "delivery-support-map", "data-model-domain-map"],
       "rationale": "Operation ownership and generated artifacts are durable workflow outputs already represented by orchestration and delivery maps."
     },
     {
       "rule_key": "operational_alert_lifecycle",
+      "scope": "governed_family",
       "match": {
         "exact_names": ["operational_alerts", "v_operational_alerts_open"],
         "prefixes": ["operational_alert_"]
       },
+      "family_owner": "platform-operations",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only operational alert rules, lifecycle events, notifications, and governed alert readbacks belong to this family.",
+      "positive_examples": ["operational_alert_events"],
+      "negative_examples": ["operation_artifacts"],
       "domain": "Observability & release",
       "existing_map_refs": ["observability-release-map", "workflow-task-orchestration-map", "delivery-support-map", "data-model-domain-map"],
       "rationale": "Operational alert rules, lifecycle events, CI signals, notifications, and readbacks are observability and operational response resources."
     },
     {
       "rule_key": "platform_data_and_governed_projections",
+      "scope": "bounded_exact",
       "match": {
         "exact_names": [
           "platform_data_table_registry",
@@ -79,28 +169,52 @@
     },
     {
       "rule_key": "platform_outbox_delivery",
+      "scope": "governed_family",
       "match": { "prefixes": ["platform_outbox_"] },
+      "family_owner": "delivery-platform",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only platform outbox event, consumer, delivery, event-type, and masking-policy objects belong to this family.",
+      "positive_examples": ["platform_outbox_deliveries"],
+      "negative_examples": ["email_outbox_events"],
       "domain": "Delivery & support",
       "existing_map_refs": ["delivery-support-map", "workflow-task-orchestration-map", "observability-release-map", "data-model-domain-map"],
       "rationale": "The platform outbox, consumers, deliveries, event types, and masking policies implement durable output delivery through existing maps."
     },
     {
       "rule_key": "platform_secret_movement",
+      "scope": "governed_family",
       "match": { "prefixes": ["platform_secret_movement_"] },
+      "family_owner": "platform-security",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only redacted secret-movement request, evidence, and audit objects with no raw secret values belong to this family.",
+      "positive_examples": ["platform_secret_movement_evidence"],
+      "negative_examples": ["platform_secrets"],
       "domain": "Governance & authority",
       "existing_map_refs": ["policy-authority-map", "observability-release-map", "data-model-domain-map"],
       "rationale": "Secret movement evidence is a governed authority and audit concern and must remain inside existing policy and observability maps."
     },
     {
       "rule_key": "repository_automation_control_plane",
+      "scope": "governed_family",
       "match": { "prefixes": ["repository_"] },
+      "family_owner": "repository-automation",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only repository automation runs, receipts, movement triggers, mutation runs, leases, and governed repository control objects belong to this family.",
+      "positive_examples": ["repository_mutation_runs"],
+      "negative_examples": ["source_repositories"],
       "domain": "Repository & development",
       "existing_map_refs": ["repository-development-map", "repository-automation-map", "observability-release-map", "data-model-domain-map"],
       "rationale": "Repository automation runs, receipts, movement triggers, mutation runs, and leases belong to the current repository development and automation maps."
     },
     {
       "rule_key": "sql_cache_runtime_policy",
+      "scope": "governed_family",
       "match": { "prefixes": ["sql_cache_"] },
+      "family_owner": "platform-runtime",
+      "future_object_policy": "same_domain_by_contract",
+      "boundary": "Only SQL cache policy, runtime configuration, evidence, and monitoring objects belong to this family.",
+      "positive_examples": ["sql_cache_runtime_policies"],
+      "negative_examples": ["query_cache_entries"],
       "domain": "Governance & authority",
       "existing_map_refs": ["policy-authority-map", "observability-release-map", "data-model-domain-map"],
       "rationale": "SQL cache runtime policies are governed runtime policy and monitoring concerns covered by existing authority and observability maps."
