@@ -54,7 +54,7 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 
 ## Phase G — UI, events, analytics and operations
 
-- [ ] T601 Implement schema/manifest-driven Admin forms and diff/lineage views.
+- [x] T601 Implement schema/manifest-driven Admin forms and diff/lineage views.
 - [ ] T602 Implement Tenant-safe views with role/field allowlists.
 - [ ] T603 Implement typed event schemas, outbox consumers and invalidation.
 - [ ] T604 Implement KPI definition/mapping and portfolio projections.
