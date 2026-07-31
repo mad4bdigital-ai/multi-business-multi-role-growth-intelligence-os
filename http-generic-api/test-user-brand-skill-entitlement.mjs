@@ -154,7 +154,15 @@ assert.equal(inferBrandSkillOperation("wordpress_send", {}, action, {}), "publis
 assert.equal(inferBrandSkillOperation("wordpress_update", {}, action, {}), "update");
 assert.equal(inferBrandSkillOperation("wordpress_delete", {}, action, {}), "delete");
 assert.equal(inferBrandSkillOperation("wordpress_revoke", {}, action, {}), "delete");
-assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "create" }), "create");
+assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "create" }), null);
+assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "publish" }), "publish");
+assert.equal(inferBrandSkillOperation("wordpress_mutation", {}, {
+  ...action,
+  action_key: "wordpress_mutation",
+}, {
+  operation_intent: "update",
+  brand_skill_operation_intent_trusted: true,
+}), "update");
 assert.equal(inferBrandSkillOperation("wordpress_mutation", {}, {
   ...action,
   action_key: "wordpress_mutation",
