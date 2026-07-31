@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+process.on('uncaughtException', (error) => {
+  const message = String(error?.message || error || 'unknown assertion failure')
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+  console.error(`::error file=http-generic-api/test-local-manager-tool-release-owner.mjs,title=Local Manager release-owner assertion failed::${message}`);
+  process.exit(1);
+});
+
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
+const connectorWatchdog = readFileSync('../local-connector/connector-watchdog.ps1', 'utf8');
 const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
 const localManagerDeviceLinkService = readFileSync('services/localManagerDeviceLinkService.js', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
@@ -41,6 +51,17 @@ assert(connectorAgent.includes('capabilities: payload.capabilities || []'), 'con
 assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'), 'Browser4 install must preserve connector-side domain allowlist');
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
+assert(connectorAgent.includes('CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat'), 'connector installer env must declare the canonical heartbeat endpoint');
+assert(/New-ScheduledTaskAction[^\n]+-File[^\n]+\$WatchdogPs1[^\n]+-Root[^\n]+\$Root/.test(connectorAgent), 'scheduled watchdog task must receive the actual installed root');
+assert(connectorAgent.includes('Start-ScheduledTask -TaskName $TaskName'), 'installer must start the watchdog immediately for post-install readback');
+assert(connectorAgent.includes('INSERT INTO') && connectorAgent.includes('local_connector_device_routes'), 'first connector heartbeat must be able to create the canonical route');
+assert(connectorAgent.includes('ON DUPLICATE KEY UPDATE'), 'connector heartbeat route creation must remain idempotent');
+assert(!connectorAgent.includes('await getPool().query(sql, params).catch(() => {});'), 'connector heartbeat route persistence errors must not be swallowed');
+assert(connectorWatchdog.includes('CONNECTOR_HEARTBEAT_URL'), 'watchdog must read the canonical heartbeat endpoint from the installed env');
+assert(connectorWatchdog.includes('Authorization = "Bearer $secret"'), 'watchdog heartbeat must use the existing connector bearer secret');
+assert(connectorWatchdog.includes('watchdog_installed = $true'), 'watchdog heartbeat must report installed watchdog evidence');
+assert(connectorWatchdog.includes('secrets_included = $false'), 'watchdog state and heartbeat metadata must remain secret-safe');
+assert(!connectorWatchdog.includes('Write-WatchdogLog "heartbeat_failed event_type=$EventType status=$Status http_status=$statusCode error='), 'watchdog logs must not emit raw heartbeat exception details');
 
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
