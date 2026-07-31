@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
 
 const authorityRecoveryTestCommands = Object.freeze([
@@ -30,10 +31,33 @@ const testCommands = Object.freeze([
   ...growthControlContinuationTestCommands,
 ]);
 
+function parsePositiveInteger(value, flag) {
+  if (!/^\d+$/.test(value || "")) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+
+  return parsed;
+}
+
+function readOptionValue(argv, index, flag) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value.`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const options = {
     grep: null,
     list: false,
+    shardIndex: null,
+    shardCount: null,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -43,7 +67,7 @@ function parseArgs(argv) {
       continue;
     }
     if (arg === "--grep") {
-      options.grep = argv[i + 1] || "";
+      options.grep = readOptionValue(argv, i, "--grep");
       i += 1;
       continue;
     }
@@ -51,10 +75,57 @@ function parseArgs(argv) {
       options.grep = arg.slice("--grep=".length);
       continue;
     }
+    if (arg === "--shard-index") {
+      options.shardIndex = parsePositiveInteger(readOptionValue(argv, i, "--shard-index"), "--shard-index");
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--shard-index=")) {
+      options.shardIndex = parsePositiveInteger(arg.slice("--shard-index=".length), "--shard-index");
+      continue;
+    }
+    if (arg === "--shard-count") {
+      options.shardCount = parsePositiveInteger(readOptionValue(argv, i, "--shard-count"), "--shard-count");
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith("--shard-count=")) {
+      options.shardCount = parsePositiveInteger(arg.slice("--shard-count=".length), "--shard-count");
+      continue;
+    }
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  const hasShardIndex = options.shardIndex !== null;
+  const hasShardCount = options.shardCount !== null;
+  if (hasShardIndex !== hasShardCount) {
+    throw new Error("--shard-index and --shard-count must be provided together.");
+  }
+  if (hasShardIndex && options.shardIndex > options.shardCount) {
+    throw new Error("--shard-index cannot exceed --shard-count.");
+  }
+
   return options;
+}
+
+function stableShardIndex(command, shardCount) {
+  const digest = createHash("sha256").update(command, "utf8").digest();
+  return digest.readUInt32BE(0) % shardCount;
+}
+
+function selectCommands(options) {
+  const matchingCommands = options.grep
+    ? testCommands.filter((command) => command.includes(options.grep))
+    : testCommands;
+
+  if (options.shardCount === null) {
+    return matchingCommands;
+  }
+
+  const zeroBasedShardIndex = options.shardIndex - 1;
+  return matchingCommands.filter(
+    (command) => stableShardIndex(command, options.shardCount) === zeroBasedShardIndex,
+  );
 }
 
 function splitCommand(command) {
@@ -117,9 +188,7 @@ function runCommand(command) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const selectedCommands = options.grep
-    ? testCommands.filter((command) => command.includes(options.grep))
-    : testCommands;
+  const selectedCommands = selectCommands(options);
 
   if (options.list) {
     selectedCommands.forEach((command, index) => {
@@ -129,8 +198,17 @@ function main() {
   }
 
   if (!selectedCommands.length) {
-    console.error("No test commands matched.");
+    const shardLabel = options.shardCount === null
+      ? ""
+      : ` for diagnostic shard ${options.shardIndex}/${options.shardCount}`;
+    console.error(`No test commands matched${shardLabel}.`);
     process.exit(1);
+  }
+
+  if (options.shardCount !== null) {
+    console.log(
+      `Diagnostic shard ${options.shardIndex}/${options.shardCount}: selected ${selectedCommands.length} of ${testCommands.length} manifest commands.`,
+    );
   }
 
   for (let index = 0; index < selectedCommands.length; index += 1) {
