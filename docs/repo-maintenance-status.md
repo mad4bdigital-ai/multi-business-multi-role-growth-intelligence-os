@@ -54,6 +54,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Automation Workflows
 
+- `.github/workflows/authority-live-census-observation.yml`
 - `.github/workflows/automation-overlap-guard.yml`
 - `.github/workflows/branch-test-diagnostic-shards.yml`
 - `.github/workflows/brand-skill-mariadb-certification.yml`
@@ -66,6 +67,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-surface-dispatch.yml`
 - `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
 - `.github/workflows/governed-local-connector-production-closure.yml`
+- `.github/workflows/governed-migration-dependency-gate.yml`
+- `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
