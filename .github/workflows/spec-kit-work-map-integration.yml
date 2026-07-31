@@ -1,0 +1,57 @@
+name: Spec Kit Work Map Integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".specify/**"
+      - "specs/**"
+      - "docs/work-maps/**"
+      - "http-generic-api/migrations/**"
+      - "http-generic-api/scripts/platform-work-map-*.mjs"
+      - "http-generic-api/scripts/spec-kit-work-map-*.mjs"
+      - "http-generic-api/scripts/work-map-schema-classification.mjs"
+      - "http-generic-api/test-work-map-*.mjs"
+      - ".github/workflows/spec-kit-work-map-integration.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-kit-work-map-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  work-map-integration:
+    name: Work Map Integration Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate gate module syntax
+        run: |
+          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+          node --check http-generic-api/test-work-map-schema-classification.mjs
+
+      - name: Require complete schema classification
+        run: node http-generic-api/scripts/work-map-schema-classification.mjs --ci
+
+      - name: Require complete Spec Kit Work Map integration
+        run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+      - name: Run classification regression tests
+        working-directory: http-generic-api
+        run: node test-work-map-schema-classification.mjs
+
+      - name: Run existing Spec Kit completion regressions
+        working-directory: http-generic-api
+        run: node test-spec-kit-completion-gate.mjs
