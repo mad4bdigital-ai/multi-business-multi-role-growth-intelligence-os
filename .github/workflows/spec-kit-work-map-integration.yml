@@ -13,6 +13,7 @@ on:
       - "http-generic-api/scripts/spec-kit-work-map-*.mjs"
       - "http-generic-api/scripts/work-map-schema-classification.mjs"
       - "http-generic-api/test-work-map-*.mjs"
+      - "http-generic-api/test-spec-kit-work-map-*.mjs"
       - ".github/workflows/spec-kit-work-map-integration.yml"
 
 permissions:
@@ -41,6 +42,7 @@ jobs:
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
           node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
 
       - name: Require complete schema classification
         run: node http-generic-api/scripts/work-map-schema-classification.mjs --ci
@@ -48,9 +50,11 @@ jobs:
       - name: Require complete Spec Kit Work Map integration
         run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
-      - name: Run classification regression tests
+      - name: Run Work Map governance regression tests
         working-directory: http-generic-api
-        run: node test-work-map-schema-classification.mjs
+        run: |
+          node test-work-map-schema-classification.mjs
+          node test-spec-kit-work-map-governance-gate.mjs
 
       - name: Run existing Spec Kit completion regressions
         working-directory: http-generic-api
