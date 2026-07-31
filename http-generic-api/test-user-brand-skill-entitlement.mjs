@@ -150,10 +150,27 @@ const exactResourceGrant = {
 };
 
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, {}), "publish");
-assert.equal(inferBrandSkillOperation("wordpress_send", {}, action, {}), "publish");
-assert.equal(inferBrandSkillOperation("wordpress_update", {}, action, {}), "update");
-assert.equal(inferBrandSkillOperation("wordpress_delete", {}, action, {}), "delete");
-assert.equal(inferBrandSkillOperation("wordpress_revoke", {}, action, {}), "delete");
+assert.equal(inferBrandSkillOperation("wordpress_send", {}, {
+  ...action,
+  action_key: "wordpress_send",
+}, {}), "publish");
+assert.equal(inferBrandSkillOperation("wordpress_update", {}, {
+  ...action,
+  action_key: "wordpress_update",
+}, {}), "update");
+assert.equal(inferBrandSkillOperation("wordpress_delete", {}, {
+  ...action,
+  action_key: "wordpress_delete",
+}, {}), "delete");
+assert.equal(inferBrandSkillOperation("wordpress_revoke", {}, {
+  ...action,
+  action_key: "wordpress_revoke",
+}, {}), "delete");
+assert.equal(
+  inferBrandSkillOperation("wordpress_update", {}, action, {}),
+  "publish",
+  "a lower-consequence tool alias must not downshift the registered action consequence",
+);
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "create" }), null);
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "publish" }), "publish");
 assert.equal(inferBrandSkillOperation("wordpress_create_post", { status: "publish" }, {
