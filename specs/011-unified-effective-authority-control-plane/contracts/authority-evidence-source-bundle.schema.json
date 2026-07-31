@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ueacp/authority-evidence-source-bundle.schema.json",
+  "title": "UEACP Authority Evidence Source Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["expected_source_families", "sources"],
+  "properties": {
+    "expected_source_families": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/sourceFamily" }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 221,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+    },
+    "sourceFamily": {
+      "enum": [
+        "system_tool_registry",
+        "admin_endpoint_catalog",
+        "direct_http_routes",
+        "runtime_action_registry",
+        "descriptor_catalog",
+        "provider_binding_catalog",
+        "local_device_catalog",
+        "compatibility_alias_registry"
+      ]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_only", "provider_calls", "credential_payload_read", "external_writes", "secrets_included"],
+      "properties": {
+        "read_only": { "const": true },
+        "provider_calls": { "const": false },
+        "credential_payload_read": { "const": false },
+        "external_writes": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_count", "observed_count", "complete", "next_cursor"],
+      "properties": {
+        "expected_count": { "type": "integer", "minimum": 0 },
+        "observed_count": { "type": "integer", "minimum": 0 },
+        "page_count": { "type": "integer", "minimum": 0 },
+        "complete": { "type": "boolean" },
+        "next_cursor": { "type": ["string", "null"], "maxLength": 221 }
+      }
+    },
+    "pathRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_key",
+        "surface_family",
+        "handler_key",
+        "authority_mode",
+        "operation_mode",
+        "callability",
+        "status",
+        "actor_source",
+        "subject_source",
+        "workspace_scope_source",
+        "resource_authority_source",
+        "capability_authority_source",
+        "provider_scope_source",
+        "credential_scope_source",
+        "risk_class",
+        "revision_source",
+        "freshness_source",
+        "revocation_source",
+        "invalidation_source",
+        "atomicity_policy"
+      ],
+      "properties": {
+        "path_key": { "$ref": "#/$defs/token" },
+        "canonical_tool_key": { "anyOf": [{ "$ref": "#/$defs/token" }, { "type": "null" }] },
+        "route": { "type": ["string", "null"], "maxLength": 512 },
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", null] },
+        "surface_family": { "$ref": "#/$defs/token" },
+        "source_registry": { "$ref": "#/$defs/token" },
+        "handler_key": { "$ref": "#/$defs/token" },
+        "authority_mode": { "enum": ["admin_only", "tenant_only", "shared", "internal"] },
+        "operation_mode": { "enum": ["read_only", "preview", "shadow", "plan", "mutation", "internal"] },
+        "callability": { "enum": ["callable", "authorization_gated", "blocked", "deprecated", "unknown"] },
+        "status": { "enum": ["active", "inactive", "blocked", "deprecated", "unknown"] },
+        "actor_source": { "$ref": "#/$defs/token" },
+        "subject_source": { "$ref": "#/$defs/token" },
+        "tenant_scope_source": { "anyOf": [{ "$ref": "#/$defs/token" }, { "type": "null" }] },
+        "workspace_scope_source": { "$ref": "#/$defs/token" },
+        "resource_authority_source": { "$ref": "#/$defs/token" },
+        "capability_authority_source": { "$ref": "#/$defs/token" },
+        "provider_scope_source": { "$ref": "#/$defs/token" },
+        "credential_scope_source": { "$ref": "#/$defs/token" },
+        "risk_class": { "$ref": "#/$defs/token" },
+        "revision_source": { "$ref": "#/$defs/token" },
+        "freshness_source": { "$ref": "#/$defs/token" },
+        "revocation_source": { "$ref": "#/$defs/token" },
+        "invalidation_source": { "$ref": "#/$defs/token" },
+        "atomicity_policy": { "$ref": "#/$defs/token" },
+        "replacement_path_key": { "anyOf": [{ "$ref": "#/$defs/token" }, { "type": "null" }] },
+        "aliases": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/token" } },
+        "requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "approval": { "type": "boolean" },
+            "typed_confirmation": { "type": "boolean" },
+            "capability_envelope": { "type": "boolean" },
+            "idempotency": { "type": "boolean" },
+            "readback": { "type": "boolean" },
+            "rollback": { "type": "boolean" }
+          }
+        },
+        "credential_payload_read": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_family",
+        "source_key",
+        "source_identity",
+        "observed_at",
+        "pagination",
+        "evidence_refs",
+        "records",
+        "safety"
+      ],
+      "properties": {
+        "source_family": { "$ref": "#/$defs/sourceFamily" },
+        "source_key": { "$ref": "#/$defs/token" },
+        "source_identity": { "$ref": "#/$defs/token" },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "pagination": { "$ref": "#/$defs/pagination" },
+        "evidence_refs": { "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/token" } },
+        "content_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "records": { "type": "array", "maxItems": 8192, "items": { "$ref": "#/$defs/pathRecord" } },
+        "safety": { "$ref": "#/$defs/safety" }
+      }
+    }
+  }
+}
