@@ -66,4 +66,6 @@ for (const workflow of [launcher, postFinalizationGuard]) {
   assert.doesNotMatch(workflow, /force-with-lease/i);
 }
 
+await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
+
 console.log("Production promotion convergence workflow contract test passed");
