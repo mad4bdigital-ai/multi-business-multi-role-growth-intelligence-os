@@ -1,13 +1,18 @@
 import {
   deepFreeze,
   median,
+  normalizeCertificationContext,
   requireNonNegativeFinite,
   requireObject,
   requireRatio,
   requireToken,
 } from "./executionCapsuleRolloutSupport.js";
 
-const DEFAULT_LANES = Object.freeze(["tenant_read", "admin_read", "governed_mutation"]);
+const REQUIRED_LANES = Object.freeze(["tenant_read", "admin_read", "governed_mutation"]);
+const MINIMUM_SAMPLE_COUNT = 6;
+const MINIMUM_SAMPLES_PER_REQUIRED_LANE = 2;
+const MINIMUM_MEDIAN_IMPROVEMENT = 0.4;
+const MINIMUM_ENUMERATION_REDUCTION = 0.6;
 const TRUSTED_CERTIFICATES = new WeakSet();
 
 function normalizeSample(sample, index) {
@@ -48,13 +53,22 @@ function normalizeRollbackEvidence(value) {
 }
 
 export function createExecutionCapsuleRolloutEvaluator({
-  minimumSampleCount = 6,
-  requiredLanes = DEFAULT_LANES,
-  minimumMedianImprovement = 0.4,
-  minimumEnumerationReduction = 0.6,
+  minimumSampleCount = MINIMUM_SAMPLE_COUNT,
+  minimumSamplesPerRequiredLane = MINIMUM_SAMPLES_PER_REQUIRED_LANE,
+  requiredLanes = REQUIRED_LANES,
+  minimumMedianImprovement = MINIMUM_MEDIAN_IMPROVEMENT,
+  minimumEnumerationReduction = MINIMUM_ENUMERATION_REDUCTION,
 } = {}) {
-  if (!Number.isInteger(minimumSampleCount) || minimumSampleCount < 1) {
-    throw new TypeError("minimumSampleCount must be a positive integer.");
+  if (!Number.isInteger(minimumSampleCount) || minimumSampleCount < MINIMUM_SAMPLE_COUNT) {
+    throw new TypeError(`minimumSampleCount cannot be lower than ${MINIMUM_SAMPLE_COUNT}.`);
+  }
+  if (
+    !Number.isInteger(minimumSamplesPerRequiredLane) ||
+    minimumSamplesPerRequiredLane < MINIMUM_SAMPLES_PER_REQUIRED_LANE
+  ) {
+    throw new TypeError(
+      `minimumSamplesPerRequiredLane cannot be lower than ${MINIMUM_SAMPLES_PER_REQUIRED_LANE}.`,
+    );
   }
   if (!Array.isArray(requiredLanes) || requiredLanes.length === 0) {
     throw new TypeError("requiredLanes must be a non-empty array.");
@@ -62,16 +76,36 @@ export function createExecutionCapsuleRolloutEvaluator({
   const lanes = Object.freeze([...new Set(requiredLanes.map((lane, index) =>
     requireToken(lane, `requiredLanes[${index}]`)
   ))].sort());
+  const missingMandatoryLanes = REQUIRED_LANES.filter((lane) => !lanes.includes(lane));
+  if (missingMandatoryLanes.length) {
+    throw new TypeError(`requiredLanes must include: ${REQUIRED_LANES.join(", ")}.`);
+  }
   const improvementFloor = requireRatio(minimumMedianImprovement, "minimumMedianImprovement");
   const enumerationFloor = requireRatio(minimumEnumerationReduction, "minimumEnumerationReduction");
+  if (improvementFloor < MINIMUM_MEDIAN_IMPROVEMENT) {
+    throw new TypeError(`minimumMedianImprovement cannot be lower than ${MINIMUM_MEDIAN_IMPROVEMENT}.`);
+  }
+  if (enumerationFloor < MINIMUM_ENUMERATION_REDUCTION) {
+    throw new TypeError(`minimumEnumerationReduction cannot be lower than ${MINIMUM_ENUMERATION_REDUCTION}.`);
+  }
 
   return Object.freeze({
-    evaluate({ samples, rollbackEvidence } = {}) {
+    evaluate({ samples, rollbackEvidence, certificationContext } = {}) {
       if (!Array.isArray(samples)) throw new TypeError("samples must be an array.");
       const normalized = Object.freeze(samples.map(normalizeSample));
+      const normalizedContext = normalizeCertificationContext(certificationContext);
       const rollback = normalizeRollbackEvidence(rollbackEvidence);
+      const sampleRefs = new Set(normalized.map((sample) => sample.sampleRef));
+      const duplicateSampleRefs = normalized.length - sampleRefs.size;
       const observedLanes = new Set(normalized.map((sample) => sample.lane));
       const missingLanes = lanes.filter((lane) => !observedLanes.has(lane));
+      const laneSampleCounts = Object.fromEntries(lanes.map((lane) => [
+        lane,
+        normalized.filter((sample) => sample.lane === lane).length,
+      ]));
+      const underrepresentedLanes = REQUIRED_LANES.filter(
+        (lane) => laneSampleCounts[lane] < minimumSamplesPerRequiredLane,
+      );
       const legacyMedian = median(normalized.map((sample) => sample.legacyDurationMs));
       const capsuleMedian = median(normalized.map((sample) => sample.capsuleDurationMs));
       const medianImprovement = legacyMedian > 0
@@ -100,7 +134,9 @@ export function createExecutionCapsuleRolloutEvaluator({
         !rollback.credentialMutationPerformed;
       const reasonCodes = [];
       if (normalized.length < minimumSampleCount) reasonCodes.push("execution_capsule_rollout_sample_count_insufficient");
+      if (duplicateSampleRefs) reasonCodes.push("execution_capsule_rollout_duplicate_sample_ref");
       if (missingLanes.length) reasonCodes.push("execution_capsule_rollout_required_lane_missing");
+      if (underrepresentedLanes.length) reasonCodes.push("execution_capsule_rollout_required_lane_underrepresented");
       if (parityFailures) reasonCodes.push("execution_capsule_rollout_parity_failed");
       if (targetFailures) reasonCodes.push("execution_capsule_rollout_target_retention_failed");
       if (safetyViolations) reasonCodes.push("execution_capsule_rollout_safety_violation");
@@ -109,14 +145,21 @@ export function createExecutionCapsuleRolloutEvaluator({
       if (!rollbackSafe) reasonCodes.push("execution_capsule_rollout_rollback_not_safe");
 
       const certificate = deepFreeze({
-        contract: "mad4b.execution-capsule-rollout-certificate.v1",
+        contract: "mad4b.execution-capsule-rollout-certificate.v2",
+        certificationContext: normalizedContext,
         status: reasonCodes.length ? "blocked" : "certified",
         rolloutAllowed: reasonCodes.length === 0,
         legacyRetirementAllowed: reasonCodes.length === 0,
         sampleCount: normalized.length,
+        uniqueSampleCount: sampleRefs.size,
+        duplicateSampleRefs,
+        minimumSampleCount,
+        minimumSamplesPerRequiredLane,
         requiredLanes: lanes,
         observedLanes: [...observedLanes].sort(),
         missingLanes,
+        laneSampleCounts,
+        underrepresentedLanes,
         parityFailures,
         targetFailures,
         safetyViolations,
