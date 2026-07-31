@@ -174,7 +174,11 @@ assert.equal(tenantProjection.observationCount, 1);
 assert.equal(tenantProjection.series[0].nativeDefinitions[0].sourceSystemKeys[0], "travel.analytics");
 assert.equal(tenantProjection.otherTenantsIncluded, false);
 
-const writeResult = await service.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-1", now });
+await assert.rejects(
+  () => service.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-clock", now }),
+  (error) => error?.code === "GROWTH_CONTROL_CALLER_CLOCK_FORBIDDEN" && error?.status === 400,
+);
+const writeResult = await service.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-1" });
 assert.equal(writeResult.sameCycleReadback, true);
 assert.equal(writeResult.providerCalls, false);
 assert.equal(appendedObservation.observationSha256, writeResult.observation.observationSha256);
@@ -192,7 +196,7 @@ const scopedRepository = {
 };
 const scopedService = createGrowthControlAnalyticsObservabilityService({ repository: scopedRepository });
 await assert.rejects(
-  () => scopedService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-cross-scope", now }),
+  () => scopedService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-cross-scope" }),
   (error) => error?.code === "GROWTH_CONTROL_KPI_BINDING_SCOPE_MISMATCH" && error?.status === 403,
 );
 
@@ -202,14 +206,14 @@ const inactiveRepository = {
 };
 const inactiveService = createGrowthControlAnalyticsObservabilityService({ repository: inactiveRepository });
 await assert.rejects(
-  () => inactiveService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-inactive-definition", now }),
+  () => inactiveService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-inactive-definition" }),
   (error) => error?.code === "GROWTH_CONTROL_KPI_DEFINITION_NOT_ACTIVE" && error?.status === 409,
 );
 
 const mismatchingRepository = { ...repository, async appendNormalizedMetricObservation() { return { observationSha256: "0".repeat(64) }; } };
 const mismatchingService = createGrowthControlAnalyticsObservabilityService({ repository: mismatchingRepository });
 await assert.rejects(
-  () => mismatchingService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-2", now }),
+  () => mismatchingService.recordMetricObservation({ ...observations[0], idempotencyKey: "metric-write-2" }),
   (error) => error?.code === "GROWTH_CONTROL_KPI_READBACK_MISMATCH",
 );
 
