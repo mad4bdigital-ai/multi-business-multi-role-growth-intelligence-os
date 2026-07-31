@@ -1,13 +1,16 @@
 import {
+  certificationContextMismatchFields,
   completeTarget,
   deepFreeze,
   defaultParityComparator,
   durationMilliseconds,
   emitSafely,
+  normalizeCertificationContext,
   requireFunction,
   requireObject,
   revisionBoundCacheKey,
   safeClockMilliseconds,
+  safeReasonCode,
   targetMismatchFields,
 } from "./executionCapsuleRolloutSupport.js";
 import {
@@ -15,6 +18,8 @@ import {
 } from "./executionCapsuleRolloutEvaluator.js";
 
 const MODE_SET = new Set(["disabled", "shadow", "canary", "retired"]);
+const DEFAULT_MAX_CACHE_ENTRIES = 256;
+const MAX_CACHE_ENTRIES_LIMIT = 4096;
 
 export class ExecutionCapsuleRolloutError extends Error {
   constructor(code, reasonCodes = [code]) {
@@ -22,13 +27,25 @@ export class ExecutionCapsuleRolloutError extends Error {
     this.name = "ExecutionCapsuleRolloutError";
     this.code = code;
     this.status = 409;
-    this.reasonCodes = Object.freeze([...new Set(reasonCodes)]);
+    this.reasonCodes = Object.freeze([...new Set(reasonCodes.map((reason) =>
+      safeReasonCode(reason, code)
+    ))]);
   }
 }
 
-function requireCertificate(certificate, retirement = false) {
+function requireCertificate(certificate, expectedContext, retirement = false) {
   if (!isTrustedExecutionCapsuleRolloutCertificate(certificate)) {
     throw new ExecutionCapsuleRolloutError("execution_capsule_rollout_certificate_untrusted");
+  }
+  const mismatches = certificationContextMismatchFields(
+    certificate.certificationContext,
+    expectedContext,
+  );
+  if (mismatches.length) {
+    throw new ExecutionCapsuleRolloutError(
+      "execution_capsule_rollout_certificate_revision_mismatch",
+      mismatches.map((field) => `execution_capsule_rollout_${field}_mismatch`),
+    );
   }
   const allowed = retirement
     ? certificate.legacyRetirementAllowed === true
@@ -65,7 +82,14 @@ function createFailClosedRollback(reasonCode) {
       return 0;
     },
     snapshot() {
-      return deepFreeze({ mode: "fail_closed", legacyRetired: true, cacheEntries: 0, reasonCodes: [reasonCode], secretsIncluded: false });
+      return deepFreeze({
+        mode: "fail_closed",
+        legacyRetired: true,
+        cacheEntries: 0,
+        maxCacheEntries: 0,
+        reasonCodes: [reasonCode],
+        secretsIncluded: false,
+      });
     },
   });
 }
@@ -75,43 +99,58 @@ export function createExecutionCapsuleRolloutCoordinator({
   legacyResolutionService = null,
   capsuleResolutionService = null,
   certification = null,
+  expectedCertificationContext = null,
   canarySelector = () => false,
   parityComparator = defaultParityComparator,
   expectedTargetProvider = (input) => input?.expectedTarget,
   emitTelemetry = async () => {},
   rollbackIsolationGuard = null,
+  maxCacheEntries = DEFAULT_MAX_CACHE_ENTRIES,
   clock = () => Date.now(),
 } = {}) {
   if (!MODE_SET.has(mode)) throw new TypeError(`Unsupported rollout mode: ${mode}`);
   const legacy = requireService(legacyResolutionService, "legacyResolutionService");
-  const capsule = mode === "disabled" ? capsuleResolutionService : requireService(capsuleResolutionService, "capsuleResolutionService");
+  const capsule = mode === "disabled"
+    ? capsuleResolutionService
+    : requireService(capsuleResolutionService, "capsuleResolutionService");
   requireFunction(canarySelector, "canarySelector");
   requireFunction(parityComparator, "parityComparator");
   requireFunction(expectedTargetProvider, "expectedTargetProvider");
   requireFunction(emitTelemetry, "emitTelemetry");
   requireFunction(clock, "clock");
   if (rollbackIsolationGuard != null) requireFunction(rollbackIsolationGuard, "rollbackIsolationGuard");
-  if (mode === "canary") requireCertificate(certification);
-  if (mode === "retired") requireCertificate(certification, true);
+  if (!Number.isInteger(maxCacheEntries) || maxCacheEntries < 1 || maxCacheEntries > MAX_CACHE_ENTRIES_LIMIT) {
+    throw new TypeError(`maxCacheEntries must be an integer between 1 and ${MAX_CACHE_ENTRIES_LIMIT}.`);
+  }
+  const certificationContext = ["canary", "retired"].includes(mode)
+    ? normalizeCertificationContext(expectedCertificationContext, "expectedCertificationContext")
+    : null;
+  if (mode === "canary") requireCertificate(certification, certificationContext);
+  if (mode === "retired") requireCertificate(certification, certificationContext, true);
 
   const cache = new Map();
-  const counters = { legacyCalls: 0, capsuleCalls: 0, cacheHits: 0, shadowParityFailures: 0, targetRetentionFailures: 0 };
+  const counters = {
+    legacyCalls: 0,
+    capsuleCalls: 0,
+    cacheHits: 0,
+    cacheEvictions: 0,
+    shadowParityFailures: 0,
+    targetRetentionFailures: 0,
+  };
 
   async function resolveLegacy(input) {
     counters.legacyCalls += 1;
     return legacy.resolve(input);
   }
 
-  async function resolveCapsule(input) {
-    const key = revisionBoundCacheKey(input);
-    if (cache.has(key)) {
-      counters.cacheHits += 1;
-      return { result: cache.get(key), cacheHit: true };
+  function setCache(key, result) {
+    if (cache.has(key)) cache.delete(key);
+    cache.set(key, result);
+    while (cache.size > maxCacheEntries) {
+      const oldest = cache.keys().next().value;
+      cache.delete(oldest);
+      counters.cacheEvictions += 1;
     }
-    counters.capsuleCalls += 1;
-    const result = await capsule.resolve(input);
-    if (result?.status === "resolved") cache.set(key, result);
-    return { result, cacheHit: false };
   }
 
   function assertTargetRetained(input, result) {
@@ -124,6 +163,23 @@ export function createExecutionCapsuleRolloutCoordinator({
         ["execution_capsule_rollout_target_substitution_blocked"],
       );
     }
+  }
+
+  async function resolveCapsule(input) {
+    const key = revisionBoundCacheKey(input);
+    if (cache.has(key)) {
+      const result = cache.get(key);
+      cache.delete(key);
+      cache.set(key, result);
+      counters.cacheHits += 1;
+      assertTargetRetained(input, result);
+      return { result, cacheHit: true };
+    }
+    counters.capsuleCalls += 1;
+    const result = await capsule.resolve(input);
+    assertTargetRetained(input, result);
+    if (result?.status === "resolved") setCache(key, result);
+    return { result, cacheHit: false };
   }
 
   const coordinator = {
@@ -146,28 +202,30 @@ export function createExecutionCapsuleRolloutCoordinator({
           cacheHit = resolved.cacheHit;
           capsuleResult = resolved.result;
           parityMatched = parityComparator(legacyResult, capsuleResult) === true;
-          exactTargetRetained = targetMismatchFields(
-            completeTarget(expectedTargetProvider(input), "expectedTarget"),
-            completeTarget(capsuleResult, "capsuleResult"),
-          ).length === 0;
+          exactTargetRetained = true;
           if (!parityMatched) {
             counters.shadowParityFailures += 1;
             reasonCodes.push("execution_capsule_rollout_shadow_parity_failed");
           }
-          if (!exactTargetRetained) {
-            counters.targetRetentionFailures += 1;
-            reasonCodes.push("execution_capsule_rollout_target_substitution_blocked");
-          }
         } catch (error) {
+          exactTargetRetained = error?.code !== "context_re_resolution_required";
           reasonCodes = [error?.code === "context_re_resolution_required"
             ? "execution_capsule_rollout_target_substitution_blocked"
             : "execution_capsule_rollout_shadow_capsule_failed"];
         }
         await emitSafely(emitTelemetry, {
-          eventType: "execution_capsule_rollout", mode, legacyAuthoritative: true,
-          legacyRetired: false, canarySelected: false, parityMatched, exactTargetRetained,
-          capsuleResolved: Boolean(capsuleResult), cacheHit,
-          durationMs: durationMilliseconds(clock, startedAt), reasonCodes, secretsIncluded: false,
+          eventType: "execution_capsule_rollout",
+          mode,
+          legacyAuthoritative: true,
+          legacyRetired: false,
+          canarySelected: false,
+          parityMatched,
+          exactTargetRetained,
+          capsuleResolved: Boolean(capsuleResult),
+          cacheHit,
+          durationMs: durationMilliseconds(clock, startedAt),
+          reasonCodes,
+          secretsIncluded: false,
         });
         return legacyResult;
       }
@@ -178,21 +236,35 @@ export function createExecutionCapsuleRolloutCoordinator({
       try {
         const resolved = await resolveCapsule(input);
         cacheHit = resolved.cacheHit;
-        assertTargetRetained(input, resolved.result);
         await emitSafely(emitTelemetry, {
-          eventType: "execution_capsule_rollout", mode, legacyAuthoritative: false,
-          legacyRetired: mode === "retired", canarySelected: true, parityMatched: true,
-          exactTargetRetained: true, capsuleResolved: true, cacheHit,
-          durationMs: durationMilliseconds(clock, startedAt), reasonCodes: [], secretsIncluded: false,
+          eventType: "execution_capsule_rollout",
+          mode,
+          legacyAuthoritative: false,
+          legacyRetired: mode === "retired",
+          canarySelected: true,
+          parityMatched: true,
+          exactTargetRetained: true,
+          capsuleResolved: true,
+          cacheHit,
+          durationMs: durationMilliseconds(clock, startedAt),
+          reasonCodes: [],
+          secretsIncluded: false,
         });
         return resolved.result;
       } catch (error) {
         await emitSafely(emitTelemetry, {
-          eventType: "execution_capsule_rollout", mode, legacyAuthoritative: false,
-          legacyRetired: mode === "retired", canarySelected: true, parityMatched: false,
-          exactTargetRetained: false, capsuleResolved: false, cacheHit,
+          eventType: "execution_capsule_rollout",
+          mode,
+          legacyAuthoritative: false,
+          legacyRetired: mode === "retired",
+          canarySelected: true,
+          parityMatched: false,
+          exactTargetRetained: error?.code !== "context_re_resolution_required",
+          capsuleResolved: false,
+          cacheHit,
           durationMs: durationMilliseconds(clock, startedAt),
-          reasonCodes: [error?.code || "execution_capsule_rollout_capsule_failed"], secretsIncluded: false,
+          reasonCodes: [safeReasonCode(error?.code)],
+          secretsIncluded: false,
         });
         throw error;
       }
@@ -207,7 +279,14 @@ export function createExecutionCapsuleRolloutCoordinator({
     },
     rollback(evidence = {}) {
       if (mode === "shadow") {
-        return createExecutionCapsuleRolloutCoordinator({ mode: "disabled", legacyResolutionService: legacy, capsuleResolutionService: capsule, emitTelemetry, clock });
+        return createExecutionCapsuleRolloutCoordinator({
+          mode: "disabled",
+          legacyResolutionService: legacy,
+          capsuleResolutionService: capsule,
+          emitTelemetry,
+          maxCacheEntries,
+          clock,
+        });
       }
       if (mode === "disabled") return coordinator;
       let safe = false;
@@ -216,27 +295,39 @@ export function createExecutionCapsuleRolloutCoordinator({
       } catch {
         safe = false;
       }
-      if (!safe) return createFailClosedRollback("execution_capsule_rollout_rollback_isolation_unavailable");
+      if (!safe) {
+        return createFailClosedRollback("execution_capsule_rollout_rollback_isolation_unavailable");
+      }
       return createExecutionCapsuleRolloutCoordinator({
         mode: mode === "retired" ? "canary" : "disabled",
         legacyResolutionService: legacy,
         capsuleResolutionService: capsule,
         certification,
+        expectedCertificationContext: certificationContext,
         canarySelector,
         parityComparator,
         expectedTargetProvider,
         emitTelemetry,
         rollbackIsolationGuard,
+        maxCacheEntries,
         clock,
       });
     },
     snapshot() {
       return deepFreeze({
-        mode, legacyRetired: mode === "retired", cacheEntries: cache.size,
-        legacyCalls: counters.legacyCalls, capsuleCalls: counters.capsuleCalls,
-        cacheHits: counters.cacheHits, shadowParityFailures: counters.shadowParityFailures,
+        mode,
+        legacyRetired: mode === "retired",
+        cacheEntries: cache.size,
+        maxCacheEntries,
+        legacyCalls: counters.legacyCalls,
+        capsuleCalls: counters.capsuleCalls,
+        cacheHits: counters.cacheHits,
+        cacheEvictions: counters.cacheEvictions,
+        shadowParityFailures: counters.shadowParityFailures,
         targetRetentionFailures: counters.targetRetentionFailures,
-        certificationStatus: certification?.status || null, secretsIncluded: false,
+        certificationStatus: certification?.status || null,
+        certificationContext,
+        secretsIncluded: false,
       });
     },
   };
@@ -244,5 +335,8 @@ export function createExecutionCapsuleRolloutCoordinator({
 }
 
 export const ExecutionCapsuleRolloutMode = Object.freeze({
-  DISABLED: "disabled", SHADOW: "shadow", CANARY: "canary", RETIRED: "retired",
+  DISABLED: "disabled",
+  SHADOW: "shadow",
+  CANARY: "canary",
+  RETIRED: "retired",
 });
