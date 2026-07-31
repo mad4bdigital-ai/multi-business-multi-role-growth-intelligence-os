@@ -120,8 +120,9 @@ jobs:
             args+=(--grep "$grep")
           fi
 
-          matrix="$(node scripts/run-test-diagnostic-shard.mjs "${args[@]}")"
-          echo "Resolved diagnostic matrix: $matrix"
+          plan="$(node scripts/run-test-diagnostic-shard.mjs "${args[@]}")"
+          matrix="$(node -e 'const plan=JSON.parse(process.argv[1]); process.stdout.write(JSON.stringify({include:plan.include}));' "$plan")"
+          echo "Resolved diagnostic plan: $plan"
           {
             echo "matrix=$matrix"
             echo "family=${family//$'\n'/ }"
@@ -221,6 +222,7 @@ jobs:
             .map((name) => JSON.parse(fs.readFileSync(path.join(root, name), 'utf8')))
             .filter((report) => report.contract === 'mad4b.test-diagnostic-shard-report.v2')
             .sort((left, right) => `${left.family}:${left.shardIndex}`.localeCompare(`${right.family}:${right.shardIndex}`));
+          if (!reports.length) throw new Error('No diagnostic shard reports were produced.');
 
           const failures = reports.flatMap((report) => report.failures.map((failure) => ({
             ...failure,
