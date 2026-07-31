@@ -129,6 +129,31 @@ const indexText = [
     classificationRegistry: registry(),
   });
   assert(result.findings.some((row) => row.type === "unresolved_schema_objects_forbidden"));
+  assert.deepEqual(result.unresolved.map((row) => row.name), [UNRESOLVED_OBJECT]);
+  assert.deepEqual(result.classified.map((row) => row.name), [REGISTRY_OBJECT]);
+  assert.equal(result.classification_coverage_percent, 50);
+}
+
+{
+  const root = fixture();
+  const staleCoverageText = [
+    "# Work Map Coverage Matrix",
+    "",
+    "## Unresolved schema objects",
+    "",
+    `- \`${REGISTRY_OBJECT}\` (table)`,
+  ].join("\n");
+  const result = validateSchemaClassification({
+    root,
+    indexText,
+    coverageText: staleCoverageText,
+    classificationRegistry: registry(),
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.findings, []);
+  assert.deepEqual(result.classified.map((row) => row.name), [REGISTRY_OBJECT]);
+  assert.deepEqual(result.unresolved, []);
+  assert.equal(result.classification_coverage_percent, 100);
 }
 
 {
