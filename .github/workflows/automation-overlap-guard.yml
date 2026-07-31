@@ -31,10 +31,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: >-
-    ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A') && 'automation-overlap-guard-local-connector-closure-v6' || format('automation-overlap-guard-{0}', github.ref) }}
-  cancel-in-progress: >-
-    ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A')) }}
+  group: automation-overlap-guard-${{ github.event_name }}-${{ github.ref }}-local-connector-final-v8
+  cancel-in-progress: false
 
 jobs:
   analyze:
@@ -88,19 +86,7 @@ jobs:
 
   local-connector-production-closure:
     name: Governed Local Connector Production Closure
-    if: >-
-      (
-        github.event_name == 'pull_request' &&
-        github.event.action == 'ready_for_review' &&
-        github.event.pull_request.number == 4076 &&
-        github.event.pull_request.base.ref == 'main' &&
-        github.head_ref == 'gpt/visible-local-connector-closure-run-v2-20260731' &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      ) || (
-        github.event_name == 'push' &&
-        github.ref == 'refs/heads/main' &&
-        contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A')
-      )
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_PR_3945_792FF63A')
     permissions:
       contents: read
       issues: write
@@ -108,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     concurrency:
-      group: governed-local-connector-production-closure-pr-3945-final-v6
+      group: governed-local-connector-production-closure-pr-3945-final-v8
       cancel-in-progress: false
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
@@ -140,7 +126,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v6 trusted_ref=main workflow_noncancelling=true job_noncancelling=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v8 trusted_ref=main workflow_noncancelling=true job_noncancelling=true"
 
       - name: Verify exact merged Production PR
         env:
@@ -178,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v6 trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} workflow_noncancelling=true job_noncancelling=true"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v8 trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} workflow_noncancelling=true job_noncancelling=true"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
