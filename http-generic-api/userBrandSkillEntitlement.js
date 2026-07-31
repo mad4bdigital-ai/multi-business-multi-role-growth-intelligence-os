@@ -1,8 +1,22 @@
 import { assertRequestedResourceBelongsToBrand } from "./brandSkillResourceBinding.js";
 import {
+  requiredResourcePermissionForBrandSkillOperation,
   requiredResourcePermissionForBrandSkillOperations,
   resourcePermissionCoversBrandSkillOperations,
+  resourcePermissionRank,
 } from "./brandSkillResourcePermission.js";
+
+const EFFECT_CONTROL_KEYS = Object.freeze([
+  "operation",
+  "operation_intent",
+  "action",
+  "action_key",
+  "status",
+  "publish_status",
+  "mode",
+  "command",
+  "intent",
+]);
 
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -44,6 +58,26 @@ function inferOperationFromSignal(signal = "") {
   return null;
 }
 
+function inferEffectControlOperation(args = {}) {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  for (const key of EFFECT_CONTROL_KEYS) {
+    const value = args[key];
+    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") continue;
+    const operation = inferOperationFromSignal(`${key} ${String(value)}`);
+    if (operation) return operation;
+  }
+  return null;
+}
+
+function elevateOperationByEffectControl(structuralOperation, controlOperation) {
+  if (!structuralOperation || !controlOperation) return structuralOperation || null;
+  const structuralPermission = requiredResourcePermissionForBrandSkillOperation(structuralOperation);
+  const controlPermission = requiredResourcePermissionForBrandSkillOperation(controlOperation);
+  return resourcePermissionRank(controlPermission) > resourcePermissionRank(structuralPermission)
+    ? controlOperation
+    : structuralOperation;
+}
+
 function isConsequentialAction(toolName = "", args = {}, action = null) {
   const capabilityClass = normalize(action?.runtime_capability_class);
   if (["mcp_connector", "http_transport_executor", "system_control", "data_write"].includes(capabilityClass)) {
@@ -55,9 +89,10 @@ function isConsequentialAction(toolName = "", args = {}, action = null) {
 
 export function inferBrandSkillOperation(toolName = "", args = {}, action = null, context = {}) {
   const explicit = normalize(context.operation_intent || context.operation || "");
-  const inferred = inferOperationFromSignal(
+  const structural = inferOperationFromSignal(
     `${toolName} ${action?.action_key || ""} ${Object.keys(args || {}).join("_")}`
   );
+  const inferred = elevateOperationByEffectControl(structural, inferEffectControlOperation(args));
   if (inferred) {
     if (explicit && explicit !== inferred) return null;
     return inferred;
