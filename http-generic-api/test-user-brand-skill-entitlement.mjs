@@ -23,11 +23,19 @@ const activeMembership = {
   tenant_status: "active",
 };
 
+const activeSiteBinding = {
+  target_key: "brand-1",
+  resource_ref: "site-1",
+  site_id: "site-1",
+  binding_id: "site-binding-1",
+};
+
 function buildPool({
   policy = null,
   grants = [],
   membership = activeMembership,
   resourceGrants = [],
+  siteBindings = [activeSiteBinding],
   entitlementError = false,
   actionError = false,
   registryAction = action,
@@ -94,6 +102,13 @@ function buildPool({
         );
         return [match ? [{ grant_id: match.grant_id, permission: match.permission || "operate" }] : []];
       }
+      if (text.includes(" FROM brand_site_bindings b ")) {
+        const [brandKey, resourceRef] = params;
+        const matches = siteBindings
+          .filter((binding) => binding.target_key === brandKey && binding.resource_ref === resourceRef)
+          .map((binding) => ({ binding_id: binding.binding_id, site_id: binding.site_id }));
+        return [matches];
+      }
       if (text.includes("COUNT(*) AS configured_count") && text.includes(" FROM app_action_grants ")) {
         return [[{ configured_count: 0 }]];
       }
@@ -135,8 +150,10 @@ const exactResourceGrant = {
 };
 
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, {}), "publish");
+assert.equal(inferBrandSkillOperation("wordpress_send", {}, action, {}), "publish");
 assert.equal(inferBrandSkillOperation("wordpress_update", {}, action, {}), "update");
 assert.equal(inferBrandSkillOperation("wordpress_delete", {}, action, {}), "delete");
+assert.equal(inferBrandSkillOperation("wordpress_revoke", {}, action, {}), "delete");
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "create" }), "create");
 assert.equal(inferBrandSkillOperation("wordpress_mutation", {}, {
   ...action,
@@ -344,6 +361,26 @@ const resourceAuthorityInactive = await authorizeAgentToolCall({
 });
 assert.equal(resourceAuthorityInactive.allowed, false);
 assert(resourceAuthorityInactive.blockers.includes("user_brand_skill_resource_authority_inactive"));
+
+const resourceBrandBindingInactive = await authorizeAgentToolCall({
+  tool_name: "wordpress_publish",
+  context: {
+    agent_id: "content-agent",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    brand_key: "brand-1",
+    resource_type: "site",
+    resource_ref: "site-1",
+  },
+  pool: buildPool({
+    policy: selfServicePolicy,
+    grants: [exactGrant],
+    resourceGrants: [exactResourceGrant],
+    siteBindings: [],
+  }),
+});
+assert.equal(resourceBrandBindingInactive.allowed, false);
+assert(resourceBrandBindingInactive.blockers.includes("user_brand_skill_resource_brand_binding_inactive"));
 
 const resourceScopeMissing = await authorizeAgentToolCall({
   tool_name: "wordpress_publish",
