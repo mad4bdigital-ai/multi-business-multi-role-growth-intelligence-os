@@ -88,7 +88,11 @@ jobs:
           retention-days: 14
 
   refresh-generated:
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.head_ref, 'gpt/'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -99,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -109,8 +113,10 @@ jobs:
       - run: npm ci
       - name: Generate and commit bounded dispatch evidence
         shell: bash
+        env:
+          TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
         run: |
-          if [[ "${GITHUB_REF_NAME}" != gpt/* ]]; then
+          if [[ "${TARGET_BRANCH}" != gpt/* ]]; then
             echo "::error::generated evidence refresh is restricted to gpt/* work branches"
             exit 1
           fi
@@ -131,4 +137,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
           git commit -m "chore(ci): refresh frontend dispatch evidence"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:${TARGET_BRANCH}"
