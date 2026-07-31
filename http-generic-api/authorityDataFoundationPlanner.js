@@ -21,6 +21,7 @@ export const UEACP_DATA_FOUNDATION_OBJECTS = Object.freeze({
 });
 
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
+const KNOWN_REVISION_SUPPORT = Object.freeze(new Set(["explicit_revision", "temporal_freshness_only", "absent"]));
 const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
 
 export class AuthorityDataFoundationPlanError extends Error {
@@ -170,6 +171,14 @@ function resolveLogicalObject(definition, catalogByName) {
   };
 }
 
+function revisionDisposition(present, support) {
+  if (!present) return "inventory_source_not_mapped_to_catalog_object";
+  if (support === "explicit_revision") return "reuse_existing_revision";
+  if (support === "temporal_freshness_only") return "add_explicit_revision_candidate_after_owner_review";
+  if (support === "absent") return "add_revision_candidate_after_owner_review";
+  return "support_unknown";
+}
+
 function buildRevisionPlan(catalog, inventory) {
   const revisionByObject = new Map(
     catalog.revision_support.map((item) => [requireToken(item.object_name, "revision_support[].object_name"), item]),
@@ -178,25 +187,18 @@ function buildRevisionPlan(catalog, inventory) {
   const referencedNames = [...new Set(inventory.paths.map((path) => path.revision_source).filter(Boolean))].sort();
 
   const referencedSources = referencedNames.map((source) => {
-    const support = revisionByObject.get(source) || null;
+    const supportRow = revisionByObject.get(source) || null;
+    const support = supportRow?.support || "unknown";
     const present = catalogNames.has(source);
-    const explicit = support?.support === "explicit_revision";
     return {
       source,
       present_in_catalog: present,
-      support: support?.support || "unknown",
-      explicit_revision_columns: [...(support?.explicit_revision_columns || [])].sort(),
-      temporal_freshness_columns: [...(support?.temporal_freshness_columns || [])].sort(),
-      disposition: !present
-        ? "inventory_source_not_mapped_to_catalog_object"
-        : explicit
-          ? "reuse_existing_revision"
-          : support?.support === "temporal_freshness_only"
-            ? "add_explicit_revision_candidate_after_owner_review"
-            : support?.support === "absent"
-              ? "add_revision_candidate_after_owner_review"
-              : "support_unknown",
-      blocking: !present || !explicit,
+      support,
+      explicit_revision_columns: [...(supportRow?.explicit_revision_columns || [])].sort(),
+      temporal_freshness_columns: [...(supportRow?.temporal_freshness_columns || [])].sort(),
+      disposition: revisionDisposition(present, support),
+      requires_migration_candidate: present && ["temporal_freshness_only", "absent"].includes(support),
+      blocking: !present || !KNOWN_REVISION_SUPPORT.has(support),
     };
   });
 
@@ -212,7 +214,9 @@ function buildRevisionPlan(catalog, inventory) {
         ? "reuse_existing_revision"
         : item.support === "temporal_freshness_only"
           ? "owner_review_then_add_explicit_revision_candidate"
-          : "owner_review_then_add_revision_candidate",
+          : item.support === "absent"
+            ? "owner_review_then_add_revision_candidate"
+            : "support_unknown",
       migration_authorized: false,
     }))
     .sort((left, right) => left.object_name.localeCompare(right.object_name));
@@ -220,6 +224,7 @@ function buildRevisionPlan(catalog, inventory) {
   return {
     referenced_sources: referencedSources,
     authority_candidates: authorityCandidates,
+    migration_candidate_count: referencedSources.filter((item) => item.requires_migration_candidate).length,
     unresolved_reference_count: referencedSources.filter((item) => item.blocking).length,
   };
 }
@@ -253,7 +258,7 @@ export function buildAuthorityDataFoundationPlan({ catalog_census: catalog, path
   const blockingIssues = [];
   if (catalog.closure_state?.t002_complete !== true) blockingIssues.push("t002_live_catalog_not_closed");
   if (inventory.closure_state?.t001_complete !== true) blockingIssues.push("t001_authority_path_inventory_not_closed");
-  if (revisionPlan.unresolved_reference_count > 0) blockingIssues.push("revision_sources_unresolved_or_without_explicit_revision");
+  if (revisionPlan.unresolved_reference_count > 0) blockingIssues.push("revision_sources_unresolved_or_unknown");
   for (const taskPlan of Object.values(storageTaskPlans)) {
     if (taskPlan.ambiguous_count > 0) blockingIssues.push(`${taskPlan.task_key.toLowerCase()}_ambiguous_existing_objects`);
     if (taskPlan.alias_review_count > 0) blockingIssues.push(`${taskPlan.task_key.toLowerCase()}_alias_contract_review_required`);
@@ -324,5 +329,6 @@ export const _testingAuthorityDataFoundationPlanner = {
   mapCatalogObjects,
   resolveLogicalObject,
   buildRevisionPlan,
+  revisionDisposition,
   assertNoSensitiveValues,
 };
