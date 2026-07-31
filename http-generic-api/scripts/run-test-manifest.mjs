@@ -34,6 +34,8 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-tenant-role-field-policy.mjs",
   "node test-growth-control-openapi-auth-contracts.mjs",
   "node test-growth-control-typed-invalidation-consumer.mjs",
+  "node test-growth-control-analytics-portfolio-phase.mjs",
+  "node test-growth-control-observability-operations-phase.mjs",
 ]);
 
 const diagnosticAutomationTestCommands = Object.freeze([
