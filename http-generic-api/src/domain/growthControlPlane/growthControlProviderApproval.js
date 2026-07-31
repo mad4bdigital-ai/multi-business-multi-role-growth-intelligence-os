@@ -221,7 +221,6 @@ export function composeGrowthControlProviderApprovalPlan({
         request_hash_sha256: binding?.request_hash_sha256 || null,
         provider_dispatch_allowed: false,
         external_writes: false,
-        secrets_included: false,
       },
       approval_policy: approvalPolicy,
       success_criteria: providerEffect
