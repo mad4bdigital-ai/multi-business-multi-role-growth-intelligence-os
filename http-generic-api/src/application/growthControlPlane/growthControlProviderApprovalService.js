@@ -34,7 +34,8 @@ function resolveUnique(rows, code, message) {
   const candidates = Array.isArray(rows) ? rows : [];
   if (candidates.length === 0) return null;
   if (candidates.length > 1) throw serviceError(code, message, 409);
-  return candidates[0];
+  const [candidate] = candidates;
+  return candidate;
 }
 
 async function withTransaction(pool, operation) {
