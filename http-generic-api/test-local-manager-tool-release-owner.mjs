@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+process.on('uncaughtException', (error) => {
+  const message = String(error?.message || error || 'unknown assertion failure')
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+  console.error(`::error file=http-generic-api/test-local-manager-tool-release-owner.mjs,title=Local Manager release-owner assertion failed::${message}`);
+  process.exit(1);
+});
+
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const connectorWatchdog = readFileSync('../local-connector/connector-watchdog.ps1', 'utf8');
 const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
