@@ -3,6 +3,7 @@ name: Automation Overlap Guard
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths:
       - ".github/workflows/**"
@@ -86,6 +87,7 @@ jobs:
     name: Governed Local Connector Production Closure
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.action == 'ready_for_review' &&
       github.event.pull_request.number == 4076 &&
       github.event.pull_request.base.ref == 'main' &&
       github.head_ref == 'gpt/visible-local-connector-closure-run-v2-20260731' &&
@@ -97,8 +99,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     concurrency:
-      group: governed-local-connector-production-closure-pr-3945
-      cancel-in-progress: true
+      group: governed-local-connector-production-closure-pr-3945-final-v3
+      cancel-in-progress: false
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
@@ -120,7 +122,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Record active-workflow closure start
+      - name: Record non-cancelling closure start
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -129,7 +131,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-guard trusted_ref=main event_pr=4076 supersedes_older_runs=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-ready-for-review trusted_ref=main event_pr=4076 non_cancelling=true"
 
       - name: Verify exact merged Production PR
         env:
@@ -167,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-guard trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} event_pr=4076"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-ready-for-review trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} event_pr=4076 non_cancelling=true"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
