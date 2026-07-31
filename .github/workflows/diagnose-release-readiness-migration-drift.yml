@@ -1,0 +1,53 @@
+name: Diagnose Release Readiness Migration Drift
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-release-readiness-migration-drift.yml'
+      - 'http-generic-api/migrationSqlStatements.js'
+      - 'http-generic-api/test-release-readiness-migration-drift.mjs'
+      - 'http-generic-api/releaseReadiness.js'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.ref == 'gpt/governed-migration-select-boundary-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run isolated failing test
+        id: test
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          node test-release-readiness-migration-drift.mjs > ../release-readiness-diagnostic.log 2>&1
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          cat ../release-readiness-diagnostic.log
+          exit 0
+      - name: Write diagnostic metadata
+        shell: bash
+        run: |
+          printf '{"schema_version":"release_readiness_diagnostic.v1","head_sha":"%s","test_exit_code":%s,"mutations_executed":false,"secrets_included":false}\n' \
+            "$GITHUB_SHA" "${{ steps.test.outputs.exit_code }}" > release-readiness-diagnostic.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-migration-drift-diagnostic-${{ github.run_id }}
+          path: |
+            release-readiness-diagnostic.log
+            release-readiness-diagnostic.json
+          if-no-files-found: error
+          retention-days: 3
