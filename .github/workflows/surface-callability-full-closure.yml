@@ -13,7 +13,7 @@ env:
 
 concurrency:
   group: surface-callability-full-closure-${{ github.event.pull_request.head.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   close-surface-queue:
