@@ -6,14 +6,15 @@
       "root": "docs/work-maps",
       "producer_signatures": [
         "platform-work-map-generator.mjs --write",
-        "repo-maintenance-sync.mjs"
+        "repo-maintenance-sync.mjs --write"
       ],
       "consumer_signatures": [
         "platform-work-map-generator.mjs --check"
       ],
       "approved_producers": [
         "spec-kit-work-map-autofix",
-        "docs-agent"
+        "docs-agent",
+        "openapi-auto-sync"
       ],
       "required_consumers": [
         "spec-kit-work-map-integration"
@@ -37,9 +38,7 @@
         ".specify/pipeline-connectivity-contract.json",
         "http-generic-api/scripts/pipeline-connectivity-check.mjs",
         "http-generic-api/test-pipeline-connectivity-check.mjs",
-        ".github/workflows/spec-kit-work-map-integration.yml",
-        ".github/workflows/spec-kit-work-map-autofix.yml",
-        ".github/workflows/docs-agent.yml"
+        ".github/workflows/**"
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
@@ -99,6 +98,32 @@
         "github.event.pull_request.head.repo.full_name == github.repository"
       ],
       "forbidden_commands": []
+    },
+    {
+      "key": "openapi-auto-sync",
+      "workflow": ".github/workflows/openapi-auto-sync.yml",
+      "mode": "conditional_write",
+      "required_permissions": {
+        "contents": "write"
+      },
+      "required_triggers": [
+        "workflow_dispatch",
+        "push"
+      ],
+      "required_path_patterns": [
+        ".specify/pipeline-connectivity-contract.json",
+        "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+        "http-generic-api/test-pipeline-connectivity-check.mjs",
+        ".github/workflows/openapi-auto-sync.yml"
+      ],
+      "required_commands": [
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "repo-maintenance-sync.mjs --write",
+        "github.actor != 'github-actions[bot]'",
+        "peter-evans/create-pull-request@v6"
+      ],
+      "forbidden_commands": []
     }
   ],
   "edges": [
@@ -109,6 +134,11 @@
     },
     {
       "from": "docs-agent",
+      "to": "platform_work_maps",
+      "type": "conditionally_produces"
+    },
+    {
+      "from": "openapi-auto-sync",
       "to": "platform_work_maps",
       "type": "conditionally_produces"
     },
