@@ -80,6 +80,30 @@ function projectionObservation(input = {}) {
     sourceEventId: input.sourceEventId ?? input.source_event_id ?? source.sourceEventId ?? source.source_event_id,
   });
 }
+function bindingMatchesScope(binding, { tenantId = null, workspaceIds = [], brandKeys = [] } = {}) {
+  if (binding.tenantId != null && tenantId != null && String(binding.tenantId) !== String(tenantId)) return false;
+  if (binding.workspaceId != null && workspaceIds.length && !workspaceIds.includes(String(binding.workspaceId))) return false;
+  if (binding.brandKey != null && brandKeys.length && !brandKeys.includes(String(binding.brandKey))) return false;
+  return true;
+}
+function assertBindingScope(binding, input = {}) {
+  const requested = {
+    tenantId: String(input.tenantId ?? input.tenant_id ?? ""),
+    workspaceId: String(input.workspaceId ?? input.workspace_id ?? ""),
+    brandKey: String(input.brandKey ?? input.brand_key ?? ""),
+  };
+  const mismatches = ["tenantId", "workspaceId", "brandKey"]
+    .filter((field) => binding[field] != null && String(binding[field]) !== requested[field])
+    .map((field) => ({ field, issue: "binding_scope_mismatch" }));
+  if (mismatches.length) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_KPI_BINDING_SCOPE_MISMATCH",
+      "The metric observation scope does not match the governed KPI binding.",
+      403,
+      mismatches,
+    );
+  }
+}
 
 export function createGrowthControlAnalyticsObservabilityService({ repository } = {}) {
   const store = repositoryContract(repository);
@@ -91,7 +115,8 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const normalizedKpiKeys = list(input.normalizedKpiKeys ?? input.normalized_kpi_keys, "normalizedKpiKeys", { canonical: true });
     const rowLimit = limit(input.limit, 5000);
     const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 1000 });
-    const bindings = await store.listActivityKpiBindings({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const candidateBindings = await store.listActivityKpiBindings({ tenantId, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const bindings = candidateBindings.filter((binding) => bindingMatchesScope(binding, { tenantId, workspaceIds, brandKeys }));
     const observations = await store.listNormalizedMetricObservations({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, periodStart: input.periodStart ?? input.period_start ?? null, periodEnd: input.periodEnd ?? input.period_end ?? null, limit: rowLimit });
     return buildGrowthControlPortfolioProjection({ tenantId, workspaceIds, brandKeys, normalizedKpiKeys, definitions, bindings, observations: observations.map(projectionObservation), now: input.now || new Date() });
   }
@@ -109,8 +134,12 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   async function projectKpiCatalog(input = {}) {
     const normalizedKpiKeys = list(input.normalizedKpiKeys ?? input.normalized_kpi_keys, "normalizedKpiKeys", { canonical: true });
     const activityBindingIds = list(input.activityBindingIds ?? input.activity_binding_ids, "activityBindingIds");
+    const tenantId = input.tenantId ?? input.tenant_id ?? null;
+    const workspaceIds = list(input.workspaceIds ?? input.workspace_ids, "workspaceIds");
+    const brandKeys = list(input.brandKeys ?? input.brand_keys, "brandKeys");
     const definitions = await store.listKpiDefinitions({ normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 1000 });
-    const bindings = await store.listActivityKpiBindings({ tenantId: input.tenantId ?? input.tenant_id ?? null, workspaceIds: list(input.workspaceIds ?? input.workspace_ids, "workspaceIds"), brandKeys: list(input.brandKeys ?? input.brand_keys, "brandKeys"), activityBindingIds, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const candidateBindings = await store.listActivityKpiBindings({ tenantId, activityBindingIds, normalizedKpiKeys, statuses: ["ready", "active", "deprecated"], limit: 5000 });
+    const bindings = candidateBindings.filter((binding) => bindingMatchesScope(binding, { tenantId, workspaceIds, brandKeys }));
     return buildGrowthControlKpiCatalogProjection({ definitions, bindings, activityBindingIds: activityBindingIds.length ? activityBindingIds : null });
   }
 
@@ -144,6 +173,7 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
     const nativeKpiKey = text(input.nativeKpiKey ?? input.native_kpi_key, "nativeKpiKey", 128);
     const binding = await store.getActivityKpiBinding({ activityBindingId, nativeKpiKey });
     if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No governed KPI binding exists for the observation.", 404);
+    assertBindingScope(binding, input);
     const definition = await store.getKpiDefinition({ normalizedKpiKey: binding.normalizedKpiKey, definitionVersion: binding.definitionVersion });
     if (!definition) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_DEFINITION_NOT_FOUND", "The governed KPI definition was not found.", 404);
     const observation = normalizeGrowthControlMetricObservation(input, { definition, binding, now: input.now || new Date() });
@@ -172,4 +202,4 @@ export function createGrowthControlAnalyticsObservabilityService({ repository } 
   return Object.freeze({ projectAdminPortfolio, projectTenantPortfolio, projectKpiCatalog, projectAdminOperationalHealth, projectTenantOperationalHealth, recordMetricObservation, recordDecisionEvidence, recordObservabilitySample });
 }
 
-export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation });
+export const _testingGrowthControlAnalyticsObservabilityService = Object.freeze({ text, list, limit, window, repositoryContract, tenantPrincipal, tenantScope, projectionObservation, bindingMatchesScope, assertBindingScope });
