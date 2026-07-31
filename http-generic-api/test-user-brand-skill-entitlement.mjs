@@ -156,6 +156,14 @@ assert.equal(inferBrandSkillOperation("wordpress_delete", {}, action, {}), "dele
 assert.equal(inferBrandSkillOperation("wordpress_revoke", {}, action, {}), "delete");
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "create" }), null);
 assert.equal(inferBrandSkillOperation("wordpress_publish", {}, action, { operation_intent: "publish" }), "publish");
+assert.equal(inferBrandSkillOperation("wordpress_create_post", { status: "publish" }, {
+  ...action,
+  action_key: "wordpress_create_post",
+}, {}), "publish");
+assert.equal(inferBrandSkillOperation("wordpress_mutation", { operation: "publish" }, {
+  ...action,
+  action_key: "wordpress_mutation",
+}, {}), null);
 assert.equal(inferBrandSkillOperation("wordpress_mutation", {}, {
   ...action,
   action_key: "wordpress_mutation",
@@ -247,10 +255,37 @@ const allowedExactScope = await authorizeAgentToolCall({
 assert.equal(allowedExactScope.allowed, true);
 assert.equal(allowedExactScope.user_brand_skill_grant.grant_id, "user-brand-grant-1");
 
-for (const contextOverride of [
-  { user_id: "user-2" },
-  { brand_key: "brand-2" },
-  { resource_ref: "site-2" },
+const allowedDomainAlias = await resolveUserBrandSkillEntitlement(
+  buildPool({
+    policy: selfServicePolicy,
+    grants: [exactGrant],
+    resourceGrants: [exactResourceGrant],
+    siteBindings: [{
+      target_key: "brand-1",
+      resource_ref: "example.com",
+      site_id: "site-1",
+      binding_id: "site-binding-domain",
+    }],
+  }),
+  { required: true, granted: true, matched_skill_key: "api.wordpress_write" },
+  {
+    tenant_id: "tenant-1",
+    user_id: "user-1",
+    brand_key: "brand-1",
+    agent_id: "content-agent",
+    resource_type: "site",
+    resource_ref: "example.com",
+  },
+  { toolName: "wordpress_publish", action }
+);
+assert.equal(allowedDomainAlias.granted, true);
+assert.equal(allowedDomainAlias.resource_ref, "site-1");
+assert.equal(allowedDomainAlias.resource_binding_source, "brand_site_bindings");
+
+for (const { override, blocker } of [
+  { override: { user_id: "user-2" }, blocker: "user_brand_skill_grant_missing" },
+  { override: { brand_key: "brand-2" }, blocker: "user_brand_skill_resource_brand_binding_inactive" },
+  { override: { resource_ref: "site-2" }, blocker: "user_brand_skill_resource_brand_binding_inactive" },
 ]) {
   const denied = await authorizeAgentToolCall({
     tool_name: "wordpress_publish",
@@ -262,7 +297,7 @@ for (const contextOverride of [
       brand_key: "brand-1",
       resource_type: "site",
       resource_ref: "site-1",
-      ...contextOverride,
+      ...override,
     },
     pool: buildPool({
       policy: selfServicePolicy,
@@ -270,8 +305,8 @@ for (const contextOverride of [
       resourceGrants: [exactResourceGrant],
     }),
   });
-  assert.equal(denied.allowed, false, JSON.stringify(contextOverride));
-  assert(denied.blockers.includes("user_brand_skill_grant_missing"));
+  assert.equal(denied.allowed, false, JSON.stringify(override));
+  assert(denied.blockers.includes(blocker));
 }
 
 const policyNarrowed = await authorizeAgentToolCall({
