@@ -3,7 +3,7 @@
   "slice_key": "spec-012-ec4-execution-capsule-mutation-validation-pilot",
   "parent_extension": "spec-012-execution-capsule-runtime-integration",
   "phase": "EC4_mutation_validation_pilot",
-  "status": "in_progress",
+  "status": "complete",
   "runtime_authority": false,
   "production_activation": false,
   "provider_call": false,
@@ -64,14 +64,9 @@
     "exact_legacy_rollback",
     "standalone_registered_regression"
   ],
-  "pending_contracts": [
-    "generated_test_manifest_evidence_refresh",
-    "exact_head_ci_evidence",
-    "human_architecture_security_review",
-    "post_merge_main_readback"
-  ],
+  "pending_contracts": [],
   "controlled_mutation_sample": {
-    "status": "implemented_pending_exact_head_ci",
+    "status": "verified",
     "operation_key": "repository.item.update",
     "mutation_backend": "in_memory_test_double",
     "reversible": true,
@@ -80,12 +75,56 @@
     "external_sends": 0
   },
   "registration_evidence": {
-    "status": "implemented_pending_ci_readback",
+    "status": "verified_exact_head_and_post_merge",
     "registered_commands": [
       "node test-execution-capsule-mutation-validation-pilot.mjs"
     ],
+    "coexisting_main_commands": [
+      "node test-resource-api-callability-effect-classes.mjs"
+    ],
     "exact_registration_count_per_command": 1,
     "temporary_workflow_present": false
+  },
+  "completion_evidence": {
+    "pull_request": 3993,
+    "certified_head_sha": "71bfc219ccf9f2aba53a88a73190a6af5327b82b",
+    "merge_sha": "9542f2a615ce9783273cc01b4777bd0944e6c1c7",
+    "required_ci": {
+      "run_id": 30626124261,
+      "result": "success",
+      "required_jobs": 4
+    },
+    "frontend_surface_dispatch": {
+      "run_id": 30626124191,
+      "result": "success",
+      "deterministic_output": true,
+      "bounded_refresh": true
+    },
+    "diagnostic_shards": {
+      "run_id": 30626124218,
+      "sequential_suite": "success",
+      "all_family_shards": "success",
+      "execution_shards": "5_of_5_success",
+      "presentation_summary_job_at_merge": "queued_non_gating"
+    },
+    "human_reviews": {
+      "architecture_review_id": "PRR_kwDOSFDYfs8AAAABH8U2OA",
+      "security_review_id": "PRR_kwDOSFDYfs8AAAABH8U8cA",
+      "requested_changes": 0,
+      "unresolved_threads": 0
+    },
+    "latest_main_reconciliation": {
+      "observed_main_sha_before_merge": "8d05f8d9ed825cf08dc51f38d7d1b93930476174",
+      "commits_after_certified_base": 25,
+      "overlapping_files": 0
+    },
+    "post_merge_readback": {
+      "source_blob_sha": "48d846d1042a4cd366c27174bfcd7ff5feb31de6",
+      "test_manifest_blob_sha": "16997a53e42c5674431fdc6208eeebe5960fdc63",
+      "frontend_operation_governance_blob_sha": "5c1778d945ef9dbb518262536d9230cae8f6b703",
+      "frontend_surface_dispatch_blob_sha": "604128a2d3a53295bf580247c6236db056a0f808",
+      "callability_and_ec4_registration_retained": true
+    }
   },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
