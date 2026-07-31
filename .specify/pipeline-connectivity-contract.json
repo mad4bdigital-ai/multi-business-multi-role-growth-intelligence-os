@@ -87,10 +87,9 @@
     {
       "key": "docs-agent",
       "workflow": ".github/workflows/docs-agent.yml",
-      "mode": "conditional_write",
+      "mode": "preview_and_followup_pr",
       "required_permissions": {
-        "actions": "write",
-        "contents": "write"
+        "contents": "read"
       },
       "required_triggers": [
         "workflow_dispatch",
@@ -99,16 +98,24 @@
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
         "platform-work-map-generator.mjs --write",
-        "docs-agent-write",
-        "docs-agent-automerge",
-        "git rev-parse HEAD",
+        "Upload generated documentation preview",
+        "Report preview-only PR mode",
+        "Main follow-up docs PR",
+        "git checkout -b",
+        "gh pr create",
         "gh workflow run ci.yml",
         "gh workflow run spec-kit-work-map-integration.yml",
         "github.actor != 'github-actions[bot]'",
         "github.event.pull_request.head.repo.full_name == github.repository"
       ],
-      "forbidden_commands": []
+      "forbidden_commands": [
+        "docs-agent-write",
+        "docs-agent-automerge",
+        "Commit generated documentation to PR branch",
+        "HEAD:refs/heads/${TARGET_BRANCH}"
+      ]
     },
     {
       "key": "openapi-auto-sync",
@@ -146,7 +153,7 @@
     {
       "from": "docs-agent",
       "to": "platform_work_maps",
-      "type": "conditionally_produces"
+      "type": "followup_pr_produces"
     },
     {
       "from": "openapi-auto-sync",
@@ -171,7 +178,7 @@
     {
       "from": "docs-agent",
       "to": "spec-kit-work-map-integration",
-      "type": "dispatches_validation"
+      "type": "followup_pr_dispatches_validation"
     }
   ]
 }
