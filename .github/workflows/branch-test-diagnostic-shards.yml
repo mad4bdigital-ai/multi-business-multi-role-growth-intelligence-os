@@ -1,0 +1,149 @@
+name: Branch Test Diagnostic Shards
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "http-generic-api/**"
+      - ".github/workflows/**"
+      - "memory_schema.json"
+      - "system_bootstrap.md"
+  workflow_dispatch:
+    inputs:
+      parent_index:
+        description: Parent partition index to subdivide
+        required: true
+        default: "0"
+      parent_count:
+        description: Parent partition count
+        required: true
+        default: "1"
+      shard_count:
+        description: Number of parallel diagnostic shards
+        required: true
+        type: choice
+        default: "16"
+        options:
+          - "4"
+          - "8"
+          - "16"
+          - "32"
+      grep:
+        description: Optional substring filter for test commands
+        required: false
+        default: ""
+      fail_fast:
+        description: Stop each shard after its first failed command
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-test-diagnostic-${{ github.event.pull_request.number || github.ref }}-${{ inputs.parent_index || '0' }}-${{ inputs.parent_count || '1' }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Build diagnostic matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      parent_index: ${{ steps.matrix.outputs.parent_index }}
+      parent_count: ${{ steps.matrix.outputs.parent_count }}
+      shard_count: ${{ steps.matrix.outputs.shard_count }}
+      grep: ${{ steps.matrix.outputs.grep }}
+      fail_fast: ${{ steps.matrix.outputs.fail_fast }}
+    steps:
+      - id: matrix
+        name: Resolve branch diagnostic plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PARENT_INDEX: ${{ inputs.parent_index }}
+          INPUT_PARENT_COUNT: ${{ inputs.parent_count }}
+          INPUT_SHARD_COUNT: ${{ inputs.shard_count }}
+          INPUT_GREP: ${{ inputs.grep }}
+          INPUT_FAIL_FAST: ${{ inputs.fail_fast }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const dispatch = process.env.EVENT_NAME === 'workflow_dispatch';
+          const parseBounded = (value, fallback, minimum, maximum, label) => {
+            const parsed = Number(value || fallback);
+            if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+              throw new Error(`${label} must be an integer from ${minimum} to ${maximum}.`);
+            }
+            return parsed;
+          };
+          const parentIndex = parseBounded(dispatch ? process.env.INPUT_PARENT_INDEX : 0, 0, 0, 63, 'parent_index');
+          const parentCount = parseBounded(dispatch ? process.env.INPUT_PARENT_COUNT : 1, 1, 1, 64, 'parent_count');
+          const shardCount = parseBounded(dispatch ? process.env.INPUT_SHARD_COUNT : 16, 16, 1, 64, 'shard_count');
+          if (parentIndex >= parentCount) throw new Error('parent_index must be smaller than parent_count.');
+          const grep = dispatch ? String(process.env.INPUT_GREP || '') : '';
+          const failFast = dispatch && String(process.env.INPUT_FAIL_FAST || '').toLowerCase() === 'true';
+          const output = process.env.GITHUB_OUTPUT;
+          const write = (key, value) => fs.appendFileSync(output, `${key}=${value}\n`);
+          write('matrix', JSON.stringify({ shard: Array.from({ length: shardCount }, (_, index) => index) }));
+          write('parent_index', parentIndex);
+          write('parent_count', parentCount);
+          write('shard_count', shardCount);
+          write('grep', grep.replace(/\r?\n/g, ' '));
+          write('fail_fast', failFast ? 'true' : 'false');
+          NODE
+
+  shard:
+    name: Diagnostic shard ${{ matrix.shard }} of ${{ needs.plan.outputs.shard_count }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run branch diagnostic shard
+        env:
+          PARENT_INDEX: ${{ needs.plan.outputs.parent_index }}
+          PARENT_COUNT: ${{ needs.plan.outputs.parent_count }}
+          SHARD_COUNT: ${{ needs.plan.outputs.shard_count }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          DIAGNOSTIC_GREP: ${{ needs.plan.outputs.grep }}
+          DIAGNOSTIC_FAIL_FAST: ${{ needs.plan.outputs.fail_fast }}
+        run: |
+          args=(
+            --parent-index "$PARENT_INDEX"
+            --parent-count "$PARENT_COUNT"
+            --shard-index "$SHARD_INDEX"
+            --shard-count "$SHARD_COUNT"
+            --report-file "diagnostic-reports/shard-${SHARD_INDEX}.json"
+          )
+          if [[ -n "$DIAGNOSTIC_GREP" ]]; then
+            args+=(--grep "$DIAGNOSTIC_GREP")
+          fi
+          if [[ "$DIAGNOSTIC_FAIL_FAST" == "true" ]]; then
+            args+=(--fail-fast)
+          fi
+          node scripts/run-test-diagnostic-shard.mjs "${args[@]}"
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.run_id }}-${{ matrix.shard }}
+          path: http-generic-api/diagnostic-reports/shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 14
