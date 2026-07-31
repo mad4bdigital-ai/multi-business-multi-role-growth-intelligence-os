@@ -127,6 +127,45 @@ function stringList(value, field, { minItems = 0, maxItems = 64 } = {}) {
   return [...new Set(value.map((item, index) => token(item, `${field}[${index}]`)))].sort();
 }
 
+function uniqueMap(items, field, keySelector) {
+  const map = new Map();
+  const duplicates = [];
+  for (const item of items) {
+    const key = keySelector(item);
+    if (map.has(key)) duplicates.push(key);
+    else map.set(key, item);
+  }
+  if (duplicates.length) {
+    throw new AuthorityOwnershipReviewError(
+      "authority_ownership_duplicate_catalog_record",
+      `${field} contains duplicate object records.`,
+      { field, object_names: [...new Set(duplicates)].sort() },
+    );
+  }
+  return map;
+}
+
+function verifyEmbeddedHash(value, hashField, code) {
+  const declared = String(value?.[hashField] ?? "").trim().toLowerCase();
+  if (!HASH_PATTERN.test(declared)) {
+    throw new AuthorityOwnershipReviewError(
+      code,
+      `${hashField} must be a lowercase SHA-256 digest.`,
+      { field: hashField },
+    );
+  }
+  const { [hashField]: _declared, ...payload } = value;
+  const computed = hash(payload);
+  if (declared !== computed) {
+    throw new AuthorityOwnershipReviewError(
+      code,
+      `${hashField} does not match the supplied evidence payload.`,
+      { field: hashField, declared, computed },
+    );
+  }
+  return computed;
+}
+
 function validateCatalog(catalog) {
   if (!catalog || typeof catalog !== "object" || Array.isArray(catalog)) {
     throw new AuthorityOwnershipReviewError("authority_ownership_invalid_catalog", "catalog_census must be an object.");
@@ -283,8 +322,27 @@ export function assessAuthorityOwnershipReview({
     );
   }
 
-  const catalogByName = new Map(catalog.objects.map((object) => [object.object_name, object]));
-  const revisionByName = new Map(catalog.revision_support.map((item) => [item.object_name, item]));
+  const catalogByName = uniqueMap(
+    catalog.objects,
+    "catalog.objects",
+    (object) => token(object.object_name, "catalog.objects[].object_name"),
+  );
+  const revisionByName = uniqueMap(
+    catalog.revision_support,
+    "catalog.revision_support",
+    (item) => token(item.object_name, "catalog.revision_support[].object_name"),
+  );
+  const verifiedSourceBundleSha256 = verifyEmbeddedHash(
+    bundle,
+    "bundle_sha256",
+    "authority_ownership_stale_source_bundle_hash",
+  );
+  const verifiedInventorySha256 = verifyEmbeddedHash(
+    bundle.inventory,
+    "inventory_sha256",
+    "authority_ownership_stale_inventory_hash",
+  );
+
   const entries = reviewEntries.map((entry, index) => normalizeEntry(entry, index, catalogByName, revisionByName));
   const duplicateNames = entries
     .map((entry) => entry.object_name)
@@ -318,14 +376,14 @@ export function assessAuthorityOwnershipReview({
   const readbackRef = token(evidenceContext.readback_ref, "review_metadata.evidence_context.readback_ref");
   const reviewerKey = token(reviewMetadata.reviewer_key, "review_metadata.reviewer_key");
   const reviewedAt = timestamp(reviewMetadata.reviewed_at, "review_metadata.reviewed_at");
+  const catalogObservedAt = timestamp(catalog.database_server?.observed_at, "catalog_census.database_server.observed_at");
   const catalogSha256 = hash(catalog);
-  const sourceBundleSha256 = bundle.bundle_sha256 || hash(bundle);
-  const inventorySha256 = bundle.inventory.inventory_sha256 || hash(bundle.inventory);
 
   const blockingIssues = [];
   if (bundle.status !== "ready_for_ownership_review" || bundle.blocking_gap_count !== 0) blockingIssues.push("source_bundle_not_ready");
   if (!liveObservation) blockingIssues.push("catalog_not_live_observation");
   if (!sameCycleReadback) blockingIssues.push("same_cycle_readback_missing");
+  if (new Date(catalogObservedAt).getTime() > new Date(reviewedAt).getTime()) blockingIssues.push("catalog_observed_after_review");
   if (missingObjects.length) blockingIssues.push("required_objects_unreviewed");
   if (rejectedObjects.length) blockingIssues.push("ownership_review_rejected");
   if (revisionMismatches.length) blockingIssues.push("revision_strategy_mismatch");
@@ -342,11 +400,12 @@ export function assessAuthorityOwnershipReview({
       readback_ref: readbackRef,
       live_observation: liveObservation,
       same_cycle_readback: sameCycleReadback,
+      catalog_observed_at: catalogObservedAt,
     },
     bindings: {
       catalog_sha256: catalogSha256,
-      source_bundle_sha256: sourceBundleSha256,
-      inventory_sha256: inventorySha256,
+      source_bundle_sha256: verifiedSourceBundleSha256,
+      inventory_sha256: verifiedInventorySha256,
     },
     required_object_names: requiredNames,
     reviewed_object_count: entries.length,
@@ -367,7 +426,7 @@ export function assessAuthorityOwnershipReview({
       migration_apply_authorized: false,
       reason: blockingIssues.length === 0
         ? "Complete source evidence and live catalog ownership review are bound and internally consistent; explicit task closeout and migration design review remain separate."
-        : "Source completeness, live readback, ownership coverage, or revision compatibility gaps remain.",
+        : "Source completeness, live readback, ownership coverage, revision compatibility, or evidence-binding gaps remain.",
     },
     read_only: true,
     applies_sql: false,
@@ -385,5 +444,7 @@ export const _testingAuthorityOwnershipReview = {
   hash,
   reviewRequiredObjectNames,
   normalizeEntry,
+  verifyEmbeddedHash,
+  uniqueMap,
   assertNoSensitiveValues,
 };
