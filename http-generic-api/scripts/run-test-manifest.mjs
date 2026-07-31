@@ -26,6 +26,7 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-idempotency-lease-outbox-integration.mjs",
   "node test-growth-control-admin-ui-projection.mjs",
   "node test-growth-control-admin-ui-default-normalization.mjs",
+  "node test-growth-control-tenant-role-field-policy.mjs",
 ]);
 const testCommands = Object.freeze([
   ...canonicalTestCommands,
