@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 
+// Final integrated checkpoint: readiness, single-apply, Production promotion closure, and live durable recovery stay one governed phase.
 const workflow = await fs.readFile('../.github/workflows/response-chunk-ownership-governed-rollout.yml', 'utf8');
 const runner = await fs.readFile('../.github/ops/response-chunk-ownership-governed-rollout.mjs', 'utf8');
 const runtimeClosure = await fs.readFile('../.github/ops/response-chunk-ownership-runtime-closure.mjs', 'utf8');
