@@ -31,7 +31,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: automation-overlap-guard-main-local-connector-final-v7
+  group: automation-overlap-guard-${{ github.event_name }}-${{ github.ref }}-local-connector-final-v8
   cancel-in-progress: false
 
 jobs:
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     concurrency:
-      group: governed-local-connector-production-closure-pr-3945-final-v7
+      group: governed-local-connector-production-closure-pr-3945-final-v8
       cancel-in-progress: false
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
@@ -126,7 +126,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/3945/comments" \
-            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v7 trusted_ref=main workflow_noncancelling=true job_noncancelling=true"
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v8 trusted_ref=main workflow_noncancelling=true job_noncancelling=true"
 
       - name: Verify exact merged Production PR
         env:
@@ -164,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="${CLOSURE_RESULT:-unknown}"
-          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v7 trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} workflow_noncancelling=true job_noncancelling=true"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=automation-overlap-main-push-v8 trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} workflow_noncancelling=true job_noncancelling=true"
           if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
             BODY="${BODY} failure=${FAILURE_MESSAGE}"
           fi
