@@ -35,6 +35,9 @@ jobs:
           TARGET_BRANCH='gpt/011-ueacp-live-evidence-migration-readiness-clean-20260731'
           WORKFLOW='.github/workflows/ueacp-live-evidence-clean-reconstruction.yml'
           git fetch origin main "$SOURCE_BRANCH" "$TARGET_BRANCH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit origin/main
 
           paths=(
             '.github/scripts/authority-live-census-observation.mjs'
@@ -137,8 +140,6 @@ jobs:
             node test-authority-live-evidence-fail-closed.mjs
           )
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'feat(spec-011): reconstruct governed live evidence wave on current main'
           git push origin "HEAD:$TARGET_BRANCH"
