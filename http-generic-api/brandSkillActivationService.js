@@ -5,6 +5,10 @@ import {
   grantCoversOperations,
   mergeAllowedOperations,
 } from "./brandSkillResourceBinding.js";
+import {
+  requiredResourcePermissionForBrandSkillOperations,
+  resourcePermissionCoversBrandSkillOperations,
+} from "./brandSkillResourcePermission.js";
 
 const OWNER_ROLES = new Set(["owner", "admin", "tenant_owner", "tenant_admin"]);
 const ACTIVE_MODES = new Set(["self_service", "temporary_only"]);
@@ -330,6 +334,12 @@ export async function activateBrandSkillForUser({
       requestedResourceType,
       requestedResourceRef,
     });
+    const canonicalResourceType = resourceBrandBinding.required
+      ? resourceBrandBinding.resource_type
+      : requestedResourceType;
+    const canonicalResourceRef = resourceBrandBinding.required
+      ? resourceBrandBinding.resource_ref
+      : requestedResourceRef;
     const skill = await resolveSkillAndAgent(connection, {
       tenantId: normalizedTenantId,
       brandKey: normalizedBrandKey,
@@ -352,11 +362,19 @@ export async function activateBrandSkillForUser({
       brandKey: normalizedBrandKey,
       membershipRole: membership.role,
       workspace,
-      requestedResourceType,
-      requestedResourceRef,
+      requestedResourceType: canonicalResourceType,
+      requestedResourceRef: canonicalResourceRef,
     });
     if (Number(policy.requires_resource_binding || 0) === 1 && !authority?.grant_id) {
       throw httpError(403, "BRAND_SKILL_RESOURCE_BINDING_REQUIRED", "The policy requires a verified resource binding.");
+    }
+    const requiredResourcePermission = requiredResourcePermissionForBrandSkillOperations(operations);
+    if (!resourcePermissionCoversBrandSkillOperations(authority.permission, operations)) {
+      throw httpError(403, "BRAND_SKILL_RESOURCE_PERMISSION_DENIED", "The active resource grant does not permit all requested Brand Skill operations.", {
+        current_resource_permission: authority.permission || null,
+        required_resource_permission: requiredResourcePermission,
+        requested_operations: operations,
+      });
     }
     const ttlHours = normalizeTtlHours(input.ttl_hours, mode, policy.max_ttl_hours);
 
@@ -407,6 +425,8 @@ export async function activateBrandSkillForUser({
           grant: readback,
           activation_mode: mode,
           resource_brand_binding: resourceBrandBinding,
+          resource_permission: authority.permission,
+          required_resource_permission: requiredResourcePermission,
           secrets_included: false,
         };
       }
@@ -445,6 +465,8 @@ export async function activateBrandSkillForUser({
         activation_mode: mode,
         grant: updated,
         resource_brand_binding: resourceBrandBinding,
+        resource_permission: authority.permission,
+        required_resource_permission: requiredResourcePermission,
         secrets_included: false,
       };
     }
@@ -494,6 +516,7 @@ export async function activateBrandSkillForUser({
         resource_type: authority.resource_type,
         resource_ref: authority.resource_ref,
         permission: authority.permission,
+        required_permission: requiredResourcePermission,
       },
       resource_brand_binding: resourceBrandBinding,
       grant: readback,
