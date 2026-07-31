@@ -122,17 +122,24 @@ jobs:
             fi
 
             gh run view "$CI_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,event,headSha,status,conclusion,jobs > "$RUNNER_TEMP/exact-ci-run.json"
-            node - "$RUNNER_TEMP/exact-ci-run.json" "$CANDIDATE_SHA" <<'NODE'
-            const fs = require('node:fs');
-            const [file, expectedSha] = process.argv.slice(2);
-            const run = JSON.parse(fs.readFileSync(file, 'utf8'));
-            if (run.event !== 'workflow_dispatch') throw new Error(`unexpected event: ${run.event}`);
-            if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
-            if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
-            const required = new Set(['Syntax Check', 'Unit & Integration Tests', 'Execution Resolver Gate', 'Architecture Drift Detection']);
-            for (const job of run.jobs || []) if (job.conclusion === 'success') required.delete(job.name);
-            if (required.size) throw new Error(`missing successful jobs: ${[...required].join(', ')}`);
-            NODE
+            if [[ "$(jq -r '.event' "$RUNNER_TEMP/exact-ci-run.json")" != "workflow_dispatch" ]]; then
+              echo "::error::exact CI event is not workflow_dispatch"
+              exit 1
+            fi
+            if [[ "$(jq -r '.headSha' "$RUNNER_TEMP/exact-ci-run.json")" != "$CANDIDATE_SHA" ]]; then
+              echo "::error::exact CI head SHA mismatch"
+              exit 1
+            fi
+            if [[ "$(jq -r '.status + "/" + .conclusion' "$RUNNER_TEMP/exact-ci-run.json")" != "completed/success" ]]; then
+              echo "::error::exact CI did not complete successfully"
+              exit 1
+            fi
+            for required_job in "Syntax Check" "Unit & Integration Tests" "Execution Resolver Gate" "Architecture Drift Detection"; do
+              if ! jq -e --arg name "$required_job" '.jobs[]? | select(.name == $name and .conclusion == "success")' "$RUNNER_TEMP/exact-ci-run.json" >/dev/null; then
+                echo "::error::missing successful required CI job: $required_job"
+                exit 1
+              fi
+            done
 
             CURRENT_MAIN="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
             CURRENT_PRODUCTION="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/Production" --jq '.object.sha')"
