@@ -265,13 +265,32 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     });
   }
 
-  const resourceType = String(context.resource_type || "").trim();
-  const resourceRef = String(context.resource_ref || context.target_ref || "").trim();
+  const requestedResourceType = String(context.resource_type || "").trim();
+  const requestedResourceRef = String(context.resource_ref || context.target_ref || "").trim();
   const requiresResourceBinding = Number(policy.requires_resource_binding || 0) === 1;
-  if (requiresResourceBinding && (!resourceType || !resourceRef)) {
+  if (requiresResourceBinding && (!requestedResourceType || !requestedResourceRef)) {
     return denied(policy, "user_brand_skill_resource_scope_required", operation, {
       membership_role: membership.role || null,
     });
+  }
+
+  let resourceBrandBinding = null;
+  let canonicalResourceType = requestedResourceType;
+  let canonicalResourceRef = requestedResourceRef;
+  if (requiresResourceBinding) {
+    resourceBrandBinding = await verifyCurrentResourceBrandBinding(pool, {
+      tenantId,
+      brandKey,
+      resourceType: requestedResourceType,
+      resourceRef: requestedResourceRef,
+    });
+    if (!resourceBrandBinding) {
+      return denied(policy, "user_brand_skill_resource_brand_binding_inactive", operation, {
+        membership_role: membership.role || null,
+      });
+    }
+    canonicalResourceType = resourceBrandBinding.resource_type;
+    canonicalResourceRef = resourceBrandBinding.resource_ref;
   }
 
   const [grantRows] = await pool.query(
@@ -296,11 +315,11 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
       policy.policy_id,
       operation,
       requiresResourceBinding ? 1 : 0,
-      resourceType,
-      resourceRef,
+      canonicalResourceType,
+      canonicalResourceRef,
       requiresResourceBinding ? 1 : 0,
-      resourceType,
-      resourceRef,
+      canonicalResourceType,
+      canonicalResourceRef,
     ]
   );
   const grant = grantRows[0] || null;
@@ -311,14 +330,13 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
   }
 
   let resourceAuthority = null;
-  let resourceBrandBinding = null;
   let requiredResourcePermission = null;
   if (requiresResourceBinding) {
     resourceAuthority = await resolveActiveResourceAuthority(pool, grant, {
       tenantId,
       userId,
-      resourceType,
-      resourceRef,
+      resourceType: canonicalResourceType,
+      resourceRef: canonicalResourceRef,
     });
     if (!resourceAuthority) {
       return denied(policy, "user_brand_skill_resource_authority_inactive", operation, {
@@ -333,17 +351,6 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
         required_resource_permission: requiredResourcePermission,
       });
     }
-    resourceBrandBinding = await verifyCurrentResourceBrandBinding(pool, {
-      tenantId,
-      brandKey,
-      resourceType,
-      resourceRef,
-    });
-    if (!resourceBrandBinding) {
-      return denied(policy, "user_brand_skill_resource_brand_binding_inactive", operation, {
-        membership_role: membership.role || null,
-      });
-    }
   }
 
   return {
@@ -356,6 +363,8 @@ export async function resolveUserBrandSkillEntitlement(pool, skill, context = {}
     resource_authority_valid: requiresResourceBinding ? true : null,
     resource_brand_binding_valid: requiresResourceBinding ? true : null,
     resource_grant_id: resourceAuthority?.grant_id || grant.resource_grant_id || null,
+    resource_type: canonicalResourceType || null,
+    resource_ref: canonicalResourceRef || null,
     resource_permission: resourceAuthority?.permission || null,
     required_resource_permission: requiredResourcePermission,
     resource_binding_source: resourceBrandBinding?.binding_source || null,
