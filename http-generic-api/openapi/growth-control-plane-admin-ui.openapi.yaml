@@ -10,7 +10,7 @@ servers:
   - url: https://auth.mad4b.com
 security:
   - adminBearerAuth: []
-  - backendApiKeyAuth: []
+    backendApiKeyAuth: []
 tags:
   - name: growth-control-plane-admin-ui
 paths:
