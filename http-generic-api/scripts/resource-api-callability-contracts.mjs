@@ -3,6 +3,44 @@ import path from "node:path";
 
 const MUTATION_CONTRACT_FILE = "resource-api-mutation-callability.manifest.json";
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+const EFFECT_PROFILES = Object.freeze({
+  read_only: Object.freeze({
+    read_only: true,
+    provider_calls_allowed: false,
+    external_writes_allowed: false,
+    database_writes_allowed: false,
+    transaction_required: false,
+    same_cycle_readback_required: false,
+    credential_payload_reads_allowed: false,
+  }),
+  database_mutation: Object.freeze({
+    read_only: false,
+    provider_calls_allowed: false,
+    external_writes_allowed: false,
+    database_writes_allowed: true,
+    transaction_required: true,
+    same_cycle_readback_required: true,
+    credential_payload_reads_allowed: false,
+  }),
+  provider_read: Object.freeze({
+    read_only: true,
+    provider_calls_allowed: true,
+    external_writes_allowed: false,
+    database_writes_allowed: false,
+    transaction_required: false,
+    same_cycle_readback_required: true,
+    credential_payload_reads_allowed: true,
+  }),
+  external_execute: Object.freeze({
+    read_only: false,
+    provider_calls_allowed: true,
+    external_writes_allowed: true,
+    database_writes_allowed: true,
+    transaction_required: true,
+    same_cycle_readback_required: true,
+    credential_payload_reads_allowed: true,
+  }),
+});
 
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
@@ -104,6 +142,29 @@ function contractToolBindings(contract, findings, contractKey) {
   return bindings.filter((binding) => binding.tool_key);
 }
 
+function validateEffectPolicy({ contract, method, findings, contractKey }) {
+  const explicitEffectClass = contract?.effect_class !== undefined;
+  const effectClass = String(contract?.effect_class || (method === "GET" ? "read_only" : "database_mutation")).trim();
+  const profile = EFFECT_PROFILES[effectClass];
+  if (!profile) {
+    findings.push({ type: "direct_route_contract_effect_class_invalid", contract_key: contractKey || null, effect_class: effectClass || null });
+    return effectClass || null;
+  }
+
+  const expectedPolicy = {
+    auth_model: "user_jwt",
+    runtime_execution_allowed: true,
+    secrets_included: false,
+    ...profile,
+  };
+  const legacyGetOptional = new Set(["database_writes_allowed", "transaction_required", "same_cycle_readback_required"]);
+  for (const [field, expected] of Object.entries(expectedPolicy)) {
+    if (!explicitEffectClass && method === "GET" && legacyGetOptional.has(field) && contract?.[field] === undefined) continue;
+    if (contract?.[field] !== expected) findings.push({ type: "direct_route_contract_policy_mismatch", contract_key: contractKey || null, field, expected, actual: contract?.[field] });
+  }
+  return effectClass;
+}
+
 export function validateDirectRouteCallabilityContracts({ root = process.cwd(), manifest, fileOverrides = {} } = {}) {
   const findings = [];
   const baseContracts = manifest?.callability_gate?.direct_route_contracts;
@@ -121,7 +182,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
     const startFindingCount = findings.length;
     const contractKey = String(contract?.contract_key || "").trim();
     const toolBindings = contractToolBindings(contract, findings, contractKey);
-    const routeSignature = String(contract?.route_signature || "").trim().replace(/^([a-z]+)\s+/i, (_, method) => `${method.toUpperCase()} `);
+    const routeSignature = String(contract?.route_signature || "").trim().replace(/^([a-z]+)\s+/i, (_, methodName) => `${methodName.toUpperCase()} `);
     const method = routeSignature.split(/\s+/, 1)[0] || "";
 
     if (!contractKey) findings.push({ type: "direct_route_contract_key_missing" });
@@ -137,19 +198,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
     for (const binding of toolBindings) seenToolKeys.add(binding.tool_key);
     if (routeSignature) seenRouteSignatures.add(routeSignature);
 
-    const expectedPolicy = {
-      auth_model: "user_jwt",
-      read_only: method === "GET",
-      runtime_execution_allowed: true,
-      provider_calls_allowed: false,
-      external_writes_allowed: false,
-      credential_payload_reads_allowed: false,
-      secrets_included: false,
-      ...(method === "GET" ? {} : { database_writes_allowed: true, transaction_required: true, same_cycle_readback_required: true }),
-    };
-    for (const [field, expected] of Object.entries(expectedPolicy)) {
-      if (contract?.[field] !== expected) findings.push({ type: "direct_route_contract_policy_mismatch", contract_key: contractKey || null, field, expected, actual: contract?.[field] });
-    }
+    const effectClass = validateEffectPolicy({ contract, method, findings, contractKey });
 
     const migrationGroups = new Map();
     for (const binding of toolBindings) {
@@ -184,6 +233,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
       route_signature: routeSignature || null,
       migration_file: migrationFiles[0] || null,
       migration_files: migrationFiles,
+      effect_class: effectClass,
       status: valid ? "covered" : "invalid",
     };
     results.push(result);
