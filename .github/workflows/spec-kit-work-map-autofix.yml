@@ -119,4 +119,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/work-maps
           git commit -m "docs(work-maps): regenerate governed platform maps"
-          git push --force-with-lease="refs/heads/${TARGET_BRANCH}:${EXPECTED_HEAD_SHA}" origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix push. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
