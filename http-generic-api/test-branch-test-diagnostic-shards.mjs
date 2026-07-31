@@ -25,7 +25,7 @@ try {
   assert.ok(testCommands.includes("node test-growth-control-typed-invalidation-consumer.mjs"));
   assert.equal(deriveDiagnosticFamily("node test-growth-control-policy-compiler.mjs"), "growth-control");
   assert.equal(deriveDiagnosticFamily("node test-context-kernel-principal-resolver.mjs"), "context-kernel");
-  assert.equal(deriveDiagnosticFamily("node test-example-contract.mjs"), "example-contract");
+  assert.equal(deriveDiagnosticFamily("node test-example-contract.mjs"), "contracts");
 
   const completeMatrixResult = run([
     "--emit-matrix",
