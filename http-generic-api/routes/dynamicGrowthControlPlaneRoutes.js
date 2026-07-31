@@ -5,6 +5,7 @@ import { createGrowthControlPlaneRepository } from "../src/infrastructure/growth
 import { createGrowthControlShadowParityRepository } from "../src/infrastructure/growthControlPlane/growthControlShadowParityRepository.js";
 import { createGrowthControlPlaneService } from "../src/application/growthControlPlane/growthControlPlaneService.js";
 import { createGrowthControlShadowParityService } from "../src/application/growthControlPlane/growthControlShadowParityService.js";
+import { createAdminGrowthControlUiProjectionService } from "../src/application/growthControlPlane/adminGrowthControlUiProjectionService.js";
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
@@ -56,11 +57,12 @@ export function buildDynamicGrowthControlPlaneRoutes({
   requireBackendApiKey,
   requireAdminPrincipal,
   service = null,
+  uiProjectionService = null,
   resolvePool = () => getPool(),
   shadowParityEnabled = process.env.GROWTH_CONTROL_SHADOW_PARITY_ENABLED === "true"
 }) {
   const router = Router();
-  const repository = service ? null : createGrowthControlPlaneRepository({ resolvePool });
+  const repository = createGrowthControlPlaneRepository({ resolvePool });
   const shadowParityRepository = service || !shadowParityEnabled
     ? null
     : createGrowthControlShadowParityRepository({ resolvePool });
@@ -68,6 +70,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
     ? createGrowthControlShadowParityService({ repository: shadowParityRepository })
     : null;
   const controlPlane = service || createGrowthControlPlaneService({ repository, shadowParityObserver });
+  const adminUiProjection = uiProjectionService || createAdminGrowthControlUiProjectionService({ repository });
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal];
 
   // frontend-surface-operation: GET /admin/control-plane/configurations
@@ -76,6 +79,15 @@ export function buildDynamicGrowthControlPlaneRoutes({
       assertAllowedKeys(req.query, new Set(["limit", "cursor"]));
       const result = await controlPlane.listConfigurationDefinitions({ limit: req.query.limit, cursor: req.query.cursor });
       return res.json(result);
+    } catch (error) { return errorResponse(req, res, error); }
+  });
+
+  // frontend-surface-operation: GET /admin/control-plane/configurations/{configKey}/ui-projection
+  router.get("/admin/control-plane/configurations/:configKey/ui-projection", ...requireAdmin, async (req, res) => {
+    try {
+      assertAllowedKeys(req.query, new Set(["baseVersionId", "compareVersionId"]));
+      const result = await adminUiProjection.projectConfiguration(req.params.configKey, req.query || {});
+      return res.status(200).json(result);
     } catch (error) { return errorResponse(req, res, error); }
   });
 
