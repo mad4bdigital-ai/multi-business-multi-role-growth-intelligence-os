@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-import { createProviderConsentAdapterEvidenceService } from "./contextKernel/application/providerConsentAdapterEvidenceService.js";
+import {
+  createProviderConsentAdapterEvidenceService,
+} from "./contextKernel/application/providerConsentAdapterEvidenceService.js";
 import {
   createAes256GcmProviderCredentialEnvelopeService,
-  createNonProductionProviderExchangeAdapter,
+  _testingProviderConsentNonProductionCredentialEnvelope,
+} from "./contextKernel/infrastructure/sql/providerConsentNonProductionCredentialEnvelope.js";
+import {
   createSqlProviderConsentHandoffStore,
-  _testingProviderConsentNonProductionAdapters,
-} from "./contextKernel/infrastructure/sql/providerConsentNonProductionAdapters.js";
+} from "./contextKernel/infrastructure/sql/providerConsentNonProductionHandoffStore.js";
+import {
+  createNonProductionProviderExchangeAdapter,
+} from "./contextKernel/infrastructure/sql/providerConsentNonProductionProviderExchange.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -16,10 +22,10 @@ const executor = {
   async execute(statement, params) {
     sqlEvents.push({ statement, params });
     if (statement.includes("INSERT INTO")) return [{ affectedRows: 1 }, []];
-    if (statement.includes("UPDATE") && statement.includes("status = 'leased'")) {
+    if (statement.includes("status = 'leased'") && statement.includes("retry_at")) {
       return [{ affectedRows: 1 }, []];
     }
-    if (statement.includes("SELECT handoff_ref, lease_ref")) {
+    if (statement.includes("SELECT") && statement.includes("lease_ref")) {
       return [[{
         handoff_ref: "handoff-1",
         lease_ref: "lease-1",
@@ -29,10 +35,17 @@ const executor = {
         sealed_completion_checkpoint: null,
       }], []];
     }
-    if (statement.includes("SET stage =")) return [{ affectedRows: 1 }, []];
+    if (statement.includes("stage = 'provider_completed'")) {
+      return [{ affectedRows: 1 }, []];
+    }
+    if (statement.includes("stage = 'persistence_completed'")) {
+      return [{ affectedRows: 1 }, []];
+    }
     if (statement.includes("SET status = ?")) return [{ affectedRows: 1 }, []];
-    if (statement.includes("SET status = 'completed'")) return [{ affectedRows: 1 }, []];
-    if (statement.includes("SELECT handoff_ref, status")) {
+    if (statement.includes("SET status = 'completed'")) {
+      return [{ affectedRows: 1 }, []];
+    }
+    if (statement.includes("provider_checkpoint_present")) {
       return [[{
         handoff_ref: "handoff-1",
         status: "retryable",
@@ -50,15 +63,17 @@ const executor = {
 const store = createSqlProviderConsentHandoffStore({
   executor,
   environment: "staging",
-  schemaDigestSha256: digest("provider-consent-handoff-schema-v1"),
+  schemaDigestSha256: digest("provider-consent-handoff-schema-v2"),
 });
 assert.equal(store.certification.environment, "staging");
+assert.equal(store.certification.capabilities.monotonicStages, true);
+assert.equal(store.certification.capabilities.retryAtEnforced, true);
 assert.equal((await store.insert({
   handoffRef: "handoff-1",
   expiresAt: "2026-08-01T00:00:00.000Z",
   maxAttempts: 4,
   sealedPayload: "sealed-payload",
-  certificationVersionRef: "handoff.v1",
+  certificationVersionRef: "handoff.v2",
 })).created, true);
 const acquired = await store.acquire({
   handoffRef: "handoff-1",
@@ -71,7 +86,13 @@ assert.equal((await store.checkpoint({
   handoffRef: "handoff-1",
   leaseRef: "lease-1",
   stage: "provider_completed",
-  sealedCredentialCheckpoint: "sealed-checkpoint",
+  sealedCredentialCheckpoint: "sealed-provider-checkpoint",
+})).checkpointed, true);
+assert.equal((await store.checkpoint({
+  handoffRef: "handoff-1",
+  leaseRef: "lease-1",
+  stage: "persistence_completed",
+  sealedCompletionCheckpoint: "sealed-completion-checkpoint",
 })).checkpointed, true);
 assert.equal((await store.release({
   handoffRef: "handoff-1",
@@ -84,7 +105,31 @@ assert.equal((await store.complete({
   handoffRef: "handoff-1",
   leaseRef: "lease-1",
 })).completed, true);
-assert.equal((await store.readStatus({ handoffRef: "handoff-1" })).providerCheckpointPresent, true);
+assert.equal(
+  (await store.readStatus({ handoffRef: "handoff-1" }))
+    .providerCheckpointPresent,
+  true,
+);
+const acquireEvent = sqlEvents.find(
+  (event) => event.statement.includes("status = 'leased'")
+    && event.statement.includes("retry_at"),
+);
+assert.equal(acquireEvent.params.length, 6);
+assert.match(acquireEvent.statement, /retry_at IS NULL OR retry_at <= \?/);
+const providerCheckpointEvent = sqlEvents.find(
+  (event) => event.statement.includes("stage = 'provider_completed'"),
+);
+assert.match(providerCheckpointEvent.statement, /stage = 'claimed_handoff_ready'/);
+assert.match(providerCheckpointEvent.statement, /sealed_completion_checkpoint IS NULL/);
+const persistenceCheckpointEvent = sqlEvents.find(
+  (event) => event.statement.includes("stage = 'persistence_completed'"),
+);
+assert.match(persistenceCheckpointEvent.statement, /stage = 'provider_completed'/);
+assert.match(persistenceCheckpointEvent.statement, /sealed_credential_checkpoint IS NOT NULL/);
+const completionEvent = sqlEvents.find(
+  (event) => event.statement.includes("SET status = 'completed'"),
+);
+assert.match(completionEvent.statement, /stage = 'persistence_completed'/);
 assert.ok(sqlEvents.every((event) => !event.statement.includes("production")));
 assert.throws(
   () => createSqlProviderConsentHandoffStore({
@@ -130,6 +175,33 @@ const providerResult = await exchange.exchangeAuthorizationCode({
 });
 assert.equal(providerCalls, 1);
 assert.equal(exchange.certification.liveProviderCalled, false);
+assert.equal(exchange.certification.rawCauseRetained, false);
+
+const sanitizedFailure = createNonProductionProviderExchangeAdapter({
+  providerKey: "google_drive",
+  environment: "test",
+  simulationTransport: async () => {
+    const error = new Error("raw provider failure with simulated-access");
+    error.status = 503;
+    error.response = { access_token: "must-not-escape" };
+    throw error;
+  },
+});
+await assert.rejects(
+  sanitizedFailure.exchangeAuthorizationCode({
+    providerKey: "google_drive",
+    authorizationCode: "simulated-code",
+    redirectTargetRef: "redirect-1",
+    requestedProviderScopes: ["drive.file"],
+    idempotencyKey: "state-failure:1",
+  }),
+  (error) => {
+    assert.equal(error.code, "provider_transient_error");
+    assert.equal(Object.hasOwn(error, "cause"), false);
+    assert.equal(JSON.stringify(error).includes("must-not-escape"), false);
+    return true;
+  },
+);
 
 const key = Buffer.alloc(32, 7);
 const keyResolver = async () => ({
@@ -154,18 +226,19 @@ const envelope = await credentialService.sealProviderCredential({
 assert.equal(envelope.providerAccountRef, "account-1");
 assert.match(envelope.providerAccountBindingHash, /^[a-f0-9]{64}$/);
 assert.equal(JSON.stringify(envelope).includes("simulated-access"), false);
-const opened = await _testingProviderConsentNonProductionAdapters.openEnvelopeForTest({
-  encryptedCredentials: envelope.encryptedCredentials,
-  keyResolver,
-  context: {
-    providerKey: "google_drive",
-    tenantRef: "tenant-1",
-    workspaceRef: "workspace-1",
-    brandRef: "brand-1",
-    ownerScopeType: "brand",
-    ownerScopeRef: "brand-1",
-  },
-});
+const opened = await _testingProviderConsentNonProductionCredentialEnvelope
+  .openEnvelopeForTest({
+    encryptedCredentials: envelope.encryptedCredentials,
+    keyResolver,
+    context: {
+      providerKey: "google_drive",
+      tenantRef: "tenant-1",
+      workspaceRef: "workspace-1",
+      brandRef: "brand-1",
+      ownerScopeType: "brand",
+      ownerScopeRef: "brand-1",
+    },
+  });
 assert.equal(opened.access_token, "simulated-access");
 
 const evidenceService = createProviderConsentAdapterEvidenceService({
@@ -189,7 +262,9 @@ const readiness = evidenceService.assessNonProductionReadiness({
   providerExchangeEvidence: {
     ...exchange.certification,
     rateLimitRetryAfterMaxSeconds: 300,
-    simulationScenarioDigestSha256: digest("google-drive-simulation-scenarios-v1"),
+    simulationScenarioDigestSha256: digest(
+      "google-drive-simulation-scenarios-v2",
+    ),
     testRunRef: "registered-contract-test",
   },
   credentialEnvelopeEvidence: {
@@ -242,4 +317,6 @@ assert.throws(
   (error) => error.code === "provider_consent_nonprod_environment_required",
 );
 
-console.log("context kernel provider consent adapter evidence and non-production readiness tests passed");
+console.log(
+  "context kernel provider consent adapter evidence and non-production readiness tests passed",
+);
