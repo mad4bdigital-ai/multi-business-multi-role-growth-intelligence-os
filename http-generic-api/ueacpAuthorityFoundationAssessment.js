@@ -15,10 +15,12 @@ export const UEACP_AUTHORITY_FOUNDATION_STORAGE_SEMANTICS = Object.freeze([
   "source_authority", "derived_projection", "append_only_evidence", "append_only_event",
 ]);
 
-const CONTRACT = "mad4b.ueacp-authority-foundation-classification.v1";
+const CLASSIFICATION_CONTRACT = "mad4b.ueacp-authority-foundation-classification.v1";
+const PATH_INVENTORY_CONTRACT = "mad4b.ueacp-authority-path-inventory.v1";
 const TOKEN = /^[a-z][a-z0-9_]{1,190}$/;
 const SHA = /^[a-f0-9]{64}$/;
 const SENSITIVE = /(authorization|cookie|credential|secret|token|password|private.?key|api.?key)/i;
+const SAFE_MARKER_KEYS = new Set(["credential_payload_read", "secrets_included", "provider_calls", "external_writes"]);
 
 export class UeacpAuthorityFoundationAssessmentError extends Error {
   constructor(code, message, details = {}) {
@@ -38,13 +40,15 @@ function stableStringify(value) {
 const hash = (value, prefix) => crypto.createHash("sha256").update(`${prefix}:${stableStringify(value)}`).digest("hex");
 function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return value;
-  seen.add(value); Object.values(value).forEach((child) => deepFreeze(child, seen)); return Object.freeze(value);
+  seen.add(value);
+  Object.values(value).forEach((child) => deepFreeze(child, seen));
+  return Object.freeze(value);
 }
-function rejectSensitive(value, path = "classification", seen = new WeakSet()) {
+function rejectSensitive(value, path = "evidence", seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   for (const [key, child] of Object.entries(value)) {
-    if (SENSITIVE.test(key)) fail("ueacp_foundation_sensitive_field", "Authority classifications cannot contain secret-bearing fields.", { path: `${path}.${key}` });
+    if (SENSITIVE.test(key) && !SAFE_MARKER_KEYS.has(key)) fail("ueacp_foundation_sensitive_field", "UEACP evidence cannot contain secret-bearing fields.", { path: `${path}.${key}` });
     rejectSensitive(child, `${path}.${key}`, seen);
   }
 }
@@ -74,17 +78,68 @@ function assertCensus(census) {
   if (census.provider_calls !== false || census.credential_payload_read !== false || census.external_writes !== false || census.secrets_included !== false) fail("ueacp_foundation_unsafe_census", "The census safety markers are not acceptable.");
 }
 function censusInput(census) {
-  return { schema_name: census.schema_name, database_server: census.database_server, objects: census.objects,
-    columns: census.columns, indexes: census.indexes, foreign_keys: census.foreign_keys,
-    views: census.views, revision_support: census.revision_support };
+  return {
+    schema_name: census.schema_name,
+    database_server: census.database_server,
+    objects: census.objects,
+    columns: census.columns,
+    indexes: census.indexes,
+    foreign_keys: census.foreign_keys,
+    views: census.views,
+    revision_support: census.revision_support,
+  };
 }
 export function createUeacpAuthorityCensusFingerprint(census) {
-  assertCensus(census); return hash(censusInput(census), "ueacp-authority-census-v1");
+  assertCensus(census);
+  return hash(censusInput(census), "ueacp-authority-census-v1");
+}
+
+function normalizeAuthorityPathInventory(inventory) {
+  if (!inventory || typeof inventory !== "object" || Array.isArray(inventory)) fail("ueacp_foundation_invalid_path_inventory", "An Admin/Tenant authority-path inventory is required.");
+  rejectSensitive(inventory, "authority_path_inventory");
+  if (inventory.contract !== PATH_INVENTORY_CONTRACT) fail("ueacp_foundation_invalid_path_inventory_contract", "Unsupported authority-path inventory contract.", { contract: inventory.contract ?? null });
+  const coverage = inventory.coverage;
+  if (!coverage || typeof coverage !== "object" || Array.isArray(coverage)) fail("ueacp_foundation_invalid_path_inventory", "Authority-path inventory coverage is required.");
+  const unresolvedCount = Number(coverage.unresolved_path_count);
+  if (coverage.admin_complete !== true || coverage.tenant_complete !== true || !Number.isSafeInteger(unresolvedCount) || unresolvedCount !== 0) {
+    fail("ueacp_foundation_incomplete_path_inventory", "Admin and Tenant authority-path inventory must be complete with zero unresolved paths.");
+  }
+  if (!Array.isArray(inventory.paths) || inventory.paths.length < 2 || inventory.paths.length > 4096) fail("ueacp_foundation_invalid_path_inventory", "Authority-path inventory must contain between 2 and 4096 paths.");
+  const seen = new Set();
+  const paths = inventory.paths.map((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("ueacp_foundation_invalid_path_inventory", "Each authority path must be an object.");
+    const surface = choice(raw.surface, ["admin", "tenant"], "surface");
+    const pathKey = token(raw.path_key, "path_key");
+    const identity = `${surface}:${pathKey}`;
+    if (seen.has(identity)) fail("ueacp_foundation_duplicate_authority_path", "Authority path is declared more than once.", { identity });
+    seen.add(identity);
+    return {
+      surface,
+      path_key: pathKey,
+      source_ref: text(raw.source_ref, "source_ref", 3, 300),
+      authority_owner_key: token(raw.authority_owner_key, "authority_owner_key"),
+      operation_class: choice(raw.operation_class, ["read", "mutation", "mixed"], "operation_class"),
+      projection_only: raw.projection_only === true,
+      evidence_refs: list(raw.evidence_refs, "evidence_refs", { min: 1 }),
+    };
+  }).sort((left, right) => `${left.surface}:${left.path_key}`.localeCompare(`${right.surface}:${right.path_key}`));
+  if (!paths.some((item) => item.surface === "admin") || !paths.some((item) => item.surface === "tenant")) fail("ueacp_foundation_incomplete_path_inventory", "Authority-path inventory must include both Admin and Tenant paths.");
+  const safety = inventory.safety;
+  if (!safety || safety.read_only !== true || safety.provider_calls !== false || safety.credential_payload_read !== false || safety.external_writes !== false || safety.secrets_included !== false) fail("ueacp_foundation_unsafe_path_inventory", "Authority-path inventory safety markers are not acceptable.");
+  return {
+    contract: PATH_INVENTORY_CONTRACT,
+    coverage: { admin_complete: true, tenant_complete: true, unresolved_path_count: 0 },
+    paths,
+    safety: { read_only: true, provider_calls: false, credential_payload_read: false, external_writes: false, secrets_included: false },
+  };
+}
+export function createUeacpAuthorityPathInventoryFingerprint(inventory) {
+  return hash(normalizeAuthorityPathInventory(inventory), "ueacp-authority-path-inventory-v1");
 }
 
 function normalizeClassification(raw, objectByName, revisionByName) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("ueacp_foundation_invalid_classification", "Each classification must be an object.");
-  rejectSensitive(raw);
+  rejectSensitive(raw, "classification");
   const logicalKey = token(raw.logical_key, "logical_key");
   if (!UEACP_AUTHORITY_FOUNDATION_LOGICAL_KEYS.includes(logicalKey)) fail("ueacp_foundation_unknown_logical_key", "Unknown UEACP logical authority key.", { logical_key: logicalKey });
   const disposition = choice(raw.disposition, UEACP_AUTHORITY_FOUNDATION_DISPOSITIONS, "disposition");
@@ -107,18 +162,30 @@ function normalizeClassification(raw, objectByName, revisionByName) {
   if (disposition === "reuse" && revisionStrategy === "add_explicit_revision") fail("ueacp_foundation_revision_mismatch", "Adding revision support requires extension, not reuse.", { logical_key: logicalKey });
   if (disposition === "blocked" && revisionStrategy !== "not_applicable") fail("ueacp_foundation_revision_mismatch", "Blocked classifications must use not_applicable revision strategy.", { logical_key: logicalKey });
 
-  return { logical_key: logicalKey, disposition, owner_key: token(raw.owner_key, "owner_key"), approved,
-    storage_semantics: storageSemantics, revision_strategy: revisionStrategy, existing_revision_support: support,
-    object_names: objectNames, proposed_object_name: proposed, shared_object: sharedObject, shared_reason: sharedReason,
-    evidence_refs: list(raw.evidence_refs, "evidence_refs", { min: 1 }), rationale: text(raw.rationale, "rationale", 12, 2000),
-    migration_action: disposition === "extend" ? "alter_existing_additive" : disposition === "create" ? "create_additive" : "none" };
+  return {
+    logical_key: logicalKey,
+    disposition,
+    owner_key: token(raw.owner_key, "owner_key"),
+    approved,
+    storage_semantics: storageSemantics,
+    revision_strategy: revisionStrategy,
+    existing_revision_support: support,
+    object_names: objectNames,
+    proposed_object_name: proposed,
+    shared_object: sharedObject,
+    shared_reason: sharedReason,
+    evidence_refs: list(raw.evidence_refs, "evidence_refs", { min: 1 }),
+    rationale: text(raw.rationale, "rationale", 12, 2000),
+    migration_action: disposition === "extend" ? "alter_existing_additive" : disposition === "create" ? "create_additive" : "none",
+  };
 }
 
-export function assessUeacpAuthorityFoundation({ census, classificationBundle, requiredLogicalKeys = UEACP_AUTHORITY_FOUNDATION_LOGICAL_KEYS } = {}) {
+export function assessUeacpAuthorityFoundation({ census, authorityPathInventory, classificationBundle, requiredLogicalKeys = UEACP_AUTHORITY_FOUNDATION_LOGICAL_KEYS } = {}) {
   assertCensus(census);
+  const normalizedPathInventory = normalizeAuthorityPathInventory(authorityPathInventory);
   if (!classificationBundle || typeof classificationBundle !== "object" || Array.isArray(classificationBundle)) fail("ueacp_foundation_invalid_bundle", "A classification bundle is required.");
   rejectSensitive(classificationBundle, "classification_bundle");
-  if (classificationBundle.contract !== CONTRACT) fail("ueacp_foundation_invalid_contract", "Unsupported classification contract.", { contract: classificationBundle.contract ?? null });
+  if (classificationBundle.contract !== CLASSIFICATION_CONTRACT) fail("ueacp_foundation_invalid_contract", "Unsupported classification contract.", { contract: classificationBundle.contract ?? null });
   const required = list(requiredLogicalKeys, "requiredLogicalKeys", { min: 1, max: 12, tokens: true });
   required.forEach((key) => { if (!UEACP_AUTHORITY_FOUNDATION_LOGICAL_KEYS.includes(key)) fail("ueacp_foundation_unknown_logical_key", "Unknown required logical key.", { logical_key: key }); });
   if (!Array.isArray(classificationBundle.classifications)) fail("ueacp_foundation_invalid_bundle", "classifications must be an array.");
@@ -126,11 +193,16 @@ export function assessUeacpAuthorityFoundation({ census, classificationBundle, r
   const objectByName = new Map(census.objects.map((item) => [String(item.object_name).toLowerCase(), item]));
   const revisionByName = new Map(census.revision_support.map((item) => [String(item.object_name).toLowerCase(), item]));
   const classifications = classificationBundle.classifications.map((item) => normalizeClassification(item, objectByName, revisionByName)).sort((a, b) => a.logical_key.localeCompare(b.logical_key));
-  const logicalKeys = new Set(); const objectOwners = new Map();
+  const logicalKeys = new Set();
+  const objectOwners = new Map();
   for (const item of classifications) {
     if (logicalKeys.has(item.logical_key)) fail("ueacp_foundation_duplicate_logical_key", "A logical key is classified more than once.", { logical_key: item.logical_key });
     logicalKeys.add(item.logical_key);
-    for (const name of item.object_names) { const owners = objectOwners.get(name) ?? []; owners.push(item); objectOwners.set(name, owners); }
+    for (const name of item.object_names) {
+      const owners = objectOwners.get(name) ?? [];
+      owners.push(item);
+      objectOwners.set(name, owners);
+    }
   }
   for (const [name, owners] of objectOwners) if (owners.length > 1 && !owners.every((item) => item.shared_object && item.shared_reason)) fail("ueacp_foundation_ambiguous_object_ownership", "One physical object cannot silently own multiple logical semantics.", { object_name: name, logical_keys: owners.map((item) => item.logical_key).sort() });
 
@@ -141,29 +213,75 @@ export function assessUeacpAuthorityFoundation({ census, classificationBundle, r
   const censusSha = createUeacpAuthorityCensusFingerprint(census);
   const suppliedCensusSha = String(classificationBundle.census_sha256 ?? "").trim().toLowerCase();
   const censusBound = SHA.test(suppliedCensusSha) && suppliedCensusSha === censusSha;
-  const pathSha = String(classificationBundle.authority_path_inventory_sha256 ?? "").trim().toLowerCase();
+  const pathSha = createUeacpAuthorityPathInventoryFingerprint(normalizedPathInventory);
+  const suppliedPathSha = String(classificationBundle.authority_path_inventory_sha256 ?? "").trim().toLowerCase();
   const pathRef = String(classificationBundle.authority_path_inventory_ref ?? "").trim();
-  const pathBound = SHA.test(pathSha) && pathRef.length >= 3 && pathRef.length <= 300;
+  const pathBound = SHA.test(suppliedPathSha) && suppliedPathSha === pathSha && pathRef.length >= 3 && pathRef.length <= 300;
   const complete = !missing.length && !unexpected.length && !blocked.length && !unapproved.length && censusBound && pathBound;
-  const normalized = { contract: CONTRACT, schema_name: text(census.schema_name, "census.schema_name", 1, 190), census_sha256: censusSha,
-    authority_path_inventory_sha256: pathSha, authority_path_inventory_ref: pathRef,
-    classification_source: text(classificationBundle.classification_source, "classification_source", 3, 300), classifications };
+  const normalized = {
+    contract: CLASSIFICATION_CONTRACT,
+    schema_name: text(census.schema_name, "census.schema_name", 1, 190),
+    census_sha256: censusSha,
+    authority_path_inventory_sha256: pathSha,
+    authority_path_inventory_ref: pathRef,
+    classification_source: text(classificationBundle.classification_source, "classification_source", 3, 300),
+    classifications,
+  };
 
-  return deepFreeze({ contract: "mad4b.ueacp-authority-foundation-assessment.v1", ok: complete,
+  return deepFreeze({
+    contract: "mad4b.ueacp-authority-foundation-assessment.v1",
+    ok: complete,
     status: complete ? "ready_for_additive_migration_design" : "blocked_pending_authority_classification",
-    schema_name: normalized.schema_name, census_sha256: censusSha, supplied_census_sha256: suppliedCensusSha || null,
-    census_bound: censusBound, authority_path_inventory_sha256: pathSha || null,
-    authority_path_inventory_ref: pathRef || null, authority_path_inventory_bound: pathBound,
-    assessment_sha256: hash(normalized, "ueacp-authority-foundation-assessment-v1"), classifications,
-    migration_actions: classifications.filter((item) => item.migration_action !== "none").map((item) => ({ logical_key: item.logical_key,
-      action: item.migration_action, object_name: item.object_names[0] ?? item.proposed_object_name, revision_strategy: item.revision_strategy })),
-    blockers: { missing_logical_keys: missing, unexpected_logical_keys: unexpected, blocked_logical_keys: blocked,
-      unapproved_logical_keys: unapproved, census_fingerprint_mismatch: !censusBound, authority_path_inventory_missing: !pathBound },
-    closure_state: { t001_authority_path_inventory_complete: complete, t002_live_table_ownership_complete: complete,
-      t021_revision_design_authorized: complete, t022_t024_storage_design_authorized: complete,
-      migration_apply_authorized: false, runtime_consumer_activation_authorized: false },
-    safety: { read_only: true, applies_sql: false, provider_calls: false, credential_payload_read: false,
-      external_writes: false, secrets_included: false, runtime_authority_changed: false } });
+    schema_name: normalized.schema_name,
+    census_sha256: censusSha,
+    supplied_census_sha256: suppliedCensusSha || null,
+    census_bound: censusBound,
+    authority_path_inventory_sha256: pathSha,
+    supplied_authority_path_inventory_sha256: suppliedPathSha || null,
+    authority_path_inventory_ref: pathRef || null,
+    authority_path_inventory_bound: pathBound,
+    authority_path_count: normalizedPathInventory.paths.length,
+    assessment_sha256: hash(normalized, "ueacp-authority-foundation-assessment-v1"),
+    classifications,
+    migration_actions: classifications.filter((item) => item.migration_action !== "none").map((item) => ({
+      logical_key: item.logical_key,
+      action: item.migration_action,
+      object_name: item.object_names[0] ?? item.proposed_object_name,
+      revision_strategy: item.revision_strategy,
+    })),
+    blockers: {
+      missing_logical_keys: missing,
+      unexpected_logical_keys: unexpected,
+      blocked_logical_keys: blocked,
+      unapproved_logical_keys: unapproved,
+      census_fingerprint_mismatch: !censusBound,
+      authority_path_inventory_mismatch: !pathBound,
+    },
+    closure_state: {
+      t001_authority_path_inventory_complete: complete,
+      t002_live_table_ownership_complete: complete,
+      t021_revision_design_authorized: complete,
+      t022_t024_storage_design_authorized: complete,
+      migration_apply_authorized: false,
+      runtime_consumer_activation_authorized: false,
+    },
+    safety: {
+      read_only: true,
+      applies_sql: false,
+      provider_calls: false,
+      credential_payload_read: false,
+      external_writes: false,
+      secrets_included: false,
+      runtime_authority_changed: false,
+    },
+  });
 }
 
-export const _testingUeacpAuthorityFoundationAssessment = Object.freeze({ stableStringify, sha256: hash, deepFreeze, assertNoSensitiveKeys: rejectSensitive, normalizeClassification });
+export const _testingUeacpAuthorityFoundationAssessment = Object.freeze({
+  stableStringify,
+  sha256: hash,
+  deepFreeze,
+  assertNoSensitiveKeys: rejectSensitive,
+  normalizeAuthorityPathInventory,
+  normalizeClassification,
+});
