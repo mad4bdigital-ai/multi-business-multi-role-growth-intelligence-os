@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e59936e0e703c1bb10d510e3282d006b63223be03ebf985956134fa57d6790e7",
+    "source_digest": "8a70fd605c697e62cf1d8e189d1955cbf1bd3ee994b306252225bd0a4e301a1b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "f60ba6af6f0750d7b172a503434b165970782ee87d88642bfde28904421c12a4",
+        "sha256": "8a91721eb43bd4931120877d423d40a4cb42e3e74b10d12653697056f05e4cf3",
         "present": true
       },
       {
@@ -82,11 +82,6 @@
       {
         "file": "openapi/github-repository-main-moved-webhook.yaml",
         "sha256": "0ea543bac60016af9d25ea618f3dde4f4e9d28f12654b6e4af57dc895a41dd38",
-        "present": true
-      },
-      {
-        "file": "openapi/growth-control-analytics-observability.openapi.yaml",
-        "sha256": "e2ffc205084a94aeec6f403776d40be04f118bf3abb9a404555eb1d87d4bb351",
         "present": true
       },
       {
@@ -296,7 +291,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+        "sha256": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
         "present": true
       },
       {
@@ -306,7 +301,7 @@
       },
       {
         "file": "routes/activationHardRunRoutes.js",
-        "sha256": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
+        "sha256": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
         "present": true
       },
       {
@@ -316,7 +311,7 @@
       },
       {
         "file": "routes/activationRoutes.js",
-        "sha256": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
+        "sha256": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
         "present": true
       },
       {
@@ -526,7 +521,7 @@
       },
       {
         "file": "routes/dynamicGrowthControlPlaneRoutes.js",
-        "sha256": "85e7026539897e45435f53224f173c2aec60e31ea0cfa8b0e2c581cde49831f4",
+        "sha256": "06d8502323d0ae6959bef5d0f431f34b53949ed455c2e1477bbfecdc0764473b",
         "present": true
       },
       {
@@ -551,7 +546,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
+        "sha256": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
         "present": true
       },
       {
@@ -901,12 +896,12 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+        "sha256": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
         "present": true
       },
       {
         "file": "routes/tenantActivationOverlayRoutes.js",
-        "sha256": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+        "sha256": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
         "present": true
       },
       {
@@ -986,7 +981,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "39eb227c2b2a63fd437f393f25217c878af9dbfdf96fb1a8cd5f33261c7013f4",
+        "sha256": "ba48fe493b7c3e19d60f7b54151f2c8d335d9278facf2df2a1e90efdeeeb2cbd",
         "present": true
       },
       {
@@ -1031,34 +1026,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 171,
+    "mounted_family_count": 170,
     "mounted_route_file_count": 137,
-    "mixed_scope_route_file_count": 26,
-    "operation_count": 1030,
-    "openapi_documented_count": 1014,
-    "openapi_canonical_documented_count": 637,
+    "mixed_scope_route_file_count": 25,
+    "operation_count": 1022,
+    "openapi_documented_count": 1006,
+    "openapi_canonical_documented_count": 629,
     "openapi_generated_index_count": 377,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 377,
     "auth_parity_counts": {
-      "equivalent": 1014,
+      "equivalent": 1006,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 625,
-    "unresolved_operation_class_count": 565,
+    "non_get_candidate_count": 622,
+    "unresolved_operation_class_count": 562,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 156,
+    "unresolved_surface_decision_count": 155,
     "test_owned_family_count": 0,
-    "untested_family_count": 171,
+    "untested_family_count": 170,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1027,
+    "untested_operation_count": 1019,
     "ready_task_count": 0,
-    "blocked_task_count": 171,
+    "blocked_task_count": 170,
     "coverage_complete": false
   },
   "waves": [
@@ -9297,7 +9292,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
       "mount_prefix": "/",
       "mount_order": 13736,
       "split_from_mixed_scope_file": true,
@@ -10063,7 +10058,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "d12c5e6d46b47a6e6cfb4e7e2f3c31552bed1865575a5f65cf83bb8976c26d75",
+      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
       "mount_prefix": "/",
       "mount_order": 13736,
       "split_from_mixed_scope_file": true,
@@ -11625,7 +11620,7 @@
       "family_key": "activation-hard-run",
       "label": "activation hard run",
       "source_file": "routes/activationHardRunRoutes.js",
-      "source_digest": "dc0578cd6a5179748c69120f120a2141e9f34aa3335e8dc2df04b232210cbd26",
+      "source_digest": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
       "mount_prefix": "/",
       "mount_order": 13896,
       "split_from_mixed_scope_file": false,
@@ -12776,7 +12771,7 @@
       "family_key": "tenant-activation-overlay.tenant",
       "label": "tenant activation overlay (tenant)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
       "mount_order": 14106,
       "split_from_mixed_scope_file": true,
@@ -12961,7 +12956,7 @@
       "family_key": "tenant-activation-overlay.unresolved",
       "label": "tenant activation overlay (unresolved)",
       "source_file": "routes/tenantActivationOverlayRoutes.js",
-      "source_digest": "aa252a12bc5c114b341313eb7b91420c13886c11996cb904c35e3a18f35d9adb",
+      "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
       "mount_order": 14106,
       "split_from_mixed_scope_file": true,
@@ -13086,7 +13081,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
       "mount_order": 14215,
       "split_from_mixed_scope_file": true,
@@ -14111,7 +14106,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "9114e7c2162189bd5859f169bec6096667ff2502dae473352401672f626c4f7a",
+      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
       "mount_order": 14215,
       "split_from_mixed_scope_file": true,
@@ -14739,7 +14734,7 @@
       "family_key": "activation",
       "label": "activation",
       "source_file": "routes/activationRoutes.js",
-      "source_digest": "56f5bdc8561bfc9bfbbbdb2376801a43583df302f9c8e585e6d5bd1ea82a3400",
+      "source_digest": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
       "mount_prefix": "/",
       "mount_order": 14320,
       "split_from_mixed_scope_file": false,
@@ -23873,13 +23868,13 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "dynamic-growth-control-plane.admin",
-      "label": "dynamic growth control plane (admin)",
+      "family_key": "dynamic-growth-control-plane",
+      "label": "dynamic growth control plane",
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-      "source_digest": "85e7026539897e45435f53224f173c2aec60e31ea0cfa8b0e2c581cde49831f4",
+      "source_digest": "06d8502323d0ae6959bef5d0f431f34b53949ed455c2e1477bbfecdc0764473b",
       "mount_prefix": "/",
       "mount_order": 15780,
-      "split_from_mixed_scope_file": true,
+      "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "growth",
@@ -24814,432 +24809,13 @@
           },
           "mutation_candidate": true,
           "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/admin/control-plane/analytics/kpis",
-          "signature": "GET /admin/control-plane/analytics/kpis",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdmin",
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdmin",
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/admin/control-plane/analytics/portfolio",
-          "signature": "GET /admin/control-plane/analytics/portfolio",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdmin",
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdmin",
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/admin/control-plane/operations/dashboard",
-          "signature": "GET /admin/control-plane/operations/dashboard",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "admin_backend",
-            "alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "admin",
-            "guard_chain": [
-              "requireAdmin",
-              "requireAdminPrincipal",
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireAdmin",
-              "route:requireAdminPrincipal",
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "adminBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/internal/control-plane/analytics/observations",
-          "signature": "POST /internal/control-plane/analytics/observations",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/internal/control-plane/operations/samples",
-          "signature": "POST /internal/control-plane/operations/samples",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/internal/control-plane/operations/decision-evidence",
-          "signature": "POST /internal/control-plane/operations/decision-evidence",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": true,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
         }
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [],
-      "evidence_routes": [
-        "POST /internal/control-plane/operations/decision-evidence"
-      ],
+      "evidence_routes": [],
       "tests": [],
       "untested_operations": [
         "GET /admin/control-plane/configurations",
@@ -25254,13 +24830,7 @@
         "GET /admin/control-plane/activity-packs",
         "POST /admin/control-plane/activity-packs",
         "POST /admin/control-plane/activity-packs/{activityPackKey}/versions",
-        "POST /admin/control-plane/brand-activity-bindings",
-        "GET /admin/control-plane/analytics/kpis",
-        "GET /admin/control-plane/analytics/portfolio",
-        "GET /admin/control-plane/operations/dashboard",
-        "POST /internal/control-plane/analytics/observations",
-        "POST /internal/control-plane/operations/samples",
-        "POST /internal/control-plane/operations/decision-evidence"
+        "POST /admin/control-plane/brand-activity-bindings"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -25272,7 +24842,6 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
@@ -25347,24 +24916,6 @@
           "blockers": [
             "operation_classification_gap"
           ]
-        },
-        {
-          "signature": "POST /internal/control-plane/analytics/observations",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /internal/control-plane/operations/samples",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /internal/control-plane/operations/decision-evidence",
-          "blockers": [
-            "operation_classification_gap"
-          ]
         }
       ],
       "risk": {
@@ -25372,180 +24923,6 @@
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
-    },
-    {
-      "family_key": "dynamic-growth-control-plane.tenant",
-      "label": "dynamic growth control plane (tenant)",
-      "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-      "source_digest": "85e7026539897e45435f53224f173c2aec60e31ea0cfa8b0e2c581cde49831f4",
-      "mount_prefix": "/",
-      "mount_order": 15780,
-      "split_from_mixed_scope_file": true,
-      "split_from_surface_policy": false,
-      "surface_policy_partition": "default",
-      "group": "growth",
-      "scope": "tenant",
-      "operations": [
-        {
-          "method": "GET",
-          "path": "/tenant/control-plane/analytics/portfolio",
-          "signature": "GET /tenant/control-plane/analytics/portfolio",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireTenantUserJwt"
-            ],
-            "evidence": [
-              "route:requireTenantUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/tenant/control-plane/operations/dashboard",
-          "signature": "GET /tenant/control-plane/operations/dashboard",
-          "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
-          "scope": "tenant",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "user_jwt",
-            "alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "principal": "tenant_user",
-            "guard_chain": [
-              "requireTenantUserJwt"
-            ],
-            "evidence": [
-              "route:requireTenantUserJwt"
-            ],
-            "configuration_dependencies": [
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/growth-control-analytics-observability.openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "userJwtAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        }
-      ],
-      "openapi_gaps": [],
-      "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
-      "auth_contract_gaps": [],
-      "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "GET /tenant/control-plane/analytics/portfolio",
-        "GET /tenant/control-plane/operations/dashboard"
-      ],
-      "resources": [],
-      "embedded_ui": false,
-      "embedded_ui_operations": [],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/growth-control-analytics-observability.openapi.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/dynamicGrowthControlPlaneRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
-      },
-      "operation_blockers": [],
-      "risk": {
-        "score": 4,
-        "class": "medium"
-      },
-      "wave": "F1-tenant-shell"
     },
     {
       "family_key": "activity-binding-lifecycle",
@@ -41465,7 +40842,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "60555433582eff6ba9f91b5c2603c04de41239726178fb78b381cd6d3193f7be",
+      "source_digest": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
       "mount_prefix": "/",
       "mount_order": 17058,
       "split_from_mixed_scope_file": false,
@@ -85731,46 +85108,6 @@
       ]
     },
     {
-      "task_key": "frontend.dynamic-growth-control-plane.tenant",
-      "title": "Resolve and deliver dynamic growth control plane (tenant)",
-      "wave": "F1-tenant-shell",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap",
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/growth-control-analytics-observability.openapi.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/dynamicGrowthControlPlaneRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.gpt-session.tenant",
       "title": "Resolve and deliver gpt session (tenant)",
       "wave": "F1-tenant-shell",
@@ -88394,8 +87731,8 @@
       ]
     },
     {
-      "task_key": "frontend.dynamic-growth-control-plane.admin",
-      "title": "Resolve and deliver dynamic growth control plane (admin)",
+      "task_key": "frontend.dynamic-growth-control-plane",
+      "title": "Resolve and deliver dynamic growth control plane",
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
@@ -88415,7 +87752,6 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
-        "openapi/growth-control-analytics-observability.openapi.yaml",
         "openapi/growth-control-plane-admin-ui.openapi.yaml",
         "openapi/growth-control-plane.openapi.yaml",
         "openapi/openapi-registry-sync.yaml",
