@@ -1,0 +1,55 @@
+name: UEACP Foundation Self Repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ueacp-foundation-self-repair.yml"
+      - "http-generic-api/ueacpAuthorityFoundationAssessment.js"
+      - "http-generic-api/test-ueacp-authority-foundation-assessment.mjs"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ueacp-foundation-self-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.head_ref == 'gpt/011-ueacp-phase-data-invalidation-foundation-20260731'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Repair exact syntax and verify
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/ueacpAuthorityFoundationAssessment.js')
+          text = path.read_text()
+          replacements = {
+              '`${fieldName} must be between ${minimum} and ${maximum} characters.",': '`${fieldName} must be between ${minimum} and ${maximum} characters.`,',
+              '`${fieldName} must contain between 1 and 20 evidence references.",': '`${fieldName} must contain between 1 and 20 evidence references.`,',
+              '`${fieldName} contains an invalid evidence reference.",': '`${fieldName} contains an invalid evidence reference.`,',
+          }
+          for source, target in replacements.items():
+              if source not in text:
+                  raise SystemExit(f'Expected repair source not found: {source}')
+              text = text.replace(source, target)
+          path.write_text(text)
+          PY
+          node --check http-generic-api/ueacpAuthorityFoundationAssessment.js
+          node http-generic-api/test-ueacp-authority-foundation-assessment.mjs
+      - name: Remove temporary workflow and push
+        run: |
+          rm .github/workflows/ueacp-foundation-self-repair.yml
+          git config user.name "mad4bdigital-ai"
+          git config user.email "271942579+mad4bdigital-ai@users.noreply.github.com"
+          git add http-generic-api/ueacpAuthorityFoundationAssessment.js .github/workflows/ueacp-foundation-self-repair.yml
+          git commit -m "fix(spec-011): repair foundation assessment syntax"
+          git push origin "HEAD:${{ github.head_ref }}"
