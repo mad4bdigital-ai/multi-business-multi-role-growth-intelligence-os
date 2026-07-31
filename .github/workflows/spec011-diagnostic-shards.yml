@@ -1,0 +1,45 @@
+name: Spec 011 Diagnostic Shards
+
+on:
+  push:
+    branches:
+      - gpt/spec-011-t601-admin-ui-projection-20260731
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shard:
+    name: Spec 011 shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout diagnostic head
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run Spec 011 diagnostic shard
+        run: >-
+          node scripts/run-spec011-diagnostic-shard.mjs
+          --parent-index 0
+          --parent-count 1
+          --shard-index ${{ matrix.shard }}
+          --shard-count 16
