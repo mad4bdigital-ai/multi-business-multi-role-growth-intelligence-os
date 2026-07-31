@@ -8,6 +8,9 @@ export const AUTHORITY_CATALOG_LIMITS = Object.freeze({
   maxViews: 2048,
 });
 
+const AUTHORITY_CATALOG_LIMIT_KEYS = Object.freeze(Object.keys(AUTHORITY_CATALOG_LIMITS));
+const MAX_CONFIGURED_LIMIT = 1_000_000;
+
 const EXPLICIT_REVISION_COLUMNS = Object.freeze(new Set([
   "revision",
   "revision_id",
@@ -93,6 +96,42 @@ function normalizeInteger(value) {
   return Number.isSafeInteger(number) ? number : null;
 }
 
+function normalizeLimit(value, key) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 1 || number > MAX_CONFIGURED_LIMIT) {
+    throw new AuthorityCatalogCensusError(
+      "authority_catalog_invalid_limit",
+      "Authority catalog census limits must be bounded positive safe integers.",
+      { key, value, minimum: 1, maximum: MAX_CONFIGURED_LIMIT },
+    );
+  }
+  return number;
+}
+
+function resolveLimits(limits = AUTHORITY_CATALOG_LIMITS) {
+  if (!limits || typeof limits !== "object" || Array.isArray(limits)) {
+    throw new AuthorityCatalogCensusError(
+      "authority_catalog_invalid_limits",
+      "Authority catalog census limits must be an object.",
+    );
+  }
+  const unknownKeys = Object.keys(limits)
+    .filter((key) => !AUTHORITY_CATALOG_LIMIT_KEYS.includes(key))
+    .sort();
+  if (unknownKeys.length > 0) {
+    throw new AuthorityCatalogCensusError(
+      "authority_catalog_invalid_limits",
+      "Authority catalog census limits contain unknown keys.",
+      { unknown_keys: unknownKeys },
+    );
+  }
+  const normalized = {};
+  for (const key of AUTHORITY_CATALOG_LIMIT_KEYS) {
+    normalized[key] = normalizeLimit(limits[key] ?? AUTHORITY_CATALOG_LIMITS[key], key);
+  }
+  return Object.freeze(normalized);
+}
+
 function boundedRows(rows, limit, key) {
   if (rows.length > limit) {
     throw new AuthorityCatalogCensusError(
@@ -163,6 +202,7 @@ export async function collectAuthorityCatalogCensus({
   if (!pool || typeof pool.query !== "function") {
     throw new TypeError("pool.query must be a function.");
   }
+  const resolvedLimits = resolveLimits(limits);
 
   const queriesExecuted = [];
   async function run(key, sql, params = []) {
@@ -188,9 +228,9 @@ export async function collectAuthorityCatalogCensus({
        FROM information_schema.TABLES
       WHERE TABLE_SCHEMA = ?
       ORDER BY TABLE_NAME
-      LIMIT ${limits.maxObjects + 1}`,
+      LIMIT ${resolvedLimits.maxObjects + 1}`,
     [resolvedSchema],
-  )), limits.maxObjects, "schema_objects");
+  )), resolvedLimits.maxObjects, "schema_objects");
 
   const objects = rawObjects.map((row) => {
     const objectName = normalizeText(row.TABLE_NAME);
@@ -212,9 +252,9 @@ export async function collectAuthorityCatalogCensus({
        FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = ?
       ORDER BY TABLE_NAME, ORDINAL_POSITION
-      LIMIT ${limits.maxColumns + 1}`,
+      LIMIT ${resolvedLimits.maxColumns + 1}`,
     [resolvedSchema],
-  )), limits.maxColumns, "schema_columns");
+  )), resolvedLimits.maxColumns, "schema_columns");
 
   const columns = rawColumns.map((row) => ({
     object_name: normalizeText(row.TABLE_NAME),
@@ -235,9 +275,9 @@ export async function collectAuthorityCatalogCensus({
        FROM information_schema.STATISTICS
       WHERE TABLE_SCHEMA = ?
       ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
-      LIMIT ${limits.maxIndexColumns + 1}`,
+      LIMIT ${resolvedLimits.maxIndexColumns + 1}`,
     [resolvedSchema],
-  )), limits.maxIndexColumns, "schema_indexes");
+  )), resolvedLimits.maxIndexColumns, "schema_indexes");
 
   const indexes = rawIndexes.map((row) => ({
     object_name: normalizeText(row.TABLE_NAME),
@@ -257,9 +297,9 @@ export async function collectAuthorityCatalogCensus({
       WHERE TABLE_SCHEMA = ?
         AND REFERENCED_TABLE_NAME IS NOT NULL
       ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION
-      LIMIT ${limits.maxForeignKeys + 1}`,
+      LIMIT ${resolvedLimits.maxForeignKeys + 1}`,
     [resolvedSchema],
-  )), limits.maxForeignKeys, "schema_foreign_keys");
+  )), resolvedLimits.maxForeignKeys, "schema_foreign_keys");
 
   const foreignKeys = rawForeignKeys.map((row) => ({
     constraint_name: normalizeText(row.CONSTRAINT_NAME),
@@ -276,9 +316,9 @@ export async function collectAuthorityCatalogCensus({
        FROM information_schema.VIEWS
       WHERE TABLE_SCHEMA = ?
       ORDER BY TABLE_NAME
-      LIMIT ${limits.maxViews + 1}`,
+      LIMIT ${resolvedLimits.maxViews + 1}`,
     [resolvedSchema],
-  )), limits.maxViews, "schema_views");
+  )), resolvedLimits.maxViews, "schema_views");
 
   const views = rawViews.map((row) => ({
     view_name: normalizeText(row.TABLE_NAME),
@@ -308,7 +348,7 @@ export async function collectAuthorityCatalogCensus({
       version_comment: normalizeText(server?.version_comment),
       observed_at: normalizeText(server?.observed_at),
     },
-    limits: { ...limits },
+    limits: { ...resolvedLimits },
     summary: {
       object_count: objects.length,
       base_table_count: objects.filter((item) => item.object_type === "BASE TABLE").length,
@@ -348,6 +388,8 @@ export async function collectAuthorityCatalogCensus({
 export const _testingAuthorityCatalogCensus = {
   allRows,
   firstRow,
+  normalizeLimit,
+  resolveLimits,
   boundedRows,
   classifyObject,
   buildRevisionSupport,
