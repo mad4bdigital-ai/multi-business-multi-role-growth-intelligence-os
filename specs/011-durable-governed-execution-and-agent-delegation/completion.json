@@ -195,6 +195,12 @@
         "role": "phase1_durable_execution_control_runtime",
         "status": "merged",
         "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae"
+      },
+      {
+        "number": 3913,
+        "role": "phase2_intent_first_admin_tenant_isolation",
+        "status": "merged",
+        "merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff"
       }
     ],
     "closeout_pr": {
@@ -216,6 +222,13 @@
       "role": "phase1_durable_execution_control_runtime",
       "status": "merged",
       "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae"
+    },
+    "phase2_intent_isolation_pr": {
+      "number": 3913,
+      "branch": "gpt/spec-011-phase2-intent-isolation-20260730",
+      "role": "phase2_intent_first_admin_tenant_isolation",
+      "status": "merged",
+      "merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff"
     }
   },
   "evidence": {
@@ -720,7 +733,14 @@
       "phase1_durable_control_ci_status": "pass",
       "phase1_durable_control_tasks": "T100-T106_complete",
       "phase1_durable_control_production_migration_applied": false,
-      "phase1_durable_control_production_runtime_verified": false
+      "phase1_durable_control_production_runtime_verified": false,
+      "phase2_intent_isolation_status": "complete_on_main_production_unapplied",
+      "phase2_intent_isolation_pull_request": 3913,
+      "phase2_intent_isolation_merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+      "phase2_intent_isolation_ci_status": "pass",
+      "phase2_intent_isolation_tasks": "T123-T124_complete",
+      "phase2_intent_binding_production_migration_applied": false,
+      "phase2_intent_isolation_production_runtime_verified": false
     },
     "phase3_delegation_mariadb_certification_runtime_binding": {
       "status": "certified_default_off_on_main",
@@ -871,6 +891,79 @@
       "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae",
       "final_ci_head_sha": "c72ebc8cfbff51045a1c04561b22ec157f3238d6",
       "production_migration_applied": false,
+      "production_database_write": false,
+      "production_deployment_performed": false,
+      "production_runtime_verified": false,
+      "provider_dispatch_performed": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase2_intent_isolation": {
+      "status": "complete_on_main_production_unapplied",
+      "source_main_sha": "e2e98ac7d208ed2d3ca579dd0cdff16dd0554d1f",
+      "pull_request": 3913,
+      "merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+      "resolver": "http-generic-api/canonicalExecutionContractResolver.js",
+      "intent_binding_resolver": "http-generic-api/executionIntentBindingResolver.js",
+      "migration": "http-generic-api/migrations/20260730_spec011_execution_intent_contract_bindings.sql",
+      "activation_exclusion": "http-generic-api/activation-surfaces/exclusions/execution_intent_contract_bindings.json",
+      "tests": [
+        "http-generic-api/test-canonical-execution-intent-isolation.mjs",
+        "http-generic-api/test-execution-intent-binding-migration-contract.mjs"
+      ],
+      "design": "phase2-intent-first-admin-tenant-isolation.md",
+      "tasks": [
+        "T123",
+        "T124"
+      ],
+      "intent_first_resolution": true,
+      "legacy_exact_key_compatibility": true,
+      "tenant_ref_required_before_database_read": true,
+      "admin_tenant_scope_isolation": true,
+      "admin_only_contract_rejection": true,
+      "resource_operation_scope_isolation": true,
+      "ambiguous_binding_fail_closed": true,
+      "explicit_binding_conflict_fail_closed": true,
+      "secret_columns_selected": false,
+      "customer_specific_seed_rows": false,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "production_deployment_performed": false,
+      "production_runtime_verified": false,
+      "provider_dispatch_performed": false,
+      "secrets_included": false
+    },
+    "phase2_intent_isolation_ci": {
+      "status": "pass",
+      "head_sha": "5072bbad0561b50c174dbdf37a47877ae6477655",
+      "base_sha": "e2e98ac7d208ed2d3ca579dd0cdff16dd0554d1f",
+      "ci_run_id": 30587108003,
+      "generated_refresh_run_id": 30587107913,
+      "frontend_dispatch_run_id": 30587107894,
+      "hardcoding_report_run_id": 30587107876,
+      "activation_surface_coverage": "pass_with_explicit_internal_registry_exclusion",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase2_intent_binding_migration": {
+      "status": "contract_on_main_production_unapplied",
+      "file": "http-generic-api/migrations/20260730_spec011_execution_intent_contract_bindings.sql",
+      "seed_rows_present": false,
+      "fixed_tenant_identifiers_present": false,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "backfill_performed": false,
+      "same_cycle_readback_required_before_apply": true
+    },
+    "phase2_intent_isolation_production_verification": {
+      "status": "not_executed_migration_registry_population_and_live_readback_required",
+      "merge_sha": "cac09f11651d33d1df42ef2a3d282d3b1d68e8ff",
+      "production_migration_applied": false,
+      "production_registry_rows_created": false,
       "production_database_write": false,
       "production_deployment_performed": false,
       "production_runtime_verified": false,
