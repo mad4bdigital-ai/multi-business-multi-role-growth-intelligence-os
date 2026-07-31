@@ -21,12 +21,12 @@ function buildPage(items, limit, offset) {
   });
 }
 
-function projectionScope(principal, scope) {
+function projectionScope(principal, scope, effectiveRole) {
   return Object.freeze({
     tenantId: principal.tenantId,
     workspaceId: scope.workspaceId,
     brandKey: scope.brandKey,
-    tenantRole: principal.tenantRole,
+    tenantRole: effectiveRole,
     workspaceBootstrapStatus: scope.bootstrapStatus
   });
 }
@@ -50,11 +50,14 @@ export function createTenantGrowthControlProjectionService({ repository }) {
         403
       );
     }
-    return Object.freeze({ principal, query, scope });
+    const effectiveRole = scope.tenantRole == null || scope.tenantRole === ""
+      ? null
+      : String(scope.tenantRole);
+    return Object.freeze({ principal, query, scope, effectiveRole });
   }
 
   async function listConfigurationVersions(auth, input = {}) {
-    const { principal, query, scope } = await resolveAuthorizedScope(auth, input);
+    const { principal, query, scope, effectiveRole } = await resolveAuthorizedScope(auth, input);
     const rows = await repository.listConfigurationVersions({
       tenantId: principal.tenantId,
       workspaceId: scope.workspaceId,
@@ -63,14 +66,14 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       offset: query.offset
     });
     const result = buildPage(
-      rows.map((row) => projectTenantConfigurationVersion(row, principal.tenantRole)),
+      rows.map((row) => projectTenantConfigurationVersion(row, effectiveRole)),
       query.limit,
       query.offset
     );
     return Object.freeze({
       ...result,
-      scope: projectionScope(principal, scope),
-      fieldPolicy: buildTenantGrowthControlFieldPolicy("configuration_version", principal.tenantRole),
+      scope: projectionScope(principal, scope, effectiveRole),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("configuration_version", effectiveRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
@@ -80,7 +83,7 @@ export function createTenantGrowthControlProjectionService({ repository }) {
   }
 
   async function listActivityBindings(auth, input = {}) {
-    const { principal, query, scope } = await resolveAuthorizedScope(auth, input);
+    const { principal, query, scope, effectiveRole } = await resolveAuthorizedScope(auth, input);
     const rows = await repository.listActivityBindings({
       tenantId: principal.tenantId,
       workspaceId: scope.workspaceId,
@@ -89,14 +92,14 @@ export function createTenantGrowthControlProjectionService({ repository }) {
       offset: query.offset
     });
     const result = buildPage(
-      rows.map((row) => projectTenantActivityBinding(row, principal.tenantRole)),
+      rows.map((row) => projectTenantActivityBinding(row, effectiveRole)),
       query.limit,
       query.offset
     );
     return Object.freeze({
       ...result,
-      scope: projectionScope(principal, scope),
-      fieldPolicy: buildTenantGrowthControlFieldPolicy("activity_binding", principal.tenantRole),
+      scope: projectionScope(principal, scope, effectiveRole),
+      fieldPolicy: buildTenantGrowthControlFieldPolicy("activity_binding", effectiveRole),
       tenantFacing: true,
       metadataOnly: true,
       providerCalls: false,
