@@ -70,6 +70,7 @@
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
         "platform-work-map-generator.mjs --write",
         "platform-work-map-generator.mjs --check",
         "expected_head_sha",
@@ -81,7 +82,8 @@
         "github.event.action == 'reopened'",
         "github.event.pull_request.head.repo.full_name == github.repository",
         "github.actor != 'github-actions[bot]'",
-        "work-map-autofix:authorized"
+        "work-map-autofix:authorized",
+        "format('spec-kit-work-map-noop-{0}', github.run_id)"
       ],
       "forbidden_commands": [
         "--force",
