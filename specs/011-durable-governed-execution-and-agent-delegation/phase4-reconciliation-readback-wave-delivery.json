@@ -1,0 +1,11 @@
+{
+  "phase": "phase4_reconciliation_readback_wave",
+  "tasks": ["T160", "T161", "T162", "T163", "T164", "T165", "T166"],
+  "delivery_mode": "integrated_phase_wave",
+  "production_mutation": false,
+  "migration_apply": false,
+  "provider_write": false,
+  "automatic_retry": false,
+  "public_route": false,
+  "secrets_included": false
+}
