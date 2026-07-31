@@ -145,3 +145,11 @@ This wave does not authorize or perform:
 - PEP enforcement or cutover;
 - legacy removal;
 - automatic task closure.
+
+## Implementation evidence
+
+The integrated branch was reconciled with current `main` before exact-head validation. The reconciliation preserved the governed phase boundaries and introduced no live census, SQL apply, database mutation, provider call, credential payload read, external write, deployment, Production promotion, runtime cutover, or task auto-closure.
+
+A regression exposed that authority-catalog classification recognized regular plural forms but did not recognize consonant-`y` plurals such as `capability` to `capabilities`. The adapter now tokenizes object names on canonical separators and compares bounded semantic forms, including regular plurals and consonant-`y` plurals. This keeps `platform_semantic_capabilities` classified as an authority source candidate while preventing substring false positives such as `catalog` matching `log`.
+
+The official Frontend Surface Dispatch refresh job regenerated the two governed evidence files after the ordered test manifest changed. Its generated commit is retained as provenance rather than recreating the artifacts manually. Exact-head workflows must validate the resulting source digests before merge.
