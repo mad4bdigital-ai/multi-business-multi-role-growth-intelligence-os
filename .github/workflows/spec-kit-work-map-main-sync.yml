@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: spec-kit-work-map-main-sync
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reconcile:
