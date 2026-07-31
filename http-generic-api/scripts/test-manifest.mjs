@@ -55,6 +55,7 @@ const staticDiscoveryCommands = [
   "node test-hostinger-stored-credential-apply-policy.mjs",
   "node test-interruption-readiness.mjs",
   "node test-interruption-verification-recovery.mjs",
+  "node test-migration-sql-statement-select-boundary.mjs",
   "node test-phase10-status-observability-readiness-audit.mjs",
   "node test-phase12-verification-release-readiness.mjs",
   "node test-platform-engine-orchestration.mjs",
