@@ -16,3 +16,11 @@ export {
   ExecutionCapsuleMutationValidationError,
   createExecutionCapsuleMutationValidationPilot,
 } from "./executionCapsuleMutationValidationPilot.js";
+export {
+  createExecutionCapsuleRolloutEvaluator,
+} from "./executionCapsuleRolloutEvaluator.js";
+export {
+  ExecutionCapsuleRolloutError,
+  ExecutionCapsuleRolloutMode,
+  createExecutionCapsuleRolloutCoordinator,
+} from "./executionCapsuleRolloutCoordinator.js";
