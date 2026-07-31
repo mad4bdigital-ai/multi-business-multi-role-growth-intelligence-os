@@ -1,0 +1,361 @@
+name: Spec 011 Phase 4 Reconcile Latest Main Once
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec011-phase4-reconcile-latest-main-once-v1
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.number == 4021 && github.event.pull_request.head.ref == 'gpt/spec-011-phase4-reconciliation-readback-wave-20260731'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Phase 4 branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-011-phase4-reconciliation-readback-wave-20260731
+          fetch-depth: 0
+
+      - name: Reconcile latest main and harden same-operation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="gpt/spec-011-phase4-reconciliation-readback-wave-20260731"
+          workflow=".github/workflows/spec011-phase4-reconcile-latest-main-once.yml"
+          generated_one="http-generic-api/frontend-operation-governance.generated.json"
+          generated_two="http-generic-api/frontend-surface-dispatch.generated.json"
+          kernel="http-generic-api/governedReconciliationKernel.js"
+          test_file="http-generic-api/test-governed-reconciliation-kernel.mjs"
+          phase_manifest="http-generic-api/scripts/manifests/test-manifest-spec011-phase4.mjs"
+          canonical_manifest="http-generic-api/scripts/test-manifest.mjs"
+          tasks="specs/011-durable-governed-execution-and-agent-delegation/tasks.md"
+          phase_doc="specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave.md"
+          delivery="specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave-delivery.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          tar -czf /tmp/spec011-phase4-wave.tgz \
+            "$kernel" \
+            "$test_file" \
+            "$phase_manifest" \
+            "$phase_doc" \
+            "$delivery"
+
+          set +e
+          git merge origin/main --no-edit --no-commit
+          merge_status=$?
+          set -e
+          if [[ $merge_status -ne 0 ]]; then
+            while IFS= read -r conflicted; do
+              [[ -n "$conflicted" ]] || continue
+              git checkout --theirs -- "$conflicted"
+              git add "$conflicted"
+            done < <(git diff --name-only --diff-filter=U)
+          fi
+
+          tar -xzf /tmp/spec011-phase4-wave.tgz
+          git checkout origin/main -- "$generated_one" "$generated_two"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          kernel_path = Path('http-generic-api/governedReconciliationKernel.js')
+          text = kernel_path.read_text()
+
+          anchor = '''    evidence_ref: compact(entry.evidence_ref, 500) || null,
+              observed: entry.observed === undefined ? null : stableValue(entry.observed),
+              secrets_included: false,
+          '''
+          replacement = '''    evidence_ref: compact(entry.evidence_ref, 500) || null,
+              observed: entry.observed === undefined ? null : stableValue(entry.observed),
+              operation_id: compact(entry.operation_id, 191) || null,
+              evidence_operation_id: compact(entry.evidence_operation_id, 191) || null,
+              evidence_verified: entry.evidence_verified === true,
+              secrets_included: false,
+          '''
+          if anchor not in text:
+              raise RuntimeError('normalizeReadback anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          anchor = '''  const requiredReadbacks = normalizedReadbacks.filter((entry) => entry.required);
+            const readbackComplete = requiredReadbacks.length > 0
+              && requiredReadbacks.every((entry) => entry.read_performed && (entry.match || entry.absence_proven || entry.conflict));
+            const conflicts = normalizedReadbacks.filter((entry) => entry.conflict);
+            const matches = normalizedReadbacks.filter((entry) => entry.match);
+            const absenceProofs = normalizedReadbacks.filter((entry) => entry.absence_proven);
+          '''
+          replacement = '''  const requiredReadbacks = normalizedReadbacks.filter((entry) => entry.required);
+            const readbackComplete = requiredReadbacks.length > 0
+              && requiredReadbacks.every((entry) => entry.read_performed && (entry.match || entry.absence_proven || entry.conflict));
+            const sameOperationComplete = requiredReadbacks.length > 0
+              && requiredReadbacks.every((entry) => entry.evidence_verified
+                && entry.operation_id
+                && entry.evidence_operation_id === entry.operation_id);
+            const conflicts = normalizedReadbacks.filter((entry) => entry.conflict);
+            const requiredMatches = requiredReadbacks.filter((entry) => entry.match);
+            const requiredAbsenceProofs = requiredReadbacks.filter((entry) => entry.absence_proven);
+          '''
+          if anchor not in text:
+              raise RuntimeError('required readback anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          anchor = '''  if (conflicts.length > 0 || (hasSuccessMarker && hasFailureMarker)) {
+              classification = OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED;
+              reasonCode = "RECONCILIATION_EVIDENCE_CONFLICT";
+            } else if (hasSuccessMarker && readbackComplete && matches.length === requiredReadbacks.length) {
+              classification = OUTCOME_CLASSIFICATIONS.CONFIRMED_SUCCESS;
+              reasonCode = "RECONCILIATION_SUCCESS_READBACK_VERIFIED";
+            } else if (hasFailureMarker && readbackComplete && absenceProofs.length === requiredReadbacks.length) {
+              classification = OUTCOME_CLASSIFICATIONS.CONFIRMED_FAILURE;
+              reasonCode = "RECONCILIATION_NOT_APPLIED_PROVEN";
+              retryAllowed = true;
+          '''
+          replacement = '''  if (conflicts.length > 0 || (hasSuccessMarker && hasFailureMarker)) {
+              classification = OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED;
+              reasonCode = "RECONCILIATION_EVIDENCE_CONFLICT";
+            } else if (readbackComplete && !sameOperationComplete) {
+              classification = OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED;
+              reasonCode = "RECONCILIATION_SAME_OPERATION_EVIDENCE_REQUIRED";
+            } else if (hasSuccessMarker && readbackComplete && requiredMatches.length === requiredReadbacks.length) {
+              classification = OUTCOME_CLASSIFICATIONS.CONFIRMED_SUCCESS;
+              reasonCode = "RECONCILIATION_SUCCESS_READBACK_VERIFIED";
+            } else if (hasFailureMarker && readbackComplete && requiredAbsenceProofs.length === requiredReadbacks.length) {
+              classification = OUTCOME_CLASSIFICATIONS.CONFIRMED_FAILURE;
+              reasonCode = "RECONCILIATION_NOT_APPLIED_PROVEN";
+              retryAllowed = true;
+          '''
+          if anchor not in text:
+              raise RuntimeError('classification anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          anchor = '''    readback_complete: readbackComplete,
+              required_readback_count: requiredReadbacks.length,
+              secrets_included: false,
+          '''
+          replacement = '''    readback_complete: readbackComplete,
+              same_operation_complete: sameOperationComplete,
+              required_readback_count: requiredReadbacks.length,
+              secrets_included: false,
+          '''
+          if anchor not in text:
+              raise RuntimeError('evidence anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          anchor = '''function readback(source, value, expected) {
+            const exists = value !== null && value !== undefined;
+          '''
+          replacement = '''function operationEvidence(input = {}) {
+            const operationId = compact(input.operation_id, 191) || null;
+            const evidenceOperationId = compact(input.evidence_operation_id, 191) || null;
+            return {
+              operation_id: operationId,
+              evidence_operation_id: evidenceOperationId,
+              evidence_verified: input.evidence_verified === true,
+            };
+          }
+
+          function readback(source, value, expected, operation = {}) {
+            const exists = value !== null && value !== undefined;
+          '''
+          if anchor not in text:
+              raise RuntimeError('readback function anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          anchor = '''    observed: value,
+              secrets_included: false,
+            };
+          }
+          '''
+          replacement = '''    observed: value,
+              operation_id: operation.operation_id || null,
+              evidence_operation_id: operation.evidence_operation_id || null,
+              evidence_verified: operation.evidence_verified === true,
+              secrets_included: false,
+            };
+          }
+          '''
+          if anchor not in text:
+              raise RuntimeError('readback return anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          for first, second in [
+              ('repository', 'pull_request'),
+              ('schema', 'migration_ledger'),
+              ('deployment', 'runtime'),
+              ('provider', 'internal_ledger'),
+          ]:
+              old = f'''      const [{{"repository": "repository", "schema": "schema", "deployment": "deployment", "provider": "provider"}}[first]}, {{"pull_request": "pullRequest", "migration_ledger": "ledger", "runtime": "runtime", "internal_ledger": "ledger"}}[second]}] = '''
+
+          adapters = [
+              ('''      const [repository, pullRequest] = await Promise.all([
+                    inspectRepository(input),
+                    inspectPullRequest(input),
+                  ]);
+                  return {''', '''      const [repository, pullRequest] = await Promise.all([
+                    inspectRepository(input),
+                    inspectPullRequest(input),
+                  ]);
+                  const operation = operationEvidence(input);
+                  return {''',
+               'readback("repository", repository, input.expected_repository)', 'readback("repository", repository, input.expected_repository, operation)',
+               'readback("pull_request", pullRequest, input.expected_pull_request)', 'readback("pull_request", pullRequest, input.expected_pull_request, operation)'),
+              ('''      const [schema, ledger] = await Promise.all([inspectSchema(input), inspectLedger(input)]);
+                  return {''', '''      const [schema, ledger] = await Promise.all([inspectSchema(input), inspectLedger(input)]);
+                  const operation = operationEvidence(input);
+                  return {''',
+               'readback("schema", schema, input.expected_schema)', 'readback("schema", schema, input.expected_schema, operation)',
+               'readback("migration_ledger", ledger, input.expected_ledger)', 'readback("migration_ledger", ledger, input.expected_ledger, operation)'),
+              ('''      const [deployment, runtime] = await Promise.all([inspectDeployment(input), inspectRuntime(input)]);
+                  return {''', '''      const [deployment, runtime] = await Promise.all([inspectDeployment(input), inspectRuntime(input)]);
+                  const operation = operationEvidence(input);
+                  return {''',
+               'readback("deployment", deployment, input.expected_deployment)', 'readback("deployment", deployment, input.expected_deployment, operation)',
+               'readback("runtime", runtime, input.expected_runtime)', 'readback("runtime", runtime, input.expected_runtime, operation)'),
+              ('''      const [provider, ledger] = await Promise.all([inspectProvider(input), inspectInternalLedger(input)]);
+                  return {''', '''      const [provider, ledger] = await Promise.all([inspectProvider(input), inspectInternalLedger(input)]);
+                  const operation = operationEvidence(input);
+                  return {''',
+               'readback("provider", provider, input.expected_provider)', 'readback("provider", provider, input.expected_provider, operation)',
+               'readback("internal_ledger", ledger, input.expected_internal_ledger)', 'readback("internal_ledger", ledger, input.expected_internal_ledger, operation)'),
+          ]
+          for function_anchor, function_replacement, read_one, read_one_replacement, read_two, read_two_replacement in adapters:
+              if function_anchor not in text:
+                  raise RuntimeError(f'adapter anchor not found: {function_anchor[:40]}')
+              text = text.replace(function_anchor, function_replacement, 1)
+              if read_one not in text or read_two not in text:
+                  raise RuntimeError('adapter readback anchor not found')
+              text = text.replace(read_one, read_one_replacement, 1)
+              text = text.replace(read_two, read_two_replacement, 1)
+
+          kernel_path.write_text(text)
+
+          test_path = Path('http-generic-api/test-governed-reconciliation-kernel.mjs')
+          test = test_path.read_text()
+          test = test.replace(
+              'const hash = "a".repeat(64);\n',
+              'const hash = "a".repeat(64);\nconst operationId = "operation-phase4-1";\n',
+              1,
+          )
+          test = test.replace(
+              'fingerprint: hash },',
+              'fingerprint: hash, operation_id: operationId, evidence_operation_id: operationId, evidence_verified: true },',
+          )
+          test = test.replace(
+              'fingerprint: hash },\n  ],\n});\nassert.equal(failure.classification',
+              'fingerprint: hash, operation_id: operationId, evidence_operation_id: operationId, evidence_verified: true },\n  ],\n});\nassert.equal(failure.classification',
+              1,
+          )
+          marker = 'assert.equal(success.evidence.readback_complete, true);\n'
+          addition = '''assert.equal(success.evidence.readback_complete, true);
+          assert.equal(success.evidence.same_operation_complete, true);
+
+          const optionalReadback = classifyMutationOutcome({
+            dispatch: { status: "completed", dispatched: true },
+            receipt: { state: "reconciled", outcome_classification: "verified_success" },
+            readbacks: [
+              ...matchingReadbacks,
+              { source: "optional_observer", status: "readback_verified", required: false, read_performed: true, match: true, exists: true, fingerprint: hash },
+            ],
+          });
+          assert.equal(optionalReadback.classification, OUTCOME_CLASSIFICATIONS.CONFIRMED_SUCCESS);
+
+          const wrongOperation = classifyMutationOutcome({
+            dispatch: { status: "completed", dispatched: true },
+            receipt: { state: "reconciled", outcome_classification: "verified_success" },
+            readbacks: [
+              { source: "provider", status: "readback_verified", required: true, read_performed: true, match: true, exists: true, fingerprint: hash, operation_id: operationId, evidence_operation_id: "another-operation", evidence_verified: true },
+            ],
+          });
+          assert.equal(wrongOperation.classification, OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED);
+          assert.equal(wrongOperation.reason_code, "RECONCILIATION_SAME_OPERATION_EVIDENCE_REQUIRED");
+          '''
+          if marker not in test:
+              raise RuntimeError('test success marker not found')
+          test = test.replace(marker, addition, 1)
+
+          case_anchor = '''      ...expected,
+                    dispatch: { status: "completed", dispatched: true },
+                    receipt: { state: "reconciled", outcome_classification: "verified_success" },
+          '''
+          case_replacement = '''      ...expected,
+                    operation_id: operationId,
+                    evidence_operation_id: operationId,
+                    evidence_verified: true,
+                    dispatch: { status: "completed", dispatched: true },
+                    receipt: { state: "reconciled", outcome_classification: "verified_success" },
+          '''
+          if case_anchor not in test:
+              raise RuntimeError('kernel case anchor not found')
+          test = test.replace(case_anchor, case_replacement, 1)
+          test_path.write_text(test)
+
+          manifest_path = Path('http-generic-api/scripts/test-manifest.mjs')
+          manifest = manifest_path.read_text()
+          import_line = 'import { testCommands as spec011Phase4Commands } from "./manifests/test-manifest-spec011-phase4.mjs";\n'
+          if import_line not in manifest:
+              anchor = 'import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";\n'
+              if anchor not in manifest:
+                  raise RuntimeError('canonical manifest import anchor not found')
+              manifest = manifest.replace(anchor, anchor + import_line, 1)
+          spread = '    ...spec011Phase4Commands,\n'
+          if spread not in manifest:
+              anchor = '    ...spec011Commands,\n'
+              if anchor not in manifest:
+                  raise RuntimeError('canonical manifest spread anchor not found')
+              manifest = manifest.replace(anchor, anchor + spread, 1)
+          manifest_path.write_text(manifest)
+
+          tasks_path = Path('specs/011-durable-governed-execution-and-agent-delegation/tasks.md')
+          tasks = tasks_path.read_text()
+          for number in range(160, 167):
+              tasks = tasks.replace(f'- [ ] T{number} ', f'- [x] T{number} ')
+          tasks_path.write_text(tasks)
+
+          doc_path = Path('specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave.md')
+          doc = doc_path.read_text()
+          sentence = 'Recovered success and proven absence both require verified evidence bound to the same operation ID; evidence from another operation cannot close or retry the current mutation.\n\n'
+          anchor = 'Narrative, HTTP status, or transport failure alone cannot prove provider outcome.\n\n'
+          if sentence not in doc:
+              if anchor not in doc:
+                  raise RuntimeError('phase doc anchor not found')
+              doc = doc.replace(anchor, anchor + sentence, 1)
+          doc_path.write_text(doc)
+          PY
+
+          rm -f "$workflow"
+
+          node --check "$kernel"
+          node "$test_file"
+          (
+            cd http-generic-api
+            node scripts/run-test-manifest.mjs --grep=governed-reconciliation-kernel
+          )
+          python3 -m json.tool "$delivery" >/dev/null
+          git diff --check
+
+          git add \
+            "$kernel" \
+            "$test_file" \
+            "$phase_manifest" \
+            "$canonical_manifest" \
+            "$tasks" \
+            "$phase_doc" \
+            "$delivery" \
+            "$generated_one" \
+            "$generated_two" \
+            "$workflow"
+          git commit -m "feat(spec-011): reconcile Phase 4 readback wave with latest main"
+          git push origin "HEAD:$branch"
