@@ -1,7 +1,7 @@
 name: Certified Production Release Cut Validation
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - "gpt/validate-certified-release-base-*"
     types: [opened, synchronize, reopened, ready_for_review]
@@ -17,9 +17,6 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/validate-certified-release-candidate-')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -27,6 +24,31 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
     steps:
+      - name: Validate trusted same-repository validation surface
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$EVENT_NAME" == pull_request_target ]]
+          [[ "$HEAD_REPOSITORY" == "$REPOSITORY" ]] || {
+            echo "::error::certified validation requires a same-repository head"
+            exit 1
+          }
+          [[ "$HEAD_REF" == gpt/validate-certified-release-candidate-* ]]
+          [[ "$BASE_REF" == gpt/validate-certified-release-base-* ]]
+          for value in "$HEAD_SHA" "$BASE_SHA"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::validation refs must resolve to lowercase 40-character SHAs"
+              exit 1
+            }
+          done
+
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
         with:
