@@ -24,8 +24,9 @@ paths:
       description: >-
         Requires a signed non-admin tenant user JWT, active membership, an
         authorized workspace in the same tenant, and a brand matching the
-        workspace linked brand. The tenant role is read only from the JWT and
-        maps to a bounded viewer, operator, or manager field profile.
+        workspace linked brand. The effective tenant role is resolved from
+        authoritative membership readback; a stale JWT role claim cannot elevate
+        the bounded viewer, operator, or manager field profile.
       x-contract-completeness: canonical
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
@@ -171,7 +172,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Signed non-admin tenant user JWT. Tenant, user, and role identity come from the token only.
+      description: >-
+        Signed non-admin tenant user JWT. Tenant and user identity come from the
+        token; the effective role and field profile come from authoritative active
+        membership and workspace authorization readback.
   parameters:
     WorkspaceId:
       name: workspaceId
