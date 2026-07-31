@@ -43,7 +43,8 @@ function fixtureContract() {
         required_permissions: { contents: "write" },
         required_triggers: ["workflow_dispatch"],
         forbidden_triggers: ["pull_request"],
-        required_commands: ["connectivity-check.mjs", "generator.mjs --write", "generator.mjs --check", "--force-with-lease"],
+        required_commands: ["connectivity-check.mjs", "generator.mjs --write", "generator.mjs --check", "git push origin"],
+        forbidden_commands: ["--force", "--force-with-lease"],
       },
       {
         key: "docs",
@@ -66,7 +67,7 @@ function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pipeline-connectivity-"));
   write(root, ".specify/pipeline-connectivity-contract.json", `${JSON.stringify(fixtureContract(), null, 2)}\n`);
   write(root, ".github/workflows/validate.yml", `name: Validate\non:\n  pull_request:\n    paths:\n      - pipeline-connectivity-contract.json\npermissions:\n  contents: read\njobs:\n  check:\n    steps:\n      - run: node connectivity-check.mjs\n      - run: node generator.mjs --check\n`);
-  write(root, ".github/workflows/autofix.yml", `name: Autofix\non:\n  workflow_dispatch:\npermissions:\n  contents: write\njobs:\n  fix:\n    steps:\n      - run: node connectivity-check.mjs\n      - run: node generator.mjs --write\n      - run: node generator.mjs --check\n      - run: git push --force-with-lease\n`);
+  write(root, ".github/workflows/autofix.yml", `name: Autofix\non:\n  workflow_dispatch:\npermissions:\n  contents: write\njobs:\n  fix:\n    steps:\n      - run: |-\n          node connectivity-check.mjs\n          node generator.mjs --write\n          node generator.mjs --check\n          git push origin HEAD:refs/heads/test\n`);
   write(root, ".github/workflows/docs.yml", `name: Docs\non:\n  pull_request:\npermissions:\n  contents: write\njobs:\n  docs:\n    if: contains('docs-write', 'docs-write')\n    steps:\n      - run: node connectivity-check.mjs\n      - run: node generator.mjs --write\n`);
   return root;
 }
@@ -104,7 +105,7 @@ function setup() {
 
 {
   const root = setup();
-  write(root, ".github/workflows/hidden-writer.yml", `name: Hidden\non:\n  workflow_dispatch:\npermissions:\n  contents: write\njobs:\n  hidden:\n    steps:\n      - run: node generator.mjs --write\n`);
+  write(root, ".github/workflows/hidden-writer.yml", `name: Hidden\non:\n  workflow_dispatch:\npermissions:\n  contents: write\njobs:\n  hidden:\n    steps:\n      - run: |\n          node generator.mjs \\\n            --write\n`);
   const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
   assert.ok(codes.has("UNDECLARED_ARTIFACT_PRODUCER"));
   assert.ok(codes.has("ARTIFACT_PRODUCER_SET_MISMATCH"));
