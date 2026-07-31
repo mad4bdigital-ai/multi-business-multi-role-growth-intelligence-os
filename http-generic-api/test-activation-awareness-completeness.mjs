@@ -263,16 +263,24 @@ function testRepositoryContracts() {
   assert.ok(index.indexOf("buildActivationHardRunRoutes") < index.indexOf("buildActivationRoutes(deps)"));
   assert.match(hardRoutes, /response_profile/);
   assert.match(hardRoutes, /maybeChunkToolResponseBody/);
+  assert.match(hardRoutes, /auth: req\?\.auth \|\| null/);
+  assert.match(hardRoutes, /source_surface: "activation_hard_run"/);
   assert.match(hardRoutes, /markActivationRunDelivered/);
   assert.match(awarenessRoutes, /\/tenant\/activation\/awareness/);
   assert.match(awarenessRoutes, /active_tenant_membership_required/);
   assert.match(awarenessRoutes, /container_key and tab_key are required/);
   assert.match(awarenessRoutes, /chunkActivationAwarenessResponse/);
+  assert.match(awarenessRoutes, /auth: req\?\.auth \|\| null/);
+  assert.match(awarenessRoutes, /source_surface: "activation_awareness"/);
   assert.match(activationRoutes, /activation_session_context_read_api/);
   assert.match(activationRoutes, /maybeChunkToolResponseBody/);
+  assert.match(activationRoutes, /auth: req\?\.auth \|\| null/);
+  assert.match(activationRoutes, /source_surface: "activation_session_context_read_api"/);
   assert.match(activationRoutes, /workspace_key: workspaceKey/);
   assert.match(activationRoutes, /brand_key: brandKey/);
   assert.match(tenantOverlayRoutes, /tenant_activation_session_context/);
+  assert.match(tenantOverlayRoutes, /auth: req\.auth/);
+  assert.match(tenantOverlayRoutes, /source_surface: "tenant_activation_session_context"/);
   assert.match(tenantOverlayRoutes, /chunk_ttl_minutes/);
 
   assert.match(sessionRoutes, /context_scope = "session"/);
