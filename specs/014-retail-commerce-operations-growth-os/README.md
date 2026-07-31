@@ -1,12 +1,10 @@
 # Spec 014 — Brand-Scoped Commerce Enablement, Retail Operations, WordPress/WooCommerce, Growth, and Workspace Files
 
-## الغرض
-
 تعرّف هذه الحزمة معمارًا يمكّن كل Tenant وBrand من اكتشاف قدرات المنصة والأنظمة المتصلة، مقارنة حلول التجارة الإلكترونية، اختيار Blueprint مناسبة، تنفيذها بخطة محكومة، ومتابعة التشغيل بعد الإطلاق.
 
 الأنماط تشمل Platform Native وERPNext وWordPress/WooCommerce القياسية والمحكومة والهجينة، إضافة إلى Google Drive وWorkspace File Fabric.
 
-## المبادئ الحاكمة
+المبادئ الحاكمة:
 
 - Brand إلزامية لكل عملية تجارة.
 - مصدر كتابة واحد لكل Domain داخل Brand.
@@ -19,8 +17,6 @@
 - Exact Brand Connections وWebhook Inbox وReadback وCertification إلزامية.
 - كل Launch تشمل Backup وRollback وQA وObservability وReconciliation.
 
-## Commerce Enablement Fabric
-
 ```text
 Tenant → Workspace → Brand → Goal
 → Assets and Connections → Capability Graph
@@ -28,7 +24,7 @@ Tenant → Workspace → Brand → Goal
 → Implementation Plan → Launch Gates → Operations Cockpit
 ```
 
-## الأنماط الأساسية
+الأنماط الأساسية:
 
 - Platform Native Commerce؛
 - ERPNext Commerce Authority؛
@@ -40,20 +36,7 @@ Tenant → Workspace → Brand → Goal
 - Existing Store Operational Takeover؛
 - Content-led Lead Commerce.
 
-## WordPress A–P
-
-تغطي المحتوى والـBuilders والإعدادات والنماذج والوسائط والمستخدمين وSEO وAnalytics وPerformance وSecurity وObservability وBackup وRelease وIntegrity وQA وProduction Cutover.
-
-## WooCommerce
-
-تغطي Discovery وStandard REST وGoverned Bridge وProjection، بالإضافة إلى Products وVariations وInventory وCheckout وOrders وCustomers وCoupons وPayments وRefunds وShipping وWebhooks وScheduled Actions وExtension Compatibility.
-
-## واجهات المستخدم
-
-- Enablement Center لاختيار Blueprint وعرض القدرات والفجوات والخطة؛
-- Operations Cockpit لمتابعة المتجر والموقع والطلبات والدفع والمخزون والـWebhooks والأداء والأمن والنسخ الاحتياطي والقياس والحوادث والمصالحة.
-
-## الوثائق المعيارية
+الوثائق المعيارية:
 
 - `brand-scoped-commerce-authority.md`
 - `commerce-enablement-and-solution-blueprints.md`
@@ -65,7 +48,5 @@ Tenant → Workspace → Brand → Goal
 - `contracts/commerce-capability-catalog.schema.json`
 - `contracts/wordpress-woocommerce-adapter.schema.json`
 - `contracts/commerce-provider-adapter.schema.json`
-
-## حدود الإثبات
 
 هذه PR مواصفة فقط. لم يحدث Runtime أو Database أو Provider أو WordPress أو WooCommerce أو Google Drive أو DNS أو Payment أو Catalog أو Production mutation، ولا تحتوي Secrets.
