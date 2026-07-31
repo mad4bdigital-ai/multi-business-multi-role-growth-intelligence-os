@@ -21,7 +21,7 @@ export const UEACP_DATA_FOUNDATION_OBJECTS = Object.freeze({
 });
 
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
-const FORBIDDEN_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
 
 export class AuthorityDataFoundationPlanError extends Error {
   constructor(code, message, details = {}) {
@@ -52,18 +52,18 @@ function canonicalHash(value) {
   return crypto.createHash("sha256").update(JSON.stringify(stableSortObject(value))).digest("hex");
 }
 
-function assertNoSecretKeys(value, path = "root", seen = new WeakSet()) {
+function assertNoSensitiveValues(value, path = "root", seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   for (const [key, nested] of Object.entries(value)) {
-    if (FORBIDDEN_KEY_PATTERN.test(key)) {
+    if (SENSITIVE_KEY_PATTERN.test(key) && nested !== false && nested !== null && nested !== undefined) {
       throw new AuthorityDataFoundationPlanError(
         "authority_data_secret_field_forbidden",
-        "Authority data foundation input contains a forbidden secret-bearing field.",
+        "Authority data foundation input contains a forbidden secret-bearing value.",
         { path: `${path}.${key}` },
       );
     }
-    assertNoSecretKeys(nested, `${path}.${key}`, seen);
+    assertNoSensitiveValues(nested, `${path}.${key}`, seen);
   }
 }
 
@@ -138,27 +138,27 @@ function mapCatalogObjects(catalog) {
 }
 
 function resolveLogicalObject(definition, catalogByName) {
-  const candidates = [definition.logical_name, ...definition.aliases]
-    .filter((name) => catalogByName.has(name));
-  if (candidates.length > 1) {
+  const matches = [definition.logical_name, ...definition.aliases]
+    .filter((name) => catalogByName.has(name))
+    .sort();
+  if (matches.length > 1) {
     return {
       logical_name: definition.logical_name,
       aliases: [...definition.aliases],
       disposition: "ambiguous_existing_objects",
-      matched_objects: candidates.sort(),
+      matched_objects: matches,
       blocking: true,
     };
   }
-  if (candidates.length === 1) {
-    const matchedName = candidates[0];
+  if (matches.length === 1) {
+    const matched = matches[0];
+    const exact = matched === definition.logical_name;
     return {
       logical_name: definition.logical_name,
       aliases: [...definition.aliases],
-      disposition: matchedName === definition.logical_name
-        ? "reuse_exact_existing_object"
-        : "reuse_alias_candidate_after_contract_review",
-      matched_objects: [matchedName],
-      blocking: matchedName !== definition.logical_name,
+      disposition: exact ? "reuse_exact_existing_object" : "reuse_alias_candidate_after_contract_review",
+      matched_objects: [matched],
+      blocking: !exact,
     };
   }
   return {
@@ -171,32 +171,32 @@ function resolveLogicalObject(definition, catalogByName) {
 }
 
 function buildRevisionPlan(catalog, inventory) {
-  const referencedRevisionSources = [...new Set(
-    inventory.paths.map((path) => path.revision_source).filter(Boolean),
-  )].sort();
   const revisionByObject = new Map(
     catalog.revision_support.map((item) => [requireToken(item.object_name, "revision_support[].object_name"), item]),
   );
-  const catalogObjectNames = new Set(catalog.objects.map((object) => object.object_name));
+  const catalogNames = new Set(catalog.objects.map((object) => requireToken(object.object_name, "catalog.objects[].object_name")));
+  const referencedNames = [...new Set(inventory.paths.map((path) => path.revision_source).filter(Boolean))].sort();
 
-  const referencedSources = referencedRevisionSources.map((source) => {
+  const referencedSources = referencedNames.map((source) => {
     const support = revisionByObject.get(source) || null;
+    const present = catalogNames.has(source);
+    const explicit = support?.support === "explicit_revision";
     return {
       source,
-      present_in_catalog: catalogObjectNames.has(source),
+      present_in_catalog: present,
       support: support?.support || "unknown",
       explicit_revision_columns: [...(support?.explicit_revision_columns || [])].sort(),
       temporal_freshness_columns: [...(support?.temporal_freshness_columns || [])].sort(),
-      disposition: !catalogObjectNames.has(source)
+      disposition: !present
         ? "inventory_source_not_mapped_to_catalog_object"
-        : support?.support === "explicit_revision"
+        : explicit
           ? "reuse_existing_revision"
           : support?.support === "temporal_freshness_only"
             ? "add_explicit_revision_candidate_after_owner_review"
             : support?.support === "absent"
               ? "add_revision_candidate_after_owner_review"
               : "support_unknown",
-      blocking: !catalogObjectNames.has(source) || !support || support.support !== "explicit_revision",
+      blocking: !present || !explicit,
     };
   });
 
@@ -237,17 +237,14 @@ function buildStorageTaskPlan(taskKey, definitions, catalogByName) {
   };
 }
 
-export function buildAuthorityDataFoundationPlan({
-  catalog_census: catalog,
-  path_inventory: inventory,
-} = {}) {
-  assertNoSecretKeys({ catalog, inventory });
+export function buildAuthorityDataFoundationPlan({ catalog_census: catalog, path_inventory: inventory } = {}) {
+  assertNoSensitiveValues({ catalog, inventory });
   validateCatalog(catalog);
   validateInventory(inventory);
 
   const catalogByName = mapCatalogObjects(catalog);
   const revisionPlan = buildRevisionPlan(catalog, inventory);
-  const taskPlans = {
+  const storageTaskPlans = {
     T022: buildStorageTaskPlan("T022", UEACP_DATA_FOUNDATION_OBJECTS.T022, catalogByName),
     T023: buildStorageTaskPlan("T023", UEACP_DATA_FOUNDATION_OBJECTS.T023, catalogByName),
     T024: buildStorageTaskPlan("T024", UEACP_DATA_FOUNDATION_OBJECTS.T024, catalogByName),
@@ -257,12 +254,12 @@ export function buildAuthorityDataFoundationPlan({
   if (catalog.closure_state?.t002_complete !== true) blockingIssues.push("t002_live_catalog_not_closed");
   if (inventory.closure_state?.t001_complete !== true) blockingIssues.push("t001_authority_path_inventory_not_closed");
   if (revisionPlan.unresolved_reference_count > 0) blockingIssues.push("revision_sources_unresolved_or_without_explicit_revision");
-  for (const taskPlan of Object.values(taskPlans)) {
+  for (const taskPlan of Object.values(storageTaskPlans)) {
     if (taskPlan.ambiguous_count > 0) blockingIssues.push(`${taskPlan.task_key.toLowerCase()}_ambiguous_existing_objects`);
     if (taskPlan.alias_review_count > 0) blockingIssues.push(`${taskPlan.task_key.toLowerCase()}_alias_contract_review_required`);
   }
 
-  const batches = [
+  const migrationBatches = [
     {
       batch_key: "authority_revisions",
       tasks: ["T021"],
@@ -286,17 +283,18 @@ export function buildAuthorityDataFoundationPlan({
     },
   ];
 
+  const uniqueBlockingIssues = [...new Set(blockingIssues)].sort();
   const report = {
     contract: "mad4b.ueacp.authority-data-foundation-plan.v1",
-    status: blockingIssues.length === 0 ? "ready_for_migration_design_review" : "blocked_pending_evidence",
+    status: uniqueBlockingIssues.length === 0 ? "ready_for_migration_design_review" : "blocked_pending_evidence",
     catalog_schema: catalog.schema_name,
     catalog_observed_at: catalog.database_server?.observed_at || null,
     catalog_object_count: catalog.summary?.object_count ?? catalog.objects.length,
     inventory_sha256: inventory.inventory_sha256 || null,
     revision_plan: revisionPlan,
-    storage_task_plans: taskPlans,
-    migration_batches: batches,
-    blocking_issues: [...new Set(blockingIssues)].sort(),
+    storage_task_plans: storageTaskPlans,
+    migration_batches: migrationBatches,
+    blocking_issues: uniqueBlockingIssues,
     closure_state: {
       t001_complete: false,
       t002_complete: false,
@@ -304,9 +302,9 @@ export function buildAuthorityDataFoundationPlan({
       t022_complete: false,
       t023_complete: false,
       t024_complete: false,
-      migration_design_ready_for_human_review: blockingIssues.length === 0,
+      migration_design_ready_for_human_review: uniqueBlockingIssues.length === 0,
       migration_execution_authorized: false,
-      reason: blockingIssues.length === 0
+      reason: uniqueBlockingIssues.length === 0
         ? "The blueprint is internally consistent, but each migration still requires explicit human review and separate authorization."
         : "Live catalog closure, complete authority inventory, or exact existing-object contract evidence is still missing.",
     },
@@ -326,4 +324,5 @@ export const _testingAuthorityDataFoundationPlanner = {
   mapCatalogObjects,
   resolveLogicalObject,
   buildRevisionPlan,
+  assertNoSensitiveValues,
 };
