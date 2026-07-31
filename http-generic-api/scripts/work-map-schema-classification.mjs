@@ -97,7 +97,7 @@ export function validateSchemaClassification(options = {}) {
   const {
     classification_registry: registry,
     map_ids: mapIds,
-    unresolved_objects: unresolvedObjects,
+    unresolved_objects: sourceUnresolvedObjects,
     intentional_objects: intentionalObjects,
   } = inputs;
   const findings = [];
@@ -154,13 +154,6 @@ export function validateSchemaClassification(options = {}) {
     else if (Date.parse(`${row.expires_on}T23:59:59Z`) < Date.now()) push(findings, "intentional_exception_expired", { object_name: row.object_name, expires_on: row.expires_on });
   }
 
-  if (unresolvedObjects.length) {
-    push(findings, "unresolved_schema_objects_forbidden", {
-      count: unresolvedObjects.length,
-      objects: unresolvedObjects,
-    });
-  }
-
   const renderedIntentionalNames = new Set(intentionalObjects.map((row) => row.name));
   for (const object of intentionalObjects) {
     const exception = exceptionByName.get(object.name);
@@ -174,15 +167,32 @@ export function validateSchemaClassification(options = {}) {
   }
 
   const legacyClassified = [];
-  for (const object of unresolvedObjects) {
+  const unresolvedObjects = [];
+  for (const object of sourceUnresolvedObjects) {
     const matchingRules = rules.filter((rule) => matchesRule(object.name, rule.match));
     if (matchingRules.length === 1) {
       const rule = matchingRules[0];
       legacyClassified.push({ ...object, rule_key: rule.rule_key, domain: rule.domain, existing_map_refs: rule.existing_map_refs });
-    } else if (matchingRules.length > 1) {
-      push(findings, "ambiguous_schema_classification", { object_name: object.name, rule_keys: matchingRules.map((rule) => rule.rule_key) });
+    } else {
+      unresolvedObjects.push(object);
+      if (matchingRules.length > 1) {
+        push(findings, "ambiguous_schema_classification", { object_name: object.name, rule_keys: matchingRules.map((rule) => rule.rule_key) });
+      }
     }
   }
+
+  if (unresolvedObjects.length) {
+    push(findings, "unresolved_schema_objects_forbidden", {
+      count: unresolvedObjects.length,
+      objects: unresolvedObjects,
+    });
+  }
+
+  const sourceUncategorizedCount = sourceUnresolvedObjects.length + intentionalObjects.length;
+  const accountedCount = legacyClassified.length + intentionalObjects.length;
+  const classificationCoveragePercent = sourceUncategorizedCount
+    ? Number(((accountedCount / sourceUncategorizedCount) * 100).toFixed(2))
+    : 100;
 
   return {
     ok: findings.length === 0,
@@ -191,8 +201,8 @@ export function validateSchemaClassification(options = {}) {
     intentional_unclassified: intentionalObjects,
     unresolved: unresolvedObjects,
     map_ids: mapIds,
-    source_uncategorized_count: unresolvedObjects.length + intentionalObjects.length,
-    classification_coverage_percent: unresolvedObjects.length ? 0 : 100,
+    source_uncategorized_count: sourceUncategorizedCount,
+    classification_coverage_percent: classificationCoveragePercent,
     registry_hash: sha256(JSON.stringify(registry)),
     registry_path: inputs.registry_path,
   };
