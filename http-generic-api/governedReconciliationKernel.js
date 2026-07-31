@@ -46,7 +46,7 @@ const UNKNOWN_MARKERS = new Set([
   "reconciliation_required",
 ]);
 
-const SECRET_PATTERN = /(secret|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session)/i;
+const SECRET_PATTERN = /(secret(?!s_included$)|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session)/i;
 
 function reconciliationError(status, code, message, details = {}) {
   const error = new Error(message);
