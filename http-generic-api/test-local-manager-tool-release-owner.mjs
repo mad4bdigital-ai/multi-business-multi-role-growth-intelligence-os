@@ -52,7 +52,7 @@ assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com')
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
 assert(connectorAgent.includes('CONNECTOR_HEARTBEAT_URL=https://auth.mad4b.com/connector-agent/heartbeat'), 'connector installer env must declare the canonical heartbeat endpoint');
-assert(connectorAgent.includes('-File `"$WatchdogPs1`" -Root `"$Root`"'), 'scheduled watchdog task must receive the actual installed root');
+assert(/New-ScheduledTaskAction[^\n]+-File[^\n]+\$WatchdogPs1[^\n]+-Root[^\n]+\$Root/.test(connectorAgent), 'scheduled watchdog task must receive the actual installed root');
 assert(connectorAgent.includes('Start-ScheduledTask -TaskName $TaskName'), 'installer must start the watchdog immediately for post-install readback');
 assert(connectorAgent.includes('INSERT INTO') && connectorAgent.includes('local_connector_device_routes'), 'first connector heartbeat must be able to create the canonical route');
 assert(connectorAgent.includes('ON DUPLICATE KEY UPDATE'), 'connector heartbeat route creation must remain idempotent');
