@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { testCommands as canonicalTestCommands } from "./test-manifest.mjs";
 
 const testCommands = Object.freeze([
-  "node test-growth-control-tenant-role-field-policy.mjs",
-  "node test-growth-control-typed-invalidation-consumer.mjs",
+  ...canonicalTestCommands,
 ]);
 
 function parseArgs(argv) {
