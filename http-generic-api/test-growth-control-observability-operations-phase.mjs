@@ -237,7 +237,7 @@ for (const table of [
   "growth_control_observability_samples",
   "growth_control_decision_evidence",
   "growth_control_reconciliation_findings",
-]) assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS \\`${table}\\``));
+]) assert.match(migration, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`"));
 assert.doesNotMatch(migration, /\bDROP\s+TABLE\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i);
 assert.match(migration, /migration_applied',FALSE/);
 assert.match(migration, /secrets_included/);
