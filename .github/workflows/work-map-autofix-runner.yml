@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   regenerate:
-    name: Regenerate target Work Maps and dispatch gates
+    name: Regenerate and validate target Work Maps
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: gpt/spec-kit-work-map-integration-fabric-20260731
@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate source contracts
+      - name: Validate canonical Work Map modules
         shell: bash
         run: |
           set -euo pipefail
@@ -52,12 +52,21 @@ jobs:
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+          node --check http-generic-api/test-work-map-schema-classification.mjs
+          node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+
+      - name: Validate inter-pipeline connectivity and classification contracts
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
           node http-generic-api/test-pipeline-connectivity-check.mjs
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
 
       - name: Regenerate and prove idempotency
         shell: bash
@@ -76,7 +85,23 @@ jobs:
           test "${first_hash}" = "${second_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Commit if needed, read back exact target, and dispatch gates
+      - name: Require complete Spec Kit Work Map integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+      - name: Run Work Map governance regression tests
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-work-map-schema-classification.mjs
+          node test-work-map-schema-classification-contract.mjs
+          node test-spec-kit-work-map-governance-gate.mjs
+          node test-spec-kit-completion-gate.mjs
+
+      - name: Commit if needed, read back exact target, and dispatch CI
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,5 +131,4 @@ jobs:
           fi
 
           gh workflow run ci.yml --ref "${TARGET_BRANCH}"
-          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
-          echo "Dispatched exact-target gates for ${final_sha}."
+          echo "Validated Work Maps and dispatched exact-target CI for ${final_sha}."
