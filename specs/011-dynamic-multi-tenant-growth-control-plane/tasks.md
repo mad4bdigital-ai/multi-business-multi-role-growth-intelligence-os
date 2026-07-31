@@ -41,8 +41,8 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 - [x] T401 Integrate semantic capability resolution from Spec 007.
 - [x] T402 Compile immutable workflow DAGs on Spec 006 runtime contracts.
 - [x] T403 Persist plan/config/policy/version snapshots and hashes.
-- [ ] T404 Create explicit approval holds for provider-effect nodes.
-- [ ] T405 Implement internal-only reference workflow and readback.
+- [x] T404 Create explicit approval holds for provider-effect nodes.
+- [x] T405 Implement internal-only reference workflow and readback.
 
 ## Phase F — Policy, resources and providers
 
