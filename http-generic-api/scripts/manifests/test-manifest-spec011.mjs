@@ -25,6 +25,7 @@ export const testCommands = [
   "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
   "node test-agent-delegation-opt-in.mjs",
+  "node test-delegation-execution-policy-runtime.mjs",
   "node test-optional-manual-agent-delegation-tools.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-capability-resolution-app-map-fallback.mjs",

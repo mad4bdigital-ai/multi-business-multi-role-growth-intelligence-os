@@ -9,6 +9,10 @@ export function buildAgentRegistryRoutes(deps) {
   const router = Router();
   router.use(requireBackendApiKey);
 
+  function allowLegacyAgentDelegationMutation() {
+    return /^(1|true|yes|on)$/i.test(String(process.env.AGENT_DELEGATION_LEGACY_DIRECT_MUTATION_ENABLED || "").trim());
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
 async function findAgent(identifier) {
@@ -176,6 +180,22 @@ router.post("/agents/:id/delegate", async (req, res) => {
       );
       if (!roleCheck.length)
         return res.status(403).json({ error: "insufficient_supervision_role", required: policy[0].min_assistance_role });
+    }
+
+    if (!allowLegacyAgentDelegationMutation()) {
+      return res.status(409).json({
+        error: {
+          code: "canonical_delegation_grant_required",
+          message: "Direct legacy delegation mutation is disabled. Use the canonical plan-bound grant preview and governed lifecycle flow.",
+          details: {
+            canonical_flow: ["preview", "create", "inspect", "revoke", "expire"],
+            legacy_direct_mutation_enabled: false,
+            runtime_authority_changed: false,
+            database_write_performed: false,
+            secrets_included: false,
+          },
+        },
+      });
     }
 
     const delegation_id = randomUUID();
