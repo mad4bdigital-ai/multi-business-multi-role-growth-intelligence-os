@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "593fcf23684e88105303e0bdf7346f43e839b4ff49617a7ee96053ec800a8a4f",
+    "source_digest": "74417d9296243b5061d6d5e10f2a79706e6d740c748b72457ec540e0d2dca357",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -436,7 +436,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
+        "sha256": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
         "present": true
       },
       {
@@ -2597,7 +2597,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
+      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
       "mount_order": 12461,
       "split_from_mixed_scope_file": true,
@@ -2710,7 +2710,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
+      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
       "mount_order": 12461,
       "split_from_mixed_scope_file": true,
@@ -2911,7 +2911,7 @@
       "family_key": "connector-agent.unresolved",
       "label": "connector agent (unresolved)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e8dd3d5118eb4b1069cd1def17a96a760a4a8b6204f695abd9196f6c4824d529",
+      "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
       "mount_order": 12461,
       "split_from_mixed_scope_file": true,
