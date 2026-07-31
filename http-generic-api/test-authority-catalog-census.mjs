@@ -87,6 +87,7 @@ assert.equal(report.mode, "read_only_authority_catalog_census");
 assert.equal(report.read_only, true);
 assert.equal(report.applies_sql, false);
 assert.equal(report.schema_name, "platform");
+assert.deepEqual(report.limits, AUTHORITY_CATALOG_LIMITS);
 assert.equal(report.closure_state.t002_complete, false);
 assert.equal(report.closure_state.t021_authorized, false);
 assert.equal(report.provider_calls, false);
@@ -160,6 +161,36 @@ await assert.rejects(
     && error.code === "authority_catalog_limit_exceeded"
     && error.details.key === "schema_objects",
 );
+
+const invalidLimitPool = createPool();
+await assert.rejects(
+  () => collectAuthorityCatalogCensus({
+    pool: invalidLimitPool,
+    limits: {
+      ...AUTHORITY_CATALOG_LIMITS,
+      maxObjects: "1; DROP TABLE users",
+    },
+  }),
+  (error) => error instanceof AuthorityCatalogCensusError
+    && error.code === "authority_catalog_invalid_limit"
+    && error.details.key === "maxObjects",
+);
+assert.equal(invalidLimitPool.calls.length, 0);
+
+const unknownLimitPool = createPool();
+await assert.rejects(
+  () => collectAuthorityCatalogCensus({
+    pool: unknownLimitPool,
+    limits: {
+      ...AUTHORITY_CATALOG_LIMITS,
+      unexpectedLimit: 1,
+    },
+  }),
+  (error) => error instanceof AuthorityCatalogCensusError
+    && error.code === "authority_catalog_invalid_limits"
+    && error.details.unknown_keys[0] === "unexpectedLimit",
+);
+assert.equal(unknownLimitPool.calls.length, 0);
 
 await assert.rejects(
   () => collectAuthorityCatalogCensus({ pool: {} }),
