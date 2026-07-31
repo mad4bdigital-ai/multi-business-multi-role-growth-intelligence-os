@@ -9,6 +9,7 @@ on:
 permissions:
   actions: write
   contents: read
+  issues: write
 
 concurrency:
   group: certified-production-release-cut-${{ github.event.pull_request.number }}
@@ -22,6 +23,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
+      VALIDATION_PR: ${{ github.event.pull_request.number }}
       EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
     steps:
       - name: Validate trusted same-repository validation surface
@@ -48,6 +50,15 @@ jobs:
               exit 1
             }
           done
+
+      - name: Record certified validation start
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -Eeuo pipefail
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started source_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -134,6 +145,7 @@ jobs:
         env:
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           HEAD_REF: ${{ steps.verify.outputs.head_ref }}
+          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
         run: |
           set -Eeuo pipefail
           DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -157,6 +169,7 @@ jobs:
             exit 1
           }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched source_run_id=${GITHUB_RUN_ID} ci_run_id=${RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
           DEADLINE="$(( $(date +%s) + 3300 ))"
           while (( $(date +%s) < DEADLINE )); do
@@ -282,3 +295,23 @@ jobs:
             ${{ runner.temp }}/certified-release-ci.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record certified validation success
+        if: success()
+        shell: bash
+        env:
+          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
+          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded source_run_id=${GITHUB_RUN_ID} ci_run_id=${RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} evidence_schema=certified_production_release_cut.v1 merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+
+      - name: Record certified validation failure
+        if: failure()
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed source_run_id=${GITHUB_RUN_ID} ci_run_id=${RUN_ID:-unresolved} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false" || true
