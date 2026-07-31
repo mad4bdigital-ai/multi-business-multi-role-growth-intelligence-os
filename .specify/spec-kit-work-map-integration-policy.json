@@ -6,6 +6,7 @@
   "work_map_root": "docs/work-maps",
   "work_map_index": "README.md",
   "coverage_matrix": "work-map-coverage-matrix.md",
+  "schema_classification_registry": ".specify/work-map-schema-classification-registry.json",
   "manifest_filename": "work-map-integration.json",
   "template_filename": "work-map-integration-template.json",
   "review_states": [
@@ -29,6 +30,17 @@
     "taxonomy_backlog",
     "not_relevant_to_feature"
   ],
+  "schema_classification_policy": {
+    "default": "blocked",
+    "classified_rule_match_count": 1,
+    "allow_intentional_unclassified": true,
+    "intentional_exception_requires_owner": true,
+    "intentional_exception_requires_existing_map_assessment": true,
+    "intentional_exception_requires_expiry": true,
+    "maximum_exception_days": 90,
+    "stale_exception_behavior": "fail_closed",
+    "unknown_object_behavior": "fail_closed"
+  },
   "map_reuse_strategy": {
     "priority_order": [
       "reuse_existing_map",
@@ -48,8 +60,9 @@
     "specs",
     "docs"
   ],
-  "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from the repository Work Maps and coverage matrix.",
-  "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, and taxonomy-gap decisions must be resolved and implementation_readiness.status must be ready.",
+  "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from all repository Work Maps and the effective schema classification registry.",
+  "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready.",
+  "classification_contract": "No schema object may remain unclassified by accident. Every generated taxonomy gap must be mapped to existing Work Maps or recorded as an intentional, owned, expiring exception.",
   "legacy_behavior": "Existing Spec Kits without a work-map-integration.json remain grandfathered until they opt in. New Spec Kits are never grandfathered.",
   "secrets_included": false
 }
