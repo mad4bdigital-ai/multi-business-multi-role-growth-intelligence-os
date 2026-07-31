@@ -190,11 +190,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  sequential:
+    name: Sequential manifest order · full npm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Checkout tested ref
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ordered test suite with durable progress reports
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+      - name: Upload sequential progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.run_id }}-sequential
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
   summarize:
     name: Summarize diagnostic failures
     needs:
       - plan
       - shard
+      - sequential
     if: ${{ always() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -209,21 +241,28 @@ jobs:
           TESTED_REPOSITORY: ${{ github.repository }}
           TESTED_REF: ${{ github.ref }}
           TESTED_SHA: ${{ github.sha }}
+          SEQUENTIAL_JOB_RESULT: ${{ needs.sequential.result }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
 
           const root = path.resolve('diagnostic-reports');
-          const files = fs.existsSync(root)
-            ? fs.readdirSync(root).filter((name) => name.endsWith('.json')).sort()
+          const walk = (directory) => fs.existsSync(directory)
+            ? fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+                const resolved = path.join(directory, entry.name);
+                return entry.isDirectory() ? walk(resolved) : (entry.name.endsWith('.json') ? [resolved] : []);
+              })
             : [];
-          const reports = files
-            .map((name) => JSON.parse(fs.readFileSync(path.join(root, name), 'utf8')))
+          const files = walk(root).sort();
+          const allReports = files.map((file) => JSON.parse(fs.readFileSync(file, 'utf8')));
+          const reports = allReports
             .filter((report) => report.contract === 'mad4b.test-diagnostic-shard-report.v2')
             .sort((left, right) => `${left.family}:${left.shardIndex}`.localeCompare(`${right.family}:${right.shardIndex}`));
           if (!reports.length) throw new Error('No diagnostic shard reports were produced.');
 
+          const suiteReport = allReports.find((report) => report.contract === 'mad4b.sequential-test-suite-progress-report.v1') || null;
+          const manifestReport = allReports.find((report) => report.contract === 'mad4b.test-manifest-progress-report.v1') || null;
           const failures = reports.flatMap((report) => report.failures.map((failure) => ({
             ...failure,
             shardIndex: report.shardIndex,
@@ -231,7 +270,7 @@ jobs:
             rerun: report.rerun,
           })));
           const summary = {
-            contract: 'mad4b.test-diagnostic-summary.v1',
+            contract: 'mad4b.test-diagnostic-summary.v2',
             generatedAt: new Date().toISOString(),
             repository: process.env.TESTED_REPOSITORY,
             ref: process.env.TESTED_REF,
@@ -242,6 +281,9 @@ jobs:
             passedCount: reports.reduce((total, report) => total + report.commands.filter((item) => item.status === 'passed').length, 0),
             failedCount: failures.length,
             failures,
+            sequentialJobResult: process.env.SEQUENTIAL_JOB_RESULT,
+            sequentialSuite: suiteReport,
+            sequentialManifest: manifestReport,
             secretsIncluded: false,
           };
           fs.writeFileSync('diagnostic-summary.json', `${JSON.stringify(summary, null, 2)}\n`);
@@ -252,13 +294,35 @@ jobs:
             `- Ref: \`${summary.ref}\``,
             `- Commit: \`${summary.commitSha}\``,
             `- Families: **${summary.familyCount}**`,
-            `- Reports: **${summary.reportCount}**`,
-            `- Tests observed: **${summary.selectedCount}**`,
-            `- Failures: **${summary.failedCount}**`,
+            `- Family reports: **${summary.reportCount}**`,
+            `- Family tests observed: **${summary.selectedCount}**`,
+            `- Family failures: **${summary.failedCount}**`,
+            `- Sequential job: **${summary.sequentialJobResult}**`,
+          ];
+
+          if (suiteReport) {
+            lines.push(`- Sequential suite status: **${suiteReport.status}**`);
+            if (suiteReport.lastPassed) lines.push(`- Last passed phase: \`${suiteReport.lastPassed.id}\``);
+            if (suiteReport.firstFailure) lines.push(`- First failed phase: \`${suiteReport.firstFailure.id}\` (\`${suiteReport.firstFailure.script}\`)`);
+          } else {
+            lines.push('- Sequential suite report: **missing**');
+          }
+
+          if (manifestReport) {
+            lines.push(`- Sequential manifest status: **${manifestReport.status}**`);
+            if (manifestReport.lastPassed) {
+              lines.push(`- Last passed test: \`${manifestReport.lastPassed.command}\` (#${manifestReport.lastPassed.commandIndex})`);
+            }
+            if (manifestReport.firstFailure) {
+              lines.push(`- First failed test: \`${manifestReport.firstFailure.command}\` (#${manifestReport.firstFailure.commandIndex})`);
+            }
+          }
+
+          lines.push(
             '',
             '| Family | Shard | Tests | Status | Failed commands |',
             '|---|---:|---:|---|---|',
-          ];
+          );
           for (const report of reports) {
             const failed = report.failures.length
               ? report.failures.map((item) => `\`${item.command}\` (#${item.commandIndex})`).join('<br>')
@@ -267,7 +331,7 @@ jobs:
           }
 
           if (failures.length) {
-            lines.push('', '## Exact rerun coordinates', '');
+            lines.push('', '## Exact family rerun coordinates', '');
             for (const failure of failures) {
               lines.push(
                 `- \`${failure.family}\` / \`${failure.command}\`: set family=\`${failure.family}\`, parent_index=\`${failure.shardIndex}\`, parent_count=\`${failure.shardCount}\`, then target_size=\`1\` for per-test isolation.`,
@@ -276,6 +340,15 @@ jobs:
               const message = `${failure.command} (#${failure.commandIndex})`.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
               console.log(`::error title=${title}::${message}`);
             }
+          }
+
+          if (suiteReport?.firstFailure) {
+            const phase = suiteReport.firstFailure;
+            console.log(`::error title=Sequential phase failed::${phase.id} (${phase.script})`);
+          }
+          if (manifestReport?.firstFailure) {
+            const failure = manifestReport.firstFailure;
+            console.log(`::error title=First ordered test failure::${failure.command} (#${failure.commandIndex}); previous=${manifestReport.lastPassed?.command || 'none'}`);
           }
 
           const markdown = `${lines.join('\n')}\n`;
