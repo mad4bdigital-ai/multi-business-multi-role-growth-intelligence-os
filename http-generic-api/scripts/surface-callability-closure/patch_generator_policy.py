@@ -57,5 +57,47 @@ if old_evidence in source:
 elif new_evidence not in source:
     raise SystemExit("closure_generator_evidence_function_marker_missing")
 
+old_registration_collection = '''const registrations = [];
+for (const item of sourceItems) {
+  const relativeMigration = `migrations/${item.migration_file}`;
+  const migrationPath = path.join(ROOT, relativeMigration);
+  if (!fs.existsSync(migrationPath)) throw new Error(`surface_migration_missing:${relativeMigration}`);
+  const extracted = extractRegistryToolRegistrations(fs.readFileSync(migrationPath, "utf8"));
+  if (!extracted.length) throw new Error(`surface_registration_missing:${relativeMigration}`);
+  for (const registration of extracted) {
+    if (!registration.http_method || !registration.http_path) throw new Error(`surface_registration_incomplete:${relativeMigration}:${registration.tool_key}`);
+    registrations.push({ ...registration, migration_file: relativeMigration });
+  }
+}'''
+new_registration_collection = '''const registrations = [];
+for (const item of sourceItems) {
+  const relativeMigration = `migrations/${item.migration_file}`;
+  const migrationPath = path.join(ROOT, relativeMigration);
+  if (!fs.existsSync(migrationPath)) throw new Error(`surface_migration_missing:${relativeMigration}`);
+  const expectedToolKeys = unique((item.remediation || [])
+    .filter((action) => action.action_key === "verify_tool_registry_binding")
+    .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
+  if (!expectedToolKeys.length) throw new Error(`surface_queue_tool_targets_missing:${relativeMigration}`);
+  const extracted = extractRegistryToolRegistrations(fs.readFileSync(migrationPath, "utf8"));
+  if (!extracted.length) throw new Error(`surface_registration_missing:${relativeMigration}`);
+  const registrationsByToolKey = new Map();
+  for (const registration of extracted) {
+    const matches = registrationsByToolKey.get(registration.tool_key) || [];
+    matches.push(registration);
+    registrationsByToolKey.set(registration.tool_key, matches);
+  }
+  for (const toolKey of expectedToolKeys) {
+    const matches = registrationsByToolKey.get(toolKey) || [];
+    if (matches.length !== 1) throw new Error(`surface_registration_expected_once:${relativeMigration}:${toolKey}:${matches.length}`);
+    const registration = matches[0];
+    if (!registration.http_method || !registration.http_path) throw new Error(`surface_registration_incomplete:${relativeMigration}:${registration.tool_key}`);
+    registrations.push({ ...registration, migration_file: relativeMigration });
+  }
+}'''
+if old_registration_collection in source:
+    source = source.replace(old_registration_collection, new_registration_collection, 1)
+elif new_registration_collection not in source:
+    raise SystemExit("closure_generator_registration_collection_marker_missing")
+
 PATH.write_text(source, encoding="utf-8")
-print("closure generator effect and evidence policy patch applied")
+print("closure generator effect, evidence, and queue-bound selection policy patch applied")
