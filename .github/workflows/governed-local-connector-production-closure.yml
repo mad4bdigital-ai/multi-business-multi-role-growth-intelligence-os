@@ -1,5 +1,5 @@
 name: Governed Local Connector Production Closure
-# trigger-refresh: 2026-07-31T14:08+03:00
+# trigger-refresh: 2026-07-31T14:26+03:00 path-aware-main-d243f5da
 
 on:
   issue_comment:
