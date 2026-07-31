@@ -25,6 +25,7 @@
     "../../http-generic-api/frontend-surface-dispatch.generated.json"
   ],
   "rollout_contract": {
+    "certification_contract_version": "mad4b.execution-capsule-rollout-certificate.v2",
     "states": [
       "disabled",
       "shadow",
