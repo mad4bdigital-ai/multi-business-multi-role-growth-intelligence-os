@@ -7,3 +7,4 @@ await import("./test-context-kernel-provider-consent-core.mjs");
 await import("./test-context-kernel-provider-authorization-state-consolidation.mjs");
 await import("./test-context-kernel-authenticated-provider-consent-use-cases.mjs");
 await import("./test-context-kernel-provider-consent-readiness-boundary.mjs");
+await import("./test-context-kernel-provider-consent-persistence-runtime-composition.mjs");
