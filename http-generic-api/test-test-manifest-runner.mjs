@@ -34,6 +34,7 @@ for (const requiredCommand of [
   "node test-database-lifecycle-scheduler-admin-aliases.mjs",
   "node test-database-lifecycle-scheduler-snapshot-runner.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
+  "node test-governed-migration-dependency-gate.mjs",
   "node test-platform-engine-orchestration.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-platform-engine-validator-runner.mjs",
