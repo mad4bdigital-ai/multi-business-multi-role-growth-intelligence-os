@@ -1,0 +1,148 @@
+name: Read Back Hostinger Production Resync Policy
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/hostinger-production-resync-policy-readback.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-resync-policy-readback-only
+  cancel-in-progress: false
+
+jobs:
+  production-readback-only:
+    if: github.event.pull_request.head.ref == 'ops/hostinger-production-resync-policy-readback-20260731'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out pinned Production source
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify immutable Production and migration contract
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: fae54a372350d23d915bbe564e972b714ca363f4
+          REQUIRED_SOURCE_MERGE_SHA: 1b1cb8ef7ab5f91e57828469a7c0275351765bb5
+          EXPECTED_MIGRATION_BLOB: 553e0ab987e04009ddced67c3ef986a2669a0f8b
+          MIGRATION_PATH: http-generic-api/migrations/20260730_hostinger_production_resync_policy.sql
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          [[ "$actual_head" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved: expected $EXPECTED_PRODUCTION_SHA actual $actual_head"
+            exit 1
+          }
+          git merge-base --is-ancestor "$REQUIRED_SOURCE_MERGE_SHA" HEAD || {
+            echo "::error::Production does not contain PR #3265 merge"
+            exit 1
+          }
+          actual_blob="$(git rev-parse "HEAD:${MIGRATION_PATH}")"
+          [[ "$actual_blob" == "$EXPECTED_MIGRATION_BLOB" ]] || {
+            echo "::error::migration blob mismatch: $actual_blob"
+            exit 1
+          }
+
+      - name: Capture exact governed migration readback only
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { promises as fs } from 'node:fs';
+
+          const BASE = String(process.env.RUNTIME_BASE_URL || '').replace(/\/+$/, '');
+          const KEY = String(process.env.BACKEND_API_KEY || '');
+          const MIGRATION = '20260730_hostinger_production_resync_policy.sql';
+          const CHECKSUM = '320581d0adf690f6ef4cf09d4ecd6dbcd5b6625743a529fbf0bc10a4948b41a6';
+          const STATEMENT_COUNT = 8;
+          const EVIDENCE_DIR = `${process.env.RUNNER_TEMP}/hostinger-resync-policy-readback`;
+
+          assert.equal(BASE, 'https://auth.mad4b.com');
+          assert.ok(KEY, 'BACKEND_API_KEY is required');
+          await fs.mkdir(EVIDENCE_DIR, { recursive: true });
+
+          const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+          function sanitize(value) {
+            if (Array.isArray(value)) return value.map(sanitize);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+              key,
+              sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+            ]));
+          }
+
+          let response;
+          let text = '';
+          let payload = null;
+          let transportError = null;
+          try {
+            response = await fetch(`${BASE}/gpt/tools/call`, {
+              method: 'POST',
+              redirect: 'error',
+              headers: {
+                Authorization: `Bearer ${KEY}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                name: 'governed_migration_schema_readback',
+                tool_args: {
+                  migration: MIGRATION,
+                  expected_checksum_sha256: CHECKSUM,
+                  expected_statement_count: STATEMENT_COUNT,
+                },
+              }),
+              signal: AbortSignal.timeout(180000),
+            });
+            text = await response.text();
+            try { payload = text ? JSON.parse(text) : null; }
+            catch { payload = { raw_preview: text.slice(0, 500) }; }
+          } catch (error) {
+            transportError = String(error?.name || 'Error');
+          }
+
+          const evidence = sanitize({
+            schema_version: 'hostinger_production_resync_policy_readback_probe.v1',
+            operation: 'readback_only',
+            migration: MIGRATION,
+            expected_checksum_sha256: CHECKSUM,
+            expected_statement_count: STATEMENT_COUNT,
+            production_sha: 'fae54a372350d23d915bbe564e972b714ca363f4',
+            transport_ok: !transportError,
+            transport_error: transportError,
+            http_status: response?.status ?? null,
+            http_ok: response?.ok ?? false,
+            payload,
+            apply_requested: false,
+            dry_run_requested: false,
+            envelope_created: false,
+            policy_bootstrap_requested: false,
+            external_write_requested: false,
+            secrets_included: false,
+          });
+
+          await fs.writeFile(`${EVIDENCE_DIR}/readback.json`, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+          console.log(JSON.stringify(evidence, null, 2));
+
+          assert.equal(transportError, null, 'Readback transport failed');
+          assert.equal(response?.status, 200, `Readback returned HTTP ${response?.status ?? 'unknown'}`);
+          assert.equal(payload?.ok, true, 'Readback payload did not report ok=true');
+          NODE
+
+      - name: Upload bounded readback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-resync-policy-readback
+          path: ${{ runner.temp }}/hostinger-resync-policy-readback
+          if-no-files-found: error
+          retention-days: 30
