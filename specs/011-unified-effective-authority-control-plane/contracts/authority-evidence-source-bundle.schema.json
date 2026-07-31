@@ -8,14 +8,15 @@
   "properties": {
     "expected_source_families": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 8,
+      "maxItems": 8,
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/sourceFamily" }
     },
     "sources": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 128,
+      "minItems": 8,
+      "maxItems": 8,
       "items": { "$ref": "#/$defs/source" }
     }
   },
@@ -64,6 +65,7 @@
     },
     "pathRecord": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "path_key",
         "surface_family",
