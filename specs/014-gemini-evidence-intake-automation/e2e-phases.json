@@ -1,0 +1,179 @@
+{
+  "$schema": "../../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "014-gemini-evidence-intake-automation",
+  "title": "Gemini Evidence Intake and Development CI Automation Contracts",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/014-gemini-evidence-intake-automation/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide executable repository-native specification and CI contracts that validate their internal references and generate deterministic read-only development work packets without runtime mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "spec014-contract-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository specification maintainer",
+          "entrypoint": "Run the Spec-local contract validator from the repository candidate tree",
+          "terminal_outcome": "The manifest, development contract, CI contract, dependency graph, evidence references, sole-writer policy, no-secret checks, and completion consistency produce a successful structured integrity report.",
+          "steps": [
+            "Load the Spec manifest, development automation contract, CI automation contract, and completion state from the exact candidate tree.",
+            "Validate file presence, immutable identifiers, cross-references, dependency acyclicity, task and acceptance coverage, Test Family bindings, Pipeline evidence bindings, writer policy, and no-secret assertions.",
+            "Emit the bounded mad4b.spec014.contract-integrity-report.v1 report and fail closed on any finding."
+          ],
+          "assertions": [
+            "The report declares ok=true and secrets_included=false.",
+            "All development and CI references resolve without cycles or orphan requirements.",
+            "The contract remains specification-only and does not create mutation authority."
+          ],
+          "tests": [
+            {
+              "id": "validate-spec014-contracts",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/validate-contracts.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/014-gemini-evidence-intake-automation/manifest.json",
+            "specs/014-gemini-evidence-intake-automation/development-automation.json",
+            "specs/014-gemini-evidence-intake-automation/ci-automation.json",
+            "specs/014-gemini-evidence-intake-automation/completion.json"
+          ]
+        },
+        {
+          "id": "spec014-deterministic-work-packet",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository automation planner",
+          "entrypoint": "Generate a read-only work packet for T001 from the connected development and CI contracts",
+          "terminal_outcome": "A deterministic work packet identifies the task, wave, requirements, acceptance criteria, operation paths, scope, Test Families, Pipelines, gates, blockers, evidence, resume key, and plan hash without executing a mutation.",
+          "steps": [
+            "Read T001, WAVE-00, its dependencies, Work Map state, and applicable CI Test Families from the exact candidate tree.",
+            "Calculate task readiness and explicit blockers without inventing approval or changing task state.",
+            "Emit a structured work packet with a stable plan hash, work-packet ID, authority boundary, rollback posture, and secrets_included=false."
+          ],
+          "assertions": [
+            "The packet references only declared Requirements, Acceptance Criteria, Operation Paths, Test Families, and Pipelines.",
+            "The packet reports blocked or ready truthfully from current evidence and does not treat the contract as mutation authority.",
+            "The same canonical inputs produce the same plan hash."
+          ],
+          "tests": [
+            {
+              "id": "generate-spec014-t001-work-packet",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/generate-work-packet.mjs",
+              "args": [
+                "--task",
+                "T001",
+                "--allow-blocked"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            "specs/014-gemini-evidence-intake-automation/development-automation.json",
+            "specs/014-gemini-evidence-intake-automation/ci-automation.json",
+            "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+            "specs/014-gemini-evidence-intake-automation/tools/generate-work-packet.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Activate project-specific Spec Contract Gate, phase governance, and canonical CI summary pipelines after the contracts pass review.",
+      "blockers": [
+        "The Draft Spec and CI contracts require authoritative exact-head validation and review.",
+        "No new project-specific GitHub Actions workflow is authorized by this specification branch."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec014-operational-ci",
+        "required_level": "synthetic_runtime",
+        "actor": "Pull-request author and repository CI",
+        "entrypoint": "Open an implementation PR bound to one development work packet",
+        "terminal_outcome": "Changed-scope gates, phase journeys, canonical evidence, and exact-head identity are successful for the declared task.",
+        "steps": [
+          "Validate the work packet and changed paths against the selected task.",
+          "Run applicable Test Families and produce exact-candidate canonical evidence.",
+          "Block merge when scope, contracts, tests, or evidence are incomplete."
+        ]
+      }
+    },
+    {
+      "id": "resilient",
+      "status": "blocked",
+      "objective": "Add diagnostic sharding, ordered progress, stale-evidence rejection, generated-artifact repair candidates, dead-letter repair, and manual fallback evidence.",
+      "blockers": [
+        "Operational CI pipelines are not implemented.",
+        "Generated artifact roots and sole-writer authorization policy require implementation review."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec014-resilient-ci-recovery",
+        "required_level": "synthetic_runtime",
+        "actor": "Developer and CI operator",
+        "entrypoint": "Introduce a bounded test failure or stale generated artifact on an exact candidate head",
+        "terminal_outcome": "CI provides canonical failure evidence, exact rerun or repair coordinates, prevents unsafe remote write, and verifies the corrected new head.",
+        "steps": [
+          "Run diagnostic shards and the ordered sequential suite.",
+          "Produce an exact-head repair candidate when generated output is stale.",
+          "Verify that only an explicitly authorized writer may commit the approved root and that CI reruns on the pushed SHA."
+        ]
+      }
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Run non-sensitive Gemini and evidence-intake pilot cohorts with exact release evidence, budgets, privacy policy, manual fallback, and rollback.",
+      "blockers": [
+        "OD-001 through OD-010 are unresolved.",
+        "Runtime, provider, privacy, budget, model, review, and pilot implementation waves are not complete."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec014-canary-evidence-pilot",
+        "required_level": "live_non_production",
+        "actor": "Authorized internal pilot user and reviewer",
+        "entrypoint": "Submit a permitted non-sensitive evidence item to the canary intake",
+        "terminal_outcome": "The item is preserved, analyzed or manually routed, reviewed, linked, measured, and rollback-safe under the selected cohort.",
+        "steps": [
+          "Submit and read back an idempotent intake and canonical evidence record.",
+          "Process through the allowed provider policy or manual fallback and validate the structured proposal.",
+          "Complete human review, downstream linkage, metrics, and rollback verification."
+        ]
+      }
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Verify production/main parity, health, queue and worker state, active model/prompt/policy versions, budgets, runtime smoke, fallback, rollback, and completion evidence.",
+      "blockers": [
+        "Canary acceptance and production release authority do not exist yet.",
+        "No production deployment, migration ledger, or runtime readback has been executed."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec014-production-readback",
+        "required_level": "production_readback",
+        "actor": "Authorized release operator",
+        "entrypoint": "Promote an exact verified release candidate through the governed deployment path",
+        "terminal_outcome": "Production is proven to run the intended release with safe provider policy, healthy queues, bounded budgets, manual fallback, rollback posture, and complete closeout evidence.",
+        "steps": [
+          "Verify exact-head CI, migrations when applicable, deployment parity, and active feature configuration.",
+          "Run bounded production health and smoke readback without exposing sensitive data.",
+          "Verify manual fallback, rollback, post-merge audit, and completion manifest consistency."
+        ]
+      }
+    }
+  ]
+}
