@@ -11,108 +11,161 @@
 | G-005 Full package lifecycle | FR-045..062 | T060..T066 | AC-002..003, AC-031..039 |
 | G-006 Lineage and revisions | FR-003..006, FR-053..058 | T023..T027, T063..T066 | AC-029..035 |
 | G-007 AI-assisted, not authoritative | FR-035..039 | T050..T052 | AC-014..015 |
-| G-008 Generated tenant-safe surfaces | FR-040..044 | T053..T056 | AC-027..028, AC-042 |
+| G-008 Generated and reviewed external surfaces | FR-040..044 | T053..T056 | AC-027..028, AC-042 |
 | G-009 Sandbox and acceptance | FR-069..074 | T062, T066, T090..T097 | AC-040..041, AC-050 |
 | G-010 Portability and handover | FR-056..068 | T074..T076 | AC-036..039 |
 | G-011 Machine-readable assurance | FR-069..074 | T001, T009, T018, T066, T082 | AC-040, AC-045..047 |
-| G-012 No secrets/implicit authority | FR-002, FR-006..007, FR-023, FR-036, FR-047, FR-050 | all security tasks | AC-006..007, AC-014, AC-037 |
+| G-012 No secrets or implicit authority | FR-002, FR-006..007, FR-023, FR-036, FR-047, FR-050 | all security tasks | AC-006..007, AC-014, AC-037 |
 
-## Open Draft Spec portfolio traceability
+## Primary open Draft Spec traceability
 
-| PR | Feature key | Canonical role | Spec 015 relationship | Required next proof |
+| PR | Feature key | Canonical role | Relationship to Spec 015 | Required next proof |
 |---:|---|---|---|---|
-| #1898 | `004-tenant-asset-federation` | Architectural doctrine source | extract reviewed generic decisions | current-main ADR/reuse matrix |
-| #1935 | `006-adaptive-authorization-execution-governance` | Authority kernel candidate | dependency; must not be replaced by Studio | current auth/context authority map |
-| #2284 | `008-governed-pr-delivery-orchestration` | Repository delivery subsystem | consolidate with assurance extracted from #4432 | workflow and repository-automation reuse map |
-| #2385 | `009-local-connector-reachability-recovery` | Infrastructure recovery subsystem | bounded service/package source | current device/resource/probe authority map |
-| #2949 | `011-database-driven-operation-fabric` | Operation fabric subsystem | installation/operation compiler dependency | ordered implementation-train reconciliation |
-| #2950 | `011-tenant-gpt-effective-capability-envelope` | Tenant application component | Studio assistant and questionnaire component source | runtime/spec split and context-kernel reconciliation |
-| #3922 | `014-retail-commerce-operations-growth-os` | Reference package source | generic profile substrate plus Retail Commerce Pack | current-main reconstruction and package validation |
-| #4386 | `014-governed-hostinger-storage-orchestration` | Integration rollup | Hostinger Storage service/package source | live rollup, durable authority, canary, and production gates |
-| #4432 | `014-gemini-evidence-intake-automation` | Reference package source | assurance template plus Evidence Intelligence Pack | completion repair and current-main reconstruction |
-| #4456 | `015-tenant-operating-system-studio` | Portfolio convergence parent | owns portfolio awareness and package composition | architecture review and implementation readiness |
+| #1898 | `004-tenant-asset-federation` | architectural doctrine source | extract generic decisions | current-main ADR and reuse matrix |
+| #1935 | `006-adaptive-authorization-execution-governance` | authority kernel candidate | dependency; Studio must not replace it | current authorization/context authority map |
+| #2284 | `008-governed-pr-delivery-orchestration` | repository delivery subsystem | consolidate with #2949/#4432 assurance | repository workflow reuse matrix |
+| #2385 | `009-local-connector-reachability-recovery` | infrastructure recovery subsystem | Local Connector Recovery package/service source | device/resource/probe authority map |
+| #2949 | `011-database-driven-operation-fabric` | operation-fabric subsystem | installation/operation compiler dependency | full stack reconstruction plan |
+| #2950 | `011-tenant-gpt-effective-capability-envelope` | tenant application component | Studio assistant and questionnaire source | Spec/runtime split and Context Kernel reconciliation |
+| #3159 | `013-system-tool-catalog-v2` | system tool catalog subsystem | canonical discovery/projection source candidate | choose one current-main implementation |
+| #3922 | `014-retail-commerce-operations-growth-os` | reference package source | profile substrate plus Retail Commerce Pack | reconstruction and package validation |
+| #4386 | `014-governed-hostinger-storage-orchestration` | integration rollup | Hostinger service/package source | rollup, authority, canary, migration, Production gates |
+| #4432 | `014-gemini-evidence-intake-automation` | reference package source | assurance template plus Evidence Intelligence Pack | completion repair and reconstruction |
+| #4456 | `015-tenant-operating-system-studio` | portfolio convergence parent | owns portfolio awareness and package composition | architecture review and implementation readiness |
+| #4460 | `016-chatgpt-plugin-mcp-integration` | external integration surface | exposes reviewed focused tools through MCP | OAuth, tool catalog, Context Kernel, endpoint, Developer mode |
 
-The machine-readable authority for this table is `draft-spec-portfolio.json`. The numeric Spec number does not define uniqueness. `feature_key + canonical_role` is the portfolio identity.
+Machine-readable authority: `draft-spec-portfolio.json`.
 
-## Duplicate identity traceability
+## Duplicate identity and feature traceability
 
 ### Numeric `011`
 
 | PR | Distinct function | Resolution |
 |---:|---|---|
-| #2949 | operation registry, compiled bindings, durable operation lifecycle | operation-fabric subsystem beneath current workflow/control-plane authorities |
-| #2950 | Tenant GPT capability discovery, questionnaires, and preview orchestration | tenant application/Studio assistant component |
+| #2949 | operation registry and compiled execution fabric | subsystem beneath current workflow/control-plane authorities |
+| #2950 | Tenant GPT capability discovery and preview orchestration | tenant application/Studio assistant component |
 
 ### Numeric `014`
 
 | PR | Distinct function | Resolution |
 |---:|---|---|
-| #3922 | Business Profile substrate and Retail Commerce | extract generic substrate; reconstruct Retail Commerce Pack |
-| #4386 | Hostinger storage control and execution rollup | bounded platform service and operational package |
-| #4432 | Evidence Intelligence and development assurance | extract assurance; reconstruct Evidence Intelligence Pack |
+| #3922 | Business Profile and Retail Commerce | generic substrate plus bounded package |
+| #4386 | Hostinger Storage | bounded platform service/package |
+| #4432 | Evidence Intelligence and development assurance | bounded package plus extracted assurance |
 
-## Candidate PR extraction traceability
+### Feature `013-system-tool-catalog-v2`
+
+| PR | Role | Resolution |
+|---:|---|---|
+| #3159 | representative mixed Spec/runtime branch | compare and reconstruct on current main |
+| #3139 | competing reconciliation branch | supersede after selected branch validation |
+| #3145 | test-manifest helper | absorb into selected branch |
+
+## External integration traceability
+
+```text
+Studio package or current platform operation
+→ canonical System Tool Catalog / focused projection
+→ Spec 016 MCP tool metadata and transport
+→ authenticated Context Kernel scope
+→ capability/policy decision
+→ existing execution and readback authority
+```
+
+| Source | Spec 016 use | Authority boundary |
+|---|---|---|
+| Spec 005/current MCP runtime | protocol and schema foundation | transport only |
+| #3159 System Tool Catalog | focused tool discovery/projection | no authorization grant |
+| #2949 Operation Fabric/current operations | callable operation binding | execution remains kernel-owned |
+| #2950 Tenant GPT | user-oriented capability explanation | application component, not transport authority |
+| #4456 Studio | package and generated-surface metadata | published package does not imply external exposure |
+| #4462 | first read-only adapter wave | flags disabled; OAuth and Production incomplete |
+
+## Candidate extraction traceability
 
 ### PR #3922
 
-| Candidate content | Spec 015 destination | Required proof |
+| Candidate content | Destination | Required proof |
 |---|---|---|
-| Business Operating Profile | package applicability/profile substrate | current-main reuse matrix and generic schema |
-| Activity Type Registry | activity/profile substrate | not Commerce-hardcoded |
-| Inheritance/merge strategies | package/profile resolution | dimension-specific tests |
+| Business Operating Profile | package applicability substrate | current-main reuse matrix |
+| Activity Registry and inheritance | profile resolution | non-Commerce generic tests |
 | Applicability predicates | bounded predicate component | complexity/security tests |
-| Activity Capability Packs | package/component substrate | canonical component mapping |
-| Effective Business Profile | compiler input | revision and invalidation proof |
-| Solution Blueprints | Studio recommendation layer | recommendation not authority |
-| Retail/POS/inventory/orders/payments | Retail Commerce child pack | validates as optional package |
-| WordPress/WooCommerce/ERPNext | Retail Commerce child pack and provider components | certification and single-writer rules |
-| Workspace File Fabric details | reusable file-policy substrate plus child config | exact connection/Brand isolation |
+| Activity Capability Packs | component substrate | canonical component mapping |
+| Effective Business Profile | compiler input | revision/invalidation proof |
+| Solution Blueprints | recommendation layer | recommendation is not authority |
+| Retail/POS/inventory/orders/payments | Retail Commerce Pack | optional package validation |
+| WordPress/WooCommerce/ERPNext | provider components | certification and single-writer rules |
 
 ### PR #4432
 
-| Candidate content | Spec 015 destination | Required proof |
-| Development automation contract | package development-assurance template | planning-only/no authority |
-| CI automation contract | package acceptance/CI template | exact candidate evidence |
-| Evidence/Intake entities | Evidence Intelligence child pack | package entity/lifecycle contracts |
-| Forms/client surveys | Evidence Intelligence child pack | form/client-link contracts |
-| File naming/routing/dedup | Evidence Intelligence child pack/file policy example | original preservation/readback |
-| Gemini gateway/result schemas | AI component/provider example | structured output/manual fallback |
-| Review/promotion lifecycles | Evidence Intelligence child pack | human authority and audit |
-| E2E phases | package acceptance template | sandbox/canary/production boundaries |
+| Candidate content | Destination | Required proof |
+| Development and CI contracts | package assurance template | planning-only and exact-candidate evidence |
+| Evidence/Intake entities | Evidence Intelligence Pack | entity/lifecycle contracts |
+| Forms and client surveys | Evidence Intelligence Pack | form/client-link contracts |
+| File routing/dedup | file policy example | original preservation/readback |
+| Gemini contracts | AI component example | structured output/manual fallback |
+| Human review/promotion | lifecycle example | human authority and audit |
 
 ### PR #4386
 
-| Candidate content | Spec 015 destination | Required proof |
-| storage plan and operation contracts | Hostinger Storage operational package | closed schemas and deterministic plan hash |
-| Admin/Tenant authority projections | reusable service boundary | exact context and no cross-scope authority |
-| read-only and synthetic adapters | package certification examples | factory provenance and no live dispatch |
-| recovery and checkpoint contracts | operational component family | restore sample and unknown-outcome tests |
-| provider-specific toolchain | Hostinger package implementation | pinned tool/binary certification |
+| Candidate content | Destination | Required proof |
+| storage plans/operations | Hostinger operational package | closed schemas and plan hash |
+| Admin/Tenant projections | service boundary | exact context and isolation |
+| adapters | certification examples | factory provenance and no live dispatch |
+| recovery/checkpoints | operational component family | restore and unknown-outcome tests |
 
 ### PR #2385
 
-| Candidate content | Spec 015 destination | Required proof |
-| connection and device health model | Local Connector Recovery package | current resource/device authority reuse |
-| diagnostic and probe contracts | reusable recovery components | bounded read-only evidence |
-| recovery planner | optional package workflow | fresh authorization and same-cycle readback |
-| Admin break-glass path | platform-only authority | never exposed as Tenant package authority |
+| Candidate content | Destination | Required proof |
+| device/connection health | Local Connector Recovery | current authority reuse |
+| diagnostics/probes | recovery components | bounded read-only evidence |
+| recovery planner | optional workflow | fresh authorization and readback |
+| break-glass | platform-only authority | never exposed as Tenant package authority |
 
-## Implementation train traceability
+## Delivery train traceability
 
-### PR #2949 strict stack
+### Operation Fabric
 
 ```text
 #3005 → #3021 → #3026 → #3044 → #3054 → #3070
 → #3083 → #3089 → #3097 → #3109 → #3119 → #3130 → #3134
 ```
 
-These PRs collectively implement registry foundation, repository contracts, compiler, immutable manifests, verifier, authority preflight, SQL loading, guarded fallback, revision pinning, capability lifecycle binding, chunk collection, durable lifecycle, and write receipts. They must be reviewed as one dependency-ordered train.
+PR #3160 is a broad later constraints candidate. The entire set requires one overlap/reuse audit.
 
-### PR #4386 parallel integration
+### Hostinger Storage
 
-- #4390 contracts: integrated.
-- #4458 and #4459 synthetic adapter provenance corrections: integrated.
-- #4455 Tenant Canary hardening: open child PR at the observed snapshot.
+- #4390 contracts integrated.
+- #4458 and #4459 provenance corrections integrated.
+- #4455 Tenant Canary hardening open at the snapshot.
+
+### System Tool Catalog v2
+
+```text
+#3139 competing reconciliation
+#3145 helper
+#3159 representative reconciliation
+```
+
+### ChatGPT/MCP
+
+```text
+#4460 canonical Spec
+└── #4462 read-only implementation child
+```
+
+## Related open Draft classification
+
+The registry classifies 22 related Drafts:
+
+- fourteen Operation Fabric implementation candidates: #3005, #3021, #3026, #3044, #3054, #3070, #3083, #3089, #3097, #3109, #3119, #3130, #3134, #3160;
+- System Tool Catalog branches #3139 and #3145;
+- repository readiness repair #3143;
+- email-ledger migration candidate #3144;
+- support-ticket contracts/docs #3181;
+- Surface callability closure #4002;
+- Admin-control security hardening #2030;
+- ChatGPT MCP implementation #4462.
 
 ## Operation paths to requirements
 
@@ -133,11 +186,9 @@ These PRs collectively implement registry foundation, repository contracts, comp
 | OP-013 fork/export | FR-059..060 |
 | OP-014 handover | FR-060, FR-063..068 |
 | OP-015 suspend/uninstall/retire | FR-061..062 |
-| OP-016 candidate reconciliation | FR-069..074 and Phase 0 decisions |
+| OP-016 candidate/portfolio reconciliation | FR-069..074 and Phase 0 decisions |
 
 ## Evidence classes
-
-Every implementation task declares applicable evidence from:
 
 ```text
 contract_validation
@@ -149,6 +200,7 @@ integration_test
 migration_dry_run
 migration_apply_readback
 surface_dispatch_parity
+mcp_transport_and_oauth_conformance
 sandbox_acceptance
 provider_readback
 runtime_health
@@ -159,4 +211,4 @@ production_parity
 operator_runbook
 ```
 
-A task cannot be closed by substituting a weaker evidence class for the one declared.
+No task may be closed by substituting a weaker evidence class for the one declared.
