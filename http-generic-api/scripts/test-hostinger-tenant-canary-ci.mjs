@@ -94,35 +94,31 @@ assert.throws(() => validateTenantCanaryReport({ ...passed, checks: { ...passed.
 assert.throws(() => validateTenantCanaryReport({ ...passed, outcome: "unknown" }), /outcome is invalid/u);
 
 const workflow = fs.readFileSync(
-  new URL("../../.github/workflows/hostinger-storage-tenant-canary-canonical-evidence.yml", import.meta.url),
+  new URL("../../.github/workflows/hostinger-storage-tenant-canary-guard.yml", import.meta.url),
   "utf8"
 );
-assert.match(workflow, /^name: Hostinger Storage Tenant Canary Canonical Evidence$/mu);
+assert.match(workflow, /^name: Hostinger Storage Tenant Canary Guard$/mu);
 assert.match(workflow, /^\s*contents:\s*read\s*$/mu);
 assert.doesNotMatch(workflow, /^\s*contents:\s*write\s*$/mu);
 assert.doesNotMatch(workflow, /^\s*issues:\s*write\s*$/mu);
 assert.doesNotMatch(workflow, /^\s*pull-requests:\s*write\s*$/mu);
 assert.match(workflow, /^\s*ref:\s*\$\{\{ env\.CI_SOURCE_HEAD_SHA \}\}\s*$/mu);
 assert.match(workflow, /^\s*persist-credentials:\s*false\s*$/mu);
+assert.match(workflow, /hostinger-tenant-canary-ci\.mjs/u);
+assert.match(workflow, /actions\/upload-artifact@v4/u);
 assert.match(workflow, /hostinger-storage-tenant-canary-\$\{\{ github\.run_id \}\}-summary/u);
 assert.match(workflow, /^\s*if:\s*always\(\)\s*$/mu);
 assert.match(workflow, /report\.workflow !== 'Hostinger Storage Tenant Canary Guard'/u);
 assert.match(workflow, /job_logs_consulted !== false/u);
 assert.match(workflow, /repository_mutation_performed !== false/u);
+assert.match(workflow, /provider_dispatch_performed !== false/u);
+assert.match(workflow, /credential_access_performed !== false/u);
 assert.doesNotMatch(workflow, /git\s+push/iu);
 assert.doesNotMatch(workflow, /workflow_dispatch/u);
 
-const existingGuard = fs.readFileSync(
-  new URL("../../.github/workflows/hostinger-storage-tenant-canary-guard.yml", import.meta.url),
-  "utf8"
-);
-assert.match(existingGuard, /^name: Hostinger Storage Tenant Canary Guard$/mu);
-assert.doesNotMatch(existingGuard, /hostinger-tenant-canary-ci\.mjs/u);
-assert.doesNotMatch(existingGuard, /actions\/upload-artifact/u);
-
 console.log(JSON.stringify({
   ok: true,
-  tests: 53,
+  tests: 54,
   gate: "hostinger_tenant_canary_canonical_report_producer",
   secrets_included: false
 }));
