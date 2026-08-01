@@ -13,20 +13,27 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": "current",
+      "number": 4460,
       "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
       "role": "canonical_integration_specification",
-      "status": "current_pr"
+      "status": "open_draft"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 4462,
+        "branch": "gpt/016-chatgpt-mcp-readonly-adapter-20260801",
+        "role": "feature_flagged_read_only_mcp_adapter",
+        "status": "open_draft_pending_ci"
+      }
+    ],
     "release_prs": [],
     "closeout_pr": null
   },
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 22,
-    "file_count_recorded": 22,
+    "file_count_expected": 23,
+    "file_count_recorded": 23,
     "functional_requirements": 32,
     "non_functional_requirements": 12,
     "success_criteria": 10,
@@ -53,16 +60,16 @@
     "product_tool_catalog_review": "pending_pr_review"
   },
   "implementation": {
-    "started": false,
+    "started": true,
     "legacy_consumer_inventory_complete": false,
     "public_mcp_endpoint_verified": false,
-    "streamable_http_adapter_implemented": false,
-    "oauth_protected_resource_metadata_implemented": false,
+    "streamable_http_adapter_implemented": "draft_pr_4462",
+    "oauth_protected_resource_metadata_implemented": "draft_pr_4462",
     "oauth_authorization_server_conformance_verified": false,
     "resource_bound_token_validation_implemented": false,
     "phase_1_tool_catalog_approved": false,
-    "phase_1_read_tools_implemented": false,
-    "tenant_isolation_verified": false,
+    "phase_1_read_tools_implemented": "draft_pr_4462",
+    "tenant_isolation_verified": "targeted_tests_pending_ci",
     "plugin_package_implemented": false,
     "chatgpt_developer_connection_created": false,
     "write_tools_implemented": false,
@@ -94,20 +101,20 @@
     "post_merge_audit"
   ],
   "blocking_reasons": [
+    "specification_and_implementation_pr_ci_pending",
     "canonical_work_map_scaffold_not_run",
     "oauth_identity_conformance_not_verified",
     "legacy_mcp_consumer_inventory_missing",
     "mcp_mad4b_com_public_endpoint_not_verified",
     "phase_1_tool_catalog_not_approved",
-    "field_level_schema_reuse_matrix_missing",
-    "implementation_not_started"
+    "field_level_schema_reuse_matrix_missing"
   ],
   "notes": [
     "The current repository MCP surface is a verified baseline, not proof of ChatGPT compatibility.",
-    "The specification requires a new Streamable HTTP adapter and OAuth 2.1 resource-server contract while retaining existing platform authorities.",
-    "The first implementation phase is read-only and works without custom UI.",
-    "Generic internal dispatch tools are not approved as the public plugin user experience.",
-    "This specification does not authorize runtime mutation, migration, OAuth registration, credentials, external calls, plugin submission, publication, or Production deployment."
+    "Draft PR #4462 starts a feature-flagged read-only adapter and does not complete OAuth 2.1 or production readiness.",
+    "The first implementation phase works without custom UI and leaves all new feature flags disabled by default.",
+    "Generic internal dispatch tools are not exported by the draft public catalog.",
+    "No migration, OAuth client registration, deployment, ChatGPT connection creation, plugin submission, publication, or Production activation has occurred."
   ],
   "secrets_included": false
 }
