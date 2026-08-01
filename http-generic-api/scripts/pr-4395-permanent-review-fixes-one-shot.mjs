@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const TARGET_BRANCH = "gpt/tenant-request-inbox-chunk-store-hardening-20260801";
-const TRIGGER_SUBJECT = "chore(ci): run PR 4395 permanent review fixes";
+const TRIGGER_SUBJECT = "fix(ci): arm permanent review fixes with client budgets";
 const HELPER = "scripts/pr-4395-permanent-review-fixes-one-shot.mjs";
 const TRANSFORM = "scripts/pr-4395-permanent-review-fixes.py";
 const PACKAGE = "package.json";
