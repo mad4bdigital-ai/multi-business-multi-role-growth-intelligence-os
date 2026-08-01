@@ -40,7 +40,9 @@
     ".github/**",
     ".specify/**",
     "http-generic-api/scripts/e2e-phase-*.mjs",
-    "http-generic-api/scripts/e2e-parallel-*.mjs"
+    "http-generic-api/scripts/e2e-parallel-*.mjs",
+    "http-generic-api/scripts/ci-evidence-*.mjs",
+    "http-generic-api/scripts/bounded-diagnostic-evidence.mjs"
   ],
   "ignored_patterns": [
     ".gitignore",
