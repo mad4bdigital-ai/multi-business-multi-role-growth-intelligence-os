@@ -39,8 +39,11 @@ jobs:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           set -euo pipefail
+          if [[ "$TARGET_REF" == "main" || "$TARGET_REF" == "Production" ]]; then
+            echo "Protected branch mutation is forbidden: $TARGET_REF" >&2
+            exit 1
+          fi
           [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
 
