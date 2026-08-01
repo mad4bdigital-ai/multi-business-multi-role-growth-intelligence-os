@@ -1,0 +1,146 @@
+{
+  "$schema": "../../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "015-tenant-operating-system-studio",
+  "title": "Tenant Operating System Studio Convergence Contracts",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/015-tenant-operating-system-studio/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, Work Map, candidate-PR classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "spec015-contract-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository specification maintainer",
+          "entrypoint": "Run the Spec-local deterministic validator from the exact candidate tree",
+          "terminal_outcome": "The declared file inventory, JSON/OpenAPI contracts, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
+          "steps": [
+            "Validate the exact manifest inventory and specification-only boundaries.",
+            "Validate the package, installation, lifecycle, candidate-convergence, and draft OpenAPI contract structure.",
+            "Validate PR #3922 and PR #4432 classification into generic substrate and bounded reference packages.",
+            "Validate all 19 Work Maps and 16 schema domains have explicit decisions while runtime implementation remains blocked.",
+            "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns."
+          ],
+          "assertions": [
+            "The report declares ok=true, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
+            "PR #3922 and PR #4432 remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
+            "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion."
+          ],
+          "tests": [
+            {
+              "id": "validate-spec015-contracts",
+              "runner": "node",
+              "working_directory": "specs/015-tenant-operating-system-studio",
+              "path": "tools/validate-spec.mjs",
+              "args": ["--only", "all"]
+            }
+          ],
+          "evidence_paths": [
+            "specs/015-tenant-operating-system-studio/manifest.json",
+            "specs/015-tenant-operating-system-studio/candidate-convergence.json",
+            "specs/015-tenant-operating-system-studio/work-map-integration.json",
+            "specs/015-tenant-operating-system-studio/completion.json",
+            "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Implement package/component registries, deterministic installation compilation, custom entities, lifecycles, forms, file policies, AI definitions, and generated tenant-safe surfaces through bounded child PRs.",
+      "blockers": [
+        "The field-level current-main reuse matrix is not complete.",
+        "The package registry mapping and custom entity persistence decisions remain open.",
+        "Duplicate Spec 014 identity and candidate extraction paths require review."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec015-operational-package-installation",
+        "required_level": "synthetic_runtime",
+        "actor": "Tenant system designer and package reviewer",
+        "entrypoint": "Create and compile a private tenant package with entities, forms, lifecycle, workflow, file, UI, and acceptance components",
+        "terminal_outcome": "The package validates, installs for an exact Brand in sandbox, produces a deterministic installation revision, and exposes tenant-safe generated surfaces without creating implicit authority.",
+        "steps": [
+          "Create immutable package and component versions through existing platform authorities.",
+          "Compile the exact target installation with lineage, conflicts, revision vector, and deterministic hash.",
+          "Run sandbox acceptance and prove UI/form/resource authority remains server-enforced."
+        ]
+      }
+    },
+    {
+      "id": "resilient",
+      "status": "blocked",
+      "objective": "Prove upgrades, rollback, provider/manual fallback, backup/restore, drift reconciliation, delegation revocation, export, and handover continuity.",
+      "blockers": [
+        "Operational package and installation runtime is not implemented.",
+        "Reference packages and agency/client delegation journeys are not reconstructed."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec015-resilient-upgrade-handover",
+        "required_level": "live_non_production",
+        "actor": "Agency operator, client owner, and release reviewer",
+        "entrypoint": "Upgrade one client installation with local overrides, simulate dependency degradation, and execute a client handover",
+        "terminal_outcome": "Three-way conflicts are explicit, rollback is verified, agency delegation is revoked, and the client-owned system continues under client principals.",
+        "steps": [
+          "Run three-way package upgrade and block ambiguous local customization conflicts.",
+          "Exercise manual/provider fallback, backup/restore, and prior-revision rollback.",
+          "Transfer or recreate client-owned dependencies, revoke delegation, and verify continuity plus former-agency denial."
+        ]
+      }
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Run bounded pilots for a freelancer, an agency with two client Brands, a client-owned Tenant with agency delegation, Evidence Intelligence, and Retail Commerce reference packages.",
+      "blockers": [
+        "Operational and resilient acceptance suites are incomplete.",
+        "Pilot Tenants, Brands, packages, allowed effect classes, budgets, and stop rules are not approved."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec015-canary-tenant-studio",
+        "required_level": "live_non_production",
+        "actor": "Authorized pilot tenants, client reviewers, and platform operators",
+        "entrypoint": "Author, install, activate, and operate bounded package installations in approved pilot cohorts",
+        "terminal_outcome": "The intended tenant models operate with strict isolation, usable generated surfaces, measurable health/cost, manual fallback, rollback, and handover readiness.",
+        "steps": [
+          "Pilot one freelancer-created system and one agency package installed for two isolated client Brands.",
+          "Pilot a client-owned Tenant with delegated agency access and tested revocation.",
+          "Run Evidence Intelligence and Retail Commerce reference packages under package-specific acceptance gates."
+        ]
+      }
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Verify governed migrations, Production runtime and generated-surface parity, health, isolation, backup/restore, rollback, support, handover, and truthful closeout.",
+      "blockers": [
+        "Canary acceptance and Production release authority do not exist.",
+        "No package runtime migration, deployment, Production canary, or post-merge audit has been executed."
+      ],
+      "planned_e2e_journey": {
+        "id": "spec015-production-readback",
+        "required_level": "production_readback",
+        "actor": "Authorized release operator and tenant pilot owners",
+        "entrypoint": "Promote an exact verified release candidate through the governed deployment and migration path",
+        "terminal_outcome": "Production runs the intended package and installation revisions with current contracts, healthy runtime/surfaces, strict tenant/client isolation, fallback, rollback, handover continuity, and complete closeout evidence.",
+        "steps": [
+          "Verify exact-head CI, applied migration evidence, main/Production parity, and active feature/package configuration.",
+          "Run bounded Production health, generated-surface, isolation, provider/manual fallback, and rollback readback.",
+          "Complete post-merge audit and classify all remaining work explicitly."
+        ]
+      }
+    }
+  ]
+}
