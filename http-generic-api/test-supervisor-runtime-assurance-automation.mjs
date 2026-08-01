@@ -27,6 +27,7 @@ for (const marker of [
 assert.match(docsAgent, /!contains\(github\.event\.pull_request\.labels\.\*\.name, 'skip-docs-agent'\)/);
 assert.match(docsAgent, /github\.event\.pull_request\.head\.sha/);
 assert.match(docsAgent, /EXPECTED_HEAD_SHA/);
+assert.match(docsAgent, /concurrency:\s+[\s\S]*group: repository-generated-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ github\.ref \}\}[\s\S]*cancel-in-progress: false/);
 assert.match(docsAgent, /github\.event\.action == 'reopened'/);
 assert.match(docsAgent, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'docs-agent-write'\)/);
 assert.match(docsAgent, /issues\/\$\{PR_NUMBER\}\/labels\/docs-agent-write/);
