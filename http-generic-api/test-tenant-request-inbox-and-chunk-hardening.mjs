@@ -50,7 +50,7 @@ function fakePool(steps) {
 
 const listPool = fakePool([
   {
-    rows: [{ role: "owner" }],
+    rows: [{ role: "member" }],
     assert(sql, params) {
       assert.match(sql, /FROM memberships/u);
       assert.deepEqual(params, ["user-1", tenantId]);
@@ -94,6 +94,7 @@ const listPool = fakePool([
       assert.match(sql, /c2\.ticket_id = t\.ticket_id/u);
       assert.match(sql, /ORDER BY latest_activity_at DESC, t\.ticket_id DESC/u);
       assert.match(sql, /SELECT MAX\(tle\.created_at\)/u, "latest activity must include visible ticket lifecycle events");
+      assert.match(sql, /tle\.visibility = 'customer'/u, "ordinary member latest activity must ignore tenant-admin and internal-support events");
       assert.match(sql, /FROM tenant_resolution_case_events trce/u, "latest activity must include resolution-case events");
       assert.match(sql, /FROM tenant_resolution_readbacks trr/u, "latest activity must include readbacks");
       assert.doesNotMatch(sql, /OFFSET/u);
