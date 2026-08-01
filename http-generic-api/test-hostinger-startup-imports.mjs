@@ -26,6 +26,8 @@ async function importModule(relativePath) {
 }
 
 const syntaxOnlyFiles = [
+  "../server.js",
+  "../hostinger-entrypoint-runtime.js",
   "server.js",
   "routes/activationRoutes.js",
   "routes/gptSessionRoutes.js",
