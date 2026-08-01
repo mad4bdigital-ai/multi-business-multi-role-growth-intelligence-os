@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec-015/draft-spec-portfolio-live-delta.schema.json",
+  "title": "Open Draft Portfolio Live Delta",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "base_registry",
+    "base_observed_at",
+    "delta_observed_at",
+    "new_related_open_drafts",
+    "updated_delivery_trains",
+    "current_counts",
+    "secrets_included"
+  ],
+  "properties": {
+    "$schema": { "const": "contracts/draft-spec-portfolio-live-delta.schema.json" },
+    "schema_version": { "const": 1 },
+    "base_registry": { "const": "draft-spec-portfolio.json" },
+    "base_observed_at": { "type": "string", "format": "date-time" },
+    "delta_observed_at": { "type": "string", "format": "date-time" },
+    "new_related_open_drafts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pull_request",
+          "title",
+          "classification",
+          "parent_feature_key",
+          "parent_pull_request",
+          "base_branch",
+          "branch",
+          "observed_head_sha",
+          "state",
+          "draft",
+          "portfolio_status",
+          "changed_paths",
+          "disposition",
+          "safety_boundary"
+        ],
+        "properties": {
+          "pull_request": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "minLength": 3 },
+          "classification": { "enum": ["implementation_child", "security_hardening", "workstream_correction"] },
+          "parent_feature_key": { "type": "string", "minLength": 3 },
+          "parent_pull_request": { "type": "integer", "minimum": 1 },
+          "base_branch": { "type": "string", "minLength": 3 },
+          "branch": { "type": "string", "minLength": 3 },
+          "observed_head_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "state": { "const": "open" },
+          "draft": { "const": true },
+          "portfolio_status": { "enum": ["active", "pending_ci", "blocked", "partially_integrated"] },
+          "changed_paths": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "disposition": { "type": "string", "minLength": 20 },
+          "safety_boundary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["production", "provider_dispatch", "network", "credentials", "migration", "deployment"],
+            "properties": {
+              "production": { "const": false },
+              "provider_dispatch": { "const": false },
+              "network": { "const": false },
+              "credentials": { "const": false },
+              "migration": { "const": false },
+              "deployment": { "const": false }
+            }
+          }
+        }
+      }
+    },
+    "updated_delivery_trains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["train_key", "parent_pr", "added_pull_requests", "current_relationship"],
+        "properties": {
+          "train_key": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
+          "parent_pr": { "type": "integer", "minimum": 1 },
+          "added_pull_requests": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "integer", "minimum": 1 }
+          },
+          "current_relationship": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "current_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_draft_specs", "base_related_open_drafts", "live_delta_related_open_drafts", "total_related_open_drafts", "total_open_drafts_classified"],
+      "properties": {
+        "primary_draft_specs": { "type": "integer", "minimum": 1 },
+        "base_related_open_drafts": { "type": "integer", "minimum": 0 },
+        "live_delta_related_open_drafts": { "type": "integer", "minimum": 1 },
+        "total_related_open_drafts": { "type": "integer", "minimum": 1 },
+        "total_open_drafts_classified": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "secrets_included": { "const": false }
+  }
+}
