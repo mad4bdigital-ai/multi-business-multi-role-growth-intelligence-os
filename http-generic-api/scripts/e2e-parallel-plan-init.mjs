@@ -41,23 +41,39 @@ function parseArgs(argv) {
   return options;
 }
 
+function gitNameOnly(root, args) {
+  try {
+    return execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).split(/\r?\n/).map(normalize).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function changedFiles(root, base, head) {
+  const files = new Set();
   const candidates = [
     base ? `${base}...${head}` : null,
     process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}...${head}` : null,
     "origin/main...HEAD",
     "HEAD~1...HEAD"
   ].filter(Boolean);
+
   for (const range of candidates) {
-    try {
-      return execFileSync("git", ["diff", "--name-only", range], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      }).split(/\r?\n/).map(normalize).filter(Boolean);
-    } catch {}
+    const committed = gitNameOnly(root, ["diff", "--name-only", range]);
+    if (committed.length) {
+      for (const file of committed) files.add(file);
+      break;
+    }
   }
-  return [];
+
+  for (const file of gitNameOnly(root, ["diff", "--name-only"])) files.add(file);
+  for (const file of gitNameOnly(root, ["diff", "--name-only", "--cached"])) files.add(file);
+  for (const file of gitNameOnly(root, ["ls-files", "--others", "--exclude-standard"])) files.add(file);
+  return [...files].sort();
 }
 
 function bucketFor(file) {
@@ -156,8 +172,9 @@ function writeAtomic(file, data) {
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const absoluteContract = path.resolve(options.root, options.contract);
-  const rootPrefix = `${path.resolve(options.root)}${path.sep}`;
-  if (!absoluteContract.startsWith(rootPrefix)) throw new Error("Contract path escapes repository root.");
+  const rootResolved = path.resolve(options.root);
+  const rootPrefix = `${rootResolved}${path.sep}`;
+  if (absoluteContract !== rootResolved && !absoluteContract.startsWith(rootPrefix)) throw new Error("Contract path escapes repository root.");
   if (!fs.existsSync(absoluteContract)) throw new Error(`Contract not found: ${options.contract}`);
   const contract = readJson(absoluteContract);
   if (contract.parallel_work && !options.force) throw new Error("parallel_work already exists. Use --force to regenerate it.");
