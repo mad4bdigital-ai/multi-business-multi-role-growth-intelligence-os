@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec-014-ci-automation.schema.json",
+  "title": "Project CI Automation Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_key",
+    "spec_key",
+    "review_state",
+    "source_baseline",
+    "principles",
+    "candidate_identity",
+    "test_families",
+    "pipelines",
+    "evidence_contracts",
+    "writer_policy",
+    "completion_policy",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "contract_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$" },
+    "spec_key": { "type": "string", "pattern": "^[0-9]{3}-[a-z0-9-]+$" },
+    "review_state": { "enum": ["draft", "ready_for_implementation", "active", "retired"] },
+    "source_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "base_branch", "base_sha", "extracted_from"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "base_branch": { "type": "string", "minLength": 1 },
+        "base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "extracted_from": { "$ref": "#/$defs/nonEmptyStringArray" }
+      }
+    },
+    "principles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_candidate_binding",
+        "changed_scope_fail_closed",
+        "canonical_structured_evidence",
+        "diagnostics_are_not_status_authority",
+        "read_only_validation_by_default",
+        "sole_governed_writer",
+        "least_privilege",
+        "no_secret_evidence",
+        "exact_head_completion"
+      ],
+      "properties": {
+        "exact_candidate_binding": { "const": true },
+        "changed_scope_fail_closed": { "const": true },
+        "canonical_structured_evidence": { "const": true },
+        "diagnostics_are_not_status_authority": { "const": true },
+        "read_only_validation_by_default": { "const": true },
+        "sole_governed_writer": { "const": true },
+        "least_privilege": { "const": true },
+        "no_secret_evidence": { "const": true },
+        "exact_head_completion": { "const": true }
+      }
+    },
+    "candidate_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported_kinds", "required_fields", "reject_conditions"],
+      "properties": {
+        "supported_kinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["head", "merge_candidate"] }
+        },
+        "required_fields": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "reject_conditions": { "$ref": "#/$defs/nonEmptyStringArray" }
+      }
+    },
+    "test_families": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/testFamily" }
+    },
+    "pipelines": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/pipeline" }
+    },
+    "evidence_contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidenceContract" }
+    },
+    "writer_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_remote_write", "writer_pipeline_key", "required_controls", "forbidden_controls"],
+      "properties": {
+        "default_remote_write": { "const": false },
+        "writer_pipeline_key": { "type": ["string", "null"] },
+        "required_controls": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "forbidden_controls": { "$ref": "#/$defs/nonEmptyStringArray" }
+      }
+    },
+    "completion_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_pipeline_keys", "required_evidence_keys", "fail_when", "production_readback_when_runtime_changed"],
+      "properties": {
+        "required_pipeline_keys": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "required_evidence_keys": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "fail_when": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "production_readback_when_runtime_changed": { "const": true }
+      }
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "testFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "title", "requirement_refs", "task_refs", "changed_paths", "commands", "shardable", "canonical_report"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "title": { "type": "string", "minLength": 4 },
+        "requirement_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^FR-[0-9]{3}$" }
+        },
+        "task_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^T[0-9]{3}$" }
+        },
+        "changed_paths": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "commands": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "shardable": { "type": "boolean" },
+        "canonical_report": { "type": "string", "minLength": 4 },
+        "required_for_completion": { "type": "boolean" }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": { "enum": ["none", "read", "write"] }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "mode", "commands", "failure_mode", "evidence_key"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "mode": { "enum": ["validate", "plan", "test", "diagnose", "summarize", "publish", "repair_candidate", "write", "verify", "closeout"] },
+        "commands": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "failure_mode": { "enum": ["fail_closed", "continue_for_diagnostics", "report_only"] },
+        "evidence_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "condition": { "type": "string" }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "purpose", "triggers", "permissions", "concurrency", "candidate_binding", "path_filters", "stages", "remote_write", "required_for_completion"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "purpose": { "type": "string", "minLength": 10 },
+        "triggers": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "permissions": { "$ref": "#/$defs/permission" },
+        "concurrency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group_key", "cancel_in_progress"],
+          "properties": {
+            "group_key": { "type": "string", "minLength": 3 },
+            "cancel_in_progress": { "type": "boolean" }
+          }
+        },
+        "candidate_binding": { "enum": ["exact_head", "head_or_merge_candidate", "trusted_default_branch_plus_exact_source_head"] },
+        "path_filters": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "stages": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/stage" } },
+        "remote_write": { "type": "boolean" },
+        "required_for_completion": { "type": "boolean" }
+      }
+    },
+    "evidenceContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "contract", "producer_pipeline", "authority", "required_fields", "retention_days", "secrets_included"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+        "contract": { "type": "string", "minLength": 4 },
+        "producer_pipeline": { "type": "string", "minLength": 3 },
+        "authority": { "enum": ["diagnostic", "canonical_status", "repair_candidate", "completion"] },
+        "required_fields": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "retention_days": { "type": "integer", "minimum": 1, "maximum": 365 },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
