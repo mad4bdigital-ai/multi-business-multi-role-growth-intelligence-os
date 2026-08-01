@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 const TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
+const REASON_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,190}$/u;
 const SHA_RE = /^(?:[0-9a-f]{7,64}|sha256-[0-9a-f]{32,128})$/u;
 const ALLOWED_BODY_FIELDS = Object.freeze(['expected_sha', 'operation_id']);
 
@@ -57,11 +58,28 @@ function snapshotRequestBody(body) {
   return Object.freeze(result);
 }
 
+function safeReasonCodes(error) {
+  const sources = [
+    error?.reasonCodes,
+    error?.details?.reason_codes,
+    error?.details?.reasonCodes,
+    error?.details?.mismatch_fields,
+    error?.details?.mismatchFields,
+  ];
+  return [...new Set(sources
+    .flatMap((source) => Array.isArray(source) ? source : [])
+    .map((value) => String(value || '').trim())
+    .filter((value) => REASON_RE.test(value)))]
+    .sort()
+    .slice(0, 16);
+}
+
 function safeErrorResponse(error) {
   const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
     ? error.status
     : 500;
   const code = String(error?.code || 'storage_tenant_runtime_failed').slice(0, 160);
+  const reasonCodes = safeReasonCodes(error);
   const publicMessages = {
     storage_tenant_runtime_unavailable: 'Tenant storage runtime is not mounted.',
     storage_tenant_request_body_invalid: 'A JSON object request body is required.',
@@ -77,6 +95,7 @@ function safeErrorResponse(error) {
       error: {
         code,
         message: publicMessages[code] || 'Tenant storage operation was rejected by a governed runtime check.',
+        ...(reasonCodes.length ? { reason_codes: reasonCodes } : {}),
       },
       secrets_included: false,
     },
@@ -115,4 +134,5 @@ export function buildHostingerStorageTenantRoutes({ tenantStorageRuntime = null 
 export const _testingHostingerStorageTenantRoutes = Object.freeze({
   requireTenantPrincipal,
   snapshotRequestBody,
+  safeReasonCodes,
 });
