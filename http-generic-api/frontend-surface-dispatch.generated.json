@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "88d02985c7f293ff90e7303ea9013495c84a584390bb849f2689111d22404092",
+    "source_digest": "26f5fb36deb18416fceb7c925f549b9b41296614bcc315ea3fffb3d68b22f2cb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "9b38355e2fd263bd584628cc13e0f6213b797e93a7bbe40b428e863163a60743",
+        "sha256": "8f8fc144699eb2596b867dc306f84a0ede03f00566f2463a116648d7f0c958ba",
         "present": true
       },
       {
@@ -926,7 +926,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "447aaf81f828a3e25f244f1d03b2d1b627022822be7d5c346c68ab653a13c0cd",
+        "sha256": "c656aaa323cf604b5f470397c746baa07b2c6b2e7d5d52f19af03903dc169a5f",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "d1556d6393d0d20c68ef75f16dd4877aafa9bdef9e08e3401836ef54ce7e1409",
+        "sha256": "b7b2bfd22ac56db3f4d40393c80d89026e7a878861534a5a40f040af0998dd3d",
         "present": true
       },
       {
@@ -1530,7 +1530,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "447aaf81f828a3e25f244f1d03b2d1b627022822be7d5c346c68ab653a13c0cd",
+      "source_digest": "c656aaa323cf604b5f470397c746baa07b2c6b2e7d5d52f19af03903dc169a5f",
       "mount_prefix": "/",
       "mount_order": 11977,
       "split_from_mixed_scope_file": false,
