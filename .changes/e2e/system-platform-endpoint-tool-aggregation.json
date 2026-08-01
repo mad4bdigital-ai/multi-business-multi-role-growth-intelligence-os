@@ -7,6 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/platformEndpointToolAggregation.js",
       "http-generic-api/routes/systemLayerRoutes.js",
       "http-generic-api/test-system-tool-catalog-v2.mjs"
@@ -32,6 +33,7 @@
             "Load multiple active platform endpoint export rows that share one public tool name but preserve distinct endpoint schemas.",
             "Aggregate the rows into one deterministic descriptor with an endpoint_key enum and exact binding metadata.",
             "Normalize the descriptor through System Tool Catalog V2 without a descriptor-name collision.",
+            "Regenerate the frontend dispatch evidence from the exact candidate head.",
             "Resolve an allowed endpoint_key to its exact registry binding for runtime dispatch.",
             "Reject missing, unknown, parent-mismatched, or residually ambiguous selections with typed fail-closed errors."
           ],
@@ -39,6 +41,7 @@
             "The public catalog contains exactly one descriptor for github_rest_endpoint_dispatch.",
             "The endpoint selector enum is deterministic and contains every visible exported endpoint.",
             "Catalog normalization does not throw SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION.",
+            "Generated frontend dispatch evidence is refreshed from the same candidate head.",
             "Dispatch cannot select a different endpoint than the caller-authorized endpoint_key.",
             "No export row is deleted, archived, or renamed."
           ],
@@ -52,6 +55,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/test-system-tool-catalog-v2.mjs"
           ]
         }
