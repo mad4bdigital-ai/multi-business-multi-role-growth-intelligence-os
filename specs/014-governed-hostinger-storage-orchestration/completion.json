@@ -1,8 +1,15 @@
 {
   "schema_version": 1,
+  "feature_key": "014-governed-hostinger-storage-orchestration",
   "spec_key": "014-governed-hostinger-storage-orchestration",
-  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "status": "pending",
   "review_state": "implementation_in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
   "specification": {
     "manifest": "complete",
     "requirements": "complete",
@@ -39,11 +46,20 @@
     "synthetic_apply_certification": "pending",
     "live_apply_dispatch": "disabled"
   },
+  "delivery": {
+    "implementation_prs": [],
+    "current_pr": {
+      "number": 4347,
+      "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
+      "role": "specification_and_non_production_core",
+      "status": "draft_in_progress"
+    }
+  },
   "evidence": {
     "feature_pr": 4347,
     "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
-    "synchronized_main_sha": "a0ad040abfd7b99c6d6536ac9f6b80fcf0879d70",
-    "synchronization_merge_sha": "44e131117e3959099c8607cca4f5fc139ef5a228",
+    "synchronized_main_sha": "7fd8d0f7a9c5b1f8d75f9b071eec90ddf864b5ab",
+    "synchronization_merge_sha": "d25484deb13e76f9a38b4e313e443fa5453d7964",
     "work_map_registry_fingerprint": "b6f6ef53c0ddf181ef0c070e5b48905a618b28748c36f803146901d23ddbe36a",
     "pure_orchestrator_source": "http-generic-api/hostingerStorageOrchestrator.js",
     "pure_orchestrator_test": "http-generic-api/test-hostinger-storage-orchestrator.mjs",
@@ -79,5 +95,6 @@
     "hostinger_auto_deploy": false,
     "secrets_included": false
   },
+  "secrets_included": false,
   "human_acknowledgement": null
 }
