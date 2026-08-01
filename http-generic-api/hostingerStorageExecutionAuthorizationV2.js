@@ -94,16 +94,64 @@ function projectExecutionEnvelope(envelope = {}) {
   return deepFreeze(projected);
 }
 
+function validateCanonicalAttestationBinding(input = {}) {
+  const plan = input.plan || {};
+  const evidence = input.attestation_verification?.evidence;
+  if (!evidence || typeof evidence !== 'object') {
+    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED', 'Canonical attestation evidence with immutable plan bindings is required.');
+  }
+  const required = [
+    ['operation_id', text(plan.operation_id, 256)],
+    ['plan_id', text(plan.plan_id, 256)],
+    ['target_id', text(plan.target_id, 256)],
+    ['plan_hash', hash(plan.plan_hash, 'plan.plan_hash')],
+    ['candidate_set_hash', hash(plan.candidate_set_hash, 'plan.candidate_set_hash')],
+    ['authority_context_hash', hash(plan.authority_context_hash, 'plan.authority_context_hash')],
+  ];
+  const missing = [];
+  const mismatches = [];
+  for (const [field, expected] of required) {
+    const observed = field.endsWith('_hash') ? text(evidence[field], 64).toLowerCase() : text(evidence[field], 256);
+    if (!observed) missing.push(field);
+    else if (observed !== expected) mismatches.push(field);
+  }
+  if (missing.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED', 'Attestation evidence is missing immutable plan bindings.', { missing });
+  }
+  if (mismatches.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_MISMATCH', 'Attestation evidence belongs to a different operation, plan, target, candidate set, or authority context.', { mismatches });
+  }
+  const leaseId = text(input.lease?.lease_id ?? input.lease?.leaseId, 256);
+  if (!text(evidence.execution_lease_id, 256) || text(evidence.execution_lease_id, 256) !== leaseId) {
+    throw failure(409, 'STORAGE_ATTESTATION_LEASE_BINDING_MISMATCH', 'Attestation evidence must bind the current execution lease.', {
+      expected_execution_lease_id: leaseId || null,
+    });
+  }
+  return deepFreeze({
+    operation_id: required[0][1],
+    plan_id: required[1][1],
+    target_id: required[2][1],
+    plan_hash: required[3][1],
+    candidate_set_hash: required[4][1],
+    authority_context_hash: required[5][1],
+    execution_lease_id: leaseId,
+    evidence_digest: hash(input.attestation_verification?.evidence_digest, 'attestation.evidence_digest'),
+    secrets_included: false,
+  });
+}
+
 export { buildCanonicalHostingerStoragePlanEnvelope, resolveHostingerStorageApprovalSet };
 
 export function buildHostingerStorageExecutionAuthorizationBundle(input = {}) {
   assertSecretFree(input, 'execution_bundle_input');
   const projectedEnvelope = projectExecutionEnvelope(input.operation_envelope);
+  const canonicalAttestationBinding = validateCanonicalAttestationBinding(input);
   const legacy = buildLegacyBundle({ ...input, operation_envelope: projectedEnvelope });
   const bundle = {
     ...legacy.bundle,
     bundle_version: HOSTINGER_STORAGE_EXECUTION_AUTHORIZATION_V2_VERSION,
     governance_decision_digest: projectedEnvelope.governance_decision_digest,
+    canonical_attestation_binding: canonicalAttestationBinding,
   };
   const bundleHash = digest(bundle);
   return deepFreeze({
@@ -140,6 +188,7 @@ export function verifyHostingerStorageExecutionAuthorizationBundle({ authorizati
   for (const [field, code] of comparisons) {
     if (current[field] && text(current[field], 256) !== text(authorization.bundle[field], 256)) blockers.push(code);
   }
+  if (current.attestation_evidence_digest && current.attestation_evidence_digest !== authorization.bundle.canonical_attestation_binding?.evidence_digest) blockers.push('STORAGE_ATTESTATION_EVIDENCE_CHANGED');
   if (current.lease_generation && Number(current.lease_generation) !== Number(authorization.bundle.execution_lease?.generation)) blockers.push('STORAGE_EXECUTION_LEASE_GENERATION_CHANGED');
   if (current.host_key_revision && current.host_key_revision !== authorization.bundle.dispatch_certification?.host_key_revision) blockers.push('STORAGE_SSH_HOST_KEY_REVISION_CHANGED');
   return deepFreeze({

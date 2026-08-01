@@ -89,40 +89,67 @@ const approvedTools = [
   { tool_id: 'cosign', version: '2.4.1', binary_sha256: h('9'), release_provenance_digest: h('c'), status: 'approved' },
 ];
 
-const bundle = buildHostingerStorageExecutionAuthorizationBundle({
-  operation_envelope: operationEnvelope,
-  plan,
-  required_approval_slots: ['workspace_owner:workspace-1'],
-  approval_records: [approval],
-  lease: {
-    lease_id: 'lease-1', operation_id: 'operation-1', target_id: 'target-1', generation: 2,
-    status: 'active', expires_at_epoch: 1600, holder_ref: 'worker/session-1', evidence_digest: h('d'),
+const lease = {
+  lease_id: 'lease-1', operation_id: 'operation-1', target_id: 'target-1', generation: 2,
+  status: 'active', expires_at_epoch: 1600, holder_ref: 'worker/session-1', evidence_digest: h('d'),
+};
+const attestationVerification = {
+  ready: true,
+  evidence_digest: h('2'),
+  evidence: {
+    subject_digest: h('3'),
+    operation_id: 'operation-1',
+    plan_id: 'plan-1',
+    target_id: 'target-1',
+    plan_hash: planHash,
+    candidate_set_hash: candidateSetHash,
+    authority_context_hash: h('2'),
+    execution_lease_id: 'lease-1',
+    verified_at: '1970-01-01T00:16:30.000Z',
+    secrets_included: false,
   },
-  toolchain_resolution: toolchain,
-  approved_tools: approvedTools,
-  dispatch_certification: {
-    certification_id: 'dispatch-cert-1', status: 'certified', adapter_key: 'hostinger_ssh_storage_v1',
-    target_id: 'target-1', host_key_revision: 'host-key-r1', host_key_pinned: true,
-    worker_image_digest: h('e'), approved_program_digest: h('f'), expires_at_epoch: 1600,
-    evidence_digest: h('0'),
-  },
-  recovery_proof: {
-    ready: true, proof_digest: h('1'),
-    proof: { plan_id: 'plan-1', plan_hash: planHash, candidate_set_hash: candidateSetHash, snapshot_id: 'recovery-snapshot-1' },
-  },
-  attestation_verification: {
-    ready: true, evidence_digest: h('2'),
-    evidence: { subject_digest: h('3'), plan_id: 'plan-1', plan_hash: planHash, verified_at: '1970-01-01T00:16:30.000Z' },
-  },
-  risk_profile: 'tenant_high',
-  now_epoch: 1000,
-});
+};
 
+function buildBundle(overrides = {}) {
+  return buildHostingerStorageExecutionAuthorizationBundle({
+    operation_envelope: operationEnvelope,
+    plan,
+    required_approval_slots: ['workspace_owner:workspace-1'],
+    approval_records: [approval],
+    lease,
+    toolchain_resolution: toolchain,
+    approved_tools: approvedTools,
+    dispatch_certification: {
+      certification_id: 'dispatch-cert-1', status: 'certified', adapter_key: 'hostinger_ssh_storage_v1',
+      target_id: 'target-1', host_key_revision: 'host-key-r1', host_key_pinned: true,
+      worker_image_digest: h('e'), approved_program_digest: h('f'), expires_at_epoch: 1600,
+      evidence_digest: h('0'),
+    },
+    recovery_proof: {
+      ready: true, proof_digest: h('1'),
+      proof: { plan_id: 'plan-1', plan_hash: planHash, candidate_set_hash: candidateSetHash, snapshot_id: 'recovery-snapshot-1' },
+    },
+    attestation_verification: attestationVerification,
+    risk_profile: 'tenant_high',
+    now_epoch: 1000,
+    ...overrides,
+  });
+}
+
+const bundle = buildBundle();
 assert.equal(bundle.authorization_ready, true);
 assert.equal(bundle.dispatch_allowed, false);
 assert.deepEqual(bundle.blockers, ['STORAGE_PROVIDER_DISPATCH_DEFAULT_OFF']);
 assert.match(bundle.bundle_hash, /^[0-9a-f]{64}$/);
 assert.match(bundle.bundle.governance_decision_digest, /^[0-9a-f]{64}$/);
+assert.equal(bundle.bundle.canonical_attestation_binding.operation_id, 'operation-1');
+assert.equal(bundle.bundle.canonical_attestation_binding.plan_id, 'plan-1');
+assert.equal(bundle.bundle.canonical_attestation_binding.target_id, 'target-1');
+assert.equal(bundle.bundle.canonical_attestation_binding.plan_hash, planHash);
+assert.equal(bundle.bundle.canonical_attestation_binding.candidate_set_hash, candidateSetHash);
+assert.equal(bundle.bundle.canonical_attestation_binding.authority_context_hash, h('2'));
+assert.equal(bundle.bundle.canonical_attestation_binding.execution_lease_id, 'lease-1');
+assert.equal(bundle.bundle.canonical_attestation_binding.evidence_digest, h('2'));
 
 const verified = verifyHostingerStorageExecutionAuthorizationBundle({
   authorization: bundle,
@@ -133,6 +160,7 @@ const verified = verifyHostingerStorageExecutionAuthorizationBundle({
     approval_set_hash: bundle.bundle.approval_set_hash,
     toolchain_provenance_digest: bundle.bundle.toolchain_provenance_digest,
     governance_decision_digest: bundle.bundle.governance_decision_digest,
+    attestation_evidence_digest: h('2'),
     lease_generation: 2, host_key_revision: 'host-key-r1',
   },
 });
@@ -141,11 +169,47 @@ assert.equal(verified.dispatch_allowed, false);
 
 const drift = verifyHostingerStorageExecutionAuthorizationBundle({
   authorization: bundle,
-  current: { governance_decision_digest: h('4'), lease_generation: 3 },
+  current: { governance_decision_digest: h('4'), attestation_evidence_digest: h('5'), lease_generation: 3 },
 });
 assert.equal(drift.valid, false);
 assert(drift.blockers.includes('STORAGE_GOVERNANCE_DECISION_CHANGED'));
+assert(drift.blockers.includes('STORAGE_ATTESTATION_EVIDENCE_CHANGED'));
 assert(drift.blockers.includes('STORAGE_EXECUTION_LEASE_GENERATION_CHANGED'));
+
+assert.throws(
+  () => buildBundle({
+    attestation_verification: {
+      ...attestationVerification,
+      evidence: { subject_digest: h('3'), plan_id: 'plan-1', plan_hash: planHash, verified_at: '1970-01-01T00:16:30.000Z' },
+    },
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED'
+    && error.details?.missing?.includes('operation_id')
+    && error.details?.missing?.includes('target_id')
+    && error.details?.missing?.includes('candidate_set_hash')
+    && error.details?.missing?.includes('authority_context_hash'),
+);
+
+assert.throws(
+  () => buildBundle({
+    attestation_verification: {
+      ...attestationVerification,
+      evidence: { ...attestationVerification.evidence, plan_id: 'plan-2' },
+    },
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_PLAN_BINDING_MISMATCH'
+    && error.details?.mismatches?.includes('plan_id'),
+);
+
+assert.throws(
+  () => buildBundle({
+    attestation_verification: {
+      ...attestationVerification,
+      evidence: { ...attestationVerification.evidence, execution_lease_id: 'lease-2' },
+    },
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_LEASE_BINDING_MISMATCH',
+);
 
 assert.throws(
   () => buildHostingerStorageExecutionAuthorizationBundle({
@@ -162,6 +226,7 @@ console.log(JSON.stringify({
   governance_authorization_projected: true,
   secret_bearing_authorization_rejected: true,
   canonical_plan_envelope: true,
+  canonical_attestation_plan_and_lease_binding: true,
   approval_lease_toolchain_recovery_attestation_bound: true,
   dispatch_allowed: false,
   secrets_included: false,
