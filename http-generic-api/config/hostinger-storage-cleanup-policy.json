@@ -20,6 +20,7 @@
     "host_key_fingerprint_required": true,
     "scan_schedule_allowed": true,
     "automatic_apply_allowed": false,
+    "apply_gate_source": "platform_owner_approval_and_capability_envelope",
     "plan_ttl_seconds": 3600,
     "maximum_files_per_plan": 5000,
     "maximum_bytes_per_plan": 5368709120,
