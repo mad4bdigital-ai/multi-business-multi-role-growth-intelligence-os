@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { executeHostingerStorageSyntheticPlan } from './hostingerStorageSyntheticExecutor.js';
-import { verifyHostingerStorageSyntheticExecutionProtocol } from './hostingerStorageExecutorProtocol.js';
+import {
+  buildHostingerStorageSyntheticExecutionProtocol,
+  verifyHostingerStorageSyntheticExecutionProtocol,
+} from './hostingerStorageExecutorProtocol.js';
 import { createSyntheticExecutorFixture, h } from './test-hostinger-storage-executor-fixtures.mjs';
 
 const success = createSyntheticExecutorFixture();
@@ -13,6 +16,26 @@ assert.equal(protocolVerification.valid, true);
 assert.equal(protocolVerification.dispatch_allowed, false);
 assert.equal(success.protocol.protocol.plan_expires_at_epoch, 1800);
 assert.equal(success.protocol.protocol.lease_expires_at_epoch, 1600);
+
+for (const [field, value, blocker] of [
+  ['recovery_required', false, 'STORAGE_ATTESTATION_RECOVERY_REQUIRED_CHANGED'],
+  ['recovery_proof_digest', h('0'), 'STORAGE_ATTESTATION_RECOVERY_PROOF_CHANGED'],
+  ['recovery_requirement_binding_digest', h('0'), 'STORAGE_ATTESTATION_RECOVERY_REQUIREMENT_CHANGED'],
+  ['attestation_toolchain_provenance_digest', h('0'), 'STORAGE_ATTESTATION_TOOLCHAIN_PROVENANCE_CHANGED'],
+  ['attestation_toolchain_selected_tools_digest', h('0'), 'STORAGE_ATTESTATION_TOOLCHAIN_CHANGED'],
+]) {
+  assert.throws(
+    () => buildHostingerStorageSyntheticExecutionProtocol({
+      authorization: success.authorization,
+      expected_bundle_hash: success.authorization.bundle_hash,
+      current_bindings: { ...success.currentBindings, [field]: value },
+      plan: success.plan,
+      run_id: `run-drift-${field}`,
+    }),
+    (error) => error.code === 'STORAGE_EXECUTOR_AUTHORIZATION_INVALID'
+      && error.details?.blockers?.includes(blocker),
+  );
+}
 
 const applied = executeHostingerStorageSyntheticPlan({
   protocol: success.protocol.protocol,
@@ -198,6 +221,7 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_synthetic_executor',
   exact_plan_applied_in_memory: true,
+  attestation_readback_drift_rejected: true,
   changed_inode_skipped: true,
   plan_expiry_revalidated: true,
   lease_status_generation_and_expiry_revalidated: true,
