@@ -2,24 +2,34 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import {
+  runGovernedGeneratedArtifactRefresh,
+} from "./maintenance-tools/generated-artifact-refresh.mjs";
 
 const toolPath = "scripts/maintenance-tools/generated-artifact-refresh.mjs";
 const exactSha = "1".repeat(40);
+const rejectedCases = [];
 
 function runRejectedCase(name, args, expectedCode) {
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), `generated-artifact-${name}-`));
-  const result = spawnSync(process.execPath, [toolPath, ...args, "--output-dir", outputDir], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-  });
-  assert.equal(result.status, 1, `${name} must fail closed`);
-  const report = JSON.parse(fs.readFileSync(path.join(outputDir, "generated-artifact-refresh-report.json"), "utf8"));
+  const report = runGovernedGeneratedArtifactRefresh([
+    process.execPath,
+    toolPath,
+    ...args,
+    "--output-dir",
+    outputDir,
+  ]);
+  const persistedReport = JSON.parse(
+    fs.readFileSync(path.join(outputDir, "generated-artifact-refresh-report.json"), "utf8"),
+  );
+
+  assert.equal(report.outcome, "blocked", `${name} must fail closed`);
   assert.equal(report.contract, "mad4b.governed-generated-artifact-refresh.v1");
-  assert.equal(report.outcome, "blocked");
-  assert.equal(report.first_failure.code, expectedCode);
+  assert.equal(report.first_failure?.code, expectedCode);
+  assert.deepEqual(persistedReport, report);
   assert.equal(report.secrets_included, false);
   assert.equal(report.mutation.force_push, false);
+  rejectedCases.push({ name, code: report.first_failure.code });
 }
 
 runRejectedCase("main", [
@@ -77,6 +87,6 @@ assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-r
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.generated-artifact-refresh-maintenance-tool-test.v1",
-  rejected_cases: 4,
+  rejected_cases: rejectedCases,
   secrets_included: false,
 }));
