@@ -1,0 +1,153 @@
+name: Build Spec 014 Shared hardening
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/spec014-build-shared-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.head_ref == 'gpt/014-hostinger/shared-canary-postmerge-hardening-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/shared-canary-postmerge-hardening-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Apply Shared pre-consumption provenance hardening
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          function patch(path, replacements) {
+            let source = fs.readFileSync(path, 'utf8');
+            for (const [before, after] of replacements) {
+              if (!source.includes(before)) throw new Error(`Patch anchor missing in ${path}: ${before.slice(0, 120)}`);
+              source = source.replace(before, after);
+            }
+            fs.writeFileSync(path, source);
+          }
+
+          patch('http-generic-api/hostingerStorageSharedCanary.js', [
+            [
+              '  createMemoryHostingerStorageSharedCanaryEnablementRegistry,\n',
+              '  createMemoryHostingerStorageSharedCanaryEnablementRegistry as createCoreEnablementRegistry,\n',
+            ],
+            [
+              "} from './hostingerStorageSharedCanaryCore.js';\n\nexport { HOSTINGER_STORAGE_SHARED_CANARY_VERSION, createMemoryHostingerStorageSharedCanaryEnablementRegistry };\n",
+              "} from './hostingerStorageSharedCanaryCore.js';\nimport { isCanonicalHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';\nimport { isCanonicalHostingerStorageControlPlaneRepository } from './hostingerStorageControlPlaneRepository.js';\n\nexport { HOSTINGER_STORAGE_SHARED_CANARY_VERSION };\n",
+            ],
+            [
+              "const SHA256_RE = /^[0-9a-f]{64}$/i;\n",
+              "const SHA256_RE = /^[0-9a-f]{64}$/i;\nconst sharedCanaryAuthorityStores = new WeakSet();\nconst sharedCanaryEnablementRegistries = new WeakSet();\n",
+            ],
+            [
+              "function governedQuorumBlockers(record, store, authorization, now) {\n  const blockers = quorumBindingBlockers(record, authorization, now);\n  if (!store || store.synthetic_only !== true || store.production_ready !== false || typeof store.readQuorum !== 'function') {\n",
+              "function isCanonicalSharedCanaryAuthorityStore(store) {\n  return Boolean(\n    store\n    && sharedCanaryAuthorityStores.has(store)\n    && Object.isFrozen(store)\n    && store.synthetic_only === true\n    && store.production_ready === false\n    && typeof store.readImpact === 'function'\n    && typeof store.readApproval === 'function'\n    && typeof store.readLayout === 'function'\n    && typeof store.readReserve === 'function'\n    && typeof store.readQuorum === 'function'\n  );\n}\n\nfunction isCanonicalSharedCanaryEnablementRegistry(registry) {\n  return Boolean(\n    registry\n    && sharedCanaryEnablementRegistries.has(registry)\n    && Object.isFrozen(registry)\n    && registry.synthetic_only === true\n    && registry.production_ready === false\n    && typeof registry.read === 'function'\n    && typeof registry.consume === 'function'\n  );\n}\n\nfunction requireCanonicalRepository(repository) {\n  if (!isCanonicalHostingerStorageControlPlaneRepository(repository)) {\n    throw fail(409, 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID', 'Shared canary requires the canonical factory-owned in-memory control-plane repository.', { repository_provenance: 'canonical_factory_owned_required' });\n  }\n}\n\nfunction requireCanonicalAdapter(adapter) {\n  if (!isCanonicalHostingerStorageSyntheticAdapter(adapter)\n    || typeof adapter.mutateExact !== 'function'\n    || typeof adapter.readbackItem !== 'function'\n    || typeof adapter.readMutationReceipt !== 'function') {\n    throw fail(409, 'STORAGE_SHARED_CANARY_EXECUTOR_ADAPTER_INVALID', 'Shared canary requires the canonical factory-owned synthetic adapter.', { adapter_provenance: 'canonical_factory_owned_required' });\n  }\n}\n\nfunction requireCanonicalAuthorityStore(store) {\n  if (!isCanonicalSharedCanaryAuthorityStore(store)) {\n    throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORITY_STORE_INVALID', 'Shared canary requires an authority store created by the Shared factory.', { authority_store_provenance: 'shared_factory_owned_required' });\n  }\n}\n\nfunction requireCanonicalEnablementRegistry(registry) {\n  if (!isCanonicalSharedCanaryEnablementRegistry(registry)) {\n    throw fail(409, 'STORAGE_SHARED_CANARY_ENABLEMENT_REGISTRY_INVALID', 'Shared canary requires a one-shot registry created by the Shared factory.', { enablement_registry_provenance: 'shared_factory_owned_required' });\n  }\n}\n\nfunction governedQuorumBlockers(record, store, authorization, now) {\n  const blockers = quorumBindingBlockers(record, authorization, now);\n  if (!isCanonicalSharedCanaryAuthorityStore(store)) {\n",
+            ],
+            [
+              "  return Object.freeze({\n    ...core,\n    registerQuorum(record) {\n",
+              "  const store = Object.freeze({\n    ...core,\n    registerQuorum(record) {\n",
+            ],
+            [
+              "      return clone(normalized);\n    },\n  });\n}\n\nfunction preflightPlanStatus({ authorization, repository }) {\n  if (!repository || typeof repository.readAggregate !== 'function') throw fail(409, 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID', 'The governed control-plane repository is required.');\n",
+              "      return clone(normalized);\n    },\n  });\n  sharedCanaryAuthorityStores.add(store);\n  return store;\n}\n\nexport function createMemoryHostingerStorageSharedCanaryEnablementRegistry() {\n  const registry = createCoreEnablementRegistry();\n  sharedCanaryEnablementRegistries.add(registry);\n  return registry;\n}\n\nfunction preflightPlanStatus({ authorization, repository }) {\n  requireCanonicalRepository(repository);\n",
+            ],
+            [
+              "  if (!verification.valid) throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORIZATION_INVALID', 'Shared canary authorization is stale or blocked.', { blockers: verification.blockers });\n  if (authorization?.quorum_policy?.mode === 'approved_quorum') {\n",
+              "  if (!verification.valid) throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORIZATION_INVALID', 'Shared canary authorization is stale or blocked.', { blockers: verification.blockers });\n  requireCanonicalRepository(input.repository);\n  requireCanonicalAdapter(input.adapter);\n  requireCanonicalAuthorityStore(input.authority_store);\n  requireCanonicalEnablementRegistry(input.enablement_registry);\n  if (authorization?.quorum_policy?.mode === 'approved_quorum') {\n",
+            ],
+          ]);
+
+          patch('http-generic-api/test-hostinger-storage-shared-canary.mjs', [
+            [
+              "} from './hostingerStorageSharedCanary.js';\nimport { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';\n",
+              "} from './hostingerStorageSharedCanary.js';\nimport {\n  createHostingerStorageControlPlaneRepository,\n  createMemoryHostingerStoragePersistenceAdapter,\n} from './hostingerStorageControlPlaneRepository.js';\nimport { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';\n",
+            ],
+            [
+              "function createAdminRepository(fixture) {\n  const delegated = Object.fromEntries(Object.entries(fixture.repository).map(([key, value]) => [\n    key,\n    typeof value === 'function' ? value.bind(fixture.repository) : value,\n  ]));\n  delegated.readAggregate = (operationId) => {\n    const aggregate = fixture.repository.readAggregate(operationId);\n    return aggregate?.operation ? { ...aggregate, operation: { ...aggregate.operation, context_mode: 'admin' } } : aggregate;\n  };\n  return Object.freeze(delegated);\n}\n\nfunction createPlanStatusRepository(repository, status) {\n  const delegated = Object.fromEntries(Object.entries(repository).map(([key, value]) => [\n    key,\n    typeof value === 'function' ? value.bind(repository) : value,\n  ]));\n  delegated.readAggregate = (operationId) => {\n    const aggregate = repository.readAggregate(operationId);\n    return aggregate\n      ? { ...aggregate, plans: (aggregate.plans || []).map((plan) => ({ ...plan, status })) }\n      : aggregate;\n  };\n  return Object.freeze(delegated);\n}\n",
+              "function createRepositoryFromSnapshot(snapshot) {\n  const persistence = createMemoryHostingerStoragePersistenceAdapter({ snapshot });\n  return createHostingerStorageControlPlaneRepository({ adapter: persistence });\n}\n\nfunction createAdminRepository(fixture) {\n  const snapshot = structuredClone(fixture.repository.exportSnapshot());\n  const operation = snapshot.state.operations[fixture.operation_id];\n  if (!operation) throw new Error('Shared test operation missing from snapshot.');\n  delete operation.record_digest;\n  operation.context_mode = 'admin';\n  operation.record_digest = digest(operation);\n  snapshot.state_digest = digest(snapshot.state);\n  return createRepositoryFromSnapshot(snapshot);\n}\n\nfunction createPlanStatusRepository(repository, status) {\n  const snapshot = structuredClone(repository.exportSnapshot());\n  for (const plan of Object.values(snapshot.state.plans || {})) {\n    delete plan.record_digest;\n    plan.status = status;\n    plan.record_digest = digest(plan);\n  }\n  snapshot.state_digest = digest(snapshot.state);\n  return createRepositoryFromSnapshot(snapshot);\n}\n",
+            ],
+            [
+              "leaseFixture.repository.renewLease({ target_id: leaseFixture.target_id, lease_id: leaseFixture.lease.lease_id, operation_id: leaseFixture.operation_id, holder_ref: leaseFixture.lease.holder_ref, expected_generation: leaseFixture.lease.generation, expires_at_epoch: 1700, evidence_digest: h('5'), now_epoch: 1050 });\n",
+              "lease.repository.renewLease({ target_id: leaseFixture.target_id, lease_id: leaseFixture.lease.lease_id, operation_id: leaseFixture.operation_id, holder_ref: leaseFixture.lease.holder_ref, expected_generation: leaseFixture.lease.generation, expires_at_epoch: 1700, evidence_digest: h('5'), now_epoch: 1050 });\n",
+            ],
+            [
+              "const unknownFixture = fixtureFor('shared-unknown');\n",
+              "function assertUnconsumedAndUnchanged(fixture, registry) {\n  assert.equal(registry.exportState()[0].consumed, false);\n  assert.equal(fixture.adapter.exportState().items[0].exists, true);\n}\n\nconst forgedRepositoryFixture = fixtureFor('shared-forged-repository');\nconst forgedRepositoryPrepared = prepare(forgedRepositoryFixture);\nconst forgedRepositoryStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();\nconst forgedRepositoryRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();\nregister(forgedRepositoryStore, forgedRepositoryRegistry, forgedRepositoryFixture, forgedRepositoryPrepared);\nlet forgedRepositoryReadCalled = false;\nconst genuineRepository = forgedRepositoryPrepared.repository;\nconst forgedRepository = Object.freeze({\n  repository_version: genuineRepository.repository_version,\n  adapter_key: genuineRepository.adapter_key,\n  production_ready: false,\n  readAggregate(...args) { forgedRepositoryReadCalled = true; return genuineRepository.readAggregate(...args); },\n  transitionOperation: (...args) => genuineRepository.transitionOperation(...args),\n  consumePlan: (...args) => genuineRepository.consumePlan(...args),\n  appendJournalEvent: (...args) => genuineRepository.appendJournalEvent(...args),\n  recordReconciliation: (...args) => genuineRepository.recordReconciliation(...args),\n});\nassert.throws(\n  () => execute(forgedRepositoryFixture, forgedRepositoryPrepared, forgedRepositoryStore, forgedRepositoryRegistry, { repository: forgedRepository }),\n  (error) => error.code === 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID'\n    && error.details?.repository_provenance === 'canonical_factory_owned_required',\n);\nassert.equal(forgedRepositoryReadCalled, false);\nassertUnconsumedAndUnchanged(forgedRepositoryFixture, forgedRepositoryRegistry);\n\nconst forgedAdapterFixture = fixtureFor('shared-forged-adapter');\nconst forgedAdapterPrepared = prepare(forgedAdapterFixture);\nconst forgedAdapterStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();\nconst forgedAdapterRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();\nregister(forgedAdapterStore, forgedAdapterRegistry, forgedAdapterFixture, forgedAdapterPrepared);\nlet forgedAdapterCalled = false;\nconst genuineAdapter = forgedAdapterFixture.adapter;\nconst forgedAdapter = Object.freeze({\n  ...genuineAdapter,\n  mutateExact(...args) { forgedAdapterCalled = true; return genuineAdapter.mutateExact(...args); },\n  readbackItem(...args) { forgedAdapterCalled = true; return genuineAdapter.readbackItem(...args); },\n  readMutationReceipt(...args) { forgedAdapterCalled = true; return genuineAdapter.readMutationReceipt(...args); },\n});\nassert.throws(\n  () => execute(forgedAdapterFixture, forgedAdapterPrepared, forgedAdapterStore, forgedAdapterRegistry, { adapter: forgedAdapter }),\n  (error) => error.code === 'STORAGE_SHARED_CANARY_EXECUTOR_ADAPTER_INVALID'\n    && error.details?.adapter_provenance === 'canonical_factory_owned_required',\n);\nassert.equal(forgedAdapterCalled, false);\nassertUnconsumedAndUnchanged(forgedAdapterFixture, forgedAdapterRegistry);\n\nconst forgedStoreFixture = fixtureFor('shared-forged-store');\nconst forgedStorePrepared = prepare(forgedStoreFixture);\nconst genuineStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();\nconst forgedStoreRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();\nregister(genuineStore, forgedStoreRegistry, forgedStoreFixture, forgedStorePrepared);\nlet forgedStoreReadCalled = false;\nconst forgedStore = Object.freeze({\n  ...genuineStore,\n  readImpact(...args) { forgedStoreReadCalled = true; return genuineStore.readImpact(...args); },\n  readApproval(...args) { forgedStoreReadCalled = true; return genuineStore.readApproval(...args); },\n  readLayout(...args) { forgedStoreReadCalled = true; return genuineStore.readLayout(...args); },\n  readReserve(...args) { forgedStoreReadCalled = true; return genuineStore.readReserve(...args); },\n  readQuorum(...args) { forgedStoreReadCalled = true; return genuineStore.readQuorum(...args); },\n});\nassert.throws(\n  () => execute(forgedStoreFixture, forgedStorePrepared, forgedStore, forgedStoreRegistry),\n  (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_STORE_INVALID'\n    && error.details?.authority_store_provenance === 'shared_factory_owned_required',\n);\nassert.equal(forgedStoreReadCalled, false);\nassertUnconsumedAndUnchanged(forgedStoreFixture, forgedStoreRegistry);\n\nconst forgedRegistryFixture = fixtureFor('shared-forged-registry');\nconst forgedRegistryPrepared = prepare(forgedRegistryFixture);\nconst forgedRegistryStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();\nconst genuineRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();\nregister(forgedRegistryStore, genuineRegistry, forgedRegistryFixture, forgedRegistryPrepared);\nlet forgedRegistryReadCalled = false;\nlet forgedRegistryConsumeCalled = false;\nconst forgedRegistry = Object.freeze({\n  ...genuineRegistry,\n  read(...args) { forgedRegistryReadCalled = true; return genuineRegistry.read(...args); },\n  consume(...args) { forgedRegistryConsumeCalled = true; return genuineRegistry.consume(...args); },\n});\nassert.throws(\n  () => execute(forgedRegistryFixture, forgedRegistryPrepared, forgedRegistryStore, forgedRegistry),\n  (error) => error.code === 'STORAGE_SHARED_CANARY_ENABLEMENT_REGISTRY_INVALID'\n    && error.details?.enablement_registry_provenance === 'shared_factory_owned_required',\n);\nassert.equal(forgedRegistryReadCalled, false);\nassert.equal(forgedRegistryConsumeCalled, false);\nassertUnconsumedAndUnchanged(forgedRegistryFixture, genuineRegistry);\n\nconst unknownFixture = fixtureFor('shared-unknown');\n",
+            ],
+            [
+              "  current_authority_revalidated: true,\n",
+              "  current_authority_revalidated: true,\n  repository_factory_provenance_required: true,\n  adapter_factory_provenance_required: true,\n  authority_store_factory_provenance_required: true,\n  enablement_registry_factory_provenance_required: true,\n  forged_dependency_callbacks_not_invoked: true,\n",
+            ],
+          ]);
+
+          patch('.github/workflows/hostinger-storage-shared-canary-guard.yml', [
+            [
+              "      - name: Check syntax\n",
+              "      - name: Install deterministic import parser\n        run: npm ci --ignore-scripts --no-audit --no-fund\n      - name: Check syntax\n",
+            ],
+            [
+              "          node --check http-generic-api/test-hostinger-storage-shared-canary.mjs\n",
+              "          node --check http-generic-api/test-hostinger-storage-shared-canary.mjs\n          node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs\n",
+            ],
+            [
+              "      - name: Enforce synthetic Shared boundary\n",
+              "      - name: Parse Shared Core import boundary\n        run: node http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs\n      - name: Enforce synthetic Shared boundary\n",
+            ],
+            [
+              "          grep -q \"STORAGE_SHARED_CANARY_EXECUTOR_PLAN_INVALID\" http-generic-api/hostingerStorageSharedCanary.js\n",
+              "          grep -q \"STORAGE_SHARED_CANARY_EXECUTOR_PLAN_INVALID\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"isCanonicalHostingerStorageControlPlaneRepository\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"isCanonicalHostingerStorageSyntheticAdapter\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"sharedCanaryAuthorityStores.add(store)\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"sharedCanaryAuthorityStores.has(store)\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"sharedCanaryEnablementRegistries.add(registry)\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"sharedCanaryEnablementRegistries.has(registry)\" http-generic-api/hostingerStorageSharedCanary.js\n          grep -q \"repository_provenance\" http-generic-api/test-hostinger-storage-shared-canary.mjs\n          grep -q \"adapter_provenance\" http-generic-api/test-hostinger-storage-shared-canary.mjs\n          grep -q \"authority_store_provenance\" http-generic-api/test-hostinger-storage-shared-canary.mjs\n          grep -q \"enablement_registry_provenance\" http-generic-api/test-hostinger-storage-shared-canary.mjs\n",
+            ],
+            [
+              "          const quorumRead = wrapper.indexOf('store.readQuorum(record.policy_id)');\n          const planStatus = wrapper.indexOf('preflightPlanStatus({ authorization, repository: input.repository });');\n          const coreDispatch = wrapper.indexOf('return executeCoreCanary(input);');\n",
+              "          const repositoryBrand = wrapper.indexOf('requireCanonicalRepository(input.repository);');\n          const adapterBrand = wrapper.indexOf('requireCanonicalAdapter(input.adapter);');\n          const storeBrand = wrapper.indexOf('requireCanonicalAuthorityStore(input.authority_store);');\n          const registryBrand = wrapper.indexOf('requireCanonicalEnablementRegistry(input.enablement_registry);');\n          const quorumRead = wrapper.indexOf('store.readQuorum(record.policy_id)');\n          const planStatus = wrapper.indexOf('preflightPlanStatus({ authorization, repository: input.repository });');\n          const coreDispatch = wrapper.indexOf('return executeCoreCanary(input);');\n",
+            ],
+            [
+              "          if (!(quorumRead >= 0 && planStatus > quorumRead && coreDispatch > planStatus)) {\n            throw new Error('Governed quorum and current plan status must be validated before entering the Shared canary core.');\n          }\n",
+              "          if (!(repositoryBrand >= 0\n            && adapterBrand > repositoryBrand\n            && storeBrand > adapterBrand\n            && registryBrand > storeBrand\n            && quorumRead > registryBrand\n            && planStatus > quorumRead\n            && coreDispatch > planStatus)) {\n            throw new Error('All factory provenance, quorum, and current plan checks must complete before entering the Shared canary core.');\n          }\n",
+            ],
+          ]);
+
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const tenant = contract.parallel_work.workstreams.find((row) => row.id === 'tenant-canary');
+          const shared = contract.parallel_work.workstreams.find((row) => row.id === 'shared-canary');
+          if (!tenant || !shared) throw new Error('Tenant or Shared workstream missing from contract.');
+          tenant.status = 'integrated';
+          tenant.commit_evidence = {
+            head_sha: '154aedecda92bb2c6374ad4acca785d024934422',
+            commits: ['154aedecda92bb2c6374ad4acca785d024934422'],
+          };
+          shared.status = 'ready_for_integration';
+          shared.deliverables = [...new Set([
+            ...(shared.deliverables || []),
+            'Factory-owned repository, adapter, authority-store, and one-shot registry provenance before any Shared authority read or consumption',
+            'TypeScript-AST boundary preventing direct Shared Core imports outside the governed wrapper',
+          ])];
+          const mvp = contract.phases.find((phase) => phase.id === 'mvp');
+          mvp.blockers = (mvp.blockers || []).map((value) => {
+            if (value.startsWith('The Tenant-exclusive canary')) return 'The Tenant-exclusive canary post-merge hardening is integrated but remains synthetic, one-shot, and not mounted to a runtime route.';
+            if (value.startsWith('The Shared/Platform canary')) return 'The Shared/Platform canary post-merge provenance hardening is ready for integration but remains synthetic, one-shot, and not mounted to a runtime route.';
+            return value;
+          });
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract)}\n`);
+
+          const evidencePath = 'specs/014-governed-hostinger-storage-orchestration/evidence/shared-canary-postmerge-hardening-20260801.md';
+          fs.writeFileSync(evidencePath, `# Shared Canary post-merge hardening\n\nWorkstream: \`shared-canary\`\n\nIntegration base SHA: \`da3f8eeafabc53fc17fc89480175b64d590b960e\`\nTenant dependency reviewed head: \`154aedecda92bb2c6374ad4acca785d024934422\`\n\nThis correction requires factory-owned provenance for the canonical in-memory control-plane repository, synthetic adapter, Shared authority store, and one-shot enablement registry before any authority read, plan preflight, enablement read, or consume operation. Frozen structural copies with identical public fields and methods are rejected without invoking their callbacks.\n\nThe public Shared wrapper is the only allowed importer of Shared Core; a TypeScript-AST repository scanner covers static imports, dynamic imports, CommonJS require, constant-composed paths, new URL, and JavaScript/TypeScript module extensions.\n\nSafety remains synthetic-only, non-production, live-provider-disabled, reserve-release-disabled, and dispatch-disabled. No Hostinger, filesystem, SSH, network, credential, SQL, migration, runtime route, deployment, main, or Production authority is introduced.\n`);
+          NODE
+
+          git rm .github/workflows/spec014-build-shared-hardening.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m 'fix(spec-014): harden Shared pre-consumption provenance'
+          git push origin HEAD:gpt/014-hostinger/shared-canary-postmerge-hardening-20260801
