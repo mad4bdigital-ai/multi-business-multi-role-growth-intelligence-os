@@ -1,8 +1,8 @@
-# Quickstart Contract
+# Multi-Client Quickstart Contract
 
 This is the target validation sequence after implementation exists. It is not executable from the specification branch.
 
-## 1. Prepare a development endpoint
+## 1. Prepare one development endpoint
 
 The candidate endpoint must:
 
@@ -11,7 +11,8 @@ The candidate endpoint must:
 - support initialization, `tools/list`, and `tools/call` through the MCP transport;
 - expose no production credentials in the URL;
 - publish protected-resource metadata when protected tools are enabled;
-- return only the phase-1 read-only catalog.
+- return only the phase-1 read-only catalog;
+- use the same tool and authority contract for every client.
 
 Proposed development URL shape:
 
@@ -40,17 +41,18 @@ In the Inspector:
 5. list tools;
 6. call every tool with representative, empty, invalid, inaccessible, and oversized inputs;
 7. verify schemas, output shapes, annotations, and authentication challenges;
-8. record the catalog fingerprint.
+8. record the server and catalog fingerprints.
 
 Expected phase-1 properties:
 
 - all tools are read-only;
 - no tool accepts a free authority override;
+- client identity does not grant platform authority;
 - no secret appears in results;
 - inaccessible resources return neutral structured denial;
-- list tools is bounded and filtered.
+- the tool list is bounded and filtered.
 
-## 3. Enable ChatGPT Developer mode
+## 3. Connect ChatGPT or Codex
 
 In ChatGPT:
 
@@ -66,8 +68,6 @@ In ChatGPT:
 
 Developer mode availability can depend on account and workspace policy.
 
-## 4. Capture the connection technical ID
-
 After ChatGPT creates the connection, capture the technical ID from the connection page. It begins with:
 
 ```text
@@ -81,7 +81,44 @@ Rules:
 - use a local generator, ignored environment file, or deployment configuration to bind the ID;
 - record only a non-secret fingerprint in release evidence when needed.
 
-## 5. Validate a local plugin package
+## 4. Connect Claude or Claude Desktop
+
+In Claude:
+
+1. open Settings;
+2. open Connectors;
+3. choose Add custom connector;
+4. enter a connector name;
+5. enter the same development `/mcp` URL;
+6. start the OAuth flow when prompted;
+7. verify the consented scopes and resource;
+8. confirm the same read-only tools are discovered.
+
+Identity configuration must register the exact approved Anthropic callback and client-registration mode. The current documented callback contract is:
+
+```text
+https://claude.ai/api/mcp/auth_callback
+```
+
+The repository must not contain the live Claude client secret. Dynamic Client Registration, a predefined client, or another approved registration method must be selected and tested before Production.
+
+## 5. Connect a neutral programmatic client
+
+Use one non-OpenAI, non-Anthropic MCP client to prove that the endpoint is standards-based rather than product-specific.
+
+The client must:
+
+1. initialize through Streamable HTTP;
+2. negotiate a supported MCP protocol version;
+3. follow OAuth protected-resource and authorization-server discovery;
+4. request a token for the exact MCP resource;
+5. list the same tool catalog;
+6. invoke the same read-only tools;
+7. preserve structured results and error semantics.
+
+A browser-based client must use an explicitly approved Origin. A non-browser client may omit Origin, but it still requires client eligibility, OAuth, scopes, Context Kernel resolution, and object-level authorization for protected tools.
+
+## 6. Validate an optional OpenAI package
 
 Target package layout:
 
@@ -94,9 +131,13 @@ plugins/mad4b-growth-os/
   assets/                 # published package only
 ```
 
-The manifest should point `apps` to `./.app.json`. The app mapping should reference the developer connection technical ID generated in the prior step.
+The manifest should point `apps` to `./.app.json`. The app mapping should reference the environment-specific connection technical ID generated after the ChatGPT connection exists.
 
-## 6. Run the phase-1 prompt suite
+Claude and generic clients do not use this OpenAI package as runtime authority. Their registration and distribution metadata remain separate from the shared MCP server.
+
+## 7. Run the shared phase-1 prompt suite
+
+Run the same suite in MCP Inspector, ChatGPT, Claude, and the neutral client where natural-language selection is available.
 
 ### Direct requests
 
@@ -122,28 +163,34 @@ The manifest should point `apps` to `./.app.json`. The app mapping should refere
 
 - Access a known Brand from another tenant.
 - Supply a fabricated tenant ID.
-- Ask the read-only plugin to change state.
-- Ask for credentials, backend keys, raw grants, or provider payloads.
+- Claim to be ChatGPT, Claude, or an admin to gain extra authority.
+- Ask the read-only connector to change state.
+- Ask for credentials, backend keys, raw grants, client secrets, or provider payloads.
 - Ask for an unsupported arbitrary database or HTTP action.
 
 Expected negative behavior:
 
 - no unauthorized tool or data is returned;
 - no generic mutation tool is selected;
+- changing client identity does not change tenant authority;
 - structured errors describe the safe next action;
 - no existence detail leaks across authority boundaries.
 
-## 7. Validate OAuth
+## 8. Validate OAuth and client registration
 
-Run positive and negative tests for:
+Run positive and negative tests for each advertised client profile:
 
 - protected-resource discovery;
 - authorization-server discovery;
+- approved client identification or registration;
 - PKCE `S256`;
+- exact redirect URI;
 - correct resource propagation;
 - correct and insufficient scopes;
 - expired token;
+- refresh flow;
 - revoked token;
+- disabled client profile;
 - wrong issuer;
 - wrong audience/resource;
 - altered signature;
@@ -151,42 +198,43 @@ Run positive and negative tests for:
 
 Do not continue to write-tool implementation until every negative test fails closed.
 
-## 8. Compare metadata fingerprints
+## 9. Compare metadata fingerprints and revoke
 
 The following must match:
 
 - source tool registry;
 - deployed endpoint;
 - MCP Inspector;
-- ChatGPT developer connection;
-- packaged plugin version.
-
-Any mismatch blocks promotion.
-
-## 9. Disable and revoke
+- ChatGPT connection;
+- Claude connector;
+- neutral programmatic client;
+- packaged or submitted distribution version where applicable.
 
 Verify independently:
 
 - unlinking one user;
 - revoking one grant;
-- disabling one client;
+- disabling one client profile;
 - disabling one tool;
 - disabling write mode;
 - disabling the entire MCP endpoint.
 
-After each action, attempt a protected tool and confirm denial within the operational SLA.
+After each action, attempt a protected tool from every affected client and confirm denial within the operational SLA.
 
-## 10. Public submission preparation
+## 10. Public distribution preparation
 
-Public submission is a later stage. Before it begins, confirm:
+Public submission or directory listing is a later stage and remains target-specific. Before any target begins, confirm:
 
-- verified publisher identity;
-- required app submission permissions;
+- verified publisher identity where required;
+- required submission permissions;
 - public production endpoint;
 - final privacy policy and terms;
 - test account or controlled test data;
 - support contact;
 - accurate listing metadata and assets;
 - reviewed test prompts and expected responses;
-- production/source/package fingerprint parity;
-- no custom UI screenshots unless custom UI exists.
+- production/source/package or connector fingerprint parity;
+- no custom UI screenshots unless custom UI exists;
+- approval for that specific distribution target.
+
+Approval in one ecosystem does not authorize publication in another.
