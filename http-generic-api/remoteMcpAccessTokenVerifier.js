@@ -26,15 +26,10 @@ function optionalId(value) {
   return normalized || null;
 }
 
-export async function verifyRemoteMcpBearerAuthorization(
-  authorization,
-  {
-    env = process.env,
-    pool = getPool(),
-    requiredScopes = [],
-    verifyToken = jwt.verify,
-  } = {},
-) {
+export async function verifyRemoteMcpBearerAuthorization(authorization, options = {}) {
+  const env = options.env || process.env;
+  const requiredScopes = Array.isArray(options.requiredScopes) ? options.requiredScopes : [];
+  const verifyToken = options.verifyToken || jwt.verify;
   const token = bearerToken(authorization);
   if (!token) return failure(401, "MCP_AUTH_REQUIRED", "OAuth account linking is required for this tool.");
 
@@ -85,6 +80,7 @@ export async function verifyRemoteMcpBearerAuthorization(
 
   let grant;
   try {
+    const pool = options.pool || getPool();
     grant = await readRemoteMcpGrantByAccessJti(jti, { pool });
   } catch {
     return failure(503, "MCP_AUTH_UNAVAILABLE", "OAuth revocation state is temporarily unavailable.");
