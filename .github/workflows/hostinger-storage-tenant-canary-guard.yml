@@ -68,9 +68,16 @@ jobs:
           test "$policy_imports" = "http-generic-api/hostingerStorageTenantCanaryPolicy.js"
       - name: Enforce post-merge hardening contracts
         run: |
+          grep -q "new WeakSet()" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryAdapters.add(adapter)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryAdapters.has(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "spec014-hostinger-storage-synthetic-adapter-v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          grep -F -q "Object.freeze({ ...spoofedAdapterFixture.adapter })" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           grep -q "boundedIdToken" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "slice(0, 256)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "boundedHashToken" http-generic-api/hostingerStorageTenantCanary.js
@@ -105,7 +112,7 @@ jobs:
           const planAuthority = wrapper.indexOf('revalidatePlanAuthority({ repository: options.repository, protocol: options.protocol });');
           const delegate = wrapper.indexOf('return executeBaseTenantCanary(options);');
           if (!(repository >= 0 && adapter > repository && planAuthority > adapter && delegate > planAuthority)) {
-            throw new Error('Repository, canonical adapter, and plan authority preflight must complete before delegated execution.');
+            throw new Error('Repository, Tenant-owned adapter brand, and plan authority preflight must complete before delegated execution.');
           }
           NODE
       - name: Validate Tenant canary
