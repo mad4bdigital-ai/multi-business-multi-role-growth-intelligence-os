@@ -1,0 +1,815 @@
+{
+  "schema_version": 1,
+  "contract_key": "spec-014.project-ci-automation.v1",
+  "spec_key": "014-gemini-evidence-intake-automation",
+  "review_state": "draft",
+  "source_baseline": {
+    "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    "base_branch": "main",
+    "base_sha": "26c415378dfbd60cf62bc5c83526ebbcd85b6ca5",
+    "extracted_from": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/e2e-phase-governance.yml",
+      ".github/workflows/branch-test-diagnostic-shards.yml",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      ".specify/pipeline-connectivity-contract.json",
+      ".specify/spec-kit-governance.json",
+      "docs/spec-kit-governance.md",
+      "docs/spec-kit-work-map-integration-governance.md",
+      "docs/repository-automation-control-plane.md"
+    ]
+  },
+  "principles": {
+    "exact_candidate_binding": true,
+    "changed_scope_fail_closed": true,
+    "canonical_structured_evidence": true,
+    "diagnostics_are_not_status_authority": true,
+    "read_only_validation_by_default": true,
+    "sole_governed_writer": true,
+    "least_privilege": true,
+    "no_secret_evidence": true,
+    "exact_head_completion": true
+  },
+  "candidate_identity": {
+    "supported_kinds": ["head", "merge_candidate"],
+    "required_fields": [
+      "repository",
+      "candidate_kind",
+      "candidate_sha",
+      "source_head_sha",
+      "head_ref",
+      "base_ref",
+      "workflow_run_id",
+      "contract_version",
+      "secrets_included=false"
+    ],
+    "reject_conditions": [
+      "checked-out SHA differs from declared candidate SHA",
+      "source head SHA differs from the current pull-request head",
+      "repository identity differs from the target repository",
+      "branch identity differs when branch metadata is available",
+      "merge candidate does not contain the declared source head",
+      "report workflow conclusion conflicts with canonical report status",
+      "report is older than an already accepted report for the same source head",
+      "report contains secrets or unbounded raw provider/client payloads",
+      "completion evidence was produced for a stale task plan or contract version"
+    ]
+  },
+  "test_families": [
+    {
+      "key": "spec-contracts",
+      "title": "Spec, schema, references, Work Maps, and completion contracts",
+      "requirement_refs": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-007", "FR-009", "FR-049", "FR-050", "FR-052"],
+      "task_refs": ["T001", "T002", "T024"],
+      "changed_paths": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        ".specify/**",
+        "docs/work-maps/**",
+        "http-generic-api/migrations/**"
+      ],
+      "commands": [
+        "parse all JSON and YAML artifacts",
+        "validate development-automation.json against contracts/development-automation.schema.json",
+        "validate ci-automation.json against contracts/ci-automation.schema.json",
+        "validate cross-reference and dependency integrity",
+        "run Spec Kit Work Map integration gate",
+        "run Spec Kit completion gate in changed-scope mode",
+        "run no-secret and diff-hygiene checks"
+      ],
+      "shardable": false,
+      "canonical_report": "mad4b.spec014.spec-contract-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "evidence-state",
+      "title": "Evidence, intake, lineage, review, and state-machine contracts",
+      "requirement_refs": ["FR-013", "FR-014", "FR-017", "FR-018", "FR-026", "FR-036", "FR-037", "FR-039", "FR-040", "FR-041", "FR-042", "FR-047"],
+      "task_refs": ["T003", "T004", "T013", "T014", "T016"],
+      "changed_paths": [
+        "http-generic-api/src/**evidence**",
+        "http-generic-api/src/**ai**",
+        "http-generic-api/src/**review**",
+        "http-generic-api/migrations/**",
+        "openapi.yaml",
+        "canonicals/**"
+      ],
+      "commands": [
+        "run evidence and intake state-machine unit tests",
+        "run registry lifecycle and immutability tests",
+        "run migration dry-run and schema classification checks",
+        "run lineage and optimistic-concurrency integration tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.evidence-state-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "intake-authority",
+      "title": "Internal, client, and partner intake identity and scope authority",
+      "requirement_refs": ["FR-011", "FR-012", "FR-013", "FR-015", "FR-016"],
+      "task_refs": ["T005", "T006", "T015", "T016"],
+      "changed_paths": [
+        "http-generic-api/src/**intake**",
+        "http-generic-api/src/**client**",
+        "http-generic-api/src/**forms**",
+        "http-generic-api/src/**connect**",
+        "openapi.yaml",
+        "http-generic-api/recipes/**"
+      ],
+      "commands": [
+        "run authentication and bounded-link tests",
+        "run tenant workspace Brand account and object-authority tests",
+        "run duplicate delivery and idempotent receipt tests",
+        "run expiry revocation and client-field exposure tests",
+        "run OpenAPI and adapter contract parity"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.intake-authority-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "file-lifecycle",
+      "title": "Canonical file, naming, routing, quarantine, permissions, and duplicates",
+      "requirement_refs": ["FR-019", "FR-020", "FR-021", "FR-022", "FR-023", "FR-024", "FR-025"],
+      "task_refs": ["T007", "T008", "T010", "T018"],
+      "changed_paths": [
+        "http-generic-api/src/**asset**",
+        "http-generic-api/src/**file**",
+        "http-generic-api/src/**drive**",
+        "http-generic-api/src/**duplicate**"
+      ],
+      "commands": [
+        "run filename sanitizer and MIME authority tests",
+        "run checksum URL normalization and duplicate tests",
+        "run Drive adapter permission and storage readback tests",
+        "run timeout unknown-outcome and retry tests",
+        "run no-delete and canonical-merge lifecycle tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.file-lifecycle-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "gemini-provider",
+      "title": "Gemini gateway, secrets, policy, budgets, retries, and provider files",
+      "requirement_refs": ["FR-026", "FR-027", "FR-028", "FR-029", "FR-034", "FR-035", "FR-046", "FR-047", "FR-048", "FR-049"],
+      "task_refs": ["T004", "T009", "T010", "T021", "T022"],
+      "changed_paths": [
+        "http-generic-api/src/**gemini**",
+        "http-generic-api/src/**provider**",
+        "http-generic-api/src/**ai**",
+        "http-generic-api/src/**budget**",
+        "http-generic-api/src/**secret**"
+      ],
+      "commands": [
+        "run provider adapter mock contract tests",
+        "run secret boundary and redaction tests",
+        "run sensitivity consent and budget policy tests",
+        "run 429 5xx timeout unknown-outcome and retry-exhaustion tests",
+        "run provider-file lease expiry and cleanup tests",
+        "run provider-disabled manual-fallback tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.gemini-provider-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "structured-intelligence",
+      "title": "Structured output, semantic validation, function intents, and prompt injection",
+      "requirement_refs": ["FR-029", "FR-030", "FR-031", "FR-032", "FR-033", "FR-038", "FR-042", "FR-043"],
+      "task_refs": ["T011", "T012", "T017", "T019", "T020"],
+      "changed_paths": [
+        "specs/014-gemini-evidence-intake-automation/contracts/gemini-evidence-result.schema.json",
+        "http-generic-api/src/**prompt**",
+        "http-generic-api/src/**model**",
+        "http-generic-api/src/**semantic**",
+        "http-generic-api/src/**function**"
+      ],
+      "commands": [
+        "validate all golden model results against the pinned JSON Schema",
+        "run unknown-enum route identity date number and provenance semantic tests",
+        "run forbidden authority claim and function-intent tests",
+        "run prompt-injection fixtures for every enabled modality",
+        "run model prompt schema policy lineage tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.structured-intelligence-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "review-client-journeys",
+      "title": "Human review, clarification, client surveys, and downstream promotion",
+      "requirement_refs": ["FR-036", "FR-037", "FR-038", "FR-039", "FR-040", "FR-041"],
+      "task_refs": ["T013", "T014", "T015", "T016"],
+      "changed_paths": [
+        "http-generic-api/src/**review**",
+        "http-generic-api/src/**clarification**",
+        "http-generic-api/src/**client**",
+        "http-generic-api/src/**promotion**",
+        "http-generic-api/recipes/**"
+      ],
+      "commands": [
+        "run reviewer object-authority and stale-version conflict tests",
+        "run all review decision state transitions",
+        "run clarification binding expiry and duplicate-response tests",
+        "run mobile client journey and internal-ID exposure tests",
+        "run typed usage-link and downstream consumer compatibility tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.review-client-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "semantic-media",
+      "title": "Embeddings, semantic duplicates, Arabic, audio, video, and document quality",
+      "requirement_refs": ["FR-017", "FR-022", "FR-023", "FR-026", "FR-029", "FR-030", "FR-031", "FR-033", "FR-040", "FR-043", "FR-045", "FR-047", "FR-048"],
+      "task_refs": ["T017", "T018", "T019", "T020", "T023"],
+      "changed_paths": [
+        "http-generic-api/src/**embedding**",
+        "http-generic-api/src/**audio**",
+        "http-generic-api/src/**video**",
+        "http-generic-api/src/**document**",
+        "test-fixtures/evidence/**"
+      ],
+      "commands": [
+        "run scoped embedding storage and version tests",
+        "run semantic duplicate precision recall benchmark",
+        "run Arabic and mixed-language human evaluation",
+        "run audio verbatim transcript and consent tests",
+        "run video timestamp rights size duration and cost tests",
+        "run document and screenshot extraction golden tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.semantic-media-summary.v1",
+      "required_for_completion": false
+    },
+    {
+      "key": "observability-recovery",
+      "title": "Metrics, budgets, diagnostics, dead letters, fallback, and rollback",
+      "requirement_refs": ["FR-008", "FR-034", "FR-035", "FR-044", "FR-045", "FR-046", "FR-047", "FR-049", "FR-051"],
+      "task_refs": ["T021", "T022", "T023", "T024"],
+      "changed_paths": [
+        "http-generic-api/src/**metric**",
+        "http-generic-api/src/**observability**",
+        "http-generic-api/src/**dead**",
+        "http-generic-api/src/**repair**",
+        ".github/workflows/**",
+        "docs/**runbook**"
+      ],
+      "commands": [
+        "run structured metric and no-secret diagnostics tests",
+        "run budget warning degradation and hard-stop tests",
+        "run dead-letter and unknown-outcome repair tests",
+        "run manual fallback end-to-end journey",
+        "run rollback and worker pause drain resume tests"
+      ],
+      "shardable": true,
+      "canonical_report": "mad4b.spec014.observability-recovery-summary.v1",
+      "required_for_completion": true
+    },
+    {
+      "key": "release-closeout",
+      "title": "Exact-head CI, migration, deployment parity, runtime smoke, and completion",
+      "requirement_refs": ["FR-009", "FR-042", "FR-047", "FR-049", "FR-050", "FR-051", "FR-052"],
+      "task_refs": ["T023", "T024"],
+      "changed_paths": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        ".github/workflows/**",
+        "http-generic-api/migrations/**",
+        "openapi.yaml",
+        "canonicals/**",
+        "docs/**"
+      ],
+      "commands": [
+        "verify exact candidate and source head identity",
+        "verify all required check conclusions and canonical evidence",
+        "verify migration checksum statement count ledger and business readback when applicable",
+        "verify production branch and runtime parity health smoke queues budgets and active versions",
+        "verify manual fallback and rollback evidence",
+        "run completion gate against tasks checklists and completion.json"
+      ],
+      "shardable": false,
+      "canonical_report": "mad4b.spec014.release-closeout-summary.v1",
+      "required_for_completion": true
+    }
+  ],
+  "pipelines": [
+    {
+      "key": "spec-contract-gate",
+      "purpose": "Validate the Spec Kit, machine contracts, cross-references, Work Map coverage, no-secret posture, and completion state on the exact candidate.",
+      "triggers": ["pull_request affecting Spec 014 or governance", "workflow_dispatch", "push to main affecting Spec 014 or governance"],
+      "permissions": { "contents": "read" },
+      "concurrency": { "group_key": "spec014-contract-${candidate_ref}", "cancel_in_progress": true },
+      "candidate_binding": "head_or_merge_candidate",
+      "path_filters": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        ".specify/**",
+        "docs/work-maps/**",
+        "http-generic-api/migrations/**",
+        ".github/workflows/**"
+      ],
+      "stages": [
+        {
+          "key": "checkout-exact-candidate",
+          "mode": "validate",
+          "commands": ["checkout the declared candidate SHA with full history", "verify git rev-parse HEAD equals candidate SHA"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "spec-contract-evaluation"
+        },
+        {
+          "key": "syntax-and-contracts",
+          "mode": "validate",
+          "commands": ["parse JSON and YAML", "validate both automation instances against their schemas", "validate OpenAPI and Gemini result schema"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "spec-contract-evaluation"
+        },
+        {
+          "key": "traceability-and-readiness",
+          "mode": "validate",
+          "commands": ["validate all cross-references and dependency acyclicity", "evaluate ready and blocked tasks", "run Work Map integration and completion gates"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "spec-contract-evaluation"
+        },
+        {
+          "key": "no-secret-and-diff-hygiene",
+          "mode": "validate",
+          "commands": ["scan changed files for prohibited secrets and signed URLs", "run git diff --check", "verify secrets_included=false on canonical artifacts"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "spec-contract-evaluation"
+        },
+        {
+          "key": "publish-contract-summary",
+          "mode": "summarize",
+          "commands": ["produce canonical JSON and Markdown summary stamped with exact candidate identity", "upload summary artifact"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "spec-contract-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    },
+    {
+      "key": "project-ci",
+      "purpose": "Run changed-scope syntax, architecture, security, unit, integration, contract, startup, and release-manifest checks for implementation changes.",
+      "triggers": ["pull_request to main", "merge_group checks_requested", "workflow_dispatch", "push to main"],
+      "permissions": { "contents": "read" },
+      "concurrency": { "group_key": "spec014-project-ci-${candidate_ref}", "cancel_in_progress": true },
+      "candidate_binding": "head_or_merge_candidate",
+      "path_filters": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        "http-generic-api/**",
+        "openapi.yaml",
+        "canonicals/**",
+        ".github/workflows/**"
+      ],
+      "stages": [
+        {
+          "key": "static-governance",
+          "mode": "validate",
+          "commands": ["syntax and type checks", "canonical source and generated parity", "schema docs and migration placement guards", "architecture drift and hardcoding ratchets", "Spec and CI contract gates"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "project-ci-static"
+        },
+        {
+          "key": "unit-integration",
+          "mode": "test",
+          "commands": ["install locked dependencies", "run changed-scope and full ordered unit/integration tests", "upload durable progress reports"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "project-ci-tests"
+        },
+        {
+          "key": "security-privacy",
+          "mode": "test",
+          "commands": ["run authority and cross-scope tests", "run no-secret redaction and prompt-injection tests", "run provider-disabled and manual-fallback tests"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "project-ci-security"
+        },
+        {
+          "key": "startup-and-manifest",
+          "mode": "verify",
+          "commands": ["generate deployment manifest for exact candidate", "prove runtime startup with provider calls disabled", "verify active feature defaults remain disabled"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "project-ci-startup"
+        },
+        {
+          "key": "canonical-summary",
+          "mode": "summarize",
+          "commands": ["route stage reports through canonical evidence policy", "emit machine and human summaries"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "project-ci-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    },
+    {
+      "key": "phase-governance",
+      "purpose": "Select the active task or implementation wave from the development contract, enforce PR scope, and execute only the declared phase journeys plus integration convergence checks.",
+      "triggers": ["pull_request opened synchronized reopened ready edited", "merge_group checks_requested", "workflow_dispatch"],
+      "permissions": { "contents": "read", "pull-requests": "read" },
+      "concurrency": { "group_key": "spec014-phase-${pr_or_candidate}", "cancel_in_progress": true },
+      "candidate_binding": "head_or_merge_candidate",
+      "path_filters": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        "http-generic-api/**",
+        "openapi.yaml",
+        "canonicals/**"
+      ],
+      "stages": [
+        {
+          "key": "classify-pr-mode",
+          "mode": "plan",
+          "commands": ["load development-automation.json", "classify as task work packet integration convergence or closeout", "reject changed paths outside declared allowed paths"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "phase-evaluation"
+        },
+        {
+          "key": "validate-entry-gates",
+          "mode": "validate",
+          "commands": ["validate dependencies decisions Work Maps contracts authority and task state", "verify source revision and plan hash"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "phase-evaluation"
+        },
+        {
+          "key": "execute-phase-journeys",
+          "mode": "test",
+          "commands": ["run tests and journeys declared by selected task and test families", "run integration convergence suite for integration PRs"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "phase-execution"
+        },
+        {
+          "key": "stamp-and-summarize",
+          "mode": "summarize",
+          "commands": ["stamp evaluation and execution with candidate kind SHA source head refs task wave and plan hash", "build canonical summary"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "phase-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    },
+    {
+      "key": "diagnostic-shards",
+      "purpose": "Dynamically shard test families for diagnosis while preserving a sequential ordered run as the authoritative progress baseline.",
+      "triggers": ["pull_request affecting implementation or CI", "workflow_dispatch with family shard and grep inputs"],
+      "permissions": { "contents": "read" },
+      "concurrency": { "group_key": "spec014-diagnostics-${pr_or_ref}-${family}-${parent_index}-${parent_count}", "cancel_in_progress": true },
+      "candidate_binding": "exact_head",
+      "path_filters": [
+        "http-generic-api/**",
+        "specs/014-gemini-evidence-intake-automation/**",
+        ".github/workflows/**"
+      ],
+      "stages": [
+        {
+          "key": "dynamic-matrix",
+          "mode": "plan",
+          "commands": ["resolve changed test families", "build bounded shard matrix", "enforce maximum jobs and target size"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "diagnostic-plan"
+        },
+        {
+          "key": "parallel-shards",
+          "mode": "diagnose",
+          "commands": ["run each selected shard with fail-fast false by default", "emit one structured report per family shard"],
+          "failure_mode": "continue_for_diagnostics",
+          "evidence_key": "diagnostic-shard-reports"
+        },
+        {
+          "key": "sequential-ordered-run",
+          "mode": "test",
+          "commands": ["run the ordered full manifest", "emit last-passed and first-failed durable progress evidence"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "diagnostic-sequential"
+        },
+        {
+          "key": "diagnostic-summary",
+          "mode": "summarize",
+          "commands": ["aggregate family reports and ordered progress", "publish exact rerun coordinates", "mark output diagnostic rather than canonical status authority"],
+          "failure_mode": "report_only",
+          "evidence_key": "diagnostic-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": false
+    },
+    {
+      "key": "canonical-evidence-router",
+      "purpose": "Convert structured stage reports into one policy-governed canonical status summary bound to exact candidate identity.",
+      "triggers": ["completion of phase-governance project-ci or diagnostic workflows", "workflow_dispatch for repair investigation"],
+      "permissions": { "actions": "read", "contents": "read" },
+      "concurrency": { "group_key": "spec014-evidence-router-${source_head_sha}-${workflow}", "cancel_in_progress": false },
+      "candidate_binding": "trusted_default_branch_plus_exact_source_head",
+      "path_filters": ["canonical workflow artifacts", "CI evidence routing policy"],
+      "stages": [
+        {
+          "key": "download-structured-reports",
+          "mode": "validate",
+          "commands": ["download only expected artifact names from the declared workflow run", "reject missing mandatory reports and unknown report contracts"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "canonical-router-input"
+        },
+        {
+          "key": "verify-source-stamps",
+          "mode": "validate",
+          "commands": ["verify repository candidate kind candidate SHA source head refs task and plan identity", "reject stale superseded or secret-containing reports"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "canonical-router-input"
+        },
+        {
+          "key": "route-authority",
+          "mode": "summarize",
+          "commands": ["prefer canonical contract results over workflow transport and diagnostics", "emit normalized outcome blockers counts and evidence refs"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "canonical-status-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    },
+    {
+      "key": "pr-evidence-publisher",
+      "purpose": "Publish or update one authoritative PR evidence comment only after trusted default-branch code verifies exact source-head identity and the canonical summary.",
+      "triggers": ["workflow_run completed for canonical evidence-producing workflows"],
+      "permissions": { "actions": "read", "contents": "read", "issues": "write", "pull-requests": "write" },
+      "concurrency": { "group_key": "spec014-pr-evidence-${source_head_sha}", "cancel_in_progress": false },
+      "candidate_binding": "trusted_default_branch_plus_exact_source_head",
+      "path_filters": ["canonical evidence artifacts"],
+      "stages": [
+        {
+          "key": "trusted-checkout",
+          "mode": "validate",
+          "commands": ["checkout trusted default branch with persisted credentials disabled", "use publisher code from trusted branch rather than untrusted PR"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "pr-publisher-evaluation"
+        },
+        {
+          "key": "resolve-current-pr",
+          "mode": "validate",
+          "commands": ["prefer explicit PR number", "otherwise combine branch and commit-associated PR lookup", "require exactly one exact open or merged PR matching repository and source head SHA"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "pr-publisher-evaluation"
+        },
+        {
+          "key": "verify-and-upsert",
+          "mode": "publish",
+          "commands": ["verify canonical contract workflow conclusion source identity no-secret and supersession", "sanitize Markdown", "upsert one sticky evidence comment"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "pr-publisher-receipt"
+        }
+      ],
+      "remote_write": true,
+      "required_for_completion": false
+    },
+    {
+      "key": "generated-artifact-validation",
+      "purpose": "Verify generated project documentation or registries are current and produce an exact-head repair candidate without mutating the branch.",
+      "triggers": ["pull_request affecting source or generated roots", "workflow_dispatch", "push to main"],
+      "permissions": { "contents": "read" },
+      "concurrency": { "group_key": "spec014-generated-validation-${candidate_ref}", "cancel_in_progress": true },
+      "candidate_binding": "exact_head",
+      "path_filters": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        "docs/generated/evidence-automation/**",
+        "http-generic-api/scripts/**evidence**generator**",
+        ".github/workflows/**"
+      ],
+      "stages": [
+        {
+          "key": "check-currentness",
+          "mode": "validate",
+          "commands": ["run generator in check mode", "verify pipeline connectivity and generated-root authority"],
+          "failure_mode": "continue_for_diagnostics",
+          "evidence_key": "generated-currentness"
+        },
+        {
+          "key": "build-repair-candidate",
+          "mode": "repair_candidate",
+          "commands": ["on stale output run generator in isolated working tree", "generate twice and prove idempotency", "reject changes outside allowed generated root", "stamp exact tested head and changed files", "upload repair candidate with remote_write_executed=false"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "generated-repair-candidate",
+          "condition": "generated output is stale"
+        },
+        {
+          "key": "fail-on-stale",
+          "mode": "validate",
+          "commands": ["fail the validation and direct operators to the exact-head repair artifact"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "generated-currentness",
+          "condition": "generated output is stale"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    },
+    {
+      "key": "governed-generated-writer",
+      "purpose": "Act as the sole remote writer for one generated artifact root after explicit one-time authorization and exact-head binding.",
+      "triggers": ["workflow_dispatch", "authorized pull_request event"],
+      "permissions": { "actions": "write", "contents": "write", "pull-requests": "write" },
+      "concurrency": { "group_key": "spec014-generated-writer-${pr_number}", "cancel_in_progress": false },
+      "candidate_binding": "exact_head",
+      "path_filters": ["one approved generated artifact root"],
+      "stages": [
+        {
+          "key": "consume-one-time-authorization",
+          "mode": "validate",
+          "commands": ["require same-repository non-main PR targeting main", "require exact expected head SHA", "consume authorization marker and read back its removal"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "generated-writer-authorization"
+        },
+        {
+          "key": "regenerate-and-verify",
+          "mode": "write",
+          "commands": ["apply exact-head repair candidate or regenerate", "prove idempotency", "reject files outside the approved root", "create a meaningful non-empty commit"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "generated-writer-result"
+        },
+        {
+          "key": "push-and-readback",
+          "mode": "verify",
+          "commands": ["reread remote branch head", "perform normal fast-forward push without force", "read back pushed SHA", "explicitly dispatch project CI and generated validation for the new head"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "generated-writer-result"
+        }
+      ],
+      "remote_write": true,
+      "required_for_completion": false
+    },
+    {
+      "key": "release-completion-gate",
+      "purpose": "Block completion until task, checklist, exact-head CI, migration, deployment, runtime, fallback, rollback, and backlog evidence matches the declared delivery mode.",
+      "triggers": ["pull_request changing completion.json", "closeout pull request", "workflow_dispatch", "merge_group checks_requested"],
+      "permissions": { "actions": "read", "contents": "read", "pull-requests": "read" },
+      "concurrency": { "group_key": "spec014-completion-${candidate_ref}", "cancel_in_progress": true },
+      "candidate_binding": "head_or_merge_candidate",
+      "path_filters": [
+        "specs/014-gemini-evidence-intake-automation/**",
+        "http-generic-api/migrations/**",
+        ".github/workflows/**",
+        "deployment manifests and production evidence contracts"
+      ],
+      "stages": [
+        {
+          "key": "verify-spec-closure",
+          "mode": "closeout",
+          "commands": ["verify all task and checklist states", "verify no unresolved blocking decision or unowned gap", "verify completion.json delivery and evidence references"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "completion-summary"
+        },
+        {
+          "key": "verify-delivery-evidence",
+          "mode": "closeout",
+          "commands": ["verify implementation PR inventory and exact-head required checks", "verify migration ledger when schema changed", "verify production parity health and smoke when runtime changed", "verify manual fallback rollback no-secret and post-merge audit"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "completion-summary"
+        },
+        {
+          "key": "publish-completion-report",
+          "mode": "summarize",
+          "commands": ["emit implemented verified blocked deferred and unowned work separately", "stamp exact candidate and source evidence identities"],
+          "failure_mode": "fail_closed",
+          "evidence_key": "completion-summary"
+        }
+      ],
+      "remote_write": false,
+      "required_for_completion": true
+    }
+  ],
+  "evidence_contracts": [
+    {
+      "key": "spec-contract-evaluation",
+      "contract": "mad4b.spec014.spec-contract-evaluation.v1",
+      "producer_pipeline": "spec-contract-gate",
+      "authority": "diagnostic",
+      "required_fields": ["repository", "candidate_kind", "candidate_sha", "source_head_sha", "schema_results", "reference_results", "work_map_result", "completion_result", "secrets_included"],
+      "retention_days": 30,
+      "secrets_included": false
+    },
+    {
+      "key": "spec-contract-summary",
+      "contract": "mad4b.spec014.spec-contract-summary.v1",
+      "producer_pipeline": "spec-contract-gate",
+      "authority": "canonical_status",
+      "required_fields": ["repository", "candidate_kind", "candidate_sha", "source_head_sha", "status", "blockers", "counts", "contract_versions", "secrets_included"],
+      "retention_days": 30,
+      "secrets_included": false
+    },
+    {
+      "key": "project-ci-summary",
+      "contract": "mad4b.spec014.project-ci-summary.v1",
+      "producer_pipeline": "project-ci",
+      "authority": "canonical_status",
+      "required_fields": ["repository", "candidate_kind", "candidate_sha", "source_head_sha", "static_status", "test_status", "security_status", "startup_status", "failure_refs", "secrets_included"],
+      "retention_days": 30,
+      "secrets_included": false
+    },
+    {
+      "key": "phase-summary",
+      "contract": "mad4b.spec014.phase-summary.v1",
+      "producer_pipeline": "phase-governance",
+      "authority": "canonical_status",
+      "required_fields": ["repository", "candidate_kind", "candidate_sha", "source_head_sha", "spec_key", "wave_id", "task_id", "plan_hash", "evaluation_status", "execution_status", "secrets_included"],
+      "retention_days": 30,
+      "secrets_included": false
+    },
+    {
+      "key": "diagnostic-summary",
+      "contract": "mad4b.spec014.diagnostic-summary.v1",
+      "producer_pipeline": "diagnostic-shards",
+      "authority": "diagnostic",
+      "required_fields": ["repository", "candidate_sha", "family_count", "selected_count", "passed_count", "failed_count", "failures", "rerun_coordinates", "secrets_included"],
+      "retention_days": 14,
+      "secrets_included": false
+    },
+    {
+      "key": "canonical-status-summary",
+      "contract": "mad4b.spec014.canonical-status-summary.v1",
+      "producer_pipeline": "canonical-evidence-router",
+      "authority": "canonical_status",
+      "required_fields": ["repository", "workflow", "workflow_run_id", "candidate_kind", "candidate_sha", "source_head_sha", "head_ref", "base_ref", "status", "blockers", "evidence_refs", "secrets_included"],
+      "retention_days": 30,
+      "secrets_included": false
+    },
+    {
+      "key": "generated-repair-candidate",
+      "contract": "mad4b.spec014.generated-repair-candidate.v1",
+      "producer_pipeline": "generated-artifact-validation",
+      "authority": "repair_candidate",
+      "required_fields": ["repository", "expected_head_sha", "tested_head_sha", "source_hash", "changed_files", "allowed_root", "idempotent_generation", "remote_write_executed", "secrets_included"],
+      "retention_days": 14,
+      "secrets_included": false
+    },
+    {
+      "key": "completion-summary",
+      "contract": "mad4b.spec014.completion-summary.v1",
+      "producer_pipeline": "release-completion-gate",
+      "authority": "completion",
+      "required_fields": ["repository", "candidate_kind", "candidate_sha", "source_head_sha", "feature_key", "status", "task_counts", "checklist_counts", "implementation_prs", "ci_evidence", "migration_evidence", "deployment_evidence", "runtime_evidence", "rollback_evidence", "remaining_work", "secrets_included"],
+      "retention_days": 90,
+      "secrets_included": false
+    }
+  ],
+  "writer_policy": {
+    "default_remote_write": false,
+    "writer_pipeline_key": "governed-generated-writer",
+    "required_controls": [
+      "one writer per generated artifact root",
+      "explicit one-time authorization",
+      "same-repository non-main pull request targeting main",
+      "exact expected head SHA",
+      "authorization consumption and removal readback",
+      "generation idempotency proof",
+      "allowed-root-only diff",
+      "meaningful non-empty commit",
+      "remote head reread before push",
+      "normal fast-forward push",
+      "pushed SHA readback",
+      "explicit validation workflow dispatch after write",
+      "least-privilege permissions",
+      "secrets_included=false"
+    ],
+    "forbidden_controls": [
+      "force push",
+      "force-with-lease",
+      "direct write to main",
+      "scheduled or workflow_run mutation",
+      "silent best-effort validation dispatch",
+      "no-op commit",
+      "write outside the approved generated root",
+      "use of untrusted pull-request code in a privileged publisher or writer"
+    ]
+  },
+  "completion_policy": {
+    "required_pipeline_keys": [
+      "spec-contract-gate",
+      "project-ci",
+      "phase-governance",
+      "canonical-evidence-router",
+      "generated-artifact-validation",
+      "release-completion-gate"
+    ],
+    "required_evidence_keys": [
+      "spec-contract-summary",
+      "project-ci-summary",
+      "phase-summary",
+      "canonical-status-summary",
+      "completion-summary"
+    ],
+    "fail_when": [
+      "candidate or source-head identity is stale or ambiguous",
+      "required task or checklist remains incomplete",
+      "blocking decision or Work Map dimension remains unresolved",
+      "required contract or test family did not run for the changed scope",
+      "canonical evidence is missing malformed superseded or secret-containing",
+      "migration evidence is absent when persistent schema changed",
+      "production parity health smoke or rollback evidence is absent when runtime changed",
+      "manual fallback is untested",
+      "remaining work is unowned or hidden",
+      "completion status contradicts delivery evidence"
+    ],
+    "production_readback_when_runtime_changed": true
+  },
+  "secrets_included": false
+}
