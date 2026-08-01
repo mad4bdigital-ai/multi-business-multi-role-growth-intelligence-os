@@ -8,7 +8,7 @@ on:
       - http-generic-api/scripts/build-spec014-shared-hardening.mjs
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -25,13 +25,19 @@ jobs:
           node-version: '22'
       - name: Apply Shared hardening transformation
         run: node http-generic-api/scripts/build-spec014-shared-hardening.mjs
-      - name: Commit permanent candidate
+      - name: Package transformed candidate
         run: |
-          git rm \
-            .github/workflows/spec014-build-shared-hardening.yml \
-            http-generic-api/scripts/build-spec014-shared-hardening.mjs
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .
-          git commit -m 'fix(spec-014): harden Shared pre-consumption provenance'
-          git push origin HEAD:gpt/014-hostinger/shared-canary-postmerge-hardening-20260801
+          tar -czf /tmp/spec014-shared-hardening-candidate.tgz \
+            http-generic-api/hostingerStorageSharedCanary.js \
+            http-generic-api/test-hostinger-storage-shared-canary.mjs \
+            http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs \
+            .github/workflows/hostinger-storage-shared-canary-guard.yml \
+            specs/014-governed-hostinger-storage-orchestration/e2e-phases.json \
+            specs/014-governed-hostinger-storage-orchestration/evidence/shared-canary-postmerge-hardening-20260801.md
+      - name: Upload transformed candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-shared-hardening-candidate-${{ github.run_id }}
+          path: /tmp/spec014-shared-hardening-candidate.tgz
+          if-no-files-found: error
+          retention-days: 1
