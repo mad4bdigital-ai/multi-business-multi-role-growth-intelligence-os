@@ -1,0 +1,468 @@
+name: Apply tenant request runtime once
+
+on:
+  push:
+    branches:
+      - gpt/tenant-request-inbox-chunk-store-hardening-20260801
+    paths:
+      - .github/workflows/apply-tenant-request-runtime-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/tenant-request-inbox-chunk-store-hardening-20260801
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply exact runtime wiring
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              text = path.read_text(encoding="utf-8")
+              if new in text:
+                  print(f"{label}: already applied")
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one anchor, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+              print(f"{label}: applied")
+
+          resolution = Path("http-generic-api/supportTicketResolutionService.js")
+          routes = Path("http-generic-api/routes/supportTicketRoutes.js")
+          chunks = Path("http-generic-api/governedToolResponseChunkStore.js")
+          gpt = Path("http-generic-api/routes/gptToolsRoutes.js")
+          gpt_test = Path("http-generic-api/test-gpt-tools-response-chunking.mjs")
+
+          replace_once(
+              resolution,
+              'async function selectPlaybook(connection, classification) {',
+              '''async function hasResolutionCaseTicketIdColumn(connection) {
+            const [rows] = await connection.query(
+              `SELECT COUNT(*) AS present
+                 FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'tenant_resolution_cases'
+                  AND column_name = 'ticket_id'`
+            );
+            return Number(rows?.[0]?.present || 0) === 1;
+          }
+
+          async function selectPlaybook(connection, classification) {''',
+              "resolution ticket column probe",
+          )
+
+          replace_once(
+              resolution,
+              '''  const [existingRows] = await connection.query(
+            `SELECT *
+               FROM tenant_resolution_cases
+              WHERE tenant_id = ?
+                AND (active_case_key = ? OR resource_ref = ?)
+              ORDER BY created_at DESC
+              LIMIT 1`,
+            [ticket.tenant_id, activeCaseKey, resourceRef]
+          );''',
+              '''  const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(connection);
+          const [existingRows] = await connection.query(
+            hasTicketIdColumn
+              ? `SELECT *
+                   FROM tenant_resolution_cases
+                  WHERE tenant_id = ?
+                    AND (ticket_id = ? OR active_case_key = ? OR resource_ref = ?)
+                  ORDER BY updated_at DESC, id DESC
+                  LIMIT 1`
+              : `SELECT *
+                   FROM tenant_resolution_cases
+                  WHERE tenant_id = ?
+                    AND (active_case_key = ? OR resource_ref = ?)
+                  ORDER BY updated_at DESC, id DESC
+                  LIMIT 1`,
+            hasTicketIdColumn
+              ? [ticket.tenant_id, ticket.ticket_id, activeCaseKey, resourceRef]
+              : [ticket.tenant_id, activeCaseKey, resourceRef]
+          );''',
+              "resolution exact link lookup",
+          )
+
+          replace_once(
+              resolution,
+              '''  const caseId = randomUUID();
+          await connection.query(
+            `INSERT INTO tenant_resolution_cases (
+               case_id, tenant_id, workspace_id, resource_ref, root_family,
+               playbook_key, status, severity, root_fingerprint_sha256,
+               active_case_key, source_alert_keys_json, source_refs_json,
+               impact_summary, current_step_key, owner_user_id, readback_status,
+               secrets_included
+             ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                       'case_created', NULL, 'not_run', 0)`,
+            [
+              caseId,
+              ticket.tenant_id,
+              resourceRef,
+              classification.root_family,
+              classification.playbook_key,
+              classification.severity,
+              fingerprint,
+              activeCaseKey,
+              JSON.stringify([
+                safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
+              ]),
+              JSON.stringify([resourceRef]),
+              safeString(ticket.internal_summary || ticket.customer_message || ticket.title, 2000)
+                || null,
+            ]
+          );''',
+              '''  const caseId = randomUUID();
+          const sourceAlertKeys = JSON.stringify([
+            safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
+          ]);
+          const sourceRefs = JSON.stringify([resourceRef]);
+          const impactSummary = safeString(
+            ticket.internal_summary || ticket.customer_message || ticket.title,
+            2000
+          ) || null;
+          if (hasTicketIdColumn) {
+            await connection.query(
+              `INSERT INTO tenant_resolution_cases (
+                 case_id, tenant_id, ticket_id, workspace_id, resource_ref, root_family,
+                 playbook_key, status, severity, root_fingerprint_sha256,
+                 active_case_key, source_alert_keys_json, source_refs_json,
+                 impact_summary, current_step_key, owner_user_id, readback_status,
+                 secrets_included
+               ) VALUES (?, ?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                         'case_created', NULL, 'not_run', 0)`,
+              [
+                caseId, ticket.tenant_id, ticket.ticket_id, resourceRef,
+                classification.root_family, classification.playbook_key,
+                classification.severity, fingerprint, activeCaseKey,
+                sourceAlertKeys, sourceRefs, impactSummary,
+              ]
+            );
+          } else {
+            await connection.query(
+              `INSERT INTO tenant_resolution_cases (
+                 case_id, tenant_id, workspace_id, resource_ref, root_family,
+                 playbook_key, status, severity, root_fingerprint_sha256,
+                 active_case_key, source_alert_keys_json, source_refs_json,
+                 impact_summary, current_step_key, owner_user_id, readback_status,
+                 secrets_included
+               ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                         'case_created', NULL, 'not_run', 0)`,
+              [
+                caseId, ticket.tenant_id, resourceRef,
+                classification.root_family, classification.playbook_key,
+                classification.severity, fingerprint, activeCaseKey,
+                sourceAlertKeys, sourceRefs, impactSummary,
+              ]
+            );
+          }''',
+              "resolution exact link insert",
+          )
+
+          replace_once(
+              resolution,
+              '''  const classification = classifySupportTicketResolution(ticket);
+          const [rows] = await pool.query(
+            `SELECT c.*, p.display_name, p.description, p.required_capability_key,
+                    p.risk_level, p.diagnostic_tool_key, p.decision_tool_key,
+                    p.apply_tool_key, p.readback_tool_key, p.approval_required,
+                    p.readback_required, p.policy_json
+               FROM tenant_resolution_cases c
+               JOIN tenant_resolution_playbooks p
+                 ON p.playbook_key = c.playbook_key
+                AND p.root_family = c.root_family
+              WHERE c.tenant_id = ?
+                AND c.resource_ref = ?
+              ORDER BY c.created_at DESC
+              LIMIT 1`,
+            [tenant_id, `ticket://${ticket_id}`]
+          );''',
+              '''  const classification = classifySupportTicketResolution(ticket);
+          const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(pool);
+          const [rows] = await pool.query(
+            `SELECT c.*, p.display_name, p.description, p.required_capability_key,
+                    p.risk_level, p.diagnostic_tool_key, p.decision_tool_key,
+                    p.apply_tool_key, p.readback_tool_key, p.approval_required,
+                    p.readback_required, p.policy_json
+               FROM tenant_resolution_cases c
+               JOIN tenant_resolution_playbooks p
+                 ON p.playbook_key = c.playbook_key
+                AND p.root_family = c.root_family
+              WHERE c.tenant_id = ?
+                AND ${hasTicketIdColumn
+                  ? "(c.ticket_id = ? OR (c.ticket_id IS NULL AND c.resource_ref = ?))"
+                  : "c.resource_ref = ?"}
+              ORDER BY c.updated_at DESC, c.id DESC
+              LIMIT 1`,
+            hasTicketIdColumn
+              ? [tenant_id, ticket_id, `ticket://${ticket_id}`]
+              : [tenant_id, `ticket://${ticket_id}`]
+          );''',
+              "resolution exact link read",
+          )
+
+          replace_once(
+              routes,
+              'import { canViewSupportTicketResolution } from "../supportTicketResolutionService.js";\n',
+              '''import { canViewSupportTicketResolution } from "../supportTicketResolutionService.js";
+          import {
+            getTenantRequestInboxItem,
+            listTenantRequestInbox,
+          } from "../tenantRequestInboxService.js";
+          ''',
+              "tenant inbox route imports",
+          )
+
+          replace_once(
+              routes,
+              '  const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);\n',
+              '''  const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+
+          router.get("/admin/tenant-requests", ...adminGuards, async (req, res) => {
+            try {
+              const result = await listTenantRequestInbox({
+                tenant_id: req.query?.tenant_id || null,
+                status: req.query?.status || null,
+                case_status: req.query?.case_status || null,
+                priority: req.query?.priority || null,
+                search: req.query?.search || null,
+                cursor: req.query?.cursor || null,
+                limit: req.query?.limit || null,
+              }, { auth: { ...(req.auth || {}), is_admin: true } });
+              return res.status(200).json(result);
+            } catch (err) {
+              return sendError(res, err, "tenant_request_inbox_list_failed");
+            }
+          });
+
+          router.get("/admin/tenant-requests/:ticketId", ...adminGuards, async (req, res) => {
+            try {
+              const result = await getTenantRequestInboxItem({
+                ticket_id: req.params.ticketId,
+                tenant_id: req.query?.tenant_id || null,
+              }, { auth: { ...(req.auth || {}), is_admin: true } });
+              return res.status(200).json(result);
+            } catch (err) {
+              return sendError(res, err, "tenant_request_inbox_get_failed");
+            }
+          });
+
+          router.get("/tenants/:tenantId/requests", requireUserJwt, async (req, res) => {
+            try {
+              const result = await listTenantRequestInbox({
+                tenant_id: req.params.tenantId,
+                status: req.query?.status || null,
+                case_status: req.query?.case_status || null,
+                priority: req.query?.priority || null,
+                search: req.query?.search || null,
+                cursor: req.query?.cursor || null,
+                limit: req.query?.limit || null,
+              }, { auth: req.auth });
+              return res.status(200).json(result);
+            } catch (err) {
+              return sendError(res, err, "tenant_request_inbox_list_failed");
+            }
+          });
+
+          router.get("/tenants/:tenantId/requests/:ticketId", requireUserJwt, async (req, res) => {
+            try {
+              const result = await getTenantRequestInboxItem({
+                ticket_id: req.params.ticketId,
+                tenant_id: req.params.tenantId,
+              }, { auth: req.auth });
+              return res.status(200).json(result);
+            } catch (err) {
+              return sendError(res, err, "tenant_request_inbox_get_failed");
+            }
+          });
+          ''',
+              "tenant inbox routes",
+          )
+
+          replace_once(
+              chunks,
+              'const GOVERNED_RESPONSE_CHUNK_TABLE = "governed_tool_response_chunks";\n',
+              '''const GOVERNED_RESPONSE_CHUNK_TABLE = "governed_tool_response_chunks";
+          export const GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS = Object.freeze([
+            "chunk_id", "source_tool_key", "response_sha256", "response_bytes", "response_json",
+            "cursor_policy", "redaction_status", "secrets_included", "owner_tenant_id",
+            "owner_user_id", "owner_workspace_id", "owner_principal_type", "owner_principal_id",
+            "source_surface", "created_at", "expires_at",
+          ]);
+          ''',
+              "chunk required columns",
+          )
+
+          replace_once(
+              chunks,
+              '''function executor(deps = {}) {
+            return deps.pool || deps.connection || getPool();
+          }
+          ''',
+              '''function executor(deps = {}) {
+            return deps.pool || deps.connection || getPool();
+          }
+
+          export async function inspectGovernedResponseChunkSchema(deps = {}) {
+            const operation = text(deps.operation || "response_chunk_schema_check") || "response_chunk_schema_check";
+            try {
+              const [rows] = await executor(deps).query(
+                `SELECT column_name
+                   FROM information_schema.columns
+                  WHERE table_schema = DATABASE()
+                    AND table_name = ?`,
+                [GOVERNED_RESPONSE_CHUNK_TABLE]
+              );
+              const present = new Set((rows || []).map((row) => text(row.column_name)).filter(Boolean));
+              const missing = GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.filter((column) => !present.has(column));
+              return {
+                ready: missing.length === 0,
+                operation,
+                table_name: GOVERNED_RESPONSE_CHUNK_TABLE,
+                required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
+                present_column_count: present.size,
+                missing_columns: missing,
+                migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+                secrets_included: false,
+              };
+            } catch (cause) {
+              return {
+                ready: false,
+                operation,
+                table_name: GOVERNED_RESPONSE_CHUNK_TABLE,
+                required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
+                present_column_count: 0,
+                missing_columns: [...GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS],
+                cause_code: cause?.code || null,
+                migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+                secrets_included: false,
+              };
+            }
+          }
+
+          async function assertGovernedResponseChunkSchema(deps = {}, operation = "response_chunk_store") {
+            const schema = await inspectGovernedResponseChunkSchema({ ...deps, operation });
+            if (schema.ready) return schema;
+            throw responseChunkError(
+              "response_chunk_persistence_unavailable",
+              "The durable response chunk store schema is incomplete.",
+              503,
+              {
+                cause_code: schema.cause_code || "ER_BAD_FIELD_ERROR",
+                operation,
+                missing_columns: schema.missing_columns,
+                migration_file: schema.migration_file,
+                secrets_included: false,
+              }
+            );
+          }
+          ''',
+              "chunk schema preflight",
+          )
+
+          for old, new, label in [
+              ('async function readChunkVerificationRow(chunkId, deps = {}) {\n  try {', 'async function readChunkVerificationRow(chunkId, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "read_verification");\n  try {', "chunk verify preflight"),
+              ('export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {\n  const chunkId', 'export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "persist");\n  const chunkId', "chunk persist preflight"),
+              ('export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {\n  const chunkId', 'export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "load");\n  const chunkId', "chunk load preflight"),
+              ('export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {}) {\n  const chunkId', 'export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "extend_expiry");\n  const chunkId', "chunk expiry preflight"),
+          ]:
+              replace_once(chunks, old, new, label)
+
+          replace_once(
+              gpt,
+              'import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";\n',
+              '''import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
+          import { buildBoundedInlineChunkFallback } from "../systemLayerResponseFallback.js";
+          ''',
+              "gpt bounded fallback import",
+          )
+
+          replace_once(
+              gpt,
+              '''  const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
+          return buildToolResponseChunk({''',
+              '''  let chunkId;
+          try {
+            ({ chunkId } = await storeToolResponseForChunks(body, optionsSource, deps));
+          } catch (error) {
+            return buildBoundedInlineChunkFallback(body, error, {
+              sourceToolKey: optionsSource?.source_tool_key || optionsSource?.tool_name || "gpt_tool_response",
+              maxChars: Math.min(options.maxChars, 150000),
+            });
+          }
+          return buildToolResponseChunk({''',
+              "gpt bounded inline fallback",
+          )
+
+          replace_once(
+              gpt_test,
+              '''import {
+            CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,''',
+              '''import { GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS } from "./governedToolResponseChunkStore.js";
+          import {
+            CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,''',
+              "gpt test schema import",
+          )
+
+          replace_once(
+              gpt_test,
+              '''    async query(sql, params = []) {
+              if (sql.includes("INSERT INTO governed_tool_response_chunks")) {''',
+              '''    async query(sql, params = []) {
+              if (sql.includes("information_schema.columns")) {
+                return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
+              }
+              if (sql.includes("INSERT INTO governed_tool_response_chunks")) {''',
+              "gpt test schema fake",
+          )
+          PY
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run focused validation
+        run: |
+          node --check http-generic-api/supportTicketResolutionService.js
+          node --check http-generic-api/routes/supportTicketRoutes.js
+          node --check http-generic-api/governedToolResponseChunkStore.js
+          node --check http-generic-api/routes/gptToolsRoutes.js
+          node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+          node http-generic-api/test-governed-tool-response-chunk-store.mjs
+          node http-generic-api/test-gpt-tools-response-chunking.mjs
+
+      - name: Commit permanent runtime files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            http-generic-api/supportTicketResolutionService.js \
+            http-generic-api/routes/supportTicketRoutes.js \
+            http-generic-api/governedToolResponseChunkStore.js \
+            http-generic-api/routes/gptToolsRoutes.js \
+            http-generic-api/test-gpt-tools-response-chunking.mjs
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "Runtime wiring is already present."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(tenant-requests): wire inbox and harden chunk fallback"
+          git push origin HEAD:gpt/tenant-request-inbox-chunk-store-hardening-20260801
