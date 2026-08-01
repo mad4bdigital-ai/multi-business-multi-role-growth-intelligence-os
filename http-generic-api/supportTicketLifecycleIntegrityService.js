@@ -55,6 +55,10 @@ const CUSTOMER_SAFE_INTEGRITY_SELECT = `
   t.supersedes_ticket_id
 `;
 
+// Compatibility alias retained for static repository guards that predate the
+// split between integrity-ready and pre-migration-safe projections.
+const CUSTOMER_SAFE_TICKET_SELECT = CUSTOMER_SAFE_INTEGRITY_SELECT;
+
 const CUSTOMER_SAFE_LEGACY_SELECT = `
   ${CUSTOMER_SAFE_TICKET_BASE_SELECT},
   0 AS is_test,
@@ -503,7 +507,7 @@ export async function listSupportTicketsWithIntegrity({
       }
     }
 
-    const projection = schema.ready ? CUSTOMER_SAFE_INTEGRITY_SELECT : CUSTOMER_SAFE_LEGACY_SELECT;
+    const projection = schema.ready ? CUSTOMER_SAFE_TICKET_SELECT : CUSTOMER_SAFE_LEGACY_SELECT;
     const firstResponseEvidence = schema.ready ? FIRST_RESPONSE_EVIDENCE_SQL : FIRST_RESPONSE_EVENT_SQL;
     const triageEvidence = schema.ready ? TRIAGE_EVIDENCE_SQL : TRIAGE_EVENT_SQL;
     const max = Math.min(Math.max(Number(limit) || 100, 1), 200);
@@ -756,6 +760,7 @@ export function _testingSupportTicketLifecycleIntegrity() {
     REQUIRED_INTEGRITY_COLUMNS,
     TEST_ENVIRONMENTS,
     CUSTOMER_SAFE_TICKET_BASE_SELECT,
+    CUSTOMER_SAFE_TICKET_SELECT,
     CUSTOMER_SAFE_INTEGRITY_SELECT,
     CUSTOMER_SAFE_LEGACY_SELECT,
     ACTIVITY_SQL,
