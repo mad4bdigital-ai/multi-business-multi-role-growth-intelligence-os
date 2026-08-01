@@ -33,6 +33,7 @@ const staticDiscoveryCommands = [
   "node test-capability-envelope-template-resolver.mjs",
   "node test-chatgpt-mcp-metadata-routing.mjs",
   "node test-chatgpt-mcp-readonly-runtime.mjs",
+  "node test-remote-mcp-multi-client-profiles.mjs",
   "node test-database-lifecycle-incident-bridge.mjs",
   "node test-database-lifecycle-operational-status.mjs",
   "node test-database-lifecycle-scheduler-admin-aliases.mjs",
