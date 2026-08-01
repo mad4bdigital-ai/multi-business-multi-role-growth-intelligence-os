@@ -23,6 +23,32 @@ if (branch !== EXPECTED_BRANCH) fail(`refusing branch ${branch || "<detached>"}`
 
 replaceExact(
   "routes/systemLayerRoutes.js",
+  `      response_options: {
+        max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        cursor: Number(responseOptions.cursor || source?.cursor || 0),
+        chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+        chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+      },`,
+  `      response_options: {
+        max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        client_response_budget_chars: Number(
+          responseOptions.client_response_budget_chars
+          || source?.client_response_budget_chars
+          || 0,
+        ) || undefined,
+        response_envelope_overhead_chars: Number(
+          responseOptions.response_envelope_overhead_chars
+          || source?.response_envelope_overhead_chars
+          || 0,
+        ) || undefined,
+        cursor: Number(responseOptions.cursor || source?.cursor || 0),
+        chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+        chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+      },`,
+);
+
+replaceExact(
+  "routes/systemLayerRoutes.js",
   `  router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
     const body = await buildSystemToolsListResponse(req.auth, req.query || {});
     return res.status(200).json(await chunkSystemLayerResponse(
@@ -65,7 +91,7 @@ replaceExact(
   ok("system tools bounded failure is typed", degraded.body.error?.code === "response_chunk_persistence_unavailable_inline_limit_exceeded", JSON.stringify(degraded.body));
   ok("system tools bounded failure excludes secrets", degraded.body.secrets_included === false, JSON.stringify(degraded.body));
 
-  const r = await get("/admin/system/tools?max_chars=150000");
+  const r = await get("/admin/system/tools?max_chars=150000&client_response_budget_chars=150000&response_envelope_overhead_chars=2000");
   ok("system tools returns 200 when the caller explicitly supplies a sufficient bounded response budget", r.status === 200, \`got \${r.status}\`);
   ok("system tools exposes passive endpoint preview", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "runtime_endpoint_preview"));`,
 );
