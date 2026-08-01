@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-tenant-canary-canonical-evidence",
+  "title": "Spec 014 Tenant Canary Canonical Structured Evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
+      ".github/workflows/hostinger-storage-tenant-canary-guard.yml",
+      "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+      "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace opaque Tenant Canary workflow status with one exact-head, secret-free canonical JSON/Markdown artifact while preserving all existing synthetic and provenance checks.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-canary-guard-to-canonical-artifact",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 reviewer and repository evidence publisher",
+          "entrypoint": "Hostinger Storage Tenant Canary Guard on a same-repository pull request",
+          "terminal_outcome": "The exact PR head receives a canonical report containing every ordered guard check, bounded redacted diagnostics, first failure, integrity findings, and an enforceable pass/fail decision without Job-log reconstruction.",
+          "steps": [
+            "Bind CI_SOURCE_HEAD_SHA and TARGET_REF to the live pull-request head.",
+            "Checkout the exact head without persisted credentials and verify local and remote identity.",
+            "Execute deterministic dependency installation, syntax, synthetic boundary, Base import, runtime provenance, policy not-before, pre-consumption ordering, and Tenant canary test-suite checks through a fixed-command runner.",
+            "Redact and bound stdout/stderr tails before storing structured results.",
+            "Write mad4b.hostinger-guard-summary.v1 JSON and Markdown before returning the guard exit code.",
+            "Upload both files with if:always under a run-bound artifact name.",
+            "Validate exact SHA, counts, results, first failure, integrity findings, no-secret declaration, no-log decision, and no-mutation/provider/credential declarations before enforcing the outcome."
+          ],
+          "assertions": [
+            "The candidate kind is head and candidate SHA equals the exact pull-request head.",
+            "All eight fixed checks are represented in the canonical result set.",
+            "A passed report has eight passes, zero failures, zero integrity findings, and first_failure=null.",
+            "A failed report identifies the first failed check and includes only bounded redacted diagnostics.",
+            "The workflow retains contents:read and receives no issue, pull-request, or repository write authority.",
+            "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
+            "job_logs_consulted and secrets_included remain false.",
+            "Publication into the shared authoritative PR comment remains dependent on trusted Parent PR #4540 reaching main."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-canonical-report-producer-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-tenant-canary-ci.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-tenant-canary-guard.yml",
+            "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+            "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Publish the first real Tenant Canary section through the trusted main-based Hostinger CI Evidence PR Publisher.",
+      "blockers": [
+        "Parent PR #4540 must be merged to main before the trusted workflow_run publisher exists on the default branch."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, and publisher retry behavior while preserving canonical-first diagnosis."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The change reports a synthetic CI guard and does not execute a live Hostinger canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The change grants no provider dispatch, deployment, migration, Production promotion, or Production mutation authority."
+    }
+  ]
+}
