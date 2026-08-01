@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { buildHostingerStorageTenantCanaryAuthorization } from './hostingerStorageTenantCanaryPolicy.js';
 import {
+  createHostingerStorageTenantCanaryControlPlaneRepository,
   createHostingerStorageTenantCanarySyntheticAdapter,
   createMemoryHostingerStorageTenantCanaryAuthorityStore,
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
@@ -9,6 +10,7 @@ import {
 } from './hostingerStorageTenantCanary.js';
 import {
   createSyntheticExecutorFixture as createBaseSyntheticExecutorFixture,
+  digest,
   h,
 } from './test-hostinger-storage-executor-fixtures.mjs';
 
@@ -24,6 +26,7 @@ function createSyntheticExecutorFixture(options = {}) {
   }));
   return {
     ...fixture,
+    repository: createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot: fixture.repository.exportSnapshot() }),
     adapter: createHostingerStorageTenantCanarySyntheticAdapter({ items }),
   };
 }
@@ -181,6 +184,36 @@ assert.throws(
 );
 assertUnconsumedAndUnchanged(incompleteRepositoryFixture, incompleteRepositoryPrepared.registry);
 
+const spoofedRepositoryFixture = createSyntheticExecutorFixture({
+  run_id: 'tenant-canary-spoofed-repository-run',
+  operation_id: 'tenant-canary-spoofed-repository-operation',
+  plan_id: 'tenant-canary-spoofed-repository-plan',
+  target_id: 'tenant-canary-spoofed-repository-target',
+});
+const spoofedRepositoryAuthorization = buildAuthorization(spoofedRepositoryFixture);
+const spoofedRepositoryPrepared = prepare(spoofedRepositoryFixture, spoofedRepositoryAuthorization);
+const spoofedRepository = Object.freeze({
+  repository_version: 'spec014-storage-control-plane-repository-v1',
+  adapter_key: 'hostinger_storage_memory_test_adapter_v1',
+  production_ready: false,
+  readAggregate: (...args) => spoofedRepositoryFixture.repository.readAggregate(...args),
+  transitionOperation: (...args) => spoofedRepositoryFixture.repository.transitionOperation(...args),
+  consumePlan: (...args) => spoofedRepositoryFixture.repository.consumePlan(...args),
+  appendJournalEvent: (...args) => spoofedRepositoryFixture.repository.appendJournalEvent(...args),
+  recordReconciliation: (...args) => spoofedRepositoryFixture.repository.recordReconciliation(...args),
+});
+assert.throws(
+  () => execute({
+    fixture: spoofedRepositoryFixture,
+    authorization: spoofedRepositoryAuthorization,
+    ...spoofedRepositoryPrepared,
+    repository: spoofedRepository,
+  }),
+  (error) => error.code === 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID'
+    && error.details?.repository_provenance === 'tenant_factory_owned_required',
+);
+assertUnconsumedAndUnchanged(spoofedRepositoryFixture, spoofedRepositoryPrepared.registry);
+
 const stalePlanFixture = createSyntheticExecutorFixture({
   run_id: 'tenant-canary-stale-plan-authority-run',
   operation_id: 'tenant-canary-stale-plan-authority-operation',
@@ -189,25 +222,15 @@ const stalePlanFixture = createSyntheticExecutorFixture({
 });
 const stalePlanAuthorization = buildAuthorization(stalePlanFixture);
 const stalePlanPrepared = prepare(stalePlanFixture, stalePlanAuthorization);
-const stalePlanRepository = {
-  production_ready: false,
-  readAggregate: (...args) => {
-    const aggregate = stalePlanFixture.repository.readAggregate(...args);
-    return {
-      ...aggregate,
-      plans: aggregate.plans.map((plan) => plan.plan_id === stalePlanFixture.plan_id ? {
-        ...plan,
-        authority_context_hash: h('f'),
-        ownership_revision: 'ownership-stale',
-        policy_revision: 'policy-stale',
-      } : plan),
-    };
-  },
-  transitionOperation: (...args) => stalePlanFixture.repository.transitionOperation(...args),
-  consumePlan: (...args) => stalePlanFixture.repository.consumePlan(...args),
-  appendJournalEvent: (...args) => stalePlanFixture.repository.appendJournalEvent(...args),
-  recordReconciliation: (...args) => stalePlanFixture.repository.recordReconciliation(...args),
-};
+const stalePlanSnapshot = structuredClone(stalePlanFixture.repository.exportSnapshot());
+const stalePlanRecord = stalePlanSnapshot.state.plans[stalePlanFixture.plan_id];
+delete stalePlanRecord.record_digest;
+stalePlanRecord.authority_context_hash = h('f');
+stalePlanRecord.ownership_revision = 'ownership-stale';
+stalePlanRecord.policy_revision = 'policy-stale';
+stalePlanRecord.record_digest = digest(stalePlanRecord);
+stalePlanSnapshot.state_digest = digest(stalePlanSnapshot.state);
+const stalePlanRepository = createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot: stalePlanSnapshot });
 assert.throws(
   () => execute({
     fixture: stalePlanFixture,
@@ -295,7 +318,9 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_tenant_canary_postmerge_hardening',
   tenant_owned_factory_weakset_brand_required: true,
+  tenant_owned_repository_weakset_brand_required: true,
   frozen_public_metadata_copy_rejected: true,
+  frozen_repository_method_copy_rejected: true,
   full_repository_contract_required_before_consumption: true,
   immutable_plan_authority_revisions_revalidated: true,
   clock_rollback_and_not_before_rejected: true,
