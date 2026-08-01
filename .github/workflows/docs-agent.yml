@@ -67,8 +67,10 @@ jobs:
     name: Governed exact-head Work Map write
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'docs-agent-write' &&
+      (
+        (github.event.action == 'labeled' && github.event.label.name == 'docs-agent-write') ||
+        (github.event.action == 'reopened' && contains(github.event.pull_request.labels.*.name, 'docs-agent-write'))
+      ) &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'github-actions[bot]'
     permissions:
@@ -98,7 +100,7 @@ jobs:
           | Repository | \`${GITHUB_REPOSITORY}\` |
           | Workflow | \`${GITHUB_WORKFLOW}\` |
           | Run | \`${GITHUB_RUN_ID}\` (attempt ${GITHUB_RUN_ATTEMPT}) |
-          | Event | \`${GITHUB_EVENT_NAME}\` / labeled |
+          | Event | \`${GITHUB_EVENT_NAME}\` / \`${{ github.event.action }}\` |
           | Pull request | \`#${PR_NUMBER}\` |
           | Target branch | \`${TARGET_BRANCH}\` |
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
