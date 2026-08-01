@@ -41,7 +41,7 @@
     { "pull_request": 4456, "feature_key": "015-tenant-operating-system-studio", "canonical_role": "portfolio_convergence_parent" },
     { "pull_request": 4460, "feature_key": "016-chatgpt-plugin-mcp-integration", "canonical_role": "external_integration_surface" }
   ],
-  "file_count": 30,
+  "file_count": 34,
   "files": [
     "README.md",
     "spec.md",
@@ -59,6 +59,8 @@
     "candidate-convergence.json",
     "draft-spec-portfolio.json",
     "draft-spec-portfolio.md",
+    "draft-spec-portfolio-live-delta.json",
+    "draft-spec-portfolio-live-delta.md",
     "work-map-integration.json",
     "e2e-phases.json",
     "manifest.json",
@@ -71,8 +73,10 @@
     "contracts/lifecycle-definition.schema.json",
     "contracts/candidate-convergence.schema.json",
     "contracts/draft-spec-portfolio.schema.json",
+    "contracts/draft-spec-portfolio-live-delta.schema.json",
     "contracts/tenant-operating-system-studio.openapi.yaml",
-    "tools/validate-spec.mjs"
+    "tools/validate-spec.mjs",
+    "tools/validate-portfolio-live-delta.mjs"
   ],
   "requirements": {
     "functional": 74,
@@ -89,6 +93,12 @@
     "schema_domains": 16,
     "e2e_phases": 5,
     "implemented_spec_e2e_journeys": 1,
+    "base_open_draft_specs_reviewed": 12,
+    "base_related_open_drafts_reviewed": 22,
+    "base_total_open_drafts_classified": 34,
+    "live_delta_related_open_drafts": 1,
+    "current_related_open_drafts": 23,
+    "current_total_open_drafts_classified": 35,
     "open_draft_specs_reviewed": 12,
     "related_open_drafts_reviewed": 22,
     "total_open_drafts_classified": 34,
