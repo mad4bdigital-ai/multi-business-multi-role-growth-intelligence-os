@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
+  createOrAppendSupportTicketWithIntegrityAtomic,
+  _testingSupportTicketLifecycleIntegrityCreation,
+} from "./supportTicketLifecycleIntegrityCreationService.js";
+import {
   computeSupportTicketDedupeKeyV2,
   computeSupportTicketSlaStatusV2,
   deriveSupportTicketIntegrity,
@@ -90,6 +94,99 @@ const lifecycleContradiction = resolveSupportTicketLifecyclePatch({
 assert.equal(lifecycleContradiction.should_update, true);
 assert.equal(lifecycleContradiction.status, "resolved");
 
+const requiredIntegrityColumns = _testingSupportTicketLifecycleIntegrityCreation().REQUIRED_INTEGRITY_COLUMNS;
+
+function buildConnection({ schemaColumns = requiredIntegrityColumns, persistAffectedRows = 1, persistError = null } = {}) {
+  const events = [];
+  return {
+    events,
+    async query(sql) {
+      if (sql.includes("INFORMATION_SCHEMA.COLUMNS")) {
+        events.push("schema");
+        return [schemaColumns.map((COLUMN_NAME) => ({ COLUMN_NAME }))];
+      }
+      if (sql.includes("UPDATE tickets")) {
+        events.push("persist");
+        if (persistError) throw persistError;
+        return [{ affectedRows: persistAffectedRows }];
+      }
+      throw new Error(`Unexpected query in atomic integrity test: ${sql}`);
+    },
+    async beginTransaction() { events.push("begin"); },
+    async commit() { events.push("commit"); },
+    async rollback() { events.push("rollback"); },
+    release() { events.push("release"); },
+  };
+}
+
+const successConnection = buildConnection();
+const successResult = await createOrAppendSupportTicketWithIntegrityAtomic(
+  { ...baseEnvelope, title: "Atomic integrity creation" },
+  {
+    pool: { async getConnection() { return successConnection; } },
+    async createOrAppendSupportTicketFn(envelope, options) {
+      successConnection.events.push("create");
+      assert.equal(options.connection, successConnection);
+      assert.match(envelope.dedupe_key, /^ticket:v2:[a-f0-9]{64}$/);
+      return {
+        ok: true,
+        created: true,
+        deduped: false,
+        ticket: { ticket_id: "ticket-success" },
+        secrets_included: false,
+      };
+    },
+  },
+);
+assert.equal(successResult.integrity.persisted, true);
+assert.equal(successResult.integrity.schema_ready, true);
+assert.deepEqual(successConnection.events, ["schema", "begin", "create", "persist", "commit", "release"]);
+
+const missingSchemaConnection = buildConnection({
+  schemaColumns: requiredIntegrityColumns.filter((column) => column !== "triaged_at"),
+});
+let preflightCreateCalls = 0;
+await assert.rejects(
+  createOrAppendSupportTicketWithIntegrityAtomic(
+    { ...baseEnvelope, title: "Pre-migration rejection" },
+    {
+      pool: { async getConnection() { return missingSchemaConnection; } },
+      async createOrAppendSupportTicketFn() {
+        preflightCreateCalls += 1;
+        throw new Error("create must not run before schema readiness");
+      },
+    },
+  ),
+  (error) => error?.status === 409
+    && error?.code === "support_ticket_integrity_schema_not_ready"
+    && error?.schema?.missing_columns?.includes("triaged_at"),
+);
+assert.equal(preflightCreateCalls, 0);
+assert.deepEqual(missingSchemaConnection.events, ["schema", "release"]);
+
+const rollbackConnection = buildConnection({ persistError: new Error("integrity update failed") });
+await assert.rejects(
+  createOrAppendSupportTicketWithIntegrityAtomic(
+    { ...baseEnvelope, title: "Rollback integrity failure" },
+    {
+      pool: { async getConnection() { return rollbackConnection; } },
+      async createOrAppendSupportTicketFn(_envelope, options) {
+        rollbackConnection.events.push("create");
+        assert.equal(options.connection, rollbackConnection);
+        return {
+          ok: true,
+          created: true,
+          deduped: false,
+          ticket: { ticket_id: "ticket-rollback" },
+          secrets_included: false,
+        };
+      },
+    },
+  ),
+  /integrity update failed/,
+);
+assert.deepEqual(rollbackConnection.events, ["schema", "begin", "create", "persist", "rollback", "release"]);
+
 const migration = await readFile(new URL("./migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql", import.meta.url), "utf8");
 for (const column of [
   "is_test",
@@ -128,6 +225,18 @@ assert.match(routeSource, /tenant_membership_ambiguous/);
 assert.match(routeSource, /const \[membership = null\] = rows/);
 assert.doesNotMatch(routeSource, /rows\s*\[\s*0\s*\]/);
 assert.doesNotMatch(routeSource, /LIMIT\s+1/);
+assert.match(routeSource, /createOrAppendSupportTicketWithIntegrityAtomic/);
+assert.doesNotMatch(routeSource, /createOrAppendSupportTicketWithIntegrity\(/);
+
+const creationSource = await readFile(new URL("./supportTicketLifecycleIntegrityCreationService.js", import.meta.url), "utf8");
+const schemaPreflightIndex = creationSource.indexOf("const schema = await readIntegritySchema(connection)");
+const mutationIndex = creationSource.indexOf("const result = await createTicket");
+assert.ok(schemaPreflightIndex >= 0 && mutationIndex > schemaPreflightIndex, "schema preflight must precede ticket mutation");
+assert.match(creationSource, /support_ticket_integrity_schema_not_ready/);
+assert.match(creationSource, /await connection\.beginTransaction\(\)/);
+assert.match(creationSource, /await connection\.commit\(\)/);
+assert.match(creationSource, /await connection\.rollback\(\)/);
+assert.match(creationSource, /connection,\s*\n\s*\}\)/);
 
 const indexSource = await readFile(new URL("./routes/index.js", import.meta.url), "utf8");
 const integrityMount = indexSource.indexOf("buildSupportTicketLifecycleIntegrityRoutes");
@@ -136,4 +245,4 @@ assert.ok(integrityMount >= 0, "integrity router must be registered");
 assert.ok(legacyMount >= 0, "legacy support router must remain registered");
 assert.ok(integrityMount < legacyMount, "integrity router must mount before legacy support router");
 
-console.log("support ticket lifecycle, SLA, test visibility, dedupe integrity, centralized JWT auth, and tenant ambiguity tests passed");
+console.log("support ticket lifecycle, SLA, visibility, dedupe, centralized JWT, tenant ambiguity, schema preflight, and atomic rollback tests passed");
