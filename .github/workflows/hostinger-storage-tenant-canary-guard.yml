@@ -1,0 +1,79 @@
+name: Hostinger Storage Tenant Canary Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageTenantCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+  push:
+    branches:
+      - 'gpt/014-hostinger/tenant-canary-*'
+    paths:
+      - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageTenantCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+
+permissions:
+  contents: read
+
+jobs:
+  tenant-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          node --check http-generic-api/hostingerStorageTenantCanary.js
+          node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
+      - name: Enforce synthetic Tenant boundary
+        run: |
+          ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "synthetic_only: true" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "dispatch_allowed: false" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "production_ready: false" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "manual_one_shot" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "tenant_exclusive" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "immutable_plan" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_CURRENT_STATE_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_APPROVAL_CURRENT_STATE_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_EXECUTOR_PLAN_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_EXECUTOR_LEASE_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_NOT_ADVANCED" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_NOT_ADVANCED" http-generic-api/hostingerStorageTenantCanary.js
+      - name: Enforce validation before one-shot consumption
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('http-generic-api/hostingerStorageTenantCanary.js', 'utf8');
+          const authority = source.indexOf('revalidateCurrentAuthority({ authorization, authorityStore: authority_store, now });');
+          const preflight = source.indexOf('preflightSyntheticExecutorInputs({ protocol, protocolDigest: protocol_digest, repository, adapter, now });');
+          const consume = source.indexOf('enablement_registry.consume({');
+          if (!(authority >= 0 && preflight > authority && consume > preflight)) {
+            throw new Error('Authority and executor preflight must complete before one-shot enablement consumption.');
+          }
+          NODE
+      - name: Validate Tenant canary
+        working-directory: http-generic-api
+        run: |
+          node test-hostinger-storage-tenant-canary.mjs
+          node test-hostinger-storage-tenant-canary-authority-cas.mjs
