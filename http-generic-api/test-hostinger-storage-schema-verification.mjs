@@ -60,7 +60,7 @@ const readback = {
   runtime_index_readback_status: 'ready',
   tool_seed_readback_status: 'ready_default_off',
   provider_calls: 0,
-  credential_payload_reads: 0,
+  protected_payload_reads: 0,
   external_writes: 0,
   secrets_included: false,
 };
@@ -82,6 +82,7 @@ assert.equal(subject.payload.readback.present_view_count, 3);
 assert.equal(subject.payload.readback.compatible_runtime_column_count, 52);
 assert.equal(subject.payload.readback.compatible_runtime_index_column_count, 22);
 assert.equal(subject.payload.readback.disabled_tool_count, 3);
+assert.equal(subject.payload.readback.protected_payload_reads, 0);
 assert.equal(subject.signing_allowed, false);
 assert.equal(subject.schema_verified, false);
 assert.equal(subject.production_ready, false);
@@ -157,9 +158,10 @@ assert.equal(verified.evidence.signing_delay_minutes, 2);
 assert.equal(verified.evidence.readback_duration_minutes, 3);
 assert.equal(verified.secrets_included, false);
 
+const corruptedSignatureB64Url = `${signatureB64Url.startsWith('A') ? 'B' : 'A'}${signatureB64Url.slice(1)}`;
 const invalidSignature = verifyHostingerStorageSchemaVerification({
   subject,
-  attestation: { ...attestation, signature_b64url: `${signatureB64Url.slice(0, -1)}${signatureB64Url.endsWith('A') ? 'B' : 'A'}` },
+  attestation: { ...attestation, signature_b64url: corruptedSignatureB64Url },
   public_key_jwk: publicJwk,
   policy,
   now: '2026-08-01T23:45:00.000Z',
@@ -305,6 +307,12 @@ assert.deepEqual(contract.expected_counts, {
   observed_tools: 3,
   disabled_tools: 3,
   enabled_tools: 0,
+});
+assert.deepEqual(contract.required_zero_activity, {
+  provider_calls: 0,
+  protected_payload_reads: 0,
+  external_writes: 0,
+  secrets_included: false,
 });
 
 console.log(JSON.stringify({
