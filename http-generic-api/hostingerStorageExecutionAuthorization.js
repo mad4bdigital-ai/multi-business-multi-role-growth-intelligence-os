@@ -224,11 +224,15 @@ export function resolveHostingerStorageApprovalSet({ plan_envelope, required_slo
   for (const slot of required) {
     const candidates = records.filter((record) => record.slot === slot && record.status === 'approved' && !record.invalidated)
       .sort((left, right) => right.decided_at_epoch - left.decided_at_epoch);
-    const record = candidates[0];
-    if (!record) {
+    if (candidates.length === 0) {
       blockers.push(`STORAGE_APPROVAL_SLOT_MISSING:${slot}`);
       continue;
     }
+    if (candidates.length !== 1) {
+      blockers.push(`STORAGE_APPROVAL_SLOT_AMBIGUOUS:${slot}`);
+      continue;
+    }
+    const [record] = candidates;
     if (!TERMINAL_APPROVAL_STATUSES.has(record.status)) blockers.push(`STORAGE_APPROVAL_STATUS_INVALID:${slot}`);
     if (record.expires_at_epoch <= now) blockers.push(`STORAGE_APPROVAL_EXPIRED:${slot}`);
     if (record.plan_hash !== plan.plan_hash) blockers.push(`STORAGE_APPROVAL_PLAN_HASH_MISMATCH:${slot}`);
