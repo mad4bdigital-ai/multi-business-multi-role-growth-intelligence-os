@@ -281,7 +281,7 @@ export function buildSupportTicketRoutes(deps = {}) {
   const { requireBackendApiKey, requireAdminPrincipal } = deps;
   const router = Router();
   const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
-  const tenantRequestUserJwt = deps.requireTenantRequestUserJwt
+  const requireTenantUserJwt = deps.requireTenantRequestUserJwt
     || createUserJwtMiddleware({ env: deps.env || process.env });
 
   router.get("/admin/tenant-requests", ...adminGuards, async (req, res) => {
@@ -313,7 +313,7 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
-  router.get("/tenants/:tenantId/requests", tenantRequestUserJwt, async (req, res) => {
+  router.get("/tenants/:tenantId/requests", requireTenantUserJwt, async (req, res) => {
     try {
       const result = await listTenantRequestInbox({
         tenant_id: req.params.tenantId,
@@ -330,7 +330,7 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
-  router.get("/tenants/:tenantId/requests/:ticketId", tenantRequestUserJwt, async (req, res) => {
+  router.get("/tenants/:tenantId/requests/:ticketId", requireTenantUserJwt, async (req, res) => {
     try {
       const result = await getTenantRequestInboxItem({
         ticket_id: req.params.ticketId,

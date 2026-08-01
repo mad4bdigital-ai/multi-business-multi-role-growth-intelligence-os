@@ -248,8 +248,8 @@ for (const route of [
   "/tenants/:tenantId/requests/:ticketId",
 ]) assert(routes.includes(route), `missing tenant request route ${route}`);
 assert.match(routes, /createUserJwtMiddleware/u, "tenant inbox routes must use the central fail-closed User JWT middleware");
-assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests", tenantRequestUserJwt/u);
-assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests\/:ticketId", tenantRequestUserJwt/u);
+assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests", requireTenantUserJwt/u);
+assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests\/:ticketId", requireTenantUserJwt/u);
 
 const gptTools = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 assert.match(gptTools, /response_chunk_persistence_unavailable/u);
