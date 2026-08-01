@@ -27,12 +27,12 @@
     "job_logs_are_diagnostic_only": true
   },
   "tools": {
-    "focused-runtime-validation": {
-      "description": "Validate changed runtime JavaScript and execute changed focused test files without mutating the branch.",
-      "entrypoint": "http-generic-api/scripts/maintenance-tools/focused-runtime-validation.mjs",
+    "repository-tool-lifecycle-guard": {
+      "description": "Classify repository automation changes and reject branch-specific, self-mutating, unregistered, or temporary tooling before merge.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
       "mode": "read_only",
       "allowed_changed_path_patterns": [],
-      "validation_commands": []
+      "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     }
   }
 }
