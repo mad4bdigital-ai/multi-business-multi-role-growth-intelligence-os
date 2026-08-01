@@ -18,7 +18,7 @@
     "resources:openapi:check": "node scripts/generate-resource-surface-openapi.mjs --check",
     "frontend:governance:generate": "node scripts/frontend-operation-governance-generator.mjs --write",
     "frontend:governance:check": "node scripts/frontend-operation-governance-generator.mjs --check",
-    "frontend:dispatch:generate": "node scripts/pr-4395-system-tools-fallback-fix-one-shot.mjs && node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write",
+    "frontend:dispatch:generate": "node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write",
     "frontend:dispatch:check": "node scripts/frontend-operation-governance-generator.mjs --check && node scripts/frontend-surface-dispatch.mjs --check",
     "openapi:auth:write": "node scripts/openapi-runtime-auth-sync.mjs --write",
     "openapi:auth:check": "node scripts/openapi-runtime-auth-sync.mjs --check",
