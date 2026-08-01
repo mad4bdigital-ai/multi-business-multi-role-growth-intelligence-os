@@ -36,6 +36,8 @@ jobs:
   work-map-integration:
     name: Work Map Integration Gate
     runs-on: ubuntu-latest
+    env:
+      WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
     steps:
       - uses: actions/checkout@v5
         with:
@@ -68,7 +70,73 @@ jobs:
           node http-generic-api/test-work-map-autofix-diagnostics.mjs
 
       - name: Verify generated Work Maps are current
+        id: work_map_currentness
+        continue-on-error: true
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Generate exact-head Work Map repair candidate
+        id: generate_repair_candidate
+        if: steps.work_map_currentness.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "${WORK_MAP_REPAIR_ROOT}"
+          mkdir -p "${WORK_MAP_REPAIR_ROOT}/docs"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Repair generation modified files outside docs/work-maps:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+
+          cp -R docs/work-maps "${WORK_MAP_REPAIR_ROOT}/docs/work-maps"
+          git diff --name-only -- docs/work-maps > "${WORK_MAP_REPAIR_ROOT}/changed-files.txt"
+
+          node - "${WORK_MAP_REPAIR_ROOT}" <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const root = process.argv[2];
+          const readme = fs.readFileSync(path.join(root, "docs/work-maps/README.md"), "utf8");
+          const sourceHash = readme.match(/Source hash: `([0-9a-f]{64})`/)?.[1] || null;
+          const changedFiles = fs.readFileSync(path.join(root, "changed-files.txt"), "utf8")
+            .split(/\r?\n/)
+            .map((value) => value.trim())
+            .filter(Boolean);
+          const report = {
+            contract: "mad4b.work-map-repair-candidate.v1",
+            repository: process.env.GITHUB_REPOSITORY,
+            run_id: process.env.GITHUB_RUN_ID,
+            run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            event_name: process.env.GITHUB_EVENT_NAME,
+            tested_head_sha: process.env.GITHUB_SHA,
+            source_hash_sha256: sourceHash,
+            changed_files: changedFiles,
+            changed_count: changedFiles.length,
+            allowed_root: "docs/work-maps",
+            generated_from_exact_checked_out_head: true,
+            remote_write_executed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(root, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Upload exact-head Work Map repair candidate
+        if: steps.work_map_currentness.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/work-map-repair-candidate
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail closed on stale generated Work Maps
+        if: steps.work_map_currentness.outcome == 'failure'
+        run: |
+          echo "Generated Work Maps are stale. Use the exact-head repair candidate artifact from this run through the governed writer."
+          exit 1
 
       - name: Require complete schema classification
         run: |
