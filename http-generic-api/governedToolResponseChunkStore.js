@@ -85,13 +85,14 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
       [GOVERNED_RESPONSE_CHUNK_TABLE]
     );
     const present = new Set((rows || []).map((row) => text(row.column_name)).filter(Boolean));
+    const requiredPresent = GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.filter((column) => present.has(column));
     const missing = GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.filter((column) => !present.has(column));
     return {
       ready: missing.length === 0,
       operation,
       table_name: GOVERNED_RESPONSE_CHUNK_TABLE,
       required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
-      present_column_count: present.size,
+      present_column_count: requiredPresent.length,
       missing_columns: missing,
       migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
       secrets_included: false,

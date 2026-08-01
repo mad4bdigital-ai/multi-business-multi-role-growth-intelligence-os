@@ -3,6 +3,7 @@ import fs from "node:fs";
 import YAML from "yaml";
 import {
   canViewTenantAdminTicketEvents,
+  compareTenantRequestTimelineEvents,
   decodeTenantRequestCursor,
   encodeTenantRequestCursor,
   getTenantRequestInboxItem,
@@ -32,6 +33,11 @@ assert.equal(canViewTenantAdminTicketEvents({ role: "admin" }), true);
 assert.equal(canViewTenantAdminTicketEvents({ role: "owner" }), true);
 assert.equal(canViewTenantAdminTicketEvents({ role: "platform_owner" }), true);
 assert.equal(canViewTenantAdminTicketEvents({ isAdmin: true, role: "member" }), true);
+const timelineDates = [
+  { source: "ticket", eventId: "august", createdAt: new Date("2026-08-01T01:00:00.000Z") },
+  { source: "ticket", eventId: "july", createdAt: new Date("2026-07-31T23:00:00.000Z") },
+].sort(compareTenantRequestTimelineEvents);
+assert.deepEqual(timelineDates.map((item) => item.eventId), ["july", "august"], "timeline Date objects must sort by epoch time rather than weekday text");
 
 function fakePool(steps) {
   const calls = [];
@@ -189,6 +195,7 @@ const schemaPool = fakePool([{
 }]);
 const schema = await inspectGovernedResponseChunkSchema({ pool: schemaPool, operation: "test_schema" });
 assert.equal(schema.ready, false);
+assert.equal(schema.present_column_count, GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length - 1, "schema diagnostics must count required columns only");
 assert.deepEqual(schema.missing_columns, ["owner_workspace_id"]);
 assert.equal(schema.operation, "test_schema");
 assert.equal(schema.secrets_included, false);
@@ -225,6 +232,9 @@ for (const route of [
   "/tenants/:tenantId/requests",
   "/tenants/:tenantId/requests/:ticketId",
 ]) assert(routes.includes(route), `missing tenant request route ${route}`);
+assert.match(routes, /createUserJwtMiddleware/u, "tenant inbox routes must use the central fail-closed User JWT middleware");
+assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests", tenantRequestUserJwt/u);
+assert.match(routes, /router\.get\("\/tenants\/:tenantId\/requests\/:ticketId", tenantRequestUserJwt/u);
 
 const gptTools = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 assert.match(gptTools, /response_chunk_persistence_unavailable/u);

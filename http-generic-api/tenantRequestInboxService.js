@@ -299,6 +299,19 @@ function caseEvent(row = {}, isAdmin = false) {
   };
 }
 
+export function compareTenantRequestTimelineEvents(left = {}, right = {}) {
+  const timestamp = (value) => {
+    if (value === null || value === undefined || value === "") return Number.NEGATIVE_INFINITY;
+    const parsed = value instanceof Date ? value.getTime() : new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+  };
+  const delta = timestamp(left.createdAt) - timestamp(right.createdAt);
+  if (delta != 0) return delta;
+  const sourceDelta = String(left.source || "").localeCompare(String(right.source || ""));
+  if (sourceDelta != 0) return sourceDelta;
+  return String(left.eventId || left.readbackId || "").localeCompare(String(right.eventId || right.readbackId || ""));
+}
+
 function readbackRow(row = {}, isAdmin = false) {
   return {
     source: "resolution_readback",
@@ -409,7 +422,7 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
       .map(tenantVisibleTicketEvent),
     ...caseEvents.map((event) => caseEvent(event, scope.isAdmin)),
     ...readbacks.map((entry) => readbackRow(entry, scope.isAdmin)),
-  ].sort((left, right) => String(left.createdAt || "").localeCompare(String(right.createdAt || "")));
+  ].sort(compareTenantRequestTimelineEvents);
   return {
     ...projectInboxRow(row),
     timeline,
