@@ -127,3 +127,7 @@ The existing ChatGPT-named runtime remains an internal compatibility implementat
 | Disable and revoke drill | required | required | required |
 
 No client is considered supported in Production until its live acceptance row is complete.
+
+## Generated evidence refresh
+
+The repository automation regenerated the deterministic frontend operation-governance and surface-dispatch evidence after the neutral route, metadata router, and canonical test-manifest changed. This evidence refresh records source parity only. It does not enable the MCP route, register an OAuth client, create a ChatGPT or Claude connection, authorize deployment, or grant Production authority.
