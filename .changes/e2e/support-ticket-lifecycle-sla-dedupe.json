@@ -1,0 +1,183 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-lifecycle-sla-dedupe",
+  "title": "Support ticket lifecycle, SLA, test visibility, and dedupe integrity",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
+      "http-generic-api/supportTicketLifecycleIntegrityReconciliationService.js",
+      "http-generic-api/supportTicketLifecycleIntegrityService.js",
+      "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs",
+      "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs",
+      "http-generic-api/test-support-ticket-pre-migration-read-activity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent cross-context and concurrent duplicate creation, expose customer-safe ticket reads, and persist integrity atomically.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-ticket-create-list-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated tenant member",
+          "entrypoint": "POST and GET /me/support/tickets",
+          "terminal_outcome": "One canonical ticket identity is serialized in the database, creation and integrity persistence commit atomically, and list responses expose only customer-safe fields ordered by ticket or lifecycle-event activity.",
+          "steps": [
+            "Resolve one unambiguous active tenant membership.",
+            "Derive the v2 identity from tenant, user, ticket type, capability, resource, relationship, parent, test class, environment, and visibility.",
+            "Verify migration columns and the dedupe-claim table before mutation.",
+            "Acquire the unique tenant-plus-dedupe claim row under the create transaction.",
+            "Create or append and persist integrity through the same connection.",
+            "Use an integrity-ready or genuinely pre-migration-safe customer projection."
+          ],
+          "assertions": [
+            "Parent, capability, test class, environment, and visibility alter dedupe identity.",
+            "Two concurrent requests serialize; exactly one creates and the other appends after the first commit.",
+            "Commit and rollback release transaction-held coordination.",
+            "Schema-not-ready creation fails before mutation.",
+            "Persistence failure rolls back the ticket mutation.",
+            "Ordinary title text cannot silently classify a production request as a test.",
+            "Multiple active memberships require explicit tenant context.",
+            "Tenant responses omit internal summaries, internal actor data, and source-tool fields."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-lifecycle-sla-dedupe.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-concurrency-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-sla-milestone-trigger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
+            "http-generic-api/supportTicketLifecycleIntegrityService.js",
+            "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
+            "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs",
+            "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Provide cursor-paged dry-run findings and typed-confirmation apply that recalculates SLA from the effective locked lifecycle state.",
+      "e2e_journeys": [
+        {
+          "id": "admin-ticket-integrity-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform administrator",
+          "entrypoint": "GET and POST /admin/support/tickets/integrity/reconcile",
+          "terminal_outcome": "Dry-run returns bounded continuation evidence; apply locks each current ticket, applies lifecycle first, computes SLA from that state, writes one audited event, and commits atomically.",
+          "steps": [
+            "Authenticate the administrator and backend key.",
+            "Read one stable keyset page of open ticket findings.",
+            "Return dry-run and next_cursor without mutation.",
+            "Require APPLY_SUPPORT_TICKET_INTEGRITY_RECONCILIATION for apply.",
+            "Lock and reread each current target.",
+            "Resolve lifecycle, compute effective-state SLA, update, and append audit evidence."
+          ],
+          "assertions": [
+            "Dry-run never mutates.",
+            "Apply fails closed before migration 1042.",
+            "A ticket closed by lifecycle repair cannot be written as newly resolved with stale breached SLA.",
+            "A missing or changed target fails closed under row lock.",
+            "Pagination continues beyond the newest batch.",
+            "Migration SLA backfill updates only changed SLA values and preserves updated_at."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-effective-reconciliation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-sla-milestone-trigger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/supportTicketLifecycleIntegrityReconciliationService.js",
+            "http-generic-api/supportTicketLifecycleIntegrityService.js",
+            "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
+            "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+            "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Keep reads and dry-run available before migration while preserving legacy evidence and lifecycle-event ordering.",
+      "e2e_journeys": [
+        {
+          "id": "ticket-integrity-pre-migration-runtime",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant member and platform administrator",
+          "entrypoint": "Integrity list and reconciliation services against a pre-migration schema contract",
+          "terminal_outcome": "List and dry-run avoid migration-only columns, trusted legacy test evidence remains effective, and lifecycle events participate in activity ordering.",
+          "steps": [
+            "Return a schema preflight with migration columns absent.",
+            "Build the customer projection without migration-only references.",
+            "Derive milestones and latest activity from lifecycle events.",
+            "Classify legacy simulation metadata without treating migration defaults as explicit evidence."
+          ],
+          "assertions": [
+            "Pre-migration list and dry-run avoid unknown-column errors.",
+            "Legacy admin simulation metadata remains internal.",
+            "Explicit legacy is_test false wins.",
+            "Lifecycle-event activity can move a ticket ahead of an older ticket-row timestamp."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-pre-migration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-pre-migration-read-activity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/supportTicketLifecycleIntegrityService.js",
+            "http-generic-api/test-support-ticket-pre-migration-read-activity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Apply migration 1042 in an authorized non-production database and verify columns, claim table, trigger, ledger, reconciliation, and audited ticket readback."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote the reviewed exact head, apply migration 1042 through the governed Production path, and verify customer-safe readback and serialized dedupe behavior."
+    }
+  ]
+}
