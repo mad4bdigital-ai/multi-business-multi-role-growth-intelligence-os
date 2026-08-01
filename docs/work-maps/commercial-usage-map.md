@@ -40,18 +40,18 @@ flowchart TD
 
 ## Discovered object inventory
 
-| Object | Type | Domain | Source migrations | Columns | References |
-|---|---|---|---:|---:|---|
-| `activation_signal_subscription_registry` | table | Activation & onboarding | 1 | - | - |
-| `commercial_profiles` | table | Commercial & usage | 1 | 16 | `tenants` |
-| `credit_balances` | table | Commercial & usage | 1 | 10 | `tenants` |
-| `credit_ledger` | table | Commercial & usage | 1 | 11 | `tenants` |
-| `entitlements` | table | Commercial & usage | 1 | 8 | `tenants` |
-| `graph_memory_usage_events` | table | Commercial & usage | 1 | 18 | `tenants`, `users` |
-| `subscriptions` | table | Commercial & usage | 1 | 9 | `plans`, `tenants` |
-| `tenant_usage` | table | Commercial & usage | 1 | 12 | `tenants` |
-| `usage_limits` | table | Commercial & usage | 1 | 11 | `tenants` |
-| `usage_meters` | table | Commercial & usage | 1 | 11 | `tenants` |
+| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |
+|---|---|---|---|---|---:|---:|---|
+| `activation_signal_subscription_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `commercial_profiles` | table | Commercial & usage | generated_domain_rule | - | 1 | 16 | `tenants` |
+| `credit_balances` | table | Commercial & usage | generated_domain_rule | - | 1 | 10 | `tenants` |
+| `credit_ledger` | table | Commercial & usage | generated_domain_rule | - | 1 | 11 | `tenants` |
+| `entitlements` | table | Commercial & usage | generated_domain_rule | - | 1 | 8 | `tenants` |
+| `graph_memory_usage_events` | table | Commercial & usage | generated_domain_rule | - | 1 | 18 | `tenants`, `users` |
+| `subscriptions` | table | Commercial & usage | generated_domain_rule | - | 1 | 9 | `plans`, `tenants` |
+| `tenant_usage` | table | Commercial & usage | generated_domain_rule | - | 1 | 12 | `tenants` |
+| `usage_limits` | table | Commercial & usage | generated_domain_rule | - | 1 | 11 | `tenants` |
+| `usage_meters` | table | Commercial & usage | generated_domain_rule | - | 1 | 11 | `tenants` |
 
 ## Coverage counters
 
