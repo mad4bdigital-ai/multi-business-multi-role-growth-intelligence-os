@@ -175,6 +175,10 @@ assert.deepEqual(schema.missing_columns, ["owner_workspace_id"]);
 assert.equal(schema.operation, "test_schema");
 assert.equal(schema.secrets_included, false);
 
+const inboxService = fs.readFileSync(new URL("./tenantRequestInboxService.js", import.meta.url), "utf8");
+assert.match(inboxService, /const \[membership\] = rows;/u, "membership scope resolution must bind the verified query result without a second unproven first-candidate lookup");
+assert.doesNotMatch(inboxService, /role:\s*rows\[0\]\.role/u, "membership role projection must not select rows[0] directly");
+
 const migration = fs.readFileSync(new URL("./migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql", import.meta.url), "utf8");
 assert.match(migration, /ADD COLUMN ticket_id CHAR\(36\)/u);
 // Match the SQL contract literally: a regex here would interpret its character class and quantifier instead of checking the migration text.
