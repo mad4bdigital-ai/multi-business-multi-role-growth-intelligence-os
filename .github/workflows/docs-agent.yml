@@ -1,154 +1,32 @@
-name: Docs Agent
+name: Docs Agent Work Map Bootstrap
 
 on:
-  workflow_dispatch:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, labeled]
-  push:
-    branches: [main]
+    types: [reopened]
 
 permissions:
-  contents: read
-  pull-requests: read
+  contents: write
 
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  pr-impact-note:
-    name: PR docs impact preview
-    if: >-
-      github.event_name == 'pull_request' &&
-      !startsWith(github.event.pull_request.head.ref, 'gpt/no-docs-agent/') &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-docs-agent') &&
-      github.actor != 'github-actions[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Validate inter-pipeline connectivity
-        run: |
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-
-      - name: Generate docs impact note
-        id: agent
-        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
-
-      - name: Generate dynamic text Work Map preview
-        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
-
-      - name: Refuse preview mutations outside generated documentation
-        shell: bash
-        run: |
-          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/auto-docs-agent/|docs/work-maps/)' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Docs Agent preview modified files outside generated documentation:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
-
-      - name: Upload generated documentation preview
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-          path: |
-            docs/auto-docs-agent
-            docs/work-maps
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Report preview-only PR mode
-        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Use the governed Spec Kit Work Map Autofix workflow for branch mutation."
-
-  main-followup-pr:
-    name: Main follow-up impact-note PR
-    if: >-
-      github.event_name == 'push' &&
-      github.actor != 'github-actions[bot]'
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Validate inter-pipeline connectivity
-        run: |
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-
-      - name: Generate docs impact note for merged commit
-        id: agent
-        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
-
-      - name: Refuse follow-up mutations outside impact notes
-        shell: bash
-        run: |
-          unexpected_files="$(git diff --name-only | grep -Ev '^docs/auto-docs-agent/' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Docs Agent follow-up modified files outside docs/auto-docs-agent:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
-
-      - name: Create reviewed impact-note follow-up PR
-        id: create_followup
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: docs-agent/${{ github.event.after }}
-          delete-branch: true
-          title: "Docs agent: impact note for ${{ github.event.after }}"
-          commit-message: "docs(agent): record impact for ${{ github.event.after }}"
-          add-paths: |
-            docs/auto-docs-agent/**
-          labels: |
-            docs
-            automated
-          body: |
-            Automated impact-note follow-up for merged commit `${{ github.event.after }}`.
-
-            Scope is restricted to `docs/auto-docs-agent/**`.
-            Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
-            Review is required; this workflow does not auto-merge the follow-up PR.
-
   exact-head-bootstrap:
     name: One-time exact-head Work Map bootstrap
     if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action == 'synchronize' &&
-      github.actor != 'github-actions[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/work-map-governance-final-atomic-20260731'
-    permissions:
-      contents: write
+      github.event.pull_request.head.ref == 'gpt/work-map-governance-final-atomic-20260731' &&
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     env:
-      EXPECTED_BASE_SHA: 74a764ab175ab3a6f105aa7a076e588541ea5766
+      DURABLE_BASE_SHA: 74a764ab175ab3a6f105aa7a076e588541ea5766
       AUTHORIZED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
       DOCS_AGENT_WORKFLOW: .github/workflows/docs-agent.yml
     steps:
-      - name: Checkout authorized temporary head
+      - name: Checkout authorized bootstrap head
         uses: actions/checkout@v5
         with:
           ref: ${{ env.AUTHORIZED_HEAD_SHA }}
@@ -159,27 +37,29 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify exact temporary ancestry
+      - name: Verify isolated bootstrap chain
         shell: bash
         run: |
           set -euo pipefail
           actual_head="$(git rev-parse HEAD)"
-          actual_parent="$(git rev-parse HEAD^)"
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           if [[ "${actual_head}" != "${AUTHORIZED_HEAD_SHA}" || "${remote_head}" != "${AUTHORIZED_HEAD_SHA}" ]]; then
             echo "Refusing stale bootstrap head."
             exit 1
           fi
-          if [[ "${actual_parent}" != "${EXPECTED_BASE_SHA}" ]]; then
-            echo "Refusing bootstrap ancestry: expected parent ${EXPECTED_BASE_SHA}, found ${actual_parent}."
+          git merge-base --is-ancestor "${DURABLE_BASE_SHA}" HEAD
+          unexpected_bootstrap_diff="$(git diff --name-only "${DURABLE_BASE_SHA}"...HEAD | grep -v "^${DOCS_AGENT_WORKFLOW}$" || true)"
+          if [[ -n "${unexpected_bootstrap_diff}" ]]; then
+            echo "Bootstrap chain contains changes outside ${DOCS_AGENT_WORKFLOW}:"
+            printf '%s\n' "${unexpected_bootstrap_diff}"
             exit 1
           fi
 
       - name: Restore durable Docs Agent before source discovery
         shell: bash
-        run: git show "${EXPECTED_BASE_SHA}:${DOCS_AGENT_WORKFLOW}" > "${DOCS_AGENT_WORKFLOW}"
+        run: git show "${DURABLE_BASE_SHA}:${DOCS_AGENT_WORKFLOW}" > "${DOCS_AGENT_WORKFLOW}"
 
-      - name: Validate durable writer ownership contracts
+      - name: Validate durable ownership contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -187,38 +67,38 @@ jobs:
           node http-generic-api/test-pipeline-connectivity-check.mjs
           node http-generic-api/test-work-map-autofix-diagnostics.mjs
 
-      - name: Generate exact-head Work Maps idempotently
+      - name: Generate exact-head Work Maps twice
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          first_hash="$(git diff --binary "${EXPECTED_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
+          first_hash="$(git diff --binary "${DURABLE_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_hash="$(git diff --binary "${EXPECTED_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
+          second_hash="$(git diff --binary "${DURABLE_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
           if [[ "${first_hash}" != "${second_hash}" ]]; then
             echo "Refusing non-idempotent Work Map generation."
             exit 1
           fi
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Enforce net Work Map-only diff
+      - name: Enforce net Work Map-only result
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(git diff --name-only "${EXPECTED_BASE_SHA}" | grep -v '^docs/work-maps/' || true)"
+          unexpected="$(git diff --name-only "${DURABLE_BASE_SHA}" | grep -v '^docs/work-maps/' || true)"
           if [[ -n "${unexpected}" ]]; then
-            echo "Bootstrap net diff contains unexpected files:"
+            echo "Bootstrap net result contains unexpected files:"
             printf '%s\n' "${unexpected}"
             exit 1
           fi
-          changed_count="$(git diff --name-only "${EXPECTED_BASE_SHA}" -- docs/work-maps | sed '/^$/d' | wc -l | tr -d ' ')"
+          changed_count="$(git diff --name-only "${DURABLE_BASE_SHA}" -- docs/work-maps | sed '/^$/d' | wc -l | tr -d ' ')"
           if [[ "${changed_count}" -eq 0 ]]; then
-            echo "No generated Work Map changes found."
+            echo "No Work Map changes were generated."
             exit 1
           fi
-          echo "Generated Work Map file count: ${changed_count}"
+          echo "Generated Work Map count: ${changed_count}"
 
-      - name: Commit restored workflow and generated maps
+      - name: Commit durable workflow restoration and maps
         shell: bash
         run: |
           set -euo pipefail
@@ -233,7 +113,7 @@ jobs:
           git commit -m "docs(work-maps): regenerate governed platform maps"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
 
-      - name: Verify final remote scope
+      - name: Verify final remote exact scope
         shell: bash
         run: |
           set -euo pipefail
@@ -243,9 +123,9 @@ jobs:
             echo "Bootstrap push readback mismatch."
             exit 1
           fi
-          unexpected="$(git diff --name-only "${EXPECTED_BASE_SHA}"...HEAD | grep -v '^docs/work-maps/' || true)"
+          unexpected="$(git diff --name-only "${DURABLE_BASE_SHA}"...HEAD | grep -v '^docs/work-maps/' || true)"
           if [[ -n "${unexpected}" ]]; then
-            echo "Final bootstrap diff contains unexpected files:"
+            echo "Final branch diff contains unexpected files:"
             printf '%s\n' "${unexpected}"
             exit 1
           fi
