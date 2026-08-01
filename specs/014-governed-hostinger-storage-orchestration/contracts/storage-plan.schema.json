@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/storage-plan.schema.json",
+  "title": "Immutable Hostinger Storage Cleanup Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_id",
+    "operation_id",
+    "target_id",
+    "hosting_account_id",
+    "resource_id",
+    "ownership_scope",
+    "authority_context_hash",
+    "ownership_revision",
+    "policy_revision",
+    "candidate_set_hash",
+    "plan_hash",
+    "candidate_count",
+    "candidate_bytes",
+    "expires_at",
+    "status",
+    "items",
+    "secrets_included"
+  ],
+  "properties": {
+    "plan_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "hosting_account_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "resource_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "ownership_scope": {"enum": ["platform", "tenant", "shared"]},
+    "tenant_id": {"type": ["string", "null"], "maxLength": 64},
+    "workspace_id": {"type": ["string", "null"], "maxLength": 64},
+    "authority_context_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "ownership_revision": {"type": "string", "minLength": 1, "maxLength": 128},
+    "policy_revision": {"type": "string", "minLength": 1, "maxLength": 128},
+    "candidate_set_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "plan_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "candidate_count": {"type": "integer", "minimum": 0, "maximum": 5000},
+    "candidate_bytes": {"type": "integer", "minimum": 0, "maximum": 5368709120},
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "count", "bytes"],
+        "properties": {
+          "category": {"enum": ["npm_cache", "npm_logs", "account_rotated_logs", "domain_rotated_logs"]},
+          "count": {"type": "integer", "minimum": 0},
+          "bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "impact_set": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workspace_id", "resource_id", "candidate_count", "candidate_bytes"],
+        "properties": {
+          "tenant_id": {"type": ["string", "null"], "maxLength": 64},
+          "workspace_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "resource_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "candidate_count": {"type": "integer", "minimum": 0},
+          "candidate_bytes": {"type": "integer", "minimum": 0},
+          "approval_required": {"type": "boolean"}
+        }
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "status": {
+      "enum": ["planned", "inspected", "approval_requested", "partially_approved", "approved", "expired", "cancelled", "blocked", "consumed"]
+    },
+    "bounded": {"type": "boolean"},
+    "consumed": {"type": "boolean"},
+    "consumed_run_id": {"type": ["string", "null"], "maxLength": 128},
+    "items": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ordinal",
+          "category",
+          "path_ref",
+          "relative_path",
+          "size_bytes",
+          "device",
+          "inode",
+          "ctime_epoch",
+          "mtime_epoch",
+          "item_hash"
+        ],
+        "properties": {
+          "ordinal": {"type": "integer", "minimum": 1},
+          "category": {"type": "string", "minLength": 1, "maxLength": 64},
+          "path_ref": {"type": "string", "minLength": 1, "maxLength": 256, "description": "Opaque or encrypted provider-local reference."},
+          "relative_path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+          "size_bytes": {"type": "integer", "minimum": 0},
+          "device": {"type": "string", "minLength": 1, "maxLength": 64},
+          "inode": {"type": "string", "minLength": 1, "maxLength": 64},
+          "ctime_epoch": {"type": "integer", "minimum": 0},
+          "mtime_epoch": {"type": "integer", "minimum": 0},
+          "item_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "eligibility_rule": {"type": "string", "maxLength": 128},
+          "still_valid": {"type": "boolean"}
+        }
+      }
+    },
+    "secrets_included": {"const": false}
+  }
+}
