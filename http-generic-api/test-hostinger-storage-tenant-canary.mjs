@@ -5,6 +5,7 @@ import {
   verifyHostingerStorageTenantCanaryAuthorization,
 } from './hostingerStorageTenantCanaryPolicy.js';
 import {
+  createHostingerStorageTenantCanaryControlPlaneRepository,
   createHostingerStorageTenantCanarySyntheticAdapter,
   createMemoryHostingerStorageTenantCanaryAuthorityStore,
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
@@ -28,6 +29,7 @@ function createSyntheticExecutorFixture(options = {}) {
   }));
   return {
     ...fixture,
+    repository: createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot: fixture.repository.exportSnapshot() }),
     adapter: createHostingerStorageTenantCanarySyntheticAdapter({ items }),
   };
 }
@@ -157,6 +159,7 @@ const verified = verifyHostingerStorageTenantCanaryAuthorization({
   now_epoch: 1100,
 });
 assert.equal(verified.valid, true);
+assert.equal(Object.isFrozen(verified.blockers), true);
 
 const registry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
 const authorityStore = createMemoryHostingerStorageTenantCanaryAuthorityStore();
@@ -199,7 +202,7 @@ assert.equal(interruptedRegistry.exportState()[0].consumed, true);
 assert.equal(interruptedFixture.repository.readAggregate(interruptedFixture.operation_id).operation.state, 'unknown_outcome');
 
 const revokedAllowlistFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-allowlist-revoked', operation_id: 'tenant-canary-operation-allowlist-revoked', plan_id: 'tenant-canary-plan-allowlist-revoked', target_id: 'tenant-canary-target-allowlist-revoked',
+  run_id: 'tenant-canary-run-allowlist-revoked', operation_id: 'tenant-canary-operation-allowlist-revoked', plan_id: 'tenant-canary-plan-allowlist-revoked', target_id: 'tenant-canary-target-revoked',
 });
 const revokedAllowlistAuthorization = authorize(revokedAllowlistFixture).authorization;
 const revokedAllowlistRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
@@ -409,6 +412,7 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_tenant_canary',
   tenant_exclusive_allowlist: true,
   tenant_owned_adapter_factory_brand: true,
+  tenant_owned_repository_factory_brand: true,
   immutable_plan_candidate_items_bound: true,
   executor_preflight_before_enablement_consumption: true,
   current_allowlist_and_approval_revalidated: true,
