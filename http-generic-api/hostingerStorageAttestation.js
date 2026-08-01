@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { assertHostingerStorageSecretFree } from './hostingerStorageSecretFree.js';
+import { assertHostingerStorageSecretFree } from './hostingerStorageAttestationSecretFree.js';
 
 export const HOSTINGER_STORAGE_ATTESTATION_VERSION = 'spec014-hostinger-storage-attestation-v1';
 
