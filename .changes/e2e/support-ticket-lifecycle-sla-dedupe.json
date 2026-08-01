@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-lifecycle-sla-dedupe",
+  "title": "Support ticket lifecycle, SLA, test visibility, and dedupe integrity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/supportTicketLifecycleIntegrityService.js",
+      "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent cross-parent ticket dedupe, compute milestone-aware SLA, classify test tickets explicitly, and reconcile contradictory lifecycle state.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-ticket-create-list-and-integrity-reconcile",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated tenant member or platform admin",
+          "entrypoint": "POST/GET /me/support/tickets and /admin/support/tickets/integrity/reconcile",
+          "terminal_outcome": "Tickets use v2 structured dedupe, test records are excluded from the tenant inbox, SLA respects completed milestones, and guarded reconciliation reports or repairs inconsistencies.",
+          "steps": [
+            "Authorize the tenant caller through active workspace membership.",
+            "Build a canonical SHA-256 dedupe identity from tenant, user, ticket type, capability, resource, relationship, and intended parent ticket.",
+            "Classify smoke and simulation records with is_test, environment, and visibility_class.",
+            "Create or append through the existing governed ticket lifecycle using the v2 dedupe key.",
+            "List tenant tickets by GREATEST(last_seen_at, updated_at, created_at) while excluding test records by default.",
+            "Reconcile SLA milestones and internally resolved tickets through dry-run or typed-confirmation apply mode."
+          ],
+          "assertions": [
+            "Different intended parent ticket IDs produce different dedupe keys.",
+            "Different target capabilities produce different dedupe keys.",
+            "Completed first-response and triage milestones do not create false breaches.",
+            "Resolution due dates still breach while a ticket remains open.",
+            "Known smoke and simulation tickets are internal_test and absent from the tenant inbox by default.",
+            "The exact open/resolved_runtime_validated contradiction is eligible for a guarded resolved transition.",
+            "Apply mode fails closed before migration readiness and requires typed confirmation.",
+            "No migration apply, external delivery, credential access, force push, or production promotion occurs in this PR."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-lifecycle-sla-dedupe-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-lifecycle-sla-dedupe.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+            "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Expose dry-run findings, schema readiness, urgent unassigned counts, and typed-confirmation apply mode."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Remain readable before migration, fail closed for apply mode, and preserve the legacy support routes after the integrity router."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Apply migration 1042 in an authorized non-production database and read back known regression tickets."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Apply through governed migration authority, run dry-run then typed apply reconciliation, and verify tenant inbox exclusion and SLA readback."
+    }
+  ]
+}
