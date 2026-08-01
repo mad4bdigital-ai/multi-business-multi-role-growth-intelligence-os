@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "contract": "spec014.hostinger-storage-migration-drafts.v2",
+  "contract": "spec014.hostinger-storage-migration-drafts.v3",
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "tasks": [
     "T024",
@@ -12,16 +12,19 @@
   "classification_source": ".github/contracts/spec014/hostinger-storage-schema-classification.json",
   "runtime_contract_source": ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
   "location_policy": {
-    "spec_local_only": true,
+    "contract_local_only": true,
+    "draft_directory": ".github/contracts/spec014/migrations",
     "runtime_migration_directory": "http-generic-api/migrations",
+    "spec_feature_directory": "specs/014-governed-hostinger-storage-orchestration",
     "discoverable_by_governed_migration_runner": false,
+    "covered_by_full_spec_phase_contract": false,
     "migration_apply_authorized": false
   },
   "waves": [
     {
       "id": 1,
       "task": "T024",
-      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql",
+      "file": ".github/contracts/spec014/migrations/wave-1-foundation.sql",
       "objects": [
         "storage_provider_accounts",
         "storage_targets",
@@ -33,7 +36,7 @@
     {
       "id": 2,
       "task": "T025",
-      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql",
+      "file": ".github/contracts/spec014/migrations/wave-2-control-plane.sql",
       "objects": [
         "storage_cleanup_operations",
         "storage_cleanup_plans",
@@ -53,7 +56,7 @@
     {
       "id": 3,
       "task": "T026",
-      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql",
+      "file": ".github/contracts/spec014/migrations/wave-3-execution-evidence.sql",
       "objects": [
         "storage_cleanup_runs",
         "storage_cleanup_run_items",
@@ -80,9 +83,9 @@
   ],
   "verification": {
     "task": "T027",
-    "preflight_file": "specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql",
-    "readback_file": "specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql",
-    "rollback_file": "specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql",
+    "preflight_file": ".github/contracts/spec014/migrations/preflight.sql",
+    "readback_file": ".github/contracts/spec014/migrations/readback.sql",
+    "rollback_file": ".github/contracts/spec014/migrations/rollback-prelive.sql",
     "validator_file": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
     "same_cycle_readback_required": true,
     "signed_schema_verification_required_before_runtime_mount": true,
@@ -125,6 +128,7 @@
     "internal_foreign_keys_present": true,
     "external_foreign_keys_deferred_until_preflight": true,
     "runtime_parent_foreign_keys_deferred_until_parent_writer": true,
+    "all_paths_are_contract_local": true,
     "all_paths_opaque_or_encrypted": true,
     "credentials_or_secret_payloads_stored": false,
     "raw_file_contents_stored": false,
