@@ -74,6 +74,32 @@ assert(
   routesIndexSource.includes("buildN8nWorkflowRuntimeRoutes"),
   "n8n workflow runtime routes must stay mounted"
 );
+assert.equal(
+  (routesIndexSource.match(/buildBackupArtifactRoutes\(deps\)/g) || []).length,
+  1,
+  "backup artifact routes must be mounted exactly once"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeGuard"),
+  false,
+  "operation runtime guard must be mounted only by server.js"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeErrorHandler"),
+  false,
+  "operation runtime error handler must be mounted only by server.js"
+);
+assert.equal(
+  routesIndexSource.includes("buildRegistryDataManagementRoutes"),
+  false,
+  "unused registry data management route imports must not expand startup failure surface"
+);
+
+const rootEntrypointSource = readFileSync(join(__dirname, "..", "server.js"), "utf8");
+assert(
+  rootEntrypointSource.includes("error.stack"),
+  "root Hostinger entrypoint must preserve startup stack traces"
+);
 
 const modelReadinessMigration = readFileSync(
   join(__dirname, "migrations/114_sprint62y_register_model_readiness_tool.sql"),
