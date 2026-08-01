@@ -2,11 +2,13 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-generated-artifact-openapi-ordering",
-  "title": "Precise OpenAPI composition ordering in generated artifact evaluation",
+  "title": "Precise OpenAPI composition and fail-closed missing-route coverage",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/scripts/openapi-autofill-missing-routes.mjs",
       "http-generic-api/test-openapi-autofill-missing-routes.mjs",
       ".changes/e2e/ci-generated-artifact-openapi-ordering.json"
     ]
@@ -18,31 +20,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Verify that the registered generated-artifact runner composes authoritative precise OpenAPI contracts before generic route autofill and executes the regression before deciding readiness.",
+      "objective": "Verify that repository maintenance composes authoritative precise OpenAPI contracts before a read-only missing-route gate that refuses uncontracted runtime routes without rewriting the root contract.",
       "e2e_journeys": [
         {
-          "id": "verify-precise-before-generic-autofill",
+          "id": "verify-precise-composition-before-fail-closed-coverage",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation and reviewer",
-          "entrypoint": "OpenAPI autofill regression reads the registered refresh runner and executes isolated route fixtures",
-          "terminal_outcome": "The regression proves precise registry composition precedes generic autofill, registry-only paths remain authoritative, and occupied root paths fail closed.",
+          "entrypoint": "OpenAPI maintenance regression executes isolated route, registry, allowlist, and root-contract fixtures",
+          "terminal_outcome": "Precise contracts are composed by the authoritative registry sync, uncontracted routes block write/check modes, and openapi.yaml remains byte-identical whenever the gate refuses coverage.",
           "steps": [
-            "Verify the pull-request evaluator delegates to the registered refresh runner.",
-            "Verify the runner orders precise registry synchronization before generic autofill.",
-            "Verify the runner executes this regression before its canonical decision.",
-            "Exercise missing, composed, final-check, and occupied-root fixture states."
+            "Discover runtime routes from source-bound route files.",
+            "Compose registered precise path-item references before coverage evaluation.",
+            "Attempt write compatibility mode while one runtime route lacks a precise contract or explicit allowlist ownership.",
+            "Verify the gate returns a stable missing_precise_contracts decision and performs no repository mutation.",
+            "Add explicit allowlist ownership and verify the same write mode succeeds as a read-only no-op.",
+            "Exercise an occupied precise root path and verify the authoritative registry writer fails closed."
           ],
           "assertions": [
-            "Registry-only precise paths are composed even when generic route discovery cannot find them.",
-            "Generic autofill creates only the remaining uncovered stub.",
-            "Subsequent precise and generic checks pass after composition.",
-            "An occupied conflicting root path fails closed.",
-            "The regression follows runner composition rather than deprecated inline workflow commands."
+            "Registry-only precise paths are composed even when route discovery cannot find them.",
+            "No generic operation, TODO summary, request schema, response schema, or consequential flag is synthesized.",
+            "Blocked write and check modes return non-zero with repository_mutation_performed=false.",
+            "The root OpenAPI file remains byte-identical after a blocked write attempt.",
+            "Explicit allowlist ownership satisfies coverage without changing the root contract.",
+            "An occupied conflicting root path fails closed."
           ],
           "tests": [
             {
-              "id": "openapi-autofill-ordering-regression",
+              "id": "openapi-missing-route-fail-closed-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-openapi-autofill-missing-routes.mjs",
@@ -50,6 +55,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/openapi.yaml",
             "http-generic-api/test-openapi-autofill-missing-routes.mjs",
             "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
             "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
@@ -61,22 +67,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Surface precise-versus-generic ordering failures directly in generated-artifact canonical comments."
+      "objective": "Publish blocked missing-route identities through canonical generated-artifact evidence without exposing secrets or mutating protected branches."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise duplicate registry entries, malformed path-item refs, and partial composition rollback."
+      "objective": "Exercise malformed registry entries, duplicate source ownership, and interrupted precise composition."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe ordering evidence on representative OpenAPI route additions."
+      "objective": "Observe fail-closed coverage evidence on representative OpenAPI route additions."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Require precise-before-generic composition evidence for protected-branch readiness."
+      "objective": "Require precise-contract or explicit allowlist ownership for every protected-branch runtime route."
     }
   ]
 }
