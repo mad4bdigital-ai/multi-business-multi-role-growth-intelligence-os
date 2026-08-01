@@ -1,4 +1,4 @@
-name: Spec 014 Migration Drafts Builder
+name: Spec 014 Migration Drafts Builder Diagnostic Harness
 
 on:
   pull_request:
@@ -6,456 +6,92 @@ on:
       - '.github/workflows/spec014-migration-drafts-builder.yml'
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
-  group: spec014-migration-drafts-builder-${{ github.event.pull_request.number }}
+  group: spec014-migration-drafts-builder-diagnostic-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  diagnose:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Checkout builder candidate
+      - name: Checkout diagnostic head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Build clean migration-drafts workstream
+      - name: Extract original builder script with push suppressed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show HEAD^:.github/workflows/spec014-migration-drafts-builder.yml > /tmp/spec014-original-builder.yml
+          python3 - <<'PY'
+          from pathlib import Path
+
+          lines = Path('/tmp/spec014-original-builder.yml').read_text().splitlines()
+          step_index = next(i for i, line in enumerate(lines) if line.strip() == '- name: Build clean migration-drafts workstream')
+          run_index = next(i for i in range(step_index, len(lines)) if lines[i].strip() == 'run: |')
+          indent = len(lines[run_index]) - len(lines[run_index].lstrip()) + 2
+          body = []
+          for line in lines[run_index + 1:]:
+              if line.strip() and len(line) - len(line.lstrip()) < indent:
+                  break
+              body.append(line[indent:] if len(line) >= indent else '')
+          script = '\n'.join(body) + '\n'
+          original_push = 'git push origin "HEAD:refs/heads/${FINAL_BRANCH}"'
+          if script.count(original_push) != 1:
+              raise SystemExit('expected exactly one final push command')
+          script = script.replace(original_push, "echo '[diagnostic] final push suppressed'", 1)
+          Path('/tmp/spec014-builder-extracted.sh').write_text(script)
+          PY
+          chmod +x /tmp/spec014-builder-extracted.sh
+
+      - name: Execute exact original builder locally
+        id: exact_builder
         shell: bash
         env:
           INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
           SOURCE_BRANCH: gpt/014-hostinger/migration-drafts-t024-t027-20260802
           FINAL_BRANCH: gpt/014-hostinger/migration-drafts-t024-t027-final-20260802
         run: |
-          set -euo pipefail
-          git fetch origin "${INTEGRATION_BRANCH}" "${SOURCE_BRANCH}"
-          git checkout -B "${FINAL_BRANCH}" "origin/${INTEGRATION_BRANCH}"
+          set +e
+          bash -x /tmp/spec014-builder-extracted.sh > /tmp/spec014-builder.log 2>&1
+          status=$?
+          {
+            echo
+            echo '=== diagnostic footer ==='
+            echo "exit_status=${status}"
+            echo "branch=$(git branch --show-current 2>/dev/null || true)"
+            echo "head=$(git rev-parse HEAD 2>/dev/null || true)"
+            echo '--- git status ---'
+            git status --short || true
+            echo '--- changed files vs integration ---'
+            git diff --name-only "origin/${INTEGRATION_BRANCH}...HEAD" 2>/dev/null | nl -ba || true
+            echo '--- recent commits ---'
+            git log --oneline -5 || true
+          } >> /tmp/spec014-builder.log
+          echo "exit_status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
 
-          files=(
-            '.github/contracts/spec014/hostinger-storage-migration-drafts.json'
-            '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
-            '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql'
-          )
-          for file in "${files[@]}"; do
-            mkdir -p "$(dirname "$file")"
-            git show "origin/${SOURCE_BRANCH}:$file" > "$file"
-          done
+      - name: Upload exact diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-migration-drafts-builder-exact-diagnostics-${{ github.run_attempt }}
+          path: |
+            /tmp/spec014-builder.log
+            /tmp/spec014-builder-extracted.sh
+            /tmp/spec014-original-builder.yml
+          if-no-files-found: error
+          retention-days: 3
 
-          python3 - <<'PY'
-          import json
-          import re
-          from pathlib import Path
-
-          manifest_path = Path('.github/contracts/spec014/hostinger-storage-migration-drafts.json')
-          manifest = json.loads(manifest_path.read_text())
-          manifest['status'] = 'draft_review_only_blocked_for_apply'
-          manifest['sql_runtime_contract_source'] = '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json'
-          manifest['apply_blockers'] = [
-            'exact_external_parent_type_charset_collation_readback_pending',
-            'storage_cleanup_runs_and_storage_cleanup_plan_items_parent_write_parity_pending',
-            'operation_current_pointer_fk_cycle_requires_separate_post_create_step',
-            'admin_platform_endpoint_tools_exact_column_parity_readback_pending',
-            'governed_migration_runner_plan_and_typed_confirmation_not_created',
-          ]
-          manifest['required_invariants']['runtime_contract_columns_covered'] = True
-          manifest['required_invariants']['runtime_parent_write_parity_required_before_apply'] = True
-          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
-
-          wave2_path = Path('specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql')
-          wave2 = wave2_path.read_text()
-          replacements = {
-            "  state VARCHAR(32) NOT NULL,\n  risk_class VARCHAR(32) NOT NULL,":
-              "  state VARCHAR(32) NOT NULL,\n  version BIGINT UNSIGNED NOT NULL DEFAULT 1,\n  record_digest CHAR(64) NOT NULL,\n  record_json JSON NOT NULL,\n  row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,\n  risk_class VARCHAR(32) NOT NULL,",
-            "  status VARCHAR(32) NOT NULL DEFAULT 'planned',\n  consumed_run_id CHAR(36) NULL,":
-              "  status VARCHAR(32) NOT NULL DEFAULT 'planned',\n  consumed TINYINT(1) NOT NULL DEFAULT 0,\n  record_digest CHAR(64) NOT NULL,\n  record_json JSON NOT NULL,\n  row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,\n  consumed_run_id CHAR(36) NULL,",
-            "  invalidated TINYINT(1) NOT NULL DEFAULT 0,\n  invalidated_reason VARCHAR(191) NULL,":
-              "  invalidated TINYINT(1) NOT NULL DEFAULT 0,\n  record_digest CHAR(64) NOT NULL,\n  record_json JSON NOT NULL,\n  row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,\n  invalidated_reason VARCHAR(191) NULL,",
-          }
-          for old, new in replacements.items():
-            assert wave2.count(old) == 1, old
-            wave2 = wave2.replace(old, new)
-
-          lease_block = """CREATE TABLE IF NOT EXISTS storage_execution_leases (
-            id CHAR(36) NOT NULL,
-            target_id CHAR(36) NOT NULL,
-            lease_id CHAR(36) NOT NULL,
-            root_ref_digest CHAR(64) NOT NULL DEFAULT '0000000000000000000000000000000000000000000000000000000000000000',
-            active_slot TINYINT UNSIGNED NOT NULL DEFAULT 1,
-            operation_id CHAR(36) NOT NULL,
-            lease_purpose VARCHAR(32) NULL,
-            generation BIGINT UNSIGNED NOT NULL,
-            acquired_at DATETIME(3) NULL,
-            renewed_at DATETIME(3) NULL,
-            expires_at DATETIME(3) NULL,
-            expires_at_epoch BIGINT UNSIGNED NOT NULL,
-            holder_worker_ref VARCHAR(191) NULL,
-            holder_session_ref VARCHAR(191) NULL,
-            status VARCHAR(32) NOT NULL,
-            release_evidence_digest CHAR(64) NULL,
-            readback_evidence_digest CHAR(64) NULL,
-            record_digest CHAR(64) NOT NULL,
-            record_json JSON NOT NULL,
-            row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
-            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_storage_execution_leases_id (id),
-            UNIQUE KEY uq_storage_execution_leases_active (target_id, root_ref_digest, active_slot),
-            KEY idx_storage_execution_leases_operation_status (operation_id, status),
-            KEY idx_storage_execution_leases_target_expiry (target_id, status, expires_at),
-            KEY idx_storage_execution_leases_target_epoch (target_id, status, expires_at_epoch),
-            KEY idx_storage_execution_leases_worker_status (holder_worker_ref, status),
-            CONSTRAINT fk_storage_execution_leases_target
-              FOREIGN KEY (target_id) REFERENCES storage_targets(id),
-            CONSTRAINT fk_storage_execution_leases_operation
-              FOREIGN KEY (operation_id) REFERENCES storage_cleanup_operations(id),
-            CONSTRAINT chk_storage_execution_leases_identity CHECK (id = lease_id),
-            CONSTRAINT chk_storage_execution_leases_root_digest
-              CHECK (root_ref_digest REGEXP '^[0-9a-f]{64}$'),
-            CONSTRAINT chk_storage_execution_leases_record_digest
-              CHECK (record_digest REGEXP '^[0-9a-f]{64}$'),
-            CONSTRAINT chk_storage_execution_leases_slot CHECK (active_slot = 1),
-            CONSTRAINT chk_storage_execution_leases_purpose
-              CHECK (lease_purpose IS NULL OR lease_purpose IN ('cleanup_apply', 'reserve', 'deployment')),
-            CONSTRAINT chk_storage_execution_leases_status
-              CHECK (status IN ('active', 'released', 'expired', 'conflicted'))
-          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
-          lease_block = re.sub(r'^          ', '', lease_block, flags=re.M)
-          wave2, count = re.subn(
-            r'CREATE TABLE IF NOT EXISTS storage_execution_leases \([\s\S]*?\n\) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;',
-            lease_block,
-            wave2,
-            count=1,
-          )
-          assert count == 1
-          wave2_path.write_text(wave2)
-
-          wave3_path = Path('specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql')
-          wave3 = wave3_path.read_text()
-          run_item_block = """CREATE TABLE IF NOT EXISTS storage_cleanup_run_items (
-            id CHAR(36) NOT NULL,
-            operation_id CHAR(36) NOT NULL,
-            run_id CHAR(36) NOT NULL,
-            plan_id CHAR(36) NOT NULL,
-            item_id CHAR(36) NOT NULL,
-            plan_item_id CHAR(36) GENERATED ALWAYS AS (item_id) STORED,
-            sequence BIGINT UNSIGNED NOT NULL,
-            phase VARCHAR(32) NOT NULL,
-            prepared_at DATETIME(3) NULL,
-            revalidation_outcome VARCHAR(64) NULL,
-            result VARCHAR(32) NOT NULL,
-            observed_stat_digest CHAR(64) NULL,
-            result_evidence_digest CHAR(64) NULL,
-            checkpoint_at DATETIME(3) NULL,
-            error_code VARCHAR(128) NULL,
-            sanitized_error_message VARCHAR(512) NULL,
-            readback_state VARCHAR(32) NOT NULL DEFAULT 'pending',
-            record_digest CHAR(64) NOT NULL,
-            record_json JSON NOT NULL,
-            row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
-            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_storage_cleanup_run_items_sequence (run_id, plan_item_id, sequence),
-            KEY idx_storage_cleanup_run_items_run_sequence (run_id, sequence),
-            KEY idx_storage_cleanup_run_items_run_result (run_id, result),
-            KEY idx_storage_cleanup_run_items_plan_item (plan_item_id),
-            KEY idx_storage_cleanup_run_items_operation (operation_id),
-            KEY idx_storage_cleanup_run_items_plan (plan_id),
-            CONSTRAINT fk_storage_cleanup_run_items_run
-              FOREIGN KEY (run_id) REFERENCES storage_cleanup_runs(id),
-            CONSTRAINT fk_storage_cleanup_run_items_plan_item
-              FOREIGN KEY (plan_item_id) REFERENCES storage_cleanup_plan_items(id),
-            CONSTRAINT chk_storage_cleanup_run_items_phase
-              CHECK (phase IN ('prepared', 'result', 'readback')),
-            CONSTRAINT chk_storage_cleanup_run_items_result
-              CHECK (result IN ('prepared', 'deleted', 'skipped_changed', 'skipped_missing', 'skipped_protected', 'failed')),
-            CONSTRAINT chk_storage_cleanup_run_items_digests
-              CHECK (
-                record_digest REGEXP '^[0-9a-f]{64}$'
-                AND (result_evidence_digest IS NULL OR result_evidence_digest REGEXP '^[0-9a-f]{64}$')
-                AND (observed_stat_digest IS NULL OR observed_stat_digest REGEXP '^[0-9a-f]{64}$')
-              )
-          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
-          run_item_block = re.sub(r'^          ', '', run_item_block, flags=re.M)
-          wave3, count = re.subn(
-            r'CREATE TABLE IF NOT EXISTS storage_cleanup_run_items \([\s\S]*?\n\) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;',
-            run_item_block,
-            wave3,
-            count=1,
-          )
-          assert count == 1
-
-          reconciliation_block = """CREATE TABLE IF NOT EXISTS storage_reconciliation_results (
-            id CHAR(36) NOT NULL,
-            run_id CHAR(36) NOT NULL,
-            operation_id CHAR(36) NOT NULL,
-            reconciliation_generation BIGINT UNSIGNED NOT NULL,
-            input_evidence_hashes_json JSON NULL,
-            item_accounting_json JSON NULL,
-            filesystem_readback_ref VARCHAR(191) NULL,
-            provider_readback_ref VARCHAR(191) NULL,
-            runtime_readback_ref VARCHAR(191) NULL,
-            outcome VARCHAR(32) NOT NULL,
-            retry_permission TINYINT(1) NOT NULL DEFAULT 0,
-            reviewed_at DATETIME(3) NULL,
-            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            evidence_digest CHAR(64) NULL,
-            record_digest CHAR(64) NOT NULL,
-            record_json JSON NOT NULL,
-            row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_storage_reconciliation_generation (run_id, reconciliation_generation),
-            KEY idx_storage_reconciliation_operation_outcome (operation_id, outcome),
-            KEY idx_storage_reconciliation_run_created (run_id, created_at),
-            KEY idx_storage_reconciliation_outcome_retry (outcome, retry_permission),
-            CONSTRAINT fk_storage_reconciliation_run
-              FOREIGN KEY (run_id) REFERENCES storage_cleanup_runs(id),
-            CONSTRAINT fk_storage_reconciliation_operation
-              FOREIGN KEY (operation_id) REFERENCES storage_cleanup_operations(id),
-            CONSTRAINT chk_storage_reconciliation_outcome
-              CHECK (outcome IN ('applied', 'partially_applied', 'not_applied', 'conflict', 'still_unknown')),
-            CONSTRAINT chk_storage_reconciliation_retry CHECK (retry_permission IN (0, 1)),
-            CONSTRAINT chk_storage_reconciliation_digest
-              CHECK (
-                record_digest REGEXP '^[0-9a-f]{64}$'
-                AND (evidence_digest IS NULL OR evidence_digest REGEXP '^[0-9a-f]{64}$')
-              )
-          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
-          reconciliation_block = re.sub(r'^          ', '', reconciliation_block, flags=re.M)
-          wave3, count = re.subn(
-            r'CREATE TABLE IF NOT EXISTS storage_reconciliation_results \([\s\S]*?\n\) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;',
-            reconciliation_block,
-            wave3,
-            count=1,
-          )
-          assert count == 1
-          wave3_path.write_text(wave3)
-
-          preflight_path = Path('specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql')
-          preflight = preflight_path.read_text()
-          preflight += """
-
-          SELECT
-            'storage_runtime_parent_write_parity_v1' AS contract_key,
-            'blocked' AS migration_apply_status,
-            'The current Durable SQL adapter writes storage_cleanup_run_items and storage_reconciliation_results before storage_cleanup_runs or storage_cleanup_plan_items parent rows are durably mounted. FK apply remains blocked until parent-write parity is proven.' AS blocker,
-            0 AS provider_calls,
-            0 AS credential_payload_reads,
-            0 AS external_sends,
-            0 AS external_writes,
-            0 AS secrets_included;
-          """
-          preflight = re.sub(r'^          ', '', preflight, flags=re.M)
-          preflight_path.write_text(preflight)
-
-          readback_path = Path('specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql')
-          readback = readback_path.read_text()
-          readback += """
-
-          WITH required_runtime_columns AS (
-            SELECT 'storage_cleanup_operations' AS table_name, 'version' AS column_name UNION ALL
-            SELECT 'storage_cleanup_operations', 'record_digest' UNION ALL
-            SELECT 'storage_cleanup_operations', 'record_json' UNION ALL
-            SELECT 'storage_cleanup_operations', 'row_version' UNION ALL
-            SELECT 'storage_cleanup_plans', 'consumed' UNION ALL
-            SELECT 'storage_cleanup_plans', 'record_digest' UNION ALL
-            SELECT 'storage_cleanup_plans', 'record_json' UNION ALL
-            SELECT 'storage_cleanup_plans', 'row_version' UNION ALL
-            SELECT 'storage_cleanup_approvals', 'record_digest' UNION ALL
-            SELECT 'storage_cleanup_approvals', 'record_json' UNION ALL
-            SELECT 'storage_cleanup_approvals', 'row_version' UNION ALL
-            SELECT 'storage_execution_leases', 'id' UNION ALL
-            SELECT 'storage_execution_leases', 'lease_id' UNION ALL
-            SELECT 'storage_execution_leases', 'expires_at_epoch' UNION ALL
-            SELECT 'storage_execution_leases', 'record_digest' UNION ALL
-            SELECT 'storage_execution_leases', 'record_json' UNION ALL
-            SELECT 'storage_execution_leases', 'row_version' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'operation_id' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'plan_id' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'item_id' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'phase' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'record_digest' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'record_json' UNION ALL
-            SELECT 'storage_cleanup_run_items', 'row_version' UNION ALL
-            SELECT 'storage_reconciliation_results', 'record_digest' UNION ALL
-            SELECT 'storage_reconciliation_results', 'record_json' UNION ALL
-            SELECT 'storage_reconciliation_results', 'row_version'
-          )
-          SELECT
-            COUNT(*) AS required_runtime_column_count,
-            SUM(c.column_name IS NOT NULL) AS present_runtime_column_count,
-            CASE WHEN COUNT(*) = SUM(c.column_name IS NOT NULL) THEN 'ready' ELSE 'blocked' END AS runtime_column_status,
-            0 AS secrets_included
-          FROM required_runtime_columns r
-          LEFT JOIN information_schema.columns c
-            ON c.table_schema = DATABASE()
-           AND c.table_name = r.table_name
-           AND c.column_name = r.column_name;
-          """
-          readback = re.sub(r'^          ', '', readback, flags=re.M)
-          readback_path.write_text(readback)
-
-          validator_path = Path('.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs')
-          validator = validator_path.read_text()
-          validator = validator.replace(
-            "const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));",
-            "const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));\nconst runtimeContract = JSON.parse(fs.readFileSync(path.join(ROOT, manifest.sql_runtime_contract_source), 'utf8'));"
-          )
-          validator = validator.replace(
-            "assert.equal(manifest.status, 'draft_review_only');",
-            "assert.equal(manifest.status, 'draft_review_only_blocked_for_apply');\nassert.equal(manifest.sql_runtime_contract_source, '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json');\nassert.ok(Array.isArray(manifest.apply_blockers) && manifest.apply_blockers.length >= 5);"
-          )
-          anchor = "const combined = allDraftSql.join('\\n');\n"
-          insertion = """const sqlByTable = new Map();
-          for (const sql of allDraftSql) {
-            for (const match of sql.matchAll(/CREATE TABLE IF NOT EXISTS\\s+([a-z0-9_]+)\\s*\\(([\\s\\S]*?)\\n\\) ENGINE=InnoDB/g)) {
-              sqlByTable.set(match[1], match[2]);
-            }
-          }
-          for (const table of runtimeContract.tables) {
-            const body = sqlByTable.get(table.name);
-            assert.ok(body, `${table.name}: missing from migration drafts`);
-            for (const column of table.required_columns) {
-              assert.match(body, new RegExp(`^\\\\s*${column}\\\\s+`, 'm'), `${table.name}.${column}: runtime column missing`);
-            }
-            for (const key of table.required_unique_keys) {
-              const ordered = key.join('\\\\s*,\\\\s*');
-              assert.match(body, new RegExp(`(?:PRIMARY KEY|UNIQUE KEY[^\\\\n]*?)\\\\s*\\\\(${ordered}\\\\)`, 'm'), `${table.name}: required key ${key.join(',')}`);
-            }
-          }
-          const leaseBody = sqlByTable.get('storage_execution_leases');
-          assert.match(leaseBody, /PRIMARY KEY \\(id\\)/);
-          assert.match(leaseBody, /CHECK \\(id = lease_id\\)/);
-          assert.match(leaseBody, /target_id, root_ref_digest, active_slot/);
-          assert.equal(runtimeContract.tables.find((entry) => entry.logical_key === 'leases').identity_binding, 'id_equals_lease_id_and_target_id_remains_unique_cas_record_key');
-
-          """
-          assert validator.count(anchor) == 1
-          validator = validator.replace(anchor, insertion + anchor)
-          validator_path.write_text(validator)
-          PY
-
-          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-          node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
-          node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add --all
-          git commit -m 'docs(spec-014): draft governed storage migration waves'
-          IMPLEMENTATION_SHA="$(git rev-parse HEAD)"
-
-          IMPLEMENTATION_SHA="${IMPLEMENTATION_SHA}" FINAL_BRANCH="${FINAL_BRANCH}" python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          feature_path = Path('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json')
-          feature = json.loads(feature_path.read_text())
-          parallel = feature['parallel_work']
-          by_id = {row['id']: row for row in parallel['workstreams']}
-          schema = by_id['schema-classification']
-          schema['status'] = 'integrated'
-
-          workstream_id = 'migration-drafts'
-          assert workstream_id not in by_id
-          implementation_sha = os.environ['IMPLEMENTATION_SHA']
-          final_branch = os.environ['FINAL_BRANCH']
-          parallel['workstreams'].append({
-            'id': workstream_id,
-            'title': 'Governed storage migration drafts',
-            'status': 'ready_for_integration',
-            'owner_type': 'mixed',
-            'branch_pattern': 'gpt/014-hostinger/migration-drafts-*',
-            'scope': {
-              'include': [
-                '.github/contracts/spec014/hostinger-storage-migration-drafts.json',
-                '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs',
-                '.github/workflows/hostinger-storage-migration-drafts-guard.yml',
-                'specs/014-governed-hostinger-storage-orchestration/migrations/**',
-                'specs/014-governed-hostinger-storage-orchestration/tasks.md',
-                'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json',
-              ]
-            },
-            'depends_on': ['contracts', 'schema-classification', 'durable-control-plane'],
-            'deliverables': [
-              'Three additive specification-local SQL draft waves for the exact 15 classified storage tables',
-              'Read-only preflight, same-cycle schema readback, and separately authorized pre-live rollback evidence',
-              'Exact compatibility validation against the durable SQL adapter columns and canonical lease identity',
-              'Default-off tool seed drafts with no migration apply, provider dispatch, Hostinger access, or Production mutation',
-            ],
-            'integration_points': [
-              'spec014.hostinger-storage-schema-classification.v1',
-              'spec014.hostinger-storage-sql-runtime.v1',
-              'governed-migration-runner-v1',
-            ],
-            'required_tests': [{
-              'id': 'hostinger-storage-migration-drafts',
-              'runner': 'node',
-              'working_directory': '.',
-              'path': '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs',
-              'args': [],
-            }],
-            'commit_evidence': {
-              'branch': final_branch,
-              'head_sha': implementation_sha,
-              'commits': [implementation_sha],
-            },
-          })
-          parallel['declared_overlaps'].append({
-            'id': 'contracts-migration-drafts-spec-governance',
-            'workstreams': ['contracts', 'migration-drafts'],
-            'patterns': [
-              'specs/014-governed-hostinger-storage-orchestration/migrations/**',
-              'specs/014-governed-hostinger-storage-orchestration/tasks.md',
-              'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json',
-            ],
-            'reason': 'Migration draft files and task/workstream evidence remain part of the Spec package while the migration-drafts workstream owns the bounded T024-T027 implementation.',
-            'coordinator': 'spec-014-integration-rollup',
-          })
-          required = parallel['integration']['required_workstreams']
-          if workstream_id not in required:
-            required.append(workstream_id)
-          feature_path.write_text(json.dumps(feature, separators=(',', ':')) + '\n')
-
-          tasks_path = Path('specs/014-governed-hostinger-storage-orchestration/tasks.md')
-          tasks = tasks_path.read_text()
-          replacements = {
-            '- [ ] **T024** Draft additive migration wave 1: provider accounts, targets, bindings, snapshots.':
-              '- [x] **T024** Draft additive migration wave 1: provider accounts, targets, bindings, snapshots. Evidence: `migrations/wave-1-foundation.sql`; specification-local and not discoverable by the governed migration runner.',
-            '- [ ] **T025** Draft additive migration wave 2: operations, plans, items, impacts, approvals, leases.':
-              '- [x] **T025** Draft additive migration wave 2: operations, plans, items, impacts, approvals, leases. Evidence: `migrations/wave-2-control-plane.sql`, including canonical record JSON/digest and row-version CAS columns required by the Durable SQL adapter.',
-            '- [ ] **T026** Draft additive migration wave 3: runs, reconciliation, reserves, incidents, read-only projections and default-off tool seeds.':
-              '- [x] **T026** Draft additive migration wave 3: runs, reconciliation, reserves, incidents, read-only projections and default-off tool seeds. Evidence: `migrations/wave-3-execution-evidence.sql`; all tool seeds remain disabled.',
-            '- [ ] **T027** Add migration preflight/readback/rollback tests; no apply in specification PR.':
-              '- [x] **T027** Add migration preflight/readback/rollback tests; no apply in specification PR. Evidence: `migrations/preflight.sql`, `migrations/readback.sql`, `migrations/rollback-prelive.sql`, the migration-drafts validator, and CI Guard. Runtime parent-write/FK parity remains an explicit apply blocker.',
-          }
-          for old, new in replacements.items():
-            assert tasks.count(old) == 1, old
-            tasks = tasks.replace(old, new)
-          tasks_path.write_text(tasks)
-          PY
-
-          node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-          node http-generic-api/scripts/e2e-parallel-work-governance.mjs check --head HEAD
-
-          git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json specs/014-governed-hostinger-storage-orchestration/tasks.md
-          git commit -m 'chore(spec-014): register migration-drafts workstream'
-
-          git diff --exit-code
-          test "$(git diff --name-only "origin/${INTEGRATION_BRANCH}...HEAD" | wc -l | tr -d ' ')" = '11'
-          test ! -e .github/workflows/spec014-migration-drafts-builder.yml
-          test ! -e http-generic-api/migrations/wave-1-foundation.sql
-          test ! -e http-generic-api/migrations/wave-2-control-plane.sql
-          test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
-          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
+      - name: Fail on reproduced builder error
+        if: always()
+        shell: bash
+        run: |
+          echo "Exact original builder exit status: ${{ steps.exact_builder.outputs.exit_status }}"
+          test "${{ steps.exact_builder.outputs.exit_status }}" = '0'
