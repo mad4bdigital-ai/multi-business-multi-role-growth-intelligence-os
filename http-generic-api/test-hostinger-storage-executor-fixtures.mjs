@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import { buildHostingerStorageExecutionAuthorizationBundle } from './hostingerStorageExecutionAuthorizationV2.js';
+import {
+  buildHostingerStorageExecutionAuthorizationBundle,
+  resolveHostingerStorageApprovalSet,
+} from './hostingerStorageExecutionAuthorizationV2.js';
 import {
   createHostingerStorageControlPlaneRepository,
   createMemoryHostingerStoragePersistenceAdapter,
@@ -115,6 +118,14 @@ export function createSyntheticExecutorFixture({
     evidence_digest: h('4'),
     secrets_included: false,
   };
+  const approvalSet = resolveHostingerStorageApprovalSet({
+    plan_envelope: { envelope: { ...planCore, plan_hash: planHash } },
+    required_slots: ['workspace_owner:workspace-1'],
+    approval_records: [approval],
+    now_epoch: 1000,
+  });
+  if (!approvalSet.ready) throw new Error(`Synthetic approval fixture is not ready: ${approvalSet.blockers.join(',')}`);
+
   const toolchain = {
     toolchain_ready: true,
     resolution_fingerprint: h('5'),
@@ -131,6 +142,21 @@ export function createSyntheticExecutorFixture({
     { tool_id: 'restic', version: '0.17.3', binary_sha256: h('8'), release_provenance_digest: h('b'), status: 'approved' },
     { tool_id: 'cosign', version: '2.4.1', binary_sha256: h('9'), release_provenance_digest: h('c'), status: 'approved' },
   ];
+  const selectedToolsDigest = digest(Object.fromEntries(toolchain.selections.map((row) => [row.capability, {
+    tool_id: row.selected_tool_id,
+    version: row.selected.observed_version,
+    binary_sha256: row.selected.binary_sha256,
+  }])));
+  const toolchainProvenanceDigest = digest({
+    resolution_fingerprint: toolchain.resolution_fingerprint,
+    policy_fingerprint: toolchain.policy_fingerprint,
+    selected_tools: [
+      { capability: 'attestation', tool_id: 'cosign', version: '2.4.1', binary_sha256: h('9'), release_provenance_digest: h('c') },
+      { capability: 'checkpoint', tool_id: 'restic', version: '0.17.3', binary_sha256: h('8'), release_provenance_digest: h('b') },
+      { capability: 'transport', tool_id: 'openssh', version: '9.7.0', binary_sha256: h('7'), release_provenance_digest: h('a') },
+    ],
+    secrets_included: false,
+  });
 
   const persistence = createMemoryHostingerStoragePersistenceAdapter();
   const repository = createHostingerStorageControlPlaneRepository({ adapter: persistence });
@@ -182,22 +208,62 @@ export function createSyntheticExecutorFixture({
     evidence_digest: h('e'),
   }, { expected_generation: 0, now_epoch: 950 });
 
-  const attestationVerification = {
+  const recoveryRequirementDigest = h('f');
+  const recoveryProof = {
     ready: true,
-    evidence_digest: h('f'),
-    evidence: {
-      subject_digest: h('0'),
-      operation_id,
+    proof_digest: h('4'),
+    proof: {
       plan_id,
-      target_id,
       plan_hash: planHash,
       candidate_set_hash: candidateSetHash,
-      authority_context_hash: h('2'),
-      execution_lease_id: 'lease-1',
-      verified_at: '1970-01-01T00:16:30.000Z',
-      secrets_included: false,
+      snapshot_id: 'recovery-snapshot-1',
+      requirement_binding_digest: recoveryRequirementDigest,
     },
   };
+  const attestationEvidence = {
+    schema_version: 1,
+    evidence_key: 'hostinger_storage_attestation_verification_v1',
+    subject_type: 'application/vnd.in-toto+json',
+    predicate_type: 'https://mad4b.com/attestations/hostinger-storage-plan/v1',
+    subject_name: `hostinger-storage-plan:${plan_id}`,
+    subject_digest: h('0'),
+    operation_id,
+    plan_id,
+    target_id,
+    plan_hash: planHash,
+    candidate_set_hash: candidateSetHash,
+    authority_context_hash: h('2'),
+    ownership_revision: 'ownership-r1',
+    policy_revision: 'policy-r1',
+    approval_set_hash: approvalSet.approval_set_hash,
+    capability_envelope_id: 'capability-envelope-1',
+    execution_lease_id: 'lease-1',
+    recovery_required: true,
+    recovery_proof_digest: recoveryProof.proof_digest,
+    recovery_requirement_binding_digest: recoveryRequirementDigest,
+    toolchain_resolution_fingerprint: toolchain.resolution_fingerprint,
+    toolchain_policy_fingerprint: toolchain.policy_fingerprint,
+    toolchain_provenance_digest: toolchainProvenanceDigest,
+    toolchain_selected_tools_digest: selectedToolsDigest,
+    signer_identity: 'synthetic-fixture-signer',
+    issuer: 'synthetic-fixture-issuer',
+    bundle_ref: 'attestations/synthetic-fixture.json',
+    transparency_log_verified: true,
+    verified_at: '1970-01-01T00:16:30.000Z',
+    age_minutes: 0.5,
+    blockers: [],
+    secrets_included: false,
+  };
+  const attestationVerification = {
+    ready: true,
+    evidence: attestationEvidence,
+    evidence_digest: digest(attestationEvidence),
+    blockers: [],
+    authority_granted: false,
+    dispatch_allowed: false,
+    secrets_included: false,
+  };
+
   const authorization = buildHostingerStorageExecutionAuthorizationBundle({
     operation_envelope: operationEnvelope,
     plan,
@@ -218,11 +284,7 @@ export function createSyntheticExecutorFixture({
       expires_at_epoch: 1600,
       evidence_digest: h('3'),
     },
-    recovery_proof: {
-      ready: true,
-      proof_digest: h('4'),
-      proof: { plan_id, plan_hash: planHash, candidate_set_hash: candidateSetHash, snapshot_id: 'recovery-snapshot-1' },
-    },
+    recovery_proof: recoveryProof,
     attestation_verification: attestationVerification,
     risk_profile: 'tenant_high',
     now_epoch: 1000,
@@ -237,7 +299,12 @@ export function createSyntheticExecutorFixture({
     approval_set_hash: authorization.bundle.approval_set_hash,
     toolchain_provenance_digest: authorization.bundle.toolchain_provenance_digest,
     governance_decision_digest: authorization.bundle.governance_decision_digest,
-    attestation_evidence_digest: h('f'),
+    attestation_evidence_digest: attestationVerification.evidence_digest,
+    recovery_required: true,
+    recovery_proof_digest: recoveryProof.proof_digest,
+    recovery_requirement_binding_digest: recoveryRequirementDigest,
+    attestation_toolchain_provenance_digest: toolchainProvenanceDigest,
+    attestation_toolchain_selected_tools_digest: selectedToolsDigest,
     lease_generation: lease.generation,
     host_key_revision: 'host-key-r1',
   };
