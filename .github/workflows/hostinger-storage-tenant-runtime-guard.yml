@@ -49,4 +49,16 @@ jobs:
           grep -q "buildHostingerStorageTenantRoutes(deps)" http-generic-api/routes/index.js
       - name: Validate mounted Tenant runtime journey
         working-directory: http-generic-api
-        run: node test-hostinger-storage-tenant-runtime-route.mjs
+        run: |
+          node --input-type=module <<'NODE'
+          const originalFetch = globalThis.fetch;
+          globalThis.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            const clone = response.clone();
+            let body = null;
+            try { body = await clone.json(); } catch { body = { unreadable: true }; }
+            console.log(JSON.stringify({ event: 'tenant_runtime_test_http_response', status: response.status, body, secrets_included: false }));
+            return response;
+          };
+          await import('./test-hostinger-storage-tenant-runtime-route.mjs');
+          NODE
