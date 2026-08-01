@@ -26,10 +26,18 @@ function optionalId(value) {
   return normalized || null;
 }
 
+function exactlyOneActiveRow(rows = []) {
+  const activeCount = rows.reduce(
+    (total, row) => total + Number(row?.active_count || 0),
+    0,
+  );
+  return activeCount === 1;
+}
+
 async function activeSubjectStillAuthorized(pool, { userId, tenantId }) {
   if (tenantId) {
     const [rows] = await pool.query(
-      `SELECT m.user_id
+      `SELECT COUNT(*) AS active_count
          FROM memberships m
          JOIN users u ON u.user_id = m.user_id
          JOIN tenants t ON t.tenant_id = m.tenant_id
@@ -37,21 +45,19 @@ async function activeSubjectStillAuthorized(pool, { userId, tenantId }) {
           AND m.tenant_id = ?
           AND m.status = 'active'
           AND u.status = 'active'
-          AND t.status = 'active'
-        LIMIT 1`,
+          AND t.status = 'active'`,
       [userId, tenantId],
     );
-    return Boolean(rows[0]);
+    return exactlyOneActiveRow(rows);
   }
   const [rows] = await pool.query(
-    `SELECT user_id
+    `SELECT COUNT(*) AS active_count
        FROM users
       WHERE user_id = ?
-        AND status = 'active'
-      LIMIT 1`,
+        AND status = 'active'`,
     [userId],
   );
-  return Boolean(rows[0]);
+  return exactlyOneActiveRow(rows);
 }
 
 export async function verifyRemoteMcpBearerAuthorization(authorization, options = {}) {
