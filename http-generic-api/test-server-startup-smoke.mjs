@@ -15,19 +15,25 @@ const deploymentBranch = String(
   "Production"
 ).trim();
 
-const child = spawn(process.execPath, [rootEntrypoint], {
-  cwd: repositoryRoot,
-  env: {
-    ...process.env,
-    NODE_ENV: "production",
-    DEPLOYMENT_BRANCH: deploymentBranch,
-    PORT: String(port),
-    BACKEND_API_KEY: "startup_smoke_key",
-    QUEUE_WORKER_ENABLED: "FALSE",
-    REDIS_URL: "redis://127.0.0.1:6399",
-  },
-  stdio: ["ignore", "pipe", "pipe"],
-});
+// Emulate Hostinger's platform loader: the root entrypoint is required by a
+// wrapper instead of being the process main module.
+const child = spawn(
+  process.execPath,
+  ["-e", "require(process.argv[1]);", rootEntrypoint],
+  {
+    cwd: repositoryRoot,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      DEPLOYMENT_BRANCH: deploymentBranch,
+      PORT: String(port),
+      BACKEND_API_KEY: "startup_smoke_key",
+      QUEUE_WORKER_ENABLED: "FALSE",
+      REDIS_URL: "redis://127.0.0.1:6399",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  }
+);
 
 let stdout = "";
 let stderr = "";
