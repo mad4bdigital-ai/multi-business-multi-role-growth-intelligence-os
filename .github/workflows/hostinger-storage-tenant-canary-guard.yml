@@ -5,18 +5,16 @@ on:
     paths:
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
       - 'http-generic-api/hostingerStorageTenantCanary*.js'
-      - 'http-generic-api/hostingerStorageSyntheticAdapter*.js'
       - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
-      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+      - 'specs/014-governed-hostinger-storage-orchestration/**'
   push:
     branches:
       - 'gpt/014-hostinger/tenant-canary-*'
     paths:
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
       - 'http-generic-api/hostingerStorageTenantCanary*.js'
-      - 'http-generic-api/hostingerStorageSyntheticAdapter*.js'
       - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
-      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+      - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
   contents: read
@@ -36,8 +34,6 @@ jobs:
           node --check http-generic-api/hostingerStorageTenantCanaryPolicy.js
           node --check http-generic-api/hostingerStorageTenantCanaryBase.js
           node --check http-generic-api/hostingerStorageTenantCanary.js
-          node --check http-generic-api/hostingerStorageSyntheticAdapterBase.js
-          node --check http-generic-api/hostingerStorageSyntheticAdapter.js
           node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
@@ -59,9 +55,9 @@ jobs:
           grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
       - name: Enforce post-merge hardening contracts
         run: |
-          grep -q "WeakSet" http-generic-api/hostingerStorageSyntheticAdapter.js
-          grep -q "isCanonicalHostingerStorageSyntheticAdapter" http-generic-api/hostingerStorageSyntheticAdapter.js
-          grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageSyntheticAdapter.js
+          grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "spec014-hostinger-storage-synthetic-adapter-v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "transitionOperation" http-generic-api/hostingerStorageTenantCanary.js
