@@ -12,6 +12,7 @@ const REQUIRED_CONTEXT_FIELDS = Object.freeze([
   'currentContext',
   'currentDependencies',
   'dynamicEvidence',
+  'now',
 ]);
 const REQUIRED_PACKAGE_FIELDS = Object.freeze([
   'operationContract',
@@ -193,6 +194,7 @@ export function createHostingerStorageTenantRuntime({
         currentContext: snapshotData(contextFields.currentContext, 'resolvedContext.currentContext'),
         currentDependencies: snapshotData(contextFields.currentDependencies, 'resolvedContext.currentDependencies'),
         dynamicEvidence: snapshotData(contextFields.dynamicEvidence, 'resolvedContext.dynamicEvidence'),
+        now: snapshotData(contextFields.now, 'resolvedContext.now'),
       });
 
       const packageRaw = await loadExecutionPackage({
@@ -230,7 +232,7 @@ export function createHostingerStorageTenantRuntime({
             currentContext: context.currentContext,
             currentDependencies: context.currentDependencies,
             items: context.dynamicEvidence,
-            now: contextRaw.now ?? undefined,
+            now: context.now,
           };
         },
         dispatchMutationOperation: async (envelope) => {
