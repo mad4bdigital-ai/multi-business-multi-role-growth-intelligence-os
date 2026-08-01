@@ -10,6 +10,7 @@
       ".github/ci-evidence-routing.json",
       ".github/pull_request_template.md",
       ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/branch-test-diagnostic-shards.yml",
       ".github/workflows/ci-evidence-pr-publisher.yml",
       ".github/workflows/e2e-phase-governance.yml",
       ".github/workflows/repository-tool-lifecycle-governance.yml",
@@ -247,7 +248,8 @@
             "Validate every changed runtime file against one E2E contract scope.",
             "Build a deterministic de-duplicated test plan for the current implemented phases.",
             "Execute declared tests and emit bounded per-workstream and canonical diagnostics.",
-            "Fail closed on missing contracts, invalid workstream identity, stale candidate evidence, malformed diagnostics, or test failure."
+            "Fail closed on missing contracts, invalid workstream identity, stale candidate evidence, malformed diagnostics, or test failure.",
+            "Trigger the full Branch Test Diagnostic workflow when an E2E contract, phase schema, or phase-governance file changes."
           ],
           "assertions": [
             "Every changed runtime file is covered by an exact contract scope.",
@@ -255,7 +257,8 @@
             "Duplicate test declarations execute once while retaining all owning feature identities.",
             "Diagnostics name the bounded failing test or contract without exposing secrets or full Job logs.",
             "Candidate kind and exact SHA are stamped across evaluation, execution, and canonical reports.",
-            "The same deterministic runner supports standard and parallel PR modes."
+            "The same deterministic runner supports standard and parallel PR modes.",
+            "A contract-only pull request receives the same merge-candidate full-suite diagnostic as a runtime or workflow change."
           ],
           "tests": [
             {
@@ -302,6 +305,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/branch-test-diagnostic-shards.yml",
             ".github/workflows/e2e-phase-governance.yml",
             ".specify/e2e-phase-governance.json",
             ".specify/schemas/e2e-phases.schema.json",
