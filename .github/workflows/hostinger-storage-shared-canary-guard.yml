@@ -1,0 +1,66 @@
+name: Hostinger Storage Shared Canary Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hostinger-storage-shared-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageSharedCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-shared-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+  push:
+    branches:
+      - 'gpt/014-hostinger/shared-canary-*'
+    paths:
+      - '.github/workflows/hostinger-storage-shared-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageSharedCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-shared-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+
+permissions:
+  contents: read
+
+jobs:
+  shared-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageSharedCanary.js
+          node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
+      - name: Enforce synthetic Shared boundary
+        run: |
+          ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
+            http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "synthetic_only: true" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "dispatch_allowed: false" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "production_ready: false" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "reserve_release_allowed: false" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_IMPACT_SET_INCOMPLETE" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_PLATFORM_ADMIN_APPROVAL_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_RELEASE_AUTHORITY_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_DEPLOYMENT_LAYOUT_PROOF_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_RESERVE_CERTIFICATION_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_AUTHORITY_EVIDENCE_NOT_ADVANCED" http-generic-api/hostingerStorageSharedCanary.js
+      - name: Enforce readback before one-shot consumption
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('http-generic-api/hostingerStorageSharedCanary.js', 'utf8');
+          const impact = source.indexOf('authority_store.readImpact(');
+          const approvals = source.indexOf('authority_store.readApproval(');
+          const layout = source.indexOf('authority_store.readLayout(');
+          const reserve = source.indexOf('authority_store.readReserve(');
+          const preflight = source.indexOf('preflight({ protocol, protocolDigest: protocol_digest, repository, adapter, now });');
+          const consume = source.indexOf('enablement_registry.consume({');
+          if (!(impact >= 0 && approvals > impact && layout > approvals && reserve > layout && preflight > reserve && consume > preflight)) {
+            throw new Error('Shared authority readback and executor preflight must complete before one-shot enablement consumption.');
+          }
+          NODE
+      - name: Validate Shared canary
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-shared-canary.mjs
