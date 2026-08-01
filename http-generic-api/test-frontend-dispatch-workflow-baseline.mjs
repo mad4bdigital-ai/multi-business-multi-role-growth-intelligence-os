@@ -11,7 +11,7 @@ const refreshWorkflow = fs.readFileSync(
 );
 
 const generationBlock = validationWorkflow.match(
-  /- name: Generate source-pinned dispatch plan[\s\S]*?- name: Verify generator contract/,
+  /- name: Generate source-pinned dispatch plan and bounded auth repair[\s\S]*?- name: Guard bounded generated evidence set/,
 )?.[0];
 
 assert.ok(generationBlock, "dispatch generation workflow block must exist");
@@ -32,8 +32,8 @@ assert.match(
 );
 assert.match(
   generationBlock,
-  /--baseline-ref="\$\{CANONICAL_BASELINE_REF\}"/,
-  "the generator must consume the canonical baseline ref",
+  /node scripts\/openapi-runtime-auth-sync\.mjs --write[\s\S]*?--baseline-ref="\$\{CANONICAL_BASELINE_REF\}"/,
+  "validation must generate exact-operation auth repair before the dispatch projection",
 );
 assert.doesNotMatch(
   generationBlock,
@@ -65,13 +65,18 @@ assert.match(
 );
 
 const refreshBlock = refreshWorkflow.match(
-  /- name: Generate bounded dispatch evidence[\s\S]*?- name: Commit and push exact-head refresh/,
+  /- name: Generate bounded canonical and dispatch evidence[\s\S]*?- name: Commit and push exact-head refresh/,
 )?.[0];
 assert.ok(refreshBlock, "bounded refresh workflow block must exist");
 assert.match(
   refreshBlock,
-  /git fetch origin main --depth=1[\s\S]*?git branch -f main origin\/main[\s\S]*?BASE_REF="main"[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
-  "refresh and validation must resolve main from the same freshly fetched commit",
+  /git fetch origin main --depth=1[\s\S]*?git branch -f main origin\/main[\s\S]*?BASE_REF="main"[\s\S]*?node scripts\/openapi-runtime-auth-sync\.mjs --write[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
+  "refresh and validation must resolve main from the same freshly fetched commit and apply auth sync before projection",
+);
+assert.match(
+  refreshBlock,
+  /openapi\.yaml\|openapi\/support-tickets\\\.yaml/u,
+  "refresh must keep canonical auth repair bounded to the reviewed OpenAPI files",
 );
 
 console.log("frontend dispatch workflow baseline contract: ok");
