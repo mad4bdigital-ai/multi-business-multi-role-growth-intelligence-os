@@ -1,0 +1,77 @@
+name: CI Evidence Publisher Live Inspection
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ci-evidence-publisher-live-inspection.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Capture publisher workflow and run metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: "30698015125"
+        run: |
+          set -euo pipefail
+          mkdir -p inspection
+          workflow_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml")"
+          runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml/runs?per_page=50")"
+          source_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          jq -n \
+            --argjson workflow "$workflow_json" \
+            --argjson runs "$runs_json" \
+            --argjson source "$source_json" \
+            '{
+              contract: "mad4b.ci-evidence-publisher-live-inspection.v1",
+              workflow: {
+                id: $workflow.id,
+                name: $workflow.name,
+                path: $workflow.path,
+                state: $workflow.state,
+                created_at: $workflow.created_at,
+                updated_at: $workflow.updated_at
+              },
+              source_run: {
+                id: $source.id,
+                name: $source.name,
+                event: $source.event,
+                status: $source.status,
+                conclusion: $source.conclusion,
+                head_branch: $source.head_branch,
+                head_sha: $source.head_sha,
+                pull_requests: [$source.pull_requests[]? | {number, head, base}]
+              },
+              publisher_runs: [
+                $runs.workflow_runs[]? | {
+                  id,
+                  name,
+                  event,
+                  status,
+                  conclusion,
+                  head_branch,
+                  head_sha,
+                  run_number,
+                  created_at,
+                  updated_at,
+                  actor: .actor.login,
+                  triggering_actor: .triggering_actor.login
+                }
+              ],
+              publisher_run_count: ($runs.workflow_runs | length),
+              secrets_included: false
+            }' > inspection/publisher-live-inspection.json
+
+      - name: Upload inspection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-evidence-publisher-live-inspection-${{ github.run_id }}
+          path: inspection/publisher-live-inspection.json
+          if-no-files-found: error
+          retention-days: 2
