@@ -66,7 +66,7 @@
     "reference_integrity": "passed_on_merged_pr_4460",
     "multi_client_scope_extension": "merged_pr_4462",
     "operational_e2e_contract": "advanced_to_operational_on_pr_4531_pending_canonical_evidence",
-    "generated_dispatch_evidence": "pending_pr_4531_governed_exact_head_refresh",
+    "generated_dispatch_evidence": "generated_commit_8b49e48e3de813fd8dcf56f614bf0e1eee83d1fc_pending_final_exact_head_canonical_summary",
     "oauth21_profile_tests": "implemented_pending_pr_4531_exact_head_ci",
     "oauth21_route_flow_tests": "implemented_pending_pr_4531_exact_head_ci",
     "resource_scope_revocation_tests": "implemented_pending_pr_4531_exact_head_ci",
@@ -152,10 +152,10 @@
     "PR #4460 merged the canonical multi-client specification at 734b73660ba468415080aaa4dc4b4864534dea27.",
     "PR #4462 merged the disabled-by-default read-only multi-client MCP adapter at c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94 after exact-head CI passed.",
     "PR #4531 replaces divergent PR #4493 directly from the current main without force-push, rebase, or protected-branch mutation.",
+    "The governed generated-artifact maintenance path refreshed frontend operation and dispatch evidence at 8b49e48e3de813fd8dcf56f614bf0e1eee83d1fc; final canonical checks must bind to the later human-reviewed head.",
     "The operational candidate adds path-scoped OAuth metadata, DCR, exact redirects, explicit consent, PKCE S256, short-lived resource-bound tokens, refresh rotation, durable grant state, scope enforcement, revocation, and exact requested-tenant membership binding.",
     "Client profile recognition remains operational metadata only and never grants tenant, workspace, Brand, resource, capability, connection, or operation authority.",
     "Generic internal dispatch tools remain unavailable from the public catalog.",
-    "Generated frontend governance evidence is intentionally delegated to the governed exact-head refresh automation rather than copied from a stale candidate.",
     "No migration, OAuth client registration, DNS change, deployment, ChatGPT connection, Claude connector, directory submission, publication, or Production activation has occurred."
   ],
   "secrets_included": false
