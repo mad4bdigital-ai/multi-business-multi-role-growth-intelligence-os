@@ -129,6 +129,43 @@ const lowRisk = buildHostingerStorageRecoveryCheckpoint({
 assert.equal(lowRisk.checkpoint_required, false);
 assert.equal(lowRisk.dispatch_allowed, false);
 
+const authorizationEnvelopeCheckpoint = buildHostingerStorageRecoveryCheckpoint({
+  policy,
+  risk_profile: 'tenant_high',
+  plan: {
+    ...plan,
+    authorization: {
+      authority_context_hash: plan.authority_context_hash,
+      approval_set_hash: 'e'.repeat(64),
+    },
+  },
+  repository,
+  toolchain_resolution: toolchainResolution,
+  requested_at: '2026-08-01T08:00:00.000Z',
+});
+assert.equal(authorizationEnvelopeCheckpoint.ok, true);
+assert.equal(authorizationEnvelopeCheckpoint.checkpoint_required, true);
+
+assert.throws(
+  () => buildHostingerStorageRecoveryCheckpoint({
+    policy,
+    risk_profile: 'tenant_high',
+    plan: {
+      ...plan,
+      authorization: {
+        authority_context_hash: plan.authority_context_hash,
+        token: 'forbidden-token',
+      },
+    },
+    repository,
+    toolchain_resolution: toolchainResolution,
+    requested_at: '2026-08-01T08:00:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_RECOVERY_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'sensitive_key'
+    && error.details?.path === 'checkpoint_request.plan.authorization.token',
+);
+
 assert.throws(
   () => buildHostingerStorageRecoveryCheckpoint({
     policy,
@@ -162,7 +199,8 @@ assert.throws(
     toolchain_resolution: toolchainResolution,
     requested_at: '2026-08-01T08:00:00.000Z',
   }),
-  (error) => error.code === 'STORAGE_RECOVERY_SECRET_FIELD_REJECTED',
+  (error) => error.code === 'STORAGE_RECOVERY_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'sensitive_key',
 );
 
 console.log(JSON.stringify({
@@ -171,6 +209,8 @@ console.log(JSON.stringify({
   checkpoint_required: true,
   restore_sample_verified: true,
   replica_verified: true,
+  authorization_envelope_validated: true,
+  secret_free_validator_shared: true,
   dispatch_allowed: false,
   secrets_included: false,
 }));
