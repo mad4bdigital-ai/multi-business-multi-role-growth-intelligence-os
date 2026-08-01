@@ -58,9 +58,9 @@ function schemaNotReadyError(schema) {
 async function persistIntegrityFields(connection, ticketId, integrity) {
   const [result] = await connection.query(
     `UPDATE tickets
-        SET is_test = CASE WHEN ? = 1 THEN 1 ELSE COALESCE(is_test, 0) END,
-            environment = CASE WHEN ? = 1 THEN ? ELSE COALESCE(NULLIF(environment, ''), ?) END,
-            visibility_class = CASE WHEN ? = 1 THEN 'internal_test' ELSE COALESCE(NULLIF(visibility_class, ''), ?) END,
+        SET is_test = ?,
+            environment = ?,
+            visibility_class = ?,
             target_capability = COALESCE(?, target_capability),
             parent_ticket_id = COALESCE(?, parent_ticket_id),
             related_ticket_id = COALESCE(?, related_ticket_id),
@@ -69,10 +69,7 @@ async function persistIntegrityFields(connection, ticketId, integrity) {
       WHERE ticket_id = ?`,
     [
       integrity.is_test ? 1 : 0,
-      integrity.is_test ? 1 : 0,
       integrity.environment,
-      integrity.environment,
-      integrity.is_test ? 1 : 0,
       integrity.visibility_class,
       integrity.target_capability,
       integrity.parent_ticket_id,
