@@ -69,13 +69,26 @@ const workflowSource = fs.readFileSync("../.github/workflows/governed-generated-
 assert.match(workflowSource, /workflow_dispatch:/u);
 assert.doesNotMatch(workflowSource, /^\s*pull_request(?:_target)?:/mu);
 assert.match(workflowSource, /expected_head_sha:/u);
+assert.match(workflowSource, /actions:\s*write/u);
 assert.match(workflowSource, /contents:\s*write/u);
+assert.match(workflowSource, /pr-generated-artifact-refresh\.yml\/dispatches/u);
+assert.match(workflowSource, /generated-artifact-refresh-verification-dispatch\.json/u);
+assert.match(workflowSource, /remote_sha.*result_sha/su);
 
 const prWorkflowSource = fs.readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
 assert.match(prWorkflowSource, /pull_request:/u);
+assert.match(prWorkflowSource, /workflow_dispatch:/u);
+assert.match(prWorkflowSource, /target_ref:/u);
+assert.match(prWorkflowSource, /expected_head_sha:/u);
 assert.doesNotMatch(prWorkflowSource, /contents:\s*write/u);
 assert.doesNotMatch(prWorkflowSource, /git\s+push/u);
 assert.match(prWorkflowSource, /persist-credentials:\s*false/u);
+assert.match(prWorkflowSource, /Verify local and remote exact-head identity/u);
+
+const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
+assert.match(publisherWorkflowSource, /workflow_run\.event == 'workflow_dispatch'/u);
+assert.match(publisherWorkflowSource, /workflow_run\.name == 'PR Generated Artifact Refresh'/u);
+assert.match(publisherWorkflowSource, /generated-artifact-refresh-pr-publisher\.mjs/u);
 
 const policy = JSON.parse(fs.readFileSync("../.github/repository-maintenance-tool-governance.json", "utf8"));
 const registration = policy.tools?.["generated-artifact-refresh"];
@@ -88,5 +101,6 @@ console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.generated-artifact-refresh-maintenance-tool-test.v1",
   rejected_cases: rejectedCases,
+  exact_head_verification_dispatch: true,
   secrets_included: false,
 }));
