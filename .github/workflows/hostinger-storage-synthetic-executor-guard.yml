@@ -58,7 +58,8 @@ jobs:
           grep -q "isCanonicalHostingerStorageSyntheticAdapter" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "canonicalAdapters.has(adapter)" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "isCanonicalHostingerStorageSyntheticAdapter(adapter)" http-generic-api/hostingerStorageSyntheticExecutor.js
-          grep -q "STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_PROVENANCE_INVALID" http-generic-api/hostingerStorageSyntheticExecutor.js
+          grep -q "STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_INVALID" http-generic-api/hostingerStorageSyntheticExecutor.js
+          grep -q "factory_owned_required" http-generic-api/hostingerStorageSyntheticExecutor.js
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const source = fs.readFileSync('http-generic-api/hostingerStorageSyntheticExecutor.js', 'utf8');
