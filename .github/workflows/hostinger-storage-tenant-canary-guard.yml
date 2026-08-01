@@ -49,6 +49,7 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -82,6 +83,8 @@ jobs:
           grep -q "new WeakSet()" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenant_and_control_plane_factory_owned_required" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "tenantCanaryRepositories.add(repository)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "tenantCanaryRepositories.has(repository)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "spec014-storage-control-plane-repository-v1" http-generic-api/hostingerStorageTenantCanary.js
@@ -148,3 +151,4 @@ jobs:
           node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node test-hostinger-storage-tenant-canary-token-normalization.mjs
           node test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node test-hostinger-storage-tenant-canary-repository-provenance.mjs
