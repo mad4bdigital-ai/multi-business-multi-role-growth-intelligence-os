@@ -178,13 +178,19 @@ function normalizeCanary(input = {}) {
     throw fail(400, 'STORAGE_PRODUCTION_PREFLIGHT_INTEGRITY_COUNT_INVALID', 'A non-negative integrity finding count is required.');
   }
   return {
+    contract: safeId(input.contract, 'canary.contract'),
     feature_key: safeId(input.feature_key, 'canary.feature_key'),
     workstream_id: safeId(input.workstream_id, 'canary.workstream_id'),
     status: safeId(input.status, 'canary.status'),
     candidate_kind: safeId(input.candidate_kind, 'canary.candidate_kind'),
+    release_candidate_sha: sha1(input.release_candidate_sha, 'canary.release_candidate_sha'),
     workstream_head_sha: sha1(input.workstream_head_sha, 'canary.workstream_head_sha'),
     integration_merge_sha: sha1(input.integration_merge_sha, 'canary.integration_merge_sha'),
     e2e_run_id: positiveInteger(input.e2e_run_id, 'canary.e2e_run_id'),
+    evaluate: safeId(input.evaluate, 'canary.evaluate'),
+    execute: safeId(input.execute, 'canary.execute'),
+    source_reports_ok: input.source_reports_ok === true,
+    source_report_count: positiveInteger(input.source_report_count, 'canary.source_report_count'),
     integrity_findings: integrityFindings,
     observed_at_epoch: epoch(input.observed_at_epoch, 'canary.observed_at_epoch'),
     evidence_digest: sha256(input.evidence_digest, 'canary.evidence_digest'),
@@ -228,9 +234,10 @@ function evaluate(normalized, now, maxAge) {
     blockers.push(...freshnessBlockers({ observedAt: evidence.observed_at_epoch, now, maxAge, prefix: `STORAGE_PRODUCTION_PREFLIGHT_${key.toUpperCase()}` }));
   }
 
-  if (pressure.source !== 'read_only') blockers.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_SOURCE_INVALID');
+  if (pressure.source !== 'hpanel_read_only') blockers.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_SOURCE_INVALID');
   blockers.push(...freshnessBlockers({ observedAt: pressure.observed_at_epoch, now, maxAge, prefix: 'STORAGE_PRODUCTION_PREFLIGHT_PRESSURE' }));
   if (pressure.bytes_limit <= 0 || pressure.inodes_limit <= 0) blockers.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_LIMIT_INVALID');
+  if (pressure.bytes_used > pressure.bytes_limit || pressure.inodes_used > pressure.inodes_limit) blockers.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_LIMIT_EXCEEDED');
   if (BLOCKING_PRESSURE.has(pressure.status)) blockers.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_BLOCKING');
   if (pressure.status === 'warning') warnings.push('STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_WARNING');
 
@@ -242,10 +249,16 @@ function evaluate(normalized, now, maxAge) {
   if (!layout.candidate_roots_certified) blockers.push('STORAGE_PRODUCTION_PREFLIGHT_CANDIDATE_ROOTS_NOT_CERTIFIED');
   blockers.push(...freshnessBlockers({ observedAt: layout.observed_at_epoch, now, maxAge, prefix: 'STORAGE_PRODUCTION_PREFLIGHT_LAYOUT' }));
 
-  if (canary.feature_key !== '014-governed-hostinger-storage-orchestration'
+  if (canary.contract !== 'mad4b.ci-evidence-summary.v1'
+    || canary.feature_key !== '014-governed-hostinger-storage-orchestration'
     || canary.workstream_id !== 'shared-canary'
     || canary.status !== 'passed'
     || canary.candidate_kind !== 'head'
+    || canary.release_candidate_sha !== candidate.candidate_sha
+    || canary.evaluate !== 'success'
+    || canary.execute !== 'success'
+    || canary.source_reports_ok !== true
+    || canary.source_report_count < 2
     || canary.integrity_findings !== 0) {
     blockers.push('STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID');
   }
@@ -267,20 +280,21 @@ function evaluate(normalized, now, maxAge) {
 }
 
 export function buildHostingerStorageProductionPreflight(input = {}) {
-  assertSecretFree(input);
-  const now = epoch(input.now_epoch ?? Math.floor(Date.now() / 1000), 'now_epoch');
-  const maxAge = positiveInteger(input.max_evidence_age_seconds ?? 900, 'max_evidence_age_seconds');
+  const captured = clone(input);
+  assertSecretFree(captured);
+  const now = epoch(captured.now_epoch ?? Math.floor(Date.now() / 1000), 'now_epoch');
+  const maxAge = positiveInteger(captured.max_evidence_age_seconds ?? 900, 'max_evidence_age_seconds');
   const normalized = {
     contract: HOSTINGER_STORAGE_PRODUCTION_PREFLIGHT_VERSION,
-    preflight_id: safeId(input.preflight_id, 'preflight_id'),
+    preflight_id: safeId(captured.preflight_id, 'preflight_id'),
     assessed_at_epoch: now,
     max_evidence_age_seconds: maxAge,
-    candidate: normalizeCandidate(input.candidate),
-    runtime_readback: normalizeRuntimeReadback(input.runtime_readback),
-    storage_pressure: normalizePressure(input.storage_pressure),
-    deployment_layout: normalizeLayout(input.deployment_layout),
-    canary_evidence: normalizeCanary(input.canary_evidence),
-    governance: normalizeGovernance(input.governance),
+    candidate: normalizeCandidate(captured.candidate),
+    runtime_readback: normalizeRuntimeReadback(captured.runtime_readback),
+    storage_pressure: normalizePressure(captured.storage_pressure),
+    deployment_layout: normalizeLayout(captured.deployment_layout),
+    canary_evidence: normalizeCanary(captured.canary_evidence),
+    governance: normalizeGovernance(captured.governance),
     secrets_included: false,
   };
   const decision = evaluate(normalized, now, maxAge);
@@ -303,9 +317,9 @@ export function buildHostingerStorageProductionPreflight(input = {}) {
 }
 
 export function verifyHostingerStorageProductionPreflight({ preflight, expected_digest, now_epoch } = {}) {
-  assertSecretFree(preflight);
-  const expected = sha256(expected_digest, 'expected_digest');
   const supplied = clone(preflight);
+  assertSecretFree(supplied);
+  const expected = sha256(expected_digest, 'expected_digest');
   const suppliedDigest = text(supplied?.evidence_digest, 64).toLowerCase();
   delete supplied.evidence_digest;
   const calculatedDigest = digest(supplied);
