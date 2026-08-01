@@ -7,7 +7,7 @@ import {
   createMemoryHostingerStorageSharedCanaryEnablementRegistry,
   executeHostingerStorageSharedCanary,
 } from './hostingerStorageSharedCanary.js';
-import { createSyntheticExecutorFixture, h } from './test-hostinger-storage-executor-fixtures.mjs';
+import { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';
 
 const productionSha = '1'.repeat(40);
 
@@ -21,6 +21,37 @@ function createAdminRepository(fixture) {
     return aggregate?.operation ? { ...aggregate, operation: { ...aggregate.operation, context_mode: 'admin' } } : aggregate;
   };
   return Object.freeze(delegated);
+}
+
+function createPlanStatusRepository(repository, status) {
+  const delegated = Object.fromEntries(Object.entries(repository).map(([key, value]) => [
+    key,
+    typeof value === 'function' ? value.bind(repository) : value,
+  ]));
+  delegated.readAggregate = (operationId) => {
+    const aggregate = repository.readAggregate(operationId);
+    return aggregate
+      ? { ...aggregate, plans: (aggregate.plans || []).map((plan) => ({ ...plan, status })) }
+      : aggregate;
+  };
+  return Object.freeze(delegated);
+}
+
+function protocolItemSetDigest(fixture) {
+  return digest(fixture.protocol.protocol.items.map((item) => ({
+    item_id: item.item_id,
+    ordinal: item.ordinal,
+    category: item.category,
+    path_ref: item.path_ref,
+    item_hash: item.item_hash,
+    relative_path_digest: item.relative_path_digest,
+    size_bytes: item.expected.size_bytes,
+    device: item.expected.device,
+    inode: item.expected.inode,
+    ctime_epoch: item.expected.ctime_epoch,
+    mtime_epoch: item.expected.mtime_epoch,
+    file_type: item.expected.file_type,
+  })));
 }
 
 function buildInputs(fixture, overrides = {}) {
@@ -100,6 +131,9 @@ function buildInputs(fixture, overrides = {}) {
     rollback_set_retained: true,
     rollback_set_count: 2,
     candidate_roots_certified: true,
+    plan_hash: fixture.planHash,
+    candidate_set_hash: fixture.candidateSetHash,
+    item_set_digest: protocolItemSetDigest(fixture),
     evidence_digest: h('d'),
     ...(overrides.deployment_layout_proof || {}),
   };
@@ -201,7 +235,7 @@ function execute(fixture, prepared, store, registry, overrides = {}) {
     canary_authorization: prepared.authorization,
     protocol: overrides.protocol || prepared.protocol,
     protocol_digest: overrides.protocol_digest || prepared.protocolDigest,
-    repository: prepared.repository,
+    repository: overrides.repository || prepared.repository,
     adapter: overrides.adapter || fixture.adapter,
     authority_store: store,
     enablement_registry: registry,
@@ -273,6 +307,7 @@ for (const [name, overrides, blocker] of [
   ['scope', { operation: { target_scope: 'tenant' } }, 'STORAGE_SHARED_CANARY_SHARED_OR_PLATFORM_TARGET_REQUIRED'],
   ['release', { release_authority_approval: { active_production_sha: '2'.repeat(40) } }, 'STORAGE_SHARED_CANARY_RELEASE_AUTHORITY_REQUIRED'],
   ['layout', { deployment_layout_proof: { active_root_excluded: false, rollback_set_retained: false } }, 'STORAGE_SHARED_CANARY_DEPLOYMENT_LAYOUT_PROOF_REQUIRED'],
+  ['layout-binding', { deployment_layout_proof: { plan_hash: h('8'), candidate_set_hash: h('7'), item_set_digest: h('6') } }, 'STORAGE_SHARED_CANARY_LAYOUT_PLAN_BINDING_MISMATCH'],
   ['reserve', { reserve_certification: { release_separate_authorization_required: false } }, 'STORAGE_SHARED_CANARY_RESERVE_CERTIFICATION_REQUIRED'],
 ]) {
   const rejected = prepare(fixtureFor(`shared-${name}`), overrides);
@@ -325,6 +360,19 @@ leaseFixture.repository.renewLease({ target_id: leaseFixture.target_id, lease_id
 assert.throws(() => execute(leaseFixture, lease, leaseStore, leaseRegistry), (error) => error.code === 'STORAGE_SHARED_CANARY_EXECUTOR_LEASE_INVALID');
 assert.equal(leaseRegistry.exportState()[0].consumed, false);
 
+const revokedPlanFixture = fixtureFor('shared-revoked-plan');
+const revokedPlan = prepare(revokedPlanFixture);
+const revokedPlanStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const revokedPlanRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(revokedPlanStore, revokedPlanRegistry, revokedPlanFixture, revokedPlan);
+const revokedRepository = createPlanStatusRepository(revokedPlan.repository, 'revoked');
+assert.throws(
+  () => execute(revokedPlanFixture, revokedPlan, revokedPlanStore, revokedPlanRegistry, { repository: revokedRepository }),
+  (error) => error.code === 'STORAGE_SHARED_CANARY_EXECUTOR_PLAN_INVALID' && error.details?.mismatches?.includes('status'),
+);
+assert.equal(revokedPlanRegistry.exportState()[0].consumed, false);
+assert.equal(revokedPlanFixture.adapter.exportState().items[0].exists, true);
+
 const tamperedFixture = fixtureFor('shared-tampered');
 const tampered = prepare(tamperedFixture);
 const tamperedStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
@@ -351,6 +399,8 @@ console.log(JSON.stringify({
   admin_context_required: true,
   workspace_approval_slots_bound: true,
   governed_quorum_read_at_build_and_execution: true,
+  layout_proof_bound_to_plan_and_candidates: true,
+  plan_status_checked_before_enablement_consumption: true,
   immutable_candidate_set_bound: true,
   resolved_impact_set_required: true,
   platform_admin_and_release_authority_required: true,
