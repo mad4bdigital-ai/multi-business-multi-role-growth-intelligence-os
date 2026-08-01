@@ -1,0 +1,83 @@
+name: Reconcile Spec 014 Tenant contract
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/spec014-reconcile-tenant-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.head_ref == 'gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
+          fetch-depth: 0
+      - name: Reconcile current Integration contract
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const integrationRef = 'origin/gpt/hostinger-safe-storage-cleanup-ssh-20260801';
+          const ours = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const integration = JSON.parse(execFileSync(
+            'git',
+            ['show', `${integrationRef}:${contractPath}`],
+            { encoding: 'utf8' },
+          ));
+
+          const tenant = structuredClone(
+            ours.parallel_work.workstreams.find((row) => row.id === 'tenant-canary'),
+          );
+          if (!tenant) throw new Error('Tenant workstream missing from feature contract.');
+          tenant.status = 'ready_for_integration';
+          tenant.deliverables = [...new Set([
+            ...(tenant.deliverables || []),
+            'Factory-owned authority-store and one-shot registry provenance before delegated execution',
+            'TypeScript-AST import boundary for static, dynamic, CommonJS, and constant-composed Base imports',
+          ])];
+          tenant.required_tests ||= [];
+          if (!tenant.required_tests.some((row) => row.id === 'hostinger-storage-tenant-canary-store-provenance')) {
+            tenant.required_tests.push({
+              id: 'hostinger-storage-tenant-canary-store-provenance',
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: 'test-hostinger-storage-tenant-canary-store-provenance.mjs',
+              args: [],
+            });
+          }
+
+          const merged = structuredClone(integration);
+          const tenantIndex = merged.parallel_work.workstreams.findIndex((row) => row.id === 'tenant-canary');
+          if (tenantIndex < 0) throw new Error('Tenant workstream missing from Integration contract.');
+          merged.parallel_work.workstreams[tenantIndex] = tenant;
+
+          const oursMvp = ours.phases.find((phase) => phase.id === 'mvp');
+          const mergedMvp = merged.phases.find((phase) => phase.id === 'mvp');
+          const tenantBlocker = oursMvp?.blockers?.find((value) => value.startsWith('The Tenant-exclusive canary'))
+            || 'The Tenant-exclusive canary post-merge hardening is ready for integration but remains synthetic, one-shot, and not mounted to a runtime route.';
+          mergedMvp.blockers = (mergedMvp.blockers || [])
+            .filter((value) => !value.startsWith('The Tenant-exclusive canary'));
+          const sharedIndex = mergedMvp.blockers.findIndex((value) => value.startsWith('The Shared/Platform canary'));
+          mergedMvp.blockers.splice(sharedIndex >= 0 ? sharedIndex : mergedMvp.blockers.length, 0, tenantBlocker);
+
+          fs.writeFileSync(contractPath, `${JSON.stringify(merged)}\n`);
+          NODE
+
+          git rm .github/workflows/spec014-reconcile-tenant-contract.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+          git commit -m 'chore(spec-014): reconcile Tenant contract with Integration'
+          git push origin HEAD:gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
