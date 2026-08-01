@@ -58,6 +58,7 @@ assert.equal(email.body_html, null);
 
 // Same-tenant delivery is owner/admin-only; platform escalation remains a separate route class.
 const observedSql = [];
+let releaseCount = 0;
 const connection = {
   async query(sql) {
     observedSql.push(sql);
@@ -96,13 +97,21 @@ const connection = {
     }
     throw new Error(`Unexpected SQL in routing test: ${sql}`);
   },
+  release() {
+    releaseCount += 1;
+  },
+};
+const pool = {
+  async getConnection() {
+    return connection;
+  },
 };
 
 const routing = await resolveSupportTicketRoutingRecipients({
   ticket_id: "ticket_123",
   tenant_id: "tenant_abc",
   user_id: "user_submitter",
-}, { connection });
+}, { pool });
 
 assert.ok(
   observedSql.some((sql) => sql.includes("m.role IN ('owner','admin')")),
@@ -120,5 +129,6 @@ assert.equal(routing.sources.same_tenant_admin_owner_count, 2);
 assert.equal(routing.sources.same_tenant_superior_count, 2);
 assert.equal(routing.sources.platform_admin_count, 1);
 assert.equal(routing.routing_version, "support-ticket-routing-notification-v2");
+assert.equal(releaseCount, 1, "injected pool connections must be released exactly once");
 
 console.log("support ticket dynamic routing notification tests passed");
