@@ -16,7 +16,6 @@ import { createHostingerStorageTenantRuntime } from './hostingerStorageTenantRun
 import { buildHostingerStorageTenantRoutes } from './routes/hostingerStorageTenantRoutes.js';
 import {
   createSyntheticExecutorFixture as createBaseSyntheticExecutorFixture,
-  digest,
   h,
 } from './test-hostinger-storage-executor-fixtures.mjs';
 
@@ -233,7 +232,7 @@ function createScenario(suffix) {
       capsule,
       governanceDecision,
       currentContext,
-      currentDependencies: [],
+      currentDependencies: capsule.invalidationDependencies.map((dependency) => ({ ...dependency })),
       dynamicEvidence,
       now: validationDate.toISOString(),
     },
@@ -399,6 +398,7 @@ console.log(JSON.stringify({
   mounted_route: 'POST /tenant/storage-operations/apply-plan',
   context_kernel_mutation_gate: true,
   effective_authority_dynamic_evidence: true,
+  current_capsule_dependency_readback: true,
   one_shot_enablement_consumed_after_all_checks: true,
   request_authority_injection_rejected_before_resolution: true,
   expected_sha_mismatch_rejected_before_canary_dispatch: true,
