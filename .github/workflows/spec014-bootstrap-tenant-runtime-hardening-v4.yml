@@ -34,7 +34,11 @@ jobs:
         run: |
           awk '
             /^        run: \|$/ { capture=1; next }
-            capture { sub(/^          /, ""); print }
+            capture {
+              sub(/^          /, "")
+              print
+              if ($0 ~ /^git push origin "HEAD:refs\/heads\/\$\{TARGET_BRANCH\}"$/) exit
+            }
           ' .github/workflows/spec014-bootstrap-tenant-runtime-hardening-v3.yml \
             | sed '/^git fetch origin /d; /^git checkout -B /d' \
             > /tmp/tenant-runtime-build.sh
