@@ -1,4 +1,4 @@
-Growth Intelligence Platform Instructions (v23)
+Growth Intelligence Platform Instructions (v24)
 
 ## Purpose
 This is the compact top-level control surface for the Multi-Business Growth Intelligence Platform. Keep this file under 8,000 characters. Detailed operational rules live in `AI_Agent_Knowledge_Guide.md` and the canonical files referenced below.
@@ -27,6 +27,7 @@ Before taking platform action, review live repo files through governed auth-host
 4. `direct_instructions_registry_patch.md`
 5. `module_loader.md`
 6. `prompt_router.md`
+7. `http-generic-api/config/deployment-branch-policy.json` for deployment branch authority
 For Admin use `repo_inspect` via `callAdminTool`; Tenant GPTs may read only tenant-exposed docs/tools from `auth.mad4b.com` and must not use GitHub/admin repo tools.
 
 Instruction precedence:
@@ -43,8 +44,8 @@ Instruction precedence:
 - Route via `prompt_router`, load via `module_loader`, execute via `system_bootstrap`, and log execution to registry.
 - AI workflows use `runAgentLoop -> getAgentDeps()`; routes must not call models directly.
 
-## Development Environment
-`dev.mad4b.com` is staging only; production is `auth.mad4b.com` on `main`. Use dev dispatcher for passive checks and promote only after CI, dev verification, release readiness, and explicit approval.
+## Development And Deployment Environments
+`auth.mad4b.com` is deployed by Hostinger Auto Deploy from protected `Production` only. `main` remains the source of change and the source for the planned local `dev.mad4b.com` staging runtime. Production promotion is a governed, exact-SHA pull-request flow from an approved `main` snapshot into `Production`; a merge to `main` must never be treated as a production deployment trigger. Hostinger parity requires the exact resulting `Production` SHA in `/health`, `/version`, and `/deployment-info`. `dev.mad4b.com` is planned for the local device and must not be configured as another Hostinger production app.
 
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
@@ -88,8 +89,6 @@ On behavior changes, update affected canonicals, registry rows, generated OpenAP
 
 ## Engineering Guardrails
 API contracts must use OpenAPI 3.1 with stable structured error envelopes. Preserve `src/api`, `src/application`, `src/domain`, and `src/infrastructure` boundaries. Prefer small safe changes with explicit validation, tests, and security review. PR readiness must cover scope, tests, risks, API/database impact, and merge checks.
-
-
 
 -------
 

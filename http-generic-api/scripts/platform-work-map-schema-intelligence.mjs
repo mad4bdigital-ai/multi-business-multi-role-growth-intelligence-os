@@ -2,11 +2,13 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+const CLASSIFICATION_REGISTRY_PATH = ".specify/work-map-schema-classification-registry.json";
+
 const DOMAIN_RULES = [
   ["Activation & onboarding", /activation|onboarding|bootstrap|guidance|attention_rule|operational_tile|signal_inbox/i],
   ["Assets & packages", /asset|package|pack_attachment|copy_location|variant|equivalence/i],
   ["Commercial & usage", /commercial|credit|usage|billing|pricing|meter|subscription|entitlement/i],
-  ["Repository & development", /repo_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i],
+  ["Repository & development", /repo_|repository_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i],
   ["Platform resources & graph", /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capabilit|decision|intent|adaptation|platform_binding|platform_export|relationship_integrity|platform_runtime_config/i],
   ["Delivery & support", /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event/i],
   ["Migration & lifecycle", /migration|database_table_lifecycle|database_lifecycle|checkpoint|validation_repair|recovery|repair_run/i],
@@ -40,6 +42,14 @@ function readText(file) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 }
 
+function readJson(file, fallback = null) {
+  try {
+    return JSON.parse(readText(file));
+  } catch {
+    return fallback;
+  }
+}
+
 function listFiles(dir, predicate = () => true) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -70,8 +80,50 @@ function hashFiles(root, files) {
   return hash.digest("hex");
 }
 
-function classify(name) {
-  return DOMAIN_RULES.find(([, pattern]) => pattern.test(name))?.[0] || "Other / uncategorized";
+function matchesRegistryRule(name, match = {}) {
+  const exact = Array.isArray(match.exact_names) ? match.exact_names : [];
+  const prefixes = Array.isArray(match.prefixes) ? match.prefixes : [];
+  const suffixes = Array.isArray(match.suffixes) ? match.suffixes : [];
+  return exact.includes(name)
+    || prefixes.some((prefix) => name.startsWith(prefix))
+    || suffixes.some((suffix) => name.endsWith(suffix));
+}
+
+function loadClassificationRegistry(repoRoot) {
+  const file = path.join(repoRoot, CLASSIFICATION_REGISTRY_PATH);
+  const registry = readJson(file, { rules: [], intentional_unclassified: [] }) || { rules: [], intentional_unclassified: [] };
+  return {
+    file,
+    registry,
+    rules: Array.isArray(registry.rules) ? registry.rules : [],
+    intentional: Array.isArray(registry.intentional_unclassified) ? registry.intentional_unclassified : [],
+  };
+}
+
+function classify(name, classificationRegistry) {
+  const explicitMatches = classificationRegistry.rules.filter((rule) => matchesRegistryRule(name, rule.match));
+  const intentional = classificationRegistry.intentional.find((row) => row?.object_name === name);
+  if (explicitMatches.length === 1 && !intentional) {
+    const rule = explicitMatches[0];
+    return {
+      domain: rule.domain,
+      existingMapRefs: Array.isArray(rule.existing_map_refs) ? rule.existing_map_refs : [],
+      classificationSource: `registry:${rule.rule_key}`,
+    };
+  }
+  if (explicitMatches.length > 1 || (explicitMatches.length === 1 && intentional)) {
+    return { domain: "Other / unresolved", existingMapRefs: [], classificationSource: "ambiguous_registry_classification" };
+  }
+  const builtIn = DOMAIN_RULES.find(([, pattern]) => pattern.test(name));
+  if (builtIn) return { domain: builtIn[0], existingMapRefs: [], classificationSource: "generated_domain_rule" };
+  if (intentional) {
+    return {
+      domain: "Other / intentionally unclassified",
+      existingMapRefs: Array.isArray(intentional.nearest_existing_map_refs) ? intentional.nearest_existing_map_refs : [],
+      classificationSource: "intentional_exception",
+    };
+  }
+  return { domain: "Other / unresolved", existingMapRefs: [], classificationSource: "unmatched" };
 }
 
 function mermaidId(value) {
@@ -107,13 +159,25 @@ function tableBlocks(text) {
   return blocks;
 }
 
-function parseCatalog(repoRoot) {
+function parseCatalog(repoRoot, classificationRegistry) {
   const files = listFiles(path.join(repoRoot, "http-generic-api/migrations"), (file) => file.endsWith(".sql"));
   const tables = new Map();
   const views = new Map();
   const policies = new Map();
   const ensure = (map, name, type) => {
-    if (!map.has(name)) map.set(name, { name, type, domain: classify(name), sources: new Set(), columns: new Set(), refs: new Set() });
+    if (!map.has(name)) {
+      const classification = classify(name, classificationRegistry);
+      map.set(name, {
+        name,
+        type,
+        domain: classification.domain,
+        existingMapRefs: new Set(classification.existingMapRefs),
+        classificationSource: classification.classificationSource,
+        sources: new Set(),
+        columns: new Set(),
+        refs: new Set(),
+      });
+    }
     return map.get(name);
   };
 
@@ -183,11 +247,15 @@ function header(repoRoot, files) {
 }
 
 function inventoryRows(objects) {
-  return objects.map((object) => `| \`${object.name}\` | ${object.type} | ${esc(object.domain)} | ${object.sources.size} | ${object.columns.size || "-"} | ${object.refs.size ? [...object.refs].sort().map((ref) => `\`${ref}\``).join(", ") : "-"} |`).join("\n");
+  return objects.map((object) => `| \`${object.name}\` | ${object.type} | ${esc(object.domain)} | ${esc(object.classificationSource)} | ${object.existingMapRefs.size ? [...object.existingMapRefs].sort().map((ref) => `\`${ref}\``).join(", ") : "-"} | ${object.sources.size} | ${object.columns.size || "-"} | ${object.refs.size ? [...object.refs].sort().map((ref) => `\`${ref}\``).join(", ") : "-"} |`).join("\n");
+}
+
+function objectBelongsToMap(object, spec) {
+  return spec.pattern.test(object.name) || object.existingMapRefs.has(path.basename(spec.file, ".md"));
 }
 
 function renderSpecialized(repoRoot, catalog, spec) {
-  const objects = [...catalog.tables, ...catalog.views].filter((object) => spec.pattern.test(object.name));
+  const objects = [...catalog.tables, ...catalog.views].filter((object) => objectBelongsToMap(object, spec));
   const ranked = [...objects].sort((a, b) => (b.refs.size + b.sources.size) - (a.refs.size + a.sources.size) || a.name.localeCompare(b.name)).slice(0, 45);
   const names = new Set(ranked.map((object) => object.name));
   const nodes = ranked.map((object) => `  ${mermaidId(object.name)}["${object.name}<br/>${object.type}"]`).join("\n");
@@ -195,10 +263,10 @@ function renderSpecialized(repoRoot, catalog, spec) {
   const flowNodes = spec.flow.map((step, index) => `  c_${index}["${step}"]`).join("\n");
   const flowEdges = spec.flow.slice(1).map((_, index) => `  c_${index} --> c_${index + 1}`).join("\n");
   const sources = uniq(objects.flatMap((object) => [...object.sources]));
-  return `# ${spec.title}\n\n${header(repoRoot, sources.length ? sources : catalog.files)}\n\`\`\`mermaid\nflowchart TD\n  subgraph OperatingFlow["Governed operating flow"]\n${flowNodes}\n${flowEdges}\n  end\n  subgraph DiscoveredSchema["Discovered schema objects"]\n${nodes || "  Empty[No matching schema objects discovered]"}\n${edges}\n  end\n\`\`\`\n\n## Discovered object inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${objects.length ? inventoryRows(objects) : "| _none_ | - | - | 0 | 0 | - |"}\n\n## Coverage counters\n\n- Matching schema objects: **${objects.length}**\n- Diagram objects shown: **${ranked.length}**\n- Source migrations: **${sources.length}**\n`;
+  return `# ${spec.title}\n\n${header(repoRoot, sources.length ? sources : catalog.files)}\n\`\`\`mermaid\nflowchart TD\n  subgraph OperatingFlow["Governed operating flow"]\n${flowNodes}\n${flowEdges}\n  end\n  subgraph DiscoveredSchema["Discovered schema objects"]\n${nodes || "  Empty[No matching schema objects discovered]"}\n${edges}\n  end\n\`\`\`\n\n## Discovered object inventory\n\n| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |\n|---|---|---|---|---|---:|---:|---|\n${objects.length ? inventoryRows(objects) : "| _none_ | - | - | - | - | 0 | 0 | - |"}\n\n## Coverage counters\n\n- Matching schema objects: **${objects.length}**\n- Diagram objects shown: **${ranked.length}**\n- Source migrations: **${sources.length}**\n`;
 }
 
-function renderDataModel(repoRoot, catalog) {
+function renderDataModel(repoRoot, catalog, sources) {
   const all = [...catalog.tables, ...catalog.views];
   const domains = uniq(all.map((object) => object.domain));
   const nodes = domains.map((domain) => {
@@ -210,14 +278,14 @@ function renderDataModel(repoRoot, catalog) {
     const objects = all.filter((item) => item.domain === domain);
     return `| ${domain} | ${objects.filter((item) => item.type === "table").length} | ${objects.filter((item) => item.type === "view").length} | ${objects.slice(0, 10).map((item) => `\`${item.name}\``).join(", ")}${objects.length > 10 ? ", ..." : ""} |`;
   }).join("\n");
-  return `# Platform Data Model Domain Map\n\n${header(repoRoot, catalog.files)}\n\`\`\`mermaid\nflowchart LR\n${nodes}\n\`\`\`\n\n## Domain summary\n\n| Domain | Tables | Views | Sample objects |\n|---|---:|---:|---|\n${rows}\n\n## Full schema inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${inventoryRows(all)}\n`;
+  return `# Platform Data Model Domain Map\n\n${header(repoRoot, sources)}\n\`\`\`mermaid\nflowchart LR\n${nodes}\n\`\`\`\n\n## Domain summary\n\n| Domain | Tables | Views | Sample objects |\n|---|---:|---:|---|\n${rows}\n\n## Full schema inventory\n\n| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |\n|---|---|---|---|---|---:|---:|---|\n${inventoryRows(all)}\n`;
 }
 
 function renderMemory(repoRoot, catalog, memory) {
   const objects = [...catalog.tables, ...catalog.views].filter((object) => /session|conversation|turn|memory|scope_link|archive|insight|graph_memory|request_envelope/i.test(object.name));
   const sources = uniq([...objects.flatMap((object) => [...object.sources]), memory.file]);
   const states = memory.states.map((state) => `| \`${state.key}\` | ${state.required ? "yes" : "no"} | ${state.authority ? `\`${state.authority}\`` : "-"} | ${state.surface ? `\`${state.surface}\`` : "-"} | ${state.ref ? `\`${state.ref}\`` : "-"} |`).join("\n");
-  return `# Session, Memory, and Insight Map\n\n${header(repoRoot, sources)}\n\`\`\`mermaid\nflowchart TD\n  Session[Session / conversation] --> Turns[Turns and transcript refs]\n  Turns --> Archive[Archive and offload]\n  Archive --> Scope[Memory scope resolution]\n  Scope --> Insight[Insight candidates]\n  Insight --> Graph[Graph memory]\n  Graph --> Runtime[Runtime context]\n  Runtime --> Evidence[Execution evidence]\n\`\`\`\n\n## Memory schema states\n\n| State | Required | Authority | Canonical surface | Reference |\n|---|---:|---|---|---|\n${states || "| _none_ | - | - | - | - |"}\n\n## Session and memory schema inventory\n\n| Object | Type | Domain | Source migrations | Columns | References |\n|---|---|---|---:|---:|---|\n${objects.length ? inventoryRows(objects) : "| _none_ | - | - | 0 | 0 | - |"}\n`;
+  return `# Session, Memory, and Insight Map\n\n${header(repoRoot, sources)}\n\`\`\`mermaid\nflowchart TD\n  Session[Session / conversation] --> Turns[Turns and transcript refs]\n  Turns --> Archive[Archive and offload]\n  Archive --> Scope[Memory scope resolution]\n  Scope --> Insight[Insight candidates]\n  Insight --> Graph[Graph memory]\n  Graph --> Runtime[Runtime context]\n  Runtime --> Evidence[Execution evidence]\n\`\`\`\n\n## Memory schema states\n\n| State | Required | Authority | Canonical surface | Reference |\n|---|---:|---|---|---|\n${states || "| _none_ | - | - | - | - |"}\n\n## Session and memory schema inventory\n\n| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |\n|---|---|---|---|---|---:|---:|---|\n${objects.length ? inventoryRows(objects) : "| _none_ | - | - | - | - | 0 | 0 | - |"}\n`;
 }
 
 function renderPolicy(repoRoot, catalog, content) {
@@ -225,38 +293,44 @@ function renderPolicy(repoRoot, catalog, content) {
   return `${content}\n## Discovered policy keys\n\n| Policy key | Source migrations |\n|---|---:|\n${policies || "| _none_ | 0 |"}\n`;
 }
 
-function renderCoverage(repoRoot, catalog, mapNames) {
+function renderCoverage(repoRoot, catalog, mapNames, sources) {
   const all = [...catalog.tables, ...catalog.views];
   const domains = uniq(all.map((object) => object.domain));
   const rows = domains.map((domain) => {
     const objects = all.filter((item) => item.domain === domain);
-    const maps = MAP_SPECS.filter((spec) => objects.some((object) => spec.pattern.test(object.name))).map((spec) => spec.file);
+    const maps = MAP_SPECS.filter((spec) => objects.some((object) => objectBelongsToMap(object, spec))).map((spec) => spec.file);
+    maps.push(...objects.flatMap((object) => [...object.existingMapRefs].map((ref) => `${ref}.md`)));
     if (domain === "Sessions & memory") maps.push("session-memory-map.md");
     maps.push("data-model-domain-map.md");
-    const status = domain === "Other / uncategorized" ? "taxonomy gap" : "covered";
+    const status = domain === "Other / unresolved" ? "unresolved taxonomy gap" : domain === "Other / intentionally unclassified" ? "intentional exception" : "covered";
     return `| ${domain} | ${objects.filter((item) => item.type === "table").length} | ${objects.filter((item) => item.type === "view").length} | ${uniq(maps).map((name) => `\`${name}\``).join(", ")} | ${status} |`;
   }).join("\n");
-  const uncategorized = all.filter((object) => object.domain === "Other / uncategorized");
-  return `# Work Map Coverage Matrix\n\n${header(repoRoot, catalog.files)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Uncategorized schema objects\n\n${uncategorized.length ? uncategorized.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n`;
+  const unresolved = all.filter((object) => object.domain === "Other / unresolved");
+  const intentional = all.filter((object) => object.domain === "Other / intentionally unclassified");
+  return `# Work Map Coverage Matrix\n\n${header(repoRoot, sources)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Unresolved schema objects\n\n${unresolved.length ? unresolved.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n\n## Intentionally unclassified schema objects\n\n${intentional.length ? intentional.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n`;
 }
 
 export function buildSchemaIntelligenceMaps({ repoRoot }) {
-  const catalog = parseCatalog(repoRoot);
+  const classificationRegistry = loadClassificationRegistry(repoRoot);
+  const catalog = parseCatalog(repoRoot, classificationRegistry);
   const memory = parseMemory(repoRoot);
+  const sharedSources = uniq([...catalog.files, memory.file, classificationRegistry.file]);
   const maps = {
-    "data-model-domain-map.md": renderDataModel(repoRoot, catalog),
+    "data-model-domain-map.md": renderDataModel(repoRoot, catalog, sharedSources),
     "session-memory-map.md": renderMemory(repoRoot, catalog, memory),
   };
   for (const spec of MAP_SPECS) {
     const content = renderSpecialized(repoRoot, catalog, spec);
     maps[spec.file] = spec.file === "policy-authority-map.md" ? renderPolicy(repoRoot, catalog, content) : content;
   }
-  maps["work-map-coverage-matrix.md"] = renderCoverage(repoRoot, catalog, Object.keys(maps));
+  maps["work-map-coverage-matrix.md"] = renderCoverage(repoRoot, catalog, Object.keys(maps), sharedSources);
   const all = [...catalog.tables, ...catalog.views];
-  const classified = all.filter((object) => object.domain !== "Other / uncategorized").length;
+  const unresolved = all.filter((object) => object.domain === "Other / unresolved");
+  const intentional = all.filter((object) => object.domain === "Other / intentionally unclassified");
+  const classified = all.length - unresolved.length - intentional.length;
   return {
     maps,
-    sourceFiles: uniq([...catalog.files, memory.file]),
+    sourceFiles: sharedSources,
     metrics: {
       migrations_scanned: catalog.files.length,
       tables_discovered: catalog.tables.length,
@@ -265,9 +339,12 @@ export function buildSchemaIntelligenceMaps({ repoRoot }) {
       memory_states_discovered: memory.states.length,
       domain_count: uniq(all.map((object) => object.domain)).length,
       specialized_map_count: MAP_SPECS.length,
-      uncategorized_objects: all.length - classified,
+      unresolved_unclassified_objects: unresolved.length,
+      intentional_unclassified_objects: intentional.length,
       classified_objects: classified,
       classification_coverage_percent: all.length ? Number(((classified / all.length) * 100).toFixed(2)) : 100,
+      total_accounted_objects: classified + intentional.length,
+      total_discovered_objects: all.length,
     },
   };
 }

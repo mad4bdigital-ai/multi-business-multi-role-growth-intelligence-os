@@ -19,7 +19,8 @@ jobs:
     name: Dispatch CI if PR head has no run
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/') &&
+      (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
+       startsWith(github.event.pull_request.head.ref, 'cert/')) &&
       !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:

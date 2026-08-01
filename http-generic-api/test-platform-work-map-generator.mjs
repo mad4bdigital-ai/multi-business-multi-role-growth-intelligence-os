@@ -115,6 +115,11 @@ write("memory_schema.json", JSON.stringify({
   },
 }, null, 2));
 
+write(".specify/work-map-schema-classification-registry.json", JSON.stringify({
+  schema_version: "1.0.0",
+  rules: [],
+  intentional_unclassified: [],
+}, null, 2));
 write(".github/workflows/ci.yml", "name: CI\non:\n  pull_request:\n  push:\n  workflow_dispatch:\n");
 write(".github/workflows/docs-agent.yml", "name: Docs Agent\non:\n  pull_request:\n  push:\n");
 write("prompt_router.md", "# Prompt Router\n");
@@ -136,7 +141,12 @@ assert.ok(first.schema_intelligence_metrics.views_discovered >= 2);
 assert.ok(first.schema_intelligence_metrics.policy_keys_discovered >= 2);
 assert.equal(first.schema_intelligence_metrics.memory_states_discovered, 4);
 assert.equal(first.schema_intelligence_metrics.specialized_map_count, 12);
-assert.equal(first.schema_intelligence_metrics.uncategorized_objects, 0);
+assert.equal(first.schema_intelligence_metrics.unresolved_unclassified_objects, 0);
+assert.equal(first.schema_intelligence_metrics.intentional_unclassified_objects, 0);
+assert.equal(
+  first.schema_intelligence_metrics.total_accounted_objects,
+  first.schema_intelligence_metrics.total_discovered_objects,
+);
 assert.equal(first.schema_intelligence_metrics.classification_coverage_percent, 100);
 assert.ok(first.stale_generated_files.includes("docs/work-maps/stale-generated-map.md"));
 assert.equal(fs.existsSync(path.join(repoRoot, "docs/work-maps/stale-generated-map.md")), false);
@@ -174,22 +184,32 @@ const checks = [
   ["delivery-support-map.md", /output_artifacts/, /tickets/],
   ["migration-lifecycle-map.md", /data_migration_inventory/],
   ["activation-access-map.md", /agent_skill_grants/, /v_activation_agent_skill_grants/],
-  ["repository-automation-map.md", /Docs Agent/, /CI/],
+  ["repository-automation-map.md", /Docs Agent preview/, /Work Map integration check/, /Sole governed Work Map writer/, /CI/],
 ];
 for (const [file, ...patterns] of checks) {
   const content = read(`docs/work-maps/${file}`);
   for (const pattern of patterns) assert.match(content, pattern);
 }
 
+const automationMap = read("docs/work-maps/repository-automation-map.md");
+assert.doesNotMatch(automationMap, /Docs --> Maps\[Regenerate text work maps\]/);
+assert.match(automationMap, /Integration --> Repair\[Exact-head repair artifact when stale\]/);
+assert.match(automationMap, /Authorize --> Autofix\[Sole governed Work Map writer\]/);
+
 const coverage = read("docs/work-maps/work-map-coverage-matrix.md");
 assert.match(coverage, /Work Map Coverage Matrix/);
-assert.match(coverage, /Uncategorized schema objects/);
+assert.match(coverage, /Unresolved schema objects/);
+assert.match(coverage, /Intentionally unclassified schema objects/);
 assert.match(coverage, /- None\./);
 
 const index = read("docs/work-maps/README.md");
 for (const name of expected.filter((name) => name !== "README.md")) {
   assert.match(index, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
+assert.match(index, /Docs Agent provides preview artifacts only/);
+assert.match(index, /Spec Kit Work Map Autofix workflow is the sole remote writer/);
+assert.match(index, /After explicit one-time authorization/);
+assert.doesNotMatch(index, /Docs Agent commits the generated diff/);
 
 const clean = syncWorkMaps({ repoRoot, mode: "check" });
 assert.equal(clean.ok, true);
@@ -222,6 +242,7 @@ const workflow = fs.readFileSync(new URL("../.github/workflows/docs-agent.yml", 
 const maintenance = fs.readFileSync(new URL("./scripts/repo-maintenance-sync.mjs", import.meta.url), "utf8");
 assert.match(workflow, /platform-work-map-generator\.mjs --write/);
 assert.match(workflow, /docs\/work-maps/);
+assert.match(workflow, /preview-only/);
 assert.match(maintenance, /platform-work-map-generator\.mjs/);
 
 console.log("deep dynamic text platform work map generator test passed");

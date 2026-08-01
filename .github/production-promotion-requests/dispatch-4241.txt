@@ -1,0 +1,10 @@
+request_pr=4241
+trigger_revision=push-v1-marker-only
+dispatch_token=DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER
+main_readback=live
+production_readback=live
+merge_authorized=false
+deployment_authorized=false
+migration_authorized=false
+provider_call_authorized=false
+credential_payload_read_authorized=false
