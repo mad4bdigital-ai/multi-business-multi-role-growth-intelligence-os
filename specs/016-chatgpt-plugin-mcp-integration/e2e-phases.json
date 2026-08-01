@@ -1,86 +1,107 @@
 {
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "016-chatgpt-plugin-mcp-integration",
-  "status": "specification_only",
+  "title": "ChatGPT plugin and standards-compliant MCP integration specification",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/016-chatgpt-plugin-mcp-integration/README.md",
+      "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+      "specs/016-chatgpt-plugin-mcp-integration/spec.md",
+      "specs/016-chatgpt-plugin-mcp-integration/research.md",
+      "specs/016-chatgpt-plugin-mcp-integration/concerns.md",
+      "specs/016-chatgpt-plugin-mcp-integration/operation-paths.md",
+      "specs/016-chatgpt-plugin-mcp-integration/plan.md",
+      "specs/016-chatgpt-plugin-mcp-integration/data-model.md",
+      "specs/016-chatgpt-plugin-mcp-integration/quickstart.md",
+      "specs/016-chatgpt-plugin-mcp-integration/tasks.md",
+      "specs/016-chatgpt-plugin-mcp-integration/traceability.md",
+      "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md",
+      "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+      "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/requirements.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/security.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/mcp-tool.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/oauth-protected-resource.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/plugin-package.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
-      "id": "phase_1_protocol_contract",
-      "status": "not_started",
-      "objective": "Prove one bounded Streamable HTTP MCP endpoint and a read-only metadata contract without relying on ChatGPT selection behavior.",
-      "entrypoint": "MCP Inspector against a development /mcp endpoint",
-      "terminal_outcome": "Initialization, tools/list, and representative read calls pass with correct schemas, annotations, errors, and metadata fingerprint.",
-      "journeys": ["OP-001", "OP-002"],
-      "assertions": [
-        "The endpoint uses the supported MCP transport rather than split public REST routes.",
-        "All exposed phase-1 tools are proven read-only.",
-        "No query-string secret is required by the new endpoint.",
-        "Results are bounded and contain no secrets."
-      ],
-      "evidence": ["Inspector transcript", "catalog fingerprint", "annotation parity report", "redaction report"]
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the specification inventory, contracts, Work Map posture, delivery boundaries, and no-secret guarantees are internally consistent without granting runtime, migration, deployment, submission, or publication authority.",
+      "e2e_journeys": [
+        {
+          "id": "specification-contract-to-truthful-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform specification reviewer",
+          "entrypoint": "Spec 016 manifest and executable validation tool",
+          "terminal_outcome": "The reviewer receives a deterministic pass only when all recorded artifacts exist, JSON contracts parse, the OpenAPI MCP surfaces are present, completion remains truthful, implementation stays blocked by owned gates, and no secret-like value is detected.",
+          "steps": [
+            "Load the canonical Spec 016 manifest and verify its complete unique file inventory.",
+            "Parse every JSON contract and confirm the required OpenAPI MCP and protected-resource paths are declared.",
+            "Verify completion counts, in-progress state, no Production deployment, no publication, and no-secret boundaries.",
+            "Verify the Work Map has zero accidental unclassified objects while implementation readiness remains blocked pending canonical review.",
+            "Scan every specification artifact for bounded secret-like patterns and emit a no-secret validation result."
+          ],
+          "assertions": [
+            "Every manifest entry exists inside the Spec 016 root and no path escapes that root.",
+            "The manifest and completion file counts are equal and include the executable validator.",
+            "The OpenAPI draft includes the MCP endpoint and OAuth protected-resource metadata endpoint.",
+            "The specification records implementation as in progress while deployment, publication, and migration remain false.",
+            "The validator cannot authorize implementation, merge, deployment, OAuth registration, external mutation, submission, or publication."
+          ],
+          "tests": [
+            {
+              "id": "spec-016-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/016-chatgpt-plugin-mcp-integration",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs",
+            "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+            "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+            "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md"
+          ]
+        }
+      ]
     },
     {
-      "id": "phase_2_developer_mode_reads",
-      "status": "not_started",
-      "objective": "Connect the endpoint in ChatGPT developer mode and validate focused tool selection for supported read-only goals.",
-      "entrypoint": "Personal ChatGPT plugin connection",
-      "terminal_outcome": "Supported prompts select the correct tool and unsupported or write prompts do not cause mutation.",
-      "journeys": ["US1", "US3", "OP-004", "OP-005", "OP-008"],
-      "assertions": [
-        "ChatGPT discovers the same catalog fingerprint as source and Inspector.",
-        "Correct tool selection meets the agreed threshold.",
-        "Unsupported requests have safe no-call behavior.",
-        "The plugin works without custom UI."
-      ],
-      "evidence": ["developer connection fingerprint", "prompt evaluation report", "package validation"]
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete approved OAuth, transport, context, catalog, and developer-mode implementation evidence in separately governed runtime PRs."
     },
     {
-      "id": "phase_3_oauth_and_isolation",
-      "status": "not_started",
-      "objective": "Prove OAuth 2.1 account linking, resource-bound tokens, current membership resolution, and tenant-safe denial.",
-      "entrypoint": "Protected read tool invoked from ChatGPT",
-      "terminal_outcome": "Authorized resources are readable and every wrong-resource, wrong-scope, revoked, or cross-tenant attempt fails closed.",
-      "journeys": ["US2", "US4", "OP-003", "OP-004", "OP-010"],
-      "assertions": [
-        "Protected-resource and authorization-server discovery work.",
-        "Authorization code plus PKCE S256 works.",
-        "Wrong issuer, audience/resource, scope, signature, expiry, and revocation are rejected.",
-        "Cross-tenant and cross-Brand leakage is zero.",
-        "Revocation takes effect within the operational SLA."
-      ],
-      "evidence": ["OAuth conformance report", "isolation matrix", "revoke/disable drill"]
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove isolation, revocation, dependency faults, unknown outcomes, metadata drift detection, and recovery without secret or cross-tenant leakage."
     },
     {
-      "id": "phase_4_governed_writes",
-      "status": "blocked_by_phase_1_to_3",
-      "objective": "Enable a small reviewed set of write tools with capability, policy, confirmation, idempotency, operation status, readback, and compensation.",
-      "entrypoint": "Focused write tool from ChatGPT",
-      "terminal_outcome": "Each accepted request produces at most one governed side effect and an authoritative operation/readback result.",
-      "journeys": ["US5", "US6", "OP-006", "OP-007"],
-      "assertions": [
-        "Confirmation is bound to principal, tool, target, intent, and expiry.",
-        "Authorization is rechecked immediately before dispatch.",
-        "Unknown outcomes are reconciled before retry.",
-        "Annotations match actual external and destructive behavior.",
-        "Each tool can be disabled independently."
-      ],
-      "evidence": ["idempotency report", "confirmation replay tests", "operation readback", "compensation drill"]
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the exact implementation candidate through MCP Inspector and ChatGPT Developer mode against an authorized non-production endpoint."
     },
     {
-      "id": "phase_5_public_review_and_release",
-      "status": "blocked_by_production_and_policy_readiness",
-      "objective": "Submit, approve, explicitly publish, monitor, and maintain one production plugin version with exact reviewed metadata.",
-      "entrypoint": "OpenAI plugin submission portal",
-      "terminal_outcome": "An approved version is published only after release authorization and production parity, with rollback and revocation proven.",
-      "journeys": ["US7", "OP-009", "OP-010"],
-      "assertions": [
-        "Publisher identity and submission permissions are verified.",
-        "Privacy, terms, test access, listing, and release notes are complete.",
-        "Source, runtime, package, scan, approved, and published fingerprints match.",
-        "Publishing is a separate explicit action after approval.",
-        "Later metadata changes use a new reviewed version."
-      ],
-      "evidence": ["submission dossier", "approved snapshot", "publication readback", "production monitoring", "rollback rehearsal"]
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, public routing, OAuth linkage, metadata parity, monitoring, revocation, rollback, and post-merge evidence under separate release authorization."
     }
-  ],
-  "secrets_included": false
+  ]
 }
