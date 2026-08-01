@@ -260,8 +260,11 @@ function classifyItem({ item, rows, adapter, operationId, runId }) {
   const result = rows.find((row) => row.phase === 'result');
   const receipt = adapter.readMutationReceipt({ operation_id: operationId, run_id: runId, item_id: item.item_id });
   const observed = adapter.readbackItem({ item_id: item.item_id, expected_item_hash: item.item_hash, expected: item.expected });
-  if (result?.result === 'deleted' || result?.result === 'deleted_recovered') {
+  if (result?.result === 'deleted') {
     return { classification: observed.exists ? 'conflict' : 'deleted', result, receipt, observed };
+  }
+  if (result?.result === 'deleted_recovered') {
+    return { classification: observed.exists ? 'conflict' : 'deleted_recovered', result, receipt, observed };
   }
   if (result?.result === 'skipped_changed') {
     return { classification: observed.exists && !observed.matches_plan ? 'skipped_changed' : 'conflict', result, receipt, observed };
