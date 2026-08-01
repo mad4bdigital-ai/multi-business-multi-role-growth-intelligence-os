@@ -10,8 +10,8 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-direct-diagnostic-"));
 const scriptPath = path.join(root, "failing-test.mjs");
 fs.writeFileSync(scriptPath, [
   "console.log('safe-prefix');",
-  "console.error('authorization: Bearer diagnostic-secret-value');",
   "console.error('x'.repeat(20000));",
+  "console.error('authorization: Bearer diagnostic-secret-value');",
   "process.exit(7);",
 ].join("\n"));
 
