@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "167de1cc7d53155abecb812b65de796fd649cf672e3a3adb97b72461d73be093",
+    "source_digest": "e95385be96a9ee884076140b0776bc8ef8a5c05975c5fbd5199ce4931590c1e5",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "4860d1e8e2c7bd01af6cd00071ef4f6053e22cca07de86e7dee61de49468eefe",
+        "sha256": "855d5ab46b7a3d048a14ea0b449215a6849617dedb0fb048768d96761c26804e",
         "present": true
       },
       {
@@ -157,6 +157,11 @@
       {
         "file": "openapi/release-operations.yaml",
         "sha256": "8a17cc3b9b5c9982558cf493f3b656d4dd0535a1e76ba03f64af5cf450ff932d",
+        "present": true
+      },
+      {
+        "file": "openapi/remote-mcp-oauth21.yaml",
+        "sha256": "05d4808c2d9af497fb201e80fc1c42b55d406b41979cc6c699145b7204e8939c",
         "present": true
       },
       {
@@ -616,7 +621,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
+        "sha256": "feed81974d767cdd93954113255af1ae43111d21de169f23f15316c6f86955d6",
         "present": true
       },
       {
@@ -931,7 +936,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
+        "sha256": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
         "present": true
       },
       {
@@ -991,7 +996,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "541808afd2109218b2ca4719d7cc07087d94d8b0b6fc3fb9a1b2b34650e993df",
+        "sha256": "2a2e6117eecbfdca276ea4f8b3261c3e2ed26982973ebb620f493eefa3264625",
         "present": true
       },
       {
@@ -1535,7 +1540,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
+      "source_digest": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
       "mount_prefix": "/",
       "mount_order": 12082,
       "split_from_mixed_scope_file": false,
@@ -18682,7 +18687,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
+      "source_digest": "feed81974d767cdd93954113255af1ae43111d21de169f23f15316c6f86955d6",
       "mount_prefix": "/",
       "mount_order": 15067,
       "split_from_mixed_scope_file": false,
