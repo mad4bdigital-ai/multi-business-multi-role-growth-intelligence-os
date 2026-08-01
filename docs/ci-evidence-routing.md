@@ -26,6 +26,13 @@ Every report must label the tested candidate:
 
 A merge-candidate SHA must never be described as the PR head. The two evidence kinds may complement one another, but their SHA, run ID, artifact, and conclusion must remain separate.
 
+A workflow that creates a governed generated-artifact commit must preserve two identities:
+
+- `source_head_sha`: the exact PR head that triggered the run;
+- `candidate_sha`: the resulting generated commit that is now the PR head, or the source head when no commit was required.
+
+The publisher accepts this transition only when the report links both SHAs, the generated commit equals `candidate_sha`, and the current PR head equals that candidate.
+
 ## Fail-closed source contract
 
 Every E2E source JSON is stamped before upload and must declare:
@@ -98,13 +105,27 @@ For workstream failures, `e2e-parallel-test-runner.mjs` places bounded redacted 
 
 The canonical report is uploaded before enforcement, so a blocked guard remains diagnosable without opening its Job log.
 
+## PR Generated Artifact Refresh
+
+`PR Generated Artifact Refresh` publishes `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing its decision.
+
+The report contains:
+
+- workflow source head and exact resulting candidate SHA;
+- bounded generated write set and generated commit SHA;
+- first failed step, command, exit status, and redacted bounded stdout/stderr tails;
+- `secrets_included: false`;
+- `routing.job_logs_role: diagnostic_only`.
+
+The workflow verifies the remote target ref before publishing a generated commit and refuses to write if the PR head moved. Its trusted publisher validates the source-to-generated-head transition against the current PR before updating the authoritative comment.
+
 ## PR-visible evidence
 
-`CI Evidence PR Publisher` is a trusted `workflow_run` workflow. It checks out `main`, downloads the exact completed-run canonical artifact, validates it against the workflow-run head, and maintains one comment marked with:
+`CI Evidence PR Publisher` is a trusted `workflow_run` workflow. It checks out `main`, downloads the exact completed-run canonical artifact, validates it against the workflow-run identity and current PR head, and maintains one comment marked with:
 
 `<!-- mad4b-ci-evidence-authority -->`
 
-Each workflow owns one section. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows have read-only permissions and do not receive comment-writing authority.
+Each workflow owns one section. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows do not receive comment-writing authority.
 
 ## Agent response rule
 
