@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
 
 const env = {
-  REMOTE_MCP_OAUTH_SIGNING_SECRET: "remote-mcp-verifier-test-secret",
+  REMOTE_MCP_OAUTH_SIGNING_SECRET: "remote-mcp-verifier-test-secret-32",
   REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
   REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
 };
