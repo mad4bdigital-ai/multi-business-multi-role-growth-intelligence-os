@@ -80,12 +80,13 @@
       {
         "id": "contracts",
         "title": "Spec and contract correction",
-        "status": "in_progress",
+        "status": "ready_for_integration",
         "owner_type": "mixed",
         "branch_pattern": "gpt/014-hostinger/contracts-*",
         "scope": {
           "include": [
-            "specs/014-governed-hostinger-storage-orchestration/**"
+            "specs/014-governed-hostinger-storage-orchestration/**",
+            "http-generic-api/test-hostinger-storage-contracts.mjs"
           ]
         },
         "depends_on": [],
@@ -96,7 +97,23 @@
           "storage-execution-authorization-bundle-v1",
           "hostinger-storage-http-contract-v1"
         ],
-        "required_tests": []
+        "required_tests": [
+          {
+            "id": "hostinger-storage-contracts",
+            "runner": "node",
+            "working_directory": "http-generic-api",
+            "path": "test-hostinger-storage-contracts.mjs",
+            "args": []
+          }
+        ],
+        "commit_evidence": {
+          "head_sha": "0c732e98533eedf3a0e18f39c0acfc0bca408d79",
+          "commits": [
+            "50198bb88b036cb94979d4d1f6d3b147359d9cea",
+            "fe20a2a73797c18fb22274491be63459f1170e21",
+            "0c732e98533eedf3a0e18f39c0acfc0bca408d79"
+          ]
+        }
       },
       {
         "id": "durable-control-plane",
