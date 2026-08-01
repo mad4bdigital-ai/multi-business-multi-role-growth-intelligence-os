@@ -32,7 +32,25 @@
     "trusted_ref": "main",
     "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
     "update_mode": "replace_matching_workflow_section_when_run_id_is_newer",
-    "pr_head_workflows_may_write_comments": false
+    "pr_head_workflows_may_write_comments": false,
+    "pr_resolution": {
+      "event_pr_number_preferred": true,
+      "fallback_query_state": "all",
+      "exact_identity_fields": [
+        "head_repository",
+        "head_branch",
+        "head_sha"
+      ],
+      "selection_order": [
+        "single_exact_open_pr",
+        "single_exact_merged_pr"
+      ],
+      "reject_closed_unmerged": true,
+      "reject_zero_matches": true,
+      "reject_ambiguous_open_matches": true,
+      "reject_ambiguous_merged_matches": true,
+      "merge_candidate_must_remain_provable": true
+    }
   },
   "routes": [
     {
