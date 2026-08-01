@@ -15,6 +15,11 @@ concurrency:
   group: e2e-phase-governance-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
   cancel-in-progress: true
 
+env:
+  CI_CANDIDATE_KIND: ${{ github.event_name == 'merge_group' && 'merge_candidate' || 'head' }}
+  CI_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+  CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+
 jobs:
   evaluate:
     name: Evaluate changed feature phases
@@ -25,9 +30,10 @@ jobs:
       contract_path: ${{ steps.parallel.outputs.contract_path }}
       workstream_id: ${{ steps.parallel.outputs.workstream_id }}
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout exact candidate tree
         uses: actions/checkout@v5
         with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
@@ -35,20 +41,24 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run governance and helper self-tests
+      - name: Run governance and evidence self-tests
         run: |
           node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
           node http-generic-api/scripts/e2e-phase-init-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
+          node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
+          node http-generic-api/scripts/test-ci-evidence-router.mjs
+          node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
 
       - name: Classify and validate parallel PR mode
         id: parallel
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
           BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
         run: |
@@ -59,7 +69,7 @@ jobs:
             --github-output "${GITHUB_OUTPUT}"
             --report-file "${RUNNER_TEMP}/e2e-parallel-work-evaluation.json")
           if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
-          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
+          args+=(--head "$HEAD_SHA")
           node http-generic-api/scripts/e2e-parallel-pr-gate.mjs "${args[@]}"
 
       - name: Evaluate complete phase contract
@@ -67,13 +77,21 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
-          args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json")
+          args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" --head "$HEAD_SHA")
           if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
-          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
           node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
+
+      - name: Stamp evaluation reports with exact candidate identity
+        if: always()
+        run: >-
+          node http-generic-api/scripts/ci-evidence-source-stamp.mjs
+          --candidate-kind "${CI_CANDIDATE_KIND}"
+          --candidate-sha "${CI_CANDIDATE_SHA}"
+          --file "${RUNNER_TEMP}/e2e-parallel-work-evaluation.json"
+          --file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
 
       - name: Upload phase evaluation
         if: always()
@@ -83,7 +101,7 @@ jobs:
           path: |
             ${{ runner.temp }}/e2e-phase-evaluation.json
             ${{ runner.temp }}/e2e-parallel-work-evaluation.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   execute:
@@ -91,9 +109,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: evaluate
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout exact candidate tree
         uses: actions/checkout@v5
         with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
@@ -131,15 +150,25 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
           args=(run
+            --head "$HEAD_SHA"
             --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
             --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json")
           if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
-          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
           node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
+
+      - name: Stamp execution reports with exact candidate identity
+        if: always()
+        run: >-
+          node http-generic-api/scripts/ci-evidence-source-stamp.mjs
+          --candidate-kind "${CI_CANDIDATE_KIND}"
+          --candidate-sha "${CI_CANDIDATE_SHA}"
+          --file "${RUNNER_TEMP}/e2e-parallel-execution.json"
+          --file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          --file "${RUNNER_TEMP}/e2e-phase-execution.json"
 
       - name: Upload phase execution evidence
         if: always()
@@ -150,5 +179,63 @@ jobs:
             ${{ runner.temp }}/e2e-phase-evaluation.json
             ${{ runner.temp }}/e2e-phase-execution.json
             ${{ runner.temp }}/e2e-parallel-execution.json
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    name: Publish canonical evidence report
+    if: ${{ always() }}
+    needs: [evaluate, execute]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate tree
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download structured phase reports
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-phase-*-${{ github.run_id }}
+          path: ${{ runner.temp }}/e2e-phase-reports
+          merge-multiple: true
+
+      - name: Build canonical evidence summary
+        env:
+          EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
+          EXECUTE_JOB_RESULT: ${{ needs.execute.result }}
+          CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+        run: >-
+          node http-generic-api/scripts/ci-evidence-router.mjs
+          --input-dir "${{ runner.temp }}/e2e-phase-reports"
+          --policy-file ".github/ci-evidence-routing.json"
+          --json-output "${{ runner.temp }}/e2e-phase-summary.json"
+          --markdown-output "${{ runner.temp }}/e2e-phase-summary.md"
+          --workflow "E2E Phase Governance"
+          --run-id "${{ github.run_id }}"
+          --candidate-kind "${CI_CANDIDATE_KIND}"
+          --candidate-sha "${CI_CANDIDATE_SHA}"
+          --source-head-sha "${CI_SOURCE_HEAD_SHA}"
+          --head-ref "${CANDIDATE_HEAD_REF}"
+          --base-ref "${CANDIDATE_BASE_REF}"
+          --evaluate-result "${EVALUATE_JOB_RESULT}"
+          --execute-result "${EXECUTE_JOB_RESULT}"
+
+      - name: Upload canonical evidence summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-phase-summary-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-phase-summary.json
+            ${{ runner.temp }}/e2e-phase-summary.md
+          if-no-files-found: error
           retention-days: 30

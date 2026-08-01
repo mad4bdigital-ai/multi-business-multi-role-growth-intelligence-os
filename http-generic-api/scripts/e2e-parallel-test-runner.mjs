@@ -3,9 +3,11 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildDiagnosticStream, redactDiagnosticOutput } from "./bounded-diagnostic-evidence.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
+const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -34,8 +36,8 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.contract) throw new Error("--contract is required.");
-  if (!['workstream', 'integration'].includes(options.mode)) throw new Error("--mode must be workstream or integration.");
-  if (options.mode === 'workstream' && !options.workstreamId) throw new Error("--workstream-id is required in workstream mode.");
+  if (!["workstream", "integration"].includes(options.mode)) throw new Error("--mode must be workstream or integration.");
+  if (options.mode === "workstream" && !options.workstreamId) throw new Error("--workstream-id is required in workstream mode.");
   return options;
 }
 
@@ -59,6 +61,14 @@ function writeAtomic(file, data) {
   const temporary = `${resolved}.${process.pid}.tmp`;
   fs.writeFileSync(temporary, `${JSON.stringify(data, null, 2)}\n`);
   fs.renameSync(temporary, resolved);
+}
+
+function emitCapturedOutput(result) {
+  const failed = Boolean(result.error || result.status !== 0);
+  const stdout = failed ? redactDiagnosticOutput(result.stdout || "") : (result.stdout || "");
+  const stderr = failed ? redactDiagnosticOutput(result.stderr || "") : (result.stderr || "");
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
 }
 
 function main() {
@@ -102,18 +112,26 @@ function main() {
         E2E_WORKSTREAM_ID: options.workstreamId || ""
       },
       shell: false,
-      stdio: "inherit",
-      encoding: "utf8"
+      encoding: "utf8",
+      maxBuffer: MAX_CAPTURE_BUFFER_BYTES
     });
+    emitCapturedOutput(result);
+    const failed = Boolean(result.error || result.status !== 0);
     results.push({
       test_id: test.id,
       runner: test.runner,
       status: result.error ? "error" : result.status === 0 ? "passed" : "failed",
       exit_code: result.error ? 1 : (result.status ?? 1),
       duration_ms: Date.now() - startedAt,
-      ...(result.error ? { error: result.error.message } : {})
+      ...(result.error ? { error: redactDiagnosticOutput(result.error.message) } : {}),
+      ...(failed ? {
+        diagnostic: {
+          stdout: buildDiagnosticStream(result.stdout),
+          stderr: buildDiagnosticStream(result.stderr)
+        }
+      } : {})
     });
-    if (result.error || result.status !== 0) break;
+    if (failed) break;
   }
 
   const report = {
@@ -124,6 +142,11 @@ function main() {
     workstream_id: options.workstreamId || null,
     test_count: tests.length,
     results,
+    diagnostics: {
+      capture_mode: "bounded_redacted_failure_tail",
+      max_chars_per_stream: 12_000,
+      job_logs_role: "diagnostic_only"
+    },
     secrets_included: false
   };
   writeAtomic(options.reportFile, report);
