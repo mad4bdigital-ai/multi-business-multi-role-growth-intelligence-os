@@ -18,55 +18,185 @@
     {
       "logical_key": "operations",
       "name": "storage_cleanup_operations",
-      "primary_key": ["id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "operation_id",
-      "required_columns": ["id", "idempotency_key", "target_id", "state", "version", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["id"], ["operation_class", "target_id", "idempotency_key"]],
-      "mutable_columns": ["state", "version", "record_digest", "record_json", "row_version"],
+      "required_columns": [
+        "id",
+        "idempotency_key",
+        "target_id",
+        "state",
+        "version",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "operation_class",
+          "target_id",
+          "idempotency_key"
+        ]
+      ],
+      "mutable_columns": [
+        "state",
+        "version",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
       "cas_column": "row_version",
       "retention": "retain_terminal_operations_and_audit_lineage"
     },
     {
       "logical_key": "plans",
       "name": "storage_cleanup_plans",
-      "primary_key": ["id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "plan_id",
-      "required_columns": ["id", "operation_id", "target_id", "plan_hash", "consumed", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["id"], ["operation_id", "plan_hash"]],
-      "mutable_columns": ["consumed", "record_digest", "record_json", "row_version"],
+      "required_columns": [
+        "id",
+        "operation_id",
+        "target_id",
+        "plan_hash",
+        "consumed",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "operation_id",
+          "plan_hash"
+        ]
+      ],
+      "mutable_columns": [
+        "consumed",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
       "cas_column": "row_version",
       "retention": "retain_consumed_expired_cancelled_and_blocked_plans"
     },
     {
       "logical_key": "approvals",
       "name": "storage_cleanup_approvals",
-      "primary_key": ["id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "approval_id",
-      "required_columns": ["id", "plan_id", "approval_slot", "decision", "invalidated", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["id"], ["plan_id", "approval_slot", "approval_generation"]],
-      "mutable_columns": ["invalidated", "record_digest", "record_json", "row_version"],
+      "required_columns": [
+        "id",
+        "plan_id",
+        "approval_slot",
+        "decision",
+        "invalidated",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "plan_id",
+          "approval_slot",
+          "approval_generation"
+        ]
+      ],
+      "mutable_columns": [
+        "invalidated",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
       "cas_column": "row_version",
       "retention": "retain_all_decisions_invalidations_and_supersessions"
     },
     {
       "logical_key": "leases",
       "name": "storage_execution_leases",
-      "primary_key": ["target_id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "target_id",
-      "required_columns": ["target_id", "lease_id", "operation_id", "generation", "status", "expires_at_epoch", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["target_id", "root_ref_digest", "active_slot"]],
-      "mutable_columns": ["lease_id", "operation_id", "generation", "status", "expires_at_epoch", "record_digest", "record_json", "row_version"],
+      "required_columns": [
+        "id",
+        "target_id",
+        "lease_id",
+        "operation_id",
+        "generation",
+        "status",
+        "expires_at_epoch",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "target_id",
+          "root_ref_digest",
+          "active_slot"
+        ]
+      ],
+      "mutable_columns": [
+        "lease_id",
+        "operation_id",
+        "generation",
+        "status",
+        "expires_at_epoch",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
       "cas_column": "row_version",
       "semantic_cas_column": "generation",
-      "retention": "retain_released_expired_and_conflicted_lease_history"
+      "retention": "retain_released_expired_and_conflicted_lease_history",
+      "identity_binding": "id_equals_lease_id_and_target_id_remains_unique_cas_record_key"
     },
     {
       "logical_key": "journals",
       "name": "storage_cleanup_run_items",
-      "primary_key": ["id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "event_id",
-      "required_columns": ["id", "operation_id", "run_id", "plan_id", "item_id", "sequence", "phase", "result", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["id"], ["run_id", "plan_item_id", "sequence"]],
+      "required_columns": [
+        "id",
+        "operation_id",
+        "run_id",
+        "plan_id",
+        "item_id",
+        "sequence",
+        "phase",
+        "result",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "run_id",
+          "plan_item_id",
+          "sequence"
+        ]
+      ],
       "mutable_columns": [],
       "append_only": true,
       "retention": "retain_with_run_and_operation_audit"
@@ -74,10 +204,29 @@
     {
       "logical_key": "reconciliations",
       "name": "storage_reconciliation_results",
-      "primary_key": ["id"],
+      "primary_key": [
+        "id"
+      ],
       "record_key": "reconciliation_id",
-      "required_columns": ["id", "operation_id", "run_id", "outcome", "retry_permission", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["id"], ["run_id", "reconciliation_generation"]],
+      "required_columns": [
+        "id",
+        "operation_id",
+        "run_id",
+        "outcome",
+        "retry_permission",
+        "record_digest",
+        "record_json",
+        "row_version"
+      ],
+      "required_unique_keys": [
+        [
+          "id"
+        ],
+        [
+          "run_id",
+          "reconciliation_generation"
+        ]
+      ],
       "mutable_columns": [],
       "append_only": true,
       "retention": "retain_all_reconciliation_evidence"

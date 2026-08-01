@@ -179,7 +179,7 @@ async function loadState(connection, { forUpdate = false } = {}) {
     ['operations', `/* spec014:load:operations */ SELECT id, idempotency_key, record_digest, record_json, row_version FROM ${SAFE_TABLES.operations}${suffix}`],
     ['plans', `/* spec014:load:plans */ SELECT id, record_digest, record_json, row_version FROM ${SAFE_TABLES.plans}${suffix}`],
     ['approvals', `/* spec014:load:approvals */ SELECT id, plan_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.approvals}${suffix}`],
-    ['leases', `/* spec014:load:leases */ SELECT target_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.leases}${suffix}`],
+    ['leases', `/* spec014:load:leases */ SELECT id, target_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.leases}${suffix}`],
     ['journals', `/* spec014:load:journals */ SELECT id, run_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.journals}${suffix}`],
     ['reconciliations', `/* spec014:load:reconciliations */ SELECT id, record_digest, record_json, row_version FROM ${SAFE_TABLES.reconciliations}${suffix}`],
   ];
@@ -256,7 +256,7 @@ async function insertRecord(connection, table, record) {
     return execute(connection, `/* spec014:insert:approvals */ INSERT INTO ${SAFE_TABLES.approvals} (id, plan_id, approval_slot, decision, invalidated, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.approval_id, record.plan_id, record.slot, record.decision, record.invalidated ? 1 : 0, ...common]);
   }
   if (table === 'leases') {
-    return execute(connection, `/* spec014:insert:leases */ INSERT INTO ${SAFE_TABLES.leases} (target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.target_id, record.lease_id, record.operation_id, record.generation, record.status, record.expires_at_epoch, ...common]);
+    return execute(connection, `/* spec014:insert:leases */ INSERT INTO ${SAFE_TABLES.leases} (id, target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.lease_id, record.target_id, record.lease_id, record.operation_id, record.generation, record.status, record.expires_at_epoch, ...common]);
   }
   if (table === 'journals') {
     return execute(connection, `/* spec014:insert:journals */ INSERT INTO ${SAFE_TABLES.journals} (id, operation_id, run_id, plan_id, item_id, sequence, phase, result, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.event_id, record.operation_id, record.run_id, record.plan_id, record.item_id, record.sequence, record.phase, record.result, ...common]);
