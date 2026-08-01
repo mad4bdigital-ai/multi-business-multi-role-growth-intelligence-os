@@ -1,0 +1,89 @@
+name: CI Evidence Publisher Live Diagnostic One Shot
+
+on:
+  push:
+    branches:
+      - gpt/ci-evidence-publisher-live-diagnostic-20260801
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: ci-evidence-publisher-live-diagnostic-one-shot
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/ci-evidence-publisher-live-diagnostic-20260801
+          fetch-depth: 0
+
+      - name: Capture publisher registration and recent runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: "30697083103"
+        run: |
+          set -euo pipefail
+          mkdir -p .github/diagnostics
+          workflow_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml")"
+          runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml/runs?per_page=30")"
+          source_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          jq -n \
+            --argjson workflow "$workflow_json" \
+            --argjson runs "$runs_json" \
+            --argjson source "$source_json" \
+            '{
+              contract: "mad4b.ci-evidence-publisher-live-diagnostic.v1",
+              workflow: {
+                id: $workflow.id,
+                name: $workflow.name,
+                path: $workflow.path,
+                state: $workflow.state,
+                created_at: $workflow.created_at,
+                updated_at: $workflow.updated_at
+              },
+              source_run: {
+                id: $source.id,
+                name: $source.name,
+                event: $source.event,
+                status: $source.status,
+                conclusion: $source.conclusion,
+                head_branch: $source.head_branch,
+                head_sha: $source.head_sha,
+                pull_requests: [$source.pull_requests[]? | {number, head, base}]
+              },
+              publisher_runs: [
+                $runs.workflow_runs[]? | {
+                  id,
+                  name,
+                  event,
+                  status,
+                  conclusion,
+                  head_branch,
+                  head_sha,
+                  run_number,
+                  created_at,
+                  updated_at,
+                  triggering_actor: .triggering_actor.login
+                }
+              ],
+              publisher_run_count: ($runs.workflow_runs | length),
+              secrets_included: false
+            }' > .github/diagnostics/ci-evidence-publisher-live-diagnostic.json
+
+      - name: Remove one-shot workflow and commit diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/ci-evidence-publisher-live-diagnostic-one-shot.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/diagnostics/ci-evidence-publisher-live-diagnostic.json .github/workflows/ci-evidence-publisher-live-diagnostic-one-shot.yml
+          git commit -m "test(ci): capture publisher live registration and runs"
+          git push origin HEAD:gpt/ci-evidence-publisher-live-diagnostic-20260801
