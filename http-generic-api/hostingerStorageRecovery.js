@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
+import { assertHostingerStorageSecretFree } from './hostingerStorageSecretFree.js';
 
 export const HOSTINGER_STORAGE_RECOVERY_VERSION = 'spec014-hostinger-storage-recovery-v1';
 
 const SHA256_RE = /^[0-9a-f]{64}$/i;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,190}$/;
 const SAFE_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,510}$/;
-const SECRET_KEY_RE = /(secret(?!s_included$)|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session|raw_provider_output|raw_environment)/i;
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -13,6 +13,19 @@ function fail(status, code, message, details = {}) {
   error.code = code;
   error.details = { ...details, secrets_included: false };
   return error;
+}
+
+function assertSecretFree(value, at = 'value') {
+  return assertHostingerStorageSecretFree(value, {
+    at,
+    allow_authorization_envelope: true,
+    on_violation: ({ reason, path, key }) => fail(
+      400,
+      'STORAGE_RECOVERY_SECRET_FIELD_REJECTED',
+      'Recovery contracts must not contain secret-like fields.',
+      { reason, path, key: key || null },
+    ),
+  });
 }
 
 function text(value, max = 512) {
@@ -27,21 +40,6 @@ function stable(value) {
 
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
-}
-
-function assertSecretFree(value, at = 'value', depth = 0) {
-  if (depth > 12 || value === null || value === undefined) return;
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertSecretFree(item, `${at}[${index}]`, depth + 1));
-    return;
-  }
-  if (typeof value !== 'object') return;
-  for (const [key, item] of Object.entries(value)) {
-    if (key !== 'secrets_included' && SECRET_KEY_RE.test(key)) {
-      throw fail(400, 'STORAGE_RECOVERY_SECRET_FIELD_REJECTED', 'Recovery contracts must not contain secret-like fields.', { path: `${at}.${key}` });
-    }
-    assertSecretFree(item, `${at}.${key}`, depth + 1);
-  }
 }
 
 function safeId(value, field) {
