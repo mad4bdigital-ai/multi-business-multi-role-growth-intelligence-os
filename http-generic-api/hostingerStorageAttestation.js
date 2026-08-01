@@ -213,8 +213,8 @@ function validateSubjectIdentity(subject) {
 }
 
 export function verifyHostingerStorageAttestationEvidence({ subject, verification, policy, now } = {}) {
-  assertSecretFree({ verification, policy }, 'attestation_verification');
-  validateSubjectIdentity(subject);
+  assertSecretFree({ subject, verification, policy }, 'attestation_verification');
+  const identity = validateSubjectIdentity(subject);
   if (!subject?.payload || digest(subject.payload) !== subject.subject_digest) {
     throw fail(409, 'STORAGE_PLAN_TAMPERED', 'Attestation subject digest does not match its payload.');
   }
@@ -239,7 +239,19 @@ export function verifyHostingerStorageAttestationEvidence({ subject, verificatio
     evidence_key: 'hostinger_storage_attestation_verification_v1',
     subject_type: subject.subject_type,
     predicate_type: subject.predicate_type,
+    subject_name: subject.subject_name,
     subject_digest: subject.subject_digest,
+    operation_id: identity.plan.operation_id,
+    plan_id: identity.plan.plan_id,
+    target_id: identity.plan.target_id,
+    plan_hash: identity.plan.plan_hash,
+    candidate_set_hash: identity.plan.candidate_set_hash,
+    authority_context_hash: identity.plan.authority_context_hash,
+    ownership_revision: identity.plan.ownership_revision,
+    policy_revision: identity.plan.policy_revision,
+    approval_set_hash: identity.authorization.approval_set_hash,
+    capability_envelope_id: identity.authorization.capability_envelope_id,
+    execution_lease_id: identity.authorization.execution_lease_id,
     signer_identity: signerIdentity || null,
     issuer: issuer || null,
     bundle_ref: bundleRef,
