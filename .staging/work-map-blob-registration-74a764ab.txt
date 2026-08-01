@@ -1,0 +1,2 @@
+Temporary isolated marker for registering exact-head Work Map blobs from source commit 74a764ab175ab3a6f105aa7a076e588541ea5766.
+This branch will not be merged and will be deleted after atomic blob transfer.
