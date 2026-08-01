@@ -160,6 +160,7 @@ assert.equal(schema.secrets_included, false);
 
 const migration = fs.readFileSync(new URL("./migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql", import.meta.url), "utf8");
 assert.match(migration, /ADD COLUMN ticket_id CHAR\(36\)/u);
+// Match the SQL contract literally: a regex here would interpret its character class and quantifier instead of checking the migration text.
 assert.ok(
   migration.includes("resource_ref REGEXP '^ticket://[0-9a-fA-F-]{36}$'"),
   "migration must backfill only canonical ticket UUID resource refs",
