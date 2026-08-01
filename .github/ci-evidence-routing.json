@@ -85,6 +85,15 @@
         "context-kernel-hardcoding-source.json": "mad4b.context-kernel-hardcoding-source.v1"
       },
       "source_artifacts": ["context-kernel-hardcoding-source.json"]
+    },
+    {
+      "workflow": "PR Generated Artifact Refresh",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.pr-generated-artifact-refresh-summary.v1",
+      "canonical_artifact": "pr-generated-artifact-refresh-${run_id}-summary",
+      "source_head_may_precede_candidate": true,
+      "candidate_rule": "candidate_sha equals the generated commit when one is published; otherwise candidate_sha equals source_head_sha",
+      "source_artifacts": ["pr-generated-artifact-refresh-summary.json"]
     }
   ],
   "secrets_included": false
