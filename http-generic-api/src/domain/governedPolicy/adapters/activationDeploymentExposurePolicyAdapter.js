@@ -161,7 +161,6 @@ function compilePolicy({ input }) {
     missing_invalid_or_stale_evidence_state: "unknown",
     deployment_mismatch_reconnect_required: false,
     full_git_sha_tenant_visible: false,
-    secrets_included: false,
   };
   return Object.freeze({
     ...policy,
@@ -196,7 +195,6 @@ function validatePolicy({ policy, safetyBounds }) {
     immutable_principal_ceiling_enforced: true,
     tenant_admin_full_allowed: false,
     arbitrary_operation_pattern_allowed: false,
-    secrets_included: false,
   });
 }
 
@@ -244,7 +242,6 @@ function buildImpactPreview({ policy }) {
     rollout: Object.freeze({ strategy: "registry_versioned", critical_cache_invalidation: true }),
     rollback: Object.freeze({ exact_prior_policy_version_required: true }),
     unknown_or_unmeasured_claims: Object.freeze([]),
-    secrets_included: false,
   });
 }
 
