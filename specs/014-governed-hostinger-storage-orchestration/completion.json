@@ -3,7 +3,7 @@
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "spec_key": "014-governed-hostinger-storage-orchestration",
   "delivery_mode": "multi_pr",
-  "status": "pending",
+  "status": "in_progress",
   "review_state": "implementation_in_progress",
   "requirements": {
     "migration": true,
