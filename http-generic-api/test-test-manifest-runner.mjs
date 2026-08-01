@@ -14,6 +14,10 @@ const generatedRefreshWorkflow = fs.readFileSync(
   new URL("../.github/workflows/pr-generated-artifact-refresh.yml", import.meta.url),
   "utf8",
 );
+const governedGeneratedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/governed-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
 const ciAutostartWorkflow = fs.readFileSync(
   new URL("../.github/workflows/ci-autostart-recovery.yml", import.meta.url),
   "utf8",
@@ -83,14 +87,49 @@ for (const workflowSource of [generatedRefreshWorkflow, ciAutostartWorkflow]) {
     "non-protected certification branch support must remain enabled",
   );
 }
+
 assert.ok(
   generatedRefreshWorkflow.includes("github.actor != 'github-actions[bot]'"),
   "generated refresh must prevent bot recursion",
 );
 assert.ok(
-  generatedRefreshWorkflow.includes("contents: write"),
-  "generated refresh requires bounded branch write permission",
+  generatedRefreshWorkflow.includes("contents: read"),
+  "PR generated-artifact evaluation must remain read-only",
 );
+assert.ok(
+  !generatedRefreshWorkflow.includes("contents: write"),
+  "PR generated-artifact evaluation must not receive repository write permission",
+);
+assert.ok(
+  generatedRefreshWorkflow.includes("persist-credentials: false"),
+  "PR generated-artifact evaluation must not persist checkout credentials",
+);
+assert.ok(
+  !generatedRefreshWorkflow.includes("git push"),
+  "PR generated-artifact evaluation must not push repository changes",
+);
+
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("workflow_dispatch:"),
+  "generated-artifact mutation must stay behind explicit workflow dispatch",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("contents: write"),
+  "governed generated-artifact apply requires bounded branch write permission",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("actions: write"),
+  "governed generated-artifact apply requires exact-head verification dispatch permission",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("expected_head_sha:"),
+  "governed generated-artifact apply must require an exact expected head SHA",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("APPLY_GENERATED_ARTIFACT_REFRESH"),
+  "governed generated-artifact apply must require typed confirmation",
+);
+
 assert.ok(
   ciAutostartWorkflow.includes("actions: write"),
   "CI recovery requires workflow dispatch permission",
