@@ -41,19 +41,12 @@ if (packageJson.scripts?.["frontend:dispatch:generate"] !== HOOKED_DISPATCH) {
   throw new Error("recovery hook mismatch");
 }
 
-run("git", ["fetch", "origin", SOURCE_BRANCH]);
-run("git", ["checkout", `origin/${SOURCE_BRANCH}`, "--", ...PERMANENT_PATHS.map((path) => `../${path}`)]);
-const transform = spawnSync(
-  "git",
-  ["show", `origin/${SOURCE_BRANCH}:http-generic-api/scripts/pr-4395-bounded-candidate-window-fix.py`],
-  { cwd: process.cwd(), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
-);
-if (transform.status !== 0 || !transform.stdout) {
-  throw new Error("failed to read bounded candidate-window transform from source branch");
-}
-writeFileSync("/tmp/pr-4395-bounded-candidate-window-fix.py", transform.stdout);
-run("python3", ["/tmp/pr-4395-bounded-candidate-window-fix.py"]);
+// Run Git operations from the repository root so every pathspec is canonical.
+run("git", ["-C", "..", "fetch", "origin", SOURCE_BRANCH]);
+run("git", ["-C", "..", "checkout", `origin/${SOURCE_BRANCH}`, "--", ...PERMANENT_PATHS]);
 
+// The source branch already contains the reviewed bounded candidate-window implementation.
+// A separate transient transform is neither required nor authoritative.
 run("node", ["--check", "governedToolResponseChunkStore.js"]);
 run("node", ["--check", "routes/supportTicketRoutes.js"]);
 run("node", ["--check", "routes/systemLayerRoutes.js"]);
