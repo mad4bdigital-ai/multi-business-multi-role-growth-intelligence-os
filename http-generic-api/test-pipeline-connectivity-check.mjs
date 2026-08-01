@@ -187,7 +187,14 @@ function setup() {
   assert.ok(maintenanceSource.includes("platform-work-map-generator-skipped-explicit-scope"));
 
   assert.ok(integrationWorkflow.includes("Generate exact-head Work Map repair candidate"));
-  assert.ok(integrationWorkflow.includes("generated_from_exact_checked_out_head"));
+  assert.ok(integrationWorkflow.includes("EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(integrationWorkflow.includes('tested_head_sha="$(git rev-parse HEAD)"'));
+  assert.ok(integrationWorkflow.includes("Repair candidate checkout mismatch"));
+  assert.ok(integrationWorkflow.includes("event_sha: process.env.GITHUB_SHA"));
+  assert.ok(integrationWorkflow.includes("expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(integrationWorkflow.includes("tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA"));
+  assert.ok(integrationWorkflow.includes("process.env.WORK_MAP_TESTED_HEAD_SHA === process.env.EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(!integrationWorkflow.includes("tested_head_sha: process.env.GITHUB_SHA"));
   assert.ok(integrationWorkflow.includes("remote_write_executed: false"));
   assert.ok(integrationWorkflow.includes("actions/upload-artifact@v4"));
   assert.ok(integrationWorkflow.includes("Fail closed on stale generated Work Maps"));
