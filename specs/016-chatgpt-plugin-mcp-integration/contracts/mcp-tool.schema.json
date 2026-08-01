@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/specs/016/mcp-tool.schema.json",
+  "title": "MAD4B ChatGPT MCP Tool Contract",
+  "description": "Specification-only normalized contract for public MCP tool metadata, platform authority binding, bounded results, and safety annotations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "tool",
+    "authority",
+    "rollout",
+    "result_policy",
+    "secrets_included"
+  ],
+  "properties": {
+    "contract": {
+      "const": "mad4b.chatgpt-mcp-tool.v1"
+    },
+    "tool": {
+      "$ref": "#/$defs/toolDefinition"
+    },
+    "authority": {
+      "$ref": "#/$defs/authorityBinding"
+    },
+    "rollout": {
+      "$ref": "#/$defs/rolloutPolicy"
+    },
+    "result_policy": {
+      "$ref": "#/$defs/resultPolicy"
+    },
+    "secrets_included": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "jsonSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "format": "uri"
+        },
+        "type": {
+          "enum": ["object"]
+        },
+        "properties": {
+          "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "additionalProperties": {
+          "oneOf": [
+            {"type": "boolean"},
+            {"type": "object"}
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "toolDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "title",
+        "description",
+        "version",
+        "inputSchema",
+        "annotations"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 96
+        },
+        "description": {
+          "type": "string",
+          "minLength": 24,
+          "maxLength": 1024
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+        },
+        "inputSchema": {
+          "$ref": "#/$defs/jsonSchema"
+        },
+        "outputSchema": {
+          "$ref": "#/$defs/jsonSchema"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "readOnlyHint",
+            "destructiveHint",
+            "openWorldHint"
+          ],
+          "properties": {
+            "readOnlyHint": {
+              "type": "boolean"
+            },
+            "destructiveHint": {
+              "type": "boolean"
+            },
+            "openWorldHint": {
+              "type": "boolean"
+            }
+          }
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public_metadata", "authenticated", "workspace_admin", "platform_admin"]
+        }
+      }
+    },
+    "authorityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_key",
+        "handler_key",
+        "context_authority",
+        "authorization_authorities",
+        "model_identifiers_are_selectors",
+        "server_side_authorization_required"
+      ],
+      "properties": {
+        "capability_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "operation_family_key": {
+          "type": ["string", "null"],
+          "maxLength": 160,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "handler_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        },
+        "context_authority": {
+          "const": "context_kernel"
+        },
+        "authorization_authorities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "oauth_scope",
+              "client_policy",
+              "tenant_policy",
+              "semantic_capability",
+              "object_authority",
+              "confirmation_policy",
+              "operation_authority"
+            ]
+          }
+        },
+        "required_scopes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        },
+        "resource_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        },
+        "model_identifiers_are_selectors": {
+          "const": true
+        },
+        "server_side_authorization_required": {
+          "const": true
+        }
+      }
+    },
+    "rolloutPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase",
+        "status",
+        "client_classes",
+        "independent_disable_supported"
+      ],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["read_only", "governed_writes", "public_review", "published"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "reviewed", "enabled", "disabled", "retired"]
+        },
+        "client_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["development", "chatgpt", "codex", "review", "workspace", "public"]
+          }
+        },
+        "tenant_policy_key": {
+          "type": ["string", "null"],
+          "maxLength": 160
+        },
+        "rollout_key": {
+          "type": ["string", "null"],
+          "maxLength": 160
+        },
+        "independent_disable_supported": {
+          "const": true
+        }
+      }
+    },
+    "resultPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_identifiers_required",
+        "bounded",
+        "forbidden_data",
+        "unknown_outcome_requires_readback"
+      ],
+      "properties": {
+        "stable_identifiers_required": {
+          "type": "boolean"
+        },
+        "bounded": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_rows", "max_bytes", "max_depth"],
+          "properties": {
+            "max_rows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "max_bytes": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 10485760
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            }
+          }
+        },
+        "allowed_channels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["content", "structuredContent", "_meta"]
+          }
+        },
+        "forbidden_data": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "access_token",
+              "refresh_token",
+              "oauth_client_secret",
+              "backend_api_key",
+              "authorization_header",
+              "provider_credential",
+              "raw_grant",
+              "database_url",
+              "private_key",
+              "unredacted_provider_payload"
+            ]
+          }
+        },
+        "unknown_outcome_requires_readback": {
+          "const": true
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tool": {
+            "properties": {
+              "annotations": {
+                "properties": {
+                  "readOnlyHint": {"const": true}
+                },
+                "required": ["readOnlyHint"]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tool": {
+            "properties": {
+              "annotations": {
+                "properties": {
+                  "destructiveHint": {"const": false}
+                }
+              }
+            }
+          },
+          "authority": {
+            "properties": {
+              "operation_family_key": {"type": "null"}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

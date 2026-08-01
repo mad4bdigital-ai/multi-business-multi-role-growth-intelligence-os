@@ -50,6 +50,45 @@ PREPARE resolution_inbox_index_stmt FROM @resolution_inbox_index_sql;
 EXECUTE resolution_inbox_index_stmt;
 DEALLOCATE PREPARE resolution_inbox_index_stmt;
 
+SET @ticket_lifecycle_inbox_activity_index_sql := (
+  SELECT CASE WHEN COUNT(*) = 0
+    THEN 'ALTER TABLE ticket_lifecycle_events ADD KEY idx_ticket_lifecycle_inbox_activity (tenant_id, visibility, ticket_id, created_at)'
+    ELSE 'SELECT 1 AS ticket_lifecycle_inbox_activity_index_present' END
+  FROM information_schema.statistics
+  WHERE table_schema = DATABASE()
+    AND table_name = 'ticket_lifecycle_events'
+    AND index_name = 'idx_ticket_lifecycle_inbox_activity'
+);
+PREPARE ticket_lifecycle_inbox_activity_index_stmt FROM @ticket_lifecycle_inbox_activity_index_sql;
+EXECUTE ticket_lifecycle_inbox_activity_index_stmt;
+DEALLOCATE PREPARE ticket_lifecycle_inbox_activity_index_stmt;
+
+SET @resolution_case_events_inbox_activity_index_sql := (
+  SELECT CASE WHEN COUNT(*) = 0
+    THEN 'ALTER TABLE tenant_resolution_case_events ADD KEY idx_resolution_case_events_inbox_activity (case_id, created_at)'
+    ELSE 'SELECT 1 AS resolution_case_events_inbox_activity_index_present' END
+  FROM information_schema.statistics
+  WHERE table_schema = DATABASE()
+    AND table_name = 'tenant_resolution_case_events'
+    AND index_name = 'idx_resolution_case_events_inbox_activity'
+);
+PREPARE resolution_case_events_inbox_activity_index_stmt FROM @resolution_case_events_inbox_activity_index_sql;
+EXECUTE resolution_case_events_inbox_activity_index_stmt;
+DEALLOCATE PREPARE resolution_case_events_inbox_activity_index_stmt;
+
+SET @resolution_readbacks_inbox_activity_index_sql := (
+  SELECT CASE WHEN COUNT(*) = 0
+    THEN 'ALTER TABLE tenant_resolution_readbacks ADD KEY idx_resolution_readbacks_inbox_activity (case_id, created_at)'
+    ELSE 'SELECT 1 AS resolution_readbacks_inbox_activity_index_present' END
+  FROM information_schema.statistics
+  WHERE table_schema = DATABASE()
+    AND table_name = 'tenant_resolution_readbacks'
+    AND index_name = 'idx_resolution_readbacks_inbox_activity'
+);
+PREPARE resolution_readbacks_inbox_activity_index_stmt FROM @resolution_readbacks_inbox_activity_index_sql;
+EXECUTE resolution_readbacks_inbox_activity_index_stmt;
+DEALLOCATE PREPARE resolution_readbacks_inbox_activity_index_stmt;
+
 -- Reconcile every runtime-referenced chunk ownership column. This intentionally repeats
 -- the additive ownership contract so a partially applied legacy environment can recover
 -- without changing application data or guessing owners for existing rows.

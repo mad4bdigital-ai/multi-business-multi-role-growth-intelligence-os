@@ -67,6 +67,17 @@ const listPool = fakePool([
     assert(sql) { assert.match(sql, /information_schema\.columns/u); },
   },
   {
+    rows: [{ ticket_id: ticketId }],
+    assert(sql, params) {
+      assert.match(sql, /UNION ALL/u, "candidate discovery must combine bounded activity sources set-wise");
+      assert.match(sql, /candidate_case_newer\.id IS NULL/u, "candidate discovery must bind the latest case without a scalar lookup");
+      assert.match(sql, /GROUP BY t\.ticket_id/u, "each activity source must collapse to one candidate per ticket before final ranking");
+      assert.match(sql, /LIMIT 408/u, "candidate discovery must use a bounded window derived from the page limit");
+      assert.doesNotMatch(sql, /SELECT MAX\(tle\.created_at\)[\s\S]*WHERE tle\.ticket_id = t\.ticket_id/u, "candidate discovery must not use per-ticket correlated event lookups");
+      assert(params.length > 0);
+    },
+  },
+  {
     rows: [{
       ticket_id: ticketId,
       tenant_id: tenantId,
@@ -98,6 +109,7 @@ const listPool = fakePool([
     }],
     assert(sql, params) {
       assert.match(sql, /c2\.ticket_id = t\.ticket_id/u);
+      assert.match(sql, /t\.ticket_id IN \(\?\)/u, "exact latest-activity calculation must be restricted to bounded candidates");
       assert.match(sql, /ORDER BY latest_activity_at DESC, t\.ticket_id DESC/u);
       assert.match(sql, /SELECT MAX\(tle\.created_at\)/u, "latest activity must include visible ticket lifecycle events");
       assert.match(sql, /tle\.visibility = 'customer'/u, "ordinary member latest activity must ignore tenant-admin and internal-support events");
@@ -213,6 +225,9 @@ assert.ok(
 );
 assert.match(migration, /idx_tickets_tenant_status_last_seen/u);
 assert.match(migration, /idx_resolution_cases_ticket_status_updated/u);
+assert.match(migration, /idx_ticket_lifecycle_inbox_activity/u);
+assert.match(migration, /idx_resolution_case_events_inbox_activity/u);
+assert.match(migration, /idx_resolution_readbacks_inbox_activity/u);
 assert.match(migration, /v_governed_response_chunk_runtime_schema_readiness/u);
 assert.doesNotMatch(migration, /DROP\s+(TABLE|COLUMN|INDEX)/iu);
 assert.doesNotMatch(migration, /DELETE\s+FROM/iu);

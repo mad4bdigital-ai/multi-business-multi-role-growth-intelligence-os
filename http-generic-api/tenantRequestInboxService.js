@@ -201,29 +201,135 @@ function projectInboxRow(row = {}) {
   };
 }
 
+function inboxFilterSql(filters = {}, scope = {}, ticketAlias = "t", caseAlias = "c") {
+  const conditions = ["1=1"];
+  const params = [];
+  if (scope.tenantId) { conditions.push(`${ticketAlias}.tenant_id = ?`); params.push(scope.tenantId); }
+  if (filters.status) { conditions.push(`${ticketAlias}.status = ?`); params.push(text(filters.status)); }
+  if (filters.case_status) { conditions.push(`${caseAlias}.status = ?`); params.push(text(filters.case_status)); }
+  if (filters.priority) { conditions.push(`${ticketAlias}.priority = ?`); params.push(text(filters.priority)); }
+  const search = text(filters.search);
+  if (search) {
+    const like = `%${search.slice(0, 191)}%`;
+    conditions.push(`(${ticketAlias}.ticket_id = ? OR ${caseAlias}.case_id = ? OR ${ticketAlias}.tenant_id = ? OR ${caseAlias}.resource_ref LIKE ? OR ${ticketAlias}.title LIKE ?)`);
+    params.push(search, search, search, like, like);
+  }
+  return { conditions, params, search };
+}
+
+function candidateCaseJoinSql(hasTicketId) {
+  const relation = hasTicketId
+    ? `(candidate_case.ticket_id = t.ticket_id OR (candidate_case.ticket_id IS NULL AND candidate_case.resource_ref = CONCAT('ticket://', t.ticket_id)))`
+    : `candidate_case.resource_ref = CONCAT('ticket://', t.ticket_id)`;
+  const newerRelation = hasTicketId
+    ? `(candidate_case_newer.ticket_id = t.ticket_id OR (candidate_case_newer.ticket_id IS NULL AND candidate_case_newer.resource_ref = CONCAT('ticket://', t.ticket_id)))`
+    : `candidate_case_newer.resource_ref = CONCAT('ticket://', t.ticket_id)`;
+  return `LEFT JOIN tenant_resolution_cases candidate_case
+    ON candidate_case.tenant_id = t.tenant_id
+   AND ${relation}
+  LEFT JOIN tenant_resolution_cases candidate_case_newer
+    ON candidate_case_newer.tenant_id = t.tenant_id
+   AND ${newerRelation}
+   AND (
+     COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) > COALESCE(candidate_case.updated_at, candidate_case.created_at)
+     OR (
+       COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) = COALESCE(candidate_case.updated_at, candidate_case.created_at)
+       AND candidate_case_newer.id > candidate_case.id
+     )
+   )`;
+}
+
+function boundedCandidateWindow(limit) {
+  return Math.min(Math.max((Number(limit) + 1) * 8, 200), 1000);
+}
+
 export async function listTenantRequestInbox(filters = {}, options = {}) {
   const pool = options.pool || getPool();
   const scope = await authorizeTenantRequestScope({ auth: options.auth || {}, tenantId: filters.tenant_id, pool });
   const hasTicketId = await hasResolutionTicketIdColumn(pool);
-  const conditions = ["1=1"];
-  const params = [];
-  if (scope.tenantId) { conditions.push("t.tenant_id = ?"); params.push(scope.tenantId); }
-  if (filters.status) { conditions.push("t.status = ?"); params.push(text(filters.status)); }
-  if (filters.case_status) { conditions.push("c.status = ?"); params.push(text(filters.case_status)); }
-  if (filters.priority) { conditions.push("t.priority = ?"); params.push(text(filters.priority)); }
-  const search = text(filters.search);
-  if (search) {
-    const like = `%${search.slice(0, 191)}%`;
-    conditions.push("(t.ticket_id = ? OR c.case_id = ? OR t.tenant_id = ? OR c.resource_ref LIKE ? OR t.title LIKE ?)");
-    params.push(search, search, search, like, like);
-  }
+  const limit = boundedLimit(filters.limit);
   const cursor = decodeTenantRequestCursor(filters.cursor);
+  const candidateLimit = boundedCandidateWindow(limit);
+  const candidateJoin = candidateCaseJoinSql(hasTicketId);
+  const candidateParams = [];
+
+  const candidateBranch = ({ activitySql, extraJoin = "", extraCondition = "" }) => {
+    const branch = inboxFilterSql(filters, scope, "t", "candidate_case");
+    branch.conditions.push("candidate_case_newer.id IS NULL");
+    if (extraCondition) branch.conditions.push(extraCondition);
+    let having = "";
+    if (cursor) {
+      having = `HAVING (MAX(${activitySql}) < ? OR (MAX(${activitySql}) = ? AND t.ticket_id < ?))`;
+      branch.params.push(cursor.latestActivityAt, cursor.latestActivityAt, cursor.ticketId);
+    }
+    candidateParams.push(...branch.params);
+    return `(SELECT t.ticket_id, MAX(${activitySql}) AS activity_at
+       FROM tickets t
+       ${candidateJoin}
+       ${extraJoin}
+      WHERE ${branch.conditions.join(" AND ")}
+      GROUP BY t.ticket_id
+      ${having}
+      ORDER BY activity_at DESC, t.ticket_id DESC
+      LIMIT ${candidateLimit})`;
+  };
+
+  const ticketEventVisibility = ticketEventVisibilitySql(scope, "tle").replace(/^AND\s+/u, "");
+  const candidateSources = [
+    candidateBranch({ activitySql: "COALESCE(t.last_seen_at, t.updated_at, t.created_at)" }),
+    candidateBranch({
+      activitySql: "tle.created_at",
+      extraJoin: "JOIN ticket_lifecycle_events tle ON tle.tenant_id = t.tenant_id AND tle.ticket_id = t.ticket_id",
+      extraCondition: ticketEventVisibility,
+    }),
+    candidateBranch({ activitySql: "COALESCE(candidate_case.updated_at, candidate_case.created_at)", extraCondition: "candidate_case.case_id IS NOT NULL" }),
+    candidateBranch({
+      activitySql: "trce.created_at",
+      extraJoin: "JOIN tenant_resolution_case_events trce ON trce.case_id = candidate_case.case_id",
+      extraCondition: "candidate_case.case_id IS NOT NULL",
+    }),
+    candidateBranch({
+      activitySql: "trr.created_at",
+      extraJoin: "JOIN tenant_resolution_readbacks trr ON trr.case_id = candidate_case.case_id",
+      extraCondition: "candidate_case.case_id IS NOT NULL",
+    }),
+  ];
+
+  const [candidateRows] = await pool.query(
+    `SELECT candidate.ticket_id, MAX(candidate.activity_at) AS candidate_activity_at
+       FROM (${candidateSources.join("\nUNION ALL\n")}) candidate
+      GROUP BY candidate.ticket_id
+      ORDER BY candidate_activity_at DESC, candidate.ticket_id DESC
+      LIMIT ${candidateLimit}`,
+    candidateParams,
+  );
+  const candidateTicketIds = [...new Set((candidateRows || []).map((row) => text(row.ticket_id)).filter(Boolean))];
+  const normalized = inboxFilterSql(filters, scope);
+  if (candidateTicketIds.length === 0) {
+    return {
+      items: [],
+      page: { limit, hasMore: false, nextCursor: null },
+      filters: {
+        tenantId: scope.tenantId,
+        status: filters.status || null,
+        caseStatus: filters.case_status || null,
+        priority: filters.priority || null,
+        search: normalized.search || null,
+      },
+      schema: { explicitTicketCaseLinkAvailable: hasTicketId, candidateWindowLimit: candidateLimit },
+      secretsIncluded: false,
+    };
+  }
+
+  const conditions = [...normalized.conditions];
+  const params = [...normalized.params];
+  conditions.push(`t.ticket_id IN (${candidateTicketIds.map(() => "?").join(", ")})`);
+  params.push(...candidateTicketIds);
   const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));
   if (cursor) {
     conditions.push(`(${activity} < ? OR (${activity} = ? AND t.ticket_id < ?))`);
     params.push(cursor.latestActivityAt, cursor.latestActivityAt, cursor.ticketId);
   }
-  const limit = boundedLimit(filters.limit);
   params.push(limit + 1);
   const [rows] = await pool.query(
     `SELECT t.ticket_id, t.tenant_id, t.title, t.ticket_type, t.category,
@@ -242,7 +348,7 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
       WHERE ${conditions.join(" AND ")}
       ORDER BY latest_activity_at DESC, t.ticket_id DESC
       LIMIT ?`,
-    params
+    params,
   );
   const hasMore = rows.length > limit;
   const selected = rows.slice(0, limit);
@@ -259,9 +365,9 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
       status: filters.status || null,
       caseStatus: filters.case_status || null,
       priority: filters.priority || null,
-      search: search || null,
+      search: normalized.search || null,
     },
-    schema: { explicitTicketCaseLinkAvailable: hasTicketId },
+    schema: { explicitTicketCaseLinkAvailable: hasTicketId, candidateWindowLimit: candidateLimit },
     secretsIncluded: false,
   };
 }

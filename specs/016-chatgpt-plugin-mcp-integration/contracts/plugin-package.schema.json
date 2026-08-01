@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/specs/016/plugin-package.schema.json",
+  "title": "MAD4B ChatGPT and Codex Plugin Manifest",
+  "description": "Project contract for the required .codex-plugin/plugin.json package manifest. It follows the OpenAI plugin manifest field and relative-path conventions while requiring the metadata needed for this integration's reviewed distribution target.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "version",
+    "description",
+    "author",
+    "homepage",
+    "repository",
+    "license",
+    "keywords",
+    "apps",
+    "interface"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 24,
+      "maxLength": 512
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "url"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        }
+      }
+    },
+    "homepage": {
+      "$ref": "#/$defs/httpsUrl"
+    },
+    "repository": {
+      "$ref": "#/$defs/httpsUrl"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "keywords": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 48,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*$"
+      }
+    },
+    "skills": {
+      "$ref": "#/$defs/relativePluginPath"
+    },
+    "mcpServers": {
+      "$ref": "#/$defs/relativePluginPath"
+    },
+    "apps": {
+      "const": "./.app.json",
+      "description": "Compatibility mapping to the registered ChatGPT MCP connection. The live connection technical ID is stored in .app.json outside the reusable manifest template."
+    },
+    "hooks": {
+      "oneOf": [
+        {"$ref": "#/$defs/relativePluginPath"},
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relativePluginPath"}
+        },
+        {
+          "type": "object"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "object"}
+        }
+      ]
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayName",
+        "shortDescription",
+        "longDescription",
+        "developerName",
+        "category",
+        "capabilities",
+        "websiteURL",
+        "privacyPolicyURL",
+        "termsOfServiceURL",
+        "defaultPrompt",
+        "brandColor",
+        "composerIcon",
+        "logo"
+      ],
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "shortDescription": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 120
+        },
+        "longDescription": {
+          "type": "string",
+          "minLength": 40,
+          "maxLength": 1200
+        },
+        "developerName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128
+        },
+        "category": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64
+          }
+        },
+        "websiteURL": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "privacyPolicyURL": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "termsOfServiceURL": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "defaultPrompt": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 240
+          }
+        },
+        "brandColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "composerIcon": {
+          "$ref": "#/$defs/assetPath"
+        },
+        "logo": {
+          "$ref": "#/$defs/assetPath"
+        },
+        "screenshots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/assetPath"
+          },
+          "description": "Include only when the plugin has user interface output. Omit for the phase-1 MCP-only package."
+        }
+      }
+    },
+    "mad4b": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "distribution_stage",
+        "mcp_resource",
+        "connection_binding",
+        "source_sha",
+        "catalog_fingerprint",
+        "secrets_included"
+      ],
+      "properties": {
+        "contract": {
+          "const": "mad4b.chatgpt-codex-plugin-package.v1"
+        },
+        "distribution_stage": {
+          "type": "string",
+          "enum": ["development", "workspace_private", "review_candidate", "approved", "published"]
+        },
+        "mcp_resource": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://.+/mcp$"
+        },
+        "connection_binding": {
+          "type": "string",
+          "enum": ["template", "local_generated", "review_environment", "production"]
+        },
+        "source_sha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "catalog_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "review_snapshot_id": {
+          "type": ["string", "null"],
+          "maxLength": 160
+        },
+        "secrets_included": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "maxLength": 2048
+    },
+    "relativePluginPath": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256,
+      "pattern": "^\\./(?!.*(?:^|/)\\.\\.(?:/|$))(?!/).+$",
+      "description": "Path relative to the plugin root, beginning with ./ and remaining inside the plugin root."
+    },
+    "assetPath": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 256,
+      "pattern": "^\\./assets/(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.(?:png|jpg|jpeg|webp|svg)$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mad4b": {
+            "properties": {
+              "distribution_stage": {
+                "enum": ["review_candidate", "approved", "published"]
+              }
+            },
+            "required": ["distribution_stage"]
+          }
+        },
+        "required": ["mad4b"]
+      },
+      "then": {
+        "required": ["mad4b"],
+        "properties": {
+          "mad4b": {
+            "properties": {
+              "connection_binding": {
+                "enum": ["review_environment", "production"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "name": "mad4b-growth-os",
+      "version": "0.1.0",
+      "description": "Access authorized business operating context and governed platform capabilities through ChatGPT and Codex.",
+      "author": {
+        "name": "MAD4B Digital",
+        "url": "https://mad4b.com"
+      },
+      "homepage": "https://mad4b.com",
+      "repository": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+      "license": "Proprietary",
+      "keywords": ["business operations", "growth intelligence", "mcp"],
+      "apps": "./.app.json",
+      "interface": {
+        "displayName": "MAD4B Growth OS",
+        "shortDescription": "Authorized business operating context in ChatGPT",
+        "longDescription": "Connect ChatGPT and Codex to authorized workspace, Brand, capability, and operation context through a governed MCP server.",
+        "developerName": "MAD4B Digital",
+        "category": "Productivity",
+        "capabilities": ["Read"],
+        "websiteURL": "https://mad4b.com",
+        "privacyPolicyURL": "https://mad4b.com/privacy",
+        "termsOfServiceURL": "https://mad4b.com/terms",
+        "defaultPrompt": [
+          "List the workspaces I can access.",
+          "Show the operating status of my selected Brand."
+        ],
+        "brandColor": "#101820",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "mad4b": {
+        "contract": "mad4b.chatgpt-codex-plugin-package.v1",
+        "distribution_stage": "development",
+        "mcp_resource": "https://mcp.mad4b.com/mcp",
+        "connection_binding": "template",
+        "source_sha": "0000000000000000000000000000000000000000",
+        "catalog_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+        "secrets_included": false
+      }
+    }
+  ]
+}

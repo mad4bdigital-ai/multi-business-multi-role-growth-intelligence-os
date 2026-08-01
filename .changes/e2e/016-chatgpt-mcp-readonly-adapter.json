@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-mcp-readonly-adapter",
+  "title": "Feature-flagged ChatGPT MCP read-only adapter",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/chatgptMcpRuntime.js",
+      "http-generic-api/docs/chatgpt-mcp-readonly-adapter.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/routes/chatgptMcpRoutes.js",
+      "http-generic-api/routes/mcpRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+      "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose a disabled-by-default Streamable HTTP MCP read-only slice whose initialization, tool discovery, authentication challenge, workspace isolation, and Brand isolation can be executed end to end in a synthetic runtime.",
+      "e2e_journeys": [
+        {
+          "id": "chatgpt-mcp-readonly-transport-and-authorized-data",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "ChatGPT-compatible MCP client using a controlled authenticated principal",
+          "entrypoint": "POST /mcp initialize, tools/list, and tools/call requests plus host-bound protected-resource metadata discovery",
+          "terminal_outcome": "The client receives a bounded read-only catalog, authorized workspace and Brand results, neutral denial for inaccessible workspaces, and no secrets or mutation capability.",
+          "steps": [
+            "Initialize the feature-flagged MCP runtime using supported JSON-RPC and protocol headers.",
+            "Discover the focused read-only workspace and Brand tools with OAuth scope metadata and accurate safety annotations.",
+            "Invoke protected tools without authentication and receive an MCP authentication challenge without data disclosure.",
+            "Invoke workspace and Brand tools with a controlled authenticated principal and resolve only active memberships and effective Brand grants.",
+            "Route protected-resource metadata by request host so the Activation resource contract remains unchanged and the disabled MCP host fails closed."
+          ],
+          "assertions": [
+            "The new MCP route is disabled by default and accepts no query-string credential contract.",
+            "Every advertised tool is read-only, non-destructive, closed-world, and independently bounded.",
+            "A workspace identifier is a selector and an inaccessible workspace returns MCP_CONTEXT_DENIED without identifier leakage.",
+            "The MCP metadata host returns the configured MCP resource while the Activation host preserves its existing resource metadata.",
+            "Tool results and metadata contain no access token, provider credential, raw grant, or write capability."
+          ],
+          "tests": [
+            {
+              "id": "chatgpt-mcp-readonly-runtime",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-readonly-runtime.mjs",
+              "args": []
+            },
+            {
+              "id": "chatgpt-mcp-metadata-routing",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-metadata-routing.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/chatgptMcpRuntime.js",
+            "http-generic-api/routes/chatgptMcpRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+            "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+            "http-generic-api/docs/chatgpt-mcp-readonly-adapter.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add production-grade OAuth authorization-server conformance, resource-bound token validation, operational controls, bounded failure handling, and live developer-mode acceptance."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove token revocation, dependency fault handling, retry classification, metadata drift detection, and recovery without cross-tenant leakage."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the exact candidate against a public non-production MCP endpoint with MCP Inspector and ChatGPT Developer mode readback."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, runtime metadata parity, OAuth linkage, tenant isolation, revocation, monitoring, and rollback evidence."
+    }
+  ]
+}
