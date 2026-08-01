@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
+import { assertHostingerStorageSecretFree } from './hostingerStorageSecretFree.js';
 
 export const HOSTINGER_STORAGE_ATTESTATION_VERSION = 'spec014-hostinger-storage-attestation-v1';
 
 const SHA256_RE = /^[0-9a-f]{64}$/i;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const SAFE_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,510}$/;
-const SENSITIVE_ATTRIBUTE_RE = /(secret|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session|raw|path|environment|file[_-]?content)/i;
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -13,6 +13,19 @@ function fail(status, code, message, details = {}) {
   error.code = code;
   error.details = { ...details, secrets_included: false };
   return error;
+}
+
+function assertSecretFree(value, at = 'value', { allow_authorization_envelope = true } = {}) {
+  return assertHostingerStorageSecretFree(value, {
+    at,
+    allow_authorization_envelope,
+    on_violation: ({ reason, path, key }) => fail(
+      400,
+      'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED',
+      'Attestation inputs must not contain sensitive fields.',
+      { reason, path, key: key || null },
+    ),
+  });
 }
 
 function text(value, max = 512) {
@@ -53,21 +66,6 @@ function iso(value, field) {
   const result = text(value, 64);
   if (!result || Number.isNaN(Date.parse(result))) throw fail(400, 'STORAGE_ATTESTATION_TIME_INVALID', 'A valid ISO timestamp is required.', { field });
   return new Date(result).toISOString();
-}
-
-function assertSecretFree(value, at = 'value', depth = 0) {
-  if (depth > 12 || value === null || value === undefined) return;
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertSecretFree(item, `${at}[${index}]`, depth + 1));
-    return;
-  }
-  if (typeof value !== 'object') return;
-  for (const [key, item] of Object.entries(value)) {
-    if (key !== 'secrets_included' && SENSITIVE_ATTRIBUTE_RE.test(key)) {
-      throw fail(400, 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED', 'Attestation inputs must not contain sensitive fields.', { path: `${at}.${key}` });
-    }
-    assertSecretFree(item, `${at}.${key}`, depth + 1);
-  }
 }
 
 function selectedTools(resolution = {}) {
@@ -217,14 +215,14 @@ export function evaluateHostingerStoragePolicyParity({ native_decision, shadow_d
 }
 
 export function buildHostingerStorageTelemetryEnvelope({ required_attributes = [], attributes = {}, event_name, observed_at } = {}) {
-  assertSecretFree(attributes, 'telemetry.attributes');
+  assertSecretFree(attributes, 'telemetry.attributes', { allow_authorization_envelope: false });
   const safeAttributes = {};
   for (const [key, value] of Object.entries(attributes)) {
-    if (SENSITIVE_ATTRIBUTE_RE.test(key)) {
-      throw fail(400, 'STORAGE_OUTPUT_REDACTION_FAILED', 'Sensitive telemetry attribute is forbidden.', { attribute: key });
-    }
     const normalizedKey = text(key, 128);
     if (!normalizedKey) continue;
+    if (value !== null && typeof value === 'object') {
+      throw fail(400, 'STORAGE_OUTPUT_REDACTION_FAILED', 'Telemetry attributes must be bounded scalar values.', { attribute: key, reason: 'non_scalar_attribute' });
+    }
     safeAttributes[normalizedKey] = typeof value === 'number' || typeof value === 'boolean' ? value : text(value, 256);
   }
   const missing = required_attributes.filter((key) => !Object.hasOwn(safeAttributes, key));
