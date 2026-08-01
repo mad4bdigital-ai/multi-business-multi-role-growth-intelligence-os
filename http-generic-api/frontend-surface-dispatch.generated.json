@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b01bd23afea42d59daedc12c53e745c9d03109511ff8a1336865a6a92ede3e24",
+    "source_digest": "ca44b9fc5a827ba5bc5f3d33ec5d93950d22235f95214e08bbb00a2b7785c3b9",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "8f8fc144699eb2596b867dc306f84a0ede03f00566f2463a116648d7f0c958ba",
+        "sha256": "58a1cf96c1ae4044a0b3e44f761c48be214fa3bd18e7028eec6a46a7489a89a0",
         "present": true
       },
       {
@@ -616,7 +616,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "fd11412bf42400e61891dad90afe4110adcc479e91a967f531895214eff9b71e",
+        "sha256": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
         "present": true
       },
       {
@@ -926,7 +926,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "34e166d60f3d6783fffa2e6a858beeea708b48570180c60df6f54987db64d842",
+        "sha256": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "b7b2bfd22ac56db3f4d40393c80d89026e7a878861534a5a40f040af0998dd3d",
+        "sha256": "ba3d97a3ffb971411c9298007caa1550798b3243c326c06242ab181d092cb9d8",
         "present": true
       },
       {
@@ -1530,7 +1530,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "34e166d60f3d6783fffa2e6a858beeea708b48570180c60df6f54987db64d842",
+      "source_digest": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
       "mount_prefix": "/",
       "mount_order": 11977,
       "split_from_mixed_scope_file": false,
@@ -18677,7 +18677,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "fd11412bf42400e61891dad90afe4110adcc479e91a967f531895214eff9b71e",
+      "source_digest": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
       "mount_prefix": "/",
       "mount_order": 14962,
       "split_from_mixed_scope_file": false,
