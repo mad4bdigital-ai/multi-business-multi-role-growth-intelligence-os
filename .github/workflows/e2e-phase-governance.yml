@@ -52,6 +52,7 @@ jobs:
           node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
           node http-generic-api/scripts/test-ci-evidence-router.mjs
           node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
+          node http-generic-api/scripts/test-e2e-phase-artifact-routing.mjs
 
       - name: Classify and validate parallel PR mode
         id: parallel
@@ -203,7 +204,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          pattern: e2e-phase-*-${{ github.run_id }}
+          pattern: e2e-phase-e*-${{ github.run_id }}
           path: ${{ runner.temp }}/e2e-phase-reports
           merge-multiple: true
 
