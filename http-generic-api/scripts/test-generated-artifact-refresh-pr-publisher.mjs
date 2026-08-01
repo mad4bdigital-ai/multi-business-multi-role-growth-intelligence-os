@@ -5,9 +5,15 @@ import {
 } from "./generated-artifact-refresh-pr-publisher.mjs";
 
 const sourceHeadSha = "1".repeat(40);
-const generatedHeadSha = "2".repeat(40);
+const otherSha = "2".repeat(40);
 
-function report({ candidateSha = sourceHeadSha, generatedSha = null, outcome = "passed", sourceSha = sourceHeadSha } = {}) {
+function report({
+  candidateSha = sourceHeadSha,
+  sourceSha = sourceHeadSha,
+  outcome = "passed",
+  commitSha = null,
+  repositoryMutationPerformed = false,
+} = {}) {
   return {
     contract: "mad4b.pr-generated-artifact-refresh-summary.v1",
     identity: {
@@ -18,80 +24,78 @@ function report({ candidateSha = sourceHeadSha, generatedSha = null, outcome = "
       base_ref: "main",
     },
     outcome,
-    first_failure: outcome === "passed" ? null : { code: "verify_auth_parity_failed" },
+    first_failure: outcome === "passed" ? null : { code: "generated_artifact_drift_detected" },
     generated_artifacts: {
-      commit_sha: generatedSha,
-      changed_files: generatedSha ? ["http-generic-api/frontend-surface-dispatch.generated.json"] : [],
+      commit_sha: commitSha,
+      changed_files: outcome === "passed" ? [] : ["http-generic-api/frontend-surface-dispatch.generated.json"],
+      repository_mutation_performed: repositoryMutationPerformed,
     },
     secrets_included: false,
   };
 }
 
-{
-  const evidence = normalizeGeneratedArtifactEvidence({
-    report: report(),
-    workflowConclusion: "success",
-    workflowRunId: 10,
-    sourceHeadSha,
-  });
-  assert.equal(evidence.candidateSha, sourceHeadSha);
-  assert.equal(evidence.detail, "generated artifacts already current");
-}
-
-{
-  const generatedReport = report({ candidateSha: generatedHeadSha, generatedSha: generatedHeadSha });
-  const evidence = normalizeGeneratedArtifactEvidence({
-    report: generatedReport,
-    workflowConclusion: "success",
-    workflowRunId: 11,
-    sourceHeadSha,
-  });
-  assert.equal(evidence.candidateSha, generatedHeadSha);
-  assert.equal(evidence.sourceHeadSha, sourceHeadSha);
-  assert.match(evidence.detail, new RegExp(generatedHeadSha));
-  assert.equal(assertGeneratedArtifactPrIdentity({ state: "open", head: { ref: "gpt/example", sha: generatedHeadSha } }, evidence, generatedReport, "gpt/example"), true);
-}
+const evidence = normalizeGeneratedArtifactEvidence({
+  report: report(),
+  workflowConclusion: "success",
+  workflowRunId: 10,
+  sourceHeadSha,
+});
+assert.equal(evidence.candidateSha, sourceHeadSha);
+assert.equal(evidence.sourceHeadSha, sourceHeadSha);
+assert.equal(evidence.detail, "generated artifacts current");
+assert.equal(
+  assertGeneratedArtifactPrIdentity(
+    { state: "open", head: { ref: "gpt/example", sha: sourceHeadSha } },
+    evidence,
+    "gpt/example",
+  ),
+  true,
+);
 
 assert.throws(() => normalizeGeneratedArtifactEvidence({
-  report: report({ sourceSha: "3".repeat(40) }),
+  report: report({ sourceSha: otherSha }),
   workflowConclusion: "success",
-  workflowRunId: 12,
+  workflowRunId: 11,
   sourceHeadSha,
 }), /source head/u);
 
 assert.throws(() => normalizeGeneratedArtifactEvidence({
-  report: report({ candidateSha: generatedHeadSha, generatedSha: "3".repeat(40) }),
+  report: report({ candidateSha: otherSha }),
+  workflowConclusion: "success",
+  workflowRunId: 12,
+  sourceHeadSha,
+}), /candidate must equal source head/u);
+
+assert.throws(() => normalizeGeneratedArtifactEvidence({
+  report: report({ commitSha: otherSha }),
   workflowConclusion: "success",
   workflowRunId: 13,
   sourceHeadSha,
-}), /Generated commit/u);
+}), /may not report a generated commit/u);
+
+assert.throws(() => normalizeGeneratedArtifactEvidence({
+  report: report({ repositoryMutationPerformed: true }),
+  workflowConclusion: "success",
+  workflowRunId: 14,
+  sourceHeadSha,
+}), /repository_mutation_performed=false/u);
 
 assert.throws(() => normalizeGeneratedArtifactEvidence({
   report: report({ outcome: "blocked" }),
   workflowConclusion: "success",
-  workflowRunId: 14,
+  workflowRunId: 15,
   sourceHeadSha,
 }), /Successful workflow/u);
 
-{
-  const generatedReport = report({ candidateSha: generatedHeadSha, generatedSha: generatedHeadSha });
-  const evidence = normalizeGeneratedArtifactEvidence({
-    report: generatedReport,
-    workflowConclusion: "success",
-    workflowRunId: 15,
-    sourceHeadSha,
-  });
-  assert.throws(() => assertGeneratedArtifactPrIdentity(
-    { state: "open", head: { ref: "gpt/example", sha: sourceHeadSha } },
-    evidence,
-    generatedReport,
-    "gpt/example",
-  ), /current PR head/iu);
-}
+assert.throws(() => assertGeneratedArtifactPrIdentity(
+  { state: "open", head: { ref: "gpt/example", sha: otherSha } },
+  evidence,
+  "gpt/example",
+), /current PR head/iu);
 
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 6,
+  cases: 7,
   secrets_included: false,
 }));
