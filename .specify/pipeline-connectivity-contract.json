@@ -15,6 +15,7 @@
         "platform-work-map-generator.mjs --check"
       ],
       "approved_producers": [
+        "spec-kit-work-map-integration",
         "spec-kit-work-map-autofix",
         "docs-agent"
       ],
@@ -42,6 +43,19 @@
         "--force-with-lease"
       ],
       "non_writer_pipelines": [
+        {
+          "pipeline": "spec-kit-work-map-integration",
+          "required_commands": [
+            "Generate exact-head Work Map repair candidate",
+            "generated_from_exact_checked_out_head",
+            "remote_write_executed: false"
+          ],
+          "forbidden_commands": [
+            "git add docs/work-maps",
+            "git push origin",
+            "git commit"
+          ]
+        },
         {
           "pipeline": "docs-agent",
           "required_commands": [
@@ -232,6 +246,11 @@
     }
   ],
   "edges": [
+    {
+      "from": "spec-kit-work-map-integration",
+      "to": "platform_work_maps",
+      "type": "exact_head_repair_candidate_producer"
+    },
     {
       "from": "spec-kit-work-map-autofix",
       "to": "platform_work_maps",
