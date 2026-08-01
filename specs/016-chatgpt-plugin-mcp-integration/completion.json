@@ -17,14 +17,22 @@
       "number": 4460,
       "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
       "role": "canonical_multi_client_integration_specification",
-      "status": "open_draft_pending_ci"
+      "status": "merged",
+      "merge_sha": "734b73660ba468415080aaa4dc4b4864534dea27"
     },
     "implementation_prs": [
       {
         "number": 4462,
         "branch": "gpt/016-chatgpt-mcp-readonly-adapter-20260801",
         "role": "feature_flagged_multi_client_read_only_mcp_adapter",
-        "status": "open_draft_pending_latest_ci"
+        "status": "merged",
+        "merge_sha": "c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94"
+      },
+      {
+        "number": null,
+        "branch": "gpt/016-remote-mcp-oauth21-operational-20260801",
+        "role": "oauth21_operational_authorization_grant_and_revocation",
+        "status": "implementation_branch_pending_pr_and_ci"
       }
     ],
     "release_prs": [],
@@ -32,7 +40,7 @@
   },
   "specification": {
     "complete": true,
-    "review_state": "draft",
+    "review_state": "merged",
     "file_count_expected": 25,
     "file_count_recorded": 25,
     "functional_requirements": 32,
@@ -48,34 +56,42 @@
     "client_profiles": 3
   },
   "verification": {
-    "specification_contract_validator": "implemented_pending_latest_ci",
-    "json_parse": "pending_latest_ci",
-    "yaml_parse": "pending_latest_ci",
-    "openapi_validation": "pending_latest_ci",
-    "json_schema_validation": "pending_latest_ci",
-    "manifest_inventory": "pending_latest_ci",
-    "reference_integrity": "pending_latest_ci",
-    "multi_client_scope_extension": "implemented_pending_review",
-    "work_map_review": "pending_canonical_scaffold_and_pr_review",
-    "architecture_review": "pending_pr_review",
-    "identity_review": "pending_pr_review",
-    "security_review": "pending_pr_review",
-    "privacy_review": "pending_pr_review",
-    "product_tool_catalog_review": "pending_pr_review"
+    "specification_contract_validator": "passed_on_merged_pr_4460",
+    "json_parse": "passed_on_merged_pr_4460",
+    "yaml_parse": "passed_on_merged_pr_4460",
+    "openapi_validation": "passed_on_merged_pr_4460",
+    "json_schema_validation": "passed_on_merged_pr_4460",
+    "manifest_inventory": "passed_on_merged_pr_4460",
+    "reference_integrity": "passed_on_merged_pr_4460",
+    "multi_client_scope_extension": "merged_pr_4462",
+    "oauth21_profile_tests": "implemented_pending_operational_pr_ci",
+    "oauth21_route_flow_tests": "implemented_pending_operational_pr_ci",
+    "resource_scope_revocation_tests": "implemented_pending_operational_pr_ci",
+    "work_map_review": "pending_canonical_scaffold_and_operational_pr_review",
+    "architecture_review": "pending_operational_pr_review",
+    "identity_review": "pending_operational_pr_review",
+    "security_review": "pending_operational_pr_review",
+    "privacy_review": "pending_operational_pr_review",
+    "product_tool_catalog_review": "pending_review"
   },
   "implementation": {
     "started": true,
     "legacy_consumer_inventory_complete": false,
     "public_mcp_endpoint_verified": false,
-    "streamable_http_adapter_implemented": "draft_pr_4462",
-    "multi_client_profile_layer_implemented": "draft_pr_4462",
-    "neutral_remote_mcp_configuration_implemented": "draft_pr_4462",
-    "oauth_protected_resource_metadata_implemented": "draft_pr_4462",
+    "streamable_http_adapter_implemented": "merged_pr_4462",
+    "multi_client_profile_layer_implemented": "merged_pr_4462",
+    "neutral_remote_mcp_configuration_implemented": "merged_pr_4462",
+    "oauth_protected_resource_metadata_implemented": "merged_pr_4462_plus_operational_branch",
+    "oauth_authorization_server_metadata_implemented": "operational_branch_pending_ci",
+    "dynamic_client_registration_implemented": "operational_branch_pending_ci",
+    "authorization_code_pkce_s256_implemented": "operational_branch_pending_ci",
+    "resource_bound_token_validation_implemented": "operational_branch_pending_ci",
+    "refresh_rotation_implemented": "operational_branch_pending_ci",
+    "grant_revocation_implemented": "operational_branch_pending_ci",
     "oauth_authorization_server_conformance_verified": false,
-    "resource_bound_token_validation_implemented": false,
     "phase_1_tool_catalog_approved": false,
-    "phase_1_read_tools_implemented": "draft_pr_4462",
-    "tenant_isolation_verified": "targeted_tests_pending_latest_ci",
+    "phase_1_read_tools_implemented": "merged_pr_4462",
+    "tenant_isolation_verified": "synthetic_targeted_tests_passed_on_pr_4462_live_matrix_pending",
     "mcp_inspector_connection_created": false,
     "chatgpt_developer_connection_created": false,
     "claude_custom_connector_created": false,
@@ -116,23 +132,22 @@
     "post_merge_audit"
   ],
   "blocking_reasons": [
-    "specification_and_latest_implementation_ci_pending",
-    "canonical_work_map_scaffold_not_run",
-    "oauth_identity_conformance_not_verified",
-    "client_registration_modes_not_approved",
+    "operational_oauth_pr_and_exact_head_ci_pending",
+    "governed_migration_not_applied",
+    "canonical_work_map_operational_review_pending",
+    "live_oauth_conformance_not_verified",
     "legacy_mcp_consumer_inventory_missing",
     "mcp_mad4b_com_public_endpoint_not_verified",
-    "phase_1_tool_catalog_not_approved",
-    "field_level_schema_reuse_matrix_missing",
-    "live_chatgpt_claude_and_generic_client_acceptance_missing"
+    "phase_1_tool_catalog_not_formally_approved",
+    "live_chatgpt_claude_inspector_and_generic_client_acceptance_missing",
+    "production_rollout_and_rollback_evidence_missing"
   ],
   "notes": [
-    "The specification now defines one shared remote MCP resource for ChatGPT, Codex, Claude, Claude Desktop, and other approved clients.",
-    "Client profile recognition is operational metadata only and never grants tenant, workspace, Brand, resource, capability, connection, or operation authority.",
-    "Draft PR #4462 includes a neutral remote MCP wrapper, OpenAI and Anthropic client profiles, generic-client compatibility, and read-only tests while retaining the original ChatGPT-named implementation as a temporary internal compatibility layer.",
-    "The current repository MCP surface and synthetic tests are not proof of live client compatibility or production readiness.",
-    "The first implementation phase works without custom UI and leaves all feature flags disabled by default.",
-    "Generic internal dispatch tools are not exported by the draft public catalog.",
+    "PR #4460 merged the canonical multi-client specification at 734b73660ba468415080aaa4dc4b4864534dea27.",
+    "PR #4462 merged the disabled-by-default read-only multi-client MCP adapter at c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94 after exact-head CI passed.",
+    "The operational branch adds path-scoped OAuth metadata, DCR, exact redirects, explicit consent, PKCE S256, short-lived resource-bound tokens, refresh rotation, durable grant state, scope enforcement, and revocation.",
+    "Client profile recognition remains operational metadata only and never grants tenant, workspace, Brand, resource, capability, connection, or operation authority.",
+    "Generic internal dispatch tools remain unavailable from the public catalog.",
     "No migration, OAuth client registration, DNS change, deployment, ChatGPT connection, Claude connector, directory submission, publication, or Production activation has occurred."
   ],
   "secrets_included": false
