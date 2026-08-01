@@ -57,22 +57,33 @@ platform.reference.local_connector_recovery
 
 ## Open Draft portfolio
 
-Spec 015 maintains the connected portfolio instead of reviewing candidate Specs in isolation:
+Spec 015 maintains the connected portfolio instead of reviewing candidate Specs in isolation.
 
-- `draft-spec-portfolio.md` — architecture, dependencies, overlaps, staleness, truthfulness, and delivery trains;
-- `draft-spec-portfolio.json` — machine-readable registry;
-- `contracts/draft-spec-portfolio.schema.json` — fail-closed contract;
-- `tools/validate-spec.mjs` — deterministic portfolio validator.
+Immutable base snapshot:
 
-Current snapshot:
+- `draft-spec-portfolio.md`
+- `draft-spec-portfolio.json`
+- `contracts/draft-spec-portfolio.schema.json`
+- `tools/validate-spec.mjs`
+
+Append-only arrivals observed while exact-head CI is running:
+
+- `draft-spec-portfolio-live-delta.md`
+- `draft-spec-portfolio-live-delta.json`
+- `contracts/draft-spec-portfolio-live-delta.schema.json`
+- `tools/validate-portfolio-live-delta.mjs`
+
+Current classified state:
 
 ```text
 12 primary Draft Specs
-22 related open Draft PRs
-34 total classified Draft PRs
+22 related Drafts in the immutable base snapshot
+1 related Draft in the live delta: PR #4464
+23 current related open Draft PRs
+35 current total classified Draft PRs
 2 duplicate numeric identities
 1 duplicate feature cluster
-4 delivery trains
+4 delivery trains, with Hostinger updated by the live delta
 ```
 
 Primary Specs:
@@ -122,6 +133,10 @@ ChatGPT/Codex principal
 ```
 
 Spec 016 consumes platform authorities; it does not create an independent execution kernel. OAuth conformance, public endpoint verification, approved tool catalog, Developer mode acceptance, plugin packaging, submission, publication, and Production remain separate gates.
+
+## Live Hostinger workstream relationship
+
+PR #4464 is an append-only portfolio delta under parent PR #4386. It authenticates official in-memory Control Plane persistence and repository provenance, rejects forged repository shapes, and remains non-production with no network, provider, credentials, migration, deployment, or Production effect.
 
 ## Product outcome
 
