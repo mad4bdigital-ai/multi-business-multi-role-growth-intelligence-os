@@ -99,7 +99,7 @@ try {
   assert.match(failingReport.firstFailure.diagnostic.stderr.tail, /AssertionError \[ERR_ASSERTION\]/u);
   assert.doesNotMatch(JSON.stringify(failingReport), /clear-token-value/u);
   assert.doesNotMatch(JSON.stringify(failingReport), /github_pat_abcdefghijklmnopqrstuvwxyz123456/u);
-  assert.match(failingReport.firstFailure.diagnostic.stderr.tail, /Bearer \[REDACTED\]/u);
+  assert.match(failingReport.firstFailure.diagnostic.stderr.tail, /Authorization=\[REDACTED\]/u);
   assert.equal(failingReport.secretsIncluded, false);
 
   const redacted = redactDiagnosticOutput("password=hunter2 cookie=session-value");
