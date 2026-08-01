@@ -4,7 +4,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+const POLICY_CONTRACT = "mad4b.repository-maintenance-tool-governance.v1";
 const REPORT_CONTRACT = "mad4b.repository-tool-lifecycle-report.v1";
+const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/u;
+const WORK_BRANCH_PATTERN = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
 
 function parseArguments(argv) {
   const result = {};
@@ -36,12 +39,16 @@ function finding(code, path, message) {
   return { code, path, message };
 }
 
+function ruleEnabled(policy, key) {
+  return policy.rules?.[key] !== false;
+}
+
 function containsBranchSpecificLiteral(content) {
-  return /(?:ref\s*:|branches\s*:|git\s+push[^\n]*HEAD:)[^\n]*(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu.test(content);
+  return WORK_BRANCH_PATTERN.test(content);
 }
 
 function hasContentsWrite(content) {
-  return /permissions\s*:[\s\S]{0,500}?contents\s*:\s*write/iu.test(content);
+  return /\bcontents\s*:\s*write\b/iu.test(content);
 }
 
 function hasPullRequestTrigger(content) {
@@ -53,11 +60,26 @@ function hasWorkflowDispatch(content) {
 }
 
 function hasGitPush(content) {
-  return /git\s+push\b/iu.test(content);
+  return /\bgit\s+push\b/iu.test(content);
+}
+
+function hasApiWrite(content) {
+  const ghApiWrite = /\bgh\s+api\b[\s\S]{0,500}?(?:(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)\b|(?:-f|--field|--raw-field)\s+)/iu;
+  const curlApiWrite = /\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b[^\n]*api\.github\.com/iu;
+  const ghMutation = /\bgh\s+(?:pr\s+merge|release\s+(?:create|delete|edit|upload)|workflow\s+(?:run|enable|disable))\b/iu;
+  const githubScriptMutation = /github\.rest\.[A-Za-z0-9_.]+\.(?:create|update|delete|merge|dispatch|rerun|cancel|enable|disable)[A-Za-z0-9_]*\s*\(/iu;
+  return ghApiWrite.test(content)
+    || curlApiWrite.test(content)
+    || ghMutation.test(content)
+    || githubScriptMutation.test(content);
+}
+
+function hasRepositoryMutation(content) {
+  return hasGitPush(content) || hasApiWrite(content);
 }
 
 function hasForcePush(content) {
-  return /git\s+push[^\n]*(?:--force(?:-with-lease)?|\s-f(?:\s|$))/iu.test(content);
+  return /\bgit\s+push[^\n]*(?:--force(?:-with-lease)?|\s-f(?:\s|$))/iu.test(content);
 }
 
 function hasWorkflowSelfDeletion(content) {
@@ -65,15 +87,52 @@ function hasWorkflowSelfDeletion(content) {
 }
 
 function hasExpectedHeadGuard(content) {
-  return /expected_head_sha/iu.test(content) && /git\s+rev-parse\s+HEAD/iu.test(content);
+  const directComparison = /(?:(?:test|\[\[)[\s\S]{0,700}?git\s+rev-parse\s+HEAD[\s\S]{0,700}?inputs\.expected_head_sha|(?:test|\[\[)[\s\S]{0,700}?inputs\.expected_head_sha[\s\S]{0,700}?git\s+rev-parse\s+HEAD)/iu;
+  return directComparison.test(content);
 }
 
 function hasProtectedBranchGuard(content) {
-  return /(?:main|Production)/u.test(content) && /(?:reject|forbid|exit\s+1|case\s+)/iu.test(content);
+  return /(?:target_branch|branch)/iu.test(content)
+    && /\bmain\b/u.test(content)
+    && /\bProduction\b/u.test(content)
+    && /(?:exit\s+1|return\s+1|throw\b|reject\b|forbid\b)/iu.test(content);
 }
 
 function isMaintenanceLikeScript(path) {
   return /^\.github\/scripts\/(?:apply|patch|repair|migrate|.*trigger)/iu.test(path);
+}
+
+export function validateGovernanceInputs({ policy, candidateSha, baseSha }) {
+  const findings = [];
+  if (policy.contract !== POLICY_CONTRACT) {
+    findings.push(finding(
+      "INVALID_POLICY_CONTRACT",
+      ".github/repository-maintenance-tool-governance.json",
+      `Expected policy contract ${POLICY_CONTRACT}.`,
+    ));
+  }
+  if (policy.canonical_report_contract !== REPORT_CONTRACT) {
+    findings.push(finding(
+      "REPORT_CONTRACT_MISMATCH",
+      ".github/repository-maintenance-tool-governance.json",
+      `Policy must require canonical report contract ${REPORT_CONTRACT}.`,
+    ));
+  }
+  if (!FULL_SHA_PATTERN.test(candidateSha || "")) {
+    findings.push(finding(
+      "INVALID_CANDIDATE_SHA",
+      "candidate_sha",
+      "Repository lifecycle evaluation requires an exact 40-character candidate SHA.",
+    ));
+  }
+  if (!FULL_SHA_PATTERN.test(baseSha || "")) {
+    findings.push(finding(
+      "INVALID_BASE_SHA",
+      "base_sha",
+      "Repository lifecycle evaluation requires an exact 40-character base SHA.",
+    ));
+  }
+  return findings;
 }
 
 export async function evaluateRepositoryToolLifecycle({ policy, entries, readText }) {
@@ -89,20 +148,26 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
 
   for (const entry of entries) {
     const path = entry.path;
-    for (const pattern of forbiddenPatterns) {
-      if (pattern.test(path)) {
-        findings.push(finding(
-          "TEMPORARY_AUTOMATION_ARTIFACT",
-          path,
-          "Temporary triggers, branch patch revisions, and one-off automation artifacts must not merge.",
-        ));
-        break;
+    if (ruleEnabled(policy, "one_off_automation_must_not_merge")) {
+      for (const pattern of forbiddenPatterns) {
+        if (pattern.test(path)) {
+          findings.push(finding(
+            "TEMPORARY_AUTOMATION_ARTIFACT",
+            path,
+            "Temporary triggers, branch patch revisions, and one-off automation artifacts must not merge.",
+          ));
+          break;
+        }
       }
     }
 
     if (entry.status.startsWith("D")) continue;
 
-    if (path.startsWith(`${policy.tool_root}/`) && !registeredEntrypoints.has(path)) {
+    if (
+      ruleEnabled(policy, "reusable_tools_must_be_registered")
+      && path.startsWith(`${policy.tool_root}/`)
+      && !registeredEntrypoints.has(path)
+    ) {
       findings.push(finding(
         "UNREGISTERED_MAINTENANCE_TOOL",
         path,
@@ -110,7 +175,11 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
       ));
     }
 
-    if (isMaintenanceLikeScript(path) && !registeredEntrypoints.has(path)) {
+    if (
+      ruleEnabled(policy, "one_off_automation_must_not_merge")
+      && isMaintenanceLikeScript(path)
+      && !registeredEntrypoints.has(path)
+    ) {
       findings.push(finding(
         "ONE_OFF_MAINTENANCE_SCRIPT",
         path,
@@ -121,35 +190,45 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
     if (!path.startsWith(".github/workflows/")) continue;
     const content = await readText(path);
 
-    if (containsBranchSpecificLiteral(content)) {
+    if (
+      ruleEnabled(policy, "branch_specific_workflow_literals_forbidden")
+      && containsBranchSpecificLiteral(content)
+    ) {
       findings.push(finding(
         "BRANCH_SPECIFIC_WORKFLOW",
         path,
         "Permanent workflows must accept governed inputs and may not embed a work-branch name.",
       ));
     }
-    if (hasPullRequestTrigger(content) && hasContentsWrite(content)) {
+    if (
+      ruleEnabled(policy, "pull_request_workflows_must_not_write_contents")
+      && hasPullRequestTrigger(content)
+      && hasContentsWrite(content)
+    ) {
       findings.push(finding(
         "PULL_REQUEST_WRITE_WORKFLOW",
         path,
         "Pull-request workflows must be read-only; mutations belong to an explicitly dispatched governed tool.",
       ));
     }
-    if (hasForcePush(content)) {
+    if (ruleEnabled(policy, "force_push_forbidden") && hasForcePush(content)) {
       findings.push(finding(
         "FORCE_PUSH_AUTOMATION",
         path,
         "Repository automation may not force-push.",
       ));
     }
-    if (hasWorkflowSelfDeletion(content)) {
+    if (
+      ruleEnabled(policy, "workflow_self_deletion_forbidden")
+      && hasWorkflowSelfDeletion(content)
+    ) {
       findings.push(finding(
         "SELF_DELETING_WORKFLOW",
         path,
         "A workflow may not delete or rewrite its own workflow definition.",
       ));
     }
-    if (hasGitPush(content) && hasContentsWrite(content)) {
+    if (hasRepositoryMutation(content) && hasContentsWrite(content)) {
       if (!hasWorkflowDispatch(content)) {
         findings.push(finding(
           "UNGUARDED_AUTOMATION_MUTATION",
@@ -157,18 +236,24 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
           "Write workflows must be explicitly dispatched rather than triggered by branch pushes or pull requests.",
         ));
       }
-      if (!hasExpectedHeadGuard(content)) {
+      if (
+        ruleEnabled(policy, "expected_head_sha_required_for_mutation")
+        && !hasExpectedHeadGuard(content)
+      ) {
         findings.push(finding(
           "MISSING_EXPECTED_HEAD_GUARD",
           path,
           "Mutating automation must verify an explicit expected head SHA before writing.",
         ));
       }
-      if (!hasProtectedBranchGuard(content)) {
+      if (
+        ruleEnabled(policy, "protected_branch_mutation_forbidden")
+        && !hasProtectedBranchGuard(content)
+      ) {
         findings.push(finding(
           "MISSING_PROTECTED_BRANCH_GUARD",
           path,
-          "Mutating automation must reject main and Production before checkout or push.",
+          "Mutating automation must reject main and Production before checkout or mutation.",
         ));
       }
     }
@@ -193,18 +278,23 @@ async function main() {
 
   const policy = JSON.parse(await readFile(policyPath, "utf8"));
   const entries = normalizeChangedEntries(await readFile(changedFilesPath, "utf8"));
-  const findings = await evaluateRepositoryToolLifecycle({
-    policy,
-    entries,
-    readText: (path) => readFile(path, "utf8"),
-  });
+  const candidateSha = process.env.CANDIDATE_SHA || null;
+  const baseSha = process.env.BASE_SHA || null;
+  const findings = [
+    ...validateGovernanceInputs({ policy, candidateSha, baseSha }),
+    ...await evaluateRepositoryToolLifecycle({
+      policy,
+      entries,
+      readText: (path) => readFile(path, "utf8"),
+    }),
+  ];
   const report = {
     contract: REPORT_CONTRACT,
     ok: findings.length === 0,
     policy_contract: policy.contract,
     candidate_kind: "head",
-    candidate_sha: process.env.CANDIDATE_SHA || null,
-    base_sha: process.env.BASE_SHA || null,
+    candidate_sha: candidateSha,
+    base_sha: baseSha,
     changed_file_count: entries.length,
     findings,
     canonical: true,
