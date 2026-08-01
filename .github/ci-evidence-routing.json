@@ -32,6 +32,14 @@
       "source_artifacts": [
         "branch-test-diagnostic-${run_id}-*"
       ]
+    },
+    {
+      "workflow": "Context Kernel Hardcoding Report",
+      "canonical_contract": "mad4b.context-kernel-hardcoding-summary.v1",
+      "canonical_artifact": "context-kernel-hardcoding-summary-${run_id}",
+      "source_artifacts": [
+        "context-kernel-hardcoding-source.json"
+      ]
     }
   ],
   "secrets_included": false
