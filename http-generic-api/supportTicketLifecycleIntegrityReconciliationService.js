@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 import {
   computeSupportTicketSlaStatusV2,
+  deriveSupportTicketIntegrity,
   reconcileSupportTicketIntegrity as planSupportTicketIntegrityReconciliation,
   resolveSupportTicketLifecyclePatch,
 } from "./supportTicketLifecycleIntegrityService.js";
@@ -10,6 +11,15 @@ const OPEN_TICKET_STATUSES = new Set(["open", "in_review", "awaiting_approval"])
 function normalizeLower(value, fallback = "") {
   const normalized = String(value ?? "").trim().toLowerCase();
   return normalized || fallback;
+}
+
+function normalizeNullable(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized || null;
+}
+
+function storedBoolean(value) {
+  return value === true || Number(value || 0) === 1;
 }
 
 export function normalizeReconciliationFindingForEffectiveLifecycle(finding = {}) {
@@ -63,14 +73,41 @@ function targetMissingError(finding) {
 
 function effectiveFindingFromLockedRow(finding, row, now = new Date()) {
   const lifecycle = resolveSupportTicketLifecyclePatch(row);
+  const firstResponseAt = row.first_response_at || row.effective_first_response_at || null;
+  const triagedAt = row.triaged_at || row.effective_triaged_at || null;
   const effectiveRow = {
     ...row,
     status: lifecycle.status || row.status,
     lifecycle_state: lifecycle.lifecycle_state || row.lifecycle_state,
     customer_status: lifecycle.customer_status || row.customer_status,
+    first_response_at: firstResponseAt,
+    triaged_at: triagedAt,
   };
   const sla = computeSupportTicketSlaStatusV2(effectiveRow, now);
   const currentSlaStatus = normalizeLower(row.sla_status, "on_track");
+  const integrity = deriveSupportTicketIntegrity(row, { stored_row: true });
+  const backfillLastSeenAt = !row.last_seen_at;
+  const milestoneEvidence = {
+    first_response_at: firstResponseAt,
+    triaged_at: triagedAt,
+    first_response_backfill_required: Boolean(!row.first_response_at && firstResponseAt),
+    triage_backfill_required: Boolean(!row.triaged_at && triagedAt),
+    secrets_included: false,
+  };
+  const needsIntegrityUpdate = (
+    storedBoolean(row.is_test) !== integrity.is_test
+    || normalizeLower(row.environment, "production") !== integrity.environment
+    || normalizeLower(
+      row.visibility_class,
+      integrity.is_test ? "internal_test" : "customer_visible",
+    ) !== integrity.visibility_class
+    || normalizeNullable(row.target_capability) !== integrity.target_capability
+    || normalizeNullable(row.parent_ticket_id) !== integrity.parent_ticket_id
+    || normalizeNullable(row.related_ticket_id) !== integrity.related_ticket_id
+    || normalizeNullable(row.supersedes_ticket_id) !== integrity.supersedes_ticket_id
+    || milestoneEvidence.first_response_backfill_required
+    || milestoneEvidence.triage_backfill_required
+  );
   return {
     ...finding,
     lifecycle,
@@ -82,10 +119,15 @@ function effectiveFindingFromLockedRow(finding, row, now = new Date()) {
       breached_milestones: sla.breached_milestones,
       warning_milestones: sla.warning_milestones,
     },
+    integrity,
+    milestone_evidence: milestoneEvidence,
+    backfill_last_seen_at: backfillLastSeenAt,
+    urgent_unassigned: normalizeLower(row.priority) === "urgent" && !row.assigned_to,
     should_update: Boolean(
-      finding.should_update
-      || lifecycle.should_update
+      lifecycle.should_update
       || currentSlaStatus !== sla.status
+      || backfillLastSeenAt
+      || needsIntegrityUpdate
     ),
     secrets_included: false,
   };
@@ -118,20 +160,54 @@ export async function reconcileSupportTicketIntegrityWithEffectiveLifecycle(inpu
     transactionStarted = true;
     for (const plannedFinding of plannedFindings.filter((finding) => finding.should_update)) {
       const [lockedRows] = await connection.query(
-        `SELECT status,
-                lifecycle_state,
-                customer_status,
-                sla_status,
-                first_response_due_at,
-                first_response_at,
-                triage_due_at,
-                triaged_at,
-                resolution_due_at,
-                last_seen_at,
-                updated_at,
-                created_at
-           FROM tickets
-          WHERE tenant_id = ? AND ticket_id = ?
+        `SELECT t.title,
+                t.priority,
+                t.assigned_to,
+                t.status,
+                t.lifecycle_state,
+                t.customer_status,
+                t.sla_status,
+                t.first_response_due_at,
+                t.first_response_at,
+                t.triage_due_at,
+                t.triaged_at,
+                t.resolution_due_at,
+                t.last_seen_at,
+                t.updated_at,
+                t.created_at,
+                t.metadata_json,
+                t.is_test,
+                t.environment,
+                t.visibility_class,
+                t.target_capability,
+                t.parent_ticket_id,
+                t.related_ticket_id,
+                t.supersedes_ticket_id,
+                COALESCE(t.first_response_at, (
+                  SELECT MIN(e.created_at)
+                    FROM ticket_lifecycle_events e
+                   WHERE e.tenant_id = t.tenant_id
+                     AND e.ticket_id = t.ticket_id
+                     AND e.visibility = 'customer'
+                     AND e.event_type NOT IN ('ticket_created', 'dedupe_matched', 'queue_assigned')
+                     AND LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+                )) AS effective_first_response_at,
+                COALESCE(t.triaged_at, (
+                  SELECT MIN(e.created_at)
+                    FROM ticket_lifecycle_events e
+                   WHERE e.tenant_id = t.tenant_id
+                     AND e.ticket_id = t.ticket_id
+                     AND LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+                     AND (
+                       e.event_type IN ('triaged', 'ticket_triaged', 'assignee_changed', 'diagnostic_started')
+                       OR (
+                         e.event_type = 'state_transition'
+                         AND LOWER(COALESCE(e.to_state, '')) NOT IN ('', 'triage_pending', 'received')
+                       )
+                     )
+                )) AS effective_triaged_at
+           FROM tickets t
+          WHERE t.tenant_id = ? AND t.ticket_id = ?
           FOR UPDATE`,
         [plannedFinding.tenant_id, plannedFinding.ticket_id],
       );
@@ -165,15 +241,15 @@ export async function reconcileSupportTicketIntegrityWithEffectiveLifecycle(inpu
           finding.lifecycle.lifecycle_state || lockedRow.lifecycle_state,
           finding.lifecycle.customer_status || lockedRow.customer_status,
           finding.sla.computed_status,
-          finding.milestone_evidence?.first_response_at || null,
-          finding.milestone_evidence?.triaged_at || null,
-          finding.integrity?.is_test ? 1 : 0,
-          finding.integrity?.environment || "production",
-          finding.integrity?.visibility_class || "customer_visible",
-          finding.integrity?.target_capability || null,
-          finding.integrity?.parent_ticket_id || null,
-          finding.integrity?.related_ticket_id || null,
-          finding.integrity?.supersedes_ticket_id || null,
+          finding.milestone_evidence.first_response_at,
+          finding.milestone_evidence.triaged_at,
+          finding.integrity.is_test ? 1 : 0,
+          finding.integrity.environment,
+          finding.integrity.visibility_class,
+          finding.integrity.target_capability,
+          finding.integrity.parent_ticket_id,
+          finding.integrity.related_ticket_id,
+          finding.integrity.supersedes_ticket_id,
           finding.tenant_id,
           finding.ticket_id,
         ],
