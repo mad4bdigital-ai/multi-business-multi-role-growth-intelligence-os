@@ -1,4 +1,4 @@
-name: Apply tenant request hardening to isolated target
+name: Apply tenant request hardening to isolated target v2
 
 on:
   push:
@@ -32,14 +32,14 @@ jobs:
           lines = text[start:end].splitlines()
           script = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
           exec(compile(script, str(workflow), 'exec'), {'__name__': '__main__'})
-          for path in [
-            '.github/workflows/apply-tenant-request-inbox-chunk-hardening-pr.yml',
-            '.github/workflows/apply-tenant-request-inbox-chunk-hardening-target.yml',
-            '.changes/e2e/.tenant-request-patch-trigger',
-          ]:
-            candidate = Path(path)
-            if candidate.exists(): candidate.unlink()
           PY
+          # The embedded patch intentionally removes its source workflow. Restore all
+          # workflow/trigger files so the Actions token only commits runtime files.
+          git restore --source=HEAD -- \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening.yml \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening-pr.yml \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening-target.yml \
+            .changes/e2e/.tenant-request-patch-trigger
       - name: Run focused validation
         run: |
           node --check http-generic-api/tenantRequestInboxService.js
@@ -48,11 +48,16 @@ jobs:
           node --check http-generic-api/governedToolResponseChunkStore.js
           node --check http-generic-api/routes/gptToolsRoutes.js
           node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
-      - name: Commit and push isolated result
+      - name: Commit runtime-only result
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add \
+            http-generic-api/supportTicketResolutionService.js \
+            http-generic-api/routes/supportTicketRoutes.js \
+            http-generic-api/governedToolResponseChunkStore.js \
+            http-generic-api/routes/gptToolsRoutes.js
+          git diff --cached --check
           git commit -m "feat(tenant-requests): wire inbox and harden chunk fallback"
-          git push origin HEAD:refs/heads/gpt/tenant-request-inbox-chunk-store-hardening-patched-20260801
+          git push origin HEAD:refs/heads/gpt/tenant-request-inbox-chunk-store-hardening-patched-v2-20260801
