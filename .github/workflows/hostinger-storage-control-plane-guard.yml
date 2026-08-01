@@ -57,6 +57,9 @@ jobs:
           grep -q "canonicalPersistenceAdapters.add(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalPersistenceAdapters.has(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "isCanonicalMemoryHostingerStoragePersistenceAdapter" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "const { adapter, ...remainingOptions } = input;" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "createBaseHostingerStorageControlPlaneRepository({ ...remainingOptions, adapter })" http-generic-api/hostingerStorageControlPlaneRepository.js
+          ! grep -q "isCanonicalMemoryHostingerStoragePersistenceAdapter(options.adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.add(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.has(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageControlPlaneRepository.js
