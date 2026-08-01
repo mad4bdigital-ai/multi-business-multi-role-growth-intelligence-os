@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { buildMcpHandlers } from "../mcpRuntime.js";
 import { buildRemoteMcpConnectorRoutes } from "./remoteMcpConnectorRoutes.js";
+import { buildRemoteMcpOAuthRoutes } from "./remoteMcpOAuthRoutes.js";
 
 export function buildMcpRoutes(deps) {
   const {
@@ -12,6 +13,11 @@ export function buildMcpRoutes(deps) {
   const { mcpInitialize, mcpToolsList, mcpToolsCall } = buildMcpHandlers(deps);
 
   const router = Router();
+
+  // OAuth 2.1 authorization, dynamic client registration, refresh, and
+  // revocation endpoints for the shared remote MCP resource. All endpoints
+  // remain disabled until REMOTE_MCP_OAUTH_ENABLED is explicitly set.
+  router.use(buildRemoteMcpOAuthRoutes(deps));
 
   // Standards-oriented remote MCP surface for ChatGPT, Claude, Codex, and
   // other approved conforming clients. It is disabled by default and remains
