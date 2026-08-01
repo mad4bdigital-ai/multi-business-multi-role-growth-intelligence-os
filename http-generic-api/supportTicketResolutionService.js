@@ -180,6 +180,17 @@ function resolutionSummary({ classification, playbook, row = null, created = fal
   };
 }
 
+async function hasResolutionCaseTicketIdColumn(connection) {
+  const [rows] = await connection.query(
+    `SELECT COUNT(*) AS present
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'tenant_resolution_cases'
+        AND column_name = 'ticket_id'`
+  );
+  return Number(rows?.[0]?.present || 0) === 1;
+}
+
 async function selectPlaybook(connection, classification) {
   const [rows] = await connection.query(
     `SELECT playbook_key, root_family, display_name, description,
@@ -242,14 +253,24 @@ export async function ensureSupportTicketResolutionCase({
     fingerprint,
   ].join("|"))}`;
 
+  const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(connection);
   const [existingRows] = await connection.query(
-    `SELECT *
-       FROM tenant_resolution_cases
-      WHERE tenant_id = ?
-        AND (active_case_key = ? OR resource_ref = ?)
-      ORDER BY created_at DESC
-      LIMIT 1`,
-    [ticket.tenant_id, activeCaseKey, resourceRef]
+    hasTicketIdColumn
+      ? `SELECT *
+           FROM tenant_resolution_cases
+          WHERE tenant_id = ?
+            AND (ticket_id = ? OR active_case_key = ? OR resource_ref = ?)
+          ORDER BY updated_at DESC, id DESC
+          LIMIT 1`
+      : `SELECT *
+           FROM tenant_resolution_cases
+          WHERE tenant_id = ?
+            AND (active_case_key = ? OR resource_ref = ?)
+          ORDER BY updated_at DESC, id DESC
+          LIMIT 1`,
+    hasTicketIdColumn
+      ? [ticket.tenant_id, ticket.ticket_id, activeCaseKey, resourceRef]
+      : [ticket.tenant_id, activeCaseKey, resourceRef]
   );
   const existing = existingRows[0] || null;
   if (existing) {
@@ -268,32 +289,49 @@ export async function ensureSupportTicketResolutionCase({
   }
 
   const caseId = randomUUID();
-  await connection.query(
-    `INSERT INTO tenant_resolution_cases (
-       case_id, tenant_id, workspace_id, resource_ref, root_family,
-       playbook_key, status, severity, root_fingerprint_sha256,
-       active_case_key, source_alert_keys_json, source_refs_json,
-       impact_summary, current_step_key, owner_user_id, readback_status,
-       secrets_included
-     ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
-               'case_created', NULL, 'not_run', 0)`,
-    [
-      caseId,
-      ticket.tenant_id,
-      resourceRef,
-      classification.root_family,
-      classification.playbook_key,
-      classification.severity,
-      fingerprint,
-      activeCaseKey,
-      JSON.stringify([
-        safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
-      ]),
-      JSON.stringify([resourceRef]),
-      safeString(ticket.internal_summary || ticket.customer_message || ticket.title, 2000)
-        || null,
-    ]
-  );
+  const sourceAlertKeys = JSON.stringify([
+    safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
+  ]);
+  const sourceRefs = JSON.stringify([resourceRef]);
+  const impactSummary = safeString(
+    ticket.internal_summary || ticket.customer_message || ticket.title,
+    2000
+  ) || null;
+  if (hasTicketIdColumn) {
+    await connection.query(
+      `INSERT INTO tenant_resolution_cases (
+         case_id, tenant_id, ticket_id, workspace_id, resource_ref, root_family,
+         playbook_key, status, severity, root_fingerprint_sha256,
+         active_case_key, source_alert_keys_json, source_refs_json,
+         impact_summary, current_step_key, owner_user_id, readback_status,
+         secrets_included
+       ) VALUES (?, ?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                 'case_created', NULL, 'not_run', 0)`,
+      [
+        caseId, ticket.tenant_id, ticket.ticket_id, resourceRef,
+        classification.root_family, classification.playbook_key,
+        classification.severity, fingerprint, activeCaseKey,
+        sourceAlertKeys, sourceRefs, impactSummary,
+      ]
+    );
+  } else {
+    await connection.query(
+      `INSERT INTO tenant_resolution_cases (
+         case_id, tenant_id, workspace_id, resource_ref, root_family,
+         playbook_key, status, severity, root_fingerprint_sha256,
+         active_case_key, source_alert_keys_json, source_refs_json,
+         impact_summary, current_step_key, owner_user_id, readback_status,
+         secrets_included
+       ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                 'case_created', NULL, 'not_run', 0)`,
+      [
+        caseId, ticket.tenant_id, resourceRef,
+        classification.root_family, classification.playbook_key,
+        classification.severity, fingerprint, activeCaseKey,
+        sourceAlertKeys, sourceRefs, impactSummary,
+      ]
+    );
+  }
 
   await connection.query(
     `INSERT INTO tenant_resolution_case_events (
@@ -349,6 +387,7 @@ export async function getSupportTicketResolution({
   if (!ticket) return null;
 
   const classification = classifySupportTicketResolution(ticket);
+  const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(pool);
   const [rows] = await pool.query(
     `SELECT c.*, p.display_name, p.description, p.required_capability_key,
             p.risk_level, p.diagnostic_tool_key, p.decision_tool_key,
@@ -359,10 +398,14 @@ export async function getSupportTicketResolution({
          ON p.playbook_key = c.playbook_key
         AND p.root_family = c.root_family
       WHERE c.tenant_id = ?
-        AND c.resource_ref = ?
-      ORDER BY c.created_at DESC
+        AND ${hasTicketIdColumn
+          ? "(c.ticket_id = ? OR (c.ticket_id IS NULL AND c.resource_ref = ?))"
+          : "c.resource_ref = ?"}
+      ORDER BY c.updated_at DESC, c.id DESC
       LIMIT 1`,
-    [tenant_id, `ticket://${ticket_id}`]
+    hasTicketIdColumn
+      ? [tenant_id, ticket_id, `ticket://${ticket_id}`]
+      : [tenant_id, `ticket://${ticket_id}`]
   );
   const row = rows[0] || null;
 
