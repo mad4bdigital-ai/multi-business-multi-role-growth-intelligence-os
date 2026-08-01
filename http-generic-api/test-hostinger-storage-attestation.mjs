@@ -21,6 +21,7 @@ const resolutionHash = 'e'.repeat(64);
 const policyHash = 'f'.repeat(64);
 const resticBinaryHash = '1'.repeat(64);
 const cosignBinaryHash = '2'.repeat(64);
+const toolchainProvenanceDigest = '4'.repeat(64);
 
 const plan = {
   plan_id: 'plan-1',
@@ -120,11 +121,13 @@ const buildSubject = ({
   authorizationInput = authorization,
   recoveryInput = recoveryProof,
   toolchainInput = toolchainResolution,
+  provenanceInput = toolchainProvenanceDigest,
   createdAt = '2026-08-01T08:16:00.000Z',
 } = {}) => buildHostingerStorageAttestationSubject({
   plan: planInput,
   authorization: authorizationInput,
   toolchain_resolution: toolchainInput,
+  toolchain_provenance_digest: provenanceInput,
   recovery_proof: recoveryInput,
   created_at: createdAt,
 });
@@ -147,12 +150,19 @@ assert.equal(subject.payload.recovery.proof_digest, recoveryProof.proof_digest);
 assert.equal(subject.payload.recovery.requirement_binding_digest, recoveryProof.proof.requirement_binding_digest);
 assert.equal(subject.payload.toolchain.resolution_fingerprint, resolutionHash);
 assert.equal(subject.payload.toolchain.policy_fingerprint, policyHash);
+assert.equal(subject.payload.toolchain.provenance_digest, toolchainProvenanceDigest);
 assert.equal(subject.payload.toolchain.selected_tools.checkpoint.tool_id, 'restic');
 assert.equal(subject.payload.toolchain.selected_tools.attestation.tool_id, 'cosign');
 assert.match(subject.subject_digest, /^[0-9a-f]{64}$/);
 assert.equal(subject.signing_allowed, false);
 assert.equal(subject.dispatch_allowed, false);
 assert.deepEqual(subject.blockers, ['STORAGE_DISPATCH_DISABLED']);
+
+assert.throws(
+  () => buildSubject({ provenanceInput: null }),
+  (error) => error.code === 'STORAGE_ATTESTATION_HASH_INVALID'
+    && error.details?.field === 'toolchain_provenance_digest',
+);
 
 for (const forbidden of [
   ['token', 'forbidden-token'],
@@ -271,9 +281,22 @@ assert.equal(verified.evidence.recovery_proof_digest, recoveryProof.proof_digest
 assert.equal(verified.evidence.recovery_requirement_binding_digest, recoveryProof.proof.requirement_binding_digest);
 assert.equal(verified.evidence.toolchain_resolution_fingerprint, resolutionHash);
 assert.equal(verified.evidence.toolchain_policy_fingerprint, policyHash);
+assert.equal(verified.evidence.toolchain_provenance_digest, toolchainProvenanceDigest);
 assert.match(verified.evidence.toolchain_selected_tools_digest, /^[0-9a-f]{64}$/);
 assert.equal(verified.authority_granted, false);
 assert.equal(verified.dispatch_allowed, false);
+
+const provenanceTamperedSubject = structuredClone(subject);
+provenanceTamperedSubject.payload.toolchain.provenance_digest = '5'.repeat(64);
+assert.throws(
+  () => verifyHostingerStorageAttestationEvidence({
+    subject: provenanceTamperedSubject,
+    verification: validVerification,
+    policy: verificationPolicy,
+    now: '2026-08-01T08:25:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_PLAN_TAMPERED',
+);
 
 const secretBearingSubject = structuredClone(subject);
 secretBearingSubject.payload.api_token = 'forbidden-token';
@@ -443,6 +466,7 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_attestation',
   recovery_plan_binding: true,
   recovery_and_toolchain_evidence_bound: true,
+  toolchain_release_provenance_bound: true,
   authority_context_binding: true,
   verified_plan_identity_preserved: true,
   signed_subject_secret_free_validated: true,
