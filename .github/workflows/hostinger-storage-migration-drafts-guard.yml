@@ -9,10 +9,10 @@ on:
       - '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json'
       - '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
       - '.github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs'
+      - '.github/contracts/spec014/migrations/**'
       - '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
       - 'http-generic-api/hostingerStorageSqlPersistenceAdapter.js'
       - 'specs/014-governed-hostinger-storage-orchestration/migrations/**'
-      - 'specs/014-governed-hostinger-storage-orchestration/tasks.md'
 
 permissions:
   contents: read
@@ -39,11 +39,19 @@ jobs:
         run: node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
       - name: Validate bounded migration drafts and adapter parity
         run: node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-      - name: Preserve non-apply boundary
+      - name: Preserve isolated non-apply boundary
         run: |
           test ! -e http-generic-api/migrations/wave-1-foundation.sql
           test ! -e http-generic-api/migrations/wave-2-control-plane.sql
           test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql
+          test ! -e specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql
+          grep -q '"contract_local_only": true' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"covered_by_full_spec_phase_contract": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"discoverable_by_governed_migration_runner": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"migration_apply_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"schema_verified": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
@@ -51,6 +59,6 @@ jobs:
           grep -q '"provider_dispatch_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           ! grep -R -E '^\s*(DROP|TRUNCATE|DELETE|UPDATE|ALTER|CREATE|INSERT)\s+' \
-            specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql \
-            specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql \
-            specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql
+            .github/contracts/spec014/migrations/preflight.sql \
+            .github/contracts/spec014/migrations/readback.sql \
+            .github/contracts/spec014/migrations/rollback-prelive.sql
