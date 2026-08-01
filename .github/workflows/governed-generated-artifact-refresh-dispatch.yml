@@ -1,0 +1,212 @@
+name: Governed Generated Artifact Refresh Dispatch
+
+on:
+  push:
+    branches:
+      - "gpt/**"
+      - "cert/**"
+      - "fix/**"
+      - "feat/**"
+      - "chore/**"
+      - "docs/**"
+      - "release/**"
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Exact governed non-protected work branch
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character branch head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type APPLY_GENERATED_ARTIFACT_REFRESH
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: governed-generated-artifact-refresh-dispatch-${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.ref_name }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
+      TYPED_CONFIRMATION: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation || 'LABEL_GENERATED_ARTIFACT_REFRESH' }}
+      GITHUB_TOKEN: ${{ github.token }}
+      REPORT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh-dispatch
+    steps:
+      - name: Dispatch registered exact-head refresh with structured evidence
+        id: dispatch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const contract = "mad4b.governed-generated-artifact-refresh-dispatch.v1";
+          const protectedBranches = new Set(["main", "Production"]);
+          const branchPattern = /^(?:gpt|cert|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
+          const shaPattern = /^[0-9a-f]{40}$/u;
+          const apiBase = "https://api.github.com";
+          const reportPath = path.join(process.env.REPORT_DIR, "governed-generated-artifact-refresh-dispatch.json");
+          const markdownPath = path.join(process.env.REPORT_DIR, "governed-generated-artifact-refresh-dispatch.md");
+          const sanitize = (value) => String(value || "")
+            .replace(/\bBearer\s+[^\s]+/giu, "Bearer [REDACTED]")
+            .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu, "[REDACTED_GITHUB_TOKEN]")
+            .replace(/\b(authorization|token|secret|password|cookie|api[_-]?key)\b(\s*[:=]\s*)([^\s,;]+)/giu, "$1$2[REDACTED]")
+            .slice(-4000);
+          const headers = {
+            accept: "application/vnd.github+json",
+            authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            "content-type": "application/json",
+            "x-github-api-version": "2022-11-28",
+          };
+          let outcome = "blocked";
+          let firstFailure = null;
+          let pullRequestNumber = null;
+          let labelPresent = false;
+          let dispatchStatus = null;
+          let requestId = null;
+
+          try {
+            const targetRef = process.env.TARGET_REF || "";
+            const expectedHeadSha = process.env.EXPECTED_HEAD_SHA || "";
+            if (!branchPattern.test(targetRef) || protectedBranches.has(targetRef)) {
+              throw new Error("target_ref must be a governed non-protected work branch; main and Production are forbidden.");
+            }
+            if (!shaPattern.test(expectedHeadSha)) {
+              throw new Error("expected_head_sha must be an exact lowercase 40-character SHA.");
+            }
+            if (!process.env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is unavailable.");
+            if (process.env.EVENT_NAME === "workflow_dispatch" && process.env.TYPED_CONFIRMATION !== "APPLY_GENERATED_ARTIFACT_REFRESH") {
+              throw new Error("workflow_dispatch requires APPLY_GENERATED_ARTIFACT_REFRESH confirmation.");
+            }
+
+            const pullsResponse = await fetch(`${apiBase}/repos/${process.env.GITHUB_REPOSITORY}/commits/${expectedHeadSha}/pulls`, { headers });
+            const pullsBody = await pullsResponse.text();
+            if (!pullsResponse.ok) throw new Error(`Associated pull-request lookup failed with HTTP ${pullsResponse.status}: ${pullsBody}`);
+            const pulls = JSON.parse(pullsBody);
+            const pull = pulls.find((candidate) => candidate?.state === "open" && candidate?.head?.ref === targetRef) || null;
+            pullRequestNumber = pull?.number || null;
+            labelPresent = Boolean(pull?.labels?.some((label) => label?.name === "generated-artifact-refresh"));
+
+            if (process.env.EVENT_NAME === "push" && !labelPresent) {
+              outcome = "skipped";
+            } else {
+              const dispatchResponse = await fetch(
+                `${apiBase}/repos/${process.env.GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches`,
+                {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    ref: "main",
+                    inputs: {
+                      target_ref: targetRef,
+                      expected_head_sha: expectedHeadSha,
+                      confirmation: "APPLY_GENERATED_ARTIFACT_REFRESH",
+                    },
+                  }),
+                },
+              );
+              dispatchStatus = dispatchResponse.status;
+              requestId = dispatchResponse.headers.get("x-github-request-id");
+              const dispatchBody = await dispatchResponse.text();
+              if (dispatchResponse.status !== 204) {
+                throw new Error(`Governed workflow dispatch failed with HTTP ${dispatchResponse.status}: ${dispatchBody || dispatchResponse.statusText}`);
+              }
+              outcome = "passed";
+            }
+          } catch (error) {
+            firstFailure = {
+              code: "governed_refresh_dispatch_blocked",
+              diagnostic_tail: sanitize(error?.message || String(error)),
+            };
+          }
+
+          const report = {
+            contract,
+            generated_at: new Date().toISOString(),
+            outcome,
+            event_name: process.env.EVENT_NAME,
+            target_ref: process.env.TARGET_REF,
+            expected_head_sha: process.env.EXPECTED_HEAD_SHA,
+            protected_branches_rejected: true,
+            associated_pull_request_number: pullRequestNumber,
+            required_label: "generated-artifact-refresh",
+            required_label_present: labelPresent,
+            dispatched_workflow: "governed-generated-artifact-refresh.yml",
+            dispatched_workflow_ref: "main",
+            dispatch_http_status: dispatchStatus,
+            github_request_id: requestId,
+            first_failure: firstFailure,
+            mutation: {
+              delegated_to_registered_tool: true,
+              direct_contents_write: false,
+              force_push: false,
+            },
+            routing: {
+              source_of_truth: "structured_report",
+              job_logs_role: "diagnostic_only",
+              consult_job_logs: false,
+            },
+            secrets_included: false,
+          };
+          fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+          fs.writeFileSync(markdownPath, [
+            "# Governed generated-artifact refresh dispatch",
+            "",
+            `- Outcome: **${outcome}**`,
+            `- Target ref: \`${report.target_ref}\``,
+            `- Expected head SHA: \`${report.expected_head_sha}\``,
+            `- Associated PR: \`${pullRequestNumber || "none"}\``,
+            `- Required label present: **${labelPresent ? "yes" : "no"}**`,
+            `- Dispatch HTTP status: \`${dispatchStatus ?? "not-dispatched"}\``,
+            "- Direct contents write: **no**",
+            "- Job logs: **diagnostic-only**",
+            ...(firstFailure ? ["", "## First blocking finding", "", `- \`${firstFailure.code}\`: ${firstFailure.diagnostic_tail}`] : []),
+            "",
+          ].join("\n"));
+          console.log(JSON.stringify({ contract, outcome, target_ref: report.target_ref, expected_head_sha: report.expected_head_sha, pull_request_number: pullRequestNumber, dispatch_http_status: dispatchStatus, first_failure: firstFailure?.code || null, secrets_included: false }));
+          process.exitCode = outcome === "blocked" ? 1 : 0;
+          NODE
+
+      - name: Upload governed refresh dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-dispatch-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured dispatch decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/governed-generated-artifact-refresh-dispatch.json`, "utf8"));
+            if (report.contract !== "mad4b.governed-generated-artifact-refresh-dispatch.v1") throw new Error("Dispatch report contract mismatch.");
+            if (report.secrets_included !== false) throw new Error("Dispatch report must declare secrets_included=false.");
+            if (!new Set(["passed", "skipped"]).has(report.outcome)) {
+              console.error(JSON.stringify({ outcome: report.outcome, first_failure: report.first_failure?.code || "dispatch_blocked", diagnostic_tail: report.first_failure?.diagnostic_tail || "structured dispatch blocked", consult_job_logs: false, secrets_included: false }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ outcome: report.outcome, target_ref: report.target_ref, expected_head_sha: report.expected_head_sha, dispatch_http_status: report.dispatch_http_status, secrets_included: false }));
+          '
