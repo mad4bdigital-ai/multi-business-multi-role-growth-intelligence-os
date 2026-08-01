@@ -10,6 +10,7 @@
       ".github/workflows/runtime-startup-deployment-evidence.yml",
       "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
       "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+      "http-generic-api/test-remote-mcp-disabled-startup-boundary.mjs",
       ".changes/e2e/runtime-startup-deployment-structured-evidence.json"
     ]
   },
@@ -32,6 +33,7 @@
           "steps": [
             "Checkout the exact workflow candidate without persisted credentials.",
             "Validate the structured evidence reporter before using it as the decision source.",
+            "Verify that disabled Remote MCP OAuth does not resolve the database pool during route construction.",
             "Run deployment-manifest generator validation.",
             "Generate the deployment manifest for the exact candidate SHA and branch.",
             "Run the server startup and deployment identity smoke test.",
@@ -42,6 +44,8 @@
           "assertions": [
             "The report contract is mad4b.runtime-startup-deployment-evidence.v1.",
             "Pull-request evidence identifies the merge candidate separately from the source head SHA.",
+            "Disabled Remote MCP OAuth leaves startup and /version independent from database credentials.",
+            "Enabled Remote MCP OAuth resolves its database pool exactly once during router construction.",
             "Every stage records status, exit code, signal, and duration without embedding environment variables or credentials.",
             "Authorization values, OAuth tokens, client secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values are redacted from diagnostics.",
             "The report declares secrets_included=false.",
@@ -55,12 +59,21 @@
               "working_directory": "http-generic-api",
               "path": "scripts/test-runtime-startup-deployment-evidence.mjs",
               "args": []
+            },
+            {
+              "id": "remote-mcp-disabled-startup-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-disabled-startup-boundary.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/runtime-startup-deployment-evidence.yml",
+            "http-generic-api/routes/mcpRoutes.js",
             "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
-            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs"
+            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/test-remote-mcp-disabled-startup-boundary.mjs"
           ]
         }
       ]
