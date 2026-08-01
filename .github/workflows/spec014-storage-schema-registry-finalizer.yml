@@ -1,4 +1,4 @@
-name: Spec 014 Storage Schema Registry Finalizer
+name: Spec 014 Contracts Workstream Classifier
 
 on:
   pull_request:
@@ -12,11 +12,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: spec014-storage-schema-registry-finalizer
+  group: spec014-contracts-workstream-classifier
   cancel-in-progress: true
 
 jobs:
-  finalize:
+  classify:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -25,60 +25,32 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - name: Preserve governed finalizer and reset to exact Integration
+      - name: Preserve classifier and reset to exact T023 candidate
         run: |
-          cp .github/scripts/finalize-spec014-storage-schema-registry.mjs /tmp/finalize-spec014-storage-schema-registry.mjs
-          git checkout --detach ff1c279fe9ad173a7731de6d3c1ec51e282bcb8b
-          test "$(git rev-parse HEAD)" = 'ff1c279fe9ad173a7731de6d3c1ec51e282bcb8b'
+          cp .github/scripts/finalize-spec014-storage-schema-registry.mjs /tmp/classify-spec014-contracts-workstream.mjs
+          git checkout --detach c17f29be718851ad43df8c99450f04b1e11842cd
+          test "$(git rev-parse HEAD)" = 'c17f29be718851ad43df8c99450f04b1e11842cd'
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Validate and apply bounded exact registry rules
+      - name: Extend contracts workstream ownership
         run: |
-          node --check /tmp/finalize-spec014-storage-schema-registry.mjs
-          node /tmp/finalize-spec014-storage-schema-registry.mjs
-      - name: Validate final governed tree
+          node --check /tmp/classify-spec014-contracts-workstream.mjs
+          node /tmp/classify-spec014-contracts-workstream.mjs
+      - name: Validate exact governed write set
         run: |
-          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          grep -q '"status":"canonical_registry_registered"' .github/contracts/spec014/hostinger-storage-schema-classification.json
-          grep -q '"rule_count":15' .github/contracts/spec014/hostinger-storage-schema-classification.json
-          grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
-          grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
-      - name: Enforce exact permanent write set
-        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json','utf8'))"
           actual="$(git diff --name-only | sort)"
-          expected="$(printf '%s\n' \
-            '.github/contracts/spec014/hostinger-storage-schema-classification.json' \
-            '.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs' \
-            '.github/workflows/hostinger-storage-schema-classification-guard.yml' \
-            '.specify/work-map-schema-classification-registry.json' \
-            'specs/014-governed-hostinger-storage-orchestration/tasks.md' | sort)"
+          expected='specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
           test "$actual" = "$expected"
-      - name: Upload validated permanent write set
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec014-t023-clean-write-set-${{ github.run_id }}
-          if-no-files-found: error
-          retention-days: 1
-          path: |
-            .github/contracts/spec014/hostinger-storage-schema-classification.json
-            .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-            .github/workflows/hostinger-storage-schema-classification-guard.yml
-            .specify/work-map-schema-classification-registry.json
-            specs/014-governed-hostinger-storage-orchestration/tasks.md
-      - name: Create clean PR branch
+          grep -q 'gpt/014-hostinger/contracts-\*' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+          grep -q 'hostinger-storage-schema-classification-contract' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+      - name: Create workstream-classified PR branch
         run: |
-          branch='gpt/014-hostinger/canonical-schema-registry-generated-20260802'
+          branch='gpt/014-hostinger/contracts-schema-classification-20260802'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -b "$branch"
-          git add .github/contracts/spec014/hostinger-storage-schema-classification.json \
-            .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs \
-            .github/workflows/hostinger-storage-schema-classification-guard.yml \
-            .specify/work-map-schema-classification-registry.json \
-            specs/014-governed-hostinger-storage-orchestration/tasks.md
-          git commit -m 'docs(spec-014): register storage schema objects canonically'
+          git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+          git commit -m 'docs(spec-014): classify schema registry under contracts workstream'
           git push origin "HEAD:refs/heads/$branch"
