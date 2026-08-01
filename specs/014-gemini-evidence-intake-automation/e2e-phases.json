@@ -24,25 +24,55 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository specification maintainer",
-          "entrypoint": "Run the Spec-local contract validator from the repository candidate tree",
-          "terminal_outcome": "The manifest, development contract, CI contract, dependency graph, evidence references, sole-writer policy, no-secret checks, and completion consistency produce a successful structured integrity report.",
+          "entrypoint": "Run each Spec-local contract validation stage from the repository candidate tree",
+          "terminal_outcome": "The manifest, development contract, CI contract, dependency graph, evidence references, sole-writer policy, no-secret checks, and completion consistency produce successful structured integrity reports.",
           "steps": [
-            "Load the Spec manifest, development automation contract, CI automation contract, and completion state from the exact candidate tree.",
-            "Validate file presence, immutable identifiers, cross-references, dependency acyclicity, task and acceptance coverage, Test Family bindings, Pipeline evidence bindings, writer policy, and no-secret assertions.",
-            "Emit the bounded mad4b.spec014.contract-integrity-report.v1 report and fail closed on any finding."
+            "Validate the manifest and declared Spec file inventory from the exact candidate tree.",
+            "Validate development requirements, tasks, waves, acceptance criteria, operation paths, dependency acyclicity, and coverage.",
+            "Validate CI Test Families, Pipelines, evidence contracts, completion bindings, and sole-writer policy.",
+            "Validate completion-state consistency and scan declared Spec files for prohibited secrets or signed URLs.",
+            "Emit bounded mad4b.spec014.contract-integrity-report.v1 reports and fail closed on the first exact stage finding."
           ],
           "assertions": [
-            "The report declares ok=true and secrets_included=false.",
+            "Every stage report declares ok=true and secrets_included=false.",
             "All development and CI references resolve without cycles or orphan requirements.",
             "The contract remains specification-only and does not create mutation authority."
           ],
           "tests": [
             {
-              "id": "validate-spec014-contracts",
+              "id": "validate-spec014-manifest",
               "runner": "node",
               "working_directory": "specs/014-gemini-evidence-intake-automation",
               "path": "tools/validate-contracts.mjs",
-              "args": []
+              "args": ["--only", "manifest"]
+            },
+            {
+              "id": "validate-spec014-development",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/validate-contracts.mjs",
+              "args": ["--only", "development"]
+            },
+            {
+              "id": "validate-spec014-ci",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/validate-contracts.mjs",
+              "args": ["--only", "ci"]
+            },
+            {
+              "id": "validate-spec014-completion",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/validate-contracts.mjs",
+              "args": ["--only", "completion"]
+            },
+            {
+              "id": "validate-spec014-secrets",
+              "runner": "node",
+              "working_directory": "specs/014-gemini-evidence-intake-automation",
+              "path": "tools/validate-contracts.mjs",
+              "args": ["--only", "secrets"]
             }
           ],
           "evidence_paths": [
