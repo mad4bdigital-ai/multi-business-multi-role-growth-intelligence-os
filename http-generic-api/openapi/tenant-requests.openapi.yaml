@@ -12,8 +12,8 @@ paths:
       operationId: listAdminTenantRequests
       summary: List tenant requests across the authorized admin scope
       security:
-        - backendApiKeyAuth: []
         - adminBearerAuth: []
+        - backendApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/TicketStatus'
@@ -36,8 +36,8 @@ paths:
       operationId: getAdminTenantRequest
       summary: Read one tenant request with an admin-redacted unified timeline
       security:
-        - backendApiKeyAuth: []
         - adminBearerAuth: []
+        - backendApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/TicketIdPath'
         - $ref: '#/components/parameters/TenantId'
