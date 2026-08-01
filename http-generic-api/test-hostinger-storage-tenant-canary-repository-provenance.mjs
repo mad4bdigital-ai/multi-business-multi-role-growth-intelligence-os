@@ -163,7 +163,7 @@ assert.equal(directContext.registry.exportState()[0].consumed, false);
 
 const missingAdapterContext = buildAuthorizedContext(fixture);
 assert.throws(
-  () => execute(fixture, missingAdapterContext, fixture.repository, undefined),
+  () => execute(fixture, missingAdapterContext, fixture.repository, null),
   (error) => error?.status === 409
     && error?.code === 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID',
 );
@@ -186,6 +186,7 @@ console.log(JSON.stringify({
   wrapper_is_reexport_only: true,
   single_base_provenance_authority: true,
   valid_authorization_precondition_preserved: true,
+  missing_adapter_is_explicit_null: true,
   direct_control_plane_repository_rejected: true,
   tenant_factory_repository_control_plane_canonical: true,
   repository_identity_metadata_pinned: true,
