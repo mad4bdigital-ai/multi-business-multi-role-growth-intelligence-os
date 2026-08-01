@@ -6,10 +6,12 @@ import { buildRemoteMcpOAuthRoutes } from "./routes/remoteMcpOAuthRoutes.js";
 import { sha256 } from "./remoteMcpOAuthProfile.js";
 
 const env = {
-  JWT_SECRET: "remote-mcp-oauth-route-test-secret",
+  JWT_SECRET: "user-session-route-test-secret",
+  REMOTE_MCP_OAUTH_SIGNING_SECRET: "remote-mcp-oauth-route-test-secret",
   REMOTE_MCP_ENABLED: "true",
   REMOTE_MCP_OAUTH_ENABLED: "true",
   REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
+  REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://claude.ai https://chatgpt.com",
   REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
   REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
 };
@@ -159,6 +161,21 @@ async function json(response) {
 }
 
 try {
+  const rejectedRegistration = await fetch(`${baseUrl}/auth/mcp/oauth/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "Unapproved Client",
+      redirect_uris: ["https://evil.example/callback"],
+      token_endpoint_auth_method: "none",
+      scope: "workspaces.read",
+    }),
+  });
+  const rejectedRegistrationBody = await json(rejectedRegistration);
+  assert.equal(rejectedRegistration.status, 400);
+  assert.equal(rejectedRegistrationBody.error, "invalid_redirect_uri");
+  assert.equal(clients.size, 0);
+
   const redirectUri = "https://claude.ai/api/mcp/auth_callback";
   const registerResponse = await fetch(`${baseUrl}/auth/mcp/oauth/register`, {
     method: "POST",
@@ -200,27 +217,52 @@ try {
   assert(authorizeHtml.includes('id="consent"'));
   assert(authorizeHtml.includes("Consent is required"));
   assert(authorizeResponse.headers.get("cache-control")?.includes("no-store"));
+  const requestMatch = authorizeHtml.match(/"authorization_request":"([^"]+)"/u);
+  assert(requestMatch?.[1], "authorize page should contain a signed authorization request");
+  const authorizationRequest = requestMatch[1];
+  const authorizationClaims = jwt.verify(authorizationRequest, env.REMOTE_MCP_OAUTH_SIGNING_SECRET, {
+    algorithms: ["HS256"],
+    issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
+    audience: env.REMOTE_MCP_RESOURCE_URL,
+  });
+  assert.equal(authorizationClaims.purpose, "remote_mcp_authorization_request");
+  assert.equal(authorizationClaims.client_id, registered.client_id);
+  assert.equal(authorizationClaims.redirect_uri, redirectUri);
+  assert.equal(authorizationClaims.code_challenge, challenge);
 
   const userToken = jwt.sign(
     { user_id: "user-1", tenant_id: "workspace-1", email: "user@example.test" },
     env.JWT_SECRET,
     { algorithm: "HS256", expiresIn: 3600 },
   );
+
+  const missingConsentResponse = await fetch(`${baseUrl}/auth/mcp/oauth/code`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${userToken}` },
+    body: JSON.stringify({ authorization_request: authorizationRequest, consent: false }),
+  });
+  const missingConsent = await json(missingConsentResponse);
+  assert.equal(missingConsentResponse.status, 400);
+  assert.equal(missingConsent.error, "consent_required");
+  assert.equal(codes.size, 0);
+
+  const tamperedRequestResponse = await fetch(`${baseUrl}/auth/mcp/oauth/code`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${userToken}` },
+    body: JSON.stringify({ authorization_request: `${authorizationRequest}x`, consent: true }),
+  });
+  const tamperedRequest = await json(tamperedRequestResponse);
+  assert.equal(tamperedRequestResponse.status, 400);
+  assert.equal(tamperedRequest.error, "invalid_request");
+  assert.equal(codes.size, 0);
+
   const codeResponse = await fetch(`${baseUrl}/auth/mcp/oauth/code`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${userToken}`,
     },
-    body: JSON.stringify({
-      client_id: registered.client_id,
-      redirect_uri: redirectUri,
-      state: "state-1",
-      scope: "workspaces.read brands.read",
-      resource: env.REMOTE_MCP_RESOURCE_URL,
-      code_challenge: challenge,
-      code_challenge_method: "S256",
-    }),
+    body: JSON.stringify({ authorization_request: authorizationRequest, consent: true }),
   });
   const codeResult = await json(codeResponse);
   assert.equal(codeResponse.status, 200);
@@ -262,7 +304,7 @@ try {
   assert.equal(tokens.token_type, "Bearer");
   assert(tokens.refresh_token);
   assert.equal(codes.get(sha256(codeResult.code)).status, "consumed");
-  const accessClaims = jwt.verify(tokens.access_token, env.JWT_SECRET, {
+  const accessClaims = jwt.verify(tokens.access_token, env.REMOTE_MCP_OAUTH_SIGNING_SECRET, {
     algorithms: ["HS256"],
     issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
     audience: env.REMOTE_MCP_RESOURCE_URL,
@@ -270,6 +312,9 @@ try {
   assert.equal(accessClaims.purpose, "remote_mcp_access");
   assert.equal(accessClaims.client_id, registered.client_id);
   assert.equal(accessClaims.user_id, "user-1");
+  assert.equal(accessClaims.tenant_id, "workspace-1");
+  assert.equal(accessClaims.sub, "tenant:workspace-1:user:user-1");
+  assert.throws(() => jwt.verify(tokens.access_token, env.JWT_SECRET, { algorithms: ["HS256"] }));
 
   const refreshResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
     method: "POST",
@@ -286,13 +331,27 @@ try {
   assert(refreshed.refresh_token);
   assert.notEqual(refreshed.refresh_token, tokens.refresh_token);
 
-  const refreshedClaims = jwt.verify(refreshed.access_token, env.JWT_SECRET, {
+  const refreshedClaims = jwt.verify(refreshed.access_token, env.REMOTE_MCP_OAUTH_SIGNING_SECRET, {
     algorithms: ["HS256"],
     issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
     audience: env.REMOTE_MCP_RESOURCE_URL,
   });
   assert.equal(grantsByAccessJti.get(accessClaims.jti).status, "rotated");
   assert.equal(grantsByAccessJti.get(refreshedClaims.jti).status, "active");
+
+  const replayRefreshResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: registered.client_id,
+      refresh_token: tokens.refresh_token,
+      resource: env.REMOTE_MCP_RESOURCE_URL,
+    }),
+  });
+  const replayRefresh = await json(replayRefreshResponse);
+  assert.equal(replayRefreshResponse.status, 400);
+  assert.equal(replayRefresh.error, "invalid_grant");
 
   const revokeResponse = await fetch(`${baseUrl}/auth/mcp/oauth/revoke`, {
     method: "POST",
