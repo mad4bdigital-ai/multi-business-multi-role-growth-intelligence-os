@@ -59,6 +59,16 @@ assert(
   serverSource.includes("resolveAgentModelProvider"),
   "server.js must pass the effective model provider resolver into routes"
 );
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeGuard\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime guard exactly once"
+);
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeErrorHandler\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime error handler exactly once"
+);
 
 const devAgentRoutesSource = readFileSync(join(__dirname, "routes/devAgentRoutes.js"), "utf8");
 assert(
@@ -73,6 +83,32 @@ const routesIndexSource = readFileSync(join(__dirname, "routes/index.js"), "utf8
 assert(
   routesIndexSource.includes("buildN8nWorkflowRuntimeRoutes"),
   "n8n workflow runtime routes must stay mounted"
+);
+assert.equal(
+  (routesIndexSource.match(/buildBackupArtifactRoutes\(deps\)/g) || []).length,
+  1,
+  "backup artifact routes must be mounted exactly once"
+);
+assert.equal(
+  (routesIndexSource.match(/buildRegistryDataManagementRoutes\(\{ \.\.\.deps, requireAdminPrincipal \}\)/g) || []).length,
+  1,
+  "registry data management routes must be mounted exactly once with admin and tenant guards"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeGuard"),
+  false,
+  "operation runtime guard must be mounted only by server.js"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeErrorHandler"),
+  false,
+  "operation runtime error handler must be mounted only by server.js"
+);
+
+const rootEntrypointSource = readFileSync(join(__dirname, "..", "server.js"), "utf8");
+assert(
+  rootEntrypointSource.includes("error.stack"),
+  "root Hostinger entrypoint must preserve startup stack traces"
 );
 
 const modelReadinessMigration = readFileSync(

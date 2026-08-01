@@ -39,9 +39,9 @@ SELECT "quoted; SELECT text" AS note;
 `;
 const protectedStatements = splitMigrationSqlStatements(protectedRegionSql);
 assert.equal(protectedStatements.length, 3);
-assert.match(protectedStatements[0], /^--[\s\S]*SET\s+@dynamic_sql/i);
+assert.match(protectedStatements[0], /^SET\s+@dynamic_sql/i);
 assert.match(protectedStatements[0], /SELECT 1; SELECT 2; still one string/);
-assert.match(protectedStatements[1], /^\/\*[\s\S]*SELECT\s+JSON_OBJECT/i);
+assert.match(protectedStatements[1], /^SELECT\s+JSON_OBJECT/i);
 assert.match(protectedStatements[1], /alpha; SELECT beta/);
 assert.match(protectedStatements[2], /^SELECT\s+"quoted; SELECT text"/i);
 
