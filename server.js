@@ -25,17 +25,19 @@ function formatStartupError(error) {
   return String(error);
 }
 
-if (require.main === module) {
-  startApplication().catch((error) => {
-    console.error(
-      `[hostinger-root-entrypoint] startup failed:\n${formatStartupError(error)}`
-    );
-    process.exitCode = 1;
-  });
-}
+// Hostinger loads the configured entry file through its own Node.js wrapper.
+// In that environment `require.main === module` is not guaranteed, so startup
+// must occur whenever this entrypoint is loaded.
+const startupPromise = startApplication().catch((error) => {
+  console.error(
+    `[hostinger-root-entrypoint] startup failed:\n${formatStartupError(error)}`
+  );
+  process.exitCode = 1;
+});
 
 module.exports = {
   formatStartupError,
   resolveApplicationRoot,
   startApplication,
+  startupPromise,
 };
