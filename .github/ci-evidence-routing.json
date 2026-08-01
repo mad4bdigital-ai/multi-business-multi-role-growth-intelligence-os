@@ -33,6 +33,10 @@
     "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
     "update_mode": "replace_matching_workflow_section_when_run_id_is_newer",
     "pr_head_workflows_may_write_comments": false,
+    "generated_artifact_workflow_aliases": [
+      "PR Generated Artifact Refresh",
+      "Protected Promotion Generated Artifact Refresh"
+    ],
     "pr_resolution": {
       "event_pr_number_preferred": true,
       "fallback_query_state": "all",
@@ -88,6 +92,15 @@
     },
     {
       "workflow": "PR Generated Artifact Refresh",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.pr-generated-artifact-refresh-summary.v1",
+      "canonical_artifact": "pr-generated-artifact-refresh-${run_id}-summary",
+      "source_head_may_precede_candidate": false,
+      "candidate_rule": "candidate_sha must equal source_head_sha; commit_sha must be null; repository_mutation_performed must be false",
+      "source_artifacts": ["pr-generated-artifact-refresh-summary.json"]
+    },
+    {
+      "workflow": "Protected Promotion Generated Artifact Refresh",
       "candidate_kind": "head",
       "canonical_contract": "mad4b.pr-generated-artifact-refresh-summary.v1",
       "canonical_artifact": "pr-generated-artifact-refresh-${run_id}-summary",
