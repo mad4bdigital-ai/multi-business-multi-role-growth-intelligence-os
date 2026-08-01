@@ -65,6 +65,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
+- `.github/workflows/e2e-phase-governance.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
 - `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
 - `.github/workflows/governed-local-connector-production-closure-push.yml`
