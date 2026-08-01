@@ -4,21 +4,30 @@
   "feature_key": "016-remote-mcp-multi-client-connector",
   "title": "Remote MCP connector profiles for ChatGPT, Claude, and generic clients",
   "delivery_mode": "multi_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       "http-generic-api/remoteMcpConnectorRuntime.js",
+      "http-generic-api/remoteMcpOAuthProfile.js",
+      "http-generic-api/remoteMcpOAuthStore.js",
+      "http-generic-api/remoteMcpAccessTokenVerifier.js",
       "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+      "http-generic-api/routes/remoteMcpOAuthRoutes.js",
       "http-generic-api/routes/mcpRoutes.js",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
+      "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
+      "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+      "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
       "http-generic-api/docs/remote-mcp-multi-client-connector.md",
+      "http-generic-api/docs/remote-mcp-oauth21-runbook.md",
       ".changes/e2e/016-remote-mcp-multi-client-connector.json"
     ]
   },
   "merge_contract": {
-    "minimum_phase": "mvp"
+    "minimum_phase": "operational"
   },
   "phases": [
     {
@@ -67,23 +76,88 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Complete shared OAuth 2.1 discovery, PKCE, client registration, resource-bound tokens, refresh, revocation, and per-client live acceptance."
+      "status": "implemented",
+      "objective": "Provide a disabled-by-default OAuth 2.1 authorization server profile with dynamic client registration, exact redirects, explicit consent, PKCE S256, resource-bound access tokens, refresh rotation, durable grant state, revocation, and scope enforcement for the shared MCP resource.",
+      "e2e_journeys": [
+        {
+          "id": "remote-mcp-oauth21-register-authorize-refresh-revoke",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Claude, ChatGPT, or a generic registered remote MCP OAuth client plus an active platform user",
+          "entrypoint": "Dynamic registration followed by /auth/mcp/oauth/authorize, /code, /token, protected tools/call, refresh, and /revoke",
+          "terminal_outcome": "A registered client receives a resource-bound scoped token after explicit consent and PKCE, can call only authorized read tools, rotates refresh tokens once, and loses access after revocation.",
+          "steps": [
+            "Register an exact HTTPS redirect and bounded read scopes for a public or confidential client.",
+            "Render the authorization page with explicit user consent and require a platform user identity.",
+            "Issue an opaque short-lived authorization code bound to client, redirect, resource, scopes, user, tenant, and S256 challenge.",
+            "Verify the PKCE verifier before atomically consuming the authorization code.",
+            "Issue a short-lived JWT access token and opaque refresh token backed by an active durable grant.",
+            "Validate issuer, audience, resource, purpose, client, scope, user, JTI, expiry, and active grant state before protected tool dispatch.",
+            "Rotate the refresh token and mark the previous grant unusable.",
+            "Revoke the access or refresh token and fail subsequent protected calls closed."
+          ],
+          "assertions": [
+            "OAuth and DCR routes return 404 while their feature flags are disabled.",
+            "Unknown or mismatched redirects, resources, clients, scopes, and PKCE values are rejected.",
+            "A failed PKCE attempt does not consume a valid authorization code.",
+            "Authorization codes are single-use after successful verification.",
+            "Access tokens are valid only for the exact remote MCP resource and active durable grant.",
+            "Refresh rotation allows at most one successor grant and prevents replay of the previous refresh token.",
+            "Revocation is checked during every protected tools/call request.",
+            "No client secret, access token, refresh token, authorization code, or raw grant is emitted in logs or MCP tool results."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-oauth21-profile",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-access-token-verifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-access-token-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth21-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/remoteMcpOAuthProfile.js",
+            "http-generic-api/remoteMcpOAuthStore.js",
+            "http-generic-api/remoteMcpAccessTokenVerifier.js",
+            "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
+            "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
+            "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+            "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+            "http-generic-api/docs/remote-mcp-oauth21-runbook.md"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove faults, revocation, origin policy, metadata drift, and recovery independently for each supported client profile."
+      "objective": "Prove dependency faults, concurrent refresh races, grant-store outages, metadata drift, abuse controls, key rotation, and recovery independently for each supported client profile."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Connect the exact candidate from ChatGPT Developer mode, Claude Custom Connector settings, and a neutral MCP Inspector client against an authorized non-production endpoint."
+      "objective": "Apply the migration and connect the exact candidate from MCP Inspector, ChatGPT Developer mode, Claude Custom Connector settings, and a neutral programmatic client against an authorized non-production endpoint."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Verify production routing, OAuth linkage, client registrations, tenant isolation, monitoring, disable controls, and rollback for every advertised client profile."
+      "objective": "Verify production DNS, TLS, routing, exact SHA, OAuth linkage, client registrations, tenant isolation, monitoring, disable controls, key rotation, backup, and rollback for every advertised client profile."
     }
   ]
 }
