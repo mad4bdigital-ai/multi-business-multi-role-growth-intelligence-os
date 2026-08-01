@@ -9,6 +9,8 @@
     "include": [
       "http-generic-api/chatgptMcpRuntime.js",
       "http-generic-api/docs/chatgpt-mcp-readonly-adapter.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/routes/chatgptMcpRoutes.js",
       "http-generic-api/routes/mcpRoutes.js",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -67,6 +69,8 @@
             "http-generic-api/chatgptMcpRuntime.js",
             "http-generic-api/routes/chatgptMcpRoutes.js",
             "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
             "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
             "http-generic-api/docs/chatgpt-mcp-readonly-adapter.md"
