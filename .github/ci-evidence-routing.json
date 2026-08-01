@@ -8,7 +8,11 @@
     "job_logs"
   ],
   "job_logs_authority": "diagnostic_only",
-  "same_head_required": true,
+  "same_candidate_required": true,
+  "candidate_kinds": [
+    "head",
+    "merge_candidate"
+  ],
   "log_access_conditions": [
     "canonical_summary_missing_or_malformed",
     "structured_report_integrity_failure",
@@ -18,6 +22,7 @@
   "routes": [
     {
       "workflow": "E2E Phase Governance",
+      "candidate_kind": "head",
       "canonical_contract": "mad4b.ci-evidence-summary.v1",
       "canonical_artifact": "e2e-phase-summary-${run_id}",
       "source_artifacts": [
@@ -27,6 +32,7 @@
     },
     {
       "workflow": "Branch Test Diagnostic Shards",
+      "candidate_kind": "merge_candidate",
       "canonical_contract": "mad4b.test-diagnostic-summary.v2",
       "canonical_artifact": "branch-test-diagnostic-${run_id}-summary",
       "source_artifacts": [
@@ -35,6 +41,7 @@
     },
     {
       "workflow": "Context Kernel Hardcoding Report",
+      "candidate_kind": "head",
       "canonical_contract": "mad4b.context-kernel-hardcoding-summary.v1",
       "canonical_artifact": "context-kernel-hardcoding-summary-${run_id}",
       "source_artifacts": [
