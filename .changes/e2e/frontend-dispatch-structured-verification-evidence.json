@@ -10,8 +10,11 @@
       ".github/workflows/frontend-surface-dispatch.yml",
       ".github/workflows/frontend-surface-dispatch-refresh.yml",
       "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
+      "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
       "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
+      "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
       "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
       ".changes/e2e/frontend-dispatch-structured-verification-evidence.json"
     ]
   },
@@ -22,7 +25,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with one exact-candidate structured report, keep pull-request validation read-only, and isolate generated-evidence mutation behind an explicitly dispatched exact-head workflow.",
+      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with one exact-candidate structured report, produce a bounded exact-operation OpenAPI auth repair artifact without widening document defaults, keep pull-request validation read-only, and isolate repository mutation behind an explicitly dispatched exact-head workflow.",
       "e2e_journeys": [
         {
           "id": "frontend-dispatch-structured-verification",
@@ -30,16 +33,19 @@
           "level": "synthetic_runtime",
           "actor": "repository automation and pull-request reviewer",
           "entrypoint": "Read-only Frontend surface dispatch on a pull request, with a separately dispatched governed refresh when generated evidence must change",
-          "terminal_outcome": "The pull-request workflow publishes bounded JSON and Markdown identifying the first failed verification stage or proving all checks, while any generated-evidence mutation rejects protected branches and stale expected-head SHAs.",
+          "terminal_outcome": "The pull-request workflow publishes bounded JSON and Markdown identifying the first failed verification stage or proving all checks, emits exact-operation canonical OpenAPI auth repairs as an artifact, and keeps every repository mutation behind a protected-branch-safe exact-head boundary.",
           "steps": [
             "Checkout the exact pull-request candidate without persisted credentials for validation.",
             "Fetch the canonical default branch and force the local canonical ref to the fetched origin ref.",
+            "Validate that auth sync inserts operation-level security while preserving unrelated document-level defaults.",
+            "Generate bounded canonical OpenAPI auth repairs in the ephemeral runner workspace.",
             "Generate frontend dispatch, operation-governance, and runtime OpenAPI evidence against that exact canonical ref.",
+            "Reject changes outside openapi.yaml, openapi/support-tickets.yaml, and the three governed frontend evidence files.",
             "Validate the structured evidence reporter.",
             "Run each frontend verification command as a named ordered evidence stage.",
             "Check committed generated-output parity as a named evidence stage.",
             "Stop at the first failure and retain bounded redacted diagnostics.",
-            "Upload the structured report before enforcing its decision.",
+            "Upload the structured report and bounded repair files before enforcing the decision.",
             "Keep the pull-request workflow read-only with no repository push capability.",
             "Require explicit target_branch and expected_head_sha inputs for refresh.",
             "Reject main, Production, stale local heads, and stale remote heads before a bounded non-force push."
@@ -48,6 +54,8 @@
             "The report contract is mad4b.frontend-dispatch-verification-evidence.v1.",
             "Pull-request evidence records merge-candidate SHA separately from source-head SHA.",
             "Validation and refresh both move local main to origin/main after fetching.",
+            "Canonical auth repair inserts exact operation-level security and never widens a mixed document root security default.",
+            "Unrelated inherited public operations remain unchanged.",
             "The report names the first failed verification stage and exit code.",
             "Diagnostics are bounded and redact authorization values, OAuth tokens, secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values.",
             "The report declares secrets_included=false.",
@@ -55,7 +63,7 @@
             "The pull-request workflow has contents read permission only and contains no git push.",
             "The mutating refresh workflow is workflow_dispatch-only and requires an exact expected head SHA.",
             "The refresh workflow refuses main and Production and re-checks the remote branch head immediately before push.",
-            "Generated artifacts remain restricted to the three governed frontend evidence files."
+            "The repair write set is restricted to two canonical OpenAPI files and three generated frontend evidence files."
           ],
           "tests": [
             {
@@ -71,14 +79,24 @@
               "working_directory": "http-generic-api",
               "path": "test-frontend-dispatch-workflow-baseline.mjs",
               "args": []
+            },
+            {
+              "id": "openapi-auth-exact-operation-insertion",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/frontend-surface-dispatch.yml",
             ".github/workflows/frontend-surface-dispatch-refresh.yml",
             "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
+            "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
             "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
-            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs"
+            "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+            "http-generic-api/scripts/test-manifest.mjs"
           ]
         }
       ]
@@ -91,7 +109,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise process spawn faults, missing reports, oversized diagnostics, stale candidates, concurrent refresh pushes, and artifact upload failures."
+      "objective": "Exercise process spawn faults, missing reports, oversized diagnostics, stale candidates, concurrent refresh pushes, mixed-profile canonical documents, and artifact upload failures."
     },
     {
       "id": "canary",
