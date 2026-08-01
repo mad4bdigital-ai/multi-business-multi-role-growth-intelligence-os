@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c1b8ace39efd469c366d44088146dbc7ebd6f403909f1e9500e490ce246b2438",
+    "source_digest": "4e81824cbd3a3cc02de4e9a5234eaec69a0ce383a90e12f7b5e398bd5965dac7",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -192,6 +192,11 @@
       {
         "file": "openapi/tenant-growth-control-plane.openapi.yaml",
         "sha256": "650373293bb2609d5e392de6907edb0703724b9586023617ab4de9147ffdc665",
+        "present": true
+      },
+      {
+        "file": "openapi/tenant-requests.openapi.yaml",
+        "sha256": "7e258d2c00087af8c8a578327543a078974b6c5993e5526a1f3cb56fd7932502",
         "present": true
       },
       {
