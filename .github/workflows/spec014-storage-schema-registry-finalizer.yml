@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - gpt/014-hostinger/canonical-schema-registry-20260801
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - '.github/scripts/finalize-spec014-storage-schema-registry.mjs'
+      - '.github/workflows/spec014-storage-schema-registry-finalizer.yml'
 
 permissions:
   contents: write
@@ -19,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: gpt/014-hostinger/canonical-schema-registry-20260801
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
