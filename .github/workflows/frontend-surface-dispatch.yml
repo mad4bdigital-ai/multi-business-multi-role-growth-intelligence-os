@@ -26,6 +26,7 @@ on:
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs"
       - "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs"
+      - "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/openapi-route-coverage.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
@@ -59,20 +60,24 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
-      - name: Generate source-pinned dispatch plan
+      - name: Validate exact-operation OpenAPI auth repair
+        run: node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+      - name: Generate source-pinned dispatch plan and bounded auth repair
         env:
           CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
           TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
         run: |
+          set -euo pipefail
           echo "Synchronizing canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
           git fetch origin "${CANONICAL_BASELINE_REF}" --depth=1
           git branch -f "${CANONICAL_BASELINE_REF}" "origin/${CANONICAL_BASELINE_REF}"
+          node scripts/openapi-runtime-auth-sync.mjs --write
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
       - name: Guard bounded generated evidence set
         shell: bash
         run: |
           set -euo pipefail
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(openapi\.yaml|openapi/support-tickets\.yaml|frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${UNEXPECTED}" ]]; then
             echo "::error::generator changed files outside the bounded evidence set"
             printf '%s\n' "${UNEXPECTED}"
@@ -123,12 +128,14 @@ jobs:
             }
             console.log(JSON.stringify({ ok: true, outcome: report.outcome, candidate_sha: report.identity?.candidate_sha, secrets_included: false }));
           '
-      - name: Upload dispatch evidence
+      - name: Upload bounded generated and canonical repair evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-surface-dispatch
           path: |
+            http-generic-api/openapi.yaml
+            http-generic-api/openapi/support-tickets.yaml
             http-generic-api/frontend-operation-governance.generated.json
             http-generic-api/frontend-surface-dispatch.generated.json
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
