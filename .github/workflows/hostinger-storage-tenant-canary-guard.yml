@@ -1,0 +1,54 @@
+name: Hostinger Storage Tenant Canary Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageTenantCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+  push:
+    branches:
+      - 'gpt/014-hostinger/tenant-canary-*'
+    paths:
+      - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
+      - 'http-generic-api/hostingerStorageTenantCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
+
+permissions:
+  contents: read
+
+jobs:
+  tenant-canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          node --check http-generic-api/hostingerStorageTenantCanary.js
+          node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
+      - name: Enforce synthetic Tenant boundary
+        run: |
+          ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "synthetic_only: true" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "dispatch_allowed: false" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -R -q "production_ready: false" \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "manual_one_shot" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "tenant_exclusive" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+      - name: Validate Tenant canary
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-tenant-canary.mjs
