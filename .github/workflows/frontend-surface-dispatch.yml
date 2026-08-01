@@ -47,6 +47,9 @@ jobs:
         working-directory: http-generic-api
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -58,7 +61,9 @@ jobs:
           CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
           TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
         run: |
-          echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
+          echo "Synchronizing canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
+          git fetch origin "${CANONICAL_BASELINE_REF}" --depth=1
+          git branch -f "${CANONICAL_BASELINE_REF}" "origin/${CANONICAL_BASELINE_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
       - name: Verify generator contract
         run: |
@@ -121,6 +126,7 @@ jobs:
             exit 1
           fi
           git fetch origin main --depth=1
+          git branch -f main origin/main
           BASE_REF="main"
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
           UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
