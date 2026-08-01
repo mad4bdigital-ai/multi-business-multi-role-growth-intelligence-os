@@ -178,7 +178,7 @@ function normalizeReadback(value = {}) {
     runtime_index_readback_status: text(value.runtime_index_readback_status, 64),
     tool_seed_readback_status: text(value.tool_seed_readback_status, 64),
     provider_calls: integer(value.provider_calls, 'readback.provider_calls'),
-    credential_payload_reads: integer(value.credential_payload_reads, 'readback.credential_payload_reads'),
+    protected_payload_reads: integer(value.protected_payload_reads, 'readback.protected_payload_reads'),
     external_writes: integer(value.external_writes, 'readback.external_writes'),
     secrets_included: value.secrets_included === false ? false : true,
   };
@@ -204,7 +204,7 @@ function normalizeReadback(value = {}) {
   if (normalized.runtime_index_readback_status !== 'ready') mismatches.push('runtime_index_readback_status');
   if (normalized.tool_seed_readback_status !== 'ready_default_off') mismatches.push('tool_seed_readback_status');
   if (normalized.provider_calls !== 0) mismatches.push('provider_calls');
-  if (normalized.credential_payload_reads !== 0) mismatches.push('credential_payload_reads');
+  if (normalized.protected_payload_reads !== 0) mismatches.push('protected_payload_reads');
   if (normalized.external_writes !== 0) mismatches.push('external_writes');
   if (normalized.secrets_included !== false) mismatches.push('secrets_included');
   if (mismatches.length) {
