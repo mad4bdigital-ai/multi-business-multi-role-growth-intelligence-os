@@ -6,8 +6,29 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const POLICY_CONTRACT = "mad4b.repository-maintenance-tool-governance.v1";
 const REPORT_CONTRACT = "mad4b.repository-tool-lifecycle-report.v1";
+const TOOL_ROOT = "http-generic-api/scripts/maintenance-tools";
+const GUARD_TOOL_KEY = "repository-tool-lifecycle-guard";
+const GUARD_ENTRYPOINT = `${TOOL_ROOT}/repository-tool-lifecycle-guard.mjs`;
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const WORK_BRANCH_PATTERN = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
+const REQUIRED_PROTECTED_BRANCHES = Object.freeze(["main", "Production"]);
+const REQUIRED_RULE_KEYS = Object.freeze([
+  "one_off_automation_must_not_merge",
+  "reusable_tools_must_be_registered",
+  "branch_specific_workflow_literals_forbidden",
+  "pull_request_workflows_must_not_write_contents",
+  "workflow_self_deletion_forbidden",
+  "force_push_forbidden",
+  "expected_head_sha_required_for_mutation",
+  "protected_branch_mutation_forbidden",
+  "canonical_report_required",
+  "job_logs_are_diagnostic_only",
+]);
+const BASELINE_FORBIDDEN_PATH_PATTERNS = Object.freeze([
+  /(^|\/)\.changes\/e2e\/.*trigger$/u,
+  /(^|\/).*\.trigger$/u,
+  /^\.github\/workflows\/.*(?:temporary|one-off|(?:^|[/_.-])once(?:[/_.-]|$)|patch-trigger|runtime-hardening-v[0-9]+).*$/u,
+]);
 
 function parseArguments(argv) {
   const result = {};
@@ -40,15 +61,16 @@ function finding(code, path, message) {
 }
 
 function ruleEnabled(policy, key) {
-  return policy.rules?.[key] !== false;
+  return policy.rules?.[key] === true;
 }
 
 function containsBranchSpecificLiteral(content) {
   return WORK_BRANCH_PATTERN.test(content);
 }
 
-function hasContentsWrite(content) {
-  return /\bcontents\s*:\s*write\b/iu.test(content);
+function hasAnyWritePermission(content) {
+  return /(?:^|\n)\s*permissions\s*:\s*write-all\b/iu.test(content)
+    || /(?:^|\n)\s*[A-Za-z][A-Za-z-]*\s*:\s*write\b/iu.test(content);
 }
 
 function hasPullRequestTrigger(content) {
@@ -87,19 +109,37 @@ function hasWorkflowSelfDeletion(content) {
 }
 
 function hasExpectedHeadGuard(content) {
-  const directComparison = /(?:(?:test|\[\[)[\s\S]{0,700}?git\s+rev-parse\s+HEAD[\s\S]{0,700}?inputs\.expected_head_sha|(?:test|\[\[)[\s\S]{0,700}?inputs\.expected_head_sha[\s\S]{0,700}?git\s+rev-parse\s+HEAD)/iu;
-  return directComparison.test(content);
+  const expectedHead = /expected[_-]head[_-]sha/iu.test(content);
+  const currentHead = /git\s+rev-parse\s+HEAD|current[_-]?head|head[_-]?sha/iu.test(content);
+  const rejection = /(?:===|==|!=|!==|\btest\b|\[\[|\bassert\b|\bthrow\b|\breject\b|exit\s+1)/iu.test(content);
+  return expectedHead && currentHead && rejection;
 }
 
 function hasProtectedBranchGuard(content) {
-  return /(?:target_branch|branch)/iu.test(content)
+  return /(?:target[_-]?branch|branch)/iu.test(content)
     && /\bmain\b/u.test(content)
     && /\bProduction\b/u.test(content)
-    && /(?:exit\s+1|return\s+1|throw\b|reject\b|forbid\b)/iu.test(content);
+    && /(?:exit\s+1|return\s+1|throw\b|reject\b|forbid\b|deny\b)/iu.test(content);
 }
 
 function isMaintenanceLikeScript(path) {
   return /^\.github\/scripts\/(?:apply|patch|repair|migrate|.*trigger)/iu.test(path);
+}
+
+function buildRegisteredTools(policy) {
+  const byEntrypoint = new Map();
+  for (const [key, tool] of Object.entries(policy.tools || {})) {
+    if (!tool?.entrypoint) continue;
+    byEntrypoint.set(tool.entrypoint, { key, ...tool });
+  }
+  return byEntrypoint;
+}
+
+function compileForbiddenPatterns(policy) {
+  const configured = (policy.forbidden_path_patterns || []).map(
+    (pattern) => new RegExp(pattern, "u"),
+  );
+  return [...BASELINE_FORBIDDEN_PATH_PATTERNS, ...configured];
 }
 
 export function validateGovernanceInputs({ policy, candidateSha, baseSha }) {
@@ -118,6 +158,66 @@ export function validateGovernanceInputs({ policy, candidateSha, baseSha }) {
       `Policy must require canonical report contract ${REPORT_CONTRACT}.`,
     ));
   }
+  if (policy.tool_root !== TOOL_ROOT) {
+    findings.push(finding(
+      "INVALID_TOOL_ROOT",
+      ".github/repository-maintenance-tool-governance.json",
+      `Governed repository tools must remain under ${TOOL_ROOT}.`,
+    ));
+  }
+  for (const branch of REQUIRED_PROTECTED_BRANCHES) {
+    if (!policy.protected_branches?.includes(branch)) {
+      findings.push(finding(
+        "MISSING_PROTECTED_BRANCH",
+        ".github/repository-maintenance-tool-governance.json",
+        `Protected branch ${branch} must remain governed.`,
+      ));
+    }
+  }
+  for (const key of REQUIRED_RULE_KEYS) {
+    if (policy.rules?.[key] !== true) {
+      findings.push(finding(
+        "MANDATORY_RULE_DISABLED",
+        ".github/repository-maintenance-tool-governance.json",
+        `Mandatory repository lifecycle rule ${key} must be explicitly true.`,
+      ));
+    }
+  }
+  const guard = policy.tools?.[GUARD_TOOL_KEY];
+  if (
+    guard?.entrypoint !== GUARD_ENTRYPOINT
+    || guard?.mode !== "read_only"
+    || guard?.report_contract !== REPORT_CONTRACT
+  ) {
+    findings.push(finding(
+      "INVALID_GUARD_REGISTRATION",
+      ".github/repository-maintenance-tool-governance.json",
+      "The lifecycle guard must remain registered at its canonical entrypoint as a read-only tool with the canonical report contract.",
+    ));
+  }
+  for (const [key, tool] of Object.entries(policy.tools || {})) {
+    if (!tool?.entrypoint?.startsWith(`${TOOL_ROOT}/`)) {
+      findings.push(finding(
+        "INVALID_REGISTERED_TOOL_ENTRYPOINT",
+        ".github/repository-maintenance-tool-governance.json",
+        `Registered tool ${key} must use the governed tool root.`,
+      ));
+    }
+    if (!new Set(["read_only", "mutating"]).has(tool?.mode)) {
+      findings.push(finding(
+        "INVALID_REGISTERED_TOOL_MODE",
+        ".github/repository-maintenance-tool-governance.json",
+        `Registered tool ${key} must declare read_only or mutating mode.`,
+      ));
+    }
+    if (tool?.mode === "mutating" && !tool.allowed_changed_path_patterns?.length) {
+      findings.push(finding(
+        "MUTATING_TOOL_ALLOWLIST_REQUIRED",
+        ".github/repository-maintenance-tool-governance.json",
+        `Mutating tool ${key} must declare a non-empty changed-path allowlist.`,
+      ));
+    }
+  }
   if (!FULL_SHA_PATTERN.test(candidateSha || "")) {
     findings.push(finding(
       "INVALID_CANDIDATE_SHA",
@@ -135,16 +235,77 @@ export function validateGovernanceInputs({ policy, candidateSha, baseSha }) {
   return findings;
 }
 
+async function inspectRegisteredToolBodies({ policy, registeredTools, readText }) {
+  const findings = [];
+  for (const [entrypoint, tool] of registeredTools) {
+    let content;
+    try {
+      content = await readText(entrypoint);
+    } catch {
+      findings.push(finding(
+        "REGISTERED_TOOL_ENTRYPOINT_MISSING",
+        entrypoint,
+        `Registered tool ${tool.key} must have a readable entrypoint.`,
+      ));
+      continue;
+    }
+
+    const mutatesRepository = hasRepositoryMutation(content);
+    if (hasForcePush(content)) {
+      findings.push(finding(
+        "FORCE_PUSH_AUTOMATION",
+        entrypoint,
+        "Registered repository tools may not force-push.",
+      ));
+    }
+    if (hasWorkflowSelfDeletion(content)) {
+      findings.push(finding(
+        "SELF_DELETING_WORKFLOW",
+        entrypoint,
+        "Registered tools may not delete or rewrite workflow definitions.",
+      ));
+    }
+    if (tool.mode === "read_only" && mutatesRepository) {
+      findings.push(finding(
+        "READ_ONLY_TOOL_MUTATION",
+        entrypoint,
+        `Registered read-only tool ${tool.key} contains repository mutation behavior.`,
+      ));
+    }
+    if (mutatesRepository) {
+      if (tool.mode !== "mutating") {
+        findings.push(finding(
+          "MUTATING_TOOL_MODE_REQUIRED",
+          entrypoint,
+          `Repository-mutating tool ${tool.key} must declare mutating mode.`,
+        ));
+      }
+      if (!hasExpectedHeadGuard(content)) {
+        findings.push(finding(
+          "MISSING_EXPECTED_HEAD_GUARD",
+          entrypoint,
+          "Mutating repository tools must verify an explicit expected head SHA before writing.",
+        ));
+      }
+      if (!hasProtectedBranchGuard(content)) {
+        findings.push(finding(
+          "MISSING_PROTECTED_BRANCH_GUARD",
+          entrypoint,
+          "Mutating repository tools must reject main and Production before writing.",
+        ));
+      }
+    }
+  }
+  return findings;
+}
+
 export async function evaluateRepositoryToolLifecycle({ policy, entries, readText }) {
   const findings = [];
-  const registeredEntrypoints = new Set(
-    Object.values(policy.tools || {})
-      .map((tool) => tool?.entrypoint)
-      .filter(Boolean),
-  );
-  const forbiddenPatterns = (policy.forbidden_path_patterns || []).map(
-    (pattern) => new RegExp(pattern, "u"),
-  );
+  const registeredTools = buildRegisteredTools(policy);
+  const registeredEntrypoints = new Set(registeredTools.keys());
+  const forbiddenPatterns = compileForbiddenPatterns(policy);
+
+  findings.push(...await inspectRegisteredToolBodies({ policy, registeredTools, readText }));
 
   for (const entry of entries) {
     const path = entry.path;
@@ -192,6 +353,7 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
 
     if (!path.startsWith(".github/workflows/")) continue;
     const content = await readText(path);
+    const mutatesRepository = hasRepositoryMutation(content);
 
     if (
       ruleEnabled(policy, "branch_specific_workflow_literals_forbidden")
@@ -206,7 +368,7 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
     if (
       ruleEnabled(policy, "pull_request_workflows_must_not_write_contents")
       && hasPullRequestTrigger(content)
-      && hasContentsWrite(content)
+      && hasAnyWritePermission(content)
     ) {
       findings.push(finding(
         "PULL_REQUEST_WRITE_WORKFLOW",
@@ -231,7 +393,7 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
         "A workflow may not delete or rewrite its own workflow definition.",
       ));
     }
-    if (hasRepositoryMutation(content) && hasContentsWrite(content)) {
+    if (mutatesRepository) {
       if (!hasWorkflowDispatch(content)) {
         findings.push(finding(
           "UNGUARDED_AUTOMATION_MUTATION",
