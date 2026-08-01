@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { verifyHostingerStorageSyntheticExecutionProtocol } from './hostingerStorageExecutorProtocol.js';
 import { executeHostingerStorageSyntheticPlan } from './hostingerStorageSyntheticExecutor.js';
 import { verifyHostingerStorageTenantCanaryAuthorization } from './hostingerStorageTenantCanaryPolicy.js';
 
@@ -120,9 +121,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
     registerAllowlist(record) {
       const normalized = deepFreeze(normalizeCurrentAllowlist(record));
       const existing = allowlists.get(normalized.allowlist_id);
-      if (existing && digest(existing) !== digest(normalized)) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_ID_CONFLICT', 'Allowlist ID is already bound to different authority evidence.');
-      }
+      if (existing && digest(existing) !== digest(normalized)) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_ID_CONFLICT', 'Allowlist ID is already bound to different authority evidence.');
       if (!existing) allowlists.set(normalized.allowlist_id, normalized);
       return clone(allowlists.get(normalized.allowlist_id));
     },
@@ -130,9 +129,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const id = safeId(allowlist_id, 'allowlist_id');
       const current = allowlists.get(id);
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_ALLOWLIST_NOT_FOUND', 'Authoritative allowlist record was not found.');
-      if (current.revision !== safeId(expected_revision, 'expected_revision')) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
-      }
+      if (current.revision !== safeId(expected_revision, 'expected_revision')) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
       const normalized = deepFreeze(normalizeCurrentAllowlist({ ...record, allowlist_id: id }));
       allowlists.set(id, normalized);
       return clone(normalized);
@@ -143,9 +140,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
     registerApproval(record) {
       const normalized = deepFreeze(normalizeCurrentApproval(record));
       const existing = approvals.get(normalized.approval_id);
-      if (existing && digest(existing) !== digest(normalized)) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_ID_CONFLICT', 'Approval ID is already bound to different authority evidence.');
-      }
+      if (existing && digest(existing) !== digest(normalized)) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_ID_CONFLICT', 'Approval ID is already bound to different authority evidence.');
       if (!existing) approvals.set(normalized.approval_id, normalized);
       return clone(approvals.get(normalized.approval_id));
     },
@@ -153,9 +148,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const id = safeId(approval_id, 'approval_id');
       const current = approvals.get(id);
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_APPROVAL_NOT_FOUND', 'Authoritative approval record was not found.');
-      if (current.evidence_digest !== hash(expected_evidence_digest, 'expected_evidence_digest')) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
-      }
+      if (current.evidence_digest !== hash(expected_evidence_digest, 'expected_evidence_digest')) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
       const normalized = deepFreeze(normalizeCurrentApproval({ ...record, approval_id: id }));
       approvals.set(id, normalized);
       return clone(normalized);
@@ -192,13 +185,9 @@ export function createMemoryHostingerStorageTenantCanaryEnablementRegistry() {
         consumed_at_epoch: null,
         secrets_included: false,
       };
-      if (!Number.isSafeInteger(normalized.generation) || normalized.generation < 1) {
-        throw fail(400, 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_INVALID', 'A positive generation is required.');
-      }
+      if (!Number.isSafeInteger(normalized.generation) || normalized.generation < 1) throw fail(400, 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_INVALID', 'A positive generation is required.');
       const existing = records.get(normalized.enablement_id);
-      if (existing && digest(existing) !== digest(normalized)) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_ID_CONFLICT', 'Enablement ID is bound to different evidence.');
-      }
+      if (existing && digest(existing) !== digest(normalized)) throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_ID_CONFLICT', 'Enablement ID is bound to different evidence.');
       if (!existing) records.set(normalized.enablement_id, deepFreeze(normalized));
       return clone(records.get(normalized.enablement_id));
     },
@@ -211,22 +200,13 @@ export function createMemoryHostingerStorageTenantCanaryEnablementRegistry() {
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_ENABLEMENT_NOT_FOUND', 'Manual canary enablement record was not registered.');
       const now = epoch(now_epoch, 'now_epoch');
       if (current.authorization_digest !== hash(authorization_digest, 'authorization_digest')
-        || current.operation_id !== safeId(operation_id, 'operation_id')
-        || current.run_id !== safeId(run_id, 'run_id')) {
+        || current.operation_id !== safeId(operation_id, 'operation_id') || current.run_id !== safeId(run_id, 'run_id')) {
         throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_BINDING_MISMATCH', 'Manual enablement is not bound to this authorization and run.');
       }
-      if (Number(current.generation) !== Number(expected_generation)) {
-        throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_MISMATCH', 'Manual enablement generation changed.', { current_generation: current.generation });
-      }
+      if (Number(current.generation) !== Number(expected_generation)) throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_MISMATCH', 'Manual enablement generation changed.', { current_generation: current.generation });
       if (current.consumed) throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_ALREADY_CONSUMED', 'Manual canary enablement is one-shot and was already consumed.');
       if (current.expires_at_epoch <= now) throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_EXPIRED', 'Manual canary enablement expired before consumption.');
-      const next = deepFreeze({
-        ...current,
-        generation: current.generation + 1,
-        consumed: true,
-        consumed_by_run_id: current.run_id,
-        consumed_at_epoch: now,
-      });
+      const next = deepFreeze({ ...current, generation: current.generation + 1, consumed: true, consumed_by_run_id: current.run_id, consumed_at_epoch: now });
       records.set(id, next);
       return clone(next);
     },
@@ -269,9 +249,7 @@ function revalidateCurrentAuthority({ authorization, authorityStore, now }) {
   if (currentAllowlist.shared_target !== false) allowlistMismatches.push('shared_target');
   if (currentAllowlist.platform_target !== false) allowlistMismatches.push('platform_target');
   if (currentAllowlist.valid_from_epoch > now || currentAllowlist.expires_at_epoch <= now) allowlistMismatches.push('time_window');
-  if (allowlistMismatches.length) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_CURRENT_STATE_INVALID', 'Current allowlist no longer matches the authorized Tenant-exclusive scope.', { mismatches: [...new Set(allowlistMismatches)].sort() });
-  }
+  if (allowlistMismatches.length) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_CURRENT_STATE_INVALID', 'Current allowlist no longer matches the authorized Tenant-exclusive scope.', { mismatches: [...new Set(allowlistMismatches)].sort() });
 
   const signedApproval = authorization.workspace_owner_approval;
   const currentApproval = authorityStore.readApproval(signedApproval.approval_id);
@@ -282,10 +260,52 @@ function revalidateCurrentAuthority({ authorization, authorityStore, now }) {
   }
   if (currentApproval.status !== 'approved') approvalMismatches.push('status');
   if (currentApproval.expires_at_epoch <= now) approvalMismatches.push('expires_at_epoch');
-  if (approvalMismatches.length) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_CURRENT_STATE_INVALID', 'Current Workspace Owner approval no longer authorizes this canary.', { mismatches: [...new Set(approvalMismatches)].sort() });
-  }
+  if (approvalMismatches.length) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_CURRENT_STATE_INVALID', 'Current Workspace Owner approval no longer authorizes this canary.', { mismatches: [...new Set(approvalMismatches)].sort() });
   return { allowlist: currentAllowlist, approval: currentApproval };
+}
+
+function preflightSyntheticExecutorInputs({ protocol, protocolDigest, repository, adapter, now }) {
+  verifyHostingerStorageSyntheticExecutionProtocol({ protocol, expected_digest: protocolDigest });
+  if (!adapter || adapter.synthetic_only !== true || adapter.production_ready !== false || adapter.live_provider !== false
+    || adapter.filesystem_access !== false || adapter.shell_access !== false
+    || typeof adapter.mutateExact !== 'function' || typeof adapter.readbackItem !== 'function'
+    || typeof adapter.readMutationReceipt !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Canary execution requires the canonical in-memory synthetic adapter contract.');
+  }
+  const aggregate = repository.readAggregate(protocol.operation_id);
+  if (!aggregate?.operation) throw fail(404, 'STORAGE_TENANT_CANARY_OPERATION_NOT_FOUND', 'Canary operation aggregate was not found during executor preflight.');
+  if (!['lease_acquired', 'executing'].includes(aggregate.operation.state)) {
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_OPERATION_STATE_INVALID', 'Synthetic executor state is not eligible for a new canary attempt.', { state: aggregate.operation.state });
+  }
+  const plan = aggregate.plans.find((row) => row.plan_id === protocol.plan_id);
+  const planMismatches = [];
+  if (!plan) planMismatches.push('missing');
+  else {
+    if (plan.operation_id !== protocol.operation_id) planMismatches.push('operation_id');
+    if (plan.target_id !== protocol.target_id) planMismatches.push('target_id');
+    if (plan.plan_hash !== protocol.plan_hash) planMismatches.push('plan_hash');
+    if (plan.candidate_set_hash !== protocol.candidate_set_hash) planMismatches.push('candidate_set_hash');
+    if (Number(plan.expires_at_epoch) !== Number(protocol.plan_expires_at_epoch)) planMismatches.push('expires_at_epoch');
+    if (!['approved', 'consumed'].includes(plan.status)) planMismatches.push('status');
+    if (plan.consumed === true && plan.consumed_run_id !== protocol.run_id) planMismatches.push('consumed_run_id');
+    if (Number(plan.expires_at_epoch) <= now || Number(protocol.plan_expires_at_epoch) <= now) planMismatches.push('expired');
+  }
+  if (planMismatches.length) throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_PLAN_INVALID', 'Current immutable plan failed non-mutating canary preflight.', { mismatches: [...new Set(planMismatches)].sort() });
+
+  const lease = aggregate.leases.find((row) => row.target_id === protocol.target_id);
+  const leaseMismatches = [];
+  if (!lease) leaseMismatches.push('missing');
+  else {
+    if (lease.lease_id !== protocol.lease_id) leaseMismatches.push('lease_id');
+    if (lease.operation_id !== protocol.operation_id) leaseMismatches.push('operation_id');
+    if (lease.target_id !== protocol.target_id) leaseMismatches.push('target_id');
+    if (Number(lease.generation) !== Number(protocol.lease_generation)) leaseMismatches.push('generation');
+    if (Number(lease.expires_at_epoch) !== Number(protocol.lease_expires_at_epoch)) leaseMismatches.push('expires_at_epoch');
+    if (lease.status !== 'active') leaseMismatches.push('status');
+    if (Number(lease.expires_at_epoch) <= now || Number(protocol.lease_expires_at_epoch) <= now) leaseMismatches.push('expired');
+  }
+  if (leaseMismatches.length) throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_LEASE_INVALID', 'Current execution lease failed non-mutating canary preflight.', { mismatches: [...new Set(leaseMismatches)].sort() });
+  return true;
 }
 
 export function executeHostingerStorageTenantCanary({
@@ -300,17 +320,9 @@ export function executeHostingerStorageTenantCanary({
   now_epoch = Math.floor(Date.now() / 1000),
 } = {}) {
   const now = epoch(now_epoch, 'now_epoch');
-  if (canary_authorization?.canary_ready !== true || !canary_authorization?.authorization) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORIZATION_REQUIRED', 'A ready Tenant canary authorization is required.', { blockers: canary_authorization?.blockers || [] });
-  }
-  const verification = verifyHostingerStorageTenantCanaryAuthorization({
-    authorization: canary_authorization.authorization,
-    expected_digest: canary_authorization.authorization_digest,
-    now_epoch: now,
-  });
-  if (!verification.valid) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORIZATION_INVALID', 'Tenant canary authorization is stale or blocked.', { blockers: verification.blockers });
-  }
+  if (canary_authorization?.canary_ready !== true || !canary_authorization?.authorization) throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORIZATION_REQUIRED', 'A ready Tenant canary authorization is required.', { blockers: canary_authorization?.blockers || [] });
+  const verification = verifyHostingerStorageTenantCanaryAuthorization({ authorization: canary_authorization.authorization, expected_digest: canary_authorization.authorization_digest, now_epoch: now });
+  if (!verification.valid) throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORIZATION_INVALID', 'Tenant canary authorization is stale or blocked.', { blockers: verification.blockers });
   requireAuthorityStore(authority_store);
   requireRegistry(enablement_registry);
   requireControlPlaneRepository(repository);
@@ -331,11 +343,10 @@ export function executeHostingerStorageTenantCanary({
   if (protocol?.plan_hash !== authorization.protocol.plan_hash) mismatches.push('protocol.plan_hash');
   if (protocol?.run_id !== authorization.protocol.run_id) mismatches.push('protocol.run_id');
   if (hash(protocol_digest, 'protocol_digest') !== authorization.protocol.protocol_digest) mismatches.push('protocol_digest');
-  if (mismatches.length) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_CURRENT_BINDING_MISMATCH', 'Current Tenant canary context differs from the authorized context.', { mismatches });
-  }
+  if (mismatches.length) throw fail(409, 'STORAGE_TENANT_CANARY_CURRENT_BINDING_MISMATCH', 'Current Tenant canary context differs from the authorized context.', { mismatches });
 
   revalidateCurrentAuthority({ authorization, authorityStore: authority_store, now });
+  preflightSyntheticExecutorInputs({ protocol, protocolDigest: protocol_digest, repository, adapter, now });
 
   const enablement = authorization.manual_enablement;
   const registered = enablement_registry.read(enablement.enablement_id);
@@ -349,14 +360,7 @@ export function executeHostingerStorageTenantCanary({
     now_epoch: now,
   });
 
-  const execution = executeHostingerStorageSyntheticPlan({
-    protocol,
-    protocol_digest,
-    repository,
-    adapter,
-    fault,
-    now_epoch: now,
-  });
+  const execution = executeHostingerStorageSyntheticPlan({ protocol, protocol_digest, repository, adapter, fault, now_epoch: now });
   const projection = {
     schema_version: 1,
     projection_key: 'hostinger_storage_tenant_canary_result_v1',
