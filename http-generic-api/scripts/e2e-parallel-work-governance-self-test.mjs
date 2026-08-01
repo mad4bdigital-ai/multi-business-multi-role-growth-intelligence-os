@@ -85,6 +85,12 @@ function baseContract() {
   };
 }
 
+function markReady(workstream, sha) {
+  workstream.status = "ready_for_integration";
+  workstream.required_tests = [{ id: `${workstream.id}-test`, runner: "node", working_directory: "http-generic-api", path: `example/${workstream.id}/test.mjs`, args: [] }];
+  workstream.commit_evidence = { head_sha: sha, commits: [sha] };
+}
+
 function evaluate(contract, changedFiles, headRef = "gpt/001-example/contracts-a") {
   const root = tempRepo();
   write(root, "specs/001-example/e2e-phases.json", `${JSON.stringify(contract, null, 2)}\n`);
@@ -122,12 +128,23 @@ function evaluate(contract, changedFiles, headRef = "gpt/001-example/contracts-a
 
 {
   const contract = baseContract();
-  contract.parallel_work.workstreams[1].status = "ready_for_integration";
-  contract.parallel_work.workstreams[1].required_tests = [{ id: "runtime-test", runner: "node", working_directory: "http-generic-api", path: "example/runtime/test.mjs", args: [] }];
-  contract.parallel_work.workstreams[1].commit_evidence = { head_sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", commits: ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] };
+  markReady(contract.parallel_work.workstreams[1], "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   const report = evaluate(contract, ["http-generic-api/example/runtime/service.mjs"], "gpt/001-example/runtime-a");
   assert.equal(report.ok, false);
   assert(report.findings.some((row) => row.code === "parallel_work_ready_before_dependency"));
+}
+
+{
+  const contract = baseContract();
+  markReady(contract.parallel_work.workstreams[0], "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  markReady(contract.parallel_work.workstreams[1], "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+  contract.parallel_work.workstreams = [
+    contract.parallel_work.workstreams[1],
+    contract.parallel_work.workstreams[0],
+    contract.parallel_work.workstreams[2]
+  ];
+  const report = evaluate(contract, ["http-generic-api/example/runtime/service.mjs"], "gpt/001-example/runtime-a");
+  assert.equal(report.ok, true, JSON.stringify(report.findings));
 }
 
 {
@@ -138,4 +155,4 @@ function evaluate(contract, changedFiles, headRef = "gpt/001-example/contracts-a
   assert.equal(report.ok, true, JSON.stringify(report.findings));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 6, gate: "e2e_parallel_work_governance", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false }));
