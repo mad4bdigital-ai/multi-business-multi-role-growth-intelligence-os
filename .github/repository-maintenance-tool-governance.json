@@ -8,7 +8,7 @@
     "^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$"
   ],
   "tool_root": "http-generic-api/scripts/maintenance-tools",
-  "canonical_report_contract": "mad4b.repository-maintenance-run.v1",
+  "canonical_report_contract": "mad4b.repository-tool-lifecycle-report.v1",
   "forbidden_path_patterns": [
     "(^|/)\\.changes/e2e/.*trigger$",
     "(^|/).*\\.trigger$",
