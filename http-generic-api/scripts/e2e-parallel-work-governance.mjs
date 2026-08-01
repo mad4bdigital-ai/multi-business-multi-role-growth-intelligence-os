@@ -153,6 +153,7 @@ function validateParallelContract(contract, contractPath, context) {
   const duplicateIds = ids.filter((value, index) => ids.indexOf(value) !== index);
   if (duplicateIds.length) addFinding(findings, "parallel_work_duplicate_workstream_ids", { feature_key: featureKey, values: [...new Set(duplicateIds)] });
   const idSet = new Set(ids);
+  const byId = new Map(workstreams.filter((row) => validText(row?.id)).map((row) => [row.id, row]));
   const overlaps = Array.isArray(parallel.declared_overlaps) ? parallel.declared_overlaps : [];
 
   for (const row of overlaps) {
@@ -165,14 +166,12 @@ function validateParallelContract(contract, contractPath, context) {
     if (!validText(row.coordinator)) addFinding(findings, "parallel_work_overlap_missing_coordinator", { feature_key: featureKey, overlap_id: row.id });
   }
 
-  const byId = new Map();
   for (const row of workstreams) {
     const id = row?.id;
     if (!validText(id)) {
       addFinding(findings, "parallel_work_missing_workstream_id", { feature_key: featureKey });
       continue;
     }
-    byId.set(id, row);
     if (!validText(row.title)) addFinding(findings, "parallel_work_missing_workstream_title", { feature_key: featureKey, workstream_id: id });
     if (!VALID_STATUSES.has(row.status)) addFinding(findings, "parallel_work_invalid_workstream_status", { feature_key: featureKey, workstream_id: id, status: row.status });
     if (!VALID_OWNER_TYPES.has(row.owner_type)) addFinding(findings, "parallel_work_invalid_owner_type", { feature_key: featureKey, workstream_id: id, owner_type: row.owner_type });
