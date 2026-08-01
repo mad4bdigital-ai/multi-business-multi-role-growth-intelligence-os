@@ -8,6 +8,10 @@ import {
   resolveSystemCapabilityIntent,
   SystemToolCatalogError,
 } from "./systemToolCatalogV2.js";
+import {
+  aggregatePlatformEndpointToolRows,
+  resolvePlatformEndpointToolBinding,
+} from "./platformEndpointToolAggregation.js";
 
 resetSystemToolCatalogObservabilityForTests();
 
@@ -62,6 +66,80 @@ for (const input of [conflictingDescriptors, [...conflictingDescriptors].reverse
     "divergent descriptors sharing one public name must fail closed independently of input order",
   );
 }
+
+const platformEndpointRows = [
+  {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_update_pull_request",
+    scope_class: "admin",
+    method: "PATCH",
+    input_schema_json: JSON.stringify({ type: "object", properties: { pull_number: { type: "integer" } } }),
+  },
+  {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_list_issue_labels",
+    scope_class: "admin",
+    method: "GET",
+    input_schema_json: JSON.stringify({ type: "object", properties: { issue_number: { type: "integer" } } }),
+  },
+  {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_add_issue_labels",
+    scope_class: "admin",
+    method: "POST",
+    input_schema_json: JSON.stringify({ type: "object", properties: { labels: { type: "array" } } }),
+  },
+];
+const groupedPlatformTools = aggregatePlatformEndpointToolRows(platformEndpointRows, {
+  isAdmin: true,
+  normalizeInputSchema: (value) => JSON.parse(value),
+});
+assert.equal(groupedPlatformTools.length, 1, "same-name platform exports must become one public descriptor");
+assert.equal(groupedPlatformTools[0].name, "github_rest_endpoint_dispatch");
+assert.deepEqual(groupedPlatformTools[0].inputSchema.required, ["endpoint_key"]);
+assert.deepEqual(groupedPlatformTools[0].inputSchema.properties.endpoint_key.enum, [
+  "github_add_issue_labels",
+  "github_list_issue_labels",
+  "github_update_pull_request",
+]);
+assert.equal(groupedPlatformTools[0].x_platform_endpoint.endpoint_count, 3);
+assert.equal(groupedPlatformTools[0].x_platform_endpoint.bindings.length, 3);
+assert.doesNotThrow(
+  () => listSystemToolCatalog(groupedPlatformTools, { limit: 10 }),
+  "grouped platform exports must not reach catalog normalization as divergent duplicate names",
+);
+
+const selectedPlatformBinding = resolvePlatformEndpointToolBinding(platformEndpointRows, {
+  toolName: "github_rest_endpoint_dispatch",
+  args: { endpoint_key: "github_add_issue_labels", parent_action_key: "github_api_mcp" },
+});
+assert.equal(selectedPlatformBinding.endpoint_key, "github_add_issue_labels");
+assert.throws(
+  () => resolvePlatformEndpointToolBinding(platformEndpointRows, {
+    toolName: "github_rest_endpoint_dispatch",
+    args: {},
+  }),
+  (error) => error.code === "platform_endpoint_tool_endpoint_key_required"
+    && error.status === 400
+    && error.details.allowed_endpoint_keys.length === 3,
+);
+assert.throws(
+  () => resolvePlatformEndpointToolBinding(platformEndpointRows, {
+    toolName: "github_rest_endpoint_dispatch",
+    args: { endpoint_key: "github_unknown_endpoint" },
+  }),
+  (error) => error.code === "platform_endpoint_tool_endpoint_key_not_allowed" && error.status === 400,
+);
+assert.throws(
+  () => resolvePlatformEndpointToolBinding(platformEndpointRows, {
+    toolName: "github_rest_endpoint_dispatch",
+    args: { endpoint_key: "github_add_issue_labels", parent_action_key: "another_parent" },
+  }),
+  (error) => error.code === "platform_endpoint_tool_parent_action_mismatch" && error.status === 400,
+);
 
 const legacy = listSystemToolCatalog(tools.slice(0, 80), {}, { legacyCompleteDefault: true });
 assert.equal(legacy.items.length, 80);
