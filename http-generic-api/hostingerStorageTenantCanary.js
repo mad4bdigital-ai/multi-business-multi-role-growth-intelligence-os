@@ -38,6 +38,27 @@ function boundedHashToken(value) {
   return String(value ?? '').trim().slice(0, 64).toLowerCase();
 }
 
+function snapshotAuthorityRecord(record, tokenField, normalizeToken) {
+  if (!record || typeof record !== 'object') {
+    throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority update record must be a plain data object.', { field: tokenField });
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(record);
+  const tokenDescriptor = descriptors[tokenField];
+  if (!tokenDescriptor || !Object.hasOwn(tokenDescriptor, 'value') || typeof tokenDescriptor.value !== 'string') {
+    throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority token must be an owned primitive string value.', { field: tokenField });
+  }
+  const snapshot = {};
+  for (const [field, descriptor] of Object.entries(descriptors)) {
+    if (!Object.hasOwn(descriptor, 'value')) {
+      throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority update records must not contain accessor properties.', { field });
+    }
+    snapshot[field] = descriptor.value;
+  }
+  const normalizedToken = normalizeToken(tokenDescriptor.value);
+  snapshot[tokenField] = normalizedToken;
+  return { snapshot, normalizedToken };
+}
+
 export function createHostingerStorageTenantCanarySyntheticAdapter(options = {}) {
   const adapter = createHostingerStorageSyntheticAdapter(options);
   tenantCanaryAdapters.add(adapter);
@@ -66,8 +87,9 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
     },
     updateAllowlist(input = {}) {
       const id = boundedIdToken(input.allowlist_id);
+      const expectedRevision = boundedIdToken(input.expected_revision);
+      const { snapshot: record, normalizedToken: nextRevision } = snapshotAuthorityRecord(input.record, 'revision', boundedIdToken);
       const current = base.readAllowlist(id);
-      const nextRevision = boundedIdToken(input.record?.revision);
       const history = allowlistRevisionHistory.get(id) || new Set(current ? [current.revision] : []);
       if (current && nextRevision !== current.revision && history.has(nextRevision)) {
         throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED', 'Allowlist revisions are monotonic and may never be reused.', {
@@ -76,7 +98,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
           rejected_revision: nextRevision,
         });
       }
-      const result = base.updateAllowlist(input);
+      const result = base.updateAllowlist({ allowlist_id: id, expected_revision: expectedRevision, record });
       remember(allowlistRevisionHistory, result.allowlist_id, result.revision);
       return result;
     },
@@ -90,8 +112,9 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
     },
     updateApproval(input = {}) {
       const id = boundedIdToken(input.approval_id);
+      const expectedEvidenceDigest = boundedHashToken(input.expected_evidence_digest);
+      const { snapshot: record, normalizedToken: nextEvidence } = snapshotAuthorityRecord(input.record, 'evidence_digest', boundedHashToken);
       const current = base.readApproval(id);
-      const nextEvidence = boundedHashToken(input.record?.evidence_digest);
       const history = approvalEvidenceHistory.get(id) || new Set(current ? [current.evidence_digest] : []);
       if (current && nextEvidence !== current.evidence_digest && history.has(nextEvidence)) {
         throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED', 'Approval evidence tokens are monotonic and may never be reused.', {
@@ -100,7 +123,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
           rejected_evidence_digest: nextEvidence,
         });
       }
-      const result = base.updateApproval(input);
+      const result = base.updateApproval({ approval_id: id, expected_evidence_digest: expectedEvidenceDigest, record });
       remember(approvalEvidenceHistory, result.approval_id, result.evidence_digest);
       return result;
     },
