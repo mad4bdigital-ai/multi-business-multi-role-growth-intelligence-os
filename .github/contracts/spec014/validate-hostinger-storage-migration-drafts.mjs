@@ -17,15 +17,18 @@ const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const normalize = (value) => value.replace(/\s+/gu, ' ').trim();
 
-assert.equal(manifest.contract, 'spec014.hostinger-storage-migration-drafts.v2');
+assert.equal(manifest.contract, 'spec014.hostinger-storage-migration-drafts.v3');
 assert.equal(manifest.feature_key, '014-governed-hostinger-storage-orchestration');
 assert.deepEqual(manifest.tasks, ['T024', 'T025', 'T026', 'T027']);
 assert.equal(manifest.status, 'draft_review_ready');
 assert.equal(manifest.classification_source, '.github/contracts/spec014/hostinger-storage-schema-classification.json');
 assert.equal(manifest.runtime_contract_source, '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json');
-assert.equal(manifest.location_policy.spec_local_only, true);
+assert.equal(manifest.location_policy.contract_local_only, true);
+assert.equal(manifest.location_policy.draft_directory, '.github/contracts/spec014/migrations');
+assert.equal(manifest.location_policy.covered_by_full_spec_phase_contract, false);
 assert.equal(manifest.location_policy.discoverable_by_governed_migration_runner, false);
 assert.equal(manifest.location_policy.migration_apply_authorized, false);
+assert.equal(manifest.required_invariants.all_paths_are_contract_local, true);
 assert.equal(manifest.required_invariants.exact_table_count, 15);
 assert.equal(manifest.required_invariants.exact_view_count, 3);
 assert.equal(manifest.required_invariants.exact_default_off_tool_count, 3);
@@ -39,6 +42,7 @@ assert.equal(manifest.compatibility.adapter_insert_compatible, true);
 assert.equal(runtime.contract, 'spec014.hostinger-storage-sql-runtime.v1');
 assert.equal(runtime.feature_key, manifest.feature_key);
 
+const draftPrefix = `${manifest.location_policy.draft_directory}/`;
 const expectedByWave = new Map([
   [1, ['storage_provider_accounts', 'storage_targets', 'storage_target_bindings', 'storage_pressure_snapshots']],
   [2, ['storage_cleanup_operations', 'storage_cleanup_plans', 'storage_cleanup_plan_items', 'storage_cleanup_plan_impacts', 'storage_cleanup_approvals', 'storage_execution_leases']],
@@ -87,14 +91,16 @@ const allDraftSql = [];
 const sqlByTable = new Map();
 
 for (const wave of manifest.waves) {
-  assert.ok(wave.file.startsWith('specs/014-governed-hostinger-storage-orchestration/migrations/'));
+  assert.ok(wave.file.startsWith(draftPrefix));
   assert.ok(!wave.file.startsWith(manifest.location_policy.runtime_migration_directory));
+  assert.ok(!wave.file.startsWith(manifest.location_policy.spec_feature_directory));
   assert.deepEqual([...wave.objects].sort(), [...expectedByWave.get(wave.id)].sort());
 
   const sql = read(wave.file);
   allDraftSql.push(sql);
   for (const marker of [
     'DRAFT ONLY',
+    'contract-local',
     'migration_apply_authorized=false',
     'schema_verified=false',
     'production_ready=false',
@@ -181,7 +187,8 @@ for (const [kind, relative] of Object.entries({
   rollback: manifest.verification.rollback_file,
 })) {
   const sql = read(relative);
-  assert.ok(relative.startsWith('specs/014-governed-hostinger-storage-orchestration/migrations/'));
+  assert.ok(relative.startsWith(draftPrefix));
+  assert.ok(sql.includes('contract-local'));
   assert.ok(sql.includes('migration_apply_authorized=false'));
   assert.ok(sql.includes('schema_verified=false'));
   assert.ok(sql.includes('production_ready=false'));
@@ -217,11 +224,16 @@ assert.ok(rollback.includes('rollback_pre_live_only=true'));
 assert.ok(rollback.includes("'not_executed' AS execution_status"));
 assert.ok((rollback.match(/separately_governed_statement/gu) || []).length >= 1);
 
-const runtimeMigrationNames = fs.existsSync(path.join(ROOT, 'http-generic-api', 'migrations'))
-  ? fs.readdirSync(path.join(ROOT, 'http-generic-api', 'migrations'))
-  : [];
+const runtimeMigrationDir = path.join(ROOT, manifest.location_policy.runtime_migration_directory);
+const specMigrationDir = path.join(ROOT, manifest.location_policy.spec_feature_directory, 'migrations');
+const runtimeMigrationNames = fs.existsSync(runtimeMigrationDir) ? fs.readdirSync(runtimeMigrationDir) : [];
+const specMigrationNames = fs.existsSync(specMigrationDir) ? fs.readdirSync(specMigrationDir) : [];
 for (const file of manifest.waves.map((wave) => path.basename(wave.file))) {
   assert.equal(runtimeMigrationNames.includes(file), false, `${file}: must not be runnable`);
+  assert.equal(specMigrationNames.includes(file), false, `${file}: must not be owned by the full Spec MVP phase contract`);
+}
+for (const file of ['preflight.sql', 'readback.sql', 'rollback-prelive.sql']) {
+  assert.equal(specMigrationNames.includes(file), false, `${file}: must not remain under the full Spec MVP phase contract`);
 }
 
 console.log(JSON.stringify({
@@ -236,7 +248,8 @@ console.log(JSON.stringify({
   runtime_required_column_count: runtime.tables.reduce((sum, table) => sum + table.required_columns.length, 0),
   view_count: views.length,
   default_off_tool_count: wave3.default_off_tools.length,
-  spec_local_only: true,
+  contract_local_only: true,
+  covered_by_full_spec_phase_contract: false,
   adapter_insert_compatible: true,
   discoverable_by_governed_migration_runner: false,
   schema_verified: false,
