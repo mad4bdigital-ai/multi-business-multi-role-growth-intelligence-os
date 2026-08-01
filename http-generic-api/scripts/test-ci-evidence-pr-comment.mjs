@@ -7,6 +7,7 @@ const MERGE = "b".repeat(40);
 
 const e2e = normalizeEvidence({
   workflow: "E2E Phase Governance",
+  workflowConclusion: "success",
   prNumber: 42,
   workflowRunId: 100,
   sourceHeadSha: HEAD,
@@ -20,14 +21,22 @@ const e2e = normalizeEvidence({
   }
 });
 assert.equal(e2e.candidateKind, "head");
+assert.equal(e2e.workflowConclusion, "success");
 assert.match(renderEvidenceSection(e2e), /canonical artifact/u);
+assert.match(renderEvidenceSection(e2e), /Workflow conclusion/u);
 
 const first = upsertEvidenceComment("", e2e);
 assert.equal(first.changed, true);
 assert.match(first.body, new RegExp(COMMENT_MARKER, "u"));
 assert.match(first.body, /run_id=100/u);
 
-const newer = upsertEvidenceComment(first.body, { ...e2e, runId: 101, outcome: "failed", detail: "new failure" });
+const newer = upsertEvidenceComment(first.body, {
+  ...e2e,
+  workflowConclusion: "failure",
+  runId: 101,
+  outcome: "failed",
+  detail: "new failure"
+});
 assert.equal(newer.changed, true);
 assert.doesNotMatch(newer.body, /run_id=100/u);
 assert.match(newer.body, /run_id=101/u);
@@ -40,6 +49,7 @@ assert.match(stale.body, /run_id=101/u);
 
 const branch = normalizeEvidence({
   workflow: "Branch Test Diagnostic Shards",
+  workflowConclusion: "success",
   prNumber: 42,
   workflowRunId: 102,
   sourceHeadSha: HEAD,
@@ -62,6 +72,7 @@ assert.match(combined.body, /merge_candidate/u);
 
 assert.throws(() => normalizeEvidence({
   workflow: "E2E Phase Governance",
+  workflowConclusion: "success",
   prNumber: 42,
   workflowRunId: 103,
   sourceHeadSha: HEAD,
@@ -73,4 +84,40 @@ assert.throws(() => normalizeEvidence({
   }
 }), /does not match workflow_run head_sha/u);
 
-console.log(JSON.stringify({ ok: true, tests: 6, gate: "ci_evidence_pr_comment_supersession", secrets_included: false }));
+assert.throws(() => normalizeEvidence({
+  workflow: "E2E Phase Governance",
+  workflowConclusion: "failure",
+  prNumber: 42,
+  workflowRunId: 104,
+  sourceHeadSha: HEAD,
+  report: {
+    contract: "mad4b.ci-evidence-summary.v1",
+    identity: { candidate_kind: "head", candidate_sha: HEAD },
+    outcome: "passed",
+    secrets_included: false
+  }
+}), /Non-successful workflow_run cannot publish a passed canonical outcome/u);
+
+assert.throws(() => normalizeEvidence({
+  workflow: "Branch Test Diagnostic Shards",
+  workflowConclusion: "success",
+  prNumber: 42,
+  workflowRunId: 105,
+  sourceHeadSha: HEAD,
+  report: {
+    contract: "mad4b.test-diagnostic-summary.v2",
+    ref: "refs/pull/42/merge",
+    commitSha: MERGE,
+    selectedCount: 773,
+    passedCount: 772,
+    failedCount: 1,
+    secretsIncluded: false
+  }
+}), /Successful workflow_run cannot publish a non-passed canonical outcome/u);
+
+console.log(JSON.stringify({
+  ok: true,
+  tests: 8,
+  gate: "ci_evidence_pr_comment_supersession_and_conclusion_binding",
+  secrets_included: false
+}));
