@@ -99,10 +99,9 @@ WHERE (t.first_response_at IS NULL AND evidence.derived_first_response_at IS NOT
 -- Existing event and transition APIs already write ticket_lifecycle_events. This
 -- trigger converts those governed events into durable milestone timestamps after
 -- migration 1042 is present, without requiring pre-migration routes to reference
--- columns that do not yet exist.
-DROP TRIGGER IF EXISTS trg_ticket_lifecycle_sla_milestones;
-
-CREATE TRIGGER trg_ticket_lifecycle_sla_milestones
+-- columns that do not yet exist. MariaDB CREATE OR REPLACE keeps this idempotent
+-- and is a first-class statement boundary in migrationSqlStatements.js.
+CREATE OR REPLACE TRIGGER trg_ticket_lifecycle_sla_milestones
 AFTER INSERT ON ticket_lifecycle_events
 FOR EACH ROW
 UPDATE tickets
