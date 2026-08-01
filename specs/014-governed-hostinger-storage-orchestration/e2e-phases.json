@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "title": "Governed Hostinger Storage Orchestration",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/014-governed-hostinger-storage-orchestration/**",
+      "http-generic-api/config/hostinger-storage-*.json",
+      "http-generic-api/hostingerStorage*.js",
+      "http-generic-api/scripts/hostinger-storage-cleanup.sh",
+      "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs",
+      "http-generic-api/test-hostinger-storage-*.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "blocked",
+      "objective": "Deliver one synthetic-runtime Admin or Tenant request that resolves authority, persists an immutable plan, dispatches through the certified worker, and returns exact readback and reconciliation evidence.",
+      "blockers": [
+        "The orchestrator and capability-negotiated toolchain are not joined by one StorageExecutionAuthorizationBundle.",
+        "Durable repositories, immutable plan persistence, approval binding, CAS execution leases, and crash-safe operation journals are not implemented.",
+        "Admin and Tenant runtime routes are not mounted through Context Kernel and Effective Authority.",
+        "The managed worker, pinned Hostinger host key, approved binary digests, and target-bound tool discovery are not certified.",
+        "Recovery checkpoint, restore-sample verification, signed plan attestation, and replica verification are not wired into dispatch readiness.",
+        "Consequential filesystem mutation still lacks a race-resistant and crash-safe low-level executor.",
+        "Unknown-outcome reconciliation and same-operation readback are not proven across restart boundaries.",
+        "The current tests validate policies, descriptors, and local cores but do not start at a mounted runtime entrypoint and end at durable readback."
+      ],
+      "planned_e2e_journey": {
+        "id": "tenant-storage-request-to-reconciled-readback",
+        "required_level": "synthetic_runtime",
+        "actor": "tenant_workspace_owner",
+        "entrypoint": "POST /tenant/storage-operations/apply-plan",
+        "terminal_outcome": "The exact operation is read back as succeeded, partially applied, held, or reconciled with durable per-item evidence and no cross-tenant leakage.",
+        "steps": [
+          "Resolve Tenant, Workspace, Resource, ownership, and effective authority.",
+          "Load the immutable plan, approval set, execution lease, toolchain resolution, checkpoint, and signed attestation.",
+          "Dispatch one fixed worker operation without free-form shell input.",
+          "Persist per-item prepared and result journal records.",
+          "Read back provider and filesystem evidence.",
+          "Reconcile unknown or partial outcomes and project Tenant-safe evidence."
+        ]
+      }
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Preserve the MVP journey while adding cancellation, lease release, approval revocation, bounded retries, and operator-visible state transitions."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove fault injection, worker restart recovery, unknown-outcome reconciliation, checkpoint restoration, and inode-exhaustion reserve release."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the same journey against one allowlisted non-production Tenant root, then a governed shared/platform target with impact-set approvals."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Enable read-only Production preflight first, then require exact Production SHA and runtime readback before any separately governed mutation capability."
+    }
+  ]
+}
