@@ -6,12 +6,19 @@ on:
       - gpt/014-hostinger/tenant-canary-hardening-recovery-20260801
     paths:
       - .github/workflows/spec014-register-tenant-hardening-recovery.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-register-tenant-hardening-recovery.yml
 
 permissions:
   contents: write
 
 jobs:
   register:
+    if: github.event_name == 'push' || github.head_ref == 'gpt/014-hostinger/tenant-canary-hardening-recovery-20260801'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -24,7 +31,7 @@ jobs:
           node-version: '22'
       - name: Register current Tenant hardening workstream
         env:
-          FUNCTIONAL_HEAD_SHA: ${{ github.event.before }}
+          FUNCTIONAL_HEAD_SHA: 4cb39794f7a729a144da7501f6025996bf05a663
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
