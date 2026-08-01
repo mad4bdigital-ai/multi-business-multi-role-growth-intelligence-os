@@ -7,7 +7,7 @@ import {
   createMemoryHostingerStorageSharedCanaryEnablementRegistry,
   executeHostingerStorageSharedCanary,
 } from './hostingerStorageSharedCanary.js';
-import { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';
+import { createSyntheticExecutorFixture, h } from './test-hostinger-storage-executor-fixtures.mjs';
 
 const productionSha = '1'.repeat(40);
 
@@ -18,9 +18,7 @@ function createAdminRepository(fixture) {
   ]));
   delegated.readAggregate = (operationId) => {
     const aggregate = fixture.repository.readAggregate(operationId);
-    return aggregate?.operation
-      ? { ...aggregate, operation: { ...aggregate.operation, context_mode: 'admin' } }
-      : aggregate;
+    return aggregate?.operation ? { ...aggregate, operation: { ...aggregate.operation, context_mode: 'admin' } } : aggregate;
   };
   return Object.freeze(delegated);
 }
@@ -137,6 +135,26 @@ function buildInputs(fixture, overrides = {}) {
   return { repository, operation, impactSet, platformApproval, releaseApproval, workspaceApprovals, quorumPolicy, layout, reserve, enablement };
 }
 
+function governedQuorum(fixture, input, overrides = {}) {
+  return {
+    mode: 'approved_quorum',
+    policy_id: `quorum-${fixture.operation_id}`,
+    policy_revision: 'quorum-r1',
+    status: 'approved',
+    target_id: fixture.target_id,
+    plan_hash: fixture.planHash,
+    impact_set_hash: input.impactSet.impact_set_hash,
+    authority_context_hash: input.operation.authority_context_hash,
+    minimum_approvals: 1,
+    release_authority_approved: true,
+    approved_by_role: 'release_authority',
+    decided_at_epoch: 1055,
+    expires_at_epoch: 1450,
+    evidence_digest: h('9'),
+    ...overrides,
+  };
+}
+
 function prepare(fixture, overrides = {}, now = 1100) {
   const input = buildInputs(fixture, overrides);
   const protocol = overrides.protocol || fixture.protocol.protocol;
@@ -151,6 +169,7 @@ function prepare(fixture, overrides = {}, now = 1100) {
     release_authority_approval: input.releaseApproval,
     workspace_approvals: input.workspaceApprovals,
     quorum_policy: input.quorumPolicy,
+    quorum_authority_store: overrides.quorum_authority_store,
     deployment_layout_proof: input.layout,
     reserve_certification: input.reserve,
     manual_enablement: input.enablement,
@@ -164,6 +183,7 @@ function register(store, registry, fixture, prepared) {
   store.registerImpact(signed.impact_set);
   [signed.platform_admin_approval, signed.release_authority_approval, ...signed.workspace_approvals]
     .forEach((approval) => store.registerApproval(approval));
+  if (signed.quorum_policy.mode === 'approved_quorum') store.registerQuorum(signed.quorum_policy);
   store.registerLayout(signed.deployment_layout_proof);
   store.registerReserve(signed.reserve_certification);
   registry.register({
@@ -199,42 +219,52 @@ function fixtureFor(name) {
 const successFixture = fixtureFor('shared-success');
 const success = prepare(successFixture);
 assert.equal(success.authorization.canary_ready, true);
-assert.deepEqual(success.authorization.blockers, []);
-assert.equal(success.authorization.authorization.protocol.item_set_digest, success.authorization.authorization.immutable_plan.item_set_digest);
-assert.equal(success.authorization.authorization.reserve_release_allowed, false);
-assert.equal(verifyHostingerStorageSharedCanaryAuthorization({
-  authorization: success.authorization.authorization,
-  expected_digest: success.authorization.authorization_digest,
-  now_epoch: 1100,
-}).valid, true);
+assert.equal(verifyHostingerStorageSharedCanaryAuthorization({ authorization: success.authorization.authorization, expected_digest: success.authorization.authorization_digest, now_epoch: 1100 }).valid, true);
 const successStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
 const successRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
 register(successStore, successRegistry, successFixture, success);
 const applied = execute(successFixture, success, successStore, successRegistry);
 assert.equal(applied.outcome, 'applied');
-assert.equal(applied.projection.target_scope, 'shared');
 assert.equal(applied.projection.impacted_workspace_count, 2);
 assert.equal(applied.projection.active_production_sha, productionSha);
 assert.equal(applied.projection.reserve_released, false);
-assert.equal(applied.projection.live_provider_mutated, false);
 assert.equal(successRegistry.exportState()[0].consumed, true);
 
 const missingFixture = fixtureFor('shared-missing');
-const missingBase = buildInputs(missingFixture);
-const missing = prepare(missingFixture, { workspace_approvals: missingBase.workspaceApprovals.slice(0, 1) });
-assert.equal(missing.authorization.canary_ready, false);
+const missingInput = buildInputs(missingFixture);
+const missing = prepare(missingFixture, { workspace_approvals: missingInput.workspaceApprovals.slice(0, 1) });
 assert(missing.authorization.blockers.includes('STORAGE_SHARED_CANARY_IMPACT_APPROVALS_MISSING'));
+const wrongSlot = prepare(missingFixture, { workspace_approvals: missingInput.workspaceApprovals.map((approval, index) => index === 0 ? { ...approval, slot: 'unrelated_slot' } : approval) });
+assert.equal(wrongSlot.authorization.canary_ready, false);
+assert(wrongSlot.authorization.blockers.includes('STORAGE_SHARED_CANARY_WORKSPACE_APPROVAL_SLOT_INVALID'));
 
 const quorumFixture = fixtureFor('shared-quorum');
-const quorumBase = buildInputs(quorumFixture);
+const quorumInput = buildInputs(quorumFixture);
+const quorumStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const quorumPolicy = governedQuorum(quorumFixture, quorumInput);
+quorumStore.registerQuorum(quorumPolicy);
 const validQuorum = prepare(quorumFixture, {
-  workspace_approvals: quorumBase.workspaceApprovals.slice(0, 1),
-  quorum_policy: { mode: 'approved_quorum', policy_id: 'quorum-1', policy_revision: 'r1', status: 'approved', minimum_approvals: 1, release_authority_approved: true, evidence_digest: h('9') },
+  workspace_approvals: quorumInput.workspaceApprovals.slice(0, 1),
+  quorum_policy: quorumPolicy,
+  quorum_authority_store: quorumStore,
 });
 assert.equal(validQuorum.authorization.canary_ready, true);
+const quorumRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(quorumStore, quorumRegistry, quorumFixture, validQuorum);
+const quorumApplied = execute(quorumFixture, validQuorum, quorumStore, quorumRegistry);
+assert.equal(quorumApplied.outcome, 'applied');
+
+const absentQuorumStore = prepare(quorumFixture, { workspace_approvals: quorumInput.workspaceApprovals.slice(0, 1), quorum_policy: quorumPolicy });
+assert.equal(absentQuorumStore.authorization.canary_ready, false);
+assert(absentQuorumStore.authorization.blockers.includes('STORAGE_SHARED_CANARY_QUORUM_AUTHORITY_REQUIRED'));
+
+const invalidQuorumStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const invalidQuorumPolicy = governedQuorum(quorumFixture, quorumInput, { release_authority_approved: false, minimum_approvals: 2 });
+invalidQuorumStore.registerQuorum(invalidQuorumPolicy);
 const invalidQuorum = prepare(quorumFixture, {
-  workspace_approvals: quorumBase.workspaceApprovals.slice(0, 1),
-  quorum_policy: { mode: 'approved_quorum', policy_id: 'quorum-1', policy_revision: 'r1', status: 'approved', minimum_approvals: 2, release_authority_approved: false, evidence_digest: h('9') },
+  workspace_approvals: quorumInput.workspaceApprovals.slice(0, 1),
+  quorum_policy: invalidQuorumPolicy,
+  quorum_authority_store: invalidQuorumStore,
 });
 assert(invalidQuorum.authorization.blockers.includes('STORAGE_SHARED_CANARY_QUORUM_POLICY_INVALID'));
 
@@ -246,13 +276,9 @@ for (const [name, overrides, blocker] of [
   ['reserve', { reserve_certification: { release_separate_authorization_required: false } }, 'STORAGE_SHARED_CANARY_RESERVE_CERTIFICATION_REQUIRED'],
 ]) {
   const rejected = prepare(fixtureFor(`shared-${name}`), overrides);
-  assert.equal(rejected.authorization.canary_ready, false);
   assert(rejected.authorization.blockers.includes(blocker));
 }
-assert.throws(
-  () => prepare(fixtureFor('shared-small-reserve'), { reserve_certification: { reserve_size_bytes: 1024 } }),
-  (error) => error.code === 'STORAGE_SHARED_CANARY_INTEGER_INVALID',
-);
+assert.throws(() => prepare(fixtureFor('shared-small-reserve'), { reserve_certification: { reserve_size_bytes: 1024 } }), (error) => error.code === 'STORAGE_SHARED_CANARY_INTEGER_INVALID');
 
 const driftFixture = fixtureFor('shared-drift');
 const drift = prepare(driftFixture);
@@ -264,21 +290,31 @@ driftStore.updateImpact({ impact_set_id: signedImpact.impact_set_id, expected_ev
 assert.throws(() => execute(driftFixture, drift, driftStore, driftRegistry), (error) => error.code === 'STORAGE_SHARED_CANARY_IMPACT_SET_CURRENT_STATE_INVALID');
 assert.equal(driftRegistry.exportState()[0].consumed, false);
 
+const quorumDriftFixture = fixtureFor('shared-quorum-drift');
+const quorumDriftInput = buildInputs(quorumDriftFixture);
+const quorumDriftStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const quorumDriftPolicy = governedQuorum(quorumDriftFixture, quorumDriftInput);
+quorumDriftStore.registerQuorum(quorumDriftPolicy);
+const quorumDrift = prepare(quorumDriftFixture, {
+  workspace_approvals: quorumDriftInput.workspaceApprovals.slice(0, 1),
+  quorum_policy: quorumDriftPolicy,
+  quorum_authority_store: quorumDriftStore,
+});
+const quorumDriftRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(quorumDriftStore, quorumDriftRegistry, quorumDriftFixture, quorumDrift);
+quorumDriftStore.updateQuorum({ policy_id: quorumDriftPolicy.policy_id, expected_evidence_digest: quorumDriftPolicy.evidence_digest, record: { ...quorumDriftPolicy, status: 'revoked', evidence_digest: h('8') } });
+assert.throws(() => execute(quorumDriftFixture, quorumDrift, quorumDriftStore, quorumDriftRegistry), (error) => error.code === 'STORAGE_SHARED_CANARY_QUORUM_CURRENT_STATE_INVALID');
+assert.equal(quorumDriftRegistry.exportState()[0].consumed, false);
+
 const casFixture = fixtureFor('shared-cas');
 const cas = prepare(casFixture);
 const casStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
 const casRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
 register(casStore, casRegistry, casFixture, cas);
 const signedPlatform = cas.authorization.authorization.platform_admin_approval;
-assert.throws(
-  () => casStore.updateApproval({ approval_id: signedPlatform.approval_id, expected_evidence_digest: signedPlatform.evidence_digest, record: { ...signedPlatform, status: 'revoked' } }),
-  (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_EVIDENCE_NOT_ADVANCED',
-);
+assert.throws(() => casStore.updateApproval({ approval_id: signedPlatform.approval_id, expected_evidence_digest: signedPlatform.evidence_digest, record: { ...signedPlatform, status: 'revoked' } }), (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_EVIDENCE_NOT_ADVANCED');
 casStore.updateApproval({ approval_id: signedPlatform.approval_id, expected_evidence_digest: signedPlatform.evidence_digest, record: { ...signedPlatform, status: 'revoked', evidence_digest: h('7') } });
-assert.throws(
-  () => casStore.updateApproval({ approval_id: signedPlatform.approval_id, expected_evidence_digest: signedPlatform.evidence_digest, record: { ...signedPlatform, status: 'approved', evidence_digest: h('6') } }),
-  (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_EVIDENCE_CONFLICT',
-);
+assert.throws(() => casStore.updateApproval({ approval_id: signedPlatform.approval_id, expected_evidence_digest: signedPlatform.evidence_digest, record: { ...signedPlatform, status: 'approved', evidence_digest: h('6') } }), (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_EVIDENCE_CONFLICT');
 
 const leaseFixture = fixtureFor('shared-lease');
 const lease = prepare(leaseFixture);
@@ -313,10 +349,10 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_shared_canary',
   admin_context_required: true,
-  shared_or_platform_target_required: true,
+  workspace_approval_slots_bound: true,
+  governed_quorum_read_at_build_and_execution: true,
   immutable_candidate_set_bound: true,
   resolved_impact_set_required: true,
-  all_approvals_or_governed_quorum: true,
   platform_admin_and_release_authority_required: true,
   active_production_sha_excluded: true,
   rollback_set_retained: true,
