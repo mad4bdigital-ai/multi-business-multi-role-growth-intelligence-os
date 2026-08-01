@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
+  GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS,
   extendGovernedToolResponseChunkExpiry,
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
@@ -33,6 +34,11 @@ function createFakePool() {
   return {
     rows,
     async query(sql, params = []) {
+      if (sql.includes("information_schema.columns")) {
+        return [
+          GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name })),
+        ];
+      }
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
         const [
           chunkId, sourceToolKey, hash, bytes, serialized, cursorPolicy, redactionStatus,
