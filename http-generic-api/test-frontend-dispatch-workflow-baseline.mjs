@@ -23,6 +23,11 @@ assert.match(
 );
 assert.match(
   generationBlock,
+  /git fetch origin "\$\{CANONICAL_BASELINE_REF\}" --depth=1[\s\S]*?git branch -f "\$\{CANONICAL_BASELINE_REF\}" "origin\/\$\{CANONICAL_BASELINE_REF\}"/,
+  "validation must fetch the current canonical branch and move the local canonical ref before generation",
+);
+assert.match(
+  generationBlock,
   /--baseline-ref="\$\{CANONICAL_BASELINE_REF\}"/,
   "the generator must consume the canonical baseline ref",
 );
@@ -31,10 +36,15 @@ assert.doesNotMatch(
   /--baseline-ref=.*TARGET_REF/,
   "promotion targets such as Production must not rewrite committed canonical evidence",
 );
+
+const refreshBlock = workflow.match(
+  /- name: Generate and commit bounded dispatch evidence[\s\S]*?git push origin "HEAD:\$\{TARGET_BRANCH\}"/,
+)?.[0];
+assert.ok(refreshBlock, "bounded refresh workflow block must exist");
 assert.match(
-  workflow,
-  /BASE_REF="main"[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
-  "manual refresh and PR validation must share the same canonical baseline semantics",
+  refreshBlock,
+  /git fetch origin main --depth=1[\s\S]*?git branch -f main origin\/main[\s\S]*?BASE_REF="main"[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
+  "refresh and validation must resolve main from the same freshly fetched commit",
 );
 
 console.log("frontend dispatch workflow baseline contract: ok");
