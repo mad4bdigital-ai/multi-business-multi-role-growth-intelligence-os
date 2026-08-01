@@ -1,0 +1,92 @@
+name: Build Spec 014 Tenant recovery
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/spec014-build-tenant-recovery.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.head_ref == 'gpt/014-hostinger/tenant-canary-postmerge-hardening-reconciled-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/tenant-canary-postmerge-hardening-reconciled-20260801
+          fetch-depth: 0
+      - name: Restore permanent Tenant snapshot on current Integration
+        run: |
+          git fetch origin gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
+          git checkout c70f4395a0f550c49c42949a54f6476e1980f82c -- \
+            .github/workflows/hostinger-storage-tenant-canary-guard.yml \
+            http-generic-api/hostingerStorageTenantCanary.js \
+            http-generic-api/hostingerStorageTenantCanaryBase.js \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanaryPolicyBase.js \
+            http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary.mjs \
+            specs/014-governed-hostinger-storage-orchestration/evidence/tenant-canary-postmerge-hardening-20260801.md
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+
+          const path = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const current = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const source = JSON.parse(execFileSync(
+            'git',
+            ['show', `c70f4395a0f550c49c42949a54f6476e1980f82c:${path}`],
+            { encoding: 'utf8' },
+          ));
+          const tenant = structuredClone(source.parallel_work.workstreams.find((row) => row.id === 'tenant-canary'));
+          if (!tenant) throw new Error('Tenant workstream missing from source contract.');
+          tenant.status = 'ready_for_integration';
+          tenant.deliverables = [...new Set([
+            ...(tenant.deliverables || []),
+            'Factory-owned repository, authority-store, adapter, and one-shot registry provenance before delegated execution',
+            'TypeScript-AST import boundary for static, dynamic, CommonJS, and constant-composed Base imports',
+          ])];
+          tenant.required_tests ||= [];
+          const required = [
+            ['hostinger-storage-tenant-canary-store-provenance', 'test-hostinger-storage-tenant-canary-store-provenance.mjs'],
+          ];
+          for (const [id, testPath] of required) {
+            if (!tenant.required_tests.some((row) => row.id === id)) {
+              tenant.required_tests.push({
+                id,
+                runner: 'node',
+                working_directory: 'http-generic-api',
+                path: testPath,
+                args: [],
+              });
+            }
+          }
+          const index = current.parallel_work.workstreams.findIndex((row) => row.id === 'tenant-canary');
+          if (index < 0) throw new Error('Tenant workstream missing from Integration contract.');
+          current.parallel_work.workstreams[index] = tenant;
+
+          const sourceMvp = source.phases.find((phase) => phase.id === 'mvp');
+          const currentMvp = current.phases.find((phase) => phase.id === 'mvp');
+          const tenantBlocker = sourceMvp?.blockers?.find((value) => value.startsWith('The Tenant-exclusive canary'))
+            || 'The Tenant-exclusive canary post-merge hardening is ready for integration but remains synthetic, one-shot, and not mounted to a runtime route.';
+          currentMvp.blockers = (currentMvp.blockers || []).filter((value) => !value.startsWith('The Tenant-exclusive canary'));
+          const sharedIndex = currentMvp.blockers.findIndex((value) => value.startsWith('The Shared/Platform canary'));
+          currentMvp.blockers.splice(sharedIndex >= 0 ? sharedIndex : currentMvp.blockers.length, 0, tenantBlocker);
+          fs.writeFileSync(path, `${JSON.stringify(current)}\n`);
+          NODE
+
+          git rm .github/workflows/spec014-build-tenant-recovery.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m 'fix(spec-014): rebuild Tenant hardening on current Integration'
+          git push origin HEAD:gpt/014-hostinger/tenant-canary-postmerge-hardening-reconciled-20260801
