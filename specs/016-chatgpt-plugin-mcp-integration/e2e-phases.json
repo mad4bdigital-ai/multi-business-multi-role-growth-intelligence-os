@@ -109,31 +109,37 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Complete the disabled-by-default OAuth 2.1 authorization boundary, path-scoped discovery, PKCE, exact redirect validation, client registration, durable resource-bound tokens, refresh rotation, revocation, scope enforcement, and synthetic cross-client evidence.",
+      "objective": "Complete the disabled-by-default OAuth 2.1 boundary with path-scoped discovery, allowlisted DCR, a short-lived signed consent request, PKCE S256, a dedicated OAuth signing key, exact redirect and resource validation, durable token-to-grant identity, live user and tenant-membership revalidation, refresh rotation, revocation, and synthetic cross-client evidence.",
       "e2e_journeys": [
         {
           "id": "multi-client-oauth21-operational-contract-to-revocation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Approved remote MCP client and active platform user",
-          "entrypoint": "OAuth authorization-server metadata, optional dynamic client registration, authorization code plus PKCE, token exchange, MCP tools/call, refresh, and revocation",
-          "terminal_outcome": "The same bounded MCP resource works for approved OpenAI, Anthropic, and generic clients only through server-owned identity, tenant context, scope, grant, and revocation checks, while all feature flags remain disabled by default.",
+          "entrypoint": "OAuth metadata, allowlisted dynamic registration, signed authorization request and consent, authorization code plus PKCE, token exchange, MCP tools/call, refresh, and revocation",
+          "terminal_outcome": "The same bounded MCP resource works for approved OpenAI, Anthropic, and generic clients only through server-owned identity, active tenant membership, signed consent, scope, grant, and revocation checks, while all feature flags remain disabled by default.",
           "steps": [
-            "Discover the exact issuer-derived OAuth endpoints and supported read scopes.",
-            "Register an exact HTTPS redirect only while the separately governed DCR flag is enabled.",
-            "Authenticate an active platform user, validate any requested tenant membership exactly, and obtain explicit consent.",
-            "Issue and exchange a short-lived single-use PKCE S256 authorization code.",
-            "Persist an active grant and issue a short-lived resource-bound access JWT plus rotating opaque refresh token.",
-            "Require the exact issuer, audience, resource, purpose, client, user, scope, JTI, expiry, and active durable grant before protected MCP tool dispatch.",
-            "Rotate refresh state transactionally and reject replay.",
+            "Discover the exact issuer-derived OAuth endpoints and supported read scopes, advertising DCR only when a usable redirect policy exists.",
+            "Register an exact HTTPS redirect only while DCR is enabled and its Origin is present in the server-controlled allowlist.",
+            "Bind client, redirect, state, resource, scopes, and PKCE challenge into a five-minute server-signed authorization request.",
+            "Authenticate an active platform user, validate any requested tenant membership exactly, require explicit consent, and reject missing or tampered signed requests.",
+            "Issue and exchange a short-lived single-use PKCE S256 authorization code only while the user and tenant membership remain active.",
+            "Persist an active grant and issue a short-lived resource-bound access JWT with the dedicated OAuth key plus a rotating opaque refresh token.",
+            "Require exact issuer, audience, resource, purpose, azp, client, subject, user, tenant, scope, JTI, expiry, active grant, and live subject authorization before protected MCP tool dispatch.",
+            "Revalidate the user and tenant membership before refresh, rotate refresh state transactionally, and reject replay.",
             "Revoke an access or refresh grant and deny subsequent protected use."
           ],
           "assertions": [
             "The existing Tenant GPT and Activation OAuth metadata remains independent and unchanged.",
             "All Remote MCP OAuth and DCR routes fail closed while disabled.",
+            "DCR is not advertised or usable without an approved redirect-Origin policy and rejects unapproved or lookalike Origins.",
             "Client classification is operational metadata only and never grants tenant, workspace, Brand, resource, connection, capability, or operation authority.",
             "A requested tenant context is accepted only through exact active membership evidence; no first-membership fallback is used.",
+            "Missing consent and missing, expired, or tampered signed authorization requests cannot issue an authorization code.",
+            "The OAuth signing key is separate from the platform user JWT key.",
+            "Wrong token resources are rejected rather than ignored.",
             "Failed PKCE does not consume the authorization code, successful exchange does, refresh rotates once, and revocation invalidates the durable grant.",
+            "A token or refresh grant becomes unusable when its user or tenant membership is no longer active.",
             "Only workspaces.read and brands.read can reach the phase-one tool catalog.",
             "No migration, deployment, DNS change, real client registration, external connection, submission, or publication is inferred from synthetic evidence."
           ],
@@ -198,17 +204,17 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove isolation, revocation, dependency faults, concurrent refresh races, unknown outcomes, metadata drift detection, client disable controls, key rotation, and recovery without secret or cross-tenant leakage."
+      "objective": "Prove isolation, revocation, dependency faults, concurrent refresh races, unknown outcomes, signed-request replay and expiry, metadata drift detection, client disable controls, signing-key rotation, and recovery without secret or cross-tenant leakage."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Apply the governed migration and validate the exact implementation candidate through MCP Inspector, ChatGPT Developer mode, Claude Custom Connector, and one neutral programmatic MCP client against an authorized non-production endpoint."
+      "objective": "Apply the governed migration, provision the dedicated signing key and redirect allowlist, and validate the exact implementation candidate through MCP Inspector, ChatGPT Developer mode, Claude Custom Connector, and one neutral programmatic MCP client against an authorized non-production endpoint."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Verify exact Production SHA, public DNS/TLS/routing, OAuth linkage, client registrations, metadata parity, monitoring, revocation, key rotation, backup, rollback, and post-merge evidence under separate release authorization."
+      "objective": "Verify exact Production SHA, public DNS/TLS/routing, OAuth linkage, client registrations, metadata parity, monitoring, revocation, signing-key rotation, backup, rollback, and post-merge evidence under separate release authorization."
     }
   ]
 }
