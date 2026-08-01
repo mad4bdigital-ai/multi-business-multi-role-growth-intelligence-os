@@ -8,6 +8,7 @@ import { createHostingerStorageSyntheticAdapter } from './hostingerStorageSynthe
 import {
   createHostingerStorageControlPlaneRepository,
   createMemoryHostingerStoragePersistenceAdapter,
+  isCanonicalHostingerStorageControlPlaneRepository,
 } from './hostingerStorageControlPlaneRepository.js';
 
 export {
@@ -75,6 +76,9 @@ export function createHostingerStorageTenantCanarySyntheticAdapter(options = {})
 export function createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot = null } = {}) {
   const persistence = createMemoryHostingerStoragePersistenceAdapter({ snapshot });
   const repository = createHostingerStorageControlPlaneRepository({ adapter: persistence });
+  if (!isCanonicalHostingerStorageControlPlaneRepository(repository)) {
+    throw fail(500, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_FACTORY_INVALID', 'Tenant canary repository factory failed canonical Control Plane provenance verification.');
+  }
   tenantCanaryRepositories.add(repository);
   return repository;
 }
@@ -154,13 +158,14 @@ function requireCanonicalRepository(repository) {
   const missing = REQUIRED_REPOSITORY_METHODS.filter((method) => typeof repository?.[method] !== 'function');
   if (!repository
     || !tenantCanaryRepositories.has(repository)
+    || !isCanonicalHostingerStorageControlPlaneRepository(repository)
     || !Object.isFrozen(repository)
     || repository.repository_version !== CANONICAL_REPOSITORY_VERSION
     || repository.adapter_key !== CANONICAL_REPOSITORY_ADAPTER_KEY
     || repository.production_ready !== false
     || missing.length) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires a repository created by the Tenant-owned in-memory control-plane factory.', {
-      repository_provenance: 'tenant_factory_owned_required',
+    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires a repository created by the Tenant-owned factory over the canonical Control Plane factory.', {
+      repository_provenance: 'tenant_and_control_plane_factory_owned_required',
       expected_repository_version: CANONICAL_REPOSITORY_VERSION,
       expected_adapter_key: CANONICAL_REPOSITORY_ADAPTER_KEY,
       required_methods: REQUIRED_REPOSITORY_METHODS,
