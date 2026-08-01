@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e40a3efd6f5c6baa9904c7d4fef6b4d1e0a4d4e8840a4a0cb7b0c1868a30af86",
+    "source_digest": "b8ccedc6b6fed06725580c94728150890e5a0e0069b24a14cbcec67062759961",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "1d9f37a8887fef9b0798241129a9bd2d5276bd892c0fe79ad30bde1e53e4f358",
+        "sha256": "96aad3bc7b445973a81f381781cc6d320e2518c4eb4a4921682903071ad1d340",
         "present": true
       },
       {
@@ -996,7 +996,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "5cd736152c211a4857ed33037ab3fac5c531fdbfaf7c12e53d2b8e0fcf1e5af3",
+        "sha256": "5dba107bdb42743112921fac4588e7d34ebba0acc8d143c8333354f3665bdc3a",
         "present": true
       },
       {
