@@ -5,6 +5,10 @@ import {
   executeHostingerStorageTenantCanary as executeBaseTenantCanary,
 } from './hostingerStorageTenantCanaryBase.js';
 import { createHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';
+import {
+  createHostingerStorageControlPlaneRepository,
+  createMemoryHostingerStoragePersistenceAdapter,
+} from './hostingerStorageControlPlaneRepository.js';
 
 export {
   HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
@@ -20,7 +24,10 @@ const REQUIRED_REPOSITORY_METHODS = Object.freeze([
 ]);
 const CANONICAL_ADAPTER_KEY = 'hostinger_storage_synthetic_memory_adapter_v1';
 const CANONICAL_ADAPTER_VERSION = 'spec014-hostinger-storage-synthetic-adapter-v1';
+const CANONICAL_REPOSITORY_VERSION = 'spec014-storage-control-plane-repository-v1';
+const CANONICAL_REPOSITORY_ADAPTER_KEY = 'hostinger_storage_memory_test_adapter_v1';
 const tenantCanaryAdapters = new WeakSet();
+const tenantCanaryRepositories = new WeakSet();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -63,6 +70,13 @@ export function createHostingerStorageTenantCanarySyntheticAdapter(options = {})
   const adapter = createHostingerStorageSyntheticAdapter(options);
   tenantCanaryAdapters.add(adapter);
   return adapter;
+}
+
+export function createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot = null } = {}) {
+  const persistence = createMemoryHostingerStoragePersistenceAdapter({ snapshot });
+  const repository = createHostingerStorageControlPlaneRepository({ adapter: persistence });
+  tenantCanaryRepositories.add(repository);
+  return repository;
 }
 
 export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
@@ -136,10 +150,19 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
   });
 }
 
-function requireCompleteRepository(repository) {
+function requireCanonicalRepository(repository) {
   const missing = REQUIRED_REPOSITORY_METHODS.filter((method) => typeof repository?.[method] !== 'function');
-  if (!repository || repository.production_ready === true || missing.length) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires the complete non-production governed repository contract.', {
+  if (!repository
+    || !tenantCanaryRepositories.has(repository)
+    || !Object.isFrozen(repository)
+    || repository.repository_version !== CANONICAL_REPOSITORY_VERSION
+    || repository.adapter_key !== CANONICAL_REPOSITORY_ADAPTER_KEY
+    || repository.production_ready !== false
+    || missing.length) {
+    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires a repository created by the Tenant-owned in-memory control-plane factory.', {
+      repository_provenance: 'tenant_factory_owned_required',
+      expected_repository_version: CANONICAL_REPOSITORY_VERSION,
+      expected_adapter_key: CANONICAL_REPOSITORY_ADAPTER_KEY,
       required_methods: REQUIRED_REPOSITORY_METHODS,
       missing_methods: missing,
     });
@@ -192,7 +215,7 @@ function revalidatePlanAuthority({ repository, protocol }) {
 }
 
 export function executeHostingerStorageTenantCanary(options = {}) {
-  requireCompleteRepository(options.repository);
+  requireCanonicalRepository(options.repository);
   requireCanonicalAdapter(options.adapter);
   revalidatePlanAuthority({ repository: options.repository, protocol: options.protocol });
   return executeBaseTenantCanary(options);
