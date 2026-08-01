@@ -235,6 +235,10 @@ const openapi = YAML.parse(fs.readFileSync(new URL("./openapi/tenant-requests.op
 assert.equal(openapi.openapi, "3.1.0");
 assert(openapi.paths["/admin/tenant-requests"]);
 assert(openapi.paths["/tenants/{tenantId}/requests/{ticketId}"]);
+assert(
+  openapi.components.parameters.TicketStatus.schema.enum.includes("resolved"),
+  "ticket status filter contract must include the runtime-supported resolved state",
+);
 assert.equal(openapi.components.schemas.TenantRequestInboxPage.properties.items.maxItems, 100);
 assert.equal(openapi.components.schemas.TenantRequestItem.properties.secretsIncluded.const, false);
 assert.deepEqual(
