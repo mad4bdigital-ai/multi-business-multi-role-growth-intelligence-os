@@ -69,26 +69,32 @@ jobs:
 
       - run: npm ci
 
-      - name: Generate bounded dispatch evidence
+      - name: Validate exact-operation OpenAPI auth repair
+        run: node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+
+      - name: Generate bounded canonical and dispatch evidence
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
           git branch -f main origin/main
           BASE_REF="main"
+          node scripts/openapi-runtime-auth-sync.mjs --write
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(openapi\.yaml|openapi/support-tickets\.yaml|frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${UNEXPECTED}" ]]; then
             echo "::error::generator changed files outside the bounded evidence set"
             printf '%s\n' "${UNEXPECTED}"
             exit 1
           fi
+          node test-frontend-auth-openapi-parity.mjs
+          npm run openapi:auth:check
 
       - name: Commit and push exact-head refresh
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
+          if git diff --quiet -- openapi.yaml openapi/support-tickets.yaml frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
             echo "Generated evidence is already current."
             exit 0
           fi
@@ -100,6 +106,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
-          git commit -m "chore(ci): refresh frontend dispatch evidence"
+          git add openapi.yaml openapi/support-tickets.yaml frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git commit -m "chore(ci): refresh frontend and canonical auth evidence"
           git push origin "HEAD:${TARGET_BRANCH}"
