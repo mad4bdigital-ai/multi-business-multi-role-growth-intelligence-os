@@ -1,0 +1,2 @@
+trigger_sha_parent=1693e26bfcd8b006942f20fb64970fdaac2c543d
+scope=tenant-canary-base-runtime-provenance
