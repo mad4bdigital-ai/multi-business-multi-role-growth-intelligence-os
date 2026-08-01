@@ -32,6 +32,7 @@ assert.equal(policy.measurement.never_treat_df_as_hosting_plan_quota, true);
 assert.equal(policy.execution.public_web_runtime_allowed, false);
 assert.equal(policy.execution.freeform_shell_allowed, false);
 assert.equal(policy.execution.automatic_apply_allowed, false);
+assert.equal(policy.execution.apply_gate_source, 'platform_owner_approval_and_capability_envelope');
 assert.equal(policy.execution.host_key_fingerprint_required, true);
 assert.equal(policy.execution.exact_plan_hash_required, true);
 assert.equal(policy.emergency_reserve.recommended_bytes, 67108864);
