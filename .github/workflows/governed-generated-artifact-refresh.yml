@@ -17,6 +17,7 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -65,6 +66,36 @@ jobs:
           --confirmation "${{ inputs.confirmation }}"
           --output-dir "${OUTPUT_DIR}"
 
+      - name: Dispatch read-only verification on resulting exact head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          set -euo pipefail
+          report="${OUTPUT_DIR}/generated-artifact-refresh-report.json"
+          test -f "$report"
+          result_sha="$(jq -r '.commit_sha // .expected_head_sha' "$report")"
+          [[ "$result_sha" =~ ^[0-9a-f]{40}$ ]]
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$result_sha" ]]
+          payload="$(jq -cn \
+            --arg ref "$TARGET_REF" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$result_sha" \
+            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/pr-generated-artifact-refresh.yml/dispatches" \
+            --input - <<<"$payload"
+          jq -cn \
+            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
+            --arg target_ref "$TARGET_REF" \
+            --arg candidate_sha "$result_sha" \
+            --arg workflow "PR Generated Artifact Refresh" \
+            '{contract:$contract,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,requested:true,secrets_included:false}' \
+            > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
+
       - name: Upload canonical refresh report
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,4 +111,8 @@ jobs:
         run: |
           if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-report.md" ]]; then
             cat "${OUTPUT_DIR}/generated-artifact-refresh-report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json" ]]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "Exact-head read-only verification dispatch requested." >> "$GITHUB_STEP_SUMMARY"
           fi
