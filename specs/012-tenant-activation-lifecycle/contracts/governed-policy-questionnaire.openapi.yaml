@@ -1,0 +1,445 @@
+openapi: 3.1.0
+info:
+  title: Governed Interactive Policy Questionnaire API
+  version: 1.0.0-contract
+  summary: Versioned questionnaire, proposal, approval, activation, readback, and rollback contract.
+  description: >-
+    Final contract for the platform-wide governed policy questionnaire lifecycle adopted by
+    Spec 012. Questionnaire and proposal resources are not runtime authority. Active policy
+    remains the exact version read from governed SQL registries after critical cache invalidation.
+  x-feature-key: 012-tenant-activation-lifecycle
+  x-contract-status: final
+  x-runtime-wired: false
+  x-runtime-authority: governed_sql_policy_registry
+  x-migration-authorized: false
+servers:
+  - url: https://activation.mad4b.com
+tags:
+  - name: governed-questionnaires
+  - name: governed-policy-proposals
+  - name: governed-policy-runtime
+security:
+  - userBearerAuth:
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+paths:
+  /tenant/questionnaires:
+    get:
+      tags: [governed-questionnaires]
+      operationId: listTenantGovernedPolicyQuestionnaires
+      summary: List active questionnaire definitions applicable to the verified principal
+      parameters:
+        - name: domain_key
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CanonicalKey' }
+        - name: purpose_key
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CanonicalKey' }
+        - name: interaction_mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [guided, advanced, expert_governed]
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, maxLength: 512 }
+      responses:
+        '200':
+          description: Active applicable questionnaire definitions.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  items:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: './governed-policy-questionnaire.schema.json#/$defs/questionnaireDefinition'
+                  next_cursor: { type: [string, 'null'], maxLength: 512 }
+                  secrets_included: { const: false }
+                required: [items, next_cursor, secrets_included]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /tenant/questionnaire-sessions:
+    post:
+      tags: [governed-questionnaires]
+      operationId: startTenantGovernedPolicyQuestionnaireSession
+      summary: Start a version-pinned questionnaire session
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                domain_key: { $ref: '#/components/schemas/CanonicalKey' }
+                purpose_key: { $ref: '#/components/schemas/CanonicalKey' }
+                interaction_mode:
+                  type: string
+                  enum: [guided, advanced, expert_governed]
+                context:
+                  type: object
+                  maxProperties: 100
+                ttl_seconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 86400
+                  default: 3600
+              required: [domain_key, purpose_key, interaction_mode]
+      responses:
+        '201':
+          description: Version-pinned session and currently visible questions.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  session:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/questionnaireSession'
+                  questions:
+                    type: array
+                    maxItems: 200
+                    items:
+                      $ref: './governed-policy-questionnaire.schema.json#/$defs/questionDefinition'
+                  runtime_authority_activated: { const: false }
+                  secrets_included: { const: false }
+                required: [session, questions, runtime_authority_activated, secrets_included]
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /tenant/questionnaire-sessions/{sessionId}:
+    get:
+      tags: [governed-questionnaires]
+      operationId: readTenantGovernedPolicyQuestionnaireSession
+      summary: Read a tenant/user-scoped pinned questionnaire session
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Pinned session readback.
+          content:
+            application/json:
+              schema:
+                $ref: './governed-policy-questionnaire.schema.json#/$defs/questionnaireSession'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/questionnaire-sessions/{sessionId}/answers:
+    post:
+      tags: [governed-questionnaires]
+      operationId: submitTenantGovernedPolicyQuestionnaireAnswers
+      summary: Validate and persist answers against the pinned definition revision
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './governed-policy-questionnaire.schema.json#/$defs/answerSubmission'
+      responses:
+        '200':
+          description: Idempotent answer revision readback.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  session:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/questionnaireSession'
+                  answer_set_id: { $ref: '#/components/schemas/OpaqueId' }
+                  normalized_answers_sha256: { $ref: '#/components/schemas/Sha256' }
+                  runtime_authority_activated: { const: false }
+                  secrets_included: { const: false }
+                required: [session, answer_set_id, normalized_answers_sha256, runtime_authority_activated, secrets_included]
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenant/questionnaire-sessions/{sessionId}/previews:
+    post:
+      tags: [governed-questionnaires]
+      operationId: previewTenantGovernedPolicyProposal
+      summary: Deterministically compile and preview a bounded policy proposal
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                answers: { type: object, maxProperties: 200 }
+                resource_uri: { type: string, format: uri, maxLength: 2048 }
+                proposed_version: { $ref: '#/components/schemas/Version' }
+              required: [answers, resource_uri, proposed_version]
+      responses:
+        '200':
+          description: Compilation, risk, approval requirement, and impact preview without activation.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  compilation:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/policyCompilation'
+                  proposal:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/policyProposal'
+                  authority_activated: { const: false }
+                  secrets_included: { const: false }
+                required: [compilation, proposal, authority_activated, secrets_included]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenant/questionnaire-sessions/{sessionId}/submissions:
+    post:
+      tags: [governed-policy-proposals]
+      operationId: submitTenantGovernedPolicyProposal
+      summary: Persist a deterministic proposal and compilation
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                answers: { type: object, maxProperties: 200 }
+                resource_uri: { type: string, format: uri, maxLength: 2048 }
+                proposed_version: { $ref: '#/components/schemas/Version' }
+              required: [answers, resource_uri, proposed_version]
+      responses:
+        '201':
+          description: Submitted proposal; runtime authority is unchanged.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  compilation:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/policyCompilation'
+                  proposal:
+                    $ref: './governed-policy-questionnaire.schema.json#/$defs/policyProposal'
+                  authority_activated: { const: false }
+                  secrets_included: { const: false }
+                required: [compilation, proposal, authority_activated, secrets_included]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenant/policy-proposals/{proposalId}/approvals:
+    post:
+      tags: [governed-policy-proposals]
+      operationId: approveTenantGovernedPolicyProposal
+      summary: Add an exact proposal/resource/version-bound approval
+      parameters:
+        - $ref: '#/components/parameters/ProposalId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { $ref: '#/components/schemas/OpaqueId' }
+                resource_uri: { type: string, format: uri, maxLength: 2048 }
+                proposal_hash_sha256: { $ref: '#/components/schemas/Sha256' }
+                approval_class: { $ref: '#/components/schemas/CanonicalKey' }
+                typed_confirmation: { type: [string, 'null'], maxLength: 1024, writeOnly: true }
+                expires_at: { type: string, format: date-time }
+              required: [tenant_id, resource_uri, proposal_hash_sha256, approval_class, expires_at]
+      responses:
+        '201':
+          description: Exact-bound approval evidence; plaintext confirmation is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: './governed-policy-questionnaire.schema.json#/$defs/policyApproval'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenant/policy-proposals/{proposalId}/activations:
+    post:
+      tags: [governed-policy-runtime]
+      operationId: activateTenantGovernedPolicyProposal
+      summary: Prepare, invalidate, activate, and exactly read back a governed policy version
+      parameters:
+        - $ref: '#/components/parameters/ProposalId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { $ref: '#/components/schemas/OpaqueId' }
+                policy_key: { $ref: '#/components/schemas/CanonicalKey' }
+                policy_version: { $ref: '#/components/schemas/Version' }
+                resource_uri: { type: string, format: uri, maxLength: 2048 }
+                proposal_hash_sha256: { $ref: '#/components/schemas/Sha256' }
+                effective_at: { type: string, format: date-time }
+              required: [tenant_id, policy_key, policy_version, resource_uri, proposal_hash_sha256]
+      responses:
+        '200':
+          description: Exact active registry readback after critical invalidation acceptance.
+          content:
+            application/json:
+              schema:
+                $ref: './governed-policy-questionnaire.schema.json#/$defs/policyReadback'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /tenant/policies/{policyKey}/rollbacks:
+    post:
+      tags: [governed-policy-runtime]
+      operationId: rollbackTenantGovernedPolicyVersion
+      summary: Restore an exact prior valid policy version through a new governed operation
+      parameters:
+        - name: policyKey
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/CanonicalKey' }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { $ref: '#/components/schemas/OpaqueId' }
+                active_version: { $ref: '#/components/schemas/Version' }
+                target_version: { $ref: '#/components/schemas/Version' }
+                resource_uri: { type: string, format: uri, maxLength: 2048 }
+                approved_proposal_id: { $ref: '#/components/schemas/OpaqueId' }
+                proposal_hash_sha256: { $ref: '#/components/schemas/Sha256' }
+              required: [tenant_id, active_version, target_version, resource_uri, approved_proposal_id, proposal_hash_sha256]
+      responses:
+        '200':
+          description: Exact target version restored and read back.
+          content:
+            application/json:
+              schema:
+                $ref: './governed-policy-questionnaire.schema.json#/$defs/policyReadback'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.mad4b.com/oauth/authorize
+          tokenUrl: https://auth.mad4b.com/oauth/token
+          scopes:
+            https://auth.mad4b.com/scopes/tenant.status: Read tenant activation status.
+            https://auth.mad4b.com/scopes/tenant.activation: Manage bounded tenant activation lifecycle policy.
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/OpaqueId' }
+    ProposalId:
+      name: proposalId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/OpaqueId' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 191
+  schemas:
+    CanonicalKey:
+      type: string
+      pattern: '^[a-z][a-z0-9_.-]{2,191}$'
+    OpaqueId:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9:._/-]{0,190}$'
+    Version:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+    Sha256:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      properties:
+        ok: { const: false }
+        error:
+          type: object
+          additionalProperties: false
+          properties:
+            code: { type: string, minLength: 1, maxLength: 191 }
+            message: { type: string, minLength: 1, maxLength: 1000 }
+            details: { type: object, maxProperties: 50 }
+            request_id: { type: [string, 'null'], maxLength: 191 }
+            reconnect_required: { type: boolean }
+          required: [code, message, reconnect_required]
+        secrets_included: { const: false }
+      required: [ok, error, secrets_included]
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Missing or invalid verified principal.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Principal lacks role, capability, object authority, or approval authority.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource is absent or outside the caller scope.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Version, definition, proposal, approval, activation, or readback conflict.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ValidationFailed:
+      description: Answer, compilation, safety-bound, or policy validation failed.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ServiceUnavailable:
+      description: Registry, invalidation, or exact readback authority is unavailable.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
