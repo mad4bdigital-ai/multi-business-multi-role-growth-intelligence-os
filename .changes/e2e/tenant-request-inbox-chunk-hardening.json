@@ -7,6 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/governedToolResponseChunkStore.js",
       "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
       "http-generic-api/openapi/tenant-requests.openapi.yaml",
@@ -14,6 +15,7 @@
       "http-generic-api/routes/supportTicketRoutes.js",
       "http-generic-api/supportTicketResolutionService.js",
       "http-generic-api/tenantRequestInboxService.js",
+      "http-generic-api/test-governed-tool-response-chunk-store.mjs",
       "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
     ]
   },
@@ -39,7 +41,8 @@
             "Read tickets ordered by latest activity and stable ticket_id with opaque cursor pagination.",
             "Return ticket status and resolution case status in separate nested objects.",
             "Read ticket, case, and readback timeline rows with tenant-safe redaction and bounded row limits.",
-            "Inspect durable chunk-store schema before persistence and return bounded inline output when required columns are unavailable."
+            "Inspect durable chunk-store schema before persistence and return bounded inline output when required columns are unavailable.",
+            "Expose the four inbox endpoints through the generated frontend dispatch inventory."
           ],
           "assertions": [
             "Ticket open and resolution case escalated remain separate states for the regression ticket.",
@@ -47,7 +50,8 @@
             "Cursor pagination uses latest_activity_at plus ticket_id and never OFFSET.",
             "Tenant timelines exclude internal ticket events, case evidence refs, and raw readback states.",
             "The migration is additive and does not delete, archive, or rename existing records.",
-            "Chunk schema failures expose typed non-secret diagnostics and do not drop the entire tool-list response."
+            "Chunk schema failures expose typed non-secret diagnostics and do not drop the entire tool-list response.",
+            "The generated dispatch inventory contains the admin and tenant request list/detail surfaces."
           ],
           "tests": [
             {
@@ -56,10 +60,19 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
               "args": []
+            },
+            {
+              "id": "governed-tool-response-chunk-fallback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/tenant-requests.openapi.yaml",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
           ]
         }
@@ -94,10 +107,18 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-request-chunk-schema-diagnostic-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
-            "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql"
+            "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs"
           ]
         }
       ]
@@ -133,9 +154,17 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-request-chunk-drift-fallback-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
           ]
         }
