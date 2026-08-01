@@ -9,17 +9,37 @@ import {
 
 const h = (character) => character.repeat(64);
 const clone = (value) => structuredClone(value);
+const TABLE_NAMES = ['operations', 'plans', 'approvals', 'leases', 'journals', 'reconciliations'];
+
+function recordKey(table, record) {
+  return {
+    operations: record.operation_id,
+    plans: record.plan_id,
+    approvals: record.approval_id,
+    leases: record.target_id,
+    journals: record.event_id,
+    reconciliations: record.reconciliation_id,
+  }[table];
+}
+
+function sqlRow(table, record, rowVersion) {
+  return {
+    id: ['operations', 'plans', 'approvals', 'journals', 'reconciliations'].includes(table)
+      ? recordKey(table, record)
+      : undefined,
+    target_id: table === 'leases' ? record.target_id : record.target_id,
+    plan_id: table === 'approvals' ? record.plan_id : undefined,
+    run_id: table === 'journals' ? record.run_id : undefined,
+    idempotency_key: table === 'operations' ? record.idempotency_key : undefined,
+    record_digest: record.record_digest,
+    record_json: JSON.stringify(record),
+    row_version: rowVersion,
+  };
+}
 
 class FakeSqlDatabase {
   constructor() {
-    this.tables = {
-      operations: new Map(),
-      plans: new Map(),
-      approvals: new Map(),
-      leases: new Map(),
-      journals: new Map(),
-      reconciliations: new Map(),
-    };
+    this.tables = Object.fromEntries(TABLE_NAMES.map((name) => [name, new Map()]));
     this.forceNextCasMiss = false;
     this.commits = 0;
     this.rollbacks = 0;
@@ -46,83 +66,35 @@ class FakeConnection {
   async execute(sql, params = []) {
     if (sql.includes('spec014:lock:acquire')) return [[{ acquired: 1 }], []];
     if (sql.includes('spec014:lock:release')) return [[{ released: 1 }], []];
-    for (const name of ['operations', 'plans', 'approvals', 'leases', 'journals', 'reconciliations']) {
+    for (const name of TABLE_NAMES) {
       if (sql.includes(`spec014:load:${name}`)) return [[...this.table(name).values()].map(clone), []];
-      if (sql.includes(`spec014:insert:${name}`)) return [this.insert(name, params), []];
-      if (sql.includes(`spec014:update:${name}`)) return [this.update(name, params), []];
+      if (sql.includes(`spec014:insert:${name}`)) return [this.write(name, params, false), []];
+      if (sql.includes(`spec014:update:${name}`)) return [this.write(name, params, true), []];
     }
     throw new Error(`Unexpected SQL: ${sql}`);
   }
-  insert(name, params) {
-    const table = this.table(name);
-    let key;
-    let row;
-    if (name === 'operations') {
-      const [id, idempotency_key, target_id, state, version, record_digest, record_json] = params;
-      key = id;
-      row = { id, idempotency_key, target_id, state, version, record_digest, record_json, row_version: 1 };
-    } else if (name === 'plans') {
-      const [id, operation_id, target_id, plan_hash, consumed, record_digest, record_json] = params;
-      key = id;
-      row = { id, operation_id, target_id, plan_hash, consumed, record_digest, record_json, row_version: 1 };
-    } else if (name === 'approvals') {
-      const [id, plan_id, approval_slot, decision, invalidated, record_digest, record_json] = params;
-      key = id;
-      row = { id, plan_id, approval_slot, decision, invalidated, record_digest, record_json, row_version: 1 };
-    } else if (name === 'leases') {
-      const [target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json] = params;
-      key = target_id;
-      row = { target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, row_version: 1 };
-    } else if (name === 'journals') {
-      const [id, operation_id, run_id, plan_id, item_id, sequence, phase, result, record_digest, record_json] = params;
-      key = id;
-      row = { id, operation_id, run_id, plan_id, item_id, sequence, phase, result, record_digest, record_json, row_version: 1 };
-    } else {
-      const [id, operation_id, run_id, outcome, retry_permission, record_digest, record_json] = params;
-      key = id;
-      row = { id, operation_id, run_id, outcome, retry_permission, record_digest, record_json, row_version: 1 };
+  write(tableName, params, update) {
+    const json = params.find((value) => typeof value === 'string' && value.startsWith('{'));
+    const record = JSON.parse(json);
+    const key = recordKey(tableName, record);
+    const table = this.table(tableName);
+    if (!update) {
+      if (table.has(key)) {
+        const error = new Error('duplicate');
+        error.code = 'ER_DUP_ENTRY';
+        throw error;
+      }
+      table.set(key, sqlRow(tableName, record, 1));
+      return { affectedRows: 1 };
     }
-    if (table.has(key)) {
-      const error = new Error('duplicate');
-      error.code = 'ER_DUP_ENTRY';
-      throw error;
-    }
-    table.set(key, row);
-    return { affectedRows: 1 };
-  }
-  update(name, params) {
     if (this.database.forceNextCasMiss) {
       this.database.forceNextCasMiss = false;
       return { affectedRows: 0 };
     }
-    const table = this.table(name);
-    let key;
-    let expected;
-    let patch;
-    if (name === 'operations') {
-      const [target_id, state, version, record_digest, record_json, id, rowVersion] = params;
-      key = id;
-      expected = rowVersion;
-      patch = { target_id, state, version, record_digest, record_json };
-    } else if (name === 'plans') {
-      const [consumed, record_digest, record_json, id, rowVersion] = params;
-      key = id;
-      expected = rowVersion;
-      patch = { consumed, record_digest, record_json };
-    } else if (name === 'approvals') {
-      const [decision, invalidated, record_digest, record_json, id, rowVersion] = params;
-      key = id;
-      expected = rowVersion;
-      patch = { decision, invalidated, record_digest, record_json };
-    } else {
-      const [lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, target_id, rowVersion] = params;
-      key = target_id;
-      expected = rowVersion;
-      patch = { lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json };
-    }
+    const expectedVersion = Number(params.at(-1));
     const current = table.get(key);
-    if (!current || current.row_version !== expected) return { affectedRows: 0 };
-    table.set(key, { ...current, ...patch, row_version: current.row_version + 1 });
+    if (!current || current.row_version !== expectedVersion) return { affectedRows: 0 };
+    table.set(key, sqlRow(tableName, record, current.row_version + 1));
     return { affectedRows: 1 };
   }
 }
@@ -137,35 +109,23 @@ function createRepository(database) {
     pool: new FakePool(database),
     schema_verified: true,
   });
+  assert.equal(adapter.schema_verified, false);
+  assert.equal(adapter.production_ready, false);
   assert.equal(isCanonicalMySqlHostingerStoragePersistenceAdapter(adapter), true);
   const repository = createHostingerStorageControlPlaneRepository({ adapter });
+  assert.equal(repository.production_ready, false);
   assert.equal(isCanonicalHostingerStorageControlPlaneRepository(repository), true);
   return repository;
 }
 
 const database = new FakeSqlDatabase();
 let repository = createRepository(database);
-assert.equal(repository.production_ready, true);
-assert.equal(repository.adapter_key, 'hostinger_storage_mysql_control_plane_v1');
-
 const operation = {
-  operation_id: 'sql-operation-1',
-  operation_key: 'hostinger_storage_apply_plan',
-  target_id: 'sql-target-1',
-  tenant_id: 'tenant-1',
-  workspace_id: 'workspace-1',
-  resource_id: 'resource-1',
-  context_mode: 'tenant',
-  authority_context_hash: h('1'),
-  ownership_revision: 'ownership-r1',
-  policy_revision: 'policy-r1',
-  idempotency_key: h('2'),
-  risk_profile: 'tenant_high',
-  state: 'approved',
-  version: 1,
-  created_at_epoch: 1000,
-  updated_at_epoch: 1000,
-  secrets_included: false,
+  operation_id: 'sql-operation-1', operation_key: 'hostinger_storage_apply_plan', target_id: 'sql-target-1',
+  tenant_id: 'tenant-1', workspace_id: 'workspace-1', resource_id: 'resource-1', context_mode: 'tenant',
+  authority_context_hash: h('1'), ownership_revision: 'ownership-r1', policy_revision: 'policy-r1',
+  idempotency_key: h('2'), risk_profile: 'tenant_high', state: 'approved', version: 1,
+  created_at_epoch: 1000, updated_at_epoch: 1000, secrets_included: false,
 };
 assert.equal((await repository.createOperation(operation, { now_epoch: 1000 })).created, true);
 assert.equal((await repository.createOperation(operation, { now_epoch: 1000 })).created, false);
@@ -186,41 +146,36 @@ await repository.appendApproval({
   evidence_digest: h('6'), decided_at_epoch: 1100, expires_at_epoch: 1900,
   invalidated: false, secrets_included: false,
 });
-const lease = await repository.acquireLease({
+assert.equal((await repository.acquireLease({
   lease_id: 'sql-lease-1', target_id: operation.target_id, operation_id: operation.operation_id,
   purpose: 'cleanup_apply', holder_ref: 'worker/session-1', expires_at_epoch: 1600,
   evidence_digest: h('7'), secrets_included: false,
-}, { expected_generation: 0, now_epoch: 1200 });
-assert.equal(lease.generation, 1);
+}, { expected_generation: 0, now_epoch: 1200 })).generation, 1);
 
 for (const event of [
   { event_id: 'sql-event-1', sequence: 1, phase: 'prepared', result: 'prepared', evidence_digest: h('9') },
   { event_id: 'sql-event-2', sequence: 2, phase: 'result', result: 'deleted', evidence_digest: h('a') },
 ]) {
   await repository.appendJournalEvent({
-    ...event,
-    operation_id: operation.operation_id,
-    run_id: 'sql-run-1',
-    plan_id: 'sql-plan-1',
-    item_id: 'item-1',
-    stat_digest: h('8'),
-    observed_at_epoch: 1240 + event.sequence * 10,
+    ...event, operation_id: operation.operation_id, run_id: 'sql-run-1', plan_id: 'sql-plan-1',
+    item_id: 'item-1', stat_digest: h('8'), observed_at_epoch: 1240 + event.sequence * 10,
     secrets_included: false,
   });
 }
 await repository.recordReconciliation({
   reconciliation_id: 'sql-reconciliation-1', operation_id: operation.operation_id,
-  run_id: 'sql-run-1', outcome: 'applied', input_evidence_hash: h('b'),
-  result_digest: h('c'), retry_allowed: false, reviewed_at_epoch: 1300, secrets_included: false,
+  run_id: 'sql-run-1', outcome: 'applied', input_evidence_hash: h('b'), result_digest: h('c'),
+  retry_allowed: false, reviewed_at_epoch: 1300, secrets_included: false,
 });
 
 const beforeRestart = await repository.readAggregate(operation.operation_id);
-assert.equal(beforeRestart.plans.length, 1);
-assert.equal(beforeRestart.approvals.length, 1);
-assert.equal(beforeRestart.leases[0].generation, 1);
-assert.equal(beforeRestart.journals.length, 2);
-assert.equal(beforeRestart.reconciliations.length, 1);
-
+assert.deepEqual({
+  plans: beforeRestart.plans.length,
+  approvals: beforeRestart.approvals.length,
+  leases: beforeRestart.leases.length,
+  journals: beforeRestart.journals.length,
+  reconciliations: beforeRestart.reconciliations.length,
+}, { plans: 1, approvals: 1, leases: 1, journals: 2, reconciliations: 1 });
 repository = createRepository(database);
 assert.deepEqual(await repository.readAggregate(operation.operation_id), beforeRestart);
 
@@ -254,7 +209,7 @@ assert.equal((await repository.consumePlan({
 
 const snapshot = await repository.exportSnapshot();
 assert.equal(snapshot.durable_sql, true);
-assert.equal(snapshot.production_ready, true);
+assert.equal(snapshot.production_ready, false);
 assert.equal(snapshot.secrets_included, false);
 assert.equal(snapshot.state.operations[operation.operation_id].state, 'executing');
 
@@ -262,6 +217,8 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_sql_persistence_adapter',
   canonical_factory_provenance: true,
+  caller_schema_claim_ignored: true,
+  production_ready: false,
   transaction_commit: true,
   rollback_on_cas_conflict: true,
   lease_generation_cas: true,
