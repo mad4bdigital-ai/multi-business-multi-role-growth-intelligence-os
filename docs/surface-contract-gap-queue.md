@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 23
+- Total queue items: 24
 - Critical review: 20
 - High review: 1
-- Medium review: 2
+- Medium review: 3
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -30,7 +30,7 @@
 ### 2. `193_sprint67_workspace_resource_authority_foundation.sql`
 
 - Queue class: critical_review
-- Score: 1083
+- Score: 1084
 - Gap severity: high
 - Missing docs: none
 - Missing OpenAPI routes: none
@@ -83,7 +83,7 @@
 ### 6. `189_sprint66_tenant_gpt_operating_guide_tools.sql`
 
 - Queue class: critical_review
-- Score: 912
+- Score: 913
 - Gap severity: high
 - Missing docs: none
 - Missing OpenAPI routes: none
@@ -160,7 +160,20 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `brand_workspace_context_resolve`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `brand_reference_interpretation_policy_v1`, `brand_workspace_context_minimal_policy_v1`
 
-### 12. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
+### 12. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
+
+- Queue class: critical_review
+- Score: 738
+- Gap severity: high
+- Missing docs: none
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
+- Remediation actions:
+- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_execute_job_result`
+
+### 13. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
 
 - Queue class: critical_review
 - Score: 738
@@ -173,7 +186,7 @@
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/connect/api/credential-intake/sessions/{session_id}/wait`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `connect_credential_intake_wait`
 
-### 13. `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
+### 14. `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
 
 - Queue class: critical_review
 - Score: 737
@@ -185,19 +198,6 @@
 - Remediation actions:
 - `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_execute`
-
-### 14. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
-
-- Queue class: critical_review
-- Score: 737
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_execute_job_result`
 
 ### 15. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
 
@@ -306,7 +306,21 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 23. `20260728_governed_response_chunk_ownership.sql`
+### 23. `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+
+- Queue class: medium_review
+- Score: 334
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=2, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 24. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318
