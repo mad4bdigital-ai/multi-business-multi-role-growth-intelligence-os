@@ -20,6 +20,7 @@
       "http-generic-api/test-governed-tool-response-chunk-store.mjs",
       "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "http-generic-api/test-platform-routes.mjs",
+      "http-generic-api/test-tenant-request-auth-parity.mjs",
       "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
     ]
   },
@@ -48,6 +49,7 @@
             "Read ticket, case, and readback timeline rows with tenant-safe redaction and bounded row limits.",
             "Inspect durable chunk-store schema before persistence and return bounded inline output when required columns are unavailable.",
             "Apply the caller's effective client and envelope response budget to degraded system-tool responses.",
+            "Resolve the central tenant User JWT middleware to the same userJwtAuth contract declared by OpenAPI.",
             "Expose the four inbox endpoints through the generated frontend dispatch inventory."
           ],
           "assertions": [
@@ -59,6 +61,7 @@
             "The migration is additive and does not delete, archive, or rename existing records.",
             "Chunk schema failures expose typed non-secret diagnostics and do not silently drop the tool-list request.",
             "Default client budgets reject oversized degraded system-tool lists with a typed 503, while an explicit sufficient bounded budget preserves a 200 response.",
+            "Generated dispatch classifies both tenant request routes as user_jwt with equivalent OpenAPI authentication.",
             "The generated dispatch inventory contains the admin and tenant request list/detail surfaces."
           ],
           "tests": [
@@ -67,6 +70,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
               "args": []
             },
             {
@@ -106,6 +116,7 @@
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-gpt-tools-response-chunking.mjs",
             "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
           ]
         }
@@ -114,7 +125,7 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Provide schema readiness views, typed diagnostics, bounded paging, stable request identifiers, and explicit response-budget behavior without external mutations.",
+      "objective": "Provide schema readiness views, typed diagnostics, bounded paging, stable request identifiers, explicit authentication parity, and explicit response-budget behavior without external mutations.",
       "e2e_journeys": [
         {
           "id": "tenant-request-schema-readiness-and-bounded-operation",
@@ -122,11 +133,12 @@
           "level": "synthetic_runtime",
           "actor": "platform operations",
           "entrypoint": "Migration readiness views, inbox list filters, and system-tool list routes",
-          "terminal_outcome": "Operations can distinguish missing schema from missing data, bound latest-activity work, and receive a bounded response or typed budget failure.",
+          "terminal_outcome": "Operations can distinguish missing schema from missing data, bound latest-activity work, verify authentication parity, and receive a bounded response or typed budget failure.",
           "steps": [
             "Inspect explicit ticket-link and chunk-runtime schema readiness.",
             "List a bounded page with filters and a stable next cursor.",
             "Bound exact latest-activity calculations to a candidate ticket set.",
+            "Verify runtime User JWT evidence matches the tenant inbox OpenAPI security contract.",
             "Apply the effective client and envelope budget to degraded system-tool list responses.",
             "Log only error code, cause code, operation, request id, and source tool key during chunk fallback."
           ],
@@ -134,6 +146,7 @@
             "No response content or credentials are written to fallback diagnostics.",
             "Readiness views report blocked until every required additive column and index is present.",
             "Candidate activity indexes support ticket lifecycle, resolution-case event, and readback discovery.",
+            "Both tenant request routes have resolved user_jwt runtime authentication and equivalent userJwtAuth OpenAPI security.",
             "An oversized degraded response is returned as a typed non-secret 503 rather than an unhandled rejection.",
             "No migration is applied by the runtime code in this change."
           ],
@@ -143,6 +156,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
               "args": []
             },
             {
@@ -161,10 +181,12 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
             "http-generic-api/routes/systemLayerRoutes.js",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
-            "http-generic-api/test-platform-routes.mjs"
+            "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs"
           ]
         }
       ]
@@ -172,7 +194,7 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on authorization, malformed cursors, unbounded activity work, and response-budget overflow while retaining bounded inline availability during chunk-store schema drift.",
+      "objective": "Fail closed on authorization, malformed cursors, unbounded activity work, unresolved authentication evidence, and response-budget overflow while retaining bounded inline availability during chunk-store schema drift.",
       "e2e_journeys": [
         {
           "id": "tenant-request-object-scope-and-schema-drift-fail-closed",
@@ -180,11 +202,12 @@
           "level": "synthetic_runtime",
           "actor": "unauthorized tenant caller or runtime with incomplete chunk schema",
           "entrypoint": "Tenant request detail lookup, inbox list ranking, or governed response chunk persistence",
-          "terminal_outcome": "Unauthorized object access is rejected, latest-activity work remains bounded, and chunk persistence degradation is contained without exposing secrets.",
+          "terminal_outcome": "Unauthorized object access is rejected, latest-activity work remains bounded, authentication evidence remains explicit, and chunk persistence degradation is contained without exposing secrets.",
           "steps": [
             "Attempt to access a tenant request without an active membership.",
             "Attempt to decode a malformed pagination cursor.",
             "Discover latest-activity candidates from bounded set-wise sources.",
+            "Verify the central User JWT middleware remains statically resolvable by generated dispatch governance.",
             "Inspect a chunk table missing one runtime-required ownership column.",
             "Attempt to return a degraded response that exceeds the effective client budget.",
             "Return typed errors or bounded inline response without provider calls."
@@ -193,6 +216,7 @@
             "Unauthorized tenant access returns tenant_request_scope_violation.",
             "Malformed cursors return tenant_request_cursor_invalid.",
             "Candidate discovery is capped and exact ordering is restricted to candidate ticket IDs.",
+            "The tenant inbox route guard is resolved as user_jwt rather than unknown auth evidence.",
             "Missing chunk columns are listed explicitly with secrets_included=false.",
             "Budget overflow returns response_chunk_persistence_unavailable_inline_limit_exceeded with secrets_included=false.",
             "No external provider call, SQL apply, or destructive mutation occurs."
@@ -203,6 +227,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
               "args": []
             },
             {
@@ -221,9 +252,11 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/systemLayerRoutes.js",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
           ]
         }
