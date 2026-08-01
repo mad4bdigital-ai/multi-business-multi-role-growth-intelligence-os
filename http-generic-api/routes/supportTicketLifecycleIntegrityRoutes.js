@@ -1,40 +1,11 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import {
   createOrAppendSupportTicketWithIntegrity,
   listSupportTicketsWithIntegrity,
   reconcileSupportTicketIntegrity,
 } from "../supportTicketLifecycleIntegrityService.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
-  if (!payload?.user_id) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "user_jwt_required", message: "Sign in required." },
-      secrets_included: false,
-    });
-  }
-  req.auth = {
-    mode: "user_jwt",
-    user_id: payload.user_id,
-    tenant_id: payload.tenant_id || null,
-    is_admin: false,
-  };
-  return next();
-}
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 async function resolveTenantMembership({ userId, tenantId = null }) {
   const params = [userId];
@@ -108,6 +79,7 @@ function sendError(res, error, fallbackCode) {
 
 export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
   const router = Router();
+  const requireUserJwt = deps.requireUserJwt || createUserJwtMiddleware({ env: deps.env || process.env });
   const adminGuards = [deps.requireBackendApiKey, deps.requireAdminPrincipal].filter(Boolean);
 
   // Mounted before the legacy support router so new ticket creation always uses
