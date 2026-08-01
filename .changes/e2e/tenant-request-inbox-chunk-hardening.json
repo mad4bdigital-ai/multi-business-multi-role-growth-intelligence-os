@@ -15,6 +15,7 @@
       "http-generic-api/routes/supportTicketRoutes.js",
       "http-generic-api/supportTicketResolutionService.js",
       "http-generic-api/tenantRequestInboxService.js",
+      "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
       "http-generic-api/test-governed-tool-response-chunk-store.mjs",
       "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
@@ -70,6 +71,13 @@
               "args": []
             },
             {
+              "id": "governed-response-chunk-durable-recovery-smoke",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-response-chunk-durable-recovery-smoke.mjs",
+              "args": []
+            },
+            {
               "id": "gpt-tools-bounded-inline-chunk-fallback-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -80,6 +88,7 @@
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/tenant-requests.openapi.yaml",
+            "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-gpt-tools-response-chunking.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
