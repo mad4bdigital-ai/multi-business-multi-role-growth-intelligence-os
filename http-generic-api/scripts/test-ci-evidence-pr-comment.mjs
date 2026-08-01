@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   COMMENT_MARKER,
   assertCurrentPullRequestIdentity,
@@ -166,8 +167,23 @@ assert.equal(selectCurrentPullRequest({
   headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
 }).number, 42);
+assert.equal(selectCurrentPullRequest({
+  pullRequests: [openPr],
+  repository: REPOSITORY,
+  sourceHeadSha: HEAD
+}).number, 42);
+assert.equal(selectCurrentPullRequest({
+  pullRequests: [mergedPr],
+  repository: REPOSITORY,
+  sourceHeadSha: HEAD
+}).number, 43);
 assert.throws(() => selectCurrentPullRequest({
   pullRequests: [{ ...openPr, head: { ...openPr.head, sha: OTHER } }],
+  repository: REPOSITORY,
+  sourceHeadSha: HEAD
+}), /Unable to resolve an open or merged pull request/u);
+assert.throws(() => selectCurrentPullRequest({
+  pullRequests: [{ ...openPr, head: { ...openPr.head, ref: "gpt/other" } }],
   repository: REPOSITORY,
   headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
@@ -175,30 +191,28 @@ assert.throws(() => selectCurrentPullRequest({
 assert.throws(() => selectCurrentPullRequest({
   pullRequests: [closedUnmergedPr],
   repository: REPOSITORY,
-  headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
 }), /Unable to resolve an open or merged pull request/u);
 assert.throws(() => selectCurrentPullRequest({
   pullRequests: [openPr, { ...openPr, number: 45 }],
   repository: REPOSITORY,
-  headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
 }), /Ambiguous open pull request resolution/u);
 assert.throws(() => selectCurrentPullRequest({
   pullRequests: [mergedPr, { ...mergedPr, number: 46 }],
   repository: REPOSITORY,
-  headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
 }), /Ambiguous merged pull request resolution/u);
 
 assert.equal(assertCurrentPullRequestIdentity(openPr, e2e, HEAD_BRANCH), true);
-assert.equal(assertCurrentPullRequestIdentity(mergedPr, e2e, HEAD_BRANCH), true);
+assert.equal(assertCurrentPullRequestIdentity(openPr, e2e), true);
+assert.equal(assertCurrentPullRequestIdentity(mergedPr, e2e), true);
 assert.throws(
-  () => assertCurrentPullRequestIdentity(closedUnmergedPr, e2e, HEAD_BRANCH),
+  () => assertCurrentPullRequestIdentity(closedUnmergedPr, e2e),
   /closed pull request that was not merged/u
 );
 assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, sha: OTHER } }, e2e, HEAD_BRANCH),
+  () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, sha: OTHER } }, e2e),
   /stale PR head/u
 );
 assert.throws(
@@ -220,9 +234,18 @@ assert.doesNotMatch(sanitized, /<b>/u);
 assert.match(sanitized, /＠octocat/u);
 assert.match(sanitized, /&lt;b&gt;unsafe&lt;\/b&gt;/u);
 
+const publisherWorkflow = fs.readFileSync(
+  new URL("../../.github/workflows/ci-evidence-pr-publisher.yml", import.meta.url),
+  "utf8"
+);
+assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
+assert.match(publisherWorkflow, /^\s*pull-requests:\s*write\s*$/mu);
+assert.match(publisherWorkflow, /^\s*persist-credentials:\s*false\s*$/mu);
+assert.doesNotMatch(publisherWorkflow, /^\s*pull-requests:\s*read\s*$/mu);
+
 console.log(JSON.stringify({
   ok: true,
-  tests: 23,
-  gate: "ci_evidence_open_or_merged_pr_resolution_and_identity",
+  tests: 32,
+  gate: "ci_evidence_optional_head_branch_commit_pr_resolution_and_comment_permission",
   secrets_included: false
 }));

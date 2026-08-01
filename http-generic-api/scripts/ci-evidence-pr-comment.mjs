@@ -73,9 +73,6 @@ function parseArgs(argv) {
   }
   if (!options.repository || !/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/u.test(options.repository)) throw new Error("--repository must be owner/name.");
   if (options.prNumber !== null && (!Number.isInteger(options.prNumber) || options.prNumber < 1)) throw new Error("--pr-number must be positive when supplied.");
-  if (!options.prNumber && (!options.headBranch || !HEAD_BRANCH_PATTERN.test(options.headBranch))) {
-    throw new Error("--head-branch is required when --pr-number is absent.");
-  }
   if (options.headBranch && !HEAD_BRANCH_PATTERN.test(options.headBranch)) throw new Error("--head-branch is invalid.");
   if (!WORKFLOWS[options.workflow]) throw new Error("Unsupported workflow.");
   if (!WORKFLOW_CONCLUSIONS.has(options.workflowConclusion)) throw new Error("--workflow-conclusion must be a supported completed conclusion.");
@@ -143,12 +140,12 @@ function isMergedPullRequest(pullRequest) {
   return pullRequest?.merged === true || Boolean(pullRequest?.merged_at);
 }
 
-export function selectCurrentPullRequest({ pullRequests, repository, headBranch, sourceHeadSha }) {
+export function selectCurrentPullRequest({ pullRequests, repository, headBranch = null, sourceHeadSha }) {
   if (!Array.isArray(pullRequests)) throw new Error("Pull request search result must be an array.");
   const exact = pullRequests.filter((pullRequest) => (
     pullRequest?.head?.repo?.full_name === repository &&
-    pullRequest?.head?.ref === headBranch &&
-    pullRequest?.head?.sha === sourceHeadSha
+    pullRequest?.head?.sha === sourceHeadSha &&
+    (!headBranch || pullRequest?.head?.ref === headBranch)
   ));
   const openMatches = exact.filter((pullRequest) => pullRequest?.state === "open");
   if (openMatches.length === 1) return openMatches[0];
@@ -231,19 +228,36 @@ async function githubRequest(url, { token, method = "GET", body } = {}) {
   return response.status === 204 ? null : response.json();
 }
 
+function dedupePullRequests(pullRequests) {
+  const byNumber = new Map();
+  for (const pullRequest of pullRequests) {
+    if (Number.isInteger(pullRequest?.number)) byNumber.set(pullRequest.number, pullRequest);
+  }
+  return [...byNumber.values()];
+}
+
 async function resolvePullRequest(options, api) {
   if (options.prNumber) {
     return githubRequest(`${api}/pulls/${options.prNumber}`, { token: options.token });
   }
-  const owner = options.repository.split("/")[0];
-  const query = new URLSearchParams({
-    state: "all",
-    head: `${owner}:${options.headBranch}`,
-    per_page: "100"
-  });
-  const pullRequests = await githubRequest(`${api}/pulls?${query.toString()}`, { token: options.token });
+
+  const candidates = [];
+  if (options.headBranch) {
+    const owner = options.repository.split("/")[0];
+    const query = new URLSearchParams({
+      state: "all",
+      head: `${owner}:${options.headBranch}`,
+      per_page: "100"
+    });
+    const branchMatches = await githubRequest(`${api}/pulls?${query.toString()}`, { token: options.token });
+    candidates.push(...branchMatches);
+  }
+
+  const commitMatches = await githubRequest(`${api}/commits/${options.sourceHeadSha}/pulls?per_page=100`, { token: options.token });
+  candidates.push(...commitMatches);
+
   return selectCurrentPullRequest({
-    pullRequests,
+    pullRequests: dedupePullRequests(candidates),
     repository: options.repository,
     headBranch: options.headBranch,
     sourceHeadSha: options.sourceHeadSha

@@ -12,7 +12,7 @@ permissions:
   actions: read
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 concurrency:
   group: ci-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
@@ -22,8 +22,7 @@ jobs:
   publish:
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.head_sha != null &&
-      github.event.workflow_run.head_branch != null
+      github.event.workflow_run.head_sha != null
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted default branch
@@ -99,7 +98,6 @@ jobs:
           set -euo pipefail
           args=(
             --repository "${GITHUB_REPOSITORY}"
-            --head-branch "${HEAD_BRANCH}"
             --workflow "${WORKFLOW_NAME}"
             --workflow-conclusion "${WORKFLOW_CONCLUSION}"
             --report "${REPORT_PATH}"
@@ -108,5 +106,8 @@ jobs:
           )
           if [[ -n "${PR_NUMBER:-}" ]]; then
             args+=(--pr-number "${PR_NUMBER}")
+          fi
+          if [[ -n "${HEAD_BRANCH:-}" ]]; then
+            args+=(--head-branch "${HEAD_BRANCH}")
           fi
           node http-generic-api/scripts/ci-evidence-pr-comment.mjs "${args[@]}"
