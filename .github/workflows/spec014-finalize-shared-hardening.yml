@@ -1,0 +1,45 @@
+name: Finalize Spec 014 Shared hardening
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/shared-canary-hardening-final-20260801
+    paths:
+      - .github/workflows/spec014-finalize-shared-hardening.yml
+      - http-generic-api/scripts/finalize-spec014-shared-hardening.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/shared-canary-hardening-final-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Apply final Shared hardening corrections
+        run: node http-generic-api/scripts/finalize-spec014-shared-hardening.mjs
+      - name: Validate finalized candidate
+        run: |
+          node --check http-generic-api/hostingerStorageSharedCanary.js
+          node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
+          node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
+          node http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
+          node http-generic-api/test-hostinger-storage-shared-canary.mjs
+          node -e "JSON.parse(require('fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'utf8'))"
+      - name: Publish self-contained candidate
+        run: |
+          git rm \
+            .github/workflows/spec014-finalize-shared-hardening.yml \
+            http-generic-api/scripts/finalize-spec014-shared-hardening.mjs
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git add .
+          git commit -m 'fix(spec-014): finalize Shared provenance hardening evidence'
+          git push origin HEAD:refs/heads/gpt/014-hostinger/shared-canary-hardening-final-20260801
