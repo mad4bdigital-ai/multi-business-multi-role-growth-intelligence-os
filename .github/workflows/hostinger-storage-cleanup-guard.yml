@@ -1,0 +1,40 @@
+name: Hostinger Storage Cleanup Guard
+
+on:
+  pull_request:
+    paths:
+      - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
+      - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "docs/hostinger-storage-cleanup.md"
+      - ".github/workflows/hostinger-storage-cleanup-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
+      - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "docs/hostinger-storage-cleanup.md"
+      - ".github/workflows/hostinger-storage-cleanup-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safety-contract:
+    name: Validate conservative cleanup contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate shell syntax
+        run: bash -n http-generic-api/scripts/hostinger-storage-cleanup.sh
+
+      - name: Execute filesystem safety regression
+        run: node http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs
