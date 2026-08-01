@@ -52,7 +52,11 @@ export function resolveRemoteMcpAuthorizationIssuer(env = process.env) {
 }
 
 export function resolveRemoteMcpOAuthSigningSecret(env = process.env) {
-  return String(env.REMOTE_MCP_OAUTH_SIGNING_SECRET || "").trim();
+  const secret = String(env.REMOTE_MCP_OAUTH_SIGNING_SECRET || "").trim();
+  const platformJwtSecret = String(env.JWT_SECRET || "").trim();
+  if (secret.length < 32) return "";
+  if (platformJwtSecret && secret === platformJwtSecret) return "";
+  return secret;
 }
 
 export function remoteMcpOAuthEnabled(env = process.env) {
