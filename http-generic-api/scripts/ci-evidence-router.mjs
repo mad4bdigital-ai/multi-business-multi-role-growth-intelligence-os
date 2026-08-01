@@ -3,6 +3,16 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { SOURCE_CONTRACTS } from "./ci-evidence-source-stamp.mjs";
+
+const SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const CANDIDATE_KINDS = new Set(["head", "merge_candidate"]);
+const SOURCE_DEFINITIONS = Object.freeze({
+  "e2e-parallel-work-evaluation.json": Object.freeze({ contract: SOURCE_CONTRACTS["e2e-parallel-work-evaluation.json"], role: "evaluation", type: "parallel_evaluation" }),
+  "e2e-phase-evaluation.json": Object.freeze({ contract: SOURCE_CONTRACTS["e2e-phase-evaluation.json"], role: "evaluation", type: "phase_evaluation" }),
+  "e2e-parallel-execution.json": Object.freeze({ contract: SOURCE_CONTRACTS["e2e-parallel-execution.json"], role: "execution", type: "parallel_execution" }),
+  "e2e-phase-execution.json": Object.freeze({ contract: SOURCE_CONTRACTS["e2e-phase-execution.json"], role: "execution", type: "phase_execution" })
+});
 
 const DEFAULT_POLICY = Object.freeze({
   schema_version: 1,
@@ -26,7 +36,9 @@ function parseArgs(argv) {
     stepSummary: process.env.GITHUB_STEP_SUMMARY || null,
     workflow: process.env.GITHUB_WORKFLOW || null,
     runId: process.env.GITHUB_RUN_ID || null,
-    commitSha: process.env.GITHUB_SHA || null,
+    candidateKind: process.env.CI_CANDIDATE_KIND || null,
+    candidateSha: process.env.CI_CANDIDATE_SHA || null,
+    sourceHeadSha: process.env.CI_SOURCE_HEAD_SHA || null,
     headRef: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || null,
     baseRef: process.env.GITHUB_BASE_REF || null,
     evaluateResult: process.env.EVALUATE_JOB_RESULT || null,
@@ -34,41 +46,49 @@ function parseArgs(argv) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    const read = (name) => {
+    const read = () => {
       const value = argv[index + 1];
-      if (!value || value.startsWith("--")) throw new Error(`${name} requires a value.`);
+      if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
       index += 1;
       return value;
     };
-    if (arg === "--input-dir") options.inputDir = read(arg);
+    if (arg === "--input-dir") options.inputDir = read();
     else if (arg.startsWith("--input-dir=")) options.inputDir = arg.slice(12);
-    else if (arg === "--policy-file") options.policyFile = read(arg);
+    else if (arg === "--policy-file") options.policyFile = read();
     else if (arg.startsWith("--policy-file=")) options.policyFile = arg.slice(14);
-    else if (arg === "--json-output") options.jsonOutput = read(arg);
+    else if (arg === "--json-output") options.jsonOutput = read();
     else if (arg.startsWith("--json-output=")) options.jsonOutput = arg.slice(14);
-    else if (arg === "--markdown-output") options.markdownOutput = read(arg);
+    else if (arg === "--markdown-output") options.markdownOutput = read();
     else if (arg.startsWith("--markdown-output=")) options.markdownOutput = arg.slice(18);
-    else if (arg === "--step-summary") options.stepSummary = read(arg);
+    else if (arg === "--step-summary") options.stepSummary = read();
     else if (arg.startsWith("--step-summary=")) options.stepSummary = arg.slice(15);
-    else if (arg === "--workflow") options.workflow = read(arg);
+    else if (arg === "--workflow") options.workflow = read();
     else if (arg.startsWith("--workflow=")) options.workflow = arg.slice(11);
-    else if (arg === "--run-id") options.runId = read(arg);
+    else if (arg === "--run-id") options.runId = read();
     else if (arg.startsWith("--run-id=")) options.runId = arg.slice(9);
-    else if (arg === "--commit-sha") options.commitSha = read(arg);
-    else if (arg.startsWith("--commit-sha=")) options.commitSha = arg.slice(13);
-    else if (arg === "--head-ref") options.headRef = read(arg);
+    else if (arg === "--candidate-kind") options.candidateKind = read();
+    else if (arg.startsWith("--candidate-kind=")) options.candidateKind = arg.slice(17);
+    else if (arg === "--candidate-sha" || arg === "--commit-sha") options.candidateSha = read();
+    else if (arg.startsWith("--candidate-sha=")) options.candidateSha = arg.slice(16);
+    else if (arg.startsWith("--commit-sha=")) options.candidateSha = arg.slice(13);
+    else if (arg === "--source-head-sha") options.sourceHeadSha = read();
+    else if (arg.startsWith("--source-head-sha=")) options.sourceHeadSha = arg.slice(18);
+    else if (arg === "--head-ref") options.headRef = read();
     else if (arg.startsWith("--head-ref=")) options.headRef = arg.slice(11);
-    else if (arg === "--base-ref") options.baseRef = read(arg);
+    else if (arg === "--base-ref") options.baseRef = read();
     else if (arg.startsWith("--base-ref=")) options.baseRef = arg.slice(11);
-    else if (arg === "--evaluate-result") options.evaluateResult = read(arg);
+    else if (arg === "--evaluate-result") options.evaluateResult = read();
     else if (arg.startsWith("--evaluate-result=")) options.evaluateResult = arg.slice(18);
-    else if (arg === "--execute-result") options.executeResult = read(arg);
+    else if (arg === "--execute-result") options.executeResult = read();
     else if (arg.startsWith("--execute-result=")) options.executeResult = arg.slice(17);
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.inputDir) throw new Error("--input-dir is required.");
   if (!options.jsonOutput) throw new Error("--json-output is required.");
   if (!options.markdownOutput) throw new Error("--markdown-output is required.");
+  if (!CANDIDATE_KINDS.has(options.candidateKind)) throw new Error("--candidate-kind must be head or merge_candidate.");
+  if (!SHA_PATTERN.test(options.candidateSha || "")) throw new Error("--candidate-sha must be a full lowercase 40-character SHA.");
+  if (options.sourceHeadSha && !SHA_PATTERN.test(options.sourceHeadSha)) throw new Error("--source-head-sha must be a full lowercase 40-character SHA.");
   return options;
 }
 
@@ -98,47 +118,18 @@ function digest(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function reportType(file, report) {
-  const name = path.basename(file);
-  if (name === "e2e-parallel-work-evaluation.json" || report?.pr_mode) return "parallel_evaluation";
-  if (name === "e2e-phase-evaluation.json") return "phase_evaluation";
-  if (name === "e2e-parallel-execution.json" || report?.mode === "workstream" || report?.mode === "integration") return "parallel_execution";
-  if (name === "e2e-phase-execution.json") return "phase_execution";
-  return "other";
-}
-
 function collectReports(inputDir) {
   const reports = [];
   const malformed = [];
   for (const file of listJsonFiles(inputDir)) {
     const text = fs.readFileSync(file, "utf8");
     try {
-      const data = JSON.parse(text);
-      reports.push({ file, name: path.basename(file), type: reportType(file, data), digest: digest(text), data });
+      reports.push({ file, name: path.basename(file), digest: digest(text), data: JSON.parse(text) });
     } catch (error) {
       malformed.push({ name: path.basename(file), error: error.message || String(error) });
     }
   }
   return { reports, malformed };
-}
-
-function firstEvaluationFinding(reports) {
-  for (const report of reports.filter((row) => row.type.endsWith("evaluation"))) {
-    const findings = Array.isArray(report.data?.findings) ? report.data.findings : [];
-    if (findings.length) return { source: report.name, ...findings[0] };
-    if (report.data?.ok === false) return { source: report.name, code: "evaluation_report_failed_without_finding" };
-  }
-  return null;
-}
-
-function failedExecutionResults(reports) {
-  const failures = [];
-  for (const report of reports.filter((row) => row.type.endsWith("execution"))) {
-    const rows = Array.isArray(report.data?.results) ? report.data.results : [];
-    for (const result of rows) if (result?.status !== "passed") failures.push({ source: report.name, ...result });
-    if (!rows.length && report.data?.ok === false) failures.push({ source: report.name, status: "failed", error: "execution_report_failed_without_result" });
-  }
-  return failures;
 }
 
 function normalizedJobResult(value) {
@@ -154,34 +145,65 @@ function unique(values) {
   return [...new Set(values.filter((value) => value != null && value !== ""))];
 }
 
+function validateSource(report, context) {
+  const definition = SOURCE_DEFINITIONS[report.name];
+  const findings = [];
+  if (!definition) return [{ code: "unexpected_structured_report", file: report.name }];
+  if (report.data?.contract !== definition.contract) findings.push({ code: "source_report_contract_invalid", file: report.name, expected: definition.contract, actual: report.data?.contract ?? null });
+  if (typeof report.data?.ok !== "boolean") findings.push({ code: "source_report_ok_missing", file: report.name });
+  if (report.data?.secrets_included !== false) findings.push({ code: "source_report_no_secret_declaration_invalid", file: report.name, actual: report.data?.secrets_included ?? null });
+  if (!CANDIDATE_KINDS.has(report.data?.candidate_kind)) findings.push({ code: "source_report_candidate_kind_invalid", file: report.name, actual: report.data?.candidate_kind ?? null });
+  else if (report.data.candidate_kind !== context.candidateKind) findings.push({ code: "source_report_candidate_kind_mismatch", file: report.name, expected: context.candidateKind, actual: report.data.candidate_kind });
+  if (!SHA_PATTERN.test(report.data?.candidate_sha || "")) findings.push({ code: "source_report_candidate_sha_invalid", file: report.name, actual: report.data?.candidate_sha ?? null });
+  else if (report.data.candidate_sha !== context.candidateSha) findings.push({ code: "source_report_candidate_sha_mismatch", file: report.name, expected: context.candidateSha, actual: report.data.candidate_sha });
+  return findings;
+}
+
+function firstEvaluationFinding(reports) {
+  for (const report of reports.filter((row) => SOURCE_DEFINITIONS[row.name]?.role === "evaluation")) {
+    const findings = Array.isArray(report.data?.findings) ? report.data.findings : [];
+    if (findings.length) return { source: report.name, ...findings[0] };
+    if (report.data?.ok === false) return { source: report.name, code: "evaluation_report_failed_without_finding" };
+  }
+  return null;
+}
+
+function failedExecutionResults(reports) {
+  const failures = [];
+  for (const report of reports.filter((row) => SOURCE_DEFINITIONS[row.name]?.role === "execution")) {
+    const rows = Array.isArray(report.data?.results) ? report.data.results : [];
+    for (const result of rows) if (result?.status !== "passed") failures.push({ source: report.name, ...result });
+    if (!rows.length && report.data?.ok === false) failures.push({ source: report.name, status: "failed", error: "execution_report_failed_without_result" });
+  }
+  return failures;
+}
+
 export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, context = {} }) {
   const { reports, malformed } = collectReports(inputDir);
-  const recognized = reports.filter((row) => row.type !== "other");
-  const evaluationReports = recognized.filter((row) => row.type.endsWith("evaluation"));
-  const executionReports = recognized.filter((row) => row.type.endsWith("execution"));
-  const evaluationFinding = firstEvaluationFinding(recognized);
-  const executionFailures = failedExecutionResults(recognized);
   const evaluateJobResult = normalizedJobResult(context.evaluateResult);
   const executeJobResult = normalizedJobResult(context.executeResult);
-  const declaredCommitShas = unique(recognized.map((row) => row.data?.commit_sha || row.data?.commitSha));
   const integrityFindings = [];
 
-  if (!recognized.length) integrityFindings.push({ code: "canonical_source_reports_missing" });
+  if (!reports.length) integrityFindings.push({ code: "canonical_source_reports_missing" });
   for (const item of malformed) integrityFindings.push({ code: "malformed_structured_report", file: item.name, error: item.error });
-  if (recognized.some((row) => row.data?.secrets_included === true || row.data?.secretsIncluded === true)) integrityFindings.push({ code: "structured_report_declares_secrets" });
-  if (declaredCommitShas.length > 1) integrityFindings.push({ code: "source_report_commit_conflict", values: declaredCommitShas });
-  if (context.commitSha && declaredCommitShas.length === 1 && declaredCommitShas[0] !== context.commitSha) integrityFindings.push({ code: "source_report_head_mismatch", expected: context.commitSha, actual: declaredCommitShas[0] });
+  for (const report of reports) integrityFindings.push(...validateSource(report, context));
+
+  const recognized = reports.filter((report) => SOURCE_DEFINITIONS[report.name]);
+  const evaluationReports = recognized.filter((report) => SOURCE_DEFINITIONS[report.name].role === "evaluation");
+  const executionReports = recognized.filter((report) => SOURCE_DEFINITIONS[report.name].role === "execution");
   if (evaluateJobResult === "success" && !evaluationReports.length) integrityFindings.push({ code: "successful_evaluate_job_missing_report" });
   if (executeJobResult === "success" && !executionReports.length) integrityFindings.push({ code: "successful_execute_job_missing_report" });
 
+  const evaluationFinding = firstEvaluationFinding(recognized);
+  const executionFailures = failedExecutionResults(recognized);
   let outcome = "unknown";
   if (integrityFindings.length) outcome = "evidence_error";
-  else if (evaluateJobResult === "failure" || evaluationFinding || evaluationReports.some((row) => row.data?.ok === false)) outcome = "blocked";
-  else if (executeJobResult === "failure" || executionFailures.length || executionReports.some((row) => row.data?.ok === false)) outcome = "failed";
+  else if (evaluateJobResult === "failure" || evaluationFinding || evaluationReports.some((row) => row.data.ok === false)) outcome = "blocked";
+  else if (executeJobResult === "failure" || executionFailures.length || executionReports.some((row) => row.data.ok === false)) outcome = "failed";
   else if (evaluateJobResult === "success" && ["success", "skipped"].includes(executeJobResult)) outcome = "passed";
   else if (recognized.length) outcome = "incomplete";
 
-  const firstFailure = executionFailures[0] || evaluationFinding || integrityFindings[0] || null;
+  const firstFailure = integrityFindings[0] || executionFailures[0] || evaluationFinding || null;
   const logDiagnosisRequired = outcome === "evidence_error" || (Boolean(firstFailure) && !diagnosticAvailable(firstFailure));
   const featureKeys = unique(recognized.flatMap((row) => [row.data?.feature_key, ...(row.data?.contracts || []).map((item) => item?.feature_key)]));
 
@@ -200,7 +222,9 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
     identity: {
       workflow: context.workflow || null,
       run_id: context.runId || null,
-      commit_sha: context.commitSha || null,
+      candidate_kind: context.candidateKind,
+      candidate_sha: context.candidateSha,
+      source_head_sha: context.sourceHeadSha || (context.candidateKind === "head" ? context.candidateSha : null),
       head_ref: context.headRef || null,
       base_ref: context.baseRef || null
     },
@@ -215,10 +239,13 @@ export function buildCiEvidenceSummary({ inputDir, policy = DEFAULT_POLICY, cont
     integrity_findings: integrityFindings,
     source_reports: recognized.map((row) => ({
       name: row.name,
-      type: row.type,
+      contract: row.data.contract,
+      type: SOURCE_DEFINITIONS[row.name].type,
+      candidate_kind: row.data.candidate_kind,
+      candidate_sha: row.data.candidate_sha,
       sha256: row.digest,
-      ok: typeof row.data?.ok === "boolean" ? row.data.ok : null,
-      secrets_included: row.data?.secrets_included ?? row.data?.secretsIncluded ?? null
+      ok: row.data.ok,
+      secrets_included: row.data.secrets_included
     })),
     routing: {
       use_canonical_summary_first: true,
@@ -243,7 +270,9 @@ export function renderCiEvidenceMarkdown(summary) {
     `- Outcome: **${summary.outcome}**`,
     `- Workflow: \`${summary.identity.workflow || "unknown"}\``,
     `- Run: \`${summary.identity.run_id || "unknown"}\``,
-    `- Exact head: \`${summary.identity.commit_sha || "unknown"}\``,
+    `- Candidate kind: \`${summary.identity.candidate_kind}\``,
+    `- Exact candidate SHA: \`${summary.identity.candidate_sha}\``,
+    `- Source head SHA: \`${summary.identity.source_head_sha || "not-applicable"}\``,
     `- Head/Base: \`${summary.identity.head_ref || "unknown"}\` → \`${summary.identity.base_ref || "unknown"}\``,
     "- Evidence authority: **canonical summary → structured reports → job status**",
     `- Job logs: **${summary.routing.consult_job_logs ? "diagnostic access required" : "not required"}** (${summary.routing.job_logs_authority})`,
@@ -258,7 +287,7 @@ export function renderCiEvidenceMarkdown(summary) {
   ];
   if (summary.first_failure) {
     const failure = summary.first_failure;
-    lines.push("", "## First blocking evidence", "", `- Source: \`${failure.source || "summary-integrity"}\``);
+    lines.push("", "## First blocking evidence", "", `- Source: \`${failure.source || failure.file || "summary-integrity"}\``);
     if (failure.code) lines.push(`- Finding: \`${failure.code}\``);
     if (failure.test_id) lines.push(`- Test: \`${failure.test_id}\``);
     if (failure.status) lines.push(`- Status: \`${failure.status}\``);
@@ -270,9 +299,9 @@ export function renderCiEvidenceMarkdown(summary) {
     lines.push("", "## Evidence integrity findings", "");
     for (const finding of summary.integrity_findings) lines.push(`- \`${finding.code}\`${finding.file ? ` (${finding.file})` : ""}`);
   }
-  lines.push("", "## Structured source reports", "", "| Report | Type | OK | SHA-256 |", "|---|---|---:|---|");
-  if (!summary.source_reports.length) lines.push("| — | — | — | — |");
-  for (const report of summary.source_reports) lines.push(`| \`${report.name}\` | \`${report.type}\` | ${report.ok == null ? "—" : report.ok} | \`${report.sha256}\` |`);
+  lines.push("", "## Structured source reports", "", "| Report | Contract | Candidate | OK | SHA-256 |", "|---|---|---|---:|---|");
+  if (!summary.source_reports.length) lines.push("| — | — | — | — | — |");
+  for (const report of summary.source_reports) lines.push(`| \`${report.name}\` | \`${report.contract}\` | \`${report.candidate_kind}:${report.candidate_sha}\` | ${report.ok} | \`${report.sha256}\` |`);
   lines.push("", "## Routing rule", "");
   lines.push(summary.routing.consult_job_logs
     ? `Job logs may be opened only for \`${summary.routing.log_access_reason}\`. They remain diagnostic-only and cannot override a valid structured report.`
@@ -296,7 +325,9 @@ export function runCiEvidenceRouter(argv = process.argv.slice(2)) {
     context: {
       workflow: options.workflow,
       runId: options.runId,
-      commitSha: options.commitSha,
+      candidateKind: options.candidateKind,
+      candidateSha: options.candidateSha,
+      sourceHeadSha: options.sourceHeadSha,
       headRef: options.headRef,
       baseRef: options.baseRef,
       evaluateResult: options.evaluateResult,
@@ -307,7 +338,7 @@ export function runCiEvidenceRouter(argv = process.argv.slice(2)) {
   writeAtomic(options.jsonOutput, `${JSON.stringify(summary, null, 2)}\n`);
   writeAtomic(options.markdownOutput, markdown);
   if (options.stepSummary) fs.appendFileSync(options.stepSummary, markdown);
-  process.stdout.write(`${JSON.stringify({ contract: summary.contract, outcome: summary.outcome, consult_job_logs: summary.routing.consult_job_logs })}\n`);
+  process.stdout.write(`${JSON.stringify({ contract: summary.contract, outcome: summary.outcome, candidate_kind: summary.identity.candidate_kind, candidate_sha: summary.identity.candidate_sha, consult_job_logs: summary.routing.consult_job_logs })}\n`);
   return summary.outcome === "evidence_error" ? 2 : 0;
 }
 
