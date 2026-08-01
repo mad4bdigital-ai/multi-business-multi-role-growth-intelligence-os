@@ -6,6 +6,9 @@ import {
   readCachedToolResponseChunk,
 } from "./routes/gptToolsRoutes.js";
 import {
+  GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS,
+} from "./governedToolResponseChunkStore.js";
+import {
   GOVERNED_RESPONSE_CHUNK_DURABLE_RECOVERY_CONFIRMATION,
   buildGovernedResponseChunkUnicodeSmokePayload,
   runGovernedResponseChunkDurableRecoverySmoke,
@@ -16,6 +19,9 @@ function createFakePool() {
   return {
     rows,
     async query(sql, params = []) {
+      if (sql.includes("FROM information_schema.columns") && sql.includes("table_name = ?")) {
+        return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
+      }
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
         const [
           chunkId,
