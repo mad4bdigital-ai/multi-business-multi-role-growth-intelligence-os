@@ -3,10 +3,11 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 22,
+  "total_triaged_items": 23,
   "class_counts": {
     "new_surface_immediate_review": 4,
     "legacy_baseline_backlog": 17,
+    "safety_marker_review": 1,
     "standard_backlog_review": 1
   },
   "gate_candidate_count": 4,
@@ -476,6 +477,34 @@
       }
     },
     {
+      "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
+      "score": 719,
+      "queue_class": "critical_review",
+      "triage_class": "legacy_baseline_backlog",
+      "gate_scope": "legacy_baseline_candidate",
+      "gap_severity": "high",
+      "missing_docs": [],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [],
+      "remediation_action_keys": [
+        "verify_callable_handler_or_admin_preview",
+        "verify_tool_registry_binding"
+      ],
+      "owner_hints": [
+        "runtime-registry-review"
+      ],
+      "recommended_next_step": "confirm registry binding/readback evidence before promotion",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "197_sprint66_tenant_database_query_readonly_tool.sql",
       "score": 719,
       "queue_class": "critical_review",
@@ -532,34 +561,6 @@
       }
     },
     {
-      "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
-      "score": 718,
-      "queue_class": "critical_review",
-      "triage_class": "legacy_baseline_backlog",
-      "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "high",
-      "missing_docs": [],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "verify_callable_handler_or_admin_preview",
-        "verify_tool_registry_binding"
-      ],
-      "owner_hints": [
-        "runtime-registry-review"
-      ],
-      "recommended_next_step": "confirm registry binding/readback evidence before promotion",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "191_sprint66_tenant_credential_intake_connection_status.sql",
       "score": 717,
       "queue_class": "critical_review",
@@ -589,7 +590,7 @@
     },
     {
       "migration_file": "20260730_hostinger_production_resync_policy.sql",
-      "score": 546,
+      "score": 547,
       "queue_class": "high_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -616,6 +617,50 @@
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-policy-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+      "score": 358,
+      "queue_class": "medium_review",
+      "triage_class": "safety_marker_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "low",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "db-readback-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
