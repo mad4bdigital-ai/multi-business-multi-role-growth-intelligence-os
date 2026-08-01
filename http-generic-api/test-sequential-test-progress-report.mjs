@@ -125,6 +125,18 @@ try {
   assert.match(structuredRedacted, /"token"=\[REDACTED\]/u);
   assert.match(structuredRedacted, /'secret'=\[REDACTED\]/u);
 
+  const multilinePem = [
+    '{"private_key":"-----BEGIN RSA PRIVATE KEY-----',
+    "sensitive-private-key-body-line-one",
+    "sensitive-private-key-body-line-two",
+    '-----END RSA PRIVATE KEY-----"}',
+  ].join("\n");
+  const pemRedacted = redactDiagnosticOutput(multilinePem);
+  assert.doesNotMatch(pemRedacted, /sensitive-private-key-body/u);
+  assert.doesNotMatch(pemRedacted, /-----BEGIN RSA PRIVATE KEY-----/u);
+  assert.doesNotMatch(pemRedacted, /-----END RSA PRIVATE KEY-----/u);
+  assert.match(pemRedacted, /"private_key"=\[REDACTED\]/u);
+
   const bounded = buildDiagnosticStream("abcdef", 4);
   assert.deepEqual(bounded, {
     tail: "cdef",
