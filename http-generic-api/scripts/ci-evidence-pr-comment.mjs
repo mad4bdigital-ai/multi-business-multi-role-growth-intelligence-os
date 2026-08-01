@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 export const COMMENT_MARKER = "<!-- mad4b-ci-evidence-authority -->";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const HEAD_BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,255}$/u;
 const WORKFLOW_CONCLUSIONS = new Set([
   "success",
   "failure",
@@ -36,6 +37,7 @@ function parseArgs(argv) {
   const options = {
     repository: null,
     prNumber: null,
+    headBranch: null,
     workflow: null,
     workflowConclusion: null,
     reportFile: null,
@@ -55,6 +57,8 @@ function parseArgs(argv) {
     else if (arg.startsWith("--repository=")) options.repository = arg.slice(13);
     else if (arg === "--pr-number") options.prNumber = Number(take());
     else if (arg.startsWith("--pr-number=")) options.prNumber = Number(arg.slice(12));
+    else if (arg === "--head-branch") options.headBranch = take();
+    else if (arg.startsWith("--head-branch=")) options.headBranch = arg.slice(14);
     else if (arg === "--workflow") options.workflow = take();
     else if (arg.startsWith("--workflow=")) options.workflow = arg.slice(11);
     else if (arg === "--workflow-conclusion") options.workflowConclusion = take();
@@ -68,7 +72,8 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!options.repository || !/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/u.test(options.repository)) throw new Error("--repository must be owner/name.");
-  if (!Number.isInteger(options.prNumber) || options.prNumber < 1) throw new Error("--pr-number must be positive.");
+  if (options.prNumber !== null && (!Number.isInteger(options.prNumber) || options.prNumber < 1)) throw new Error("--pr-number must be positive when supplied.");
+  if (options.headBranch && !HEAD_BRANCH_PATTERN.test(options.headBranch)) throw new Error("--head-branch is invalid.");
   if (!WORKFLOWS[options.workflow]) throw new Error("Unsupported workflow.");
   if (!WORKFLOW_CONCLUSIONS.has(options.workflowConclusion)) throw new Error("--workflow-conclusion must be a supported completed conclusion.");
   if (!options.reportFile) throw new Error("--report is required.");
@@ -131,9 +136,39 @@ export function normalizeEvidence({ workflow, workflowConclusion, report, prNumb
   };
 }
 
-export function assertCurrentPullRequestIdentity(pullRequest, evidence) {
+function isMergedPullRequest(pullRequest) {
+  return pullRequest?.merged === true || Boolean(pullRequest?.merged_at);
+}
+
+export function selectCurrentPullRequest({ pullRequests, repository, headBranch = null, sourceHeadSha }) {
+  if (!Array.isArray(pullRequests)) throw new Error("Pull request search result must be an array.");
+  const exact = pullRequests.filter((pullRequest) => (
+    pullRequest?.head?.repo?.full_name === repository &&
+    pullRequest?.head?.sha === sourceHeadSha &&
+    (!headBranch || pullRequest?.head?.ref === headBranch)
+  ));
+  const openMatches = exact.filter((pullRequest) => pullRequest?.state === "open");
+  if (openMatches.length === 1) return openMatches[0];
+  if (openMatches.length > 1) {
+    throw new Error("Ambiguous open pull request resolution for the exact workflow_run head identity.");
+  }
+  const mergedMatches = exact.filter((pullRequest) => pullRequest?.state === "closed" && isMergedPullRequest(pullRequest));
+  if (mergedMatches.length === 1) return mergedMatches[0];
+  if (mergedMatches.length > 1) {
+    throw new Error("Ambiguous merged pull request resolution for the exact workflow_run head identity.");
+  }
+  throw new Error("Unable to resolve an open or merged pull request for the exact workflow_run head identity.");
+}
+
+export function assertCurrentPullRequestIdentity(pullRequest, evidence, expectedHeadBranch = null) {
+  if (pullRequest?.state !== "open" && !isMergedPullRequest(pullRequest)) {
+    throw new Error("Refusing to publish canonical evidence to a closed pull request that was not merged.");
+  }
   if (pullRequest?.head?.sha !== evidence.sourceHeadSha) {
     throw new Error("Refusing to publish canonical evidence for a stale PR head.");
+  }
+  if (expectedHeadBranch && pullRequest?.head?.ref !== expectedHeadBranch) {
+    throw new Error("Refusing to publish canonical evidence for a substituted PR head branch.");
   }
   if (evidence.candidateKind === "merge_candidate" && pullRequest?.merge_commit_sha !== evidence.candidateSha) {
     throw new Error("Refusing to publish diagnostic evidence for a stale or substituted merge candidate.");
@@ -193,22 +228,59 @@ async function githubRequest(url, { token, method = "GET", body } = {}) {
   return response.status === 204 ? null : response.json();
 }
 
+function dedupePullRequests(pullRequests) {
+  const byNumber = new Map();
+  for (const pullRequest of pullRequests) {
+    if (Number.isInteger(pullRequest?.number)) byNumber.set(pullRequest.number, pullRequest);
+  }
+  return [...byNumber.values()];
+}
+
+async function resolvePullRequest(options, api) {
+  if (options.prNumber) {
+    return githubRequest(`${api}/pulls/${options.prNumber}`, { token: options.token });
+  }
+
+  const candidates = [];
+  if (options.headBranch) {
+    const owner = options.repository.split("/")[0];
+    const query = new URLSearchParams({
+      state: "all",
+      head: `${owner}:${options.headBranch}`,
+      per_page: "100"
+    });
+    const branchMatches = await githubRequest(`${api}/pulls?${query.toString()}`, { token: options.token });
+    candidates.push(...branchMatches);
+  }
+
+  const commitMatches = await githubRequest(`${api}/commits/${options.sourceHeadSha}/pulls?per_page=100`, { token: options.token });
+  candidates.push(...commitMatches);
+
+  return selectCurrentPullRequest({
+    pullRequests: dedupePullRequests(candidates),
+    repository: options.repository,
+    headBranch: options.headBranch,
+    sourceHeadSha: options.sourceHeadSha
+  });
+}
+
 export async function publishEvidenceComment(options) {
-  const report = JSON.parse(fs.readFileSync(path.resolve(options.reportFile), "utf8"));
-  const evidence = normalizeEvidence({ ...options, report });
   const api = `https://api.github.com/repos/${options.repository}`;
-  const pullRequest = await githubRequest(`${api}/pulls/${options.prNumber}`, { token: options.token });
-  assertCurrentPullRequestIdentity(pullRequest, evidence);
-  const comments = await githubRequest(`${api}/issues/${options.prNumber}/comments?per_page=100`, { token: options.token });
+  const pullRequest = await resolvePullRequest(options, api);
+  const prNumber = pullRequest.number;
+  const report = JSON.parse(fs.readFileSync(path.resolve(options.reportFile), "utf8"));
+  const evidence = normalizeEvidence({ ...options, prNumber, report });
+  assertCurrentPullRequestIdentity(pullRequest, evidence, options.headBranch);
+  const comments = await githubRequest(`${api}/issues/${prNumber}/comments?per_page=100`, { token: options.token });
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(COMMENT_MARKER));
   const updated = upsertEvidenceComment(existing?.body || "", evidence);
-  if (!updated.changed) return { ok: true, action: "unchanged", reason: updated.reason, evidence };
+  if (!updated.changed) return { ok: true, action: "unchanged", reason: updated.reason, pr_number: prNumber, evidence };
   if (existing) {
     await githubRequest(`${api}/issues/comments/${existing.id}`, { token: options.token, method: "PATCH", body: { body: updated.body } });
-    return { ok: true, action: "updated", comment_id: existing.id, evidence };
+    return { ok: true, action: "updated", comment_id: existing.id, pr_number: prNumber, evidence };
   }
-  const created = await githubRequest(`${api}/issues/${options.prNumber}/comments`, { token: options.token, method: "POST", body: { body: updated.body } });
-  return { ok: true, action: "created", comment_id: created.id, evidence };
+  const created = await githubRequest(`${api}/issues/${prNumber}/comments`, { token: options.token, method: "POST", body: { body: updated.body } });
+  return { ok: true, action: "created", comment_id: created.id, pr_number: prNumber, evidence };
 }
 
 export async function runCiEvidencePrComment(argv = process.argv.slice(2)) {
