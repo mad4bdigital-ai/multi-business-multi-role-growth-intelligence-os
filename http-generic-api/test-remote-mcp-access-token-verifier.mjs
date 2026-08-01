@@ -3,32 +3,42 @@ import jwt from "jsonwebtoken";
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
 
 const env = {
-  JWT_SECRET: "remote-mcp-verifier-test-secret",
+  REMOTE_MCP_OAUTH_SIGNING_SECRET: "remote-mcp-verifier-test-secret",
   REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
   REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
 };
 
 function token(overrides = {}) {
+  const userId = overrides.user_id ?? "user-1";
+  const tenantId = Object.prototype.hasOwnProperty.call(overrides, "tenant_id")
+    ? overrides.tenant_id
+    : "workspace-1";
+  const clientId = overrides.client_id ?? "mcp_client_1";
+  const subject = overrides.sub ?? (tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`);
   return jwt.sign(
     {
-      iss: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
-      aud: env.REMOTE_MCP_RESOURCE_URL,
-      azp: "mcp_client_1",
-      client_id: "mcp_client_1",
+      azp: clientId,
+      client_id: clientId,
       resource: env.REMOTE_MCP_RESOURCE_URL,
-      sub: "tenant:workspace-1:user:user-1",
-      user_id: "user-1",
-      tenant_id: "workspace-1",
+      sub: subject,
+      user_id: userId,
+      tenant_id: tenantId,
       scope: "workspaces.read brands.read",
       purpose: "remote_mcp_access",
       ...overrides,
     },
-    env.JWT_SECRET,
-    { algorithm: "HS256", expiresIn: 3600, jwtid: overrides.jti || "access-jti-1" },
+    env.REMOTE_MCP_OAUTH_SIGNING_SECRET,
+    {
+      algorithm: "HS256",
+      issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
+      audience: env.REMOTE_MCP_RESOURCE_URL,
+      expiresIn: 3600,
+      jwtid: overrides.jti || "access-jti-1",
+    },
   );
 }
 
-function activePool({ active = true } = {}) {
+function activePool({ active = true, grant = {} } = {}) {
   return {
     async query(sql, params) {
       assert(String(sql).includes("FROM remote_mcp_oauth_grants"));
@@ -45,6 +55,7 @@ function activePool({ active = true } = {}) {
         status: "active",
         access_expires_at: new Date(Date.now() + 60000),
         refresh_expires_at: new Date(Date.now() + 3600000),
+        ...grant,
       }] : [], []];
     },
   };
@@ -58,8 +69,10 @@ function activePool({ active = true } = {}) {
   });
   assert.equal(result.ok, true);
   assert.equal(result.claims.user_id, "user-1");
+  assert.equal(result.claims.tenant_id, "workspace-1");
   assert.equal(result.claims.client_id, "mcp_client_1");
   assert.equal(result.claims.auth_mode, "remote_mcp_oauth_2_1");
+  assert.equal(result.grant.tenant_id, "workspace-1");
   assert.equal(result.grant.secrets_included, false);
 }
 
@@ -85,18 +98,52 @@ function activePool({ active = true } = {}) {
 }
 
 {
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ tenant_id: "workspace-2" })}`, {
+    env,
+    pool: activePool(),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_TOKEN_INVALID");
+}
+
+{
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ sub: "user:user-1" })}`, {
+    env,
+    pool: activePool(),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_TOKEN_INVALID");
+}
+
+{
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ azp: "other-client" })}`, {
+    env,
+    pool: activePool(),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "MCP_TOKEN_INVALID");
+}
+
+{
   const wrongAudience = jwt.sign(
     {
-      iss: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
-      aud: "https://other.example.test",
-      user_id: "user-1",
+      azp: "mcp_client_1",
       client_id: "mcp_client_1",
       resource: "https://other.example.test",
+      sub: "tenant:workspace-1:user:user-1",
+      user_id: "user-1",
+      tenant_id: "workspace-1",
       scope: "workspaces.read",
       purpose: "remote_mcp_access",
     },
-    env.JWT_SECRET,
-    { algorithm: "HS256", expiresIn: 3600, jwtid: "access-jti-1" },
+    env.REMOTE_MCP_OAUTH_SIGNING_SECRET,
+    {
+      algorithm: "HS256",
+      issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
+      audience: "https://other.example.test",
+      expiresIn: 3600,
+      jwtid: "access-jti-1",
+    },
   );
   const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${wrongAudience}`, {
     env,
@@ -105,6 +152,16 @@ function activePool({ active = true } = {}) {
   });
   assert.equal(result.ok, false);
   assert.equal(result.code, "MCP_TOKEN_INVALID");
+}
+
+{
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token()}`, {
+    env: { ...env, REMOTE_MCP_OAUTH_SIGNING_SECRET: "" },
+    pool: activePool(),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.equal(result.code, "MCP_AUTH_UNAVAILABLE");
 }
 
 {
