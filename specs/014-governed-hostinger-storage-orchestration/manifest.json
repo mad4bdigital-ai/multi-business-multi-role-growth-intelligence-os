@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "spec_key": "014-governed-hostinger-storage-orchestration",
+  "spec_version": "0.1.0",
+  "status": "implementation_in_progress",
+  "scope": "platform_and_tenant",
+  "created_at": "2026-08-01",
+  "owner": "platform-team",
+  "delivery_mode": "multi_pr",
+  "incident_baseline": {
+    "provider": "hostinger",
+    "symptom": "Hosting-plan storage exhaustion blocked File Manager and environment-variable updates.",
+    "provider_resolution": "Temporary storage-limit boost restored File Manager access.",
+    "permanent_need": "Governed byte/inode observability, prevention, planning, approval, cleanup, readback, and reconciliation."
+  },
+  "principal_coverage": [
+    "platform_admin",
+    "tenant_workspace_owner",
+    "tenant_operator",
+    "service_principal",
+    "delegated_support_operator"
+  ],
+  "ownership_scopes": [
+    "platform",
+    "tenant",
+    "shared"
+  ],
+  "invariants": [
+    "single_shared_orchestration_service",
+    "separate_admin_and_tenant_http_surfaces",
+    "explicit_context_selection",
+    "admin_authority_never_silently_borrows_tenant_authority",
+    "tenant_authority_never_crosses_owned_resource_boundary",
+    "filesystem_path_is_evidence_not_authority",
+    "hpanel_is_authoritative_for_plan_quota",
+    "ssh_inventory_measures_bytes_and_inodes",
+    "no_freeform_shell_or_arbitrary_root",
+    "immutable_plan_and_candidate_set_hash",
+    "ownership_and_policy_revision_binding",
+    "capability_envelope_and_execution_lease_for_mutation",
+    "workspace_approval_or_governed_delegation_for_tenant_mutation",
+    "unknown_outcome_reconcile_before_retry",
+    "same_operation_readback",
+    "no_secret_output",
+    "provider_dispatch_default_off"
+  ],
+  "artifacts": [
+    "README.md",
+    "manifest.json",
+    "spec.md",
+    "research.md",
+    "concerns.md",
+    "operation-paths.md",
+    "plan.md",
+    "data-model.md",
+    "threat-model.md",
+    "error-catalog.md",
+    "testing-strategy.md",
+    "rollout.md",
+    "quickstart.md",
+    "tasks.md",
+    "traceability.md",
+    "acceptance-matrix.md",
+    "work-map-integration.json",
+    "contracts/openapi.yaml",
+    "contracts/storage-operation.schema.json",
+    "contracts/storage-plan.schema.json",
+    "contracts/storage-evidence.schema.json",
+    "checklists/requirements.md",
+    "completion.json"
+  ],
+  "implementation_artifacts": [
+    "http-generic-api/config/hostinger-storage-cleanup-policy.json",
+    "http-generic-api/config/hostinger-storage-orchestration-policy.json",
+    "http-generic-api/hostingerStorageOrchestrationPolicy.js",
+    "http-generic-api/scripts/hostinger-storage-cleanup.sh",
+    "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs",
+    "http-generic-api/test-hostinger-storage-orchestration-policy.mjs",
+    ".github/workflows/hostinger-storage-cleanup-guard.yml"
+  ],
+  "public_api_boundary": {
+    "status": "contract_only",
+    "admin_surface": "planned",
+    "tenant_surface": "planned",
+    "provider_dispatch": false,
+    "runtime_authority": false
+  },
+  "migration_boundary": {
+    "schema_design": "specified",
+    "sql_files": "not_created",
+    "migration_apply": false,
+    "backfill": false
+  },
+  "deployment_boundary": {
+    "main_merge": false,
+    "production_promotion": false,
+    "hostinger_auto_deploy": false,
+    "live_ssh_execution": false
+  },
+  "secrets_included": false,
+  "production_mutation": false,
+  "provider_write": false,
+  "credential_read": false,
+  "protected_branch_write": false
+}
