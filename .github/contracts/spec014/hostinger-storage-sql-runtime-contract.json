@@ -51,14 +51,15 @@
     {
       "logical_key": "leases",
       "name": "storage_execution_leases",
-      "primary_key": ["target_id"],
+      "primary_key": ["id"],
       "record_key": "target_id",
-      "required_columns": ["target_id", "lease_id", "operation_id", "generation", "status", "expires_at_epoch", "record_digest", "record_json", "row_version"],
-      "required_unique_keys": [["target_id", "root_ref_digest", "active_slot"]],
+      "required_columns": ["id", "target_id", "lease_id", "operation_id", "generation", "status", "expires_at_epoch", "record_digest", "record_json", "row_version"],
+      "required_unique_keys": [["id"], ["target_id", "root_ref_digest", "active_slot"]],
       "mutable_columns": ["lease_id", "operation_id", "generation", "status", "expires_at_epoch", "record_digest", "record_json", "row_version"],
       "cas_column": "row_version",
       "semantic_cas_column": "generation",
-      "retention": "retain_released_expired_and_conflicted_lease_history"
+      "retention": "retain_released_expired_and_conflicted_lease_history",
+      "identity_binding": "id_equals_lease_id_and_target_id_remains_unique_cas_record_key"
     },
     {
       "logical_key": "journals",

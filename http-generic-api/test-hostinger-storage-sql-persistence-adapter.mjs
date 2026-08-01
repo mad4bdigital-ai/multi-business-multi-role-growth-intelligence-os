@@ -24,9 +24,11 @@ function recordKey(table, record) {
 
 function sqlRow(table, record, rowVersion) {
   return {
-    id: ['operations', 'plans', 'approvals', 'journals', 'reconciliations'].includes(table)
-      ? recordKey(table, record)
-      : undefined,
+    id: table === 'leases'
+      ? record.lease_id
+      : ['operations', 'plans', 'approvals', 'journals', 'reconciliations'].includes(table)
+        ? recordKey(table, record)
+        : undefined,
     target_id: table === 'leases' ? record.target_id : record.target_id,
     plan_id: table === 'approvals' ? record.plan_id : undefined,
     run_id: table === 'journals' ? record.run_id : undefined,
@@ -151,6 +153,7 @@ assert.equal((await repository.acquireLease({
   purpose: 'cleanup_apply', holder_ref: 'worker/session-1', expires_at_epoch: 1600,
   evidence_digest: h('7'), secrets_included: false,
 }, { expected_generation: 0, now_epoch: 1200 })).generation, 1);
+assert.equal(database.tables.leases.get(operation.target_id).id, 'sql-lease-1');
 
 for (const event of [
   { event_id: 'sql-event-1', sequence: 1, phase: 'prepared', result: 'prepared', evidence_digest: h('9') },

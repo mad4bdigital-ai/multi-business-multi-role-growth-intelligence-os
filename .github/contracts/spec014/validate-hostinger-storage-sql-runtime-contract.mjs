@@ -44,6 +44,15 @@ for (const table of runtime.tables) {
   assert.match(adapterSource, new RegExp(`['\"]${table.name}['\"]`));
 }
 
+const leaseTable = runtime.tables.find((entry) => entry.logical_key === 'leases');
+assert.deepEqual(leaseTable.primary_key, ['id']);
+assert.equal(leaseTable.record_key, 'target_id');
+assert.ok(leaseTable.required_columns.includes('lease_id'));
+assert.ok(leaseTable.required_unique_keys.some((key) => JSON.stringify(key) === JSON.stringify(['id'])));
+assert.equal(leaseTable.identity_binding, 'id_equals_lease_id_and_target_id_remains_unique_cas_record_key');
+assert.match(adapterSource, /INSERT INTO \${SAFE_TABLES\.leases} \(id, target_id, lease_id,/);
+assert.match(adapterSource, /SELECT id, target_id, record_digest, record_json, row_version FROM \${SAFE_TABLES\.leases}/);
+
 for (const token of [
   'GET_LOCK',
   'RELEASE_LOCK',
