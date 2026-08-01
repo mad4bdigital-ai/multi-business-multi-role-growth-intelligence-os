@@ -116,7 +116,7 @@
       "allowed_actions": ["backup_checkpoint", "snapshot_list", "repository_check", "restore_sample", "snapshot_diff"],
       "denied_actions": ["forget", "prune", "rewrite", "repair", "unlock"],
       "repository_backends": ["sftp", "s3", "rest", "rclone"],
-      "password_value_in_argv": false,
+      "sensitive_value_in_argv": false,
       "binary_digest_required": true,
       "mutates_target": false,
       "mutates_backup_repository": true
