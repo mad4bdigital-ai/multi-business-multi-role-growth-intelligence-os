@@ -198,5 +198,28 @@ assert(openapi.paths["/admin/tenant-requests"]);
 assert(openapi.paths["/tenants/{tenantId}/requests/{ticketId}"]);
 assert.equal(openapi.components.schemas.TenantRequestInboxPage.properties.items.maxItems, 100);
 assert.equal(openapi.components.schemas.TenantRequestItem.properties.secretsIncluded.const, false);
+assert.deepEqual(
+  openapi.paths["/admin/tenant-requests"].get.security,
+  [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }],
+  "admin tenant request list must declare the same auth alternatives enforced by runtime guards",
+);
+assert.deepEqual(
+  openapi.paths["/admin/tenant-requests/{ticketId}"].get.security,
+  [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }],
+  "admin tenant request detail must declare the same auth alternatives enforced by runtime guards",
+);
+assert.deepEqual(
+  openapi.paths["/tenants/{tenantId}/requests"].get.security,
+  [{ userJwtAuth: [] }],
+  "tenant request list must require a user JWT before membership scoping",
+);
+assert.deepEqual(
+  openapi.paths["/tenants/{tenantId}/requests/{ticketId}"].get.security,
+  [{ userJwtAuth: [] }],
+  "tenant request detail must require a user JWT before object-level tenant scoping",
+);
+for (const scheme of ["adminBearerAuth", "backendApiKeyAuth", "userJwtAuth"]) {
+  assert(openapi.components.securitySchemes[scheme], `missing OpenAPI security scheme ${scheme}`);
+}
 
 console.log("tenant request inbox and chunk hardening tests passed");
