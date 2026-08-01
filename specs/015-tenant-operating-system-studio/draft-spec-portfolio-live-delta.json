@@ -1,0 +1,54 @@
+{
+  "$schema": "contracts/draft-spec-portfolio-live-delta.schema.json",
+  "schema_version": 1,
+  "base_registry": "draft-spec-portfolio.json",
+  "base_observed_at": "2026-08-01T15:48:00Z",
+  "delta_observed_at": "2026-08-01T15:57:00Z",
+  "new_related_open_drafts": [
+    {
+      "pull_request": 4464,
+      "title": "Authenticate governed Hostinger Control Plane repositories",
+      "classification": "workstream_correction",
+      "parent_feature_key": "014-governed-hostinger-storage-orchestration",
+      "parent_pull_request": 4386,
+      "base_branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
+      "branch": "gpt/014-hostinger/repository-provenance-brand-20260801",
+      "observed_head_sha": "78c127f25a647a87e89c65f0b8e3cbf5d30d4653",
+      "state": "open",
+      "draft": true,
+      "portfolio_status": "pending_ci",
+      "changed_paths": [
+        ".github/workflows/hostinger-storage-control-plane-guard.yml",
+        "http-generic-api/hostingerStorageControlPlaneRepository.js",
+        "http-generic-api/hostingerStorageControlPlaneRepositoryBase.js",
+        "http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs",
+        "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json"
+      ],
+      "disposition": "Treat as a bounded provenance-hardening correction inside the Hostinger parallel workstream train; validate official factory and persistence branding, reject forged repository shapes, then integrate only into PR 4386 after exact-head CI.",
+      "safety_boundary": {
+        "production": false,
+        "provider_dispatch": false,
+        "network": false,
+        "credentials": false,
+        "migration": false,
+        "deployment": false
+      }
+    }
+  ],
+  "updated_delivery_trains": [
+    {
+      "train_key": "hostinger-storage-workstreams",
+      "parent_pr": 4386,
+      "added_pull_requests": [4464],
+      "current_relationship": "PR 4464 is a new repository-provenance correction based on the current Hostinger Integration branch and remains open pending exact-head validation."
+    }
+  ],
+  "current_counts": {
+    "primary_draft_specs": 12,
+    "base_related_open_drafts": 22,
+    "live_delta_related_open_drafts": 1,
+    "total_related_open_drafts": 23,
+    "total_open_drafts_classified": 35
+  },
+  "secrets_included": false
+}
