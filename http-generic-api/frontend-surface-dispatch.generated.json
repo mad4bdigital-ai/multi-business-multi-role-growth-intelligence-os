@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c3a14dbffa7be4b16e36a5d6fd354a49f405080dc827f59f28dbb1aafdc80ae4",
+    "source_digest": "e98807ffc5239b47cadfb2942af4b8220ccab2d7e1c4f1604519117f36799fb4",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -896,7 +896,7 @@
       },
       {
         "file": "routes/supportTicketLifecycleIntegrityRoutes.js",
-        "sha256": "f20555a6c35f331e88d466446b114ce36296f26e180067481ae038347b8ba299",
+        "sha256": "6ebc32879a3ab7485b67fed09076deb6e20545a43267c06cd2326899134d6349",
         "present": true
       },
       {
@@ -32728,7 +32728,7 @@
       "family_key": "support-ticket-lifecycle-integrity.admin",
       "label": "support ticket lifecycle integrity (admin)",
       "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
-      "source_digest": "f20555a6c35f331e88d466446b114ce36296f26e180067481ae038347b8ba299",
+      "source_digest": "6ebc32879a3ab7485b67fed09076deb6e20545a43267c06cd2326899134d6349",
       "mount_prefix": "/",
       "mount_order": 16847,
       "split_from_mixed_scope_file": true,
@@ -33008,7 +33008,7 @@
       "family_key": "support-ticket-lifecycle-integrity.tenant",
       "label": "support ticket lifecycle integrity (tenant)",
       "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
-      "source_digest": "f20555a6c35f331e88d466446b114ce36296f26e180067481ae038347b8ba299",
+      "source_digest": "6ebc32879a3ab7485b67fed09076deb6e20545a43267c06cd2326899134d6349",
       "mount_prefix": "/",
       "mount_order": 16847,
       "split_from_mixed_scope_file": true,
