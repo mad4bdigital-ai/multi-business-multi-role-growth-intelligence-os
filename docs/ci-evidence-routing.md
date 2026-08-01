@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Repository automation must provide one bounded, machine-readable and human-readable report for each governed workflow run. Agents and reviewers must not reconstruct pass/fail state by manually scanning multiple GitHub Actions job logs when a canonical report exists.
+Repository automation must provide one bounded, machine-readable and human-readable report for each governed workflow run. Agents and reviewers must not reconstruct pass/fail state by manually scanning multiple GitHub Actions Job logs when a canonical report exists.
 
 The machine policy is `.github/ci-evidence-routing.json`.
 
@@ -12,72 +12,100 @@ Use evidence in this order:
 
 1. Canonical summary artifact for the exact workflow run and exact candidate SHA.
 2. Structured JSON source reports referenced by that summary.
-3. Workflow and job status only as transport/completion signals.
+3. Workflow and Job status only as transport and completion signals.
 4. Job logs as diagnostic-only evidence.
 
-A valid canonical report is the source of truth for classification, first failure, blocking finding, executed tests, and whether deeper log diagnosis is required. Job logs may never override a valid structured report.
+A valid canonical report is the status authority. Job logs may never override it.
 
 ## Candidate identity
 
-Every report must label which candidate it tested:
+Every report must label the tested candidate:
 
-- `head`: the PR branch head itself. E2E Phase Governance and Context Kernel Hardcoding Report use this kind.
-- `merge_candidate`: GitHub's synthetic `refs/pull/<number>/merge` commit. Branch Test Diagnostic Shards use this kind to prove compatibility with the current base.
+- `head`: the PR branch head itself. E2E Phase Governance and Context Kernel Hardcoding Report explicitly checkout this SHA.
+- `merge_candidate`: GitHub's synthetic `refs/pull/<number>/merge` commit. Branch Test Diagnostic Shards use it to prove compatibility with the current base.
 
-A merge-candidate SHA is valid evidence, but it must never be described as the head SHA. Evidence from the two candidate kinds may complement one another, but their SHAs, run IDs, artifacts, and conclusions must remain explicitly separated.
+A merge-candidate SHA must never be described as the PR head. The two evidence kinds may complement one another, but their SHA, run ID, artifact, and conclusion must remain separate.
 
-## When job logs may be opened
+## Fail-closed source contract
 
-Logs are allowed only when the canonical summary explicitly requests diagnostic access or when one of these fail-closed conditions exists:
+Every E2E source JSON is stamped before upload and must declare:
+
+- a recognized filename and exact source contract;
+- boolean `ok`;
+- `candidate_kind`;
+- a full 40-character `candidate_sha` equal to the executed candidate;
+- `secrets_included: false`.
+
+The canonical router rejects missing, malformed, unexpected, conflicting, or mismatched reports. A successful Job without its expected structured report is an evidence-integrity error, not a pass.
+
+The E2E source contracts are:
+
+- `mad4b.e2e-parallel-work-evaluation.v1`;
+- `mad4b.e2e-phase-evaluation.v1`;
+- `mad4b.e2e-parallel-execution.v1`;
+- `mad4b.e2e-phase-execution.v1`.
+
+Context Kernel scanner evidence uses `mad4b.context-kernel-hardcoding-source.v1`.
+
+## When Job logs may be opened
+
+Logs are allowed only when the canonical summary explicitly requests diagnostic access or one of these fail-closed conditions exists:
 
 - canonical summary is missing or malformed;
 - structured source report integrity fails;
 - the report declares that its bounded diagnostic is insufficient for root cause;
-- a workflow crashed before it could publish structured evidence.
+- a workflow crashes before publishing structured evidence.
 
-A failing test with a bounded, redacted diagnostic in the report does not require manual log reading.
+A failure with a bounded redacted diagnostic in the report does not require manual log reading.
 
-## Exact-candidate rule
+## Exact-candidate reporting rule
 
-Never mix reports, statuses, artifacts, or logs from different candidate SHAs or workflow runs. Every final statement must identify:
+Every final statement must identify:
 
-- workflow name;
-- run ID;
-- candidate kind;
-- exact candidate SHA;
+- workflow name and run ID;
+- candidate kind and exact candidate SHA;
+- source head SHA when different;
 - head and base refs;
 - canonical report contract;
 - first blocking finding or failed test;
 - whether log access was required and why.
 
-A report whose declared SHA conflicts with its workflow candidate is an evidence-integrity failure and must fail closed.
+Never combine evidence from different candidates into one unlabeled status.
 
 ## E2E Phase Governance
 
-`E2E Phase Governance` publishes:
+`E2E Phase Governance` explicitly checks out the declared candidate and publishes:
 
-- raw evaluation artifact: `e2e-phase-evaluation-<run_id>`;
-- raw execution artifact: `e2e-phase-execution-<run_id>`;
-- canonical summary artifact: `e2e-phase-summary-<run_id>`;
+- `e2e-phase-evaluation-<run_id>`;
+- `e2e-phase-execution-<run_id>`;
+- `e2e-phase-summary-<run_id>`;
 - GitHub Step Summary generated from `mad4b.ci-evidence-summary.v1`.
 
-For workstream failures, `e2e-parallel-test-runner.mjs` captures bounded redacted stdout/stderr tails inside `e2e-parallel-execution.json`. This is the primary failure diagnostic. Raw Job logs remain secondary.
+For workstream failures, `e2e-parallel-test-runner.mjs` places bounded redacted stdout and stderr tails inside `e2e-parallel-execution.json`. Raw Job logs remain secondary.
 
 ## Branch Test Diagnostic Shards
 
-`Branch Test Diagnostic Shards` publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. Use that summary before shard or sequential logs. It is merge-candidate evidence, and the `ref` and `commitSha` fields identify the exact synthetic commit tested. Exact rerun coordinates from the report should be used for isolation instead of manually reading every shard.
+`Branch Test Diagnostic Shards` publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. It is merge-candidate evidence; `ref` and `commitSha` identify the synthetic commit tested. Use its exact rerun coordinates rather than reading every shard log.
 
 ## Context Kernel Hardcoding Report
 
-`Context Kernel Hardcoding Report` scans the exact changed-file scope for the candidate head and publishes:
+`Context Kernel Hardcoding Report` explicitly checks out the PR head, scans its exact changed-file scope, and publishes:
 
-- structured scanner source: `context-kernel-hardcoding-source.json`;
-- canonical decision: `mad4b.context-kernel-hardcoding-summary.v1`;
-- artifact: `context-kernel-hardcoding-summary-<run_id>`;
-- GitHub Step Summary containing the first runtime finding, path, line, bounded evidence, and remediation.
+- `context-kernel-hardcoding-source.json` with `mad4b.context-kernel-hardcoding-source.v1`;
+- canonical decision `mad4b.context-kernel-hardcoding-summary.v1`;
+- artifact `context-kernel-hardcoding-summary-<run_id>`;
+- Step Summary containing the first rule, path, line, bounded evidence, and remediation.
 
-The canonical report is uploaded before enforcement. Therefore a blocked guard remains diagnosable without reading the failed Job log. The aggregate full-repository baseline is not a substitute for the exact changed-file report and must not be used to attribute a PR failure.
+The canonical report is uploaded before enforcement, so a blocked guard remains diagnosable without opening its Job log.
+
+## PR-visible evidence
+
+`CI Evidence PR Publisher` is a trusted `workflow_run` workflow. It checks out `main`, downloads the exact completed-run canonical artifact, validates it against the workflow-run head, and maintains one comment marked with:
+
+`<!-- mad4b-ci-evidence-authority -->`
+
+Each workflow owns one section. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows have read-only permissions and do not receive comment-writing authority.
 
 ## Agent response rule
 
-When reporting CI state, state the canonical report result first. Separate report-derived facts from any later log-derived root-cause detail. Never describe a Job log snippet as the workflow result, never call a merge candidate the head SHA, and never cite an older successful run as evidence for a newer candidate.
+State the canonical report result first. Clearly separate report-derived facts from any later log-derived root-cause detail. Never present a log snippet as the workflow result, never call a merge candidate the head SHA, and never cite an older run as evidence for a newer candidate.
