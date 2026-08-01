@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This runbook covers supervisor runtime readiness, behavioral certification, post-closure monitoring, automated repository alerts, and Docs Agent controls.
+This runbook covers supervisor runtime readiness, behavioral certification, post-closure monitoring, automated repository alerts, and generated-documentation controls.
 
 ## Safety contract
 
@@ -11,6 +11,8 @@ This runbook covers supervisor runtime readiness, behavioral certification, post
 - Provider calls, credential payload reads, deploys, publishes, spend, and external runtime writes are forbidden.
 - Live readiness and rollback certification run only through governed Admin tools.
 - A resolved operational alert may be reopened only with fresh evidence.
+- Generated Work Maps have one remote branch writer: `.github/workflows/spec-kit-work-map-autofix.yml`.
+- Docs Agent and the Work Map Integration Gate may generate local previews or repair artifacts, but they must not commit or push Work Maps.
 
 ## Automated assurance
 
@@ -26,17 +28,40 @@ It runs:
 
 Scheduled or manually dispatched failures open or update a GitHub issue labeled `supervisor-runtime-assurance`. A later successful run comments on and closes the open issue.
 
-## Docs Agent controls
+## Generated documentation controls
 
-PR branch mutation is opt-in.
+### Docs Agent
 
-- `skip-docs-agent`: skip the PR Docs Agent job completely.
-- Branch prefix `gpt/no-docs-agent/`: skip the PR Docs Agent job completely.
-- No label: generate and upload a preview artifact only; do not push to the PR branch.
-- `docs-agent-write`: commit generated documentation to the PR branch.
-- `docs-agent-automerge`: commit generated documentation and request auto-merge.
+Docs Agent is preview-only for pull requests.
 
-The main-branch follow-up documentation workflow remains unchanged.
+- `skip-docs-agent`: skip the pull-request Docs Agent preview.
+- Branch prefix `gpt/no-docs-agent/`: skip the pull-request Docs Agent preview.
+- Otherwise, Docs Agent generates and uploads a review artifact containing `docs/auto-docs-agent/**` and `docs/work-maps/**` previews.
+- Docs Agent does not commit, push, merge, or authorize Work Map branch mutation.
+- After a merge to `main`, Docs Agent may open a reviewed follow-up PR limited to `docs/auto-docs-agent/**`. It does not auto-merge that PR.
+
+### Governed Work Map mutation
+
+The sole remote writer is `Spec Kit Work Map Autofix`.
+
+A write may start only through one of these exact-head paths:
+
+1. `workflow_dispatch` with an existing same-repository pull-request branch and its full current `expected_head_sha`.
+2. A one-time reopened pull request whose body temporarily contains `<!-- work-map-autofix:authorized -->`.
+
+The writer must:
+
+- reject `main` as a target branch;
+- verify local and remote heads equal the authorized SHA before generation and again before push;
+- consume one-time authorization before branch mutation;
+- generate twice and prove idempotency;
+- reject changes outside `docs/work-maps/**`;
+- avoid force push and protected-branch bypass;
+- verify the remote pushed SHA;
+- dispatch CI and the Work Map Integration Gate after a successful commit;
+- publish a bounded diagnostic artifact and sticky pull-request report.
+
+The Work Map Integration Gate remains read-only. When maps are stale, it produces an exact-head repair candidate artifact, records the tested SHA and source hash, and then fails closed. That artifact is evidence for the governed writer; it is not itself a branch mutation.
 
 ## Governed live readiness
 
@@ -115,4 +140,5 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Dry-run failure: inspect the certification contract before any live attempt.
 - Apply authorization failure: inspect capability registration, policy matching, expiry, and blocking gaps; never bypass the policy.
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
-- Docs Agent branch mutation without an opt-in label: treat as a workflow regression and block merge.
+- Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
+- Work Map Autofix without an exact authorized head, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.

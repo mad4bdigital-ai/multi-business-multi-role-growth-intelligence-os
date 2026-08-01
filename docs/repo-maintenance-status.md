@@ -89,6 +89,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
+- `.github/workflows/spec-kit-work-map-autofix.yml`
+- `.github/workflows/spec-kit-work-map-integration.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
@@ -172,6 +174,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
+- `http-generic-api/test-work-map-schema-classification-contract.mjs`
+- `http-generic-api/test-work-map-schema-classification.mjs`
 
 ## Maintenance Contract
 

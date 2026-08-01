@@ -9,8 +9,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   pr-impact-note:
-    name: PR docs impact note
+    name: PR docs impact preview
     if: >-
       github.event_name == 'pull_request' &&
       !startsWith(github.event.pull_request.head.ref, 'gpt/no-docs-agent/') &&
@@ -31,65 +31,82 @@ jobs:
         with:
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          # Pull-request workflows are defined by the protected base branch. Validate
+          # the proposed merge tree so newly introduced base-owned scripts cannot be
+          # missing merely because the feature branch predates them.
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate proposed merge checkout
+        shell: bash
+        env:
+          EXPECTED_EVENT_SHA: ${{ github.sha }}
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          tested_sha="$(git rev-parse HEAD)"
+          if [[ "${tested_sha}" != "${EXPECTED_EVENT_SHA}" ]]; then
+            echo "Docs Agent checkout mismatch: tested ${tested_sha}, expected event merge ${EXPECTED_EVENT_SHA}."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" "${tested_sha}"; then
+            echo "Docs Agent proposed merge does not contain expected base ${EXPECTED_BASE_SHA}."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${EXPECTED_HEAD_SHA}" "${tested_sha}"; then
+            echo "Docs Agent proposed merge does not contain expected PR head ${EXPECTED_HEAD_SHA}."
+            exit 1
+          fi
+          echo "Docs Agent validated proposed merge ${tested_sha} for base ${EXPECTED_BASE_SHA} and head ${EXPECTED_HEAD_SHA}."
 
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
 
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
       - name: Generate docs impact note
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
 
-      - name: Generate dynamic text work maps
+      - name: Generate dynamic text Work Map preview
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+      - name: Refuse preview mutations outside generated documentation
+        shell: bash
+        run: |
+          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/auto-docs-agent/|docs/work-maps/)' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Docs Agent preview modified files outside generated documentation:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
 
       - name: Upload generated documentation preview
         uses: actions/upload-artifact@v4
         with:
-          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}
+          name: docs-agent-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           path: |
             docs/auto-docs-agent
             docs/work-maps
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 7
 
-      - name: Report non-mutating default
-        if: >-
-          !contains(github.event.pull_request.labels.*.name, 'docs-agent-write') &&
-          !contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        run: echo "Docs Agent generated a preview artifact only. Add the docs-agent-write label to commit generated documentation to the PR branch."
-
-      - name: Commit generated documentation to PR branch
-        if: >-
-          contains(github.event.pull_request.labels.*.name, 'docs-agent-write') ||
-          contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        run: |
-          set -e
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
-            echo "Docs Agent: no generated docs or work-map changes to commit."
-            exit 0
-          fi
-          git config user.name "docs-agent[bot]"
-          git config user.email "docs-agent[bot]@users.noreply.github.com"
-          git add docs/auto-docs-agent docs/work-maps
-          git commit -m "Docs agent: update generated documentation"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
-
-      - name: Enable auto-merge when explicitly labeled
-        if: contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge ${{ github.event.pull_request.number }} --auto --squash || true
+      - name: Report preview-only PR mode
+        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Use the governed Spec Kit Work Map Autofix workflow for branch mutation."
 
   main-followup-pr:
-    name: Main follow-up docs PR
+    name: Main follow-up impact-note PR
     if: >-
       github.event_name == 'push' &&
       github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -101,35 +118,41 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
       - name: Generate docs impact note for merged commit
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
 
-      - name: Generate dynamic text work maps
-        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
-
-      - name: Create docs-only follow-up PR and enable auto-merge
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCS_AGENT_BRANCH: docs-agent/${{ github.event.after }}
-          DOCS_AGENT_SHA: ${{ github.event.after }}
+      - name: Refuse follow-up mutations outside impact notes
+        shell: bash
         run: |
-          set -e
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
-            echo "Docs Agent: no generated docs or work-map changes to publish."
-            exit 0
+          unexpected_files="$(git diff --name-only | grep -Ev '^docs/auto-docs-agent/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Docs Agent follow-up modified files outside docs/auto-docs-agent:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
           fi
-          git config user.name "docs-agent[bot]"
-          git config user.email "docs-agent[bot]@users.noreply.github.com"
-          git checkout -b "$DOCS_AGENT_BRANCH"
-          git add docs/auto-docs-agent docs/work-maps
-          git commit -m "Docs agent: generated documentation for ${DOCS_AGENT_SHA:0:12}"
-          git push origin "$DOCS_AGENT_BRANCH"
-          PR_URL=$(gh pr create \
-            --base main \
-            --head "$DOCS_AGENT_BRANCH" \
-            --title "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}" \
-            --body "Automated docs-only impact note for merged commit ${DOCS_AGENT_SHA}. This PR contains no runtime code, schema, DB, or credential changes.")
-          echo "Created $PR_URL"
-          gh workflow run ci.yml --ref "$DOCS_AGENT_BRANCH" || true
-          gh pr merge "$PR_URL" --auto --squash || true
+
+      - name: Create reviewed impact-note follow-up PR
+        id: create_followup
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: docs-agent/${{ github.event.after }}
+          delete-branch: true
+          title: "Docs agent: impact note for ${{ github.event.after }}"
+          commit-message: "docs(agent): record impact for ${{ github.event.after }}"
+          add-paths: |
+            docs/auto-docs-agent/**
+          labels: |
+            docs
+            automated
+          body: |
+            Automated impact-note follow-up for merged commit `${{ github.event.after }}`.
+
+            Scope is restricted to `docs/auto-docs-agent/**`.
+            Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
+            Review is required; this workflow does not auto-merge the follow-up PR.

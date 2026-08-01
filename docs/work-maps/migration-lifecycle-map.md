@@ -59,35 +59,35 @@ flowchart TD
 
 ## Discovered object inventory
 
-| Object | Type | Domain | Source migrations | Columns | References |
-|---|---|---|---:|---:|---|
-| `checkpoint_auto_rollups` | table | Migration & lifecycle | 1 | 9 | - |
-| `data_migration_inventory` | table | Migration & lifecycle | 1 | 11 | - |
-| `database_lifecycle_report_snapshot_scheduler_bindings` | table | Migration & lifecycle | 1 | - | - |
-| `database_lifecycle_report_snapshot_schedules` | table | Migration & lifecycle | 1 | - | - |
-| `database_lifecycle_report_snapshots` | table | Migration & lifecycle | 1 | - | - |
-| `database_lifecycle_scheduler_approval_events` | table | Migration & lifecycle | 1 | - | - |
-| `database_table_lifecycle_registry` | table | Migration & lifecycle | 1 | - | - |
-| `governed_migration_authorization_registry` | table | Migration & lifecycle | 1 | - | - |
-| `governed_migration_ledger` | table | Migration & lifecycle | 2 | 16 | - |
-| `local_connector_recovery_events` | table | Migration & lifecycle | 1 | 15 | `tenants`, `users` |
-| `local_connector_recovery_plans` | table | Migration & lifecycle | 1 | - | - |
-| `local_project_path_repair_runs` | table | Migration & lifecycle | 1 | 21 | `local_project_path_registry`, `tenants`, `users` |
-| `platform_recovery_failure_taxonomy` | table | Migration & lifecycle | 1 | - | - |
-| `validation_repair` | table | Migration & lifecycle | 2 | 14 | - |
-| `connected_execution_latest_checkpoint` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_backup_snapshot_review` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_growth_hotspots` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_high_risk_review` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_owner_coverage` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_placeholder_review` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_report_snapshot_summary` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_scheduler_binding_readiness` | view | Migration & lifecycle | 1 | - | - |
-| `v_database_lifecycle_status_summary` | view | Migration & lifecycle | 1 | - | - |
-| `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | 1 | - | - |
-| `v_migration_status_compact` | view | Migration & lifecycle | 2 | - | - |
+| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |
+|---|---|---|---|---|---:|---:|---|
+| `checkpoint_auto_rollups` | table | Migration & lifecycle | generated_domain_rule | - | 1 | 9 | - |
+| `data_migration_inventory` | table | Migration & lifecycle | generated_domain_rule | - | 1 | 11 | - |
+| `database_lifecycle_report_snapshot_scheduler_bindings` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `database_lifecycle_report_snapshot_schedules` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `database_lifecycle_report_snapshots` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `database_lifecycle_scheduler_approval_events` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `database_table_lifecycle_registry` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `governed_migration_authorization_registry` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `governed_migration_ledger` | table | Migration & lifecycle | generated_domain_rule | - | 2 | 16 | - |
+| `local_connector_recovery_events` | table | Migration & lifecycle | generated_domain_rule | - | 1 | 15 | `tenants`, `users` |
+| `local_connector_recovery_plans` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `local_project_path_repair_runs` | table | Migration & lifecycle | generated_domain_rule | - | 1 | 21 | `local_project_path_registry`, `tenants`, `users` |
+| `platform_recovery_failure_taxonomy` | table | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `validation_repair` | table | Migration & lifecycle | generated_domain_rule | - | 2 | 14 | - |
+| `connected_execution_latest_checkpoint` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_backup_snapshot_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_credential_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_growth_hotspots` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_high_risk_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_owner_coverage` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_placeholder_review` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_report_snapshot_schedule_readiness` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_report_snapshot_summary` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_scheduler_binding_readiness` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_database_lifecycle_status_summary` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_hostinger_recovery_option_readiness` | view | Migration & lifecycle | generated_domain_rule | - | 1 | - | - |
+| `v_migration_status_compact` | view | Migration & lifecycle | generated_domain_rule | - | 2 | - | - |
 
 ## Coverage counters
 
