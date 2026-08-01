@@ -1,172 +1,255 @@
 # Hostinger SSH Storage Cleanup
 
-## Purpose
+## Objective
 
-Prevent Hostinger storage exhaustion from breaking File Manager, environment-variable updates, builds, and runtime operations.
+Prevent disk or inode exhaustion from breaking Hostinger File Manager, environment-variable updates, builds, and the running Node.js application.
 
-This tool is intentionally conservative. It separates inspection, planning, and deletion into three distinct phases:
+The tool is deliberately split into independent operations:
 
 ```text
-scan -> plan -> human review -> typed confirmation -> apply -> readback
+scan -> plan -> inspect -> approval -> apply -> readback
 ```
 
-`scan` and `plan` never delete application data. `apply` can only delete files recorded in an unexpired, integrity-checked plan.
+`scan`, `plan`, and `inspect` do not delete application data. `apply` can delete only the exact immutable plan that was inspected and approved.
+
+The machine-readable policy is:
+
+```text
+http-generic-api/config/hostinger-storage-cleanup-policy.json
+```
+
+The deeper architecture and platform-integration contract are documented in:
+
+```text
+docs/hostinger-storage-control-plane.md
+```
+
+## Important distinction: filesystem versus hosting-plan quota
+
+The SSH command `df` describes the underlying filesystem. It is not the authoritative Hostinger account quota. The hPanel Resources Usage view remains the authority for the plan's disk and inode limits.
+
+The scan therefore returns both:
+
+- filesystem-level `df` byte and inode observations;
+- account-level logical bytes, inode count, directory hotspots, and large files.
+
+The operator must compare the SSH inventory with hPanel before authorizing deletion.
+
+## Installation
+
+Install from the reviewed repository checkout:
+
+```bash
+mkdir -p ~/.mad4b/bin
+chmod 700 ~/.mad4b ~/.mad4b/bin
+cp http-generic-api/scripts/hostinger-storage-cleanup.sh \
+  ~/.mad4b/bin/hostinger-storage-cleanup
+chmod 700 ~/.mad4b/bin/hostinger-storage-cleanup
+```
+
+Do not place SSH credentials in the script, repository, or command line.
+
+## 1. Read-only scan
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup scan --root "$HOME"
+```
+
+`scan` is designed to work during storage pressure:
+
+- it does not create the cleanup state directory;
+- it does not create plan files;
+- it does not require a lock file;
+- it performs no deletion.
+
+It reports:
+
+- filesystem bytes and inodes;
+- account logical usage;
+- account inode count;
+- top directories by size;
+- top directory buckets by inode count;
+- files larger than 100 MiB;
+- whether a large file belongs to a protected surface.
+
+Large files and inode hotspots are advisory. They do not become deletion candidates automatically.
+
+## 2. Emergency reserve
+
+Provision a physical reserve while the account is healthy. Recommended size: 64 MiB.
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup reserve-create \
+  --root "$HOME" \
+  --reserve-bytes 67108864 \
+  --confirm PROVISION_HOSTINGER_STORAGE_RESERVE:67108864
+```
+
+Read the reserve state:
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup reserve-status --root "$HOME"
+```
+
+During an actual quota emergency, copy the exact `release_confirmation` returned by `reserve-status`:
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup reserve-release \
+  --root "$HOME" \
+  --confirm '<EXACT_RELEASE_CONFIRMATION>'
+```
+
+Reserve release deletes only the known reserve file. It does not scan or delete application files.
+
+## 3. Create a conservative plan
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup plan --root "$HOME"
+```
+
+Automatic plan candidates are restricted to:
+
+- npm content cache older than 14 days;
+- npm diagnostic logs older than 14 days;
+- rotated or compressed account/domain logs older than 14 days.
+
+The following remain review-only:
+
+- account `tmp`;
+- `node_modules`;
+- deployment history;
+- build artifacts;
+- Git object stores;
+- uploaded media;
+- manual backups;
+- unknown large files and inode hotspots.
+
+The plan response contains:
+
+- `plan_id`;
+- `plan_hash`;
+- category totals;
+- candidate count and bytes;
+- expiry;
+- exact confirmation token;
+- `next_action: inspect`.
+
+Default limits:
+
+```text
+maximum files: 5000
+maximum bytes: 5 GiB
+TTL: 1 hour
+```
+
+## 4. Inspect the exact plan
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup inspect \
+  --root "$HOME" \
+  --plan-id '<PLAN_ID>'
+```
+
+Inspection returns bounded relative paths, categories, sizes, device and inode identifiers, and current validity. It does not expose file contents or credentials.
+
+Reject the plan when:
+
+- a candidate is unexpected;
+- a path belongs to an application or upload surface;
+- the total deletion is larger than needed;
+- the plan is expired;
+- the plan hash differs from the hash presented for approval.
+
+## 5. Apply the exact inspected plan
+
+```bash
+~/.mad4b/bin/hostinger-storage-cleanup apply \
+  --root "$HOME" \
+  --plan-id '<PLAN_ID>' \
+  --expected-plan-hash '<PLAN_SHA256>' \
+  --confirm '<EXACT_PLAN_CONFIRMATION>'
+```
+
+Before deleting each item, the tool verifies:
+
+- canonical path remains under the approved root;
+- the path is not protected;
+- the item is a regular file and not a symlink;
+- device and inode match the plan;
+- size, ctime, and mtime match the plan;
+- the plan is intact and unexpired;
+- the plan was not already consumed;
+- the expected plan hash and typed confirmation match.
+
+A mismatch skips the item. The tool never expands the plan.
+
+Deletion uses one exact pathname at a time:
+
+```bash
+rm -- '<exact-path>'
+```
+
+It never uses `rm -rf`, `eval`, `sudo`, wildcard deletion, or recursive permission changes.
 
 ## Protected surfaces
 
 The cleanup policy never deletes:
 
-- anything inside `public_html`;
-- `.env` or `.env.*` files;
-- `.ssh`, `secrets`, `.config`, `mail`, `backups`, or `databases` directories;
-- private keys, certificates, SQL/database files, archives, package manifests, `.htaccess`, or `server.js`;
+- anything under `public_html`;
+- `.env` and `.env.*`;
+- `.ssh`, `secrets`, `.config`, `mail`, `backups`, `databases`, or `ssl`;
+- private keys or certificates;
+- SQL/database files;
+- archives;
+- package manifests;
+- `.htaccess`;
+- `server.js`;
 - symlinks;
-- files outside the SSH account home;
-- files that changed after the plan was created.
+- files outside the approved account root.
 
-The default conservative cleanup profile includes only:
-
-- npm content cache files older than 14 days;
-- npm diagnostic logs older than 14 days;
-- account `tmp` files older than 7 days;
-- rotated or compressed account/domain logs older than 14 days.
-
-Active `.log` files are not candidates.
-
-## Installation through SSH
-
-From the repository checkout, copy the script to the Hostinger account:
-
-```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> 'mkdir -p ~/.mad4b/bin && chmod 700 ~/.mad4b ~/.mad4b/bin'
-scp -P <SSH_PORT> http-generic-api/scripts/hostinger-storage-cleanup.sh \
-  <SSH_USER>@<SSH_HOST>:~/.mad4b/bin/hostinger-storage-cleanup
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> \
-  'chmod 700 ~/.mad4b/bin/hostinger-storage-cleanup'
-```
-
-Do not place credentials in the command line, repository, or script. Use the existing governed SSH connection or an SSH key.
-
-## Scan
-
-Read filesystem usage, largest directories, and files larger than 100 MiB:
-
-```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> \
-  '~/.mad4b/bin/hostinger-storage-cleanup scan'
-```
-
-The response is JSON and includes:
-
-- filesystem total, used, and available space;
-- top directories by size;
-- largest files;
-- `deletion_executed: false`.
-
-Large-file discovery is advisory only. A large file is not automatically a deletion candidate.
-
-## Create a cleanup plan
-
-```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> \
-  '~/.mad4b/bin/hostinger-storage-cleanup plan'
-```
-
-The plan response includes:
-
-- `plan_id`;
-- candidate count and bytes;
-- plan expiry;
-- exact typed `confirmation` token;
-- `deletion_executed: false`.
-
-Plans are stored under:
-
-```text
-~/.mad4b-storage-cleanup/plans
-```
-
-with mode `0700` for the state directory and `0600` for plan files.
-
-Default caps:
-
-```text
-maximum files per plan: 5000
-maximum bytes per plan: 5 GiB
-plan TTL: 1 hour
-```
-
-The caps can be reduced, but not raised above 10,000 files or 10 GiB.
-
-## Apply an approved plan
-
-Copy the exact `plan_id` and `confirmation` from the plan response:
-
-```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> \
-  '~/.mad4b/bin/hostinger-storage-cleanup apply \
-    --plan-id <PLAN_ID> \
-    --confirm <EXACT_CONFIRMATION_TOKEN>'
-```
-
-Before each deletion, the tool verifies again that:
-
-- the path remains under the allowed account root;
-- the path is not protected;
-- the item is still a regular non-symlink file;
-- size and modification time match the approved plan;
-- the plan is unexpired and untampered;
-- the typed confirmation matches the exact plan.
-
-The tool deletes one validated file at a time using `rm -- <exact-path>`. It never uses `rm -rf`, `eval`, `sudo`, wildcard deletion, or recursive permission changes.
+This intentionally means the first release cannot clean an old Node deployment inside `public_html`. That class requires a separate deployment-aware policy that proves the directory is inactive and not retained for rollback.
 
 ## Readback
 
-After apply, compare:
+After apply:
 
 ```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> 'df -h "$HOME"'
+~/.mad4b/bin/hostinger-storage-cleanup scan --root "$HOME"
 ```
 
-and rerun:
+Then perform all of the following:
 
-```bash
-ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> \
-  '~/.mad4b/bin/hostinger-storage-cleanup scan'
-```
-
-The tool writes a bounded audit record to:
+1. Recalculate usage in hPanel Resources Usage.
+2. Confirm disk and inode percentages decreased.
+3. Confirm File Manager can create and delete a small test file.
+4. Confirm Environment Variables can be saved.
+5. Verify:
 
 ```text
-~/.mad4b-storage-cleanup/audit.jsonl
+/status
+/health
+/version
+/deployment-info
 ```
 
-The audit contains counts and byte totals, not credentials or file contents.
+6. Confirm the deployed branch remains `Production` and the running SHA did not change.
 
-## Monitoring policy
+## Monitoring
 
-A scheduled job may run `scan` only. Do not schedule `apply` without a separate governed approval mechanism.
+A scheduled job may run `scan` only. Never schedule `apply`.
 
-Recommended thresholds:
+Recommended thresholds for both disk and inodes:
 
 ```text
-warning: 75% used
-critical: 85% used
-emergency: 92% used
+warning: 70%
+critical: 80%
+emergency: 90%
 ```
 
-At warning level, inspect growth sources. At critical level, create and review a plan. At emergency level, pause deployments until storage is reduced and hPanel read/write operations recover.
+At emergency pressure, block new deployments. At critical pressure, create and inspect a plan. At warning pressure, open an operational attention item and identify the growth source.
 
-## Platform integration contract
+## Platform integration
 
-When this script is invoked through the platform SSH connection:
+This production account must use the platform-managed Hostinger SSH target, not a tenant free-form SSH tool. The final platform adapter must provide fixed operation keys, pin the SSH host-key fingerprint, require a capability envelope and workspace-owner approval for `apply`, cap and redact output, and preserve `secrets_included: false`.
 
-- execution must occur on the dedicated SSH worker or local connector, not the public web runtime;
-- `scan` and `plan` are read-only operation keys;
-- `apply` requires a workspace-owner approval hold and the exact plan confirmation;
-- no free-form shell command is accepted;
-- stdout/stderr must be capped and secret-redacted;
-- the result must preserve `secrets_included: false`;
-- the SSH connection remains tenant/user scoped.
-
-The first rollout should certify `scan` and `plan`. Enable `apply` only after a real Hostinger dry-run, plan review, and deletion/readback drill on non-production test files.
+The first live rollout is inventory-only. Do not enable `apply` through the platform until the actual Hostinger directory layout and active deployment root have been certified.
