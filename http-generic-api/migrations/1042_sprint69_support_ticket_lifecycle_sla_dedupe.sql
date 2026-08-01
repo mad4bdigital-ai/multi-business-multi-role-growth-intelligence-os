@@ -12,6 +12,19 @@ ALTER TABLE tickets
   ADD COLUMN IF NOT EXISTS first_response_at DATETIME NULL AFTER first_response_due_at,
   ADD COLUMN IF NOT EXISTS triaged_at DATETIME NULL AFTER triage_due_at;
 
+-- A durable unique row serializes creation for one canonical v2 identity. The
+-- INSERT/SELECT FOR UPDATE claim is held by the same transaction that performs
+-- create-or-append and integrity persistence, so commit/rollback releases it.
+CREATE TABLE IF NOT EXISTS support_ticket_dedupe_claims (
+  tenant_id VARCHAR(64) NOT NULL,
+  dedupe_key VARCHAR(128) NOT NULL,
+  claim_token CHAR(36) NOT NULL,
+  claimed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (tenant_id, dedupe_key),
+  INDEX idx_support_ticket_dedupe_claims_updated (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE tickets
   ADD INDEX IF NOT EXISTS idx_tickets_tenant_test_status_activity
     (tenant_id, is_test, status, updated_at),
@@ -127,21 +140,30 @@ UPDATE tickets
  WHERE tenant_id = NEW.tenant_id
    AND ticket_id = NEW.ticket_id;
 
--- Milestone-aware SLA reconciliation. A completed milestone is not treated as
--- breached merely because its due timestamp is in the past.
-UPDATE tickets
-   SET sla_status = CASE
-     WHEN status NOT IN ('open', 'in_review', 'awaiting_approval') THEN COALESCE(sla_status, 'on_track')
-     WHEN first_response_at IS NULL AND first_response_due_at IS NOT NULL AND first_response_due_at < NOW() THEN 'breached'
-     WHEN triaged_at IS NULL AND triage_due_at IS NOT NULL AND triage_due_at < NOW() THEN 'breached'
-     WHEN resolution_due_at IS NOT NULL AND resolution_due_at < NOW() THEN 'breached'
-     WHEN first_response_at IS NULL AND first_response_due_at IS NOT NULL AND first_response_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
-     WHEN triaged_at IS NULL AND triage_due_at IS NOT NULL AND triage_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
-     WHEN resolution_due_at IS NOT NULL AND resolution_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
-     ELSE 'on_track'
-   END,
-   updated_at = NOW()
- WHERE status IN ('open', 'in_review', 'awaiting_approval');
+-- Milestone-aware SLA reconciliation. Compute the desired value in a derived
+-- relation, update only rows whose SLA value changes, and never rewrite ticket
+-- activity timestamps merely because the migration ran.
+UPDATE tickets t
+JOIN (
+  SELECT
+    tenant_id,
+    ticket_id,
+    CASE
+      WHEN first_response_at IS NULL AND first_response_due_at IS NOT NULL AND first_response_due_at < NOW() THEN 'breached'
+      WHEN triaged_at IS NULL AND triage_due_at IS NOT NULL AND triage_due_at < NOW() THEN 'breached'
+      WHEN resolution_due_at IS NOT NULL AND resolution_due_at < NOW() THEN 'breached'
+      WHEN first_response_at IS NULL AND first_response_due_at IS NOT NULL AND first_response_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
+      WHEN triaged_at IS NULL AND triage_due_at IS NOT NULL AND triage_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
+      WHEN resolution_due_at IS NOT NULL AND resolution_due_at <= DATE_ADD(NOW(), INTERVAL 60 MINUTE) THEN 'warning'
+      ELSE 'on_track'
+    END AS computed_sla_status
+  FROM tickets
+  WHERE status IN ('open', 'in_review', 'awaiting_approval')
+) computed
+  ON computed.tenant_id = t.tenant_id
+ AND computed.ticket_id = t.ticket_id
+SET t.sla_status = computed.computed_sla_status
+WHERE COALESCE(t.sla_status, '') <> computed.computed_sla_status;
 
 CREATE OR REPLACE VIEW v_support_ticket_integrity_readiness AS
 SELECT
@@ -155,6 +177,10 @@ SELECT
         'first_response_at', 'triaged_at'
       )) AS present_column_count,
   9 AS required_column_count,
+  (SELECT COUNT(*)
+     FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'support_ticket_dedupe_claims') AS dedupe_claim_table_count,
   CASE
     WHEN (SELECT COUNT(*)
             FROM INFORMATION_SCHEMA.COLUMNS
@@ -165,6 +191,10 @@ SELECT
                'related_ticket_id', 'parent_ticket_id', 'supersedes_ticket_id',
                'first_response_at', 'triaged_at'
              )) = 9
+     AND (SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.TABLES
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = 'support_ticket_dedupe_claims') = 1
     THEN 'ready'
     ELSE 'blocked'
   END AS readiness_status,
