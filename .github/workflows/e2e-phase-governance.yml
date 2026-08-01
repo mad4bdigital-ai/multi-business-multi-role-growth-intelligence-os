@@ -1,0 +1,154 @@
+name: E2E Phase Governance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, edited]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: e2e-phase-governance-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: Evaluate changed feature phases
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.parallel.outputs.mode }}
+      feature_key: ${{ steps.parallel.outputs.feature_key }}
+      contract_path: ${{ steps.parallel.outputs.contract_path }}
+      workstream_id: ${{ steps.parallel.outputs.workstream_id }}
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run governance and helper self-tests
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+
+      - name: Classify and validate parallel PR mode
+        id: parallel
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+        run: |
+          set -euo pipefail
+          args=(check
+            --head-ref "${HEAD_REF}"
+            --base-ref "${BASE_REF}"
+            --github-output "${GITHUB_OUTPUT}"
+            --report-file "${RUNNER_TEMP}/e2e-parallel-work-evaluation.json")
+          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
+          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs "${args[@]}"
+
+      - name: Evaluate complete phase contract
+        if: steps.parallel.outputs.mode != 'workstream'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json")
+          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
+          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
+          node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
+
+      - name: Upload phase evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-phase-evaluation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-parallel-work-evaluation.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  execute:
+    name: Execute current phase journeys
+    runs-on: ubuntu-latest
+    needs: evaluate
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Execute active workstream tests
+        if: needs.evaluate.outputs.mode == 'workstream'
+        run: >-
+          node http-generic-api/scripts/e2e-parallel-test-runner.mjs
+          --contract "${{ needs.evaluate.outputs.contract_path }}"
+          --mode workstream
+          --workstream-id "${{ needs.evaluate.outputs.workstream_id }}"
+          --report-file "${{ runner.temp }}/e2e-parallel-execution.json"
+
+      - name: Execute integration convergence tests
+        if: needs.evaluate.outputs.mode == 'integration'
+        run: >-
+          node http-generic-api/scripts/e2e-parallel-test-runner.mjs
+          --contract "${{ needs.evaluate.outputs.contract_path }}"
+          --mode integration
+          --report-file "${{ runner.temp }}/e2e-parallel-execution.json"
+
+      - name: Execute declared current-phase E2E journeys
+        if: needs.evaluate.outputs.mode != 'workstream'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          args=(run
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json")
+          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
+          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
+          node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
+
+      - name: Upload phase execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-phase-execution-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-phase-execution.json
+            ${{ runner.temp }}/e2e-parallel-execution.json
+          if-no-files-found: warn
+          retention-days: 30
