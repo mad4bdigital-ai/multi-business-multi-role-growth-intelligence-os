@@ -13,9 +13,11 @@ on:
       - "http-generic-api/scripts/spec-kit-work-map-*.mjs"
       - "http-generic-api/scripts/work-map-schema-classification.mjs"
       - "http-generic-api/scripts/work-map-schema-classification-contract.mjs"
+      - "http-generic-api/scripts/work-map-autofix-diagnostics.mjs"
       - "http-generic-api/scripts/pipeline-connectivity-check.mjs"
       - "http-generic-api/test-work-map-schema-classification.mjs"
       - "http-generic-api/test-work-map-schema-classification-contract.mjs"
+      - "http-generic-api/test-work-map-autofix-diagnostics.mjs"
       - "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       - "http-generic-api/test-pipeline-connectivity-check.mjs"
       - ".specify/pipeline-connectivity-contract.json"
@@ -49,11 +51,13 @@ jobs:
           node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
           node --check http-generic-api/scripts/work-map-schema-classification.mjs
           node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/work-map-autofix-diagnostics.mjs
           node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
           node --check http-generic-api/test-work-map-schema-classification.mjs
           node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
           node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
           node --check http-generic-api/test-pipeline-connectivity-check.mjs
 
@@ -61,6 +65,7 @@ jobs:
         run: |
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
           node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
 
       - name: Verify generated Work Maps are current
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
@@ -78,5 +83,6 @@ jobs:
         run: |
           node test-work-map-schema-classification.mjs
           node test-work-map-schema-classification-contract.mjs
+          node test-work-map-autofix-diagnostics.mjs
           node test-spec-kit-work-map-governance-gate.mjs
           node test-spec-kit-completion-gate.mjs
