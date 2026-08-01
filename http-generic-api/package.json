@@ -20,7 +20,7 @@
     "frontend:governance:check": "node scripts/frontend-operation-governance-generator.mjs --check",
     "frontend:dispatch:generate": "node scripts/pr-4395-bounded-candidate-window-one-shot.mjs && node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write",
     "frontend:dispatch:check": "node scripts/frontend-operation-governance-generator.mjs --check && node scripts/frontend-surface-dispatch.mjs --check",
-    "pr4395:bounded-candidate-window": "node --check scripts/pr-4395-bounded-candidate-window-one-shot.mjs",
+    "pr4395:bounded-candidate-window": "node --check scripts/pr-4395-bounded-candidate-window-one-shot.mjs && python3 -m py_compile scripts/pr-4395-bounded-candidate-window-fix.py",
     "openapi:auth:write": "node scripts/openapi-runtime-auth-sync.mjs --write",
     "openapi:auth:check": "node scripts/openapi-runtime-auth-sync.mjs --check",
     "schemas:generate": "npm run resources:openapi:generate && node scripts/generate-custom-gpt-schemas.mjs --write",
