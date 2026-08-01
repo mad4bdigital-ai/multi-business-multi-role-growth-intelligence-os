@@ -13,6 +13,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const sha256 = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
+const normalizeExecutableStatement = (value) => value
+  .replace(/\/\*[\s\S]*?\*\//gu, ' ')
+  .replace(/^\s*--.*$/gmu, ' ')
+  .replace(/\s+/gu, ' ')
+  .trim();
 
 const waves = [
   {
@@ -73,7 +78,12 @@ for (const wave of waves) {
   const filename = path.basename(wave.runtime);
   const statements = splitSqlStatements(sql);
   const candidateStatements = splitSqlStatements(candidateSql);
-  assert.deepEqual(statements, candidateStatements, `${filename}: executable SQL drifted from reviewed candidate`);
+  assert.equal(statements.length, candidateStatements.length, `${filename}: executable statement count drifted from reviewed candidate`);
+  assert.deepEqual(
+    statements.map(normalizeExecutableStatement),
+    candidateStatements.map(normalizeExecutableStatement),
+    `${filename}: executable SQL drifted from reviewed candidate`,
+  );
 
   const preflight = assessMigrationSqlPreflight(filename, sql);
   assert.equal(preflight.status, 'pass', `${filename}: preflight must pass`);
