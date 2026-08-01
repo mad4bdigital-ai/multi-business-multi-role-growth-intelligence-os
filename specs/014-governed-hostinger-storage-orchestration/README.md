@@ -30,6 +30,12 @@ Production deployment: not authorized
 
 The existing implementation on the feature branch is limited to conservative filesystem tooling, machine-readable policies, pure authorization logic, regression tests, and documentation. It does not create live runtime authority.
 
+## Tenant repository provenance regression
+
+The Tenant canary workstream now declares `test-hostinger-storage-tenant-canary-repository-provenance.mjs` in `e2e-phases.json`. The regression proves that delegated execution accepts only a factory-owned Tenant repository that also preserves the canonical control-plane repository identity, rejects copied or direct repositories, rejects an explicit missing adapter, and performs those checks before one-shot enablement is consumed.
+
+This hardening remains synthetic and in-memory. It does not authorize a provider call, filesystem mutation, SSH operation, migration, deployment, or Production promotion.
+
 ## Core architecture
 
 ```text
