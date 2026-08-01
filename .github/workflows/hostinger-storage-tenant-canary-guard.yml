@@ -5,6 +5,10 @@ on:
     paths:
       - '**/*.js'
       - '**/*.mjs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.cts'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
   push:
@@ -13,6 +17,10 @@ on:
     paths:
       - '**/*.js'
       - '**/*.mjs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.cts'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
@@ -38,6 +46,7 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -57,11 +66,11 @@ jobs:
       - name: Enforce governed Base imports repository-wide
         run: |
           tenant_imports="$(grep -R -l "hostingerStorageTenantCanaryBase.js" . \
-            --include='*.js' --include='*.mjs' \
+            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)"
           policy_imports="$(grep -R -l "hostingerStorageTenantCanaryPolicyBase.js" . \
-            --include='*.js' --include='*.mjs' \
+            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)"
           test "$tenant_imports" = "http-generic-api/hostingerStorageTenantCanary.js"
@@ -82,6 +91,11 @@ jobs:
           grep -q "slice(0, 256)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "boundedHashToken" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "slice(0, 64).toLowerCase()" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "snapshotAuthorityRecord" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "Object.getOwnPropertyDescriptors" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "base.updateAllowlist({ allowlist_id: id, expected_revision: expectedRevision, record })" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "base.updateApproval({ approval_id: id, expected_evidence_digest: expectedEvidenceDigest, record })" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "transitionOperation" http-generic-api/hostingerStorageTenantCanary.js
@@ -122,3 +136,4 @@ jobs:
           node test-hostinger-storage-tenant-canary-authority-cas.mjs
           node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node test-hostinger-storage-tenant-canary-token-normalization.mjs
+          node test-hostinger-storage-tenant-canary-token-delegation.mjs
