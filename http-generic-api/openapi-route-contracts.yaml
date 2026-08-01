@@ -34,12 +34,3 @@ contracts:
     owner: support_ticket_runtime
     exposure: tenant_user
     notes: Appends a customer-visible event without provider dispatch or external delivery.
-
-  POST /admin/credentials/bindings/promote:
-    route_file: 'routes/credentialRoutes.js'
-    path_item_ref: './openapi/credential-binding-promote-tenant.yaml#/credentialBindingPromoteTenant'
-    replace_inline_operation_ids:
-      - credentialBindingPromoteTenant
-    owner: credential_binding_runtime
-    exposure: admin_tool
-    notes: Exact tenant-only credential-reference promotion contract. Guarded migration may replace only the legacy inline operation with the same operationId; secret material is never decrypted, copied, returned, or promoted platform-wide.
