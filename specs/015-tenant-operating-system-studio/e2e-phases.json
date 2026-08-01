@@ -17,7 +17,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, Work Map, candidate-PR classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
+      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, open-Draft-Spec portfolio, Work Map, candidate-PR classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "spec015-contract-integrity",
@@ -25,17 +25,20 @@
           "level": "synthetic_runtime",
           "actor": "Repository specification maintainer",
           "entrypoint": "Run the Spec-local deterministic validator from the exact candidate tree",
-          "terminal_outcome": "The declared file inventory, JSON/OpenAPI contracts, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
+          "terminal_outcome": "The declared file inventory, JSON/OpenAPI contracts, ten-entry Draft Spec portfolio, duplicate identity map, implementation trains, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
           "steps": [
             "Validate the exact manifest inventory and specification-only boundaries.",
-            "Validate the package, installation, lifecycle, candidate-convergence, and draft OpenAPI contract structure.",
-            "Validate PR #3922 and PR #4432 classification into generic substrate and bounded reference packages.",
+            "Validate the package, installation, lifecycle, candidate-convergence, Draft Spec portfolio, and draft OpenAPI contract structure.",
+            "Validate all ten observed open Draft Specs, duplicate numeric identities 011 and 014, portfolio roles, package keys, relationship edges, and implementation trains.",
+            "Validate PR #3922 and PR #4432 detailed classification into generic substrate and bounded reference packages.",
             "Validate all 19 Work Maps and 16 schema domains have explicit decisions while runtime implementation remains blocked.",
             "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns."
           ],
           "assertions": [
             "The report declares ok=true, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
-            "PR #3922 and PR #4432 remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
+            "Numeric Spec numbers are not accepted as unique portfolio authority identities.",
+            "PRs #3922, #4386, and #4432 remain bounded package or service sources, while PRs #2949 and #2950 retain distinct subsystem and application roles.",
+            "Diverged Draft branches remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
             "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion."
           ],
           "tests": [
@@ -50,6 +53,9 @@
           "evidence_paths": [
             "specs/015-tenant-operating-system-studio/manifest.json",
             "specs/015-tenant-operating-system-studio/candidate-convergence.json",
+            "specs/015-tenant-operating-system-studio/draft-spec-portfolio.json",
+            "specs/015-tenant-operating-system-studio/draft-spec-portfolio.md",
+            "specs/015-tenant-operating-system-studio/contracts/draft-spec-portfolio.schema.json",
             "specs/015-tenant-operating-system-studio/work-map-integration.json",
             "specs/015-tenant-operating-system-studio/completion.json",
             "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
@@ -64,7 +70,8 @@
       "blockers": [
         "The field-level current-main reuse matrix is not complete.",
         "The package registry mapping and custom entity persistence decisions remain open.",
-        "Duplicate Spec 014 identity and candidate extraction paths require review."
+        "Duplicate numeric Spec 011 and 014 identities and candidate extraction paths require review.",
+        "Stale completion ledgers and mixed Spec/implementation branches require reconciliation."
       ],
       "planned_e2e_journey": {
         "id": "spec015-operational-package-installation",
@@ -85,7 +92,7 @@
       "objective": "Prove upgrades, rollback, provider/manual fallback, backup/restore, drift reconciliation, delegation revocation, export, and handover continuity.",
       "blockers": [
         "Operational package and installation runtime is not implemented.",
-        "Reference packages and agency/client delegation journeys are not reconstructed."
+        "Reference packages, infrastructure services, and agency/client delegation journeys are not reconstructed."
       ],
       "planned_e2e_journey": {
         "id": "spec015-resilient-upgrade-handover",
@@ -103,10 +110,10 @@
     {
       "id": "canary",
       "status": "blocked",
-      "objective": "Run bounded pilots for a freelancer, an agency with two client Brands, a client-owned Tenant with agency delegation, Evidence Intelligence, and Retail Commerce reference packages.",
+      "objective": "Run bounded pilots for a freelancer, an agency with two client Brands, a client-owned Tenant with agency delegation, and the Evidence Intelligence, Retail Commerce, Hostinger Storage, and Local Connector Recovery package/service targets.",
       "blockers": [
         "Operational and resilient acceptance suites are incomplete.",
-        "Pilot Tenants, Brands, packages, allowed effect classes, budgets, and stop rules are not approved."
+        "Pilot Tenants, Brands, packages, services, allowed effect classes, budgets, and stop rules are not approved."
       ],
       "planned_e2e_journey": {
         "id": "spec015-canary-tenant-studio",
@@ -117,7 +124,7 @@
         "steps": [
           "Pilot one freelancer-created system and one agency package installed for two isolated client Brands.",
           "Pilot a client-owned Tenant with delegated agency access and tested revocation.",
-          "Run Evidence Intelligence and Retail Commerce reference packages under package-specific acceptance gates."
+          "Run Evidence Intelligence, Retail Commerce, Hostinger Storage, and Local Connector Recovery under package-specific acceptance gates."
         ]
       }
     },
