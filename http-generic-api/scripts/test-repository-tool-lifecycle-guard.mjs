@@ -13,7 +13,7 @@ const policy = {
   forbidden_path_patterns: [
     "(^|/)\\.changes/e2e/.*trigger$",
     "(^|/).*\\.trigger$",
-    "^\\.github/workflows/.*(?:temporary|one-off|patch-trigger|runtime-hardening-v[0-9]+).*$",
+    "^\\.github/workflows/.*(?:temporary|one-off|(?:^|[/_.-])once(?:[/_.-]|$)|patch-trigger|runtime-hardening-v[0-9]+).*$",
   ],
   rules: {
     one_off_automation_must_not_merge: true,
@@ -98,6 +98,26 @@ const triggerFindings = await evaluate([
   { status: "A", path: ".changes/e2e/.runtime-patch-trigger" },
 ]);
 assert(triggerFindings.some((item) => item.code === "TEMPORARY_AUTOMATION_ARTIFACT"));
+
+const oneShotWorkflow = ".github/workflows/apply-tenant-request-runtime-once.yml";
+const oneShotFindings = await evaluate(
+  [{ status: "A", path: oneShotWorkflow }],
+  {
+    [oneShotWorkflow]: `
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+`,
+  },
+);
+assert(oneShotFindings.some((item) => item.code === "TEMPORARY_AUTOMATION_ARTIFACT"));
+
+const deletionFindings = await evaluate([
+  { status: "D", path: oneShotWorkflow },
+  { status: "D", path: ".changes/e2e/.runtime-patch-trigger" },
+]);
+assert.deepEqual(deletionFindings, []);
 
 const unregisteredToolFindings = await evaluate([
   { status: "A", path: "http-generic-api/scripts/maintenance-tools/unregistered.mjs" },
