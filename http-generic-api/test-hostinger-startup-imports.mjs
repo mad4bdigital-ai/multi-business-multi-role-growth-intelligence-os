@@ -59,6 +59,16 @@ assert(
   serverSource.includes("resolveAgentModelProvider"),
   "server.js must pass the effective model provider resolver into routes"
 );
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeGuard\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime guard exactly once"
+);
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeErrorHandler\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime error handler exactly once"
+);
 
 const devAgentRoutesSource = readFileSync(join(__dirname, "routes/devAgentRoutes.js"), "utf8");
 assert(
