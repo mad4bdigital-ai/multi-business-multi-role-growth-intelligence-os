@@ -2,9 +2,6 @@ name: Runtime Startup Deployment Evidence
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - gpt/016-remote-mcp-oauth21-main-recovery-20260802
   pull_request:
     branches: [main, Production]
 
