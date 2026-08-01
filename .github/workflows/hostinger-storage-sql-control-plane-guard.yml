@@ -37,8 +37,14 @@ jobs:
           node --check http-generic-api/hostingerStorageControlPlaneRepository.js
           node --check http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs
           node --check .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
-      - name: Enforce no DDL, provider, credential, or shell boundary
+      - name: Enforce canonical factory and fail-closed boundary
         run: |
+          SQL_IMPORT_RE='from ['"'"'"]\./hostingerStorageSqlPersistenceAdapter\.js['"'"'"]'
+          test "$(grep -R -E -l "$SQL_IMPORT_RE" http-generic-api \
+            --include='*.js' --include='*.mjs' --exclude-dir=node_modules | sort)" = "http-generic-api/hostingerStorageControlPlaneRepository.js"
+          grep -q 'schema_verified: false' http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q 'adapter.schema_verified === false' http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q 'repository.production_ready === false' http-generic-api/hostingerStorageControlPlaneRepository.js
           ! grep -R -E '\b(CREATE|ALTER|DROP|TRUNCATE)[[:space:]]+TABLE\b|child_process|node:(fs|net|tls|http|https)|StrictHostKeyChecking=no|rm[[:space:]]+-rf' \
             http-generic-api/hostingerStorageSqlPersistenceAdapter.js \
             http-generic-api/hostingerStorageControlPlaneRepository.js
