@@ -372,9 +372,10 @@ async function activeWorkspaceMembership({ pool, userId, workspaceId }) {
         AND m.tenant_id = ?
         AND m.status = 'active'
         AND t.status = 'active'
-      LIMIT 1`,
+      LIMIT 2`,
     [userId, workspaceId],
   );
+  if (rows.length > 1) throw Object.assign(new Error("Workspace membership authority is ambiguous."), { code: "MCP_CONTEXT_AMBIGUOUS", retryable: false });
   return rows[0] || null;
 }
 
