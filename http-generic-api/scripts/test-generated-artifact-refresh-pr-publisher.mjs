@@ -113,6 +113,8 @@ assert.throws(() => assertGeneratedArtifactPrIdentity(
 
 const workBranchReadOnlyWorkflow = readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
 const protectedPromotionReadOnlyWorkflow = readFileSync("../.github/workflows/protected-promotion-generated-artifact-refresh.yml", "utf8");
+const evidencePublisherWorkflow = readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
+const evidenceRoutingPolicy = JSON.parse(readFileSync("../.github/ci-evidence-routing.json", "utf8"));
 const governedWriterWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 const governedWriterTool = readFileSync("scripts/maintenance-tools/generated-artifact-refresh.mjs", "utf8");
 
@@ -121,6 +123,7 @@ assert.match(
   /branches-ignore:[\s\S]*- Production/u,
   "the work-branch evaluator must not compete with the dedicated Production promotion workflow",
 );
+assert.match(workBranchReadOnlyWorkflow, /^name: PR Generated Artifact Refresh$/mu);
 assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'gpt\/'\)/u);
 assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'cert\/'\)/u);
 assert.match(workBranchReadOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
@@ -133,6 +136,8 @@ assert.match(
   /pull_request:[\s\S]*branches:[\s\S]*- Production/u,
   "the dedicated evaluator must be registered for Production-target pull requests",
 );
+assert.match(protectedPromotionReadOnlyWorkflow, /^name: Protected Promotion Generated Artifact Refresh$/mu);
+assert.doesNotMatch(protectedPromotionReadOnlyWorkflow, /^name: PR Generated Artifact Refresh$/mu);
 assert.doesNotMatch(protectedPromotionReadOnlyWorkflow, /workflow_dispatch:/u);
 assert.match(
   protectedPromotionReadOnlyWorkflow,
@@ -154,6 +159,28 @@ assert.match(
   /mad4b\.pr-generated-artifact-refresh-summary\.v1/u,
 );
 
+assert.match(evidencePublisherWorkflow, /- PR Generated Artifact Refresh/u);
+assert.match(evidencePublisherWorkflow, /- Protected Promotion Generated Artifact Refresh/u);
+assert.match(
+  evidencePublisherWorkflow,
+  /github\.event\.workflow_run\.name == 'PR Generated Artifact Refresh' \|\|[\s\S]*github\.event\.workflow_run\.name == 'Protected Promotion Generated Artifact Refresh'/u,
+);
+assert.match(
+  evidencePublisherWorkflow,
+  /"PR Generated Artifact Refresh"\|"Protected Promotion Generated Artifact Refresh"\)/u,
+);
+
+assert.deepEqual(
+  evidenceRoutingPolicy.pr_evidence_publisher.generated_artifact_workflow_aliases,
+  ["PR Generated Artifact Refresh", "Protected Promotion Generated Artifact Refresh"],
+);
+for (const workflow of evidenceRoutingPolicy.pr_evidence_publisher.generated_artifact_workflow_aliases) {
+  const route = evidenceRoutingPolicy.routes.find((entry) => entry.workflow === workflow);
+  assert.ok(route, `missing generated-artifact evidence route for ${workflow}`);
+  assert.equal(route.canonical_contract, "mad4b.pr-generated-artifact-refresh-summary.v1");
+  assert.equal(route.candidate_kind, "head");
+}
+
 assert.match(governedWriterWorkflow, /on:\s*\n\s*workflow_dispatch:/u);
 assert.doesNotMatch(governedWriterWorkflow, /pull_request:/u);
 assert.match(governedWriterWorkflow, /TARGET_REF" == "main" \|\| "\$TARGET_REF" == "Production"/u);
@@ -170,9 +197,11 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 28,
+  cases: 38,
   work_branch_evaluator_excludes_production: true,
+  protected_promotion_unique_workflow_name: true,
   protected_promotion_read_only: true,
+  publisher_alias_routing: true,
   protected_writer_mutation: false,
   secrets_included: false,
 }));
