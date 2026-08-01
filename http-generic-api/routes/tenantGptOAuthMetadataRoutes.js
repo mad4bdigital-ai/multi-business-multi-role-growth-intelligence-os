@@ -12,8 +12,10 @@ import {
 } from "../remoteMcpConnectorRuntime.js";
 import {
   REMOTE_MCP_SCOPES,
+  envFlag,
   remoteMcpDynamicClientRegistrationEnabled,
   remoteMcpOAuthEnabled,
+  resolveRemoteMcpAllowedRedirectOrigins,
   resolveRemoteMcpAuthorizationIssuer,
 } from "../remoteMcpOAuthProfile.js";
 
@@ -33,13 +35,19 @@ function configuredMcpHost(env) {
   }
 }
 
+function remoteMcpDcrAdvertised(env) {
+  if (!remoteMcpDynamicClientRegistrationEnabled(env)) return false;
+  return resolveRemoteMcpAllowedRedirectOrigins(env).size > 0
+    || envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
+}
+
 function remoteMcpAuthorizationServerMetadata(env) {
   const issuer = resolveRemoteMcpAuthorizationIssuer(env);
   return {
     issuer,
     authorization_endpoint: `${issuer}/oauth/authorize`,
     token_endpoint: `${issuer}/oauth/token`,
-    ...(remoteMcpDynamicClientRegistrationEnabled(env)
+    ...(remoteMcpDcrAdvertised(env)
       ? { registration_endpoint: `${issuer}/oauth/register` }
       : {}),
     revocation_endpoint: `${issuer}/oauth/revoke`,
