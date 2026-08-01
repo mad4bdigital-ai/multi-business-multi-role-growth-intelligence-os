@@ -81,12 +81,21 @@ jobs:
         run: |
           grep -q "new WeakSet()" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryRepositories.add(repository)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryRepositories.has(repository)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "spec014-storage-control-plane-repository-v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "hostinger_storage_memory_test_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "tenantCanaryAdapters.add(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "tenantCanaryAdapters.has(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "spec014-hostinger-storage-synthetic-adapter-v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          grep -q "tenant_factory_owned_required" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          grep -q "Object.isFrozen(verified.blockers)" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           grep -F -q "Object.freeze({ ...spoofedAdapterFixture.adapter })" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           grep -q "boundedIdToken" http-generic-api/hostingerStorageTenantCanary.js
@@ -123,12 +132,12 @@ jobs:
             throw new Error('Base authority and executor preflight must complete before one-shot enablement consumption.');
           }
           const wrapper = fs.readFileSync('http-generic-api/hostingerStorageTenantCanary.js', 'utf8');
-          const repository = wrapper.indexOf('requireCompleteRepository(options.repository);');
+          const repository = wrapper.indexOf('requireCanonicalRepository(options.repository);');
           const adapter = wrapper.indexOf('requireCanonicalAdapter(options.adapter);');
           const planAuthority = wrapper.indexOf('revalidatePlanAuthority({ repository: options.repository, protocol: options.protocol });');
           const delegate = wrapper.indexOf('return executeBaseTenantCanary(options);');
           if (!(repository >= 0 && adapter > repository && planAuthority > adapter && delegate > planAuthority)) {
-            throw new Error('Repository, Tenant-owned adapter brand, and plan authority preflight must complete before delegated execution.');
+            throw new Error('Tenant-owned repository brand, adapter brand, and plan authority preflight must complete before delegated execution.');
           }
           NODE
       - name: Validate Tenant canary
