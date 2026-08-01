@@ -5,13 +5,18 @@ on:
     types: [opened, reopened, synchronize]
     paths:
       - .github/workflows/spec014-reconcile-tenant-contract.yml
+  push:
+    branches:
+      - gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
+    paths:
+      - .github/workflows/spec014-reconcile-tenant-contract.yml
 
 permissions:
   contents: write
 
 jobs:
   reconcile:
-    if: github.head_ref == 'gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801'
+    if: github.head_ref == 'gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801' || github.ref_name == 'gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -20,8 +25,6 @@ jobs:
           ref: gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
           fetch-depth: 0
       - name: Reconcile current Integration contract
-        env:
-          SOURCE_SHA: ${{ github.sha }}
         run: |
           git fetch origin gpt/hostinger-safe-storage-cleanup-ssh-20260801
           node --input-type=module <<'NODE'
