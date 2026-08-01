@@ -12,12 +12,19 @@
     "docs/spec-kit-governance.md",
     "docs/spec-kit-work-map-integration-governance.md",
     "docs/repository-automation-control-plane.md",
+    ".github/workflows/ci.yml",
+    ".github/workflows/e2e-phase-governance.yml",
+    ".github/workflows/branch-test-diagnostic-shards.yml",
+    ".github/workflows/ci-evidence-pr-publisher.yml",
+    ".github/workflows/spec-kit-work-map-integration.yml",
+    ".specify/pipeline-connectivity-contract.json",
     "specs/011-dynamic-multi-tenant-growth-control-plane",
     "specs/012-unified-admin-tenant-context-kernel"
   ],
   "files": [
     "README.md",
     "SPEC_KIT_OVERVIEW_AR.md",
+    "CI_AUTOMATION_BLUEPRINT_AR.md",
     "manifest.json",
     "spec.md",
     "research.md",
@@ -29,30 +36,44 @@
     "traceability.md",
     "tasks.md",
     "development-automation.json",
+    "ci-automation.json",
     "work-map-integration.json",
     "completion.json",
     "contracts/development-automation.schema.json",
+    "contracts/ci-automation.schema.json",
     "contracts/gemini-evidence-result.schema.json",
     "contracts/gemini-evidence-gateway.openapi.yaml",
     "checklists/requirements.md",
     "checklists/security.md",
-    "checklists/operations.md"
+    "checklists/operations.md",
+    "checklists/ci.md"
   ],
   "requirements": {
     "functional": 52,
     "non_functional": 20,
-    "success_criteria": 18
+    "success_criteria": 18,
+    "ci_test_families": 10,
+    "ci_pipelines": 9,
+    "ci_evidence_contracts": 8
   },
-  "automation_contract": {
-    "instance": "development-automation.json",
-    "schema": "contracts/development-automation.schema.json",
-    "purpose": "Machine-readable requirement, task, gate, evidence, and implementation-wave orchestration contract"
+  "automation_contracts": {
+    "development": {
+      "instance": "development-automation.json",
+      "schema": "contracts/development-automation.schema.json",
+      "purpose": "Machine-readable requirement, task, gate, evidence, and implementation-wave orchestration contract"
+    },
+    "ci": {
+      "instance": "ci-automation.json",
+      "schema": "contracts/ci-automation.schema.json",
+      "purpose": "Machine-readable test-family, pipeline, candidate-identity, canonical-evidence, governed-writer, and completion contract"
+    }
   },
   "boundaries": {
     "runtime_changes": false,
     "database_migrations": false,
     "provider_calls": false,
     "external_writes": false,
+    "github_workflow_activation": false,
     "production_activation": false,
     "credential_changes": false
   },
@@ -62,7 +83,11 @@
     "OD-003-retention-policy",
     "OD-004-cost-budget",
     "OD-005-model-benchmark",
-    "OD-006-review-interface"
+    "OD-006-review-interface",
+    "OD-007-file-upload-policy",
+    "OD-008-embedding-store",
+    "OD-009-recording-consent",
+    "OD-010-pilot-cohort"
   ],
   "secrets_included": false
 }
