@@ -3,7 +3,7 @@ name: PR Generated Artifact Refresh
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
     branches-ignore:
       - Production
     paths:
@@ -22,14 +22,12 @@ on:
       - "http-generic-api/openapi/**/*.yaml"
       - "http-generic-api/openapi-route-contracts.yaml"
       - "http-generic-api/routes/**"
-      - "http-generic-api/scripts/dispatch-governed-generated-artifact-refresh.mjs"
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
       - "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs"
       - "http-generic-api/scripts/generated-artifact-refresh-runner.mjs"
       - "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
-      - "http-generic-api/scripts/test-dispatch-governed-generated-artifact-refresh.mjs"
       - "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
       - "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
       - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
@@ -120,10 +118,6 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-generated-artifact-refresh-maintenance-tool.mjs
 
-      - name: Test governed refresh dispatch evidence adapter
-        working-directory: http-generic-api
-        run: node scripts/test-dispatch-governed-generated-artifact-refresh.mjs
-
       - name: Evaluate generated artifacts without repository mutation
         working-directory: http-generic-api
         run: node scripts/generated-artifact-refresh-runner.mjs
@@ -162,69 +156,3 @@ jobs:
           console.log(`::error title=${title}::${message.slice(0, 1000)}`);
           process.exit(1);
           NODE
-
-  dispatch-governed-refresh:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'generated-artifact-refresh' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'github-actions[bot]'
-    permissions:
-      actions: write
-      contents: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      DISPATCH_REPORT_DIR: ${{ runner.temp }}/governed-refresh-dispatch-evidence
-    steps:
-      - name: Checkout exact governed PR head
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.EXPECTED_HEAD_SHA }}
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Dispatch registered refresh and write structured evidence
-        id: dispatch
-        continue-on-error: true
-        working-directory: http-generic-api
-        run: node scripts/dispatch-governed-generated-artifact-refresh.mjs --output-dir "$DISPATCH_REPORT_DIR"
-
-      - name: Upload governed refresh dispatch evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: governed-refresh-dispatch-evidence-${{ github.run_id }}
-          path: ${{ env.DISPATCH_REPORT_DIR }}/*
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Enforce governed refresh dispatch decision
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          REPORT_FILE="${DISPATCH_REPORT_DIR}/governed-refresh-dispatch-evidence.json"
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, "utf8"));
-            if (report.contract !== "mad4b.governed-refresh-dispatch-evidence.v1") throw new Error("Dispatch evidence contract mismatch.");
-            if (report.secrets_included !== false) throw new Error("Dispatch evidence must declare secrets_included=false.");
-            if (report.outcome !== "passed") {
-              console.error(JSON.stringify({
-                outcome: report.outcome,
-                first_failure: report.first_failure?.code || "dispatch_blocked",
-                diagnostic_tail: report.first_failure?.diagnostic_tail || "structured dispatch report blocked",
-                consult_job_logs: false,
-                secrets_included: false
-              }));
-              process.exit(1);
-            }
-            console.log(JSON.stringify({ outcome: report.outcome, target_ref: report.target_ref, expected_head_sha: report.expected_head_sha, secrets_included: false }));
-          '
-        env:
-          REPORT_FILE: ${{ env.DISPATCH_REPORT_DIR }}/governed-refresh-dispatch-evidence.json
