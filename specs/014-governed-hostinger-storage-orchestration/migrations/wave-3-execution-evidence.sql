@@ -2,8 +2,12 @@
 -- DRAFT ONLY: specification-local SQL; not discoverable by governed-migration-runner.
 -- Tasks: T026
 -- migration_apply_authorized=false
+-- schema_verified=false
+-- production_ready=false
 -- destructive_ddl=false
 -- external_fk_ddl_deferred_until_exact_parent_readback=true
+-- runtime_parent_fk_ddl_deferred_until_parent_writer=true
+-- adapter_insert_compatible=true
 -- tool_and_operation_seeds_default_off=true
 -- no_provider_call
 -- no_credential_payload_read
@@ -23,8 +27,8 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_runs (
   connector_ref VARCHAR(191) NOT NULL,
   dispatch_certification_ref VARCHAR(191) NOT NULL,
   host_key_evidence_ref VARCHAR(191) NOT NULL,
-  started_at DATETIME(3) NOT NULL,
-  finished_at DATETIME(3) NULL,
+  started_at_epoch BIGINT UNSIGNED NOT NULL,
+  finished_at_epoch BIGINT UNSIGNED NULL,
   state VARCHAR(32) NOT NULL,
   deleted_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
   deleted_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -47,7 +51,7 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_runs (
   KEY idx_storage_cleanup_runs_operation_state (operation_id, state),
   KEY idx_storage_cleanup_runs_plan (plan_id),
   KEY idx_storage_cleanup_runs_unknown_readback (unknown_outcome, readback_status),
-  KEY idx_storage_cleanup_runs_worker_started (worker_ref, started_at),
+  KEY idx_storage_cleanup_runs_worker_started (worker_ref, started_at_epoch),
   CONSTRAINT fk_storage_cleanup_runs_operation
     FOREIGN KEY (operation_id) REFERENCES storage_cleanup_operations(id),
   CONSTRAINT fk_storage_cleanup_runs_plan
@@ -68,68 +72,87 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_runs (
 
 CREATE TABLE IF NOT EXISTS storage_cleanup_run_items (
   id CHAR(36) NOT NULL,
+  operation_id CHAR(36) NOT NULL,
   run_id CHAR(36) NOT NULL,
-  plan_item_id CHAR(36) NOT NULL,
+  plan_id CHAR(36) NOT NULL,
+  item_id VARCHAR(191) NOT NULL,
+  plan_item_id CHAR(36) NULL,
   sequence BIGINT UNSIGNED NOT NULL,
-  prepared_at DATETIME(3) NOT NULL,
-  revalidation_outcome VARCHAR(64) NOT NULL,
-  result VARCHAR(32) NOT NULL,
+  phase VARCHAR(32) NOT NULL,
+  result VARCHAR(64) NOT NULL,
+  prepared_at_epoch BIGINT UNSIGNED NULL,
+  revalidation_outcome VARCHAR(64) NULL,
   observed_stat_digest CHAR(64) NULL,
-  result_evidence_digest CHAR(64) NOT NULL,
-  checkpoint_at DATETIME(3) NOT NULL,
+  result_evidence_digest CHAR(64) NULL,
+  checkpoint_at_epoch BIGINT UNSIGNED NULL,
   error_code VARCHAR(128) NULL,
   sanitized_error_message VARCHAR(512) NULL,
-  readback_state VARCHAR(32) NOT NULL,
+  readback_state VARCHAR(32) NULL,
+  record_digest CHAR(64) NOT NULL,
+  record_json JSON NOT NULL,
+  row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
+  UNIQUE KEY uq_storage_cleanup_run_items_runtime_sequence
+    (run_id, item_id, sequence),
   UNIQUE KEY uq_storage_cleanup_run_items_sequence
     (run_id, plan_item_id, sequence),
   KEY idx_storage_cleanup_run_items_run_sequence (run_id, sequence),
   KEY idx_storage_cleanup_run_items_run_result (run_id, result),
   KEY idx_storage_cleanup_run_items_plan_item (plan_item_id),
-  CONSTRAINT fk_storage_cleanup_run_items_run
-    FOREIGN KEY (run_id) REFERENCES storage_cleanup_runs(id),
-  CONSTRAINT fk_storage_cleanup_run_items_plan_item
-    FOREIGN KEY (plan_item_id) REFERENCES storage_cleanup_plan_items(id),
-  CONSTRAINT chk_storage_cleanup_run_items_result
-    CHECK (result IN ('deleted', 'skipped_changed', 'skipped_missing', 'skipped_protected', 'failed')),
+  KEY idx_storage_cleanup_run_items_operation (operation_id),
+  KEY idx_storage_cleanup_run_items_plan (plan_id),
+  CONSTRAINT fk_storage_cleanup_run_items_operation
+    FOREIGN KEY (operation_id) REFERENCES storage_cleanup_operations(id),
+  CONSTRAINT fk_storage_cleanup_run_items_plan
+    FOREIGN KEY (plan_id) REFERENCES storage_cleanup_plans(id),
+  CONSTRAINT chk_storage_cleanup_run_items_phase
+    CHECK (phase IN ('prepared', 'result', 'readback')),
   CONSTRAINT chk_storage_cleanup_run_items_digests
     CHECK (
-      result_evidence_digest REGEXP '^[0-9a-f]{64}$'
+      record_digest REGEXP '^[0-9a-f]{64}$'
+      AND (result_evidence_digest IS NULL OR result_evidence_digest REGEXP '^[0-9a-f]{64}$')
       AND (observed_stat_digest IS NULL OR observed_stat_digest REGEXP '^[0-9a-f]{64}$')
+      AND row_version = 1
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS storage_reconciliation_results (
   id CHAR(36) NOT NULL,
-  run_id CHAR(36) NOT NULL,
   operation_id CHAR(36) NOT NULL,
-  reconciliation_generation BIGINT UNSIGNED NOT NULL,
-  input_evidence_hashes_json JSON NOT NULL,
-  item_accounting_json JSON NOT NULL,
+  run_id CHAR(36) NOT NULL,
+  reconciliation_generation BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  input_evidence_hashes_json JSON NULL,
+  item_accounting_json JSON NULL,
   filesystem_readback_ref VARCHAR(191) NULL,
   provider_readback_ref VARCHAR(191) NULL,
   runtime_readback_ref VARCHAR(191) NULL,
   outcome VARCHAR(32) NOT NULL,
   retry_permission TINYINT(1) NOT NULL DEFAULT 0,
-  reviewed_at DATETIME(3) NULL,
+  reviewed_at_epoch BIGINT UNSIGNED NULL,
+  evidence_digest CHAR(64) NULL,
+  record_digest CHAR(64) NOT NULL,
+  record_json JSON NOT NULL,
+  row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  evidence_digest CHAR(64) NOT NULL,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_storage_reconciliation_auto_generation (reconciliation_generation),
   UNIQUE KEY uq_storage_reconciliation_generation
     (run_id, reconciliation_generation),
   KEY idx_storage_reconciliation_operation_outcome (operation_id, outcome),
   KEY idx_storage_reconciliation_run_created (run_id, created_at),
   KEY idx_storage_reconciliation_outcome_retry (outcome, retry_permission),
-  CONSTRAINT fk_storage_reconciliation_run
-    FOREIGN KEY (run_id) REFERENCES storage_cleanup_runs(id),
   CONSTRAINT fk_storage_reconciliation_operation
     FOREIGN KEY (operation_id) REFERENCES storage_cleanup_operations(id),
   CONSTRAINT chk_storage_reconciliation_outcome
     CHECK (outcome IN ('applied', 'partially_applied', 'not_applied', 'conflict', 'still_unknown')),
   CONSTRAINT chk_storage_reconciliation_retry CHECK (retry_permission IN (0, 1)),
   CONSTRAINT chk_storage_reconciliation_digest
-    CHECK (evidence_digest REGEXP '^[0-9a-f]{64}$')
+    CHECK (
+      record_digest REGEXP '^[0-9a-f]{64}$'
+      AND (evidence_digest IS NULL OR evidence_digest REGEXP '^[0-9a-f]{64}$')
+      AND row_version = 1
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS storage_emergency_reserves (
@@ -209,7 +232,7 @@ CREATE TABLE IF NOT EXISTS storage_pressure_incidents (
     CHECK (status IN ('open', 'investigating', 'mitigated', 'resolved', 'closed'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE OR REPLACE VIEW v_storage_admin_target_readiness AS
+CREATE VIEW v_storage_admin_target_readiness AS
 SELECT
   t.id AS target_id,
   t.provider_account_id,
@@ -235,48 +258,34 @@ LEFT JOIN storage_pressure_snapshots s
     LIMIT 1
   );
 
-CREATE OR REPLACE VIEW v_storage_tenant_target_readiness AS
+CREATE VIEW v_storage_tenant_target_readiness AS
 SELECT
-  target_id,
-  resource_id,
-  tenant_id,
-  workspace_id,
-  status,
-  dispatch_status,
-  layout_certification_status,
-  binding_revision,
-  provider_observed_at,
-  effective_pressure_state,
-  completeness,
+  t.id AS target_id,
+  t.resource_id,
+  t.tenant_id,
+  t.workspace_id,
+  t.status,
+  t.dispatch_status,
+  t.layout_certification_status,
+  b.binding_revision,
+  s.provider_observed_at,
+  s.effective_pressure_state,
+  s.completeness,
   0 AS secrets_included
-FROM (
-  SELECT
-    t.id AS target_id,
-    t.resource_id,
-    t.tenant_id,
-    t.workspace_id,
-    t.status,
-    t.dispatch_status,
-    t.layout_certification_status,
-    b.binding_revision,
-    s.provider_observed_at,
-    s.effective_pressure_state,
-    s.completeness
-  FROM storage_targets t
-  LEFT JOIN storage_target_bindings b
-    ON b.target_id = t.id AND b.active_to IS NULL
-  LEFT JOIN storage_pressure_snapshots s
-    ON s.id = (
-      SELECT s2.id
-      FROM storage_pressure_snapshots s2
-      WHERE s2.target_id = t.id
-      ORDER BY s2.provider_observed_at DESC, s2.id DESC
-      LIMIT 1
-    )
-  WHERE t.ownership_scope = 'tenant'
-) tenant_targets;
+FROM storage_targets t
+LEFT JOIN storage_target_bindings b
+  ON b.target_id = t.id AND b.active_to IS NULL
+LEFT JOIN storage_pressure_snapshots s
+  ON s.id = (
+    SELECT s2.id
+    FROM storage_pressure_snapshots s2
+    WHERE s2.target_id = t.id
+    ORDER BY s2.provider_observed_at DESC, s2.id DESC
+    LIMIT 1
+  )
+WHERE t.ownership_scope = 'tenant';
 
-CREATE OR REPLACE VIEW v_storage_cleanup_operation_readback AS
+CREATE VIEW v_storage_cleanup_operation_readback AS
 SELECT
   o.id AS operation_id,
   o.operation_class,
@@ -285,6 +294,8 @@ SELECT
   o.tenant_id,
   o.workspace_id,
   o.state,
+  o.version,
+  o.row_version,
   o.unknown_outcome,
   o.reconciliation_status,
   o.current_plan_id,
@@ -306,7 +317,8 @@ LEFT JOIN storage_reconciliation_results rr
     LIMIT 1
   );
 
--- Default-off tool registration draft. Final column/type parity must be proven by preflight.
+-- Default-off tool registration draft. Preflight must prove exact target columns and
+-- absence of these keys before a separately governed apply can be authorized.
 INSERT INTO admin_platform_endpoint_tools (
   tool_key, display_name, description, http_method, http_path, path_param_keys,
   input_schema, fixed_body, tags, is_enabled, sort_order
@@ -349,16 +361,10 @@ INSERT INTO admin_platform_endpoint_tools (
   'hostinger,storage,mutation,governed',
   0,
   362
-)
-ON DUPLICATE KEY UPDATE
-  display_name = VALUES(display_name),
-  description = VALUES(description),
-  http_method = VALUES(http_method),
-  http_path = VALUES(http_path),
-  input_schema = VALUES(input_schema),
-  tags = VALUES(tags),
-  is_enabled = 0,
-  sort_order = VALUES(sort_order);
+);
 
+-- The current SQL adapter persists journal and reconciliation evidence before a
+-- dedicated run/plan-item parent writer exists. Those three FKs are intentionally
+-- deferred and must be introduced only with same-cycle parent-writer/readback proof.
 -- No connected system, credential reference, runtime route, provider dispatch rule,
 -- migration authorization, or auto-apply policy is created by this draft.
