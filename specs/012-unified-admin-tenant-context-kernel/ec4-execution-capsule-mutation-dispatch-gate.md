@@ -2,7 +2,7 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
 This gate complements, and does not replace, the default-off EC4 mutation-validation pilot already present on `main`. The pilot proves the reversible validation boundary with a controlled in-memory executor. This gate adds the bounded dispatch contract required before any future mutation adapter may be connected.
 
@@ -40,3 +40,7 @@ Disabled mode preserves the legacy dispatcher input and result identity. `rollba
 ## Completion gates
 
 The EC4 dispatch gate completes after exact-once test registration, generated evidence refresh, exact-head CI and side workflows, Human Architecture/Security Review, merge, and post-merge `main` readback.
+
+## Delivery closeout evidence
+
+EC4 Mutation Dispatch Gate was delivered through PR #4397 and merged at `2533d3836fb004ec5835043a49b497011e44f4b0`. Exact-head CI, phased E2E evaluation and execution, the complete diagnostic matrix, Architecture/Security Review, and post-merge `main` readback succeeded. The implementation remains default-off and unmounted; runtime authority, Production activation, provider calls, credential access, database writes, migration apply, deployment, and automatic legacy retirement remain false.
