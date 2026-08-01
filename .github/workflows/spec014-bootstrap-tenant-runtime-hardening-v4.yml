@@ -1,0 +1,47 @@
+name: Bootstrap Spec 014 Tenant runtime hardening v4
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-bootstrap-tenant-runtime-hardening-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: github.head_ref == 'gpt/014-hostinger/tenant-runtime-hardening-v2-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/tenant-runtime-hardening-v2-20260801
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Rebuild as a fast-forward clean tree
+        env:
+          TARGET_BRANCH: gpt/014-hostinger/tenant-runtime-hardening-v2-20260801
+          SOURCE_BRANCH: gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
+          INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          awk '
+            /^        run: \|$/ { capture=1; next }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/spec014-bootstrap-tenant-runtime-hardening-v3.yml \
+            | sed '/^git fetch origin /d; /^git checkout -B /d' \
+            > /tmp/tenant-runtime-build.sh
+          chmod +x /tmp/tenant-runtime-build.sh
+
+          git fetch origin "${TARGET_BRANCH}" "${SOURCE_BRANCH}" "${INTEGRATION_BRANCH}"
+          git reset --hard "origin/${TARGET_BRANCH}"
+          git read-tree --reset -u "origin/${INTEGRATION_BRANCH}"
+
+          bash /tmp/tenant-runtime-build.sh
