@@ -13,7 +13,7 @@ on:
       - ".github/workflows/pr-generated-artifact-refresh.yml"
       - ".github/workflows/frontend-surface-dispatch.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
-      - "docs/ci-evidence-routing.md"
+      - "docs/**"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi*.yaml"
       - "http-generic-api/openapi/**/*.yaml"
