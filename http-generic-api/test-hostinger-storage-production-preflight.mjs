@@ -44,7 +44,7 @@ function input(overrides = {}) {
       deployment_info: endpoint('deployment-info', overrides.runtime_readback?.deployment_info),
     },
     storage_pressure: {
-      source: 'read_only',
+      source: 'hpanel_read_only',
       status: 'healthy',
       bytes_used: 500,
       bytes_limit: 1000,
@@ -68,13 +68,19 @@ function input(overrides = {}) {
       ...(overrides.deployment_layout || {}),
     },
     canary_evidence: {
+      contract: 'mad4b.ci-evidence-summary.v1',
       feature_key: '014-governed-hostinger-storage-orchestration',
       workstream_id: 'shared-canary',
       status: 'passed',
       candidate_kind: 'head',
+      release_candidate_sha: candidateSha,
       workstream_head_sha: sharedHead,
       integration_merge_sha: sharedMerge,
       e2e_run_id: 30716646375,
+      evaluate: 'success',
+      execute: 'success',
+      source_reports_ok: true,
+      source_report_count: 2,
       integrity_findings: 0,
       observed_at_epoch: 990,
       evidence_digest: h('7'),
@@ -114,6 +120,8 @@ for (const [name, overrides, blocker] of [
   ['runtime-sha', { runtime_readback: { health: { commit_sha: candidateSha } } }, 'STORAGE_PRODUCTION_PREFLIGHT_HEALTH_SHA_MISMATCH'],
   ['runtime-failed', { runtime_readback: { status: { ok: false } } }, 'STORAGE_PRODUCTION_PREFLIGHT_STATUS_READBACK_FAILED'],
   ['pressure', { storage_pressure: { status: 'critical' } }, 'STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_BLOCKING'],
+  ['pressure-over-limit', { storage_pressure: { bytes_used: 1001 } }, 'STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_LIMIT_EXCEEDED'],
+  ['pressure-source', { storage_pressure: { source: 'read_only' } }, 'STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_SOURCE_INVALID'],
   ['stale', { storage_pressure: { observed_at_epoch: 700 } }, 'STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_STALE'],
   ['future', { deployment_layout: { observed_at_epoch: 1001 } }, 'STORAGE_PRODUCTION_PREFLIGHT_LAYOUT_FUTURE'],
   ['active-sha', { deployment_layout: { active_production_sha: candidateSha } }, 'STORAGE_PRODUCTION_PREFLIGHT_ACTIVE_SHA_MISMATCH'],
@@ -121,6 +129,9 @@ for (const [name, overrides, blocker] of [
   ['rollback', { deployment_layout: { rollback_set_retained: false } }, 'STORAGE_PRODUCTION_PREFLIGHT_ROLLBACK_SET_REQUIRED'],
   ['roots', { deployment_layout: { candidate_roots_certified: false } }, 'STORAGE_PRODUCTION_PREFLIGHT_CANDIDATE_ROOTS_NOT_CERTIFIED'],
   ['canary', { canary_evidence: { integrity_findings: 1 } }, 'STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID'],
+  ['canary-candidate', { canary_evidence: { release_candidate_sha: productionSha } }, 'STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID'],
+  ['canary-contract', { canary_evidence: { contract: 'legacy-summary' } }, 'STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID'],
+  ['canary-sources', { canary_evidence: { source_reports_ok: false } }, 'STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID'],
   ['mutation', { governance: { mutation_allowed: true } }, 'STORAGE_PRODUCTION_PREFLIGHT_READ_ONLY_BOUNDARY_VIOLATED'],
   ['auto-cleanup', { governance: { auto_cleanup_allowed: true } }, 'STORAGE_PRODUCTION_PREFLIGHT_READ_ONLY_BOUNDARY_VIOLATED'],
   ['authority', { governance: { deployment_requires_separate_authority: false } }, 'STORAGE_PRODUCTION_PREFLIGHT_SEPARATE_AUTHORITY_REQUIRED'],
@@ -141,6 +152,20 @@ assert.throws(
   (error) => error.code === 'STORAGE_PRODUCTION_PREFLIGHT_SECRET_EVIDENCE_REJECTED',
 );
 
+const captureOnceInput = input();
+let storagePressureReads = 0;
+const safePressure = captureOnceInput.storage_pressure;
+Object.defineProperty(captureOnceInput, 'storage_pressure', {
+  enumerable: true,
+  get() {
+    storagePressureReads += 1;
+    return storagePressureReads === 1 ? safePressure : { ...safePressure, status: 'emergency', api_token: 'forbidden' };
+  },
+});
+const captureOnce = buildHostingerStorageProductionPreflight(captureOnceInput);
+assert.equal(captureOnce.preflight_passed, true);
+assert.equal(storagePressureReads, 1);
+
 const tampered = structuredClone(passed);
 tampered.storage_pressure.status = 'emergency';
 const tamperVerification = verifyHostingerStorageProductionPreflight({ preflight: tampered, expected_digest: passed.evidence_digest, now_epoch: 1000 });
@@ -155,6 +180,9 @@ console.log(JSON.stringify({
   read_only_pressure_gate_required: true,
   rollback_and_candidate_layout_required: true,
   shared_canary_evidence_required: true,
+  shared_canary_bound_to_release_candidate: true,
+  canonical_summary_sources_required: true,
+  evidence_getters_captured_once: true,
   warning_pressure_non_blocking: true,
   critical_and_emergency_pressure_blocking: true,
   auto_cleanup_allowed: false,
