@@ -33,9 +33,44 @@ function configuredMcpHost(env) {
   }
 }
 
+function remoteMcpAuthorizationServerMetadata(env) {
+  const issuer = resolveRemoteMcpAuthorizationIssuer(env);
+  return {
+    issuer,
+    authorization_endpoint: `${issuer}/oauth/authorize`,
+    token_endpoint: `${issuer}/oauth/token`,
+    ...(remoteMcpDynamicClientRegistrationEnabled(env)
+      ? { registration_endpoint: `${issuer}/oauth/register` }
+      : {}),
+    revocation_endpoint: `${issuer}/oauth/revoke`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    token_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
+    code_challenge_methods_supported: ["S256"],
+    scopes_supported: [...REMOTE_MCP_SCOPES],
+    resource_parameter_supported: true,
+  };
+}
+
 export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   const router = Router();
   const env = deps.env || process.env;
+
+  // RFC 8414 path-scoped metadata is a child of the existing governed public
+  // discovery family. Using the prefix middleware preserves one explicit public
+  // authority decision while still serving the exact issuer-derived URL.
+  router.use("/.well-known/oauth-authorization-server", (req, res, next) => {
+    if (req.method !== "GET" || req.path !== "/auth/mcp") return next();
+    if (!remoteMcpOAuthEnabled(env)) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "MCP_OAUTH_DISABLED", message: "Not found." },
+        secrets_included: false,
+      });
+    }
+    res.setHeader("Cache-Control", "public, max-age=300");
+    return res.status(200).json(remoteMcpAuthorizationServerMetadata(env));
+  });
 
   // Existing Tenant GPT/Activation authorization-server metadata remains
   // unchanged for backwards compatibility.
@@ -48,35 +83,6 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       grant_types_supported: ["authorization_code"],
       token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
       scopes_supported: TENANT_GPT_SCOPE_LINKS,
-      resource_parameter_supported: true,
-    });
-  });
-
-  // RFC 8414 path-scoped metadata for issuer https://auth.mad4b.com/auth/mcp.
-  // The separate issuer avoids changing the established Activation client.
-  router.get("/.well-known/oauth-authorization-server/auth/mcp", (_req, res) => {
-    if (!remoteMcpOAuthEnabled(env)) {
-      return res.status(404).json({
-        ok: false,
-        error: { code: "MCP_OAUTH_DISABLED", message: "Not found." },
-        secrets_included: false,
-      });
-    }
-    const issuer = resolveRemoteMcpAuthorizationIssuer(env);
-    res.setHeader("Cache-Control", "public, max-age=300");
-    return res.status(200).json({
-      issuer,
-      authorization_endpoint: `${issuer}/oauth/authorize`,
-      token_endpoint: `${issuer}/oauth/token`,
-      ...(remoteMcpDynamicClientRegistrationEnabled(env)
-        ? { registration_endpoint: `${issuer}/oauth/register` }
-        : {}),
-      revocation_endpoint: `${issuer}/oauth/revoke`,
-      response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code", "refresh_token"],
-      token_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
-      code_challenge_methods_supported: ["S256"],
-      scopes_supported: [...REMOTE_MCP_SCOPES],
       resource_parameter_supported: true,
     });
   });
