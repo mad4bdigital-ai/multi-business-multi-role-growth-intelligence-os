@@ -97,7 +97,7 @@ jobs:
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
-          grep -q "tenant_factory_owned_required" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          grep -q "tenant_and_control_plane_factory_owned_required" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           grep -q "Object.isFrozen(verified.blockers)" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           grep -F -q "Object.freeze({ ...spoofedAdapterFixture.adapter })" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
