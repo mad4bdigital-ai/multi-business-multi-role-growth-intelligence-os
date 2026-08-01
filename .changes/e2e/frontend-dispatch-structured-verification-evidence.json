@@ -1,0 +1,100 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "frontend-dispatch-structured-verification-evidence",
+  "title": "Frontend dispatch structured verification evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/frontend-surface-dispatch.yml",
+      "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
+      "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
+      "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+      ".changes/e2e/frontend-dispatch-structured-verification-evidence.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with one exact-candidate structured report and align validation and refresh generation against the same freshly fetched main baseline.",
+      "e2e_journeys": [
+        {
+          "id": "frontend-dispatch-structured-verification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and pull-request reviewer",
+          "entrypoint": "Frontend surface dispatch on a pull request or explicit workflow dispatch",
+          "terminal_outcome": "The workflow publishes bounded JSON and Markdown identifying the first failed verification stage, or proves all generator, auth, OpenAPI, route-coverage, and committed-output checks on the exact merge candidate without requiring Job-log reconstruction.",
+          "steps": [
+            "Checkout the exact candidate without persisted credentials for validation.",
+            "Fetch the canonical default branch and force the local canonical ref to the fetched origin ref.",
+            "Generate frontend dispatch, operation-governance, and runtime OpenAPI evidence against that exact canonical ref.",
+            "Validate the structured evidence reporter.",
+            "Run each frontend verification command as a named ordered evidence stage.",
+            "Check committed generated-output parity as a named evidence stage.",
+            "Stop at the first failure and retain bounded redacted diagnostics.",
+            "Upload the structured report before enforcing its decision.",
+            "Use the same fetched-main synchronization in the bounded refresh job."
+          ],
+          "assertions": [
+            "The report contract is mad4b.frontend-dispatch-verification-evidence.v1.",
+            "Pull-request evidence records merge-candidate SHA separately from source-head SHA.",
+            "Validation and refresh both move local main to origin/main after fetching.",
+            "The report names the first failed verification stage and exit code.",
+            "Diagnostics are bounded and redact authorization values, OAuth tokens, secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values.",
+            "The report declares secrets_included=false.",
+            "Job logs are diagnostic-only and are consulted only when bounded structured diagnostics are absent.",
+            "Generated artifacts remain restricted to the three governed frontend evidence files."
+          ],
+          "tests": [
+            {
+              "id": "frontend-dispatch-structured-evidence-reporter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-frontend-dispatch-verification-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-dispatch-fetched-baseline-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/frontend-surface-dispatch.yml",
+            "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
+            "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Route the report through the trusted canonical PR evidence publisher after the workflow definition is present on the default branch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise process spawn faults, missing reports, oversized diagnostics, stale candidates, concurrent refresh pushes, and artifact upload failures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the first non-production exact-candidate report and verify reviewers no longer require manual Job-log reading."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require canonical structured frontend verification evidence for protected release promotion."
+    }
+  ]
+}
