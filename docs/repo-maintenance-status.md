@@ -60,6 +60,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml`
 - `.github/workflows/brand-skill-staging-preflight-push-fallback.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
+- `.github/workflows/ci-evidence-pr-publisher.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
