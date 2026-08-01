@@ -5,6 +5,17 @@ import { pathToFileURL } from "node:url";
 
 export const COMMENT_MARKER = "<!-- mad4b-ci-evidence-authority -->";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
+const WORKFLOW_CONCLUSIONS = new Set([
+  "success",
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+  "startup_failure",
+  "stale",
+  "skipped",
+  "neutral"
+]);
 const WORKFLOWS = Object.freeze({
   "E2E Phase Governance": { slug: "e2e-phase-governance", contract: "mad4b.ci-evidence-summary.v1", candidateKind: "head" },
   "Context Kernel Hardcoding Report": { slug: "context-kernel-hardcoding", contract: "mad4b.context-kernel-hardcoding-summary.v1", candidateKind: "head" },
@@ -16,7 +27,16 @@ function text(value, max = 240) {
 }
 
 function parseArgs(argv) {
-  const options = { repository: null, prNumber: null, workflow: null, reportFile: null, workflowRunId: null, sourceHeadSha: null, token: process.env.GITHUB_TOKEN || null };
+  const options = {
+    repository: null,
+    prNumber: null,
+    workflow: null,
+    workflowConclusion: null,
+    reportFile: null,
+    workflowRunId: null,
+    sourceHeadSha: null,
+    token: process.env.GITHUB_TOKEN || null
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     const take = () => {
@@ -31,6 +51,8 @@ function parseArgs(argv) {
     else if (arg.startsWith("--pr-number=")) options.prNumber = Number(arg.slice(12));
     else if (arg === "--workflow") options.workflow = take();
     else if (arg.startsWith("--workflow=")) options.workflow = arg.slice(11);
+    else if (arg === "--workflow-conclusion") options.workflowConclusion = take();
+    else if (arg.startsWith("--workflow-conclusion=")) options.workflowConclusion = arg.slice(22);
     else if (arg === "--report") options.reportFile = take();
     else if (arg.startsWith("--report=")) options.reportFile = arg.slice(9);
     else if (arg === "--workflow-run-id") options.workflowRunId = Number(take());
@@ -42,6 +64,7 @@ function parseArgs(argv) {
   if (!options.repository || !/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/u.test(options.repository)) throw new Error("--repository must be owner/name.");
   if (!Number.isInteger(options.prNumber) || options.prNumber < 1) throw new Error("--pr-number must be positive.");
   if (!WORKFLOWS[options.workflow]) throw new Error("Unsupported workflow.");
+  if (!WORKFLOW_CONCLUSIONS.has(options.workflowConclusion)) throw new Error("--workflow-conclusion must be a supported completed conclusion.");
   if (!options.reportFile) throw new Error("--report is required.");
   if (!Number.isInteger(options.workflowRunId) || options.workflowRunId < 1) throw new Error("--workflow-run-id must be positive.");
   if (!SHA_PATTERN.test(options.sourceHeadSha || "")) throw new Error("--source-head-sha must be a full lowercase SHA.");
@@ -49,22 +72,36 @@ function parseArgs(argv) {
   return options;
 }
 
-export function normalizeEvidence({ workflow, report, prNumber, workflowRunId, sourceHeadSha }) {
+function assertConclusionMatchesOutcome(workflowConclusion, outcome) {
+  const passed = outcome === "passed";
+  if (workflowConclusion === "success" && !passed) {
+    throw new Error("Successful workflow_run cannot publish a non-passed canonical outcome.");
+  }
+  if (workflowConclusion !== "success" && passed) {
+    throw new Error("Non-successful workflow_run cannot publish a passed canonical outcome.");
+  }
+}
+
+export function normalizeEvidence({ workflow, workflowConclusion, report, prNumber, workflowRunId, sourceHeadSha }) {
   const route = WORKFLOWS[workflow];
   if (!route) throw new Error("Unsupported workflow.");
+  if (!WORKFLOW_CONCLUSIONS.has(workflowConclusion)) throw new Error("Unsupported workflow conclusion.");
   if (report?.contract !== route.contract) throw new Error(`Unexpected canonical contract for ${workflow}.`);
   if (workflow === "Branch Test Diagnostic Shards") {
     if (!SHA_PATTERN.test(report?.commitSha || "")) throw new Error("Branch diagnostic report is missing a valid merge-candidate SHA.");
     if (report?.ref !== `refs/pull/${prNumber}/merge`) throw new Error("Branch diagnostic report ref does not match the PR merge candidate.");
     if (report?.secretsIncluded !== false) throw new Error("Branch diagnostic report must declare secretsIncluded=false.");
+    const outcome = Number(report.failedCount || 0) === 0 ? "passed" : "failed";
+    assertConclusionMatchesOutcome(workflowConclusion, outcome);
     return {
       slug: route.slug,
       workflow,
+      workflowConclusion,
       runId: workflowRunId,
       candidateKind: "merge_candidate",
       candidateSha: report.commitSha,
       sourceHeadSha,
-      outcome: Number(report.failedCount || 0) === 0 ? "passed" : "failed",
+      outcome,
       detail: `${Number(report.passedCount || 0)}/${Number(report.selectedCount || 0)} tests passed; ${Number(report.failedCount || 0)} failed`,
       artifactContract: report.contract
     };
@@ -73,9 +110,11 @@ export function normalizeEvidence({ workflow, report, prNumber, workflowRunId, s
   if (report?.identity?.candidate_kind !== "head") throw new Error(`${workflow} must publish head evidence.`);
   if (!SHA_PATTERN.test(report?.identity?.candidate_sha || "")) throw new Error(`${workflow} report is missing a valid candidate SHA.`);
   if (report.identity.candidate_sha !== sourceHeadSha) throw new Error(`${workflow} report candidate does not match workflow_run head_sha.`);
+  assertConclusionMatchesOutcome(workflowConclusion, report.outcome);
   return {
     slug: route.slug,
     workflow,
+    workflowConclusion,
     runId: workflowRunId,
     candidateKind: "head",
     candidateSha: report.identity.candidate_sha,
@@ -94,6 +133,7 @@ export function renderEvidenceSection(evidence) {
     `### ${text(evidence.workflow, 100)}`,
     "",
     `- Run ID: \`${evidence.runId}\``,
+    `- Workflow conclusion: \`${text(evidence.workflowConclusion, 40)}\``,
     `- Candidate kind: \`${evidence.candidateKind}\``,
     `- Exact candidate SHA: \`${evidence.candidateSha}\``,
     `- PR source head SHA: \`${evidence.sourceHeadSha}\``,
@@ -141,6 +181,10 @@ export async function publishEvidenceComment(options) {
   const report = JSON.parse(fs.readFileSync(path.resolve(options.reportFile), "utf8"));
   const evidence = normalizeEvidence({ ...options, report });
   const api = `https://api.github.com/repos/${options.repository}`;
+  const pullRequest = await githubRequest(`${api}/pulls/${options.prNumber}`, { token: options.token });
+  if (pullRequest?.head?.sha !== options.sourceHeadSha) {
+    throw new Error("Refusing to publish canonical evidence for a stale PR head.");
+  }
   const comments = await githubRequest(`${api}/issues/${options.prNumber}/comments?per_page=100`, { token: options.token });
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(COMMENT_MARKER));
   const updated = upsertEvidenceComment(existing?.body || "", evidence);
