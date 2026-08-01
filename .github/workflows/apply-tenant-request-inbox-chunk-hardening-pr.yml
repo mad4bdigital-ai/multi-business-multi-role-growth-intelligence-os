@@ -37,6 +37,47 @@ jobs:
       - name: Apply idempotent runtime patch
         run: python .github/scripts/apply-tenant-request-inbox-runtime-hardening.py
 
+      - name: Align legacy fake pools with schema preflight
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ownership = Path("http-generic-api/test-governed-tool-response-chunk-store.mjs")
+          text = ownership.read_text(encoding="utf-8")
+          if "GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS" not in text:
+              text = text.replace(
+                  "  GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,\n",
+                  "  GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,\n  GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS,\n",
+                  1,
+              )
+          schema_branch = '''      if (sql.includes("information_schema.columns")) {
+            return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
+          }
+          '''
+          anchor = '''    async query(sql, params = []) {
+              if (sql.includes("INSERT INTO governed_tool_response_chunks")) {'''
+          if schema_branch not in text:
+              if anchor not in text:
+                  raise SystemExit("ownership fake-pool anchor missing")
+              text = text.replace(anchor, "    async query(sql, params = []) {\n" + schema_branch + "      if (sql.includes(\"INSERT INTO governed_tool_response_chunks\")) {", 1)
+          ownership.write_text(text, encoding="utf-8")
+
+          chunking = Path("http-generic-api/test-gpt-tools-response-chunking.mjs")
+          text = chunking.read_text(encoding="utf-8")
+          import_anchor = '} from "./routes/gptToolsRoutes.js";\n'
+          required_import = 'import { GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS } from "./governedToolResponseChunkStore.js";\n'
+          if required_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit("chunking import anchor missing")
+              text = text.replace(import_anchor, import_anchor + required_import, 1)
+          if schema_branch not in text:
+              if anchor not in text:
+                  raise SystemExit("chunking fake-pool anchor missing")
+              text = text.replace(anchor, "    async query(sql, params = []) {\n" + schema_branch + "      if (sql.includes(\"INSERT INTO governed_tool_response_chunks\")) {", 1)
+          chunking.write_text(text, encoding="utf-8")
+          PY
+
       - name: Install locked dependencies
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
@@ -52,7 +93,7 @@ jobs:
           node http-generic-api/test-governed-tool-response-chunk-store.mjs
           node http-generic-api/test-gpt-tools-response-chunking.mjs
 
-      - name: Commit runtime files only
+      - name: Commit runtime and schema-preflight regression files
         shell: bash
         run: |
           set -euo pipefail
@@ -60,7 +101,9 @@ jobs:
             http-generic-api/supportTicketResolutionService.js \
             http-generic-api/routes/supportTicketRoutes.js \
             http-generic-api/governedToolResponseChunkStore.js \
-            http-generic-api/routes/gptToolsRoutes.js
+            http-generic-api/routes/gptToolsRoutes.js \
+            http-generic-api/test-governed-tool-response-chunk-store.mjs \
+            http-generic-api/test-gpt-tools-response-chunking.mjs
           git diff --cached --check
           if git diff --cached --quiet; then
             echo "Runtime hardening is already applied."
