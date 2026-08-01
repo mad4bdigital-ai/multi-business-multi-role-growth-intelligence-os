@@ -1,0 +1,68 @@
+name: Repository Tool Lifecycle Governance
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-tool-lifecycle-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Prepare exact changed-file inventory
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_SHA"
+          git diff --name-status "$BASE_SHA" "$HEAD_SHA" > /tmp/repository-tool-changes.tsv
+
+      - name: Evaluate repository tool lifecycle
+        id: governance
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir .artifacts/repository-tool-lifecycle
+
+      - name: Publish canonical repository-tool report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-tool-lifecycle-${{ github.run_id }}
+          path: .artifacts/repository-tool-lifecycle/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish bounded step summary
+        if: always()
+        run: cat .artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce repository tool lifecycle
+        if: steps.governance.outcome != 'success'
+        run: |
+          echo "Repository tool lifecycle governance failed. Read the canonical report artifact first."
+          exit 1
