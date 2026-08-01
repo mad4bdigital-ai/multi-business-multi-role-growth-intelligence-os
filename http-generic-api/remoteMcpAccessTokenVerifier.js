@@ -26,6 +26,34 @@ function optionalId(value) {
   return normalized || null;
 }
 
+async function activeSubjectStillAuthorized(pool, { userId, tenantId }) {
+  if (tenantId) {
+    const [rows] = await pool.query(
+      `SELECT m.user_id
+         FROM memberships m
+         JOIN users u ON u.user_id = m.user_id
+         JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ?
+          AND m.tenant_id = ?
+          AND m.status = 'active'
+          AND u.status = 'active'
+          AND t.status = 'active'
+        LIMIT 1`,
+      [userId, tenantId],
+    );
+    return Boolean(rows[0]);
+  }
+  const [rows] = await pool.query(
+    `SELECT user_id
+       FROM users
+      WHERE user_id = ?
+        AND status = 'active'
+      LIMIT 1`,
+    [userId],
+  );
+  return Boolean(rows[0]);
+}
+
 export async function verifyRemoteMcpBearerAuthorization(authorization, options = {}) {
   const env = options.env || process.env;
   const requiredScopes = Array.isArray(options.requiredScopes) ? options.requiredScopes : [];
@@ -78,9 +106,10 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
     return failure(403, "MCP_SCOPE_INSUFFICIENT", "OAuth access token does not include the required scope.");
   }
 
+  let pool;
   let grant;
   try {
-    const pool = options.pool || getPool();
+    pool = options.pool || getPool();
     grant = await readRemoteMcpGrantByAccessJti(jti, { pool });
   } catch {
     return failure(503, "MCP_AUTH_UNAVAILABLE", "OAuth revocation state is temporarily unavailable.");
@@ -96,6 +125,14 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
     || [...grantedScopes].some((scope) => !grantScopes.has(scope));
   if (inconsistent) {
     return failure(401, "MCP_TOKEN_INVALID", "OAuth access token does not match the active grant.");
+  }
+
+  try {
+    if (!await activeSubjectStillAuthorized(pool, { userId, tenantId })) {
+      return failure(401, "MCP_SUBJECT_INACTIVE", "OAuth user or tenant membership is no longer active.");
+    }
+  } catch {
+    return failure(503, "MCP_AUTH_UNAVAILABLE", "OAuth subject authorization state is temporarily unavailable.");
   }
 
   return {
