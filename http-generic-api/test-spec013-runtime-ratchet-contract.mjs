@@ -10,8 +10,21 @@ const platformBindingBlock = routes.match(
   /async function callPlatformEndpointToolIfAvailable[\s\S]*?async function callTenantEndpointRegistryToolIfAvailable/u,
 )?.[0] || "";
 assert(platformBindingBlock, "platform endpoint tool dispatch block must exist");
-assert.match(platformBindingBlock, /LIMIT 2`/u, "platform endpoint binding lookup must read enough rows to prove uniqueness");
-assert.match(platformBindingBlock, /platform_endpoint_tool_binding_ambiguous/u);
+assert.match(
+  platformBindingBlock,
+  /ORDER BY x\.parent_action_key, x\.endpoint_key`/u,
+  "grouped platform endpoint bindings must be read in deterministic order",
+);
+assert.doesNotMatch(
+  platformBindingBlock,
+  /LIMIT 2`/u,
+  "grouped platform endpoint dispatch must not truncate valid same-name endpoint exports",
+);
+assert.match(
+  platformBindingBlock,
+  /resolvePlatformEndpointToolBinding\(rows, \{ toolName: name, args \}\)/u,
+  "platform endpoint dispatch must select the exact caller-authorized endpoint binding",
+);
 assert.doesNotMatch(platformBindingBlock, /const row = rows\[0\]/u);
 
 const connectorGetBlock = routes.match(
