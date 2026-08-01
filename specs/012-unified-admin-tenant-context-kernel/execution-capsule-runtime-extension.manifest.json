@@ -2,7 +2,7 @@
   "schema_version": 1,
   "extension_key": "spec-012-execution-capsule-runtime-integration",
   "parent_spec_key": "unified_admin_tenant_context_kernel",
-  "status": "in_progress",
+  "status": "complete",
   "specification_authority": true,
   "runtime_authority": false,
   "primary_artifact": "execution-capsule-runtime-addendum.md",
@@ -60,8 +60,8 @@
     "EC2_selected_read_pilot": "complete",
     "EC3_unified_dispatch_integration": "complete",
     "EC4_mutation_validation_pilot": "complete",
-    "EC4_mutation_dispatch_gate": "in_progress",
-    "EC5_rollout_and_duplicate_resolver_retirement": "in_progress"
+    "EC4_mutation_dispatch_gate": "complete",
+    "EC5_rollout_and_duplicate_resolver_retirement": "complete"
   },
   "constraints": [
     "capsule_never_grants_execution_by_itself",
@@ -76,5 +76,17 @@
     "no_production_activation",
     "no_deployment"
   ],
-  "secrets_included": false
+  "secrets_included": false,
+  "completion_evidence": {
+    "implementation_pull_request": 4397,
+    "merge_sha": "2533d3836fb004ec5835043a49b497011e44f4b0",
+    "certified_head_sha": "0c1f00ccc6c8970143ad3a2c606fe4ad25514e83",
+    "exact_head_ci": "success",
+    "e2e_phase_governance": "success",
+    "post_merge_main_readback": "verified",
+    "runtime_authority": false,
+    "production_activation": false,
+    "deployment": false,
+    "migration_apply": false
+  }
 }

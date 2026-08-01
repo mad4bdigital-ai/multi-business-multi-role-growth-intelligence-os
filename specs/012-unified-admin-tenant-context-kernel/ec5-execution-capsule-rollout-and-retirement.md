@@ -2,7 +2,7 @@
 
 ## Status
 
-`in_progress`
+`complete`
 
 EC5 adds a default-off rollout and legacy-resolver retirement gate. Readiness evaluation is separate from retirement application, and readiness never changes runtime behavior by itself.
 
@@ -44,3 +44,7 @@ The gate does not discover, delete, mount, deploy, or synchronize runtime code a
 ## Completion gates
 
 EC5 completes after regression registration, generated evidence refresh, exact-head CI and side workflows, Human Architecture/Security Review, merge, and post-merge main readback. Actual Production activation or deployment remains a separately authorized lifecycle.
+
+## Delivery closeout evidence
+
+EC5 Rollout and Legacy Retirement Gate was delivered through PR #4397 and merged at `2533d3836fb004ec5835043a49b497011e44f4b0`. Exact-head CI, phased E2E evaluation and execution, the complete diagnostic matrix, Architecture/Security Review, and post-merge `main` readback succeeded. The implementation remains default-off and unmounted; runtime authority, Production activation, provider calls, credential access, database writes, migration apply, deployment, and automatic legacy retirement remain false.

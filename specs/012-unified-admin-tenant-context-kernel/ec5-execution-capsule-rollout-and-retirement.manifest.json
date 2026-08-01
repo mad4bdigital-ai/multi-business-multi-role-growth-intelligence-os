@@ -3,7 +3,7 @@
   "slice_key": "spec-012-ec5-execution-capsule-rollout-and-retirement",
   "parent_extension": "spec-012-execution-capsule-runtime-integration",
   "phase": "EC5_rollout_and_duplicate_resolver_retirement",
-  "status": "in_progress",
+  "status": "complete",
   "runtime_authority": false,
   "production_activation": false,
   "provider_call": false,
@@ -16,7 +16,8 @@
     "../../http-generic-api/contextKernel/integration/executionCapsuleRuntimeRollout.js",
     "../../http-generic-api/contextKernel/integration/index.js",
     "../../http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
-    "../../http-generic-api/scripts/test-manifest.mjs"
+    "../../http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+    "e2e-phases.json"
   ],
   "implemented_contracts": [
     "default_off_shadow_only_rollout",
@@ -44,11 +45,7 @@
     "bounded_retirement_plan_result_and_telemetry",
     "shadow_only_rollback"
   ],
-  "pending_contracts": [
-    "exact_head_ci_evidence",
-    "human_architecture_security_review",
-    "post_merge_main_readback"
-  ],
+  "pending_contracts": [],
   "constraints": [
     "readiness_never_changes_runtime_by_itself",
     "approval_cannot_float_across_metrics_evidence",
@@ -65,5 +62,78 @@
     "no_production_activation",
     "no_deployment"
   ],
-  "secrets_included": false
+  "secrets_included": false,
+  "registration_evidence": {
+    "status": "verified_exact_head_and_post_merge",
+    "registered_commands": [
+      "node test-execution-capsule-mutation-and-rollout.mjs"
+    ],
+    "registry_path": "../../http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+    "exact_registration_count": 1,
+    "frontend_surface_dispatch": "success",
+    "temporary_workflow_present": false
+  },
+  "completion_evidence": {
+    "pull_request": 4397,
+    "superseded_pull_requests": [
+      3956,
+      4391
+    ],
+    "source_head_sha": "3abd8c44fbcad984e845e2171c1bd66aa548d9eb",
+    "certified_head_sha": "0c1f00ccc6c8970143ad3a2c606fe4ad25514e83",
+    "merge_sha": "2533d3836fb004ec5835043a49b497011e44f4b0",
+    "required_ci": {
+      "run_id": 30694523350,
+      "result": "success",
+      "syntax_check": "success",
+      "architecture_drift": "success",
+      "execution_resolver": "success",
+      "unit_and_integration": "success",
+      "hardcoding_ratchet": "success",
+      "runtime_startup_evidence": "success",
+      "governance_contracts": "success",
+      "stale_readiness_rejection": "success"
+    },
+    "e2e_phase_governance": {
+      "run_id": 30694523338,
+      "evaluation": "success",
+      "current_phase_execution": "success",
+      "journey_id": "execution-capsule-mutation-dispatch-to-rollout-readback"
+    },
+    "diagnostic_shards": {
+      "run_id": 30694523341,
+      "sequential_manifest_suite": "success",
+      "all_family_shards": "success"
+    },
+    "side_workflows": {
+      "frontend_surface_dispatch_run_id": 30694523337,
+      "docs_agent_run_id": 30694523330,
+      "fanout_relocation_run_id": 30694523352,
+      "cleanup_readback_run_id": 30694523335,
+      "remaining_scope_run_id": 30694523340,
+      "result": "success"
+    },
+    "architecture_security_review": {
+      "review_id": 4834433472,
+      "result": "no_blocking_findings",
+      "requested_changes": 0,
+      "unresolved_threads": 0
+    },
+    "latest_main_reconciliation": {
+      "observed_main_sha_before_merge": "177dcdcd048dda5a4f6bd7504fcb1bad9ef2cf25",
+      "behind_by": 0,
+      "changed_files": 11
+    },
+    "post_merge_main_readback": {
+      "observed_main_sha": "2533d3836fb004ec5835043a49b497011e44f4b0",
+      "mutation_dispatch_blob_sha": "98a06ab63e290dcb4214fe5392bc18bf8d464c90",
+      "rollout_blob_sha": "924cea3d41c2ecaaa2b5676a74aeb364c8e7902b",
+      "integration_index_blob_sha": "a5e18f0129c7eb4695f5df4053487053d740678f",
+      "regression_blob_sha": "7f41641108eab666c9cb48ecf5ead4c198781b8c",
+      "spec012_test_manifest_blob_sha": "f6eb90aa9e8db7ec7fdaaa7a540197871e93c79e",
+      "e2e_contract_blob_sha_before_closeout": "554e832a9e940b9d00aeeca0443365fdde934d16",
+      "runtime_authority": false,
+      "production_activation": false
+    }
+  }
 }
