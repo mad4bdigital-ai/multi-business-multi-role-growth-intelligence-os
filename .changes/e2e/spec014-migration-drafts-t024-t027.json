@@ -12,8 +12,7 @@
       ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
       ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
       ".github/workflows/hostinger-storage-migration-drafts-guard.yml",
-      "specs/014-governed-hostinger-storage-orchestration/migrations/**",
-      "specs/014-governed-hostinger-storage-orchestration/tasks.md"
+      "specs/014-governed-hostinger-storage-orchestration/migrations/**"
     ]
   },
   "merge_contract": {
@@ -49,6 +48,7 @@
             "Readback proves object counts, runtime column/index compatibility, constraints, and default-off tools but does not sign schema verification.",
             "Rollback returns separately governed statements as data and executes no destructive SQL.",
             "No draft file is discoverable by the governed migration runner.",
+            "The temporary builder PR is closed and this single PR is the only active delivery path for this feature key.",
             "No migration apply, live database access, credential read, Hostinger access, provider dispatch, deployment, main merge, or Production mutation occurs."
           ],
           "tests": [
