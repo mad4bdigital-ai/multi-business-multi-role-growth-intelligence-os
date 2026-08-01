@@ -2,11 +2,31 @@
 import assert from 'node:assert/strict';
 import { buildHostingerStorageTenantCanaryAuthorization } from './hostingerStorageTenantCanaryPolicy.js';
 import {
+  createHostingerStorageTenantCanarySyntheticAdapter,
   createMemoryHostingerStorageTenantCanaryAuthorityStore,
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
   executeHostingerStorageTenantCanary,
 } from './hostingerStorageTenantCanary.js';
-import { createSyntheticExecutorFixture, h } from './test-hostinger-storage-executor-fixtures.mjs';
+import {
+  createSyntheticExecutorFixture as createBaseSyntheticExecutorFixture,
+  h,
+} from './test-hostinger-storage-executor-fixtures.mjs';
+
+function createSyntheticExecutorFixture(options = {}) {
+  const fixture = createBaseSyntheticExecutorFixture(options);
+  const items = fixture.adapter.exportState().items.map((item) => ({
+    item_id: item.item_id,
+    path_ref: item.path_ref,
+    item_hash: item.item_hash,
+    metadata: item.metadata,
+    exists: item.exists,
+    protected: item.protected,
+  }));
+  return {
+    ...fixture,
+    adapter: createHostingerStorageTenantCanarySyntheticAdapter({ items }),
+  };
+}
 
 function buildAuthorization(fixture, { allowlist = {}, approval = {}, enablement = {}, now = 1100 } = {}) {
   const operation = fixture.repository.readAggregate(fixture.operation_id).operation;
@@ -121,8 +141,10 @@ const spoofedAdapterFixture = createSyntheticExecutorFixture({
 });
 const spoofedAdapterAuthorization = buildAuthorization(spoofedAdapterFixture);
 const spoofedAdapterPrepared = prepare(spoofedAdapterFixture, spoofedAdapterAuthorization);
-const spoofedAdapter = { ...spoofedAdapterFixture.adapter };
+const spoofedAdapter = Object.freeze({ ...spoofedAdapterFixture.adapter });
 assert.equal(spoofedAdapter.adapter_key, 'hostinger_storage_synthetic_memory_adapter_v1');
+assert.equal(spoofedAdapter.adapter_version, 'spec014-hostinger-storage-synthetic-adapter-v1');
+assert.equal(Object.isFrozen(spoofedAdapter), true);
 assert.throws(
   () => execute({
     fixture: spoofedAdapterFixture,
@@ -272,7 +294,8 @@ assert.equal(abaStore.readApproval('approval-aba').status, 'revoked');
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_tenant_canary_postmerge_hardening',
-  canonical_adapter_brand_required: true,
+  tenant_owned_factory_weakset_brand_required: true,
+  frozen_public_metadata_copy_rejected: true,
   full_repository_contract_required_before_consumption: true,
   immutable_plan_authority_revisions_revalidated: true,
   clock_rollback_and_not_before_rejected: true,
