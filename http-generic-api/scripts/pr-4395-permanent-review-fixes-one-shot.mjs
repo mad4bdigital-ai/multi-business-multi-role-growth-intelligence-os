@@ -56,13 +56,21 @@ function run(label, command, args = []) {
   return result;
 }
 
+function replaceExactlyOnce(path, before, after) {
+  const source = readFileSync(path, "utf8");
+  const count = source.split(before).length - 1;
+  if (count !== 1) {
+    throw new Error(`${path}: expected one supplemental replacement target, found ${count}`);
+  }
+  writeFileSync(path, source.replace(before, after));
+}
+
 const branch = String(
   process.env.GITHUB_HEAD_REF
   || raw("git", ["branch", "--show-current"]).stdout
   || "",
 ).trim();
 if (branch !== TARGET_BRANCH) throw new Error(`unexpected branch: ${branch}`);
-if (existsSync(REPORT)) throw new Error("structured diagnostic is pending review");
 
 const packageJson = JSON.parse(readFileSync(PACKAGE, "utf8"));
 if (packageJson.scripts?.["frontend:dispatch:generate"] !== HOOKED_DISPATCH) {
@@ -71,8 +79,14 @@ if (packageJson.scripts?.["frontend:dispatch:generate"] !== HOOKED_DISPATCH) {
 if (packageJson.scripts?.[MARKER_SCRIPT] !== "node -e \"process.exit(0)\"") {
   throw new Error("one-shot marker script is not the exact expected contract");
 }
+if (existsSync(REPORT)) unlinkSync(REPORT);
 
 run("apply permanent review transform", "python3", [TRANSFORM]);
+replaceExactlyOnce(
+  "test-platform-routes.mjs",
+  '  const r = await get("/system/tools");\n  ok("shared system tools returns 200", r.status === 200, `got ${r.status}`);',
+  '  const r = await get("/system/tools?max_chars=150000&client_response_budget_chars=150000&response_envelope_overhead_chars=2000");\n  ok("shared system tools returns 200", r.status === 200, `got ${r.status}`);',
+);
 run("check governed chunk store syntax", "node", ["--check", "governedToolResponseChunkStore.js"]);
 run("check support ticket routes syntax", "node", ["--check", "routes/supportTicketRoutes.js"]);
 run("check system layer routes syntax", "node", ["--check", "routes/systemLayerRoutes.js"]);
@@ -86,6 +100,7 @@ delete packageJson.scripts[MARKER_SCRIPT];
 writeFileSync(PACKAGE, `${JSON.stringify(packageJson, null, 2)}\n`);
 unlinkSync(TRANSFORM);
 unlinkSync(HELPER);
+if (existsSync(REPORT)) unlinkSync(REPORT);
 
 run("validate staged diff", "git", ["diff", "--check"]);
 raw("git", ["config", "user.name", "github-actions[bot]"], { stdio: "inherit" });
@@ -95,6 +110,7 @@ raw("git", [
   PACKAGE,
   HELPER,
   TRANSFORM,
+  REPORT,
   "governedToolResponseChunkStore.js",
   "routes/supportTicketRoutes.js",
   "routes/systemLayerRoutes.js",
