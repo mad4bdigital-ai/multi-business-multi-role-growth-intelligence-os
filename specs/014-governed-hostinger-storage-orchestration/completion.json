@@ -18,13 +18,20 @@
     "operation_paths": "complete",
     "plan": "complete",
     "data_model": "complete",
-    "contracts": "draft_complete_validation_pending",
+    "contracts": "validated_compatibility_frozen",
     "open_source_toolchain": "complete_non_runtime_contract",
     "tasks": "complete",
     "work_map_integration": "ready_at_recorded_registry_fingerprint",
     "checklist": "open_items_remaining"
   },
   "implementation": {
+    "contract_compatibility_guard": "implemented_and_executed",
+    "contract_compatibility_coverage": {
+      "http_operations": 18,
+      "external_json_schemas": 3,
+      "structured_error_codes": 59,
+      "negative_cases": 6
+    },
     "conservative_shell_tool": "implemented_non_production",
     "pure_admin_tenant_authority_policy": "implemented",
     "orchestrator_pure_core": "implemented_non_durable",
@@ -81,20 +88,31 @@
     "live_apply_dispatch": "disabled"
   },
   "delivery": {
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 4390,
+        "workstream": "contracts",
+        "status": "open_exact_head_validation"
+      }
+    ],
     "current_pr": {
-      "number": 4347,
+      "number": 4386,
       "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
-      "role": "specification_and_non_production_core",
+      "role": "integration_rollup",
       "status": "draft_in_progress"
     }
   },
   "evidence": {
-    "feature_pr": 4347,
+    "feature_pr": 4386,
+    "contracts_workstream_pr": 4390,
     "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
-    "synchronized_main_sha": "ddcfb9fc4ac400acdb9b1d5503357c447ca3a92c",
-    "synchronization_merge_sha": "22047e99853d5c07960042f8a631c17ea1578eac",
+    "synchronized_main_sha": "177dcdcd048dda5a4f6bd7504fcb1bad9ef2cf25",
+    "synchronization_merge_sha": "451c8c58e834e9eb0e18fde1e53330305f77a0a0",
     "work_map_registry_fingerprint": "b6f6ef53c0ddf181ef0c070e5b48905a618b28748c36f803146901d23ddbe36a",
+    "contract_baseline": "specs/014-governed-hostinger-storage-orchestration/contracts/contract-compatibility-baseline.json",
+    "contract_policy": "specs/014-governed-hostinger-storage-orchestration/contracts/compatibility.md",
+    "contract_test": "http-generic-api/test-hostinger-storage-contracts.mjs",
+    "contract_test_first_successful_head": "03ffa7a46c0dc74627892105f8b7d447294ca084",
     "pure_orchestrator_source": "http-generic-api/hostingerStorageOrchestrator.js",
     "pure_orchestrator_test": "http-generic-api/test-hostinger-storage-orchestrator.mjs",
     "toolchain_registry": "http-generic-api/config/hostinger-storage-open-source-toolchain.json",
@@ -103,7 +121,7 @@
     "toolchain_guard": ".github/workflows/hostinger-storage-toolchain-guard.yml",
     "toolchain_design": "specs/014-governed-hostinger-storage-orchestration/open-source-toolchain.md",
     "exact_final_head_sha": null,
-    "required_ci": "pending_final_head",
+    "required_ci": "pending_final_workstream_head",
     "review": "pending",
     "live_tool_installation": "not_authorized_not_executed",
     "binary_provenance_certification": "not_executed",
@@ -114,7 +132,6 @@
   },
   "open_gates": [
     "final_work_map_and_classification_readback",
-    "contract_validation",
     "proposed_schema_classification_and_migration_design",
     "durable_orchestrator_and_repository_implementation",
     "context_authority_approval_lease_wiring",
