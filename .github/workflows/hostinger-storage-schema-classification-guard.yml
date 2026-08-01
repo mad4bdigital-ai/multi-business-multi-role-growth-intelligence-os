@@ -1,0 +1,31 @@
+name: Hostinger Storage Schema Classification Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/contracts/spec014/hostinger-storage-schema-classification.json'
+      - '.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs'
+      - '.github/workflows/hostinger-storage-schema-classification-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  schema-classification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check validator syntax
+        run: node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+      - name: Validate exact schema classification contract
+        run: node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+      - name: Enforce pre-SQL boundary
+        run: |
+          grep -q '"status":"classified_pending_canonical_registry"' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"canonical_registry_task":"T023"' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
