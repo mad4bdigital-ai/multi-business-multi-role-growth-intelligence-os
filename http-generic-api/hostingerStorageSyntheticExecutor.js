@@ -24,6 +24,14 @@ function safeId(value, field) {
   return normalized;
 }
 
+function epoch(value, field) {
+  const normalized = Number(value);
+  if (!Number.isSafeInteger(normalized) || normalized < 0) {
+    throw fail(400, 'STORAGE_SYNTHETIC_EXECUTOR_TIME_INVALID', 'A non-negative epoch timestamp is required.', { field });
+  }
+  return normalized;
+}
+
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
   if (!value || typeof value !== 'object') return value;
@@ -64,6 +72,53 @@ function aggregate(repository, operationId) {
   const value = repository.readAggregate(operationId);
   if (!value?.operation) throw fail(404, 'STORAGE_SYNTHETIC_EXECUTOR_OPERATION_NOT_FOUND', 'Synthetic operation aggregate not found.', { operation_id: operationId });
   return value;
+}
+
+function validateCurrentExecutionBindings({ repository, protocol, operationId, planId, runId, nowEpoch }) {
+  const current = aggregate(repository, operationId);
+  const plan = current.plans.find((row) => row.plan_id === planId);
+  if (!plan) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_REQUIRED', 'The immutable plan is no longer available for execution.', { plan_id: planId });
+  }
+  const planMismatches = [];
+  if (plan.operation_id !== operationId) planMismatches.push('operation_id');
+  if (plan.target_id !== protocol.target_id) planMismatches.push('target_id');
+  if (plan.plan_hash !== protocol.plan_hash) planMismatches.push('plan_hash');
+  if (plan.candidate_set_hash !== protocol.candidate_set_hash) planMismatches.push('candidate_set_hash');
+  if (Number(plan.expires_at_epoch) !== Number(protocol.plan_expires_at_epoch)) planMismatches.push('expires_at_epoch');
+  if (planMismatches.length) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_BINDING_STALE', 'Current immutable plan bindings differ from the authorized protocol.', { mismatches: planMismatches });
+  }
+  if (!['approved', 'consumed'].includes(plan.status)) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_NOT_EXECUTABLE', 'Current plan status is not executable.', { status: plan.status });
+  }
+  if (plan.consumed === true && plan.consumed_run_id !== runId) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_CONSUMED_BY_OTHER_RUN', 'The immutable plan was consumed by another execution run.', { consumed_run_id: plan.consumed_run_id });
+  }
+  if (Number(plan.expires_at_epoch) <= nowEpoch || Number(protocol.plan_expires_at_epoch) <= nowEpoch) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_EXPIRED', 'The immutable plan expired before synthetic mutation.', { expires_at_epoch: plan.expires_at_epoch, now_epoch: nowEpoch });
+  }
+
+  const lease = current.leases.find((row) => row.target_id === protocol.target_id);
+  if (!lease) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_REQUIRED', 'The current execution lease is missing.', { target_id: protocol.target_id });
+  }
+  const leaseMismatches = [];
+  if (lease.lease_id !== protocol.lease_id) leaseMismatches.push('lease_id');
+  if (lease.operation_id !== operationId) leaseMismatches.push('operation_id');
+  if (lease.target_id !== protocol.target_id) leaseMismatches.push('target_id');
+  if (Number(lease.generation) !== Number(protocol.lease_generation)) leaseMismatches.push('generation');
+  if (Number(lease.expires_at_epoch) !== Number(protocol.lease_expires_at_epoch)) leaseMismatches.push('expires_at_epoch');
+  if (leaseMismatches.length) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_BINDING_STALE', 'Current execution lease differs from the authorized protocol.', { mismatches: leaseMismatches });
+  }
+  if (lease.status !== 'active') {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_NOT_ACTIVE', 'The authorized execution lease is no longer active.', { status: lease.status });
+  }
+  if (Number(lease.expires_at_epoch) <= nowEpoch || Number(protocol.lease_expires_at_epoch) <= nowEpoch) {
+    throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_EXPIRED', 'The authorized execution lease expired before synthetic mutation.', { expires_at_epoch: lease.expires_at_epoch, now_epoch: nowEpoch });
+  }
+  return { plan, lease, aggregate: current };
 }
 
 function transition(repository, operationId, nextState, nowEpoch, unknownOutcomeReconciled = false) {
@@ -148,6 +203,7 @@ export function executeHostingerStorageSyntheticPlan({
   verifyHostingerStorageSyntheticExecutionProtocol({ protocol, expected_digest: protocol_digest });
   requireRepository(repository);
   requireAdapter(adapter);
+  const now = epoch(now_epoch, 'now_epoch');
   const operationId = safeId(protocol.operation_id, 'operation_id');
   const runId = safeId(protocol.run_id, 'run_id');
   const planId = safeId(protocol.plan_id, 'plan_id');
@@ -155,12 +211,13 @@ export function executeHostingerStorageSyntheticPlan({
   if (!['lease_acquired', 'executing'].includes(current.state)) {
     throw fail(409, 'STORAGE_SYNTHETIC_EXECUTOR_OPERATION_STATE_INVALID', 'Synthetic execution requires lease_acquired or executing state.', { state: current.state });
   }
-  if (current.state === 'lease_acquired') transition(repository, operationId, 'executing', now_epoch);
+  validateCurrentExecutionBindings({ repository, protocol, operationId, planId, runId, nowEpoch: now });
+  if (current.state === 'lease_acquired') transition(repository, operationId, 'executing', now);
   repository.consumePlan({
     plan_id: planId,
     expected_plan_hash: protocol.plan_hash,
     run_id: runId,
-    consumed_at_epoch: now_epoch,
+    consumed_at_epoch: now,
   });
 
   for (const item of protocol.items) {
@@ -169,21 +226,23 @@ export function executeHostingerStorageSyntheticPlan({
     const result = rows.find((row) => row.phase === 'result');
     if (result) continue;
     if (prepared) {
-      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'prepared_without_result', nowEpoch: now_epoch });
+      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'prepared_without_result', nowEpoch: now });
     }
+    validateCurrentExecutionBindings({ repository, protocol, operationId, planId, runId, nowEpoch: now });
     appendEvent(repository, operationId, runId, planId, item.item_id, 'prepared', 'prepared', {
       item_hash: item.item_hash,
       expected: item.expected,
       protocol_digest,
       stat_digest: digest(item.expected),
       secrets_included: false,
-    }, now_epoch);
+    }, now);
     if (faultMatches(fault, 'after_prepared', item.item_id)) {
-      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'prepared', nowEpoch: now_epoch });
+      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'prepared', nowEpoch: now });
     }
+    validateCurrentExecutionBindings({ repository, protocol, operationId, planId, runId, nowEpoch: now });
     const receipt = adapter.mutateExact({ operation_id: operationId, run_id: runId, item });
     if (faultMatches(fault, 'after_mutation', item.item_id)) {
-      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'mutation', nowEpoch: now_epoch });
+      return unknownResult({ repository, operationId, runId, itemId: item.item_id, phase: 'mutation', nowEpoch: now });
     }
     appendEvent(repository, operationId, runId, planId, item.item_id, 'result', receipt.outcome, {
       receipt_digest: receipt.receipt_digest,
@@ -191,10 +250,10 @@ export function executeHostingerStorageSyntheticPlan({
       outcome: receipt.outcome,
       synthetic_only: true,
       secrets_included: false,
-    }, now_epoch);
+    }, now);
   }
-  transition(repository, operationId, 'readback_pending', now_epoch);
-  return reconcileHostingerStorageSyntheticOutcome({ protocol, protocol_digest, repository, adapter, now_epoch });
+  transition(repository, operationId, 'readback_pending', now);
+  return reconcileHostingerStorageSyntheticOutcome({ protocol, protocol_digest, repository, adapter, now_epoch: now });
 }
 
 function classifyItem({ item, rows, adapter, operationId, runId }) {
@@ -229,6 +288,7 @@ export function reconcileHostingerStorageSyntheticOutcome({
   verifyHostingerStorageSyntheticExecutionProtocol({ protocol, expected_digest: protocol_digest });
   requireRepository(repository);
   requireAdapter(adapter);
+  const now = epoch(now_epoch, 'now_epoch');
   const operationId = safeId(protocol.operation_id, 'operation_id');
   const runId = safeId(protocol.run_id, 'run_id');
   const planId = safeId(protocol.plan_id, 'plan_id');
@@ -236,7 +296,7 @@ export function reconcileHostingerStorageSyntheticOutcome({
   if (!['readback_pending', 'unknown_outcome', 'reconciling'].includes(current.state)) {
     throw fail(409, 'STORAGE_SYNTHETIC_RECONCILIATION_STATE_INVALID', 'Reconciliation requires readback_pending, unknown_outcome, or reconciling state.', { state: current.state });
   }
-  if (current.state !== 'reconciling') transition(repository, operationId, 'reconciling', now_epoch);
+  if (current.state !== 'reconciling') transition(repository, operationId, 'reconciling', now);
 
   const itemResults = [];
   for (const item of protocol.items) {
@@ -248,7 +308,7 @@ export function reconcileHostingerStorageSyntheticOutcome({
         item_hash: classified.receipt.item_hash,
         recovery_source: 'synthetic_provider_receipt',
         secrets_included: false,
-      }, now_epoch);
+      }, now);
       rows = journalRows(repository, operationId, runId).filter((row) => row.item_id === item.item_id);
     }
     if (rows.some((row) => row.phase === 'result') && !rows.some((row) => row.phase === 'readback')) {
@@ -257,7 +317,7 @@ export function reconcileHostingerStorageSyntheticOutcome({
         exists: classified.observed.exists,
         matches_plan: classified.observed.matches_plan,
         secrets_included: false,
-      }, now_epoch);
+      }, now);
     }
     itemResults.push({
       item_id: item.item_id,
@@ -297,21 +357,25 @@ export function reconcileHostingerStorageSyntheticOutcome({
     secrets_included: false,
   };
   const resultDigest = digest(reconciliationCore);
+  const reconciliationId = `${runId}:reconciliation`;
+  const inputEvidenceHash = digest(itemResults.map((row) => row.observed_evidence_digest));
+  const existingReconciliation = aggregate(repository, operationId).reconciliations
+    .find((row) => row.reconciliation_id === reconciliationId);
   repository.recordReconciliation({
-    reconciliation_id: `${runId}:reconciliation`,
+    reconciliation_id: reconciliationId,
     operation_id: operationId,
     run_id: runId,
     outcome,
-    input_evidence_hash: digest(itemResults.map((row) => row.observed_evidence_digest)),
+    input_evidence_hash: inputEvidenceHash,
     result_digest: resultDigest,
     retry_allowed: outcome === 'not_applied',
-    reviewed_at_epoch: now_epoch,
+    reviewed_at_epoch: existingReconciliation?.reviewed_at_epoch ?? now,
     secrets_included: false,
   });
 
-  if (outcome === 'conflict') transition(repository, operationId, 'blocked', now_epoch);
-  else if (outcome === 'still_unknown') transition(repository, operationId, 'unknown_outcome', now_epoch);
-  else transition(repository, operationId, 'completed', now_epoch, current.state === 'unknown_outcome');
+  if (outcome === 'conflict') transition(repository, operationId, 'blocked', now);
+  else if (outcome === 'still_unknown') transition(repository, operationId, 'unknown_outcome', now);
+  else transition(repository, operationId, 'completed', now, current.state === 'unknown_outcome');
 
   return deepFreeze({
     ok: true,
