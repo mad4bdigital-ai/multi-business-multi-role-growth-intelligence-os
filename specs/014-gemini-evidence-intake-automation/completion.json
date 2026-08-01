@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-gemini-evidence-intake-automation",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "not_started"
+    }
+  },
+  "evidence": {
+    "specification_contracts": {
+      "status": "in_progress",
+      "refs": [
+        "spec.md",
+        "plan.md",
+        "tasks.md",
+        "development-automation.json",
+        "contracts/development-automation.schema.json",
+        "contracts/gemini-evidence-result.schema.json",
+        "contracts/gemini-evidence-gateway.openapi.yaml"
+      ]
+    },
+    "work_map_integration": {
+      "status": "draft_blocked",
+      "ref": "work-map-integration.json",
+      "blocking_decisions": [
+        "OD-001",
+        "OD-002",
+        "OD-003",
+        "OD-004",
+        "OD-005",
+        "OD-006",
+        "OD-007",
+        "OD-008",
+        "OD-009",
+        "OD-010"
+      ]
+    },
+    "development_ci_contract": {
+      "status": "pending",
+      "refs": [
+        "ci-automation.json",
+        "contracts/ci-automation.schema.json",
+        "CI_AUTOMATION_BLUEPRINT_AR.md",
+        "checklists/ci.md"
+      ]
+    },
+    "persistent_state": { "status": "not_started" },
+    "intake_and_forms": { "status": "not_started" },
+    "drive_file_lifecycle": { "status": "not_started" },
+    "gemini_gateway": { "status": "not_started" },
+    "structured_results": { "status": "not_started" },
+    "review_and_promotion": { "status": "not_started" },
+    "client_journeys": { "status": "not_started" },
+    "embeddings": { "status": "not_started" },
+    "audio_video": { "status": "not_started" },
+    "observability_and_recovery": { "status": "not_started" },
+    "pilot": { "status": "not_started" },
+    "ci": { "status": "pending" },
+    "migration": { "status": "pending_not_authorized" },
+    "release_readiness": { "status": "not_started" },
+    "production_verification": { "status": "not_started" },
+    "post_merge_audit": { "status": "not_started" }
+  },
+  "completion_blockers": [
+    "specification review is not complete",
+    "development CI contract is not complete",
+    "Work Map integration is not ready for implementation",
+    "open decisions OD-001 through OD-010 remain unresolved",
+    "all implementation waves remain unstarted",
+    "no migration apply authority or ledger exists",
+    "no production deployment or runtime readback exists"
+  ],
+  "secrets_included": false
+}
