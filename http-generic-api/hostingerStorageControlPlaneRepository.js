@@ -37,7 +37,11 @@ export function isCanonicalMemoryHostingerStoragePersistenceAdapter(adapter) {
 }
 
 export function createMySqlHostingerStoragePersistenceAdapter(options = {}) {
-  const adapter = createBaseMySqlHostingerStoragePersistenceAdapter(options);
+  const { schema_verified: _callerSchemaClaim, ...safeOptions } = options || {};
+  const adapter = createBaseMySqlHostingerStoragePersistenceAdapter({
+    ...safeOptions,
+    schema_verified: false,
+  });
   canonicalSqlPersistenceAdapters.add(adapter);
   return adapter;
 }
@@ -50,8 +54,8 @@ export function isCanonicalMySqlHostingerStoragePersistenceAdapter(adapter) {
     && adapter.adapter_version === HOSTINGER_STORAGE_SQL_PERSISTENCE_ADAPTER_VERSION
     && adapter.adapter_key === 'hostinger_storage_mysql_control_plane_v1'
     && adapter.durable_sql === true
-    && typeof adapter.schema_verified === 'boolean'
-    && adapter.production_ready === adapter.schema_verified
+    && adapter.schema_verified === false
+    && adapter.production_ready === false
     && typeof adapter.transaction === 'function'
     && typeof adapter.read === 'function'
     && typeof adapter.export_snapshot === 'function'
@@ -81,7 +85,7 @@ export function isCanonicalHostingerStorageControlPlaneRepository(repository) {
     && Object.isFrozen(repository)
     && repository.repository_version === HOSTINGER_STORAGE_CONTROL_PLANE_REPOSITORY_VERSION
     && adapterKeyAllowed
-    && typeof repository.production_ready === 'boolean'
+    && repository.production_ready === false
     && typeof repository.readAggregate === 'function'
     && typeof repository.transitionOperation === 'function'
     && typeof repository.consumePlan === 'function'
