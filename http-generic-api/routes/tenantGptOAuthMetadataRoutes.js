@@ -46,7 +46,14 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
 
   router.get("/.well-known/oauth-protected-resource", (req, res) => {
     const mcpHost = configuredMcpHost(env);
-    if (chatGptMcpEnabled(env) && mcpHost && requestHost(req) === mcpHost) {
+    if (mcpHost && requestHost(req) === mcpHost) {
+      if (!chatGptMcpEnabled(env)) {
+        return res.status(404).json({
+          ok: false,
+          error: { code: "MCP_DISABLED", message: "Not found." },
+          secrets_included: false,
+        });
+      }
       res.setHeader("Cache-Control", "public, max-age=300");
       return res.status(200).json(buildChatGptProtectedResourceMetadata(env));
     }
