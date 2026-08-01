@@ -38,7 +38,7 @@ function token(overrides = {}) {
   );
 }
 
-function activePool({ active = true, subjectActive = true, grant = {} } = {}) {
+function activePool({ active = true, subjectActiveCount = 1, grant = {} } = {}) {
   return {
     async query(sqlValue, params) {
       const sql = String(sqlValue);
@@ -60,12 +60,14 @@ function activePool({ active = true, subjectActive = true, grant = {} } = {}) {
         }] : [], []];
       }
       if (sql.includes("FROM memberships m")) {
+        assert(sql.includes("COUNT(*) AS active_count"));
         assert.deepEqual(params, ["user-1", "workspace-1"]);
-        return [subjectActive ? [{ user_id: "user-1" }] : [], []];
+        return [[{ active_count: subjectActiveCount }], []];
       }
       if (sql.includes("FROM users")) {
+        assert(sql.includes("COUNT(*) AS active_count"));
         assert.deepEqual(params, ["user-1"]);
-        return [subjectActive ? [{ user_id: "user-1" }] : [], []];
+        return [[{ active_count: subjectActiveCount }], []];
       }
       throw new Error(`Unexpected verifier query: ${sql}`);
     },
@@ -111,7 +113,17 @@ function activePool({ active = true, subjectActive = true, grant = {} } = {}) {
 {
   const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token()}`, {
     env,
-    pool: activePool({ subjectActive: false }),
+    pool: activePool({ subjectActiveCount: 0 }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 401);
+  assert.equal(result.code, "MCP_SUBJECT_INACTIVE");
+}
+
+{
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token()}`, {
+    env,
+    pool: activePool({ subjectActiveCount: 2 }),
   });
   assert.equal(result.ok, false);
   assert.equal(result.status, 401);
