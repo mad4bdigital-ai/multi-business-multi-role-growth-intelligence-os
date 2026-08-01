@@ -2,8 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "contract": "spec014.hostinger-storage-runtime-migrations.v1",
   "feature_key": "014-governed-hostinger-storage-orchestration",
-  "status": "metadata_pending_ci",
+  "status": "governed_sequence_registered_apply_blocked",
   "source_contract": ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+  "migration_directory": "http-generic-api/migrations",
+  "dependency_registry": "http-generic-api/config/governed-migration-dependencies.json",
   "migration_apply_authorized": false,
   "live_database_access_performed": false,
   "schema_verified": false,
@@ -12,24 +14,44 @@
     {
       "wave": 1,
       "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
-      "checksum_sha256": null,
-      "statement_count": null,
+      "checksum_sha256": "9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053",
+      "statement_count": 4,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
       "dependency": null
     },
     {
       "wave": 2,
       "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
-      "checksum_sha256": null,
-      "statement_count": null,
+      "checksum_sha256": "091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f",
+      "statement_count": 6,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
       "dependency": "20260802_01_spec014_hostinger_storage_foundation.sql"
     },
     {
       "wave": 3,
       "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
-      "checksum_sha256": null,
-      "statement_count": null,
+      "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "statement_count": 9,
+      "preflight_status": "warn",
+      "preflight_risk_count": 4,
+      "preflight_risk_codes": [
+        "create_view_without_or_replace",
+        "create_view_without_or_replace",
+        "create_view_without_or_replace",
+        "insert_without_ignore_or_on_duplicate"
+      ],
       "dependency": "20260802_02_spec014_hostinger_storage_control_plane.sql"
     }
+  ],
+  "apply_blockers": [
+    "Wave 3 must prove all three target views are absent before apply; automatic replacement is intentionally forbidden.",
+    "Wave 3 must prove all three tool keys are absent before apply; INSERT IGNORE and silent duplicate reconciliation are intentionally forbidden.",
+    "Every wave requires fresh checksum-bound authorization, governed dependency evidence, dry-run evidence, typed confirmation, and same-cycle live readback.",
+    "Signed schema verification is required before mounting the SQL repository or setting production_ready=true."
   ],
   "secrets_included": false
 }
