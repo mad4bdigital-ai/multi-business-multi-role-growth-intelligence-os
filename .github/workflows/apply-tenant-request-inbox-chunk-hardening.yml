@@ -1,0 +1,424 @@
+name: Apply tenant request inbox and chunk hardening
+
+on:
+  push:
+    branches:
+      - gpt/tenant-request-inbox-chunk-store-hardening-20260801
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/tenant-request-inbox-chunk-store-hardening-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Apply bounded runtime patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          resolution_path = Path('http-generic-api/supportTicketResolutionService.js')
+          routes_path = Path('http-generic-api/routes/supportTicketRoutes.js')
+          chunk_path = Path('http-generic-api/governedToolResponseChunkStore.js')
+          gpt_path = Path('http-generic-api/routes/gptToolsRoutes.js')
+          workflow_path = Path('.github/workflows/apply-tenant-request-inbox-chunk-hardening.yml')
+
+          # Resolution service: explicit ticket_id when available, compatibility fallback before migration.
+          resolution = resolution_path.read_text(encoding='utf-8')
+          helper_anchor = 'async function selectPlaybook(connection, classification) {'
+          helper = '''async function hasResolutionCaseTicketIdColumn(connection) {
+            const [rows] = await connection.query(
+              `SELECT COUNT(*) AS present
+                 FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'tenant_resolution_cases'
+                  AND column_name = 'ticket_id'`
+            );
+            return Number(rows?.[0]?.present || 0) === 1;
+          }
+
+          '''
+          if helper not in resolution:
+            if helper_anchor not in resolution:
+              raise SystemExit('resolution helper anchor missing')
+            resolution = resolution.replace(helper_anchor, helper + helper_anchor, 1)
+
+          old_existing = '''  const [existingRows] = await connection.query(
+    `SELECT *
+       FROM tenant_resolution_cases
+      WHERE tenant_id = ?
+        AND (active_case_key = ? OR resource_ref = ?)
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [ticket.tenant_id, activeCaseKey, resourceRef]
+  );'''
+          new_existing = '''  const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(connection);
+  const [existingRows] = await connection.query(
+    hasTicketIdColumn
+      ? `SELECT *
+           FROM tenant_resolution_cases
+          WHERE tenant_id = ?
+            AND (ticket_id = ? OR active_case_key = ? OR resource_ref = ?)
+          ORDER BY updated_at DESC, created_at DESC
+          LIMIT 1`
+      : `SELECT *
+           FROM tenant_resolution_cases
+          WHERE tenant_id = ?
+            AND (active_case_key = ? OR resource_ref = ?)
+          ORDER BY updated_at DESC, created_at DESC
+          LIMIT 1`,
+    hasTicketIdColumn
+      ? [ticket.tenant_id, ticket.ticket_id, activeCaseKey, resourceRef]
+      : [ticket.tenant_id, activeCaseKey, resourceRef]
+  );'''
+          if old_existing not in resolution:
+            raise SystemExit('resolution existing-case anchor missing')
+          resolution = resolution.replace(old_existing, new_existing, 1)
+
+          old_insert = '''  const caseId = randomUUID();
+  await connection.query(
+    `INSERT INTO tenant_resolution_cases (
+       case_id, tenant_id, workspace_id, resource_ref, root_family,
+       playbook_key, status, severity, root_fingerprint_sha256,
+       active_case_key, source_alert_keys_json, source_refs_json,
+       impact_summary, current_step_key, owner_user_id, readback_status,
+       secrets_included
+     ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+               'case_created', NULL, 'not_run', 0)`,
+    [
+      caseId,
+      ticket.tenant_id,
+      resourceRef,
+      classification.root_family,
+      classification.playbook_key,
+      classification.severity,
+      fingerprint,
+      activeCaseKey,
+      JSON.stringify([
+        safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
+      ]),
+      JSON.stringify([resourceRef]),
+      safeString(ticket.internal_summary || ticket.customer_message || ticket.title, 2000)
+        || null,
+    ]
+  );'''
+          new_insert = '''  const caseId = randomUUID();
+  const sourceAlertKeys = JSON.stringify([
+    safeString(ticket.ticket_type || ticket.source_event || classification.problem_type, 191),
+  ]);
+  const sourceRefs = JSON.stringify([resourceRef]);
+  const impactSummary = safeString(
+    ticket.internal_summary || ticket.customer_message || ticket.title,
+    2000
+  ) || null;
+  if (hasTicketIdColumn) {
+    await connection.query(
+      `INSERT INTO tenant_resolution_cases (
+         case_id, tenant_id, ticket_id, workspace_id, resource_ref, root_family,
+         playbook_key, status, severity, root_fingerprint_sha256,
+         active_case_key, source_alert_keys_json, source_refs_json,
+         impact_summary, current_step_key, owner_user_id, readback_status,
+         secrets_included
+       ) VALUES (?, ?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                 'case_created', NULL, 'not_run', 0)`,
+      [caseId, ticket.tenant_id, ticket.ticket_id, resourceRef,
+       classification.root_family, classification.playbook_key,
+       classification.severity, fingerprint, activeCaseKey,
+       sourceAlertKeys, sourceRefs, impactSummary]
+    );
+  } else {
+    await connection.query(
+      `INSERT INTO tenant_resolution_cases (
+         case_id, tenant_id, workspace_id, resource_ref, root_family,
+         playbook_key, status, severity, root_fingerprint_sha256,
+         active_case_key, source_alert_keys_json, source_refs_json,
+         impact_summary, current_step_key, owner_user_id, readback_status,
+         secrets_included
+       ) VALUES (?, ?, NULL, ?, ?, ?, 'detected', ?, ?, ?, ?, ?, ?,
+                 'case_created', NULL, 'not_run', 0)`,
+      [caseId, ticket.tenant_id, resourceRef, classification.root_family,
+       classification.playbook_key, classification.severity, fingerprint,
+       activeCaseKey, sourceAlertKeys, sourceRefs, impactSummary]
+    );
+  }'''
+          if old_insert not in resolution:
+            raise SystemExit('resolution insert anchor missing')
+          resolution = resolution.replace(old_insert, new_insert, 1)
+
+          old_get_query = '''  const classification = classifySupportTicketResolution(ticket);
+  const [rows] = await pool.query(
+    `SELECT c.*, p.display_name, p.description, p.required_capability_key,
+            p.risk_level, p.diagnostic_tool_key, p.decision_tool_key,
+            p.apply_tool_key, p.readback_tool_key, p.approval_required,
+            p.readback_required, p.policy_json
+       FROM tenant_resolution_cases c
+       JOIN tenant_resolution_playbooks p
+         ON p.playbook_key = c.playbook_key
+        AND p.root_family = c.root_family
+      WHERE c.tenant_id = ?
+        AND c.resource_ref = ?
+      ORDER BY c.created_at DESC
+      LIMIT 1`,
+    [tenant_id, `ticket://${ticket_id}`]
+  );'''
+          new_get_query = '''  const classification = classifySupportTicketResolution(ticket);
+  const hasTicketIdColumn = await hasResolutionCaseTicketIdColumn(pool);
+  const [rows] = await pool.query(
+    `SELECT c.*, p.display_name, p.description, p.required_capability_key,
+            p.risk_level, p.diagnostic_tool_key, p.decision_tool_key,
+            p.apply_tool_key, p.readback_tool_key, p.approval_required,
+            p.readback_required, p.policy_json
+       FROM tenant_resolution_cases c
+       JOIN tenant_resolution_playbooks p
+         ON p.playbook_key = c.playbook_key
+        AND p.root_family = c.root_family
+      WHERE c.tenant_id = ?
+        AND ${hasTicketIdColumn ? "(c.ticket_id = ? OR (c.ticket_id IS NULL AND c.resource_ref = ?))" : "c.resource_ref = ?"}
+      ORDER BY c.updated_at DESC, c.created_at DESC
+      LIMIT 1`,
+    hasTicketIdColumn
+      ? [tenant_id, ticket_id, `ticket://${ticket_id}`]
+      : [tenant_id, `ticket://${ticket_id}`]
+  );'''
+          if old_get_query not in resolution:
+            raise SystemExit('resolution get query anchor missing')
+          resolution = resolution.replace(old_get_query, new_get_query, 1)
+          resolution_path.write_text(resolution, encoding='utf-8')
+
+          # Support routes: admin and tenant inbox surfaces.
+          routes = routes_path.read_text(encoding='utf-8')
+          import_anchor = 'import { canViewSupportTicketResolution } from "../supportTicketResolutionService.js";\n'
+          inbox_import = '''import {
+            getTenantRequestInboxItem,
+            listTenantRequestInbox,
+          } from "../tenantRequestInboxService.js";
+          '''
+          if inbox_import not in routes:
+            if import_anchor not in routes:
+              raise SystemExit('support routes import anchor missing')
+            routes = routes.replace(import_anchor, import_anchor + inbox_import, 1)
+
+          routes_anchor = '  const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);\n'
+          inbox_routes = r'''
+
+  router.get("/admin/tenant-requests", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listTenantRequestInbox({
+        tenant_id: req.query?.tenant_id || null,
+        status: req.query?.status || null,
+        case_status: req.query?.case_status || null,
+        priority: req.query?.priority || null,
+        search: req.query?.search || null,
+        cursor: req.query?.cursor || null,
+        limit: req.query?.limit || null,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_list_failed");
+    }
+  });
+
+  router.get("/admin/tenant-requests/:ticketId", ...adminGuards, async (req, res) => {
+    try {
+      const result = await getTenantRequestInboxItem({
+        ticket_id: req.params.ticketId,
+        tenant_id: req.query?.tenant_id || null,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_get_failed");
+    }
+  });
+
+  router.get("/tenants/:tenantId/requests", requireUserJwt, async (req, res) => {
+    try {
+      const result = await listTenantRequestInbox({
+        tenant_id: req.params.tenantId,
+        status: req.query?.status || null,
+        case_status: req.query?.case_status || null,
+        priority: req.query?.priority || null,
+        search: req.query?.search || null,
+        cursor: req.query?.cursor || null,
+        limit: req.query?.limit || null,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_list_failed");
+    }
+  });
+
+  router.get("/tenants/:tenantId/requests/:ticketId", requireUserJwt, async (req, res) => {
+    try {
+      const result = await getTenantRequestInboxItem({
+        ticket_id: req.params.ticketId,
+        tenant_id: req.params.tenantId,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_get_failed");
+    }
+  });
+          '''
+          if '/admin/tenant-requests' not in routes:
+            if routes_anchor not in routes:
+              raise SystemExit('support routes insertion anchor missing')
+            routes = routes.replace(routes_anchor, routes_anchor + inbox_routes, 1)
+          routes_path.write_text(routes, encoding='utf-8')
+
+          # Chunk store schema diagnostics: fail with exact missing columns before SQL references them.
+          chunk = chunk_path.read_text(encoding='utf-8')
+          table_anchor = 'const GOVERNED_RESPONSE_CHUNK_TABLE = "governed_tool_response_chunks";\n'
+          required_columns = '''export const GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS = Object.freeze([
+            "chunk_id", "source_tool_key", "response_sha256", "response_bytes", "response_json",
+            "cursor_policy", "redaction_status", "secrets_included", "owner_tenant_id",
+            "owner_user_id", "owner_workspace_id", "owner_principal_type", "owner_principal_id",
+            "source_surface", "created_at", "expires_at",
+          ]);
+          '''
+          if required_columns not in chunk:
+            if table_anchor not in chunk:
+              raise SystemExit('chunk table anchor missing')
+            chunk = chunk.replace(table_anchor, table_anchor + required_columns, 1)
+
+          executor_anchor = '''function executor(deps = {}) {
+  return deps.pool || deps.connection || getPool();
+}
+'''
+          schema_helpers = '''
+export async function inspectGovernedResponseChunkSchema(deps = {}) {
+  const operation = text(deps.operation || "response_chunk_schema_check") || "response_chunk_schema_check";
+  try {
+    const [rows] = await executor(deps).query(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = ?`,
+      [GOVERNED_RESPONSE_CHUNK_TABLE]
+    );
+    const present = new Set((rows || []).map((row) => text(row.column_name)).filter(Boolean));
+    const missing = GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.filter((column) => !present.has(column));
+    return {
+      ready: missing.length === 0,
+      operation,
+      table_name: GOVERNED_RESPONSE_CHUNK_TABLE,
+      required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
+      present_column_count: present.size,
+      missing_columns: missing,
+      migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      secrets_included: false,
+    };
+  } catch (cause) {
+    return {
+      ready: false,
+      operation,
+      table_name: GOVERNED_RESPONSE_CHUNK_TABLE,
+      required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
+      present_column_count: 0,
+      missing_columns: [...GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS],
+      cause_code: cause?.code || null,
+      migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      secrets_included: false,
+    };
+  }
+}
+
+async function assertGovernedResponseChunkSchema(deps = {}, operation = "response_chunk_store") {
+  const schema = await inspectGovernedResponseChunkSchema({ ...deps, operation });
+  if (schema.ready) return schema;
+  throw responseChunkError(
+    "response_chunk_persistence_unavailable",
+    "The durable response chunk store schema is incomplete.",
+    503,
+    {
+      cause_code: schema.cause_code || "ER_BAD_FIELD_ERROR",
+      operation,
+      missing_columns: schema.missing_columns,
+      migration_file: schema.migration_file,
+      secrets_included: false,
+    },
+  );
+}
+'''
+          if schema_helpers not in chunk:
+            if executor_anchor not in chunk:
+              raise SystemExit('chunk executor anchor missing')
+            chunk = chunk.replace(executor_anchor, executor_anchor + schema_helpers, 1)
+
+          replacements = {
+            'async function readChunkVerificationRow(chunkId, deps = {}) {\n  try {': 'async function readChunkVerificationRow(chunkId, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "read_verification");\n  try {',
+            'export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {\n  const chunkId': 'export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "persist");\n  const chunkId',
+            'export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {\n  const chunkId': 'export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "load");\n  const chunkId',
+            'export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {}) {\n  const chunkId': 'export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {}) {\n  await assertGovernedResponseChunkSchema(deps, "extend_expiry");\n  const chunkId',
+          }
+          for old, new in replacements.items():
+            if new in chunk:
+              continue
+            if old not in chunk:
+              raise SystemExit(f'chunk operation anchor missing: {old[:50]}')
+            chunk = chunk.replace(old, new, 1)
+          chunk_path.write_text(chunk, encoding='utf-8')
+
+          # Generic admin/tenant tool listing fallback when durable chunk persistence is unavailable.
+          gpt = gpt_path.read_text(encoding='utf-8')
+          durable_pattern = re.compile(r'''  const durable = await persistGovernedToolResponseChunk\(\{\n(?P<body>[\s\S]*?)\n  \}, deps\);''')
+          match = durable_pattern.search(gpt)
+          if not match:
+            if 'response_chunk_inline_fallback' not in gpt:
+              raise SystemExit('gpt durable persistence anchor missing')
+          else:
+            original = match.group(0)
+            body = match.group('body')
+            replacement = f'''  let durable;
+  try {{
+    durable = await persistGovernedToolResponseChunk({{\n{body}\n    }}, deps);
+  }} catch (error) {{
+    if (!["response_chunk_persistence_unavailable", "response_chunk_schema_mismatch"].includes(error?.code)) throw error;
+    const {{ buildBoundedInlineChunkFallback }} = await import("../systemLayerResponseFallback.js");
+    const requestId = String(optionsSource?.request_id || optionsSource?.requestId || deps?.request_id || "").trim() || null;
+    console.warn("[responseChunk] durable persistence unavailable; returning bounded inline response", JSON.stringify({{
+      error_code: error?.code || null,
+      cause_code: error?.details?.cause_code || null,
+      operation: error?.details?.operation || "persist",
+      request_id: requestId,
+      source_tool_key: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || null,
+      secrets_included: false,
+    }}));
+    return buildBoundedInlineChunkFallback(body, error, {{
+      sourceToolKey: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || "governed_tool_response",
+      maxChars: Number(options?.maxChars || options?.max_chars || 150000),
+    }});
+  }}'''
+            gpt = gpt[:match.start()] + replacement + gpt[match.end():]
+          gpt_path.write_text(gpt, encoding='utf-8')
+
+          workflow_path.unlink()
+          PY
+      - name: Run focused validation
+        run: |
+          node --check http-generic-api/tenantRequestInboxService.js
+          node --check http-generic-api/supportTicketResolutionService.js
+          node --check http-generic-api/routes/supportTicketRoutes.js
+          node --check http-generic-api/governedToolResponseChunkStore.js
+          node --check http-generic-api/routes/gptToolsRoutes.js
+          node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+      - name: Commit bounded implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add http-generic-api/supportTicketResolutionService.js \
+                  http-generic-api/routes/supportTicketRoutes.js \
+                  http-generic-api/governedToolResponseChunkStore.js \
+                  http-generic-api/routes/gptToolsRoutes.js \
+                  .github/workflows/apply-tenant-request-inbox-chunk-hardening.yml
+          git commit -m "feat(tenant-requests): wire inbox and harden chunk fallback"
+          git push origin HEAD:gpt/tenant-request-inbox-chunk-store-hardening-20260801
