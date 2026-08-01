@@ -25,14 +25,14 @@
         {
           "id": "approval-slot-candidate-uniqueness",
           "end_to_end": true,
-          "level": "in_process",
+          "level": "synthetic_runtime",
           "actor": "storage-control-plane",
-          "entrypoint": "resolveHostingerStorageApprovalSet",
+          "entrypoint": "Node process invoking resolveHostingerStorageApprovalSet",
           "terminal_outcome": "A single valid candidate is accepted, while multiple active candidates produce a slot-specific ambiguity blocker and no accepted approval.",
           "steps": [
-            "Build one secret-free approval set bound to the exact plan, candidate set, authority context, revisions, and impact set.",
+            "Start a clean Node runtime and build one secret-free approval set bound to the exact plan, candidate set, authority context, revisions, and impact set.",
             "Resolve a required slot with one candidate, two active candidates, and one active plus one invalidated candidate.",
-            "Read back the immutable decision, blockers, and accepted approvals."
+            "Read back the immutable decision, blockers, and accepted approvals from the completed process."
           ],
           "assertions": [
             "Exactly one active approved candidate is accepted.",
