@@ -1,0 +1,105 @@
+name: Branch Test Diagnostic Evidence Router
+
+on:
+  workflow_run:
+    workflows:
+      - Branch Test Diagnostic Shards
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: branch-test-diagnostic-evidence-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  route-evidence:
+    name: Publish authoritative branch-test evidence
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted default-branch router
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - id: download
+        name: Download exact-run diagnostic summary
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.event.workflow_run.id }}-summary
+          path: diagnostic-evidence/source
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - id: route
+        name: Build evidence routing report
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: |
+          node scripts/build-branch-test-diagnostic-evidence-routing.mjs \
+            --event-file "$GITHUB_EVENT_PATH" \
+            --summary-file "../diagnostic-evidence/source/diagnostic-summary.json" \
+            --output-json "../diagnostic-evidence/diagnostic-evidence-routing.json" \
+            --output-markdown "../diagnostic-evidence/diagnostic-evidence-routing.md"
+
+      - name: Upload evidence routing report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.event.workflow_run.id }}-evidence-routing
+          path: |
+            diagnostic-evidence/diagnostic-evidence-routing.json
+            diagnostic-evidence/diagnostic-evidence-routing.md
+            diagnostic-evidence/source/diagnostic-summary.json
+            diagnostic-evidence/source/diagnostic-summary.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upsert PR evidence comment
+        if: ${{ always() && github.event.workflow_run.pull_requests[0].number != null && hashFiles('diagnostic-evidence/diagnostic-evidence-routing.md') != '' }}
+        uses: actions/github-script@v8
+        env:
+          REPORT_PATH: diagnostic-evidence/diagnostic-evidence-routing.md
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const marker = '<!-- mad4b-branch-test-diagnostic-evidence-router:v1 -->';
+            const body = fs.readFileSync(process.env.REPORT_PATH, 'utf8');
+            const issue_number = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+            const previous = comments.find((comment) => comment.body?.includes(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
+
+      - name: Enforce report availability
+        if: ${{ steps.route.outcome != 'success' }}
+        run: |
+          echo "The evidence router could not validate the exact-run diagnostic summary."
+          echo "Job logs may be used only to diagnose summary artifact production; no branch-test outcome may be claimed."
+          exit 1
