@@ -4,7 +4,9 @@ import { getPool } from "../db.js";
 import { verifyUserJwtAuthorization } from "../userJwtAuth.js";
 import {
   issueRemoteMcpAccessToken,
+  issueRemoteMcpAuthorizationRequest,
   verifyRemoteMcpAccessTokenForRevocation,
+  verifyRemoteMcpAuthorizationRequest,
 } from "../remoteMcpOAuthTokens.js";
 import {
   REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS,
@@ -18,6 +20,7 @@ import {
   normalizeRemoteMcpScopes,
   normalizeTokenEndpointAuthMethod,
   remoteMcpDynamicClientRegistrationEnabled,
+  remoteMcpDynamicRedirectUriAllowed,
   remoteMcpOAuthEnabled,
   resolveRemoteMcpOAuthResource,
   sha256,
@@ -135,16 +138,8 @@ async function activeUserContext(pool, claims) {
   return { user_id: userId, tenant_id: membership.tenant_id };
 }
 
-function authorizePage({ client, redirectUri, state, scope, resource, codeChallenge }) {
-  const request = safeJson({
-    client_id: client.client_id,
-    redirect_uri: redirectUri,
-    state,
-    scope,
-    resource,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-  });
+function authorizePage({ client, scope, authorizationRequest }) {
+  const request = safeJson({ authorization_request: authorizationRequest });
   const name = String(client.client_name || "Remote MCP client").replace(/[<>]/gu, "");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -159,7 +154,7 @@ body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;disp
 <button id="login">Sign in and connect</button><button id="register" class="secondary">Create account</button><pre id="out">Waiting for sign-in and consent.</pre>
 <script>
 const request=${request};const out=document.getElementById('out');
-async function finish(token){const response=await fetch('/auth/mcp/oauth/code',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify(request)});const data=await response.json();if(!response.ok)throw new Error(data?.error?.message||data?.error_description||'Authorization failed.');location.assign(data.redirect_to)}
+async function finish(token){const response=await fetch('/auth/mcp/oauth/code',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({...request,consent:true})});const data=await response.json();if(!response.ok)throw new Error(data?.error?.message||data?.error_description||'Authorization failed.');location.assign(data.redirect_to)}
 async function authenticate(kind){if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');const body={email:document.getElementById('email').value,password:document.getElementById('password').value};if(kind==='register')body.display_name=document.getElementById('display-name').value||body.email;const response=await fetch('/auth/'+kind,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.token)throw new Error(data?.error?.message||'Sign-in failed.');await finish(data.token)}
 document.getElementById('login').onclick=()=>authenticate('login').catch(error=>out.textContent=error.message);document.getElementById('register').onclick=()=>{const field=document.getElementById('display-name');if(field.hidden){document.getElementById('name-label').hidden=false;field.hidden=false;out.textContent='Enter a display name, confirm consent, then click Create account again.';return}authenticate('register').catch(error=>out.textContent=error.message)};
 </script></main></body></html>`;
@@ -177,8 +172,12 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
     try {
       const suppliedRedirects = Array.isArray(req.body?.redirect_uris) ? req.body.redirect_uris : [];
       const redirectUris = [...new Set(suppliedRedirects.map((uri) => normalizeRemoteMcpRedirectUri(uri, env)).filter(Boolean))];
-      if (!redirectUris.length || redirectUris.length !== suppliedRedirects.length) {
-        return oauthError(res, 400, "invalid_redirect_uri", "Every redirect URI must be an exact approved HTTPS URI.");
+      if (
+        !redirectUris.length
+        || redirectUris.length !== suppliedRedirects.length
+        || redirectUris.some((uri) => !remoteMcpDynamicRedirectUriAllowed(uri, env))
+      ) {
+        return oauthError(res, 400, "invalid_redirect_uri", "Every redirect URI must be an exact approved HTTPS URI or an explicitly enabled loopback URI.");
       }
       const authMethod = normalizeTokenEndpointAuthMethod(req.body?.token_endpoint_auth_method || "none");
       if (!authMethod) return oauthError(res, 400, "invalid_client_metadata", "Unsupported token endpoint authentication method.");
@@ -230,9 +229,19 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       if (req.query?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) {
         return res.status(400).type("text/plain").send("PKCE S256 code_challenge is required.");
       }
+      const authorizationRequest = issueRemoteMcpAuthorizationRequest({
+        env,
+        clientId: client.client_id,
+        redirectUri,
+        state,
+        scopes: scopes.scopes,
+        resource,
+        codeChallenge: challenge,
+        jti: randomUUID(),
+      });
       noStore(res);
       res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'");
-      return res.status(200).type("html").send(authorizePage({ client, redirectUri, state, scope: scopes.scopes.join(" "), resource, codeChallenge: challenge }));
+      return res.status(200).type("html").send(authorizePage({ client, scope: scopes.scopes.join(" "), authorizationRequest }));
     } catch {
       return res.status(503).type("text/plain").send("OAuth authorization is temporarily unavailable.");
     }
@@ -242,17 +251,19 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
     if (!remoteMcpOAuthEnabled(env)) return res.status(404).json({ ok: false, error: { code: "MCP_OAUTH_DISABLED", message: "Not found." } });
     const verified = verifyUserJwtAuthorization(req.headers?.authorization, { env });
     if (!verified.ok) return res.status(verified.status).json({ ok: false, error: { code: verified.code, message: verified.message }, secrets_included: false });
+    if (req.body?.consent !== true) return oauthError(res, 400, "consent_required", "Explicit user consent is required.");
     try {
-      const client = await readRemoteMcpOAuthClient(text(req.body?.client_id, 128), { pool });
+      const request = verifyRemoteMcpAuthorizationRequest(text(req.body?.authorization_request, 8192), { env });
+      const client = await readRemoteMcpOAuthClient(text(request?.client_id, 128), { pool });
       if (!client) return oauthError(res, 400, "invalid_client", "OAuth client is not active.");
-      const redirectUri = normalizeRemoteMcpRedirectUri(req.body?.redirect_uri, env);
+      const redirectUri = normalizeRemoteMcpRedirectUri(request?.redirect_uri, env);
       if (!redirectUri || !client.redirect_uris.includes(redirectUri)) return oauthError(res, 400, "invalid_redirect_uri", "redirect_uri is not registered.");
       const resource = resolveRemoteMcpOAuthResource(env);
-      if (String(req.body?.resource || "").replace(/\/+$/u, "") !== resource) return oauthError(res, 400, "invalid_target", "resource is invalid.");
-      const scopes = normalizeRemoteMcpScopes(req.body?.scope, client.allowed_scopes);
+      if (String(request?.resource || "").replace(/\/+$/u, "") !== resource) return oauthError(res, 400, "invalid_target", "resource is invalid.");
+      const scopes = normalizeRemoteMcpScopes(request?.scope, client.allowed_scopes);
       if (!scopes.ok) return oauthError(res, 400, "invalid_scope", "scope is invalid.");
-      const challenge = text(req.body?.code_challenge, 128);
-      if (req.body?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
+      const challenge = text(request?.code_challenge, 128);
+      if (request?.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43}$/u.test(challenge)) return oauthError(res, 400, "invalid_request", "PKCE S256 code_challenge is required.");
       const context = await activeUserContext(pool, verified.claims);
       if (!context) return oauthError(res, 403, "inactive_user", "The signed-in user or requested tenant context is not active.");
       const issued = await issueRemoteMcpAuthorizationCode({
@@ -270,10 +281,13 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         ok: true,
         code: issued.code,
         expires_in: REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS,
-        redirect_to: appendQuery(redirectUri, { code: issued.code, state: text(req.body?.state, 512) }),
+        redirect_to: appendQuery(redirectUri, { code: issued.code, state: text(request?.state, 512) }),
         secrets_included: false,
       });
-    } catch {
+    } catch (error) {
+      if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error?.name) || error?.code === "invalid_authorization_request") {
+        return oauthError(res, 400, "invalid_request", "The signed authorization request is invalid or expired.");
+      }
       return oauthError(res, 503, "temporarily_unavailable", "OAuth authorization code service is temporarily unavailable.");
     }
   });
