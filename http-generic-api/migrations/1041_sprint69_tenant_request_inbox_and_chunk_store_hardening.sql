@@ -22,7 +22,7 @@ DEALLOCATE PREPARE resolution_ticket_id_stmt;
 UPDATE tenant_resolution_cases
    SET ticket_id = SUBSTRING(resource_ref, 10)
  WHERE ticket_id IS NULL
-   AND resource_ref REGEXP '^ticket://[0-9a-fA-F-]{36}$';
+   AND resource_ref REGEXP '^ticket://[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
 
 SET @tickets_inbox_index_sql := (
   SELECT CASE WHEN COUNT(*) = 0
