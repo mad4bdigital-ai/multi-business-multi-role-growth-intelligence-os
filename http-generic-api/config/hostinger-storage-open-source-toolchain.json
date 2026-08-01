@@ -161,7 +161,7 @@
       "executables": [],
       "allowed_actions": ["emit_span", "emit_metric", "emit_redacted_event"],
       "required_attributes": ["operation.id", "operation.key", "tenant.id", "workspace.id", "resource.id", "plan.hash", "policy.revision", "tool.id", "tool.version", "outcome.classification"],
-      "secret_attributes_denied": true,
+      "sensitive_attributes_denied": true,
       "binary_digest_required": false,
       "mutates_target": false
     }
