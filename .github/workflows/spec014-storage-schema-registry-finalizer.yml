@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: spec014-storage-schema-registry-finalizer
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   finalize:
