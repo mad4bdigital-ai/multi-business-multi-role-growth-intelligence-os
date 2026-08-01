@@ -34,14 +34,33 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
           node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
           node -e "JSON.parse(require('fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'utf8'))"
-      - name: Publish self-contained candidate branch
+      - name: Publish non-workflow candidate from current Integration
+        env:
+          BASE_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          TARGET_BRANCH: gpt/014-hostinger/shared-canary-hardening-final-20260801-v2
         run: |
-          git rm \
-            .github/workflows/spec014-build-shared-hardening.yml \
-            http-generic-api/scripts/build-spec014-shared-hardening.mjs \
-            http-generic-api/scripts/patch-spec014-shared-capture-once.mjs
+          set -euo pipefail
+          candidate_dir="$(mktemp -d)"
+          files=(
+            http-generic-api/hostingerStorageSharedCanary.js
+            http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
+            http-generic-api/test-hostinger-storage-shared-canary.mjs
+            specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+            specs/014-governed-hostinger-storage-orchestration/evidence/shared-canary-postmerge-hardening-20260801.md
+          )
+          for file in "${files[@]}"; do
+            mkdir -p "$candidate_dir/$(dirname "$file")"
+            cp "$file" "$candidate_dir/$file"
+          done
+          git fetch origin "$BASE_BRANCH"
+          git switch --detach "origin/$BASE_BRANCH"
+          git switch -c "$TARGET_BRANCH"
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "$file")"
+            cp "$candidate_dir/$file" "$file"
+          done
           git config user.name 'mad4bdigital-ai'
           git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
-          git add .
+          git add -- "${files[@]}"
           git commit -m 'fix(spec-014): harden Shared pre-consumption provenance'
-          git push origin HEAD:refs/heads/gpt/014-hostinger/shared-canary-hardening-final-20260801
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
