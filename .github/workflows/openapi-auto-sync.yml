@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - gpt/openapi-autosync-stale-main-guard-20260801
     paths:
       - "http-generic-api/routes/**"
       - "http-generic-api/migrations/**"
@@ -41,9 +42,71 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  bootstrap-exact-head-work-maps:
+    if: github.ref_name == 'gpt/openapi-autosync-stale-main-guard-20260801' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore final workflow and regenerate Work Maps
+        shell: bash
+        env:
+          EXPECTED_PARENT_SHA: 2a2141a0dd0cb463670623f82de5383f4a212df4
+          TARGET_BRANCH: gpt/openapi-autosync-stale-main-guard-20260801
+        run: |
+          set -euo pipefail
+          actual_parent_sha="$(git rev-parse HEAD^)"
+          if [[ "${actual_parent_sha}" != "${EXPECTED_PARENT_SHA}" ]]; then
+            echo "Bootstrap parent mismatch. Expected ${EXPECTED_PARENT_SHA}, found ${actual_parent_sha}."
+            exit 1
+          fi
+
+          bootstrap_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${bootstrap_head_sha}" ]]; then
+            echo "Bootstrap branch moved before generation. Expected ${bootstrap_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+
+          git checkout "${EXPECTED_PARENT_SHA}" -- .github/workflows/openapi-auto-sync.yml
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_diff_hash}" != "${second_diff_hash}" ]]; then
+            echo "Refusing non-idempotent Work Map bootstrap."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          unexpected_files="$(git diff --name-only | grep -Ev '^(\.github/workflows/openapi-auto-sync\.yml|docs/work-maps/)' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Bootstrap modified unexpected files:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/openapi-auto-sync.yml docs/work-maps
+          git commit -m "docs(work-maps): refresh OpenAPI auto-sync governance map"
+
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${bootstrap_head_sha}" ]]; then
+            echo "Bootstrap branch moved before push. Expected ${bootstrap_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
   repo-contract-sync:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: github.ref_name == 'main' && github.actor != 'github-actions[bot]'
 
     steps:
       - name: Checkout repository
