@@ -193,6 +193,8 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
       const result = await reconcileSupportTicketIntegrity({
         tenant_id: req.query?.tenant_id || null,
         limit: req.query?.limit || 100,
+        cursor_activity_at: req.query?.cursor_activity_at || null,
+        cursor_ticket_id: req.query?.cursor_ticket_id || null,
         apply: false,
         actor_id: req.auth?.user_id || "support_ticket_integrity_reconciler",
         actor_type: "admin",
@@ -220,6 +222,8 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
       const result = await reconcileSupportTicketIntegrity({
         tenant_id: req.body?.tenant_id || null,
         limit: req.body?.limit || 100,
+        cursor_activity_at: req.body?.cursor_activity_at || null,
+        cursor_ticket_id: req.body?.cursor_ticket_id || null,
         apply,
         actor_id: req.auth?.user_id || "support_ticket_integrity_reconciler",
         actor_type: "admin",
