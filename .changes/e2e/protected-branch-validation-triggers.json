@@ -1,0 +1,160 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "protected-branch-validation-triggers",
+  "title": "Protected branch exact-candidate validation triggers",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/branch-test-diagnostic-shards.yml",
+      "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Run the existing CI and branch diagnostic workflows for pull requests targeting either governed protected branch without changing their test commands.",
+      "e2e_journeys": [
+        {
+          "id": "validate-both-protected-branch-candidates",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "pull request author promoting reviewed code to a protected branch",
+          "entrypoint": "A pull request targeting a branch listed in repository-maintenance-tool-governance protected_branches",
+          "terminal_outcome": "The unchanged CI job set and full branch diagnostic suite execute on the exact GitHub pull-request candidate for both governed protected branches.",
+          "steps": [
+            "Read the protected branch policy containing main and Production.",
+            "Match the pull-request target against the CI trigger.",
+            "Match the pull-request target against the branch diagnostic trigger.",
+            "Execute syntax, unit and integration, runtime startup, architecture, and execution resolver gates.",
+            "Execute the ordered full test suite and family diagnostic shards."
+          ],
+          "assertions": [
+            "CI lists both governed protected branches in its pull-request trigger.",
+            "Branch Test Diagnostic lists both governed protected branches in its pull-request trigger.",
+            "Existing CI job names and npm test execution remain present.",
+            "Existing sequential and family diagnostic execution remain present.",
+            "No migration, deployment, provider call, or repository mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "protected-branch-trigger-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-protected-branch-validation-triggers.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/branch-test-diagnostic-shards.yml",
+            ".github/repository-maintenance-tool-governance.json",
+            "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve exact-candidate and durable test evidence for protected-branch release review using the existing workflow contracts and artifacts.",
+      "e2e_journeys": [
+        {
+          "id": "publish-protected-candidate-ci-and-diagnostic-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "protected branch release reviewer",
+          "entrypoint": "CI and Branch Test Diagnostic workflow results for a protected-target pull request",
+          "terminal_outcome": "The reviewer receives full CI results plus diagnostic artifacts and an ordered-suite result tied to the exact pull-request candidate SHA.",
+          "steps": [
+            "Run CI on the pull-request merge ref.",
+            "Run family diagnostics and the ordered manifest suite on the same pull-request merge ref.",
+            "Upload per-family reports and the bounded diagnostic summary.",
+            "Record the tested ref, exact SHA, family count, selected count, failures, and sequential result."
+          ],
+          "assertions": [
+            "The diagnostic artifact path uses matrix expressions and cannot resolve to a literal shell-variable filename.",
+            "The diagnostic summary contract remains mad4b.test-diagnostic-summary.v2.",
+            "The summary declares secretsIncluded=false.",
+            "Job logs remain diagnostic-only and are not substituted for structured results."
+          ],
+          "tests": [
+            {
+              "id": "protected-branch-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-protected-branch-validation-triggers.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/branch-test-diagnostic-shards.yml",
+            "http-generic-api/scripts/run-test-diagnostic-shard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed if protected-branch validation loses a governed target, write authority is introduced, or diagnostic artifacts regress to unresolved shell-variable paths.",
+      "e2e_journeys": [
+        {
+          "id": "reject-protected-validation-regressions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository governance",
+          "entrypoint": "A change to CI or Branch Test Diagnostic workflow definitions",
+          "terminal_outcome": "The contract test rejects missing protected targets, missing full-suite markers, write permissions, work-branch literals, or broken diagnostic artifact paths before merge.",
+          "steps": [
+            "Load both workflow definitions and the protected branch policy.",
+            "Assert both governed targets remain configured.",
+            "Assert required CI and diagnostic execution markers remain present.",
+            "Reject write-all or contents-write permissions.",
+            "Reject embedded work-branch literals.",
+            "Reject diagnostic upload paths that do not use matrix expressions."
+          ],
+          "assertions": [
+            "Pull-request validation remains read-only.",
+            "No work-branch name is embedded in either permanent workflow.",
+            "Both main and Production remain covered.",
+            "Broken report upload paths fail the contract test.",
+            "Secrets are not added to the workflow or reports."
+          ],
+          "tests": [
+            {
+              "id": "protected-branch-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-protected-branch-validation-triggers.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/branch-test-diagnostic-shards.yml",
+            ".github/repository-maintenance-tool-governance.json",
+            "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the first reviewed main-to-Production promotion and confirm both full validation workflows publish exact-candidate results without duplicate or stale authority."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require successful exact-candidate CI and diagnostic evidence before every future protected-branch promotion."
+    }
+  ]
+}
