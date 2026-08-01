@@ -210,8 +210,48 @@ assert.equal(verified.ready, true);
 assert.deepEqual(verified.blockers, []);
 assert.equal(verified.evidence.subject_type, subject.subject_type);
 assert.equal(verified.evidence.predicate_type, subject.predicate_type);
+assert.equal(verified.evidence.subject_name, subject.subject_name);
+assert.equal(verified.evidence.operation_id, plan.operation_id);
+assert.equal(verified.evidence.plan_id, plan.plan_id);
+assert.equal(verified.evidence.target_id, plan.target_id);
+assert.equal(verified.evidence.plan_hash, plan.plan_hash);
+assert.equal(verified.evidence.candidate_set_hash, plan.candidate_set_hash);
+assert.equal(verified.evidence.authority_context_hash, plan.authority_context_hash);
+assert.equal(verified.evidence.ownership_revision, plan.ownership_revision);
+assert.equal(verified.evidence.policy_revision, plan.policy_revision);
+assert.equal(verified.evidence.approval_set_hash, authorization.approval_set_hash);
+assert.equal(verified.evidence.capability_envelope_id, authorization.capability_envelope_id);
+assert.equal(verified.evidence.execution_lease_id, authorization.execution_lease_id);
 assert.equal(verified.authority_granted, false);
 assert.equal(verified.dispatch_allowed, false);
+
+const secretBearingSubject = structuredClone(subject);
+secretBearingSubject.payload.api_token = 'forbidden-token';
+assert.throws(
+  () => verifyHostingerStorageAttestationEvidence({
+    subject: secretBearingSubject,
+    verification: validVerification,
+    policy: verificationPolicy,
+    now: '2026-08-01T08:25:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'sensitive_key'
+    && error.details?.path === 'attestation_verification.subject.payload.api_token',
+);
+
+const secretDeclarationSubject = structuredClone(subject);
+secretDeclarationSubject.payload.secrets_included = true;
+assert.throws(
+  () => verifyHostingerStorageAttestationEvidence({
+    subject: secretDeclarationSubject,
+    verification: validVerification,
+    policy: verificationPolicy,
+    now: '2026-08-01T08:25:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'secret_declaration_must_be_false'
+    && error.details?.path === 'attestation_verification.subject.payload.secrets_included',
+);
 
 const futureVerification = verifyHostingerStorageAttestationEvidence({
   subject,
@@ -337,6 +377,8 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_attestation',
   recovery_plan_binding: true,
   authority_context_binding: true,
+  verified_plan_identity_preserved: true,
+  signed_subject_secret_free_validated: true,
   subject_identity_validation: true,
   future_timestamp_rejected: true,
   sensitive_authorization_fields_rejected: true,
