@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import YAML from "yaml";
 import {
+  canViewTenantAdminTicketEvents,
   decodeTenantRequestCursor,
   encodeTenantRequestCursor,
   getTenantRequestInboxItem,
@@ -25,6 +26,12 @@ assert.deepEqual(
   redactTenantRequestValue({ ok: true, access_token: "unsafe", nested: { private_key: "unsafe" } }),
   { ok: true, access_token: "[redacted]", nested: { private_key: "[redacted]" } },
 );
+assert.equal(canViewTenantAdminTicketEvents({ role: "member" }), false);
+assert.equal(canViewTenantAdminTicketEvents({ role: "manager" }), false);
+assert.equal(canViewTenantAdminTicketEvents({ role: "admin" }), true);
+assert.equal(canViewTenantAdminTicketEvents({ role: "owner" }), true);
+assert.equal(canViewTenantAdminTicketEvents({ role: "platform_owner" }), true);
+assert.equal(canViewTenantAdminTicketEvents({ isAdmin: true, role: "member" }), true);
 
 function fakePool(steps) {
   const calls = [];
@@ -114,7 +121,7 @@ await assert.rejects(
 );
 
 const detailPool = fakePool([
-  { rows: [{ role: "admin" }] },
+  { rows: [{ role: "member" }] },
   { rows: [{ present: 1 }] },
   { rows: [{
     ticket_id: ticketId,
@@ -129,10 +136,17 @@ const detailPool = fakePool([
     case_updated_at: lastSeenAt,
     latest_activity_at: lastSeenAt,
   }] },
-  { rows: [
-    { event_id: "ticket-public", event_type: "customer_reply", visibility: "customer", summary: "Visible", payload_json: JSON.stringify({ token: "unsafe", safe: true }), created_at: "2026-07-29T05:00:00.000Z" },
-    { event_id: "ticket-internal", event_type: "internal_note", visibility: "internal_support", summary: "Hidden", payload_json: "{}", created_at: "2026-07-29T05:01:00.000Z" },
-  ] },
+  {
+    rows: [
+      { event_id: "ticket-public", event_type: "customer_reply", visibility: "customer", summary: "Visible", payload_json: JSON.stringify({ token: "unsafe", safe: true }), created_at: "2026-07-29T05:00:00.000Z" },
+      { event_id: "ticket-tenant-admin", event_type: "tenant_admin_note", visibility: "tenant_admin", summary: "Admin only", payload_json: "{}", created_at: "2026-07-29T05:00:30.000Z" },
+      { event_id: "ticket-internal", event_type: "internal_note", visibility: "internal_support", summary: "Hidden", payload_json: "{}", created_at: "2026-07-29T05:01:00.000Z" },
+    ],
+    assert(sql) {
+      assert.match(sql, /visibility = 'customer'/u, "ordinary tenant members must be filtered to customer-visible ticket events at SQL level");
+      assert.doesNotMatch(sql, /tenant_admin/u, "ordinary tenant member queries must not request tenant-admin events");
+    },
+  },
   { rows: [{ event_id: "case-event", event_type: "case_escalated", actor_type: "system", actor_id: "ops", from_status: "diagnosing", to_status: "escalated", evidence_ref: "internal://evidence", event_json: JSON.stringify({ secret: "unsafe", reason: "platform" }), created_at: "2026-07-29T05:02:00.000Z" }] },
   { rows: [{ readback_id: "readback-1", decision: "still_active", expected_state_json: "{}", observed_state_json: JSON.stringify({ api_key: "unsafe" }), blocking_reasons_json: "[]", source_alerts_remaining_json: "[]", created_at: "2026-07-29T05:03:00.000Z" }] },
 ]);
@@ -141,6 +155,9 @@ const detail = await getTenantRequestInboxItem(
   { auth: { user_id: "user-1", is_admin: false }, pool: detailPool },
 );
 assert.equal(detail.timeline.some((event) => event.eventId === "ticket-internal"), false, "tenant timeline must hide internal ticket events");
+assert.equal(detail.timeline.some((event) => event.eventId === "ticket-tenant-admin"), false, "ordinary tenant members must not receive tenant-admin ticket events even if a database adapter returns one");
+assert.equal(detail.authorization.role, "member");
+assert.equal(detail.authorization.tenantAdminEventsVisible, false);
 const tenantCaseEvent = detail.timeline.find((event) => event.eventId === "case-event");
 assert.equal(Object.hasOwn(tenantCaseEvent, "evidenceRef"), false, "tenant case timeline must omit internal evidence refs");
 assert.equal(Object.hasOwn(tenantCaseEvent, "event"), false, "tenant case timeline must omit internal event payloads");
