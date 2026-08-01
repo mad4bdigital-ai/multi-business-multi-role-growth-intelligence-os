@@ -1,0 +1,59 @@
+name: Reconcile Spec 014 repository brand contract
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/reconcile-repository-brand-contract-20260801
+    paths:
+      - .github/workflows/spec014-reconcile-repository-brand-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/reconcile-repository-brand-contract-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Mark integrated implementation and remove registrar
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const path = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const workstream = contract.parallel_work.workstreams.find((row) => row.id === 'control-plane-repository-brand');
+          if (!workstream) throw new Error('control-plane-repository-brand workstream not found');
+
+          workstream.status = 'integrated';
+          workstream.commit_evidence = {
+            head_sha: '2a3820232edf11248e2721b630eb3c9be1195e7d',
+            commits: [
+              '37f58a8f5348be20eeeb2c06b778b4552a84ac4a',
+              '2a3820232edf11248e2721b630eb3c9be1195e7d'
+            ],
+          };
+
+          const mvp = contract.phases.find((row) => row.id === 'mvp');
+          if (mvp) {
+            mvp.blockers = mvp.blockers.filter((entry) => entry !== 'The governed Control Plane repository provenance brand is ready for integration.');
+            const blocker = 'The governed Control Plane repository provenance brand is integrated; persistence remains non-production and memory-backed.';
+            if (!mvp.blockers.includes(blocker)) mvp.blockers.splice(1, 0, blocker);
+          }
+
+          fs.writeFileSync(path, `${JSON.stringify(contract)}\n`);
+          fs.rmSync('.github/workflows/spec014-reconcile-repository-brand-contract.yml');
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(spec-014): mark repository provenance brand integrated'
+          git push origin HEAD:gpt/014-hostinger/reconcile-repository-brand-contract-20260801
