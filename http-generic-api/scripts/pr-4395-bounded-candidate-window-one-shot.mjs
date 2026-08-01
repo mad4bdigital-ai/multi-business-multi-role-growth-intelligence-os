@@ -65,6 +65,7 @@ if (existsSync(REPORT)) unlinkSync(REPORT);
 run("apply bounded candidate-window transform", "python3", [TRANSFORM]);
 run("check tenant inbox syntax", "node", ["--check", "tenantRequestInboxService.js"]);
 run("tenant inbox candidate-window regression", "node", ["test-tenant-request-inbox-and-chunk-hardening.mjs"]);
+run("platform route regression", "node", ["test-platform-routes.mjs"]);
 run("context kernel hardcoding report", "node", ["scripts/context-kernel-hardcoding-report.mjs", "--base-ref=main", "--head-ref=HEAD", "--report-only"]);
 
 packageJson.scripts["frontend:dispatch:generate"] = CANONICAL_DISPATCH;
