@@ -92,3 +92,42 @@ jobs:
             }
             console.log(JSON.stringify({ ok: true, outcome: report.outcome, candidate_sha: report.identity?.candidate_sha, secrets_included: false }));
           '
+
+  dispatch-governed-refresh:
+    name: Dispatch governed exact-head refresh
+    needs: evidence
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'github-actions[bot]'
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_REF: ${{ github.head_ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Dispatch registered generated-artifact maintenance tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAYLOAD="${RUNNER_TEMP}/governed-generated-artifact-refresh-dispatch.json"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const payload = {
+              ref: "main",
+              inputs: {
+                target_ref: process.env.TARGET_REF,
+                expected_head_sha: process.env.EXPECTED_HEAD_SHA,
+                confirmation: "APPLY_GENERATED_ARTIFACT_REFRESH"
+              }
+            };
+            fs.writeFileSync(process.argv[1], `${JSON.stringify(payload)}\n`);
+          ' "${PAYLOAD}"
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
+            --input "${PAYLOAD}"
+          echo "Dispatched governed refresh for ${TARGET_REF}@${EXPECTED_HEAD_SHA}."
