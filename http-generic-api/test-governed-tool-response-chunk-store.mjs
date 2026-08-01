@@ -4,6 +4,7 @@ import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS,
   extendGovernedToolResponseChunkExpiry,
+  inspectGovernedResponseChunkSchema,
   loadGovernedToolResponseChunk,
   persistGovernedToolResponseChunk,
   sha256ResponseChunk,
@@ -31,13 +32,22 @@ function sameOwner(row, incoming) {
 
 function createFakePool() {
   const rows = new Map();
+  const state = { schema_probe_count: 0, fail_next_durable_query: false };
   return {
     rows,
+    state,
     async query(sql, params = []) {
       if (sql.includes("information_schema.columns")) {
+        state.schema_probe_count += 1;
         return [
           GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name })),
         ];
+      }
+      if (state.fail_next_durable_query) {
+        state.fail_next_durable_query = false;
+        const error = new Error("durable query failed");
+        error.code = "ER_QUERY_INTERRUPTED";
+        throw error;
       }
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
         const [
@@ -144,6 +154,7 @@ assert.equal(pool.rows.get(chunkId).owner_tenant_id, "tenant-a");
 assert.equal(pool.rows.get(chunkId).owner_user_id, "user-a");
 assert.equal(pool.rows.get(chunkId).owner_workspace_id, "workspace-a");
 assert.equal(pool.rows.get(chunkId).owner_principal_type, "tenant_user");
+assert.equal(pool.state.schema_probe_count, 1, "persist plus verification must share one successful schema probe");
 
 const loaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantA }, { pool, now: now + 1000 });
 assert.equal(loaded.serialized, serialized);
@@ -151,6 +162,26 @@ assert.equal(loaded.response_sha256, persisted.response_sha256);
 assert.equal(loaded.response_bytes, Buffer.byteLength(serialized, "utf8"));
 assert.equal(loaded.owner_tenant_id, "tenant-a");
 assert.equal(loaded.owner_workspace_id, "workspace-a");
+assert.equal(pool.state.schema_probe_count, 1, "hot-path loads must reuse bounded successful readiness");
+
+pool.state.fail_next_durable_query = true;
+await assert.rejects(
+  extendGovernedToolResponseChunkExpiry(
+    { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
+    { pool, now: now + 1500 },
+  ),
+  (error) => error?.code === "response_chunk_persistence_unavailable" && error?.status === 503,
+);
+const probesBeforeRecovery = pool.state.schema_probe_count;
+await extendGovernedToolResponseChunkExpiry(
+  { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
+  { pool, now: now + 1501 },
+);
+assert.equal(pool.state.schema_probe_count, probesBeforeRecovery + 1, "durable query failures must invalidate cached readiness");
+const probesBeforeLiveDiagnostics = pool.state.schema_probe_count;
+await inspectGovernedResponseChunkSchema({ pool, now: now + 1502, operation: "diagnostic_one" });
+await inspectGovernedResponseChunkSchema({ pool, now: now + 1503, operation: "diagnostic_two" });
+assert.equal(pool.state.schema_probe_count, probesBeforeLiveDiagnostics + 2, "explicit diagnostics must remain live and bypass readiness cache");
 
 const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { pool, now: now + 1000 });
 assert.equal(crossTenantLoad, null, "cross-tenant durable reads must be indistinguishable from missing chunks");

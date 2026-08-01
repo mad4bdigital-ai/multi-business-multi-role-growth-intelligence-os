@@ -2286,9 +2286,15 @@ export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps 
     ({ chunkId } = await storeToolResponseForChunks(body, optionsSource, deps));
   } catch (error) {
     logToolResponseChunkFallback(error, optionsSource);
+    const responseBudgetOptions = optionsSource?.response_options || optionsSource?._response || optionsSource || {};
+    const inlineMaxChars = resolveAdaptiveToolResponseMaxChars({
+      ...responseBudgetOptions,
+      max_chars: MAX_TOOL_RESPONSE_MAX_CHARS,
+      max_response_chars: MAX_TOOL_RESPONSE_MAX_CHARS,
+    });
     return buildBoundedInlineChunkFallback(body, error, {
       sourceToolKey: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || "gpt_tool_response",
-      maxChars: MAX_TOOL_RESPONSE_MAX_CHARS,
+      maxChars: inlineMaxChars,
     });
   }
   return buildToolResponseChunk({

@@ -14,6 +14,8 @@ export const GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS = Object.freeze([
   "owner_user_id", "owner_workspace_id", "owner_principal_type", "owner_principal_id",
   "source_surface", "created_at", "expires_at",
 ]);
+export const GOVERNED_RESPONSE_CHUNK_SCHEMA_READY_TTL_MS = 60_000;
+const governedResponseChunkSchemaReadyCache = new WeakMap();
 
 function text(value = "") {
   return String(value ?? "").trim();
@@ -58,6 +60,16 @@ function executor(deps = {}) {
   return deps.pool || deps.connection || getPool();
 }
 
+function schemaReadinessCacheKey(deps = {}) {
+  const target = executor(deps);
+  return target && (typeof target === "object" || typeof target === "function") ? target : null;
+}
+
+export function invalidateGovernedResponseChunkSchemaReadiness(deps = {}) {
+  const key = schemaReadinessCacheKey(deps);
+  return key ? governedResponseChunkSchemaReadyCache.delete(key) : false;
+}
+
 export async function inspectGovernedResponseChunkSchema(deps = {}) {
   const operation = text(deps.operation || "response_chunk_schema_check") || "response_chunk_schema_check";
   try {
@@ -96,8 +108,29 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
 }
 
 async function assertGovernedResponseChunkSchema(deps = {}, operation = "response_chunk_store") {
+  const key = schemaReadinessCacheKey(deps);
+  const checkedAtMs = nowMs(deps);
+  const cached = key ? governedResponseChunkSchemaReadyCache.get(key) : null;
+  if (cached && cached.expires_at_ms > checkedAtMs) {
+    return { ...cached.schema, operation, cached: true };
+  }
+  if (cached && key) governedResponseChunkSchemaReadyCache.delete(key);
+
   const schema = await inspectGovernedResponseChunkSchema({ ...deps, operation });
-  if (schema.ready) return schema;
+  if (schema.ready) {
+    const requestedTtlMs = positiveInteger(
+      deps.schemaReadyTtlMs || deps.schema_ready_ttl_ms,
+      GOVERNED_RESPONSE_CHUNK_SCHEMA_READY_TTL_MS,
+    );
+    const ttlMs = Math.min(requestedTtlMs, 5 * 60 * 1000);
+    if (key && ttlMs > 0) {
+      governedResponseChunkSchemaReadyCache.set(key, {
+        schema: { ...schema, cached: false },
+        expires_at_ms: checkedAtMs + ttlMs,
+      });
+    }
+    return { ...schema, cached: false };
+  }
   throw responseChunkError(
     "response_chunk_persistence_unavailable",
     "The durable response chunk store schema is incomplete.",
@@ -127,6 +160,7 @@ async function readChunkVerificationRow(chunkId, deps = {}) {
     );
     return rows?.[0] || null;
   } catch (cause) {
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }
@@ -204,6 +238,7 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
       ]
     );
   } catch (cause) {
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 
@@ -239,6 +274,7 @@ export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
       [chunkId]
     );
   } catch (cause) {
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 
@@ -329,6 +365,7 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
       secrets_included: false,
     };
   } catch (cause) {
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }
@@ -344,6 +381,7 @@ export async function deleteExpiredGovernedToolResponseChunks(input = {}, deps =
     );
     return { deleted_count: Number(result?.affectedRows || 0), limit, secrets_included: false };
   } catch (cause) {
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_cleanup_unavailable", "Expired response chunk cleanup is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }

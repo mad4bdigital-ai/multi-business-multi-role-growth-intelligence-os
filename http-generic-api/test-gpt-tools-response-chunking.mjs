@@ -273,11 +273,36 @@ async function main() {
   assert.equal(degradedFallback.continuation_contract.persistence_degraded, true);
   assert.equal(degradedFallback.continuation_contract.fallback_mode, "bounded_inline_response");
   assert.equal(degradedFallback.continuation_contract.source_tool_key, "test_degraded_chunk_store");
+  assert.equal(degradedFallback.continuation_contract.bounded_inline_max_chars, 45000);
   assert.equal(degradedFallback.secrets_included, false);
   assert.equal(warnings.length, 1);
   assert.equal(warnings[0][1].request_id, "request-degraded-1");
   assert.equal(warnings[0][1].source_tool_key, "test_degraded_chunk_store");
   assert.equal(JSON.stringify(warnings).includes("fallback-0"), false, "fallback diagnostics must not log response content");
+
+  const budgetWarnings = [];
+  console.warn = (...args) => budgetWarnings.push(args);
+  try {
+    await assert.rejects(
+      () => maybeChunkToolResponseBody(degradedBody, {
+        response_options: {
+          max_chars: 5000,
+          client_response_budget_chars: 10000,
+          response_envelope_overhead_chars: 5000,
+        },
+        source_tool_key: "test_degraded_budget_limit",
+        request_id: "request-degraded-budget-1",
+        auth: tenantA,
+      }, { pool: degradedPool, now }),
+      (error) => error?.code === "response_chunk_persistence_unavailable_inline_limit_exceeded"
+        && error?.status === 503
+        && error?.details?.bounded_inline_max_chars === 5000,
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(budgetWarnings.length, 1);
+  assert.equal(JSON.stringify(budgetWarnings).includes("fallback-0"), false);
 
   const existingChunkEnvelope = {
     ok: true,

@@ -93,6 +93,9 @@ const listPool = fakePool([
     assert(sql, params) {
       assert.match(sql, /c2\.ticket_id = t\.ticket_id/u);
       assert.match(sql, /ORDER BY latest_activity_at DESC, t\.ticket_id DESC/u);
+      assert.match(sql, /SELECT MAX\(tle\.created_at\)/u, "latest activity must include visible ticket lifecycle events");
+      assert.match(sql, /FROM tenant_resolution_case_events trce/u, "latest activity must include resolution-case events");
+      assert.match(sql, /FROM tenant_resolution_readbacks trr/u, "latest activity must include readbacks");
       assert.doesNotMatch(sql, /OFFSET/u);
       assert.equal(params.at(-1), 51);
     },
@@ -145,10 +148,24 @@ const detailPool = fakePool([
     assert(sql) {
       assert.match(sql, /visibility = 'customer'/u, "ordinary tenant members must be filtered to customer-visible ticket events at SQL level");
       assert.doesNotMatch(sql, /tenant_admin/u, "ordinary tenant member queries must not request tenant-admin events");
+      assert.match(sql, /ORDER BY created_at DESC, id DESC[\s\S]*LIMIT 500/u, "ticket events must bound the newest rows first");
+      assert.match(sql, /bounded_ticket_events[\s\S]*ORDER BY created_at ASC, id ASC/u, "bounded ticket events must be restored to chronological order");
     },
   },
-  { rows: [{ event_id: "case-event", event_type: "case_escalated", actor_type: "system", actor_id: "ops", from_status: "diagnosing", to_status: "escalated", evidence_ref: "internal://evidence", event_json: JSON.stringify({ secret: "unsafe", reason: "platform" }), created_at: "2026-07-29T05:02:00.000Z" }] },
-  { rows: [{ readback_id: "readback-1", decision: "still_active", expected_state_json: "{}", observed_state_json: JSON.stringify({ api_key: "unsafe" }), blocking_reasons_json: "[]", source_alerts_remaining_json: "[]", created_at: "2026-07-29T05:03:00.000Z" }] },
+  {
+    rows: [{ event_id: "case-event", event_type: "case_escalated", actor_type: "system", actor_id: "ops", from_status: "diagnosing", to_status: "escalated", evidence_ref: "internal://evidence", event_json: JSON.stringify({ secret: "unsafe", reason: "platform" }), created_at: "2026-07-29T05:02:00.000Z" }],
+    assert(sql) {
+      assert.match(sql, /ORDER BY created_at DESC, id DESC[\s\S]*LIMIT 500/u, "case events must bound the newest rows first");
+      assert.match(sql, /bounded_case_events[\s\S]*ORDER BY created_at ASC, id ASC/u);
+    },
+  },
+  {
+    rows: [{ readback_id: "readback-1", decision: "still_active", expected_state_json: "{}", observed_state_json: JSON.stringify({ api_key: "unsafe" }), blocking_reasons_json: "[]", source_alerts_remaining_json: "[]", created_at: "2026-07-29T05:03:00.000Z" }],
+    assert(sql) {
+      assert.match(sql, /ORDER BY created_at DESC, id DESC[\s\S]*LIMIT 200/u, "readbacks must bound the newest rows first");
+      assert.match(sql, /bounded_readbacks[\s\S]*ORDER BY created_at ASC, id ASC/u);
+    },
+  },
 ]);
 const detail = await getTenantRequestInboxItem(
   { tenant_id: tenantId, ticket_id: ticketId },

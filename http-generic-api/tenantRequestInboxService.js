@@ -101,10 +101,36 @@ async function authorizeTenantRequestScope({ auth = {}, tenantId, pool }) {
   return { isAdmin: false, tenantId: requestedTenantId, role: membership.role || null };
 }
 
-function latestActivitySql(alias = "t", caseAlias = "c") {
+function ticketEventVisibilitySql(scope = {}, alias = "") {
+  const column = alias ? `${alias}.visibility` : "visibility";
+  if (scope?.isAdmin === true) return "";
+  return canViewTenantAdminTicketEvents(scope)
+    ? `AND ${column} IN ('customer','tenant_admin')`
+    : `AND ${column} = 'customer'`;
+}
+
+function latestActivitySql(alias = "t", caseAlias = "c", ticketEventVisibility = "") {
+  const ticketFallback = `COALESCE(${alias}.last_seen_at, ${alias}.updated_at, ${alias}.created_at)`;
   return `GREATEST(
-    COALESCE(${alias}.last_seen_at, ${alias}.updated_at, ${alias}.created_at),
-    COALESCE(${caseAlias}.updated_at, ${alias}.last_seen_at, ${alias}.updated_at, ${alias}.created_at)
+    ${ticketFallback},
+    COALESCE(${caseAlias}.updated_at, ${ticketFallback}),
+    COALESCE((
+      SELECT MAX(tle.created_at)
+        FROM ticket_lifecycle_events tle
+       WHERE tle.tenant_id = ${alias}.tenant_id
+         AND tle.ticket_id = ${alias}.ticket_id
+         ${ticketEventVisibility}
+    ), ${ticketFallback}),
+    COALESCE((
+      SELECT MAX(trce.created_at)
+        FROM tenant_resolution_case_events trce
+       WHERE trce.case_id = ${caseAlias}.case_id
+    ), ${ticketFallback}),
+    COALESCE((
+      SELECT MAX(trr.created_at)
+        FROM tenant_resolution_readbacks trr
+       WHERE trr.case_id = ${caseAlias}.case_id
+    ), ${ticketFallback})
   )`;
 }
 
@@ -192,7 +218,7 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
     params.push(search, search, search, like, like);
   }
   const cursor = decodeTenantRequestCursor(filters.cursor);
-  const activity = latestActivitySql();
+  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));
   if (cursor) {
     conditions.push(`(${activity} < ? OR (${activity} = ? AND t.ticket_id < ?))`);
     params.push(cursor.latestActivityAt, cursor.latestActivityAt, cursor.ticketId);
@@ -303,7 +329,7 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
   const conditions = ["t.ticket_id = ?"];
   const params = [ticketId];
   if (scope.tenantId) { conditions.push("t.tenant_id = ?"); params.push(scope.tenantId); }
-  const activity = latestActivitySql();
+  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));
   const [rows] = await pool.query(
     `SELECT t.ticket_id, t.tenant_id, t.title, t.ticket_type, t.category,
             t.status AS ticket_status, t.priority, t.severity, t.occurrence_count,
@@ -330,15 +356,17 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
     throw error;
   }
   const canViewTenantAdmin = canViewTenantAdminTicketEvents(scope);
-  const visibilitySql = scope.isAdmin
-    ? ""
-    : (canViewTenantAdmin ? `AND visibility IN ('customer','tenant_admin')` : `AND visibility = 'customer'`);
+  const visibilitySql = ticketEventVisibilitySql(scope);
   const [ticketEvents] = await pool.query(
     `SELECT event_id, event_type, from_state, to_state, summary, visibility, payload_json, created_at
-       FROM ticket_lifecycle_events
-      WHERE tenant_id = ? AND ticket_id = ? ${visibilitySql}
-      ORDER BY created_at ASC, id ASC
-      LIMIT 500`,
+       FROM (
+         SELECT id, event_id, event_type, from_state, to_state, summary, visibility, payload_json, created_at
+           FROM ticket_lifecycle_events
+          WHERE tenant_id = ? AND ticket_id = ? ${visibilitySql}
+          ORDER BY created_at DESC, id DESC
+          LIMIT 500
+       ) bounded_ticket_events
+      ORDER BY created_at ASC, id ASC`,
     [row.tenant_id, row.ticket_id]
   );
   let caseEvents = [];
@@ -347,19 +375,29 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
     [caseEvents] = await pool.query(
       `SELECT event_id, event_type, actor_type, actor_id, from_status, to_status,
               evidence_ref, event_json, created_at
-         FROM tenant_resolution_case_events
-        WHERE case_id = ?
-        ORDER BY created_at ASC, id ASC
-        LIMIT 500`,
+         FROM (
+           SELECT id, event_id, event_type, actor_type, actor_id, from_status, to_status,
+                  evidence_ref, event_json, created_at
+             FROM tenant_resolution_case_events
+            WHERE case_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 500
+         ) bounded_case_events
+        ORDER BY created_at ASC, id ASC`,
       [row.case_id]
     );
     [readbacks] = await pool.query(
       `SELECT readback_id, decision, expected_state_json, observed_state_json,
               blocking_reasons_json, source_alerts_remaining_json, created_at
-         FROM tenant_resolution_readbacks
-        WHERE case_id = ?
-        ORDER BY created_at ASC, id ASC
-        LIMIT 200`,
+         FROM (
+           SELECT id, readback_id, decision, expected_state_json, observed_state_json,
+                  blocking_reasons_json, source_alerts_remaining_json, created_at
+             FROM tenant_resolution_readbacks
+            WHERE case_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 200
+         ) bounded_readbacks
+        ORDER BY created_at ASC, id ASC`,
       [row.case_id]
     );
   }
