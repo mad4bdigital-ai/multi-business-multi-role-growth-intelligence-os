@@ -46,7 +46,9 @@
     "checklists/requirements.md",
     "checklists/security.md",
     "checklists/operations.md",
-    "checklists/ci.md"
+    "checklists/ci.md",
+    "tools/validate-contracts.mjs",
+    "tools/generate-work-packet.mjs"
   ],
   "requirements": {
     "functional": 52,
@@ -54,17 +56,21 @@
     "success_criteria": 18,
     "ci_test_families": 10,
     "ci_pipelines": 9,
-    "ci_evidence_contracts": 8
+    "ci_evidence_contracts": 8,
+    "executable_spec_tools": 2
   },
   "automation_contracts": {
     "development": {
       "instance": "development-automation.json",
       "schema": "contracts/development-automation.schema.json",
+      "validator": "tools/validate-contracts.mjs",
+      "work_packet_generator": "tools/generate-work-packet.mjs",
       "purpose": "Machine-readable requirement, task, gate, evidence, and implementation-wave orchestration contract"
     },
     "ci": {
       "instance": "ci-automation.json",
       "schema": "contracts/ci-automation.schema.json",
+      "validator": "tools/validate-contracts.mjs",
       "purpose": "Machine-readable test-family, pipeline, candidate-identity, canonical-evidence, governed-writer, and completion contract"
     }
   },
