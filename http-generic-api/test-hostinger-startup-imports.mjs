@@ -26,6 +26,8 @@ async function importModule(relativePath) {
 }
 
 const syntaxOnlyFiles = [
+  "../server.js",
+  "../hostinger-entrypoint-runtime.js",
   "server.js",
   "routes/activationRoutes.js",
   "routes/gptSessionRoutes.js",
@@ -106,9 +108,31 @@ assert.equal(
 );
 
 const rootEntrypointSource = readFileSync(join(__dirname, "..", "server.js"), "utf8");
+const rootRuntimeSource = readFileSync(
+  join(__dirname, "..", "hostinger-entrypoint-runtime.js"),
+  "utf8"
+);
 assert(
-  rootEntrypointSource.includes("error.stack"),
-  "root Hostinger entrypoint must preserve startup stack traces"
+  rootRuntimeSource.includes("error.stack"),
+  "root Hostinger runtime helpers must preserve startup stack traces"
+);
+assert.equal(
+  /^\s*if\s*\(\s*require\.main\s*===\s*module\s*\)/m.test(rootEntrypointSource),
+  false,
+  "root Hostinger entrypoint must not depend on require.main detection"
+);
+assert(
+  rootEntrypointSource.includes("const startupPromise = startApplication()"),
+  "root Hostinger entrypoint must start when loaded by the platform wrapper"
+);
+assert(
+  rootEntrypointSource.includes('require("./hostinger-entrypoint-runtime.js")'),
+  "root Hostinger entrypoint must use the side-effect-free runtime helper module"
+);
+assert.equal(
+  /const\s+startupPromise\s*=\s*startApplication\s*\(/.test(rootRuntimeSource),
+  false,
+  "Hostinger runtime helper imports must not launch the real server"
 );
 
 const modelReadinessMigration = readFileSync(
