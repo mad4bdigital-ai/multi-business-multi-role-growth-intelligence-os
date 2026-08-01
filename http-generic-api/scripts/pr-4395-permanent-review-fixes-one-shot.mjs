@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 const TARGET_BRANCH = "gpt/tenant-request-inbox-chunk-store-hardening-20260801";
 const HELPER = "scripts/pr-4395-permanent-review-fixes-one-shot.mjs";
 const TRANSFORM = "scripts/pr-4395-permanent-review-fixes.py";
+const SHARED_TRANSFORM = "scripts/pr-4395-shared-system-tools-budget-fix.py";
 const REPORT = "pr-4395-permanent-review-fixes-diagnostic.json";
 const PACKAGE = "package.json";
 const MARKER_SCRIPT = "pr4395:permanent-review-fixes";
@@ -56,15 +57,6 @@ function run(label, command, args = []) {
   return result;
 }
 
-function replaceExactlyOnce(path, before, after) {
-  const source = readFileSync(path, "utf8");
-  const count = source.split(before).length - 1;
-  if (count !== 1) {
-    throw new Error(`${path}: expected one supplemental replacement target, found ${count}`);
-  }
-  writeFileSync(path, source.replace(before, after));
-}
-
 const branch = String(
   process.env.GITHUB_HEAD_REF
   || raw("git", ["branch", "--show-current"]).stdout
@@ -82,11 +74,7 @@ if (packageJson.scripts?.[MARKER_SCRIPT] !== "node -e \"process.exit(0)\"") {
 if (existsSync(REPORT)) unlinkSync(REPORT);
 
 run("apply permanent review transform", "python3", [TRANSFORM]);
-replaceExactlyOnce(
-  "test-platform-routes.mjs",
-  '  const r = await get("/system/tools");\n  ok("shared system tools returns 200", r.status === 200, `got ${r.status}`);',
-  '  const r = await get("/system/tools?max_chars=150000&client_response_budget_chars=150000&response_envelope_overhead_chars=2000");\n  ok("shared system tools returns 200", r.status === 200, `got ${r.status}`);',
-);
+run("apply shared system-tools budget transform", "python3", [SHARED_TRANSFORM]);
 run("check governed chunk store syntax", "node", ["--check", "governedToolResponseChunkStore.js"]);
 run("check support ticket routes syntax", "node", ["--check", "routes/supportTicketRoutes.js"]);
 run("check system layer routes syntax", "node", ["--check", "routes/systemLayerRoutes.js"]);
@@ -99,6 +87,7 @@ packageJson.scripts["frontend:dispatch:generate"] = CANONICAL_DISPATCH;
 delete packageJson.scripts[MARKER_SCRIPT];
 writeFileSync(PACKAGE, `${JSON.stringify(packageJson, null, 2)}\n`);
 unlinkSync(TRANSFORM);
+unlinkSync(SHARED_TRANSFORM);
 unlinkSync(HELPER);
 if (existsSync(REPORT)) unlinkSync(REPORT);
 
@@ -110,6 +99,7 @@ raw("git", [
   PACKAGE,
   HELPER,
   TRANSFORM,
+  SHARED_TRANSFORM,
   REPORT,
   "governedToolResponseChunkStore.js",
   "routes/supportTicketRoutes.js",
