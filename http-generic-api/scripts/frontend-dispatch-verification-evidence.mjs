@@ -46,6 +46,19 @@ export const DEFAULT_FRONTEND_DISPATCH_STAGES = Object.freeze([
     command: "npm",
     args: Object.freeze(["run", "openapi:auth:check"]),
   }),
+  Object.freeze({
+    id: "committed_generated_parity",
+    label: "Enforce committed deterministic frontend evidence",
+    command: "git",
+    args: Object.freeze([
+      "diff",
+      "--exit-code",
+      "--",
+      "frontend-operation-governance.generated.json",
+      "frontend-surface-dispatch.generated.json",
+      "openapi/frontend-runtime-routes.generated.yaml",
+    ]),
+  }),
 ]);
 
 function parseArgs(argv) {
