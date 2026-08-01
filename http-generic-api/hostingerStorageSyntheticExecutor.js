@@ -11,7 +11,7 @@ function fail(status, code, message) {
   const error = new Error(message);
   error.status = status;
   error.code = code;
-  error.details = { secrets_included: false };
+  error.details = { adapter_provenance: 'factory_owned_required', secrets_included: false };
   return error;
 }
 
@@ -19,7 +19,7 @@ function requireFactoryOwnedAdapter(adapter) {
   if (!isCanonicalHostingerStorageSyntheticAdapter(adapter)) {
     throw fail(
       409,
-      'STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_PROVENANCE_INVALID',
+      'STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_INVALID',
       'Synthetic execution requires an adapter created by the canonical in-memory factory.',
     );
   }
