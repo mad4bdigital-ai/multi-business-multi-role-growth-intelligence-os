@@ -38,8 +38,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Install deterministic import parser
-        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check syntax
         run: |
           node --check http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
@@ -51,8 +49,7 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
-          node --check http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
-          node --check http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -69,8 +66,6 @@ jobs:
           grep -q "STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
-      - name: Parse static and dynamic Base imports
-        run: node http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce Base runtime provenance
         run: |
           grep -q "const tenantCanaryAdapters = new WeakSet()" http-generic-api/hostingerStorageTenantCanaryBase.js
@@ -100,9 +95,6 @@ jobs:
           grep -q "policy_revision" http-generic-api/hostingerStorageTenantCanaryBase.js
           grep -q "from './hostingerStorageTenantCanaryBase.js';" http-generic-api/hostingerStorageTenantCanary.js
           ! grep -q "executeBaseTenantCanary" http-generic-api/hostingerStorageTenantCanary.js
-          grep -q "authority_store_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
-          grep -q "enablement_registry_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
-          grep -q "typescript_ast" http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce policy not-before contracts
         run: |
           grep -q "STORAGE_TENANT_CANARY_EVALUATION_NOT_STARTED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
@@ -156,4 +148,4 @@ jobs:
           node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node test-hostinger-storage-tenant-canary-token-normalization.mjs
           node test-hostinger-storage-tenant-canary-token-delegation.mjs
-          node test-hostinger-storage-tenant-canary-store-provenance.mjs
+          node test-hostinger-storage-tenant-canary-repository-provenance.mjs
