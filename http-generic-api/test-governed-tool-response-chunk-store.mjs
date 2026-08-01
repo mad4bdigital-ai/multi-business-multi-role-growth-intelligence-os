@@ -316,6 +316,29 @@ await assert.rejects(
   (err) => err.code === "response_chunk_expired" && err.status === 410,
 );
 
+const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+const previousDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
+for (const key of dbEnvKeys) delete process.env[key];
+try {
+  await assert.rejects(
+    persistGovernedToolResponseChunk({
+      chunk_id: "cdcdcdcd-efef-4abc-8123-456789abcdef",
+      serialized,
+      ttl_ms: 300000,
+      auth: tenantA,
+    }, { now }),
+    (err) => err?.code === "response_chunk_persistence_unavailable"
+      && err?.status === 503
+      && err?.details?.cause_code === "DB_CONFIG_MISSING"
+      && err?.details?.secrets_included === false,
+  );
+} finally {
+  for (const key of dbEnvKeys) {
+    if (previousDbEnv[key] === undefined) delete process.env[key];
+    else process.env[key] = previousDbEnv[key];
+  }
+}
+
 const failingPool = { async query() { const err = new Error("db down"); err.code = "ECONNREFUSED"; throw err; } };
 await assert.rejects(
   persistGovernedToolResponseChunk({
