@@ -1,5 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import path from "node:path";
+import process from "node:process";
 
 const TARGET_BRANCH = "gpt/tenant-request-inbox-chunk-store-hardening-20260801";
 const HELPER = "scripts/pr-4395-bounded-candidate-window-one-shot.mjs";
@@ -10,6 +12,7 @@ const MARKER_SCRIPT = "pr4395:bounded-candidate-window";
 const MARKER_COMMAND = "node --check scripts/pr-4395-bounded-candidate-window-one-shot.mjs";
 const CANONICAL_DISPATCH = "node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write";
 const HOOKED_DISPATCH = `node ${HELPER} && ${CANONICAL_DISPATCH}`;
+const SCAN_SCOPE = path.join(process.env.RUNNER_TEMP || "/tmp", "pr-4395-context-kernel-files.txt");
 
 function raw(command, args = [], options = {}) {
   return spawnSync(command, args, {
@@ -67,7 +70,13 @@ run("apply bounded candidate-window transform", "python3", [TRANSFORM]);
 run("check tenant inbox syntax", "node", ["--check", "tenantRequestInboxService.js"]);
 run("tenant inbox candidate-window regression", "node", ["test-tenant-request-inbox-and-chunk-hardening.mjs"]);
 run("platform route regression", "node", ["test-platform-routes.mjs"]);
-run("context kernel hardcoding report", "node", ["scripts/context-kernel-hardcoding-report.mjs", "--base-ref=main", "--head-ref=HEAD", "--report-only"]);
+writeFileSync(SCAN_SCOPE, "http-generic-api/tenantRequestInboxService.js\n", "utf8");
+run("context kernel hardcoding scan", "node", [
+  "scripts/context-kernel-hardcoding-scan.mjs",
+  "--fail-on=runtime",
+  `--changed-files-from=${SCAN_SCOPE}`,
+]);
+if (existsSync(SCAN_SCOPE)) unlinkSync(SCAN_SCOPE);
 
 packageJson.scripts["frontend:dispatch:generate"] = CANONICAL_DISPATCH;
 delete packageJson.scripts[MARKER_SCRIPT];
