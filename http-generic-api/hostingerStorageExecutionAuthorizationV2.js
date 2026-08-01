@@ -65,6 +65,11 @@ function hash(value, field) {
   return normalized;
 }
 
+function optionalHash(value, field) {
+  const normalized = text(value, 64).toLowerCase();
+  return normalized ? hash(normalized, field) : null;
+}
+
 function projectExecutionEnvelope(envelope = {}) {
   assertSecretFree(envelope, 'operation_envelope');
   const projected = {
@@ -94,13 +99,29 @@ function projectExecutionEnvelope(envelope = {}) {
   return deepFreeze(projected);
 }
 
-function validateCanonicalAttestationBinding(input = {}) {
+function canonicalSelectedTools(resolution = {}) {
+  const selected = {};
+  for (const row of resolution.selections || []) {
+    if (!row?.capability || !row?.selected_tool_id) continue;
+    selected[text(row.capability, 256)] = {
+      tool_id: text(row.selected_tool_id, 256),
+      version: text(row.selected?.observed_version, 64) || null,
+      binary_sha256: row.selected?.binary_sha256
+        ? hash(row.selected.binary_sha256, `toolchain.${row.capability}.binary_sha256`)
+        : null,
+    };
+  }
+  return selected;
+}
+
+function validateCanonicalAttestationBinding(input = {}, legacyBundle = {}) {
   const plan = input.plan || {};
   const evidence = input.attestation_verification?.evidence;
   if (!evidence || typeof evidence !== 'object') {
     throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED', 'Canonical attestation evidence with immutable plan bindings is required.');
   }
-  const required = [
+
+  const planRequired = [
     ['operation_id', text(plan.operation_id, 256)],
     ['plan_id', text(plan.plan_id, 256)],
     ['target_id', text(plan.target_id, 256)],
@@ -108,33 +129,85 @@ function validateCanonicalAttestationBinding(input = {}) {
     ['candidate_set_hash', hash(plan.candidate_set_hash, 'plan.candidate_set_hash')],
     ['authority_context_hash', hash(plan.authority_context_hash, 'plan.authority_context_hash')],
   ];
-  const missing = [];
-  const mismatches = [];
-  for (const [field, expected] of required) {
+  const planMissing = [];
+  const planMismatches = [];
+  for (const [field, expected] of planRequired) {
     const observed = field.endsWith('_hash') ? text(evidence[field], 64).toLowerCase() : text(evidence[field], 256);
-    if (!observed) missing.push(field);
-    else if (observed !== expected) mismatches.push(field);
+    if (!observed) planMissing.push(field);
+    else if (observed !== expected) planMismatches.push(field);
   }
-  if (missing.length) {
-    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED', 'Attestation evidence is missing immutable plan bindings.', { missing });
+  if (planMissing.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_REQUIRED', 'Attestation evidence is missing immutable plan bindings.', { missing: planMissing });
   }
-  if (mismatches.length) {
-    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_MISMATCH', 'Attestation evidence belongs to a different operation, plan, target, candidate set, or authority context.', { mismatches });
+  if (planMismatches.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_PLAN_BINDING_MISMATCH', 'Attestation evidence belongs to a different operation, plan, target, candidate set, or authority context.', { mismatches: planMismatches });
   }
+
   const leaseId = text(input.lease?.lease_id ?? input.lease?.leaseId, 256);
   if (!text(evidence.execution_lease_id, 256) || text(evidence.execution_lease_id, 256) !== leaseId) {
     throw failure(409, 'STORAGE_ATTESTATION_LEASE_BINDING_MISMATCH', 'Attestation evidence must bind the current execution lease.', {
       expected_execution_lease_id: leaseId || null,
     });
   }
+
+  const recoveryRequired = legacyBundle.recovery?.required === true;
+  const expectedRecoveryProofDigest = recoveryRequired
+    ? hash(input.recovery_proof?.proof_digest, 'recovery.proof_digest')
+    : null;
+  const expectedRecoveryRequirementDigest = recoveryRequired
+    ? hash(input.recovery_proof?.proof?.requirement_binding_digest, 'recovery.requirement_binding_digest')
+    : null;
+  const selectedToolsDigest = digest(canonicalSelectedTools(input.toolchain_resolution));
+
+  const authorizationRequired = [
+    ['approval_set_hash', text(legacyBundle.approval_set_hash, 64).toLowerCase()],
+    ['toolchain_resolution_fingerprint', hash(input.toolchain_resolution?.resolution_fingerprint, 'toolchain.resolution_fingerprint')],
+    ['toolchain_policy_fingerprint', hash(input.toolchain_resolution?.policy_fingerprint, 'toolchain.policy_fingerprint')],
+    ['toolchain_selected_tools_digest', selectedToolsDigest],
+  ];
+  if (recoveryRequired) {
+    authorizationRequired.push(
+      ['recovery_proof_digest', expectedRecoveryProofDigest],
+      ['recovery_requirement_binding_digest', expectedRecoveryRequirementDigest],
+    );
+  }
+
+  const authorizationMissing = [];
+  const authorizationMismatches = [];
+  for (const [field, expected] of authorizationRequired) {
+    const observed = text(evidence[field], 64).toLowerCase();
+    if (!observed) authorizationMissing.push(field);
+    else if (observed !== expected) authorizationMismatches.push(field);
+  }
+  if (typeof evidence.recovery_required !== 'boolean') authorizationMissing.push('recovery_required');
+  else if (evidence.recovery_required !== recoveryRequired) authorizationMismatches.push('recovery_required');
+
+  if (authorizationMissing.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_AUTHORIZATION_BINDING_REQUIRED', 'Attestation evidence is missing approval, recovery, or toolchain bindings.', {
+      missing: unique(authorizationMissing),
+    });
+  }
+  if (authorizationMismatches.length) {
+    throw failure(409, 'STORAGE_ATTESTATION_AUTHORIZATION_BINDING_MISMATCH', 'Attestation evidence was signed for a different approval set, recovery proof, or toolchain.', {
+      mismatches: unique(authorizationMismatches),
+    });
+  }
+
   return deepFreeze({
-    operation_id: required[0][1],
-    plan_id: required[1][1],
-    target_id: required[2][1],
-    plan_hash: required[3][1],
-    candidate_set_hash: required[4][1],
-    authority_context_hash: required[5][1],
+    operation_id: planRequired[0][1],
+    plan_id: planRequired[1][1],
+    target_id: planRequired[2][1],
+    plan_hash: planRequired[3][1],
+    candidate_set_hash: planRequired[4][1],
+    authority_context_hash: planRequired[5][1],
+    approval_set_hash: authorizationRequired[0][1],
     execution_lease_id: leaseId,
+    recovery_required: recoveryRequired,
+    recovery_proof_digest: expectedRecoveryProofDigest,
+    recovery_requirement_binding_digest: expectedRecoveryRequirementDigest,
+    toolchain_resolution_fingerprint: authorizationRequired[1][1],
+    toolchain_policy_fingerprint: authorizationRequired[2][1],
+    toolchain_selected_tools_digest: selectedToolsDigest,
     evidence_digest: hash(input.attestation_verification?.evidence_digest, 'attestation.evidence_digest'),
     secrets_included: false,
   });
@@ -145,8 +218,8 @@ export { buildCanonicalHostingerStoragePlanEnvelope, resolveHostingerStorageAppr
 export function buildHostingerStorageExecutionAuthorizationBundle(input = {}) {
   assertSecretFree(input, 'execution_bundle_input');
   const projectedEnvelope = projectExecutionEnvelope(input.operation_envelope);
-  const canonicalAttestationBinding = validateCanonicalAttestationBinding(input);
   const legacy = buildLegacyBundle({ ...input, operation_envelope: projectedEnvelope });
+  const canonicalAttestationBinding = validateCanonicalAttestationBinding(input, legacy.bundle);
   const bundle = {
     ...legacy.bundle,
     bundle_version: HOSTINGER_STORAGE_EXECUTION_AUTHORIZATION_V2_VERSION,
@@ -188,7 +261,11 @@ export function verifyHostingerStorageExecutionAuthorizationBundle({ authorizati
   for (const [field, code] of comparisons) {
     if (current[field] && text(current[field], 256) !== text(authorization.bundle[field], 256)) blockers.push(code);
   }
-  if (current.attestation_evidence_digest && current.attestation_evidence_digest !== authorization.bundle.canonical_attestation_binding?.evidence_digest) blockers.push('STORAGE_ATTESTATION_EVIDENCE_CHANGED');
+  const attestationBinding = authorization.bundle.canonical_attestation_binding || {};
+  if (current.attestation_evidence_digest && current.attestation_evidence_digest !== attestationBinding.evidence_digest) blockers.push('STORAGE_ATTESTATION_EVIDENCE_CHANGED');
+  if (current.recovery_proof_digest && current.recovery_proof_digest !== attestationBinding.recovery_proof_digest) blockers.push('STORAGE_ATTESTATION_RECOVERY_PROOF_CHANGED');
+  if (current.recovery_requirement_binding_digest && current.recovery_requirement_binding_digest !== attestationBinding.recovery_requirement_binding_digest) blockers.push('STORAGE_ATTESTATION_RECOVERY_REQUIREMENT_CHANGED');
+  if (current.attestation_toolchain_selected_tools_digest && current.attestation_toolchain_selected_tools_digest !== attestationBinding.toolchain_selected_tools_digest) blockers.push('STORAGE_ATTESTATION_TOOLCHAIN_CHANGED');
   if (current.lease_generation && Number(current.lease_generation) !== Number(authorization.bundle.execution_lease?.generation)) blockers.push('STORAGE_EXECUTION_LEASE_GENERATION_CHANGED');
   if (current.host_key_revision && current.host_key_revision !== authorization.bundle.dispatch_certification?.host_key_revision) blockers.push('STORAGE_SSH_HOST_KEY_REVISION_CHANGED');
   return deepFreeze({
