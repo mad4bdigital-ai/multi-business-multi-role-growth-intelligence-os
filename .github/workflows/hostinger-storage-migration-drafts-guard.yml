@@ -3,10 +3,16 @@ name: Hostinger Storage Migration Drafts Guard
 on:
   pull_request:
     paths:
+      - '.changes/e2e/spec014-migration-drafts-t024-t027.json'
       - '.github/contracts/spec014/hostinger-storage-migration-drafts.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-classification.json'
+      - '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json'
       - '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
+      - '.github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs'
       - '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
+      - 'http-generic-api/hostingerStorageSqlPersistenceAdapter.js'
       - 'specs/014-governed-hostinger-storage-orchestration/migrations/**'
+      - 'specs/014-governed-hostinger-storage-orchestration/tasks.md'
 
 permissions:
   contents: read
@@ -16,13 +22,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Check migration draft validator syntax
-        run: node --check .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-      - name: Validate bounded migration drafts
+      - name: Check migration contract syntax
+        run: |
+          node --check .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+          node --check .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+      - name: Validate merged SQL runtime contract
+        run: node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+      - name: Validate bounded migration drafts and adapter parity
         run: node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
       - name: Preserve non-apply boundary
         run: |
@@ -31,5 +46,11 @@ jobs:
           test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
           grep -q '"discoverable_by_governed_migration_runner": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"migration_apply_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"schema_verified": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"production_ready": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"provider_dispatch_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
           grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          ! grep -R -E '^\s*(DROP|TRUNCATE|DELETE|UPDATE|ALTER|CREATE|INSERT)\s+' \
+            specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql \
+            specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql \
+            specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql
