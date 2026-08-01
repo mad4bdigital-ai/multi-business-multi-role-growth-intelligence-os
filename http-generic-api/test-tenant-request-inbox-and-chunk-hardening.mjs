@@ -183,7 +183,7 @@ const migration = fs.readFileSync(new URL("./migrations/1041_sprint69_tenant_req
 assert.match(migration, /ADD COLUMN ticket_id CHAR\(36\)/u);
 // Match the SQL contract literally: a regex here would interpret its character class and quantifier instead of checking the migration text.
 assert.ok(
-  migration.includes("resource_ref REGEXP '^ticket://[0-9a-fA-F-]{36}$'"),
+  migration.includes("resource_ref REGEXP '^ticket://[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'"),
   "migration must backfill only canonical ticket UUID resource refs",
 );
 assert.match(migration, /idx_tickets_tenant_status_last_seen/u);
