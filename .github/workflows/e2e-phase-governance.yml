@@ -42,6 +42,8 @@ jobs:
           node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-test-runner-diagnostics-self-test.mjs
+          node http-generic-api/scripts/ci-evidence-router-self-test.mjs
 
       - name: Classify and validate parallel PR mode
         id: parallel
@@ -151,4 +153,63 @@ jobs:
             ${{ runner.temp }}/e2e-phase-execution.json
             ${{ runner.temp }}/e2e-parallel-execution.json
           if-no-files-found: warn
+          retention-days: 30
+
+  summarize:
+    name: Publish canonical evidence report
+    if: ${{ always() }}
+    needs:
+      - evaluate
+      - execute
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download structured phase reports
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-phase-*-${{ github.run_id }}
+          path: ${{ runner.temp }}/e2e-phase-reports
+          merge-multiple: true
+
+      - name: Build canonical evidence summary
+        env:
+          EVALUATE_JOB_RESULT: ${{ needs.evaluate.result }}
+          EXECUTE_JOB_RESULT: ${{ needs.execute.result }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          CANDIDATE_BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || '' }}
+        run: >-
+          node http-generic-api/scripts/ci-evidence-router.mjs
+          --input-dir "${{ runner.temp }}/e2e-phase-reports"
+          --policy-file ".github/ci-evidence-routing.json"
+          --json-output "${{ runner.temp }}/e2e-phase-summary.json"
+          --markdown-output "${{ runner.temp }}/e2e-phase-summary.md"
+          --workflow "E2E Phase Governance"
+          --run-id "${{ github.run_id }}"
+          --commit-sha "${CANDIDATE_SHA}"
+          --head-ref "${CANDIDATE_HEAD_REF}"
+          --base-ref "${CANDIDATE_BASE_REF}"
+          --evaluate-result "${EVALUATE_JOB_RESULT}"
+          --execute-result "${EXECUTE_JOB_RESULT}"
+
+      - name: Upload canonical evidence summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-phase-summary-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-phase-summary.json
+            ${{ runner.temp }}/e2e-phase-summary.md
+          if-no-files-found: error
           retention-days: 30
