@@ -68,6 +68,14 @@ const pool = {
       });
       return result(1);
     }
+    if (sql.includes("FROM remote_mcp_oauth_authorization_codes")) {
+      const row = codes.get(params[0]);
+      const matches = row
+        && row.client_id === params[1]
+        && row.redirect_uri === params[2]
+        && row.status === "issued";
+      return [[matches ? row : null].filter(Boolean), []];
+    }
     if (sql.includes("UPDATE remote_mcp_oauth_authorization_codes")) {
       const row = codes.get(params[0]);
       const canConsume = row
@@ -76,10 +84,6 @@ const pool = {
         && row.status === "issued";
       if (canConsume) row.status = "consumed";
       return result(canConsume ? 1 : 0);
-    }
-    if (sql.includes("FROM remote_mcp_oauth_authorization_codes")) {
-      const row = codes.get(params[0]);
-      return [[row].filter(Boolean), []];
     }
     if (sql.includes("INSERT INTO remote_mcp_oauth_grants")) {
       const row = {
@@ -173,6 +177,8 @@ try {
   assert.match(registered.client_id, /^mcp_/u);
   assert.equal(registered.token_endpoint_auth_method, "none");
   assert.equal(registered.client_secret, undefined);
+  assert.equal(registered.registration_access_token, undefined);
+  assert.equal(registered.registration_client_uri, undefined);
   assert.equal(clients.get(registered.client_id).client_profile_key, "anthropic_claude");
 
   const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
@@ -191,6 +197,8 @@ try {
   assert.equal(authorizeResponse.status, 200);
   assert(authorizeHtml.includes("Connect Claude"));
   assert(authorizeHtml.includes("/auth/mcp/oauth/code"));
+  assert(authorizeHtml.includes('id="consent"'));
+  assert(authorizeHtml.includes("Consent is required"));
   assert(authorizeResponse.headers.get("cache-control")?.includes("no-store"));
 
   const userToken = jwt.sign(
@@ -220,6 +228,23 @@ try {
   assert(codeResult.redirect_to.includes("state=state-1"));
   assert(codeResult.redirect_to.includes("code="));
 
+  const wrongVerifierResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: registered.client_id,
+      code: codeResult.code,
+      redirect_uri: redirectUri,
+      code_verifier: `${verifier}x`,
+      resource: env.REMOTE_MCP_RESOURCE_URL,
+    }),
+  });
+  const wrongVerifier = await json(wrongVerifierResponse);
+  assert.equal(wrongVerifierResponse.status, 400);
+  assert.equal(wrongVerifier.error, "invalid_grant");
+  assert.equal(codes.get(sha256(codeResult.code)).status, "issued");
+
   const tokenResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -236,6 +261,7 @@ try {
   assert.equal(tokenResponse.status, 200);
   assert.equal(tokens.token_type, "Bearer");
   assert(tokens.refresh_token);
+  assert.equal(codes.get(sha256(codeResult.code)).status, "consumed");
   const accessClaims = jwt.verify(tokens.access_token, env.JWT_SECRET, {
     algorithms: ["HS256"],
     issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
