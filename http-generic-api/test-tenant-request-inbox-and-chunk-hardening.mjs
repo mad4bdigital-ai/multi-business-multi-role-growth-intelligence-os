@@ -168,7 +168,11 @@ assert.doesNotMatch(migration, /DROP\s+(TABLE|COLUMN|INDEX)/iu);
 assert.doesNotMatch(migration, /DELETE\s+FROM/iu);
 
 const resolutionService = fs.readFileSync(new URL("./supportTicketResolutionService.js", import.meta.url), "utf8");
-assert.match(resolutionService, /ticket_id, resource_ref/u, "resolution case creation must persist the explicit ticket link");
+assert.match(
+  resolutionService,
+  /INSERT INTO tenant_resolution_cases[\s\S]*?ticket_id[\s\S]*?resource_ref/u,
+  "resolution case creation must persist the explicit ticket link",
+);
 assert.match(resolutionService, /c\.ticket_id = \?/u, "resolution reads must prefer the explicit ticket link");
 
 const routes = fs.readFileSync(new URL("./routes/supportTicketRoutes.js", import.meta.url), "utf8");
