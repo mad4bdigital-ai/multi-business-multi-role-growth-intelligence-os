@@ -88,6 +88,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate-contract.yml`
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
+- `.github/workflows/protected-promotion-generated-artifact-refresh.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
