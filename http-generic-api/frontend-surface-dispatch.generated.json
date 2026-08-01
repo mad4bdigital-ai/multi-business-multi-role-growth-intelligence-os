@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5dd5c30d86df5262b5ebed3be82a85e86d27b26f1cb7c0095affca06a0349353",
+    "source_digest": "ebc4a85a062e797a65e36014820e982d0fd39a4ec84ff8ff36cedaa42822671c",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -561,7 +561,7 @@
       },
       {
         "file": "routes/hostingerStorageTenantRoutes.js",
-        "sha256": "e7a38840e5d2854777990774def8f98404849de4ce74732596b3d63db3de9bd2",
+        "sha256": "7a4fb832d20bc7383d040aa1260d20170fd370c8cf8cb0bb10f7f92cd72bf145",
         "present": true
       },
       {
@@ -22255,7 +22255,7 @@
       "family_key": "hostinger-storage-tenant",
       "label": "hostinger storage tenant",
       "source_file": "routes/hostingerStorageTenantRoutes.js",
-      "source_digest": "e7a38840e5d2854777990774def8f98404849de4ce74732596b3d63db3de9bd2",
+      "source_digest": "7a4fb832d20bc7383d040aa1260d20170fd370c8cf8cb0bb10f7f92cd72bf145",
       "mount_prefix": "/",
       "mount_order": 15735,
       "split_from_mixed_scope_file": false,
