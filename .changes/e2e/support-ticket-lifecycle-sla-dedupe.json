@@ -14,6 +14,7 @@
       "http-generic-api/routes/index.js",
       "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
       "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
       "http-generic-api/supportTicketLifecycleIntegrityService.js",
       "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
     ]
@@ -25,7 +26,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prevent cross-parent dedupe, classify test records, and calculate milestone-aware SLA.",
+      "objective": "Prevent cross-parent dedupe, classify test records, calculate milestone-aware SLA, and persist ticket integrity atomically.",
       "e2e_journeys": [
         {
           "id": "tenant-ticket-create-list-integrity",
@@ -33,15 +34,19 @@
           "level": "synthetic_runtime",
           "actor": "authenticated tenant member",
           "entrypoint": "POST and GET /me/support/tickets",
-          "terminal_outcome": "Ticket creation uses structured dedupe and the tenant inbox excludes internal test records while preserving latest activity order.",
+          "terminal_outcome": "Ticket creation uses structured dedupe and atomic integrity persistence; the tenant inbox excludes internal test records while preserving latest activity order.",
           "steps": [
-            "Resolve active tenant membership.",
+            "Resolve one unambiguous active tenant membership.",
             "Build the v2 dedupe identity from tenant, user, type, capability, resource, relationship, and intended parent.",
-            "Create or append through the governed ticket lifecycle.",
+            "Verify migration 1042 schema readiness before mutation.",
+            "Create or append the ticket and persist integrity fields in one database transaction.",
             "List tenant-visible records without internal tests and order by latest real activity."
           ],
           "assertions": [
             "Different parent tickets and target capabilities produce different dedupe keys.",
+            "Multiple active memberships require an explicit tenant_id instead of selecting the first candidate.",
+            "Schema-not-ready creation fails before ticket mutation.",
+            "Integrity persistence failure rolls back ticket creation or dedupe append.",
             "Completed response and triage milestones do not create false SLA breaches.",
             "Smoke and simulation records are excluded from the tenant inbox by default."
           ],
@@ -55,7 +60,9 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
             "http-generic-api/supportTicketLifecycleIntegrityService.js",
+            "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
             "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
           ]
         }
@@ -104,16 +111,17 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove pre-migration fallbacks and failure isolation through a real synthetic runtime.",
+      "objective": "Prove pre-migration read fallback and failure isolation through a real synthetic runtime.",
       "planned_e2e_journey": {
         "id": "ticket-integrity-pre-migration-runtime",
         "required_level": "synthetic_runtime",
         "actor": "tenant member and platform administrator",
         "entrypoint": "A synthetic Express runtime with a pre-migration database contract",
-        "terminal_outcome": "Tenant reads remain available through fallbacks while schema-dependent apply fails closed and legacy routes remain reachable.",
+        "terminal_outcome": "Tenant reads remain available through fallbacks while creation and schema-dependent apply fail closed before mutation and legacy routes remain reachable.",
         "steps": [
           "Start the route stack against a pre-migration schema fixture.",
           "Verify tenant list fallback and test suppression.",
+          "Attempt ticket creation and verify schema-not-ready rejection before mutation.",
           "Attempt apply reconciliation and verify a typed schema-not-ready rejection.",
           "Verify legacy detail and workflow routes remain reachable."
         ]
