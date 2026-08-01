@@ -7,6 +7,9 @@ on:
     paths:
       - "http-generic-api/**"
       - ".github/workflows/**"
+      - ".changes/e2e/**"
+      - "specs/**/e2e-phases.json"
+      - ".specify/**"
       - "memory_schema.json"
       - "system_bootstrap.md"
   workflow_dispatch:
@@ -186,7 +189,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: branch-test-diagnostic-${{ github.run_id }}-${{ matrix.family_slug }}-${{ matrix.shard_index }}
-          path: http-generic-api/diagnostic-reports/${{ matrix.family_slug }}-${{ matrix.shard_index }}.json
+          path: http-generic-api/diagnostic-reports/${FAMILY_SLUG}-${SHARD_INDEX}.json
           if-no-files-found: error
           retention-days: 14
 
