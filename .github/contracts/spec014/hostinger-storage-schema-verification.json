@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-signed-schema-verification.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "verification_contract_ready_unsigned",
+  "subject_type": "application/vnd.in-toto+json",
+  "predicate_type": "https://mad4b.com/attestations/hostinger-storage-schema-verification/v1",
+  "signature_algorithm": "Ed25519",
+  "canonicalization": "stable-json-sorted-keys-utf8-newline",
+  "public_key_only_verification": true,
+  "private_key_material_forbidden": true,
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "runtime_parity_required": true,
+  "same_cycle_readback_required": true,
+  "max_readback_cycle_minutes": 10,
+  "max_signing_delay_minutes": 5,
+  "max_attestation_age_minutes": 15,
+  "expected_readback_contract_key": "spec014_hostinger_storage_migration_readback_v3",
+  "expected_counts": {
+    "compatible_tables": 15,
+    "present_views": 3,
+    "compatible_runtime_columns": 52,
+    "compatible_runtime_index_columns": 22,
+    "observed_tools": 3,
+    "disabled_tools": 3,
+    "enabled_tools": 0
+  },
+  "migration_sequence": [
+    {
+      "wave": 1,
+      "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
+      "checksum_sha256": "9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053",
+      "statement_count": 4,
+      "required_ledger_mode": "apply",
+      "required_ledger_status": "success"
+    },
+    {
+      "wave": 2,
+      "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "checksum_sha256": "091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f",
+      "statement_count": 6,
+      "required_ledger_mode": "apply",
+      "required_ledger_status": "success"
+    },
+    {
+      "wave": 3,
+      "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "statement_count": 9,
+      "required_ledger_mode": "apply",
+      "required_ledger_status": "success"
+    }
+  ],
+  "required_readiness_statuses": {
+    "object_readiness_status": "ready_for_column_index_constraint_readback",
+    "runtime_column_readback_status": "ready",
+    "runtime_index_readback_status": "ready",
+    "tool_seed_readback_status": "ready_default_off"
+  },
+  "required_zero_activity": {
+    "provider_calls": 0,
+    "protected_payload_reads": 0,
+    "external_writes": 0,
+    "secrets_included": false
+  },
+  "verification_result": {
+    "schema_verified_may_be_true_only_after_valid_signature": true,
+    "production_ready_remains_false": true,
+    "authority_granted": false,
+    "migration_apply_authorized": false,
+    "provider_dispatch_allowed": false
+  },
+  "live_database_access_performed": false,
+  "signature_created": false,
+  "schema_verified": false,
+  "production_ready": false,
+  "secrets_included": false
+}

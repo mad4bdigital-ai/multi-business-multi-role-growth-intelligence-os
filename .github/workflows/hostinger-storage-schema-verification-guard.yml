@@ -1,0 +1,65 @@
+name: Hostinger Storage Schema Verification Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-signed-schema-verification.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-verification.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json'
+      - '.github/workflows/hostinger-storage-schema-verification-guard.yml'
+      - 'http-generic-api/hostingerStorageSchemaVerification.js'
+      - 'http-generic-api/test-hostinger-storage-schema-verification.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-schema-verification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check verifier and test syntax
+        run: |
+          node --check http-generic-api/hostingerStorageSchemaVerification.js
+          node --check http-generic-api/test-hostinger-storage-schema-verification.mjs
+      - name: Validate signed schema verification contract
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p .artifacts
+          node http-generic-api/test-hostinger-storage-schema-verification.mjs 2>&1 \
+            | tee .artifacts/hostinger-storage-schema-verification.log
+      - name: Preserve public-key-only non-live boundary
+        run: |
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '(^|/)(db\.js|server\.js)$'
+          ! git diff "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- \
+            http-generic-api/hostingerStorageSchemaVerification.js \
+            http-generic-api/test-hostinger-storage-schema-verification.mjs \
+            | grep -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|"d"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_-]+"'
+          ! grep -E '\b(getPool|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageSchemaVerification.js \
+            http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'private_key_committed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'production_ready: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+      - name: Upload schema verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-storage-schema-verification-${{ github.run_id }}
+          path: .artifacts/hostinger-storage-schema-verification.log
+          if-no-files-found: warn
+          retention-days: 30
