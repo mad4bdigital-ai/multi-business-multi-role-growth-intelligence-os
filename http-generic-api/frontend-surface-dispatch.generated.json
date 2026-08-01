@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a41f52d151b79dfa632675e5b0d604fa8801986f9acaf64f8888694b5f0fb19e",
+    "source_digest": "08bdd49d104c24def52ff4cfccf50078e602ce86954456fcd261b4dde093262b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -157,6 +157,11 @@
       {
         "file": "openapi/release-operations.yaml",
         "sha256": "8a17cc3b9b5c9982558cf493f3b656d4dd0535a1e76ba03f64af5cf450ff932d",
+        "present": true
+      },
+      {
+        "file": "openapi/remote-mcp-oauth21.yaml",
+        "sha256": "05d4808c2d9af497fb201e80fc1c42b55d406b41979cc6c699145b7204e8939c",
         "present": true
       },
       {
@@ -1035,16 +1040,16 @@
     "mounted_route_file_count": 138,
     "mixed_scope_route_file_count": 27,
     "operation_count": 1035,
-    "openapi_documented_count": 1018,
-    "openapi_canonical_documented_count": 629,
+    "openapi_documented_count": 1019,
+    "openapi_canonical_documented_count": 630,
     "openapi_generated_index_count": 389,
     "openapi_exemption_count": 16,
-    "openapi_gap_count": 1,
+    "openapi_gap_count": 0,
     "openapi_detail_gap_count": 389,
     "auth_parity_counts": {
       "equivalent": 1018,
       "exempt": 16,
-      "missing_openapi": 1
+      "unknown": 1
     },
     "auth_contract_gap_count": 1,
     "operation_policy_issue_count": 0,
@@ -1708,17 +1713,22 @@
             "evidence": [],
             "configuration_dependencies": []
           },
-          "openapi_auth": null,
+          "openapi_auth": {
+            "source_file": "openapi/remote-mcp-oauth21.yaml",
+            "security_declared": true,
+            "security_alternatives": [],
+            "unknown_security_schemes": []
+          },
           "auth_parity": {
-            "state": "missing_openapi",
+            "state": "unknown",
             "reasons": [
-              "operation_not_documented"
+              "no_explicit_auth_evidence"
             ]
           },
-          "openapi_documented": false,
-          "openapi_canonical_documented": false,
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
           "openapi_exempt": false,
-          "openapi_contract_level": "missing",
+          "openapi_contract_level": "canonical",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -1737,17 +1747,15 @@
           "mutation": false
         }
       ],
-      "openapi_gaps": [
-        "GET /.well-known/oauth-authorization-server/auth/mcp"
-      ],
+      "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [],
       "auth_contract_gaps": [
         {
           "signature": "GET /.well-known/oauth-authorization-server/auth/mcp",
-          "state": "missing_openapi",
+          "state": "unknown",
           "reasons": [
-            "operation_not_documented"
+            "no_explicit_auth_evidence"
           ]
         }
       ],
@@ -1767,6 +1775,7 @@
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/remote-mcp-oauth21.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
@@ -1780,7 +1789,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 13,
+        "score": 11,
         "class": "critical"
       },
       "wave": "F0-authority-resolution"
@@ -85527,7 +85536,6 @@
       "state": "blocked",
       "blockers": [
         "scope_unresolved",
-        "openapi_contract_gap",
         "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required"
@@ -85543,6 +85551,7 @@
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
         "openapi/openapi-registry-sync.yaml",
+        "openapi/remote-mcp-oauth21.yaml",
         "openapi/sql-cache-policy.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
