@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "spec_key": "014-governed-hostinger-storage-orchestration",
+  "status": "in_progress",
+  "review_state": "implementation_in_progress",
+  "specification": {
+    "manifest": "complete",
+    "requirements": "complete",
+    "research": "complete",
+    "concerns": "complete",
+    "operation_paths": "complete",
+    "plan": "complete",
+    "data_model": "complete",
+    "contracts": "draft_complete_validation_pending",
+    "tasks": "complete",
+    "work_map_integration": "ready_at_recorded_registry_fingerprint",
+    "checklist": "open_items_remaining"
+  },
+  "implementation": {
+    "conservative_shell_tool": "implemented_non_production",
+    "pure_admin_tenant_authority_policy": "implemented",
+    "orchestrator_application_service": "pending",
+    "durable_persistence": "pending",
+    "context_authority_runtime_wiring": "pending",
+    "admin_tenant_routes": "pending",
+    "hpanel_quota_adapter": "pending",
+    "fixed_ssh_worker_adapter": "pending",
+    "pinned_host_key": "pending",
+    "synthetic_apply_certification": "pending",
+    "live_apply_dispatch": "disabled"
+  },
+  "evidence": {
+    "feature_pr": 4347,
+    "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
+    "synchronized_main_sha": "a0ad040abfd7b99c6d6536ac9f6b80fcf0879d70",
+    "synchronization_merge_sha": "44e131117e3959099c8607cca4f5fc139ef5a228",
+    "work_map_registry_fingerprint": "b6f6ef53c0ddf181ef0c070e5b48905a618b28748c36f803146901d23ddbe36a",
+    "exact_final_head_sha": null,
+    "required_ci": "pending_final_head",
+    "review": "pending",
+    "migration_apply": "not_authorized_not_executed",
+    "provider_dispatch": "not_authorized_not_executed",
+    "production_promotion": "not_authorized_not_executed",
+    "runtime_readback": "not_applicable_until_rollout"
+  },
+  "open_gates": [
+    "final_work_map_and_classification_readback",
+    "contract_validation",
+    "proposed_schema_classification_and_migration_design",
+    "durable_orchestrator_and_repository_implementation",
+    "context_authority_approval_lease_wiring",
+    "hpanel_quota_evidence_source",
+    "hostinger_layout_certification",
+    "pinned_ssh_worker_adapter",
+    "inode_exhaustion_safe_reserve_release",
+    "synthetic_apply_and_unknown_outcome_drills",
+    "tenant_and_shared_canaries",
+    "exact_head_ci_review_merge",
+    "authorized_migration_and_production_closeout"
+  ],
+  "safety": {
+    "production_mutation": false,
+    "provider_write": false,
+    "credential_read": false,
+    "migration_apply": false,
+    "protected_branch_write": false,
+    "hostinger_auto_deploy": false,
+    "secrets_included": false
+  },
+  "human_acknowledgement": null
+}
