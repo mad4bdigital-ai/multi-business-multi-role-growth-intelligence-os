@@ -30,7 +30,32 @@ After all jobs finish, a summary job downloads every report and publishes one Gi
 - test count and execution result;
 - deterministic coordinates for subdividing the failed shard again.
 
-The shard report contract is `mad4b.test-diagnostic-shard-report.v2`. The aggregate report contract is `mad4b.test-diagnostic-summary.v1`. Reports include repository/ref evidence, tested commit SHA, command-catalog SHA-256, family, partition coordinates, durations, exit codes, and bounded failure summaries. They never include credentials or secret values.
+The shard report contract is `mad4b.test-diagnostic-shard-report.v2`. The aggregate report contract is `mad4b.test-diagnostic-summary.v2`. Reports include repository/ref evidence, tested merge SHA, command-catalog SHA-256, family, partition coordinates, durations, exit codes, and bounded failure summaries. They never include credentials or secret values.
+
+## Evidence routing authority
+
+`Branch Test Diagnostic Evidence Router` runs after the diagnostic workflow completes. It downloads the summary artifact from the exact source run, validates its contract and PR identity, and publishes one updatable PR comment plus `diagnostic-evidence-routing.json` under contract `mad4b.github-actions-evidence-routing-report.v1`.
+
+The router keeps three identities separate:
+
+- **Head SHA** — the proposed branch commit.
+- **Base SHA** — the target branch commit used by the pull request.
+- **Tested merge SHA** — GitHub's synthetic `refs/pull/<number>/merge` commit actually executed by the diagnostic workflow.
+
+Never substitute one of these SHAs for another.
+
+Evidence precedence for Branch Test Diagnostic outcomes is:
+
+1. `diagnostic-evidence-routing.json` for exact-run identity, authority, and next-action routing.
+2. `diagnostic-summary.json` for test outcome, counts, first failure, and rerun coordinates.
+3. `diagnostic-summary.md` as the human-readable projection of the same summary.
+4. The exact GitHub workflow/check conclusion.
+5. Job step summaries as supporting context.
+6. A bounded Job log only for an exact failure already named by the summary, or when producing/validating the summary artifact itself failed.
+
+A valid exact-run summary is authoritative for this workflow's test outcomes. Narrative text in a Job log cannot override it. Conversely, a passing Branch Test Diagnostic report proves only this test catalog; it does not override a different failed workflow. Inspect that workflow's own report or check contract.
+
+When the Evidence Router reports `diagnostic_summary_unavailable` or `diagnostic_summary_invalid`, branch-test readiness is blocked. Job logs may then be read only to repair report production or identity validation; no test success or failure should be claimed until a valid summary exists.
 
 ## Manual execution for any branch
 
@@ -91,3 +116,5 @@ Use `--grep <substring>` to filter commands and `--fail-fast` to stop at the fir
 ## Authority and drift prevention
 
 The diagnostic runner imports `testCommands` directly from `run-test-manifest.mjs`. The sequential CI runner and the parallel diagnostic workflow therefore share one command catalog and one catalog hash. Adding a test to the branch runner automatically makes it eligible for family classification and diagnostic sharding without a separate Spec-specific manifest.
+
+The Evidence Router checks out only trusted default-branch code when processing `workflow_run`. It does not execute code from an untrusted pull-request head, does not read credentials, and does not mutate provider or production state. Its PR comment is an evidence projection; the retained JSON artifacts remain the machine-readable authority.
