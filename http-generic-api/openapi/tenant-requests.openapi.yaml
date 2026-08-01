@@ -11,6 +11,9 @@ paths:
     get:
       operationId: listAdminTenantRequests
       summary: List tenant requests across the authorized admin scope
+      security:
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/TenantId'
         - $ref: '#/components/parameters/TicketStatus'
@@ -32,6 +35,9 @@ paths:
     get:
       operationId: getAdminTenantRequest
       summary: Read one tenant request with an admin-redacted unified timeline
+      security:
+        - backendApiKeyAuth: []
+        - adminBearerAuth: []
       parameters:
         - $ref: '#/components/parameters/TicketIdPath'
         - $ref: '#/components/parameters/TenantId'
@@ -48,6 +54,8 @@ paths:
     get:
       operationId: listTenantRequests
       summary: List requests for the signed-in tenant membership
+      security:
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/TenantIdPath'
         - $ref: '#/components/parameters/TicketStatus'
@@ -69,6 +77,8 @@ paths:
     get:
       operationId: getTenantRequest
       summary: Read one request with a tenant-safe timeline
+      security:
+        - userJwtAuth: []
       parameters:
         - $ref: '#/components/parameters/TenantIdPath'
         - $ref: '#/components/parameters/TicketIdPath'
@@ -82,6 +92,19 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 components:
+  securitySchemes:
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     TenantId:
       name: tenant_id
