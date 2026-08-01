@@ -37,12 +37,15 @@
       "required_path_patterns": [
         ".specify/pipeline-connectivity-contract.json",
         "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+        "http-generic-api/scripts/work-map-autofix-diagnostics.mjs",
         "http-generic-api/test-pipeline-connectivity-check.mjs",
+        "http-generic-api/test-work-map-autofix-diagnostics.mjs",
         ".github/workflows/**"
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
         "test-pipeline-connectivity-check.mjs",
+        "test-work-map-autofix-diagnostics.mjs",
         "platform-work-map-generator.mjs --check"
       ],
       "forbidden_commands": [
@@ -71,6 +74,12 @@
       "required_commands": [
         "pipeline-connectivity-check.mjs",
         "test-pipeline-connectivity-check.mjs",
+        "work-map-autofix-diagnostics.mjs",
+        "test-work-map-autofix-diagnostics.mjs",
+        "Finalize Work Map diagnostic report",
+        "actions/upload-artifact@v4",
+        "GITHUB_STEP_SUMMARY",
+        "if: always()",
         "platform-work-map-generator.mjs --write",
         "platform-work-map-generator.mjs --check",
         "expected_head_sha",
