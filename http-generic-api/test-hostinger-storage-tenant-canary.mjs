@@ -5,11 +5,34 @@ import {
   verifyHostingerStorageTenantCanaryAuthorization,
 } from './hostingerStorageTenantCanaryPolicy.js';
 import {
+  createHostingerStorageTenantCanaryControlPlaneRepository,
+  createHostingerStorageTenantCanarySyntheticAdapter,
   createMemoryHostingerStorageTenantCanaryAuthorityStore,
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
   executeHostingerStorageTenantCanary,
 } from './hostingerStorageTenantCanary.js';
-import { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';
+import {
+  createSyntheticExecutorFixture as createBaseSyntheticExecutorFixture,
+  digest,
+  h,
+} from './test-hostinger-storage-executor-fixtures.mjs';
+
+function createSyntheticExecutorFixture(options = {}) {
+  const fixture = createBaseSyntheticExecutorFixture(options);
+  const items = fixture.adapter.exportState().items.map((item) => ({
+    item_id: item.item_id,
+    path_ref: item.path_ref,
+    item_hash: item.item_hash,
+    metadata: item.metadata,
+    exists: item.exists,
+    protected: item.protected,
+  }));
+  return {
+    ...fixture,
+    repository: createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot: fixture.repository.exportSnapshot() }),
+    adapter: createHostingerStorageTenantCanarySyntheticAdapter({ items }),
+  };
+}
 
 function canaryInputs(fixture, overrides = {}) {
   const operation = fixture.repository.readAggregate(fixture.operation_id).operation;
@@ -136,6 +159,7 @@ const verified = verifyHostingerStorageTenantCanaryAuthorization({
   now_epoch: 1100,
 });
 assert.equal(verified.valid, true);
+assert.equal(Object.isFrozen(verified.blockers), true);
 
 const registry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
 const authorityStore = createMemoryHostingerStorageTenantCanaryAuthorityStore();
@@ -178,7 +202,7 @@ assert.equal(interruptedRegistry.exportState()[0].consumed, true);
 assert.equal(interruptedFixture.repository.readAggregate(interruptedFixture.operation_id).operation.state, 'unknown_outcome');
 
 const revokedAllowlistFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-allowlist-revoked', operation_id: 'tenant-canary-operation-allowlist-revoked', plan_id: 'tenant-canary-plan-allowlist-revoked', target_id: 'tenant-canary-target-allowlist-revoked',
+  run_id: 'tenant-canary-run-allowlist-revoked', operation_id: 'tenant-canary-operation-allowlist-revoked', plan_id: 'tenant-canary-plan-allowlist-revoked', target_id: 'tenant-canary-target-revoked',
 });
 const revokedAllowlistAuthorization = authorize(revokedAllowlistFixture).authorization;
 const revokedAllowlistRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
@@ -387,6 +411,8 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_tenant_canary',
   tenant_exclusive_allowlist: true,
+  tenant_owned_adapter_factory_brand: true,
+  tenant_owned_repository_factory_brand: true,
   immutable_plan_candidate_items_bound: true,
   executor_preflight_before_enablement_consumption: true,
   current_allowlist_and_approval_revalidated: true,
