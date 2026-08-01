@@ -92,8 +92,8 @@
   "evidence": {
     "feature_pr": 4347,
     "branch": "gpt/hostinger-safe-storage-cleanup-ssh-20260801",
-    "synchronized_main_sha": "7b0543dc0ca3b06e8ca134017bd9d4e9a609eead",
-    "synchronization_merge_sha": "92b43ba0cb9d366ee949b4bbce05a1271709fad6",
+    "synchronized_main_sha": "ddcfb9fc4ac400acdb9b1d5503357c447ca3a92c",
+    "synchronization_merge_sha": "22047e99853d5c07960042f8a631c17ea1578eac",
     "work_map_registry_fingerprint": "b6f6ef53c0ddf181ef0c070e5b48905a618b28748c36f803146901d23ddbe36a",
     "pure_orchestrator_source": "http-generic-api/hostingerStorageOrchestrator.js",
     "pure_orchestrator_test": "http-generic-api/test-hostinger-storage-orchestrator.mjs",
