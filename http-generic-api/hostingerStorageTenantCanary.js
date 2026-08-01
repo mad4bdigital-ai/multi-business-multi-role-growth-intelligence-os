@@ -113,6 +113,7 @@ function requireCompleteRepository(repository) {
 
 function requireCanonicalAdapter(adapter) {
   if (!adapter
+    || !Object.isFrozen(adapter)
     || adapter.adapter_key !== CANONICAL_ADAPTER_KEY
     || adapter.adapter_version !== CANONICAL_ADAPTER_VERSION
     || adapter.synthetic_only !== true
@@ -123,7 +124,7 @@ function requireCanonicalAdapter(adapter) {
     || typeof adapter.mutateExact !== 'function'
     || typeof adapter.readbackItem !== 'function'
     || typeof adapter.readMutationReceipt !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires the canonical in-memory synthetic adapter identity and contract.', {
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires the canonical frozen in-memory synthetic adapter identity and contract.', {
       expected_adapter_key: CANONICAL_ADAPTER_KEY,
       expected_adapter_version: CANONICAL_ADAPTER_VERSION,
     });
