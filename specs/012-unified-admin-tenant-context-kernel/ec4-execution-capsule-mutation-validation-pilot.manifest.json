@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-012-ec4-execution-capsule-mutation-validation-pilot",
+  "parent_extension": "spec-012-execution-capsule-runtime-integration",
+  "phase": "EC4_mutation_validation_pilot",
+  "status": "complete",
+  "runtime_authority": false,
+  "production_activation": false,
+  "provider_call": false,
+  "database_write": false,
+  "migration_apply": false,
+  "route_or_openapi_change": false,
+  "response_or_dispatch_change": false,
+  "deployment": false,
+  "artifacts": [
+    "ec4-execution-capsule-mutation-validation-pilot.md",
+    "../../http-generic-api/contextKernel/integration/executionCapsuleMutationValidationPilot.js",
+    "../../http-generic-api/contextKernel/integration/index.js",
+    "../../http-generic-api/test-execution-capsule-mutation-validation-pilot.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-operation-governance.generated.json",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
+  ],
+  "mutation_contract": {
+    "operation_kind": "mutation",
+    "mutation_required": true,
+    "reversible_required": true,
+    "dynamic_refresh_required": true,
+    "required_dynamic_evidence_keys": [
+      "approval_state",
+      "capability_envelope",
+      "connection_status",
+      "owner_authority",
+      "resource_version"
+    ],
+    "independent_governance_required": true,
+    "independent_approval_required": true,
+    "exact_target_retention_required": true,
+    "pilot_mounted": false,
+    "capsule_grants_authority": false
+  },
+  "implemented_contracts": [
+    "default_off_mutation_validation_pilot",
+    "canonical_capsule_snapshot_before_refresh",
+    "mutation_only_and_reversible_contract",
+    "complete_dynamic_evidence_frontier",
+    "approval_revision_binding",
+    "capability_revision_binding",
+    "credential_readiness_revision_binding",
+    "authority_revision_binding",
+    "expected_resource_version_binding",
+    "exact_selected_target_retention",
+    "target_substitution_context_reresolution_required",
+    "canonical_mutation_validation_port_consumption",
+    "independent_governance_and_approval_enforcement",
+    "operation_key_and_context_hash_binding",
+    "immutable_bounded_executor_envelope",
+    "raw_capsule_and_raw_evidence_exclusion",
+    "allowlisted_reversible_receipt",
+    "exact_executor_receipt_identity",
+    "controlled_in_memory_mutation_and_rollback",
+    "fail_closed_refresh_evidence_and_authority_mismatch",
+    "bounded_telemetry_and_outage_isolation",
+    "exact_legacy_rollback",
+    "standalone_registered_regression"
+  ],
+  "pending_contracts": [],
+  "controlled_mutation_sample": {
+    "status": "verified",
+    "operation_key": "repository.item.update",
+    "mutation_backend": "in_memory_test_double",
+    "reversible": true,
+    "provider_dispatches": 0,
+    "database_writes": 0,
+    "external_sends": 0
+  },
+  "registration_evidence": {
+    "status": "verified_exact_head_and_post_merge",
+    "registered_commands": [
+      "node test-execution-capsule-mutation-validation-pilot.mjs"
+    ],
+    "coexisting_main_commands": [
+      "node test-resource-api-callability-effect-classes.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_present": false
+  },
+  "completion_evidence": {
+    "pull_request": 3993,
+    "certified_head_sha": "71bfc219ccf9f2aba53a88a73190a6af5327b82b",
+    "merge_sha": "9542f2a615ce9783273cc01b4777bd0944e6c1c7",
+    "required_ci": {
+      "run_id": 30626124261,
+      "result": "success",
+      "required_jobs": 4
+    },
+    "frontend_surface_dispatch": {
+      "run_id": 30626124191,
+      "result": "success",
+      "deterministic_output": true,
+      "bounded_refresh": true
+    },
+    "diagnostic_shards": {
+      "run_id": 30626124218,
+      "sequential_suite": "success",
+      "all_family_shards": "success",
+      "execution_shards": "5_of_5_success",
+      "presentation_summary_job_at_merge": "queued_non_gating"
+    },
+    "human_reviews": {
+      "architecture_review_id": "PRR_kwDOSFDYfs8AAAABH8U2OA",
+      "security_review_id": "PRR_kwDOSFDYfs8AAAABH8U8cA",
+      "requested_changes": 0,
+      "unresolved_threads": 0
+    },
+    "latest_main_reconciliation": {
+      "observed_main_sha_before_merge": "8d05f8d9ed825cf08dc51f38d7d1b93930476174",
+      "commits_after_certified_base": 25,
+      "overlapping_files": 0
+    },
+    "post_merge_readback": {
+      "source_blob_sha": "48d846d1042a4cd366c27174bfcd7ff5feb31de6",
+      "test_manifest_blob_sha": "16997a53e42c5674431fdc6208eeebe5960fdc63",
+      "frontend_operation_governance_blob_sha": "5c1778d945ef9dbb518262536d9230cae8f6b703",
+      "frontend_surface_dispatch_blob_sha": "604128a2d3a53295bf580247c6236db056a0f808",
+      "callability_and_ec4_registration_retained": true
+    }
+  },
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "independent_governance_required",
+    "independent_approval_required",
+    "dynamic_refresh_required_before_mutation",
+    "no_silent_target_substitution",
+    "reversible_mutation_required",
+    "no_raw_capsule_dispatch",
+    "no_raw_dynamic_evidence_dispatch",
+    "no_route_mount",
+    "no_openapi_behavior_change",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_credential_mutation",
+    "no_production_activation",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}

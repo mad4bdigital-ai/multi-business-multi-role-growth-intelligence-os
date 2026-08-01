@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { buildDynamicCapabilityEnforcementShadow } from "./dynamicCapabilityEnforcementShadow.js";
+import { mergeIntentBinding, normalizeIntentKey, resolveExecutionIntentBinding } from "./executionIntentBindingResolver.js";
 
-export const CANONICAL_EXECUTION_CONTRACT_RESOLVER_VERSION = "canonical-execution-contract-resolver-shadow-v1";
+export const CANONICAL_EXECUTION_CONTRACT_RESOLVER_VERSION = "canonical-execution-contract-resolver-shadow-v2";
 
 const REQUESTED_MODES = new Set(["preview", "apply"]);
 const PRINCIPAL_SCOPES = new Set(["admin", "tenant", "internal"]);
@@ -55,12 +56,6 @@ function optionalSha(value, field) {
 }
 
 function normalizeInput(input = {}) {
-  const parentActionKey = compact(input.parent_action_key);
-  const endpointKey = compact(input.endpoint_key);
-  const capabilityKey = compact(input.capability_key);
-  if (!parentActionKey) throw resolverError(400, "EXECUTION_CONTRACT_ACTION_REQUIRED", "parent_action_key is required.");
-  if (!endpointKey) throw resolverError(400, "EXECUTION_CONTRACT_ENDPOINT_REQUIRED", "endpoint_key is required.");
-  if (!capabilityKey) throw resolverError(400, "EXECUTION_CONTRACT_CAPABILITY_REQUIRED", "capability_key is required.");
   const requestedMode = lower(input.requested_mode || "preview");
   if (!REQUESTED_MODES.has(requestedMode)) {
     throw resolverError(400, "EXECUTION_CONTRACT_MODE_INVALID", "requested_mode must be preview or apply.");
@@ -69,13 +64,22 @@ function normalizeInput(input = {}) {
   if (!PRINCIPAL_SCOPES.has(principalScope)) {
     throw resolverError(400, "EXECUTION_CONTRACT_PRINCIPAL_SCOPE_INVALID", "principal_scope must be admin, tenant, or internal.");
   }
-  return {
-    parent_action_key: parentActionKey,
-    endpoint_key: endpointKey,
-    capability_key: capabilityKey,
+  const tenantRef = compact(input.tenant_ref) || null;
+  const intentKey = normalizeIntentKey(input.intent_key);
+  if (principalScope === "tenant" && !tenantRef) {
+    throw resolverError(400, "EXECUTION_INTENT_TENANT_REQUIRED", "tenant_ref is required for tenant execution resolution.", {
+      intent_key: intentKey,
+      principal_scope: principalScope,
+    });
+  }
+  const request = {
+    intent_key: intentKey,
+    parent_action_key: compact(input.parent_action_key) || null,
+    endpoint_key: compact(input.endpoint_key) || null,
+    capability_key: compact(input.capability_key) || null,
     requested_mode: requestedMode,
     principal_scope: principalScope,
-    tenant_ref: compact(input.tenant_ref) || null,
+    tenant_ref: tenantRef,
     workspace_ref: compact(input.workspace_ref) || null,
     resource_ref: compact(input.resource_ref, 512) || null,
     runtime_surface: compact(input.runtime_surface) || null,
@@ -85,7 +89,16 @@ function normalizeInput(input = {}) {
     input_sha256: optionalSha(input.input_sha256, "input_sha256"),
     expected_contract_hash: optionalSha(input.expected_contract_hash, "expected_contract_hash"),
     evidence: input.evidence && typeof input.evidence === "object" && !Array.isArray(input.evidence) ? input.evidence : {},
+    intent_binding: null,
   };
+  if (!intentKey) requireExactBindings(request);
+  return request;
+}
+
+function requireExactBindings(request) {
+  if (!request.parent_action_key) throw resolverError(400, "EXECUTION_CONTRACT_ACTION_REQUIRED", "parent_action_key is required when intent_key is not resolved.");
+  if (!request.endpoint_key) throw resolverError(400, "EXECUTION_CONTRACT_ENDPOINT_REQUIRED", "endpoint_key is required when intent_key is not resolved.");
+  if (!request.capability_key) throw resolverError(400, "EXECUTION_CONTRACT_CAPABILITY_REQUIRED", "capability_key is required when intent_key is not resolved.");
 }
 
 async function loadActionRows(pool, actionKey) {
@@ -173,6 +186,17 @@ function selectEndpoint(rows, actionKey, endpointKey) {
     parent_action_key: actionKey,
     endpoint_key: endpointKey,
   });
+}
+
+function enforcePrincipalScope(request, action, endpoint) {
+  if (request.principal_scope !== "admin" && (bool(action.admin_only) || bool(endpoint.admin_only))) {
+    throw resolverError(403, "EXECUTION_CONTRACT_PRINCIPAL_SCOPE_CONFLICT", "The selected execution contract is restricted to admin principals.", {
+      intent_key: request.intent_key,
+      principal_scope: request.principal_scope,
+      parent_action_key: request.parent_action_key,
+      endpoint_key: request.endpoint_key,
+    });
+  }
 }
 
 function deriveBindings(request, action, endpoint) {
@@ -309,19 +333,42 @@ function resourceOperationScore(row, endpoint, runtimeSurface) {
   return score;
 }
 
-function selectResourceOperation(rows, endpoint, runtimeSurface) {
+function actorScopeCompatible(actorScope, principalScope) {
+  const scope = lower(actorScope);
+  if (["shared", "global", "any"].includes(scope)) return true;
+  const aliases = {
+    admin: new Set(["admin", "platform_admin"]),
+    tenant: new Set(["tenant", "tenant_user"]),
+    internal: new Set(["internal", "system"]),
+  };
+  return aliases[principalScope]?.has(scope) || false;
+}
+
+function selectResourceOperation(rows, endpoint, runtimeSurface, principalScope, strictScope = false) {
   const ranked = rows
     .map((row) => ({ row, score: resourceOperationScore(row, endpoint, runtimeSurface) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || String(a.row.operation_id).localeCompare(String(b.row.operation_id)));
-  if (ranked.length > 1 && ranked[0].score === ranked[1].score) {
+  const scoped = ranked.filter(({ row }) => actorScopeCompatible(row.actor_scope, principalScope));
+  if (ranked.length > 0 && scoped.length === 0 && strictScope) {
+    throw resolverError(403, "EXECUTION_CONTRACT_PRINCIPAL_SCOPE_CONFLICT", "Resource-operation bindings exist only for a different principal scope.", {
+      principal_scope: principalScope,
+      runtime_surface: runtimeSurface,
+      endpoint_key: endpoint.endpoint_key,
+      available_scopes: [...new Set(ranked.map(({ row }) => lower(row.actor_scope)).filter(Boolean))].sort(),
+    });
+  }
+  const candidates = scoped.length > 0 ? scoped : strictScope ? [] : ranked;
+  const [selected, runnerUp] = candidates;
+  if (selected && runnerUp && selected.score === runnerUp.score) {
     throw resolverError(409, "EXECUTION_CONTRACT_AMBIGUOUS", "More than one equally ranked resource operation exists.", {
       runtime_surface: runtimeSurface,
       endpoint_key: endpoint.endpoint_key,
-      candidate_count: ranked.length,
+      principal_scope: principalScope,
+      candidate_count: candidates.length,
     });
   }
-  return ranked[0]?.row || null;
+  return selected?.row || null;
 }
 
 async function loadReadbackRows(pool, capabilityKey) {
@@ -473,19 +520,23 @@ function nextActionFor(blocker) {
 }
 
 export async function resolveCanonicalExecutionContract(input = {}, deps = {}) {
-  const request = normalizeInput(input);
+  const initialRequest = normalizeInput(input);
   const pool = deps.pool || getPool();
   const observedAt = typeof deps.now === "function" ? deps.now() : new Date().toISOString();
   const nowMs = new Date(observedAt).getTime();
+  const intentBinding = await resolveExecutionIntentBinding(initialRequest, { pool, now: () => observedAt });
+  const request = mergeIntentBinding(initialRequest, intentBinding);
+  requireExactBindings(request);
   const action = selectAction(await loadActionRows(pool, request.parent_action_key), request.parent_action_key);
   const endpoint = selectEndpoint(await loadEndpointRows(pool, request.parent_action_key, request.endpoint_key), request.parent_action_key, request.endpoint_key);
+  enforcePrincipalScope(request, action, endpoint);
   const bindings = deriveBindings(request, action, endpoint);
   const [resourceRows, certificationRows, readbackRows] = await Promise.all([
     loadResourceOperationRows(pool, endpoint, bindings.runtime_surface),
     loadCertificationRows(pool, [bindings.runtime_surface, request.endpoint_key, request.parent_action_key, request.capability_key]),
     loadReadbackRows(pool, request.capability_key),
   ]);
-  const resourceOperation = selectResourceOperation(resourceRows, endpoint, bindings.runtime_surface);
+  const resourceOperation = selectResourceOperation(resourceRows, endpoint, bindings.runtime_surface, request.principal_scope, Boolean(request.intent_binding) || request.principal_scope === "tenant");
   const certification = selectCertification(certificationRows, {
     runtime_surface: bindings.runtime_surface,
     endpoint_key: request.endpoint_key,
@@ -542,6 +593,9 @@ export async function resolveCanonicalExecutionContract(input = {}, deps = {}) {
   };
   const contractDescriptor = {
     resolver_version: CANONICAL_EXECUTION_CONTRACT_RESOLVER_VERSION,
+    intent_key: request.intent_key,
+    intent_binding_revision: request.intent_binding?.binding_revision || null,
+    intent_binding_source_registry: request.intent_binding?.source_registry || null,
     action_key: request.parent_action_key,
     endpoint_key: request.endpoint_key,
     capability_key: request.capability_key,
@@ -576,6 +630,7 @@ export async function resolveCanonicalExecutionContract(input = {}, deps = {}) {
     decision,
     contract_hash: contractHash,
     request: {
+      intent_key: request.intent_key,
       parent_action_key: request.parent_action_key,
       endpoint_key: request.endpoint_key,
       capability_key: request.capability_key,
@@ -588,6 +643,7 @@ export async function resolveCanonicalExecutionContract(input = {}, deps = {}) {
       input_sha256: request.input_sha256,
     },
     selection: {
+      intent_binding: request.intent_binding,
       action: safeAction(action),
       endpoint: safeEndpoint(endpoint),
       bindings,
@@ -607,6 +663,10 @@ export async function resolveCanonicalExecutionContract(input = {}, deps = {}) {
     next_action: resolved ? { action: "none", reason_code: "EXECUTION_CONTRACT_RESOLVED" } : { action: nextActionFor(uniqueBlockers[0]), reason_code: uniqueBlockers[0] || "EXECUTION_CONTRACT_BLOCKED" },
     execution_performed: false,
     guarantees: {
+      intent_first_resolution: Boolean(request.intent_binding),
+      explicit_binding_compatibility_checked: Boolean(request.intent_binding),
+      tenant_scope_enforced: request.principal_scope !== "tenant" || Boolean(request.tenant_ref),
+      no_secret_intent_columns_selected: true,
       registry_authority: "mysql_primary",
       exact_action_endpoint_pair: true,
       capability_shadow_reused: true,

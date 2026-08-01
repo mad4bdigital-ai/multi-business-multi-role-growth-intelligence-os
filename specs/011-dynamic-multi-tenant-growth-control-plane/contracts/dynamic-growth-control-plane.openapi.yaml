@@ -1,0 +1,430 @@
+openapi: 3.1.0
+info:
+  title: Dynamic Multi-Tenant Growth Control Plane API
+  version: 0.1.0
+  summary: Draft contracts for typed, versioned, tenant-safe growth control-plane resources.
+  description: >-
+    Specification-only API contract. These operations do not exist until implemented through
+    governed registries, migrations, authorization, approvals, and readback.
+servers:
+  - url: https://auth.mad4b.com
+    description: Production authority after approved implementation
+security:
+  - bearerAuth: []
+tags:
+  - name: Activity Packs
+  - name: Configurations
+  - name: Plans
+  - name: Readiness
+paths:
+  /admin/control-plane/activity-packs:
+    get:
+      tags: [Activity Packs]
+      operationId: listActivityPacks
+      summary: List canonical Activity Pack definitions and versions
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/LifecycleStatus'
+      responses:
+        '200':
+          description: Activity Pack page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityPackListResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/control-plane/activity-packs/{activityPackKey}/versions/{version}:
+    get:
+      tags: [Activity Packs]
+      operationId: getActivityPackVersion
+      summary: Read one immutable Activity Pack version
+      parameters:
+        - $ref: '#/components/parameters/ActivityPackKey'
+        - $ref: '#/components/parameters/Version'
+      responses:
+        '200':
+          description: Activity Pack version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityPackVersion'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/control-plane/configurations/{configKey}/versions:
+    post:
+      tags: [Configurations]
+      operationId: createConfigurationDraftVersion
+      summary: Create a validated draft configuration version
+      parameters:
+        - $ref: '#/components/parameters/ConfigKey'
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 191
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigurationDraftRequest'
+      responses:
+        '201':
+          description: Draft version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigurationVersionResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/control-plane/configurations/{configKey}/resolve:
+    post:
+      tags: [Configurations]
+      operationId: resolveEffectiveConfiguration
+      summary: Resolve effective values, lineage, conflicts, and revision hash
+      parameters:
+        - $ref: '#/components/parameters/ConfigKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigurationResolutionRequest'
+      responses:
+        '200':
+          description: Effective configuration resolution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigurationResolutionResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/control-plane/plans/compile:
+    post:
+      tags: [Plans]
+      operationId: compileControlPlanePlan
+      summary: Compile an immutable plan graph without dispatching provider effects
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 191
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanCompileRequest'
+      responses:
+        '201':
+          description: Plan compiled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompiledPlanResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /tenants/{tenantId}/brands/{brandId}/control-plane/readiness:
+    get:
+      tags: [Readiness]
+      operationId: getBrandControlPlaneReadiness
+      summary: Read tenant-safe brand and activity readiness
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/BrandId'
+        - in: query
+          name: activityBindingId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Tenant-safe readiness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Limit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      in: query
+      name: cursor
+      schema:
+        type: string
+        maxLength: 512
+    ActivityPackKey:
+      in: path
+      name: activityPackKey
+      required: true
+      schema:
+        $ref: '#/components/schemas/CanonicalKey'
+    ConfigKey:
+      in: path
+      name: configKey
+      required: true
+      schema:
+        $ref: '#/components/schemas/CanonicalKey'
+    Version:
+      in: path
+      name: version
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    TenantId:
+      in: path
+      name: tenantId
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    BrandId:
+      in: path
+      name: brandId
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+  responses:
+    BadRequest:
+      description: Invalid request shape
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Unauthorized:
+      description: Authentication failed
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Forbidden:
+      description: Authorization or resource authority denied
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    NotFound:
+      description: Resource not found in authorized scope
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Conflict:
+      description: Revision, state, identity, policy, or resolution conflict
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    ValidationError:
+      description: Schema, semantic, compatibility, or graph validation failed
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+    CanonicalKey:
+      type: string
+      pattern: '^[a-z][a-z0-9_.-]{2,127}$'
+    Sha256:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+    LifecycleStatus:
+      type: string
+      enum: [draft, validating, ready, awaiting_approval, active, blocked, deprecated, archived, rolled_back]
+    Scope:
+      type: object
+      additionalProperties: false
+      required: [tenantId]
+      properties:
+        tenantId: {$ref: '#/components/schemas/Uuid'}
+        workspaceId: {$ref: '#/components/schemas/Uuid'}
+        brandId: {$ref: '#/components/schemas/Uuid'}
+        activityBindingId: {$ref: '#/components/schemas/Uuid'}
+        planId: {$ref: '#/components/schemas/Uuid'}
+    Page:
+      type: object
+      additionalProperties: false
+      required: [hasMore]
+      properties:
+        nextCursor: {type: [string, 'null'], maxLength: 512}
+        hasMore: {type: boolean}
+    ActivityPackSummary:
+      type: object
+      additionalProperties: false
+      required: [activityPackKey, version, status, checksum]
+      properties:
+        activityPackKey: {$ref: '#/components/schemas/CanonicalKey'}
+        version: {type: integer, minimum: 1}
+        status: {$ref: '#/components/schemas/LifecycleStatus'}
+        checksum: {$ref: '#/components/schemas/Sha256'}
+        displayName: {type: string, maxLength: 191}
+    ActivityPackListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ActivityPackSummary'}
+        page: {$ref: '#/components/schemas/Page'}
+    ActivityPackVersion:
+      allOf:
+        - $ref: '#/components/schemas/ActivityPackSummary'
+        - type: object
+          additionalProperties: false
+          required: [manifest, createdAt]
+          properties:
+            manifest: {type: object}
+            createdAt: {type: string, format: date-time}
+            activatedAt: {type: [string, 'null'], format: date-time}
+    ConfigurationDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, schemaVersion, values, expectedRevision]
+      properties:
+        scope: {$ref: '#/components/schemas/Scope'}
+        schemaVersion: {type: integer, minimum: 1}
+        values: {type: object}
+        expectedRevision: {type: integer, minimum: 0}
+        changeNote: {type: string, minLength: 1, maxLength: 512}
+    ConfigurationVersionResponse:
+      type: object
+      additionalProperties: false
+      required: [configurationVersionId, configKey, version, status, checksum, revision]
+      properties:
+        configurationVersionId: {$ref: '#/components/schemas/Uuid'}
+        configKey: {$ref: '#/components/schemas/CanonicalKey'}
+        version: {type: integer, minimum: 1}
+        status: {$ref: '#/components/schemas/LifecycleStatus'}
+        checksum: {$ref: '#/components/schemas/Sha256'}
+        revision: {type: integer, minimum: 1}
+    ConfigurationResolutionRequest:
+      type: object
+      additionalProperties: false
+      required: [scope]
+      properties:
+        scope: {$ref: '#/components/schemas/Scope'}
+        workflowKey: {$ref: '#/components/schemas/CanonicalKey'}
+        workflowVersion: {type: integer, minimum: 1}
+        nodeId: {type: string, pattern: '^[A-Za-z0-9_.:-]{1,128}$'}
+        requestOverrides: {type: object}
+    ConfigurationResolutionResponse:
+      type: object
+      additionalProperties: false
+      required: [configKey, values, lineage, revisionVector, conflicts, sha256, resolvedAt]
+      properties:
+        configKey: {$ref: '#/components/schemas/CanonicalKey'}
+        values: {type: object}
+        lineage: {type: object}
+        revisionVector: {type: object}
+        conflicts:
+          type: array
+          items: {$ref: '#/components/schemas/Reason'}
+        sha256: {$ref: '#/components/schemas/Sha256'}
+        resolvedAt: {type: string, format: date-time}
+    PlanCompileRequest:
+      type: object
+      additionalProperties: false
+      required: [scope, objective, environment]
+      properties:
+        scope: {$ref: '#/components/schemas/Scope'}
+        objective: {$ref: '#/components/schemas/CanonicalKey'}
+        environment:
+          type: string
+          enum: [analysis, internal_draft, staging, production_canary, production]
+        workflowKey: {$ref: '#/components/schemas/CanonicalKey'}
+        requestedCapabilities:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CanonicalKey'}
+    CompiledPlanResponse:
+      type: object
+      additionalProperties: false
+      required: [planId, planVersion, status, nodes, approvalHolds, resolvedVersions, planHash]
+      properties:
+        planId: {$ref: '#/components/schemas/Uuid'}
+        planVersion: {type: integer, minimum: 1}
+        status: {type: string, enum: [compiled, blocked, approval_pending]}
+        nodes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [nodeId, capabilityKey, effectClass, status]
+            properties:
+              nodeId: {type: string, pattern: '^[A-Za-z0-9_.:-]{1,128}$'}
+              capabilityKey: {$ref: '#/components/schemas/CanonicalKey'}
+              effectClass: {type: string, enum: [read_only, internal_write, provider_write]}
+              status: {type: string, enum: [ready, blocked, held]}
+        approvalHolds:
+          type: array
+          items: {$ref: '#/components/schemas/Uuid'}
+        resolvedVersions: {type: object}
+        planHash: {$ref: '#/components/schemas/Sha256'}
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, gates, blockingReasons, assessedAt]
+      properties:
+        status: {type: string, enum: [blocked, validating, review_ready, execution_ready]}
+        gates:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [gateKey, result]
+            properties:
+              gateKey: {$ref: '#/components/schemas/CanonicalKey'}
+              result: {type: string, enum: [pass, deny, not_applicable, not_evaluated]}
+              reasons:
+                type: array
+                items: {$ref: '#/components/schemas/Reason'}
+        blockingReasons:
+          type: array
+          items: {$ref: '#/components/schemas/Reason'}
+        assessedAt: {type: string, format: date-time}
+    Reason:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]{2,127}$'}
+        message: {type: string, maxLength: 512}
+        field: {type: [string, 'null'], maxLength: 191}
+        evidenceRef: {type: [string, 'null'], maxLength: 512}
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, pattern: '^[A-Z][A-Z0-9_]{2,127}$'}
+            message: {type: string, maxLength: 512}
+            details:
+              type: array
+              items: {$ref: '#/components/schemas/Reason'}
+            requestId: {type: [string, 'null'], maxLength: 191}

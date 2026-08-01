@@ -54,7 +54,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Automation Workflows
 
+- `.github/workflows/authority-live-census-observation.yml`
 - `.github/workflows/automation-overlap-guard.yml`
+- `.github/workflows/branch-test-diagnostic-shards.yml`
 - `.github/workflows/brand-skill-mariadb-certification.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci.yml`
@@ -63,6 +65,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
+- `.github/workflows/governed-local-connector-production-closure-push.yml`
+- `.github/workflows/governed-local-connector-production-closure.yml`
+- `.github/workflows/governed-migration-dependency-gate.yml`
+- `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
@@ -74,6 +81,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
+- `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-auto-remediation-closure.yml`
@@ -116,6 +124,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-governed-response-chunk-schema-reconciliation.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
+- `http-generic-api/test-growth-control-openapi-auth-contracts.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`

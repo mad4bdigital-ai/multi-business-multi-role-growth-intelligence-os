@@ -4,8 +4,20 @@ export { createConnectionOwnershipRepository } from "./connectionOwnershipReposi
 export { createContextPinRepository } from "./contextPinRepository.js";
 export { createExactConnectionRepository } from "./exactConnectionRepository.js";
 export { createExecutionLedgerRepository } from "./executionLedgerRepository.js";
-export { createProviderAuthorizationStateRepository } from "./providerAuthorizationStateRepository.js";
-export { createProviderConsentStateRepository } from "./providerConsentStateRepository.js";
+export {
+  createProviderAuthorizationStateRepository,
+  createProviderAuthorizationStateRepository as createProviderConsentStateRepository,
+} from "./providerAuthorizationStateRepository.js";
+export { createProviderAuthorizationRuntimeRepository } from "./providerAuthorizationRuntimeRepository.js";
+export {
+  createCertifiedProviderConnectionRevocationRepository,
+  createDurableProviderConsentHandoffAdapter,
+} from "./providerConsentActivationPilotRepositories.js";
+export {
+  createBrandManagementAuthorityRepository,
+  createProviderConnectionAccessRepository,
+  createProviderConsentReadinessRepository,
+} from "./providerConsentRuntimeRepositories.js";
 export { createResourceGraphRepository } from "./resourceGraphRepository.js";
 export { createWorkspaceOwnershipRepository } from "./workspaceOwnershipRepository.js";
 

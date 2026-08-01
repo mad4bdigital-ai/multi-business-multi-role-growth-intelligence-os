@@ -21,34 +21,34 @@
 
 ## Phase 1 — Durable Execution Kernel
 
-- [ ] T100 Add durable operation and step lifecycle persistence.
-- [ ] T101 Add transition guards and terminal-state invariants.
-- [ ] T102 Add idempotency scope and pending mutation receipt before dispatch.
-- [ ] T103 Add status, resume, cancel, and explain operations.
-- [ ] T104 Add canonical `next_action` and blocker response.
-- [ ] T105 Add bounded operation timeline and evidence references.
-- [ ] T106 Add read-only pilot and low-risk internal mutation pilot.
+- [x] T100 Add durable operation and step lifecycle persistence.
+- [x] T101 Add transition guards and terminal-state invariants.
+- [x] T102 Add idempotency scope and pending mutation receipt before dispatch.
+- [x] T103 Add status, resume, cancel, and explain operations.
+- [x] T104 Add canonical `next_action` and blocker response.
+- [x] T105 Add bounded operation timeline and evidence references.
+- [x] T106 Add read-only pilot and low-risk internal mutation pilot.
 
 ## Phase 2 — Canonical Execution Resolver
 
 - [x] T120 Add execution-contract registry and exact resolution rules.
 - [x] T121 Resolve action, endpoint, capability, runtime surface, approval, retry, readback, and evidence policy.
 - [x] T122 Reject ambiguous, missing, stale, or conflicting bindings before dispatch.
-- [ ] T123 Convert selected operations to intent-first input.
-- [ ] T124 Add Admin and Tenant isolation and no-secret resolver tests.
+- [x] T123 Convert selected operations to intent-first input.
+- [x] T124 Add Admin and Tenant isolation and no-secret resolver tests.
 
 ## Phase 3 — Plan-Bound Sessions and Delegation
 
 - [x] T140 Add execution session shadow with plan hash, resource snapshot, risk ceiling, limits, and expiry.
 - [ ] T141 Add delegation grant preview, create, inspect, revoke, and expire.
-- [ ] T142 Implement `user_approval_only`.
-- [ ] T143 Implement `agent_recommend_only`.
-- [ ] T144 Implement `agent_queue_for_approval`.
-- [ ] T145 Implement `delegated_low_risk`.
-- [ ] T146 Implement `delegated_plan_bound`.
-- [ ] T147 Add human-on-drift pause and typed escalation.
-- [ ] T148 Add separation-of-duties foundation for later `multi_agent_approval`.
-- [ ] T149 Prove that Agent renewal cannot widen authority or approve itself.
+- [x] T142 Implement `user_approval_only`.
+- [x] T143 Implement `agent_recommend_only`.
+- [x] T144 Implement `agent_queue_for_approval`.
+- [x] T145 Implement `delegated_low_risk`.
+- [x] T146 Implement `delegated_plan_bound`.
+- [x] T147 Add human-on-drift pause and typed escalation.
+- [x] T148 Add separation-of-duties foundation for later `multi_agent_approval`.
+- [x] T149 Prove that Agent renewal cannot widen authority or approve itself.
 
 ## Phase 4 — Reconciliation and Readback
 

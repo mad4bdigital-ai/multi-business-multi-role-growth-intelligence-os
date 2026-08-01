@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-012-ec3-execution-capsule-read-dispatch-gate",
+  "parent_extension": "spec-012-execution-capsule-runtime-integration",
+  "phase": "EC3_unified_dispatch_integration",
+  "status": "complete",
+  "runtime_authority": false,
+  "production_activation": false,
+  "provider_call": false,
+  "database_write": false,
+  "migration_apply": false,
+  "route_or_openapi_change": false,
+  "response_or_dispatch_change": false,
+  "deployment": false,
+  "artifacts": [
+    "ec3-execution-capsule-read-dispatch-gate.md",
+    "../../http-generic-api/contextKernel/integration/executionCapsuleReadDispatchGate.js",
+    "../../http-generic-api/contextKernel/integration/index.js",
+    "../../http-generic-api/test-execution-capsule-read-dispatch-gate.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs",
+    "../../http-generic-api/frontend-operation-governance.generated.json",
+    "../../http-generic-api/frontend-surface-dispatch.generated.json"
+  ],
+  "integration_contract": {
+    "operation_kind": "read",
+    "mutation_required": false,
+    "gate_mounted": false,
+    "legacy_dispatcher_remains_authoritative_when_disabled": true,
+    "capsule_grants_authority": false,
+    "independent_governance_required": true,
+    "enabled_dispatch_input_mode": "bounded_secret_safe_projection",
+    "raw_dispatch_input_forwarded_when_enabled": false
+  },
+  "implemented_contracts": [
+    "default_off_read_dispatch_gate",
+    "canonical_capsule_validation_port_consumption",
+    "canonical_capsule_snapshot_before_evidence_and_dispatch",
+    "read_only_operation_contract_enforcement",
+    "independent_governance_decision_enforcement",
+    "operation_key_and_context_hash_binding",
+    "secret_safe_immutable_dispatch_projection",
+    "raw_capsule_and_raw_input_exclusion",
+    "governance_denial_and_mutation_fail_closed",
+    "context_mismatch_fail_closed",
+    "bounded_dispatch_telemetry",
+    "telemetry_outage_isolation",
+    "exact_legacy_dispatch_rollback",
+    "exact_once_test_registration",
+    "generator_owned_evidence_refresh",
+    "exact_head_ci_evidence",
+    "human_architecture_security_review",
+    "post_merge_main_readback"
+  ],
+  "pending_contracts": [],
+  "registration_evidence": {
+    "status": "passed_readback",
+    "registration_commit_sha": "1468bad8445f09d32cc27db06839664316859c4e",
+    "registered_commands": [
+      "node test-execution-capsule-read-dispatch-gate.mjs"
+    ],
+    "exact_registration_count_per_command": 1,
+    "temporary_workflow_removed": true
+  },
+  "generated_evidence": {
+    "status": "passed",
+    "run_id": 30583901004,
+    "generated_head_sha": "1f7252c7f26294a6ffdf985602db506982fdd7c1",
+    "bounded_write_set_passed": true,
+    "generated_contracts_passed": true,
+    "generator_owned": true
+  },
+  "exact_head_ci_evidence": {
+    "status": "passed",
+    "validated_head_sha": "413aaada58655ad4d6bcf898e96021b3d98dd28c",
+    "required_ci_run_id": 30584106526,
+    "required_jobs_passed": 4,
+    "required_jobs_total": 4,
+    "generator_run_id": 30584106613,
+    "frontend_surface_run_id": 30584106628,
+    "custom_gpt_guard_run_id": 30584106505,
+    "side_workflows_passed": true
+  },
+  "human_review_evidence": {
+    "status": "passed",
+    "reviewed_head_sha": "413aaada58655ad4d6bcf898e96021b3d98dd28c",
+    "architecture_security_reviews": 2,
+    "unresolved_review_threads": 0
+  },
+  "post_merge_readback": {
+    "status": "passed",
+    "pull_request": 3858,
+    "merge_sha": "2ce9f7e43f7a3c5e9ee6cb7322d46af1c0ba5c83",
+    "main_contains_gate": true,
+    "main_contains_test_registration": true,
+    "main_contains_generator_owned_evidence": true,
+    "production_activation": false
+  },
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "independent_governance_required",
+    "read_only_operation_contract_required",
+    "no_raw_capsule_dispatch",
+    "no_authority_bearing_dispatch_input",
+    "no_secret_like_dispatch_input",
+    "no_route_mount",
+    "no_openapi_behavior_change",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_credential_mutation",
+    "no_production_activation",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}

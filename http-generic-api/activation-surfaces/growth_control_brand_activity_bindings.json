@@ -1,0 +1,33 @@
+{
+  "surface_key": "growth_control_brand_activity_bindings",
+  "display_name": "Growth Control Brand Activity Bindings",
+  "description": "Tenant-scoped brand, business activity, and Activity Pack binding readiness.",
+  "source_table": "growth_control_brand_activity_bindings",
+  "result_key_column": "activity_binding_id",
+  "result_label_column": "brand_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["draft", "validating", "ready", "active", "blocked"],
+  "result_columns": [
+    "activity_binding_id",
+    "tenant_id",
+    "workspace_id",
+    "brand_key",
+    "activity_type_key",
+    "activity_pack_key",
+    "activity_pack_version",
+    "status",
+    "revision",
+    "effective_from",
+    "effective_to",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 230,
+  "status": "active",
+  "notes": "Repo-managed activation surface. Market, locale, channel, objective, capability, idempotency, and actor payloads are intentionally excluded."
+}

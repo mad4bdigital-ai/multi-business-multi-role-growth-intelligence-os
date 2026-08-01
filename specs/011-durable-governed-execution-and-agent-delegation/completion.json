@@ -189,6 +189,18 @@
         "role": "phase3_delegation_mariadb_disposable_certification_and_default_off_runtime_binding",
         "status": "merged",
         "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed"
+      },
+      {
+        "number": 3620,
+        "role": "phase1_durable_execution_control_runtime",
+        "status": "merged",
+        "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae"
+      },
+      {
+        "number": 3966,
+        "role": "phase3_delegation_policy_runtime_wave",
+        "status": "merged",
+        "merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf"
       }
     ],
     "closeout_pr": {
@@ -203,6 +215,28 @@
       "role": "delegation_mariadb_disposable_certification_and_default_off_runtime_binding",
       "status": "merged",
       "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed"
+    },
+    "phase1_durable_control_pr": {
+      "number": 3620,
+      "branch": "gpt/spec-011-phase1-durable-control-20260730",
+      "role": "phase1_durable_execution_control_runtime",
+      "status": "merged",
+      "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae"
+    },
+    "phase3_delegation_policy_runtime_pr": {
+      "number": 3966,
+      "branch": "gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731",
+      "role": "phase3_delegation_policy_runtime_wave",
+      "status": "merged",
+      "merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf"
+    },
+    "phase3_delegation_policy_runtime_closeout_pr": {
+      "number": 4004,
+      "branch": "gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731",
+      "role": "phase3_delegation_policy_runtime_evidence_closeout",
+      "status": "merged",
+      "merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+      "merged_at": "2026-07-31T11:25:11Z"
     }
   },
   "evidence": {
@@ -700,7 +734,23 @@
       "phase3_delegation_mariadb_runtime_binding_enabled": false,
       "phase3_delegation_mariadb_runtime_policy_ready": false,
       "phase3_delegation_mariadb_production_migration_applied": false,
-      "phase3_delegation_mariadb_production_runtime_authority": false
+      "phase3_delegation_mariadb_production_runtime_authority": false,
+      "phase1_durable_control_status": "complete_on_main_production_unapplied",
+      "phase1_durable_control_pull_request": 3620,
+      "phase1_durable_control_merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae",
+      "phase1_durable_control_ci_status": "pass",
+      "phase1_durable_control_tasks": "T100-T106_complete",
+      "phase1_durable_control_production_migration_applied": false,
+      "phase1_durable_control_production_runtime_verified": false,
+      "phase3_delegation_policy_runtime_status": "complete_on_main_production_unapplied",
+      "phase3_delegation_policy_runtime_pull_request": 3966,
+      "phase3_delegation_policy_runtime_merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf",
+      "phase3_delegation_policy_runtime_ci_status": "pass",
+      "phase3_delegation_policy_runtime_tasks": "T142-T149_complete",
+      "phase3_delegation_policy_runtime_t141_status": "open_pending_governed_production_lifecycle_mutations",
+      "phase3_delegation_policy_runtime_production_migration_applied": false,
+      "phase3_delegation_policy_runtime_runtime_binding_enabled": false,
+      "phase3_delegation_policy_runtime_runtime_policy_ready": false
     },
     "phase3_delegation_mariadb_certification_runtime_binding": {
       "status": "certified_default_off_on_main",
@@ -780,6 +830,174 @@
       "deployment_performed_for_closeout": false,
       "rollback_required": false,
       "t141_status": "open_pending_governed_lifecycle_mutations",
+      "secrets_included": false
+    },
+    "phase1_durable_control": {
+      "status": "complete_on_main_production_unapplied",
+      "source_main_sha": "e4423dc2af737cb2ae64958ab73611a8e0986d76",
+      "pull_request": 3620,
+      "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae",
+      "service": "http-generic-api/durableExecutionControlService.js",
+      "orchestrator": "http-generic-api/sequentialPlanOrchestrator.js",
+      "routes": "http-generic-api/routes/plannerRoutes.js",
+      "test": "http-generic-api/test-durable-execution-control-service.mjs",
+      "migration": "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql",
+      "design": "phase1-durable-control-runtime.md",
+      "tasks": [
+        "T100",
+        "T101",
+        "T102",
+        "T103",
+        "T104",
+        "T105",
+        "T106"
+      ],
+      "durable_plan_step_event_lifecycle": true,
+      "guarded_transitions": true,
+      "terminal_invariants": true,
+      "pending_mutation_receipt_before_dispatch": true,
+      "idempotent_replay": true,
+      "unknown_outcome_readback_required": true,
+      "canonical_status_explain_cancel_tick_run_next_action": true,
+      "ambiguous_candidate_selection_fail_closed": true,
+      "public_routes_present": true,
+      "migration_contract_present": true,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "production_deployment_performed": false,
+      "production_runtime_verified": false,
+      "provider_write_performed_for_closeout": false,
+      "secrets_included": false
+    },
+    "phase1_durable_control_ci": {
+      "status": "pass",
+      "head_sha": "c72ebc8cfbff51045a1c04561b22ec157f3238d6",
+      "base_sha": "f1d513e592091f818cb6e22979a8dfe8d71948be",
+      "ancestry_reconciliation_head_sha": "34cbba930adcfd5ea3b8fe28694794a3cc05d29d",
+      "ci_run_id": 30582364527,
+      "generated_refresh_run_id": 30582364482,
+      "frontend_dispatch_run_id": 30582364519,
+      "hardcoding_report_run_id": 30582364690,
+      "frontend_dispatch": "pass",
+      "generated_contracts": "pass",
+      "hardcoding_ratchet": "pass",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase1_durable_control_migration": {
+      "status": "contract_on_main_production_unapplied",
+      "file": "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql",
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "backfill_performed": false,
+      "same_cycle_readback_required_before_apply": true
+    },
+    "phase1_durable_control_production_verification": {
+      "status": "not_executed_migration_deployment_and_live_readback_required",
+      "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae",
+      "final_ci_head_sha": "c72ebc8cfbff51045a1c04561b22ec157f3238d6",
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "production_deployment_performed": false,
+      "production_runtime_verified": false,
+      "provider_dispatch_performed": false,
+      "rollback_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_policy_runtime_wave": {
+      "status": "complete_on_main_production_unapplied",
+      "pull_request": 3966,
+      "branch": "gpt/spec-011-phase3-delegation-policy-runtime-wave-20260731",
+      "merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf",
+      "service": "http-generic-api/delegationExecutionPolicyService.js",
+      "orchestrator": "http-generic-api/sequentialPlanOrchestrator.js",
+      "legacy_route": "http-generic-api/routes/agentRegistryRoutes.js",
+      "test": "http-generic-api/test-delegation-execution-policy-runtime.mjs",
+      "design": "phase3-delegation-policy-runtime-wave.md",
+      "tasks": [
+        "T142",
+        "T143",
+        "T144",
+        "T145",
+        "T146",
+        "T147",
+        "T148",
+        "T149"
+      ],
+      "supported_modes": [
+        "user_approval_only",
+        "agent_recommend_only",
+        "agent_queue_for_approval",
+        "delegated_low_risk",
+        "delegated_plan_bound"
+      ],
+      "runtime_dispatch_gate": true,
+      "human_on_drift_pause": true,
+      "typed_drift_escalation": true,
+      "separation_of_duties_foundation": true,
+      "self_approval_forbidden": true,
+      "delegator_bound_approval": true,
+      "step_fingerprint_bound_approval": true,
+      "renewal_no_widening": true,
+      "legacy_direct_delegation_default_off": true,
+      "canonical_lifecycle_reused": true,
+      "mariadb_runtime_binding_reused_default_off": true,
+      "t141_status": "open_pending_governed_production_lifecycle_mutations",
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "runtime_binding_enabled": false,
+      "runtime_policy_ready": false,
+      "provider_write": false,
+      "deployment_required": false,
+      "secrets_included": false
+    },
+    "phase3_delegation_policy_runtime_ci": {
+      "status": "pass",
+      "head_sha": "e804bf6467671e7af95398278e86e6336401ffe8",
+      "ci_base_sha": "4efca6e5f86ccf1a7f672fef951743847e9e9012",
+      "merge_base_sha": "bdb973500e4b96404d1fc8ad1650701f7ebdb71b",
+      "ci_run_id": 30621849750,
+      "frontend_dispatch_run_id": 30621849815,
+      "hardcoding_run_id": 30621849788,
+      "apply_run_id": 30621442637,
+      "diagnostic_run_id": 30621849782,
+      "apply_wave_validation": "pass",
+      "frontend_dispatch": "pass",
+      "hardcoding_report": "pass",
+      "full_npm_test": "pass",
+      "required_checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ]
+    },
+    "phase3_delegation_policy_runtime_closeout": {
+      "status": "complete_on_main",
+      "pull_request": 4004,
+      "branch": "gpt/spec-011-phase3-delegation-policy-runtime-closeout-20260731",
+      "head_sha": "b44a8989d41b5f75a14b63ce333b6182ace13eb7",
+      "merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+      "merged_at": "2026-07-31T11:25:11Z",
+      "ci_run_id": 30626066301,
+      "required_checks": {
+        "Syntax Check": "success",
+        "Architecture Drift Detection": "success",
+        "Execution Resolver Gate": "success",
+        "Unit & Integration Tests": "success"
+      },
+      "human_contract_review_id": 4827947274,
+      "changed_files": 2,
+      "production_migration_applied": false,
+      "production_database_write": false,
+      "runtime_binding_enabled": false,
+      "runtime_policy_ready": false,
+      "provider_write": false,
+      "deployment_required": false,
       "secrets_included": false
     }
   },

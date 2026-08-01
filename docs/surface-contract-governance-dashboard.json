@@ -6,44 +6,44 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 458,
-    "docs_complete_count": 457,
-    "docs_gap_count": 1,
-    "docs_completion_percent": 99.78,
+    "migrations_with_surfaces": 460,
+    "docs_complete_count": 458,
+    "docs_gap_count": 2,
+    "docs_completion_percent": 99.57,
     "gap_severity_counts": {
       "high": 20,
       "medium": 1,
-      "low": 0,
-      "none": 437
+      "low": 1,
+      "none": 438
     },
     "surface_totals": {
       "plugins": 15,
       "tools": 783,
-      "views": 500,
+      "views": 502,
       "policies": 195,
       "routes": 701
     },
     "migrations_by_surface_type": {
       "plugins": 12,
       "tools": 282,
-      "views": 198,
+      "views": 200,
       "policies": 134,
       "routes": 289
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 1,
-      "deployment_parity_checklist.md": 1,
-      "docs/ai-docs-agent-governance.md": 1,
-      "docs/auto-docs-agent/README.md": 1,
-      "docs/change-documentation-governance.md": 1
+      "Updating Registry Patch Index.md": 2,
+      "deployment_parity_checklist.md": 2,
+      "docs/ai-docs-agent-governance.md": 2,
+      "docs/auto-docs-agent/README.md": 2,
+      "docs/change-documentation-governance.md": 2
     },
     "safety_marker_counts": {
-      "no_provider_call": 457,
-      "no_credential_payload_read": 457,
-      "no_raw_secrets": 457,
-      "no_external_send": 457,
-      "no_external_write": 458,
-      "secrets_included_false": 458
+      "no_provider_call": 459,
+      "no_credential_payload_read": 459,
+      "no_raw_secrets": 459,
+      "no_external_send": 459,
+      "no_external_write": 460,
+      "secrets_included_false": 460
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
@@ -66,27 +66,28 @@
     }
   },
   "queue": {
-    "total_items": 21,
+    "total_items": 22,
     "class_counts": {
       "critical_review": 20,
       "high_review": 1,
-      "medium_review": 0,
+      "medium_review": 1,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 21,
+    "total_items": 22,
     "class_counts": {
       "new_surface_immediate_review": 4,
-      "legacy_baseline_backlog": 17
+      "legacy_baseline_backlog": 17,
+      "standard_backlog_review": 1
     },
     "gate_candidate_count": 4
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 4,
-    "blocking_new_item_count": 4
+    "new_item_count": 5,
+    "blocking_new_item_count": 5
   },
   "top_immediate_items": [
     {

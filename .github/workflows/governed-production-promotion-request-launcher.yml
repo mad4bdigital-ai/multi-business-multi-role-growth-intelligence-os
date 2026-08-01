@@ -1,0 +1,454 @@
+name: Governed Production Promotion Request Launcher
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-promotion-convergence-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  converge-source-pinned-candidate:
+    name: Converge current source-pinned Production candidate
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/request-production-promotion-') &&
+      github.event.pull_request.title == 'ops: request governed Production synchronization'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-convergence.json
+    steps:
+      - name: Build, validate, and converge protected refs
+        id: converge
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          MAX_ATTEMPTS=3
+          RUN_DISCOVERY_ATTEMPTS=60
+          RUN_DISCOVERY_INTERVAL_SECONDS=5
+          RUN_POLL_INTERVAL_SECONDS=30
+          RUN_POLL_DEADLINE_SECONDS=3900
+          STABLE=0
+          FINAL_MAIN_SHA=""
+          FINAL_PRODUCTION_SHA=""
+          FINAL_CANDIDATE_SHA=""
+          FINAL_RELEASE_PR=""
+          FINAL_VALIDATION_PR=""
+          FINAL_BUILDER_RUN_ID=""
+          FINAL_EXACT_RUN_ID=""
+          FINAL_EVIDENCE_DIGEST=""
+          FINAL_SUPPORTING_RUNS='{}'
+
+          require_sha() {
+            local label="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$label must resolve to an exact lowercase 40-character SHA"
+              return 1
+            fi
+          }
+
+          require_sha256() {
+            local label="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "::error::$label must resolve to an exact lowercase 64-character SHA-256 digest"
+              return 1
+            fi
+          }
+
+          resolve_run() {
+            local workflow="$1"
+            local earliest="$2"
+            local expected_head_sha="${3:-}"
+            local run_id=""
+            local filter=""
+
+            for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
+              if [[ -n "$expected_head_sha" ]]; then
+                filter="map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\"))[0].databaseId // empty"
+              else
+                filter="map(select(.createdAt >= \"$earliest\"))[0].databaseId // empty"
+              fi
+              run_id="$(gh run list \
+                --repo "$REPOSITORY" \
+                --workflow "$workflow" \
+                --limit 100 \
+                --json databaseId,headSha,createdAt \
+                --jq "$filter" 2>/dev/null || true)"
+              if [[ -n "$run_id" ]]; then
+                printf '%s' "$run_id"
+                return 0
+              fi
+              sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
+            done
+            return 1
+          }
+
+          wait_run_success() {
+            local run_id="$1"
+            local label="$2"
+            local deadline="$(( $(date +%s) + RUN_POLL_DEADLINE_SECONDS ))"
+            local status=""
+            local conclusion=""
+            local status_file="$RUNNER_TEMP/run-${run_id}.json"
+            local error_file="$RUNNER_TEMP/run-${run_id}.err"
+
+            while (( $(date +%s) < deadline )); do
+              : > "$error_file"
+              if gh run view "$run_id" \
+                --repo "$REPOSITORY" \
+                --json databaseId,headSha,event,status,conclusion \
+                > "$status_file" 2> "$error_file"; then
+                status="$(jq -r '.status // ""' "$status_file")"
+                conclusion="$(jq -r '.conclusion // ""' "$status_file")"
+                if [[ "$status" == "completed" ]]; then
+                  if [[ "$conclusion" == "success" ]]; then
+                    return 0
+                  fi
+                  echo "::warning::$label run $run_id completed with conclusion $conclusion"
+                  return 1
+                fi
+                sleep "$RUN_POLL_INTERVAL_SECONDS"
+                continue
+              fi
+
+              if grep -Eqi 'rate limit exceeded|HTTP 403' "$error_file"; then
+                echo "::warning::rate limit reached while polling $label; backing off"
+                sleep 60
+                continue
+              fi
+              cat "$error_file" >&2
+              return 1
+            done
+
+            echo "::warning::$label run $run_id did not complete before the bounded deadline"
+            return 1
+          }
+
+          close_surface() {
+            local pr_number="$1"
+            local reason="$2"
+            if [[ -z "$pr_number" ]]; then
+              return 0
+            fi
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$reason" || true
+            gh pr close "$pr_number" --repo "$REPOSITORY" || true
+          }
+
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            echo "::group::Production convergence attempt $attempt/$MAX_ATTEMPTS"
+            ATTEMPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+            require_sha MAIN_SHA "$MAIN_SHA"
+            require_sha PRODUCTION_SHA "$PRODUCTION_SHA"
+
+            MAIN_SHORT="${MAIN_SHA:0:12}"
+            PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
+            ATTEMPT_SUFFIX="a${attempt}-${GITHUB_RUN_ID}"
+            RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+
+            echo "main=$MAIN_SHA Production=$PRODUCTION_SHA"
+            echo "release_branch=$RELEASE_BRANCH"
+
+            gh workflow run production-promotion-candidate.yml \
+              --repo "$REPOSITORY" \
+              --ref main \
+              --field expected_main_sha="$MAIN_SHA" \
+              --field expected_production_sha="$PRODUCTION_SHA" \
+              --field release_branch="$RELEASE_BRANCH" \
+              --field validation_branch="$VALIDATION_BRANCH" \
+              --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
+              --field create_pull_requests=true
+
+            BUILDER_RUN_ID="$(resolve_run production-promotion-candidate.yml "$ATTEMPT_STARTED_AT" || true)"
+            if [[ -z "$BUILDER_RUN_ID" ]]; then
+              echo "::warning::unable to resolve candidate builder run; retrying with fresh protected refs"
+              echo "::endgroup::"
+              continue
+            fi
+            if ! wait_run_success "$BUILDER_RUN_ID" "candidate builder"; then
+              echo "::warning::candidate builder did not succeed; protected refs may have moved"
+              echo "::endgroup::"
+              continue
+            fi
+
+            RELEASE_JSON="$(gh pr list \
+              --repo "$REPOSITORY" \
+              --state open \
+              --head "$RELEASE_BRANCH" \
+              --base Production \
+              --limit 1 \
+              --json number,url,headRefOid,baseRefName,headRefName)"
+            VALIDATION_JSON="$(gh pr list \
+              --repo "$REPOSITORY" \
+              --state open \
+              --head "$VALIDATION_BRANCH" \
+              --base "$VALIDATION_BASE_BRANCH" \
+              --limit 1 \
+              --json number,url,headRefOid,baseRefName,headRefName)"
+
+            RELEASE_PR="$(jq -r '.[0].number // empty' <<<"$RELEASE_JSON")"
+            VALIDATION_PR="$(jq -r '.[0].number // empty' <<<"$VALIDATION_JSON")"
+            CANDIDATE_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$RELEASE_JSON")"
+            VALIDATION_SHA="$(jq -r '.[0].headRefOid // empty' <<<"$VALIDATION_JSON")"
+            VALIDATION_BASE_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
+
+            if [[ -z "$RELEASE_PR" || -z "$VALIDATION_PR" ]]; then
+              echo "::warning::builder did not create both governed review surfaces"
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=missing_review_surface merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=missing_review_surface merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+            require_sha CANDIDATE_SHA "$CANDIDATE_SHA"
+            if [[ "$VALIDATION_SHA" != "$CANDIDATE_SHA" || "$VALIDATION_BASE_SHA" != "$MAIN_SHA" ]]; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=branch_readback_mismatch merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=branch_readback_mismatch merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+
+            TREE_DIFF_COUNT="$(gh api "/repos/${REPOSITORY}/compare/${MAIN_SHA}...${CANDIDATE_SHA}" --jq '.files | length')"
+            if [[ "$TREE_DIFF_COUNT" != "0" ]]; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=candidate_tree_differs_from_main merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=candidate_tree_differs_from_main merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+
+            EXACT_RUN_ID="$(resolve_run production-promotion-exact-candidate-validation.yml "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+            if [[ -z "$EXACT_RUN_ID" ]] || ! wait_run_success "$EXACT_RUN_ID" "exact candidate validation"; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+
+            SUPPORTING_RUNS='{}'
+            SUPPORTING_OK=1
+            while IFS= read -r workflow_name; do
+              SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+              if [[ -z "$SUPPORTING_RUN_ID" ]] || ! wait_run_success "$SUPPORTING_RUN_ID" "$workflow_name"; then
+                echo "::warning::required supporting workflow failed or was not found: $workflow_name"
+                SUPPORTING_OK=0
+                break
+              fi
+              SUPPORTING_RUNS="$(jq --arg name "$workflow_name" --arg run_id "$SUPPORTING_RUN_ID" '. + {($name): $run_id}' <<<"$SUPPORTING_RUNS")"
+            done <<'WORKFLOWS'
+          Frontend surface dispatch
+          HTTP Generic API Fanout Relocation
+          Custom GPT Contract Guard
+          Platform Completion Cleanup Readback
+          Platform Remaining Scope Scorecard
+          Spec 011 Delegation MariaDB Certification
+          WORKFLOWS
+
+            if [[ "$SUPPORTING_OK" != "1" ]]; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=supporting_gate_failed_or_missing merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=supporting_gate_failed_or_missing merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+
+            READBACK_MAIN="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            READBACK_PRODUCTION="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+            RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
+            VALIDATION_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BRANCH}" --jq '.object.sha')"
+            VALIDATION_BASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${VALIDATION_BASE_BRANCH}" --jq '.object.sha')"
+
+            if [[ "$READBACK_MAIN" != "$MAIN_SHA" \
+               || "$READBACK_PRODUCTION" != "$PRODUCTION_SHA" \
+               || "$RELEASE_READBACK" != "$CANDIDATE_SHA" \
+               || "$VALIDATION_READBACK" != "$CANDIDATE_SHA" \
+               || "$VALIDATION_BASE_READBACK" != "$MAIN_SHA" ]]; then
+              REASON="STALE_PRODUCTION_CANDIDATE attempt=$attempt main_before=$MAIN_SHA main_after=$READBACK_MAIN production_before=$PRODUCTION_SHA production_after=$READBACK_PRODUCTION candidate=$CANDIDATE_SHA merge_executed=false deployment_executed=false"
+              close_surface "$RELEASE_PR" "$REASON"
+              close_surface "$VALIDATION_PR" "$REASON"
+              echo "::warning::protected refs moved during validation; retrying from current refs"
+              echo "::endgroup::"
+              continue
+            fi
+
+            ATTEMPT_EVIDENCE_DIR="$RUNNER_TEMP/production-promotion-exact-${attempt}"
+            mkdir -p "$ATTEMPT_EVIDENCE_DIR"
+            ARTIFACT_DOWNLOADED=0
+            for _ in $(seq 1 5); do
+              if gh run download "$EXACT_RUN_ID" \
+                --repo "$REPOSITORY" \
+                --name "production-promotion-exact-candidate-ci-${CANDIDATE_SHA}" \
+                --dir "$ATTEMPT_EVIDENCE_DIR"; then
+                ARTIFACT_DOWNLOADED=1
+                break
+              fi
+              sleep 10
+            done
+            if [[ "$ARTIFACT_DOWNLOADED" != "1" ]]; then
+              close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
+              close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_evidence_artifact_missing merge_executed=false deployment_executed=false"
+              echo "::endgroup::"
+              continue
+            fi
+            EVIDENCE_DIGEST="$(find "$ATTEMPT_EVIDENCE_DIR" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+            require_sha256 EVIDENCE_DIGEST "$EVIDENCE_DIGEST"
+
+            jq -n \
+              --arg request_pr "$REQUEST_PR" \
+              --arg main_sha "$MAIN_SHA" \
+              --arg production_sha "$PRODUCTION_SHA" \
+              --arg candidate_sha "$CANDIDATE_SHA" \
+              --arg release_branch "$RELEASE_BRANCH" \
+              --arg validation_branch "$VALIDATION_BRANCH" \
+              --arg validation_base_branch "$VALIDATION_BASE_BRANCH" \
+              --arg builder_run_id "$BUILDER_RUN_ID" \
+              --arg exact_validation_run_id "$EXACT_RUN_ID" \
+              --arg release_pr "$RELEASE_PR" \
+              --arg validation_pr "$VALIDATION_PR" \
+              --arg evidence_digest "$EVIDENCE_DIGEST" \
+              --argjson supporting_runs "$SUPPORTING_RUNS" \
+              --argjson attempt "$attempt" \
+              '{
+                schema_version: "governed_production_promotion_convergence.v1",
+                ok: true,
+                attempt: $attempt,
+                request_pr: $request_pr,
+                main_sha: $main_sha,
+                production_sha: $production_sha,
+                candidate_sha: $candidate_sha,
+                release_branch: $release_branch,
+                validation_branch: $validation_branch,
+                validation_base_branch: $validation_base_branch,
+                builder_run_id: $builder_run_id,
+                exact_validation_run_id: $exact_validation_run_id,
+                supporting_runs: $supporting_runs,
+                release_pr: $release_pr,
+                validation_pr: $validation_pr,
+                evidence_digest: $evidence_digest,
+                candidate_tree_matches_main: true,
+                protected_refs_stable_during_validation: true,
+                exact_full_ci_success: true,
+                merge_executed: false,
+                deployment_executed: false,
+                migration_executed: false,
+                provider_call_executed: false,
+                credential_payload_read: false,
+                secrets_included: false
+              }' > "$EVIDENCE_PATH"
+
+            RELEASE_BODY="$RUNNER_TEMP/release-pr-final.md"
+            cat > "$RELEASE_BODY" <<EOF
+          ## Governed converged Production candidate
+
+          - pinned main: \`$MAIN_SHA\`
+          - pinned Production: \`$PRODUCTION_SHA\`
+          - exact candidate: \`$CANDIDATE_SHA\`
+          - exact validation run: \`$EXACT_RUN_ID\`
+          - builder run: \`$BUILDER_RUN_ID\`
+          - evidence digest: \`sha256:$EVIDENCE_DIGEST\`
+          - tree policy: exact pinned-main tree
+          - protected refs stable throughout validation: yes
+
+          Exact Full CI and all required supporting workflows succeeded on the exact candidate. Validation PR #$VALIDATION_PR is closed without merge after evidence readback.
+
+          This PR promotes Git ancestry only. It does not authorize or execute deployment, SQL, migrations, provider calls, credential reads, restarts, or external writes. Merge remains blocked until explicit authorization names exact candidate \`$CANDIDATE_SHA\`. Hostinger/runtime parity must be verified separately after an authorized Production merge.
+          EOF
+            gh pr edit "$RELEASE_PR" --repo "$REPOSITORY" --body-file "$RELEASE_BODY"
+            gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "EXACT_CANDIDATE_VALIDATED candidate=$CANDIDATE_SHA main=$MAIN_SHA Production=$PRODUCTION_SHA builder_run=$BUILDER_RUN_ID exact_run=$EXACT_RUN_ID evidence_digest=sha256:$EVIDENCE_DIGEST full_ci=4/4 supporting_gates=6/6 merge_executed=false deployment_executed=false"
+            gh pr close "$VALIDATION_PR" --repo "$REPOSITORY"
+
+            FINAL_MAIN_SHA="$MAIN_SHA"
+            FINAL_PRODUCTION_SHA="$PRODUCTION_SHA"
+            FINAL_CANDIDATE_SHA="$CANDIDATE_SHA"
+            FINAL_RELEASE_PR="$RELEASE_PR"
+            FINAL_VALIDATION_PR="$VALIDATION_PR"
+            FINAL_BUILDER_RUN_ID="$BUILDER_RUN_ID"
+            FINAL_EXACT_RUN_ID="$EXACT_RUN_ID"
+            FINAL_EVIDENCE_DIGEST="$EVIDENCE_DIGEST"
+            FINAL_SUPPORTING_RUNS="$SUPPORTING_RUNS"
+            STABLE=1
+            echo "::endgroup::"
+            break
+          done
+
+          if [[ "$STABLE" != "1" ]]; then
+            echo "::error::unable to obtain a stable exact Production candidate after $MAX_ATTEMPTS bounded attempts"
+            exit 1
+          fi
+
+          {
+            echo "main_sha=$FINAL_MAIN_SHA"
+            echo "production_sha=$FINAL_PRODUCTION_SHA"
+            echo "candidate_sha=$FINAL_CANDIDATE_SHA"
+            echo "release_pr=$FINAL_RELEASE_PR"
+            echo "validation_pr=$FINAL_VALIDATION_PR"
+            echo "builder_run_id=$FINAL_BUILDER_RUN_ID"
+            echo "exact_run_id=$FINAL_EXACT_RUN_ID"
+            echo "evidence_digest=$FINAL_EVIDENCE_DIGEST"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload convergence evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-production-promotion-convergence-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record request outcome
+        if: always()
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.converge.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.converge.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.converge.outputs.candidate_sha }}
+          RELEASE_PR: ${{ steps.converge.outputs.release_pr }}
+          VALIDATION_PR: ${{ steps.converge.outputs.validation_pr }}
+          BUILDER_RUN_ID: ${{ steps.converge.outputs.builder_run_id }}
+          EXACT_RUN_ID: ${{ steps.converge.outputs.exact_run_id }}
+          EVIDENCE_DIGEST: ${{ steps.converge.outputs.evidence_digest }}
+          CONVERGENCE_OUTCOME: ${{ steps.converge.outcome }}
+        run: |
+          set -euo pipefail
+          BODY="GOVERNED_PRODUCTION_PROMOTION_CONVERGENCE outcome=${CONVERGENCE_OUTCOME} run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID:-unresolved} exact_run_id=${EXACT_RUN_ID:-unresolved} main_sha=${MAIN_SHA:-unresolved} production_sha=${PRODUCTION_SHA:-unresolved} candidate_sha=${CANDIDATE_SHA:-unresolved} release_pr=${RELEASE_PR:-unresolved} validation_pr=${VALIDATION_PR:-unresolved} evidence_digest=${EVIDENCE_DIGEST:+sha256:}${EVIDENCE_DIGEST:-unresolved} merge_executed=false deployment_executed=false"
+          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
+          if [[ "$CONVERGENCE_OUTCOME" == "success" ]]; then
+            gh pr close "$REQUEST_PR" --repo "$REPOSITORY"
+          fi
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Governed Production promotion convergence
+
+          - outcome: \`${{ steps.converge.outcome }}\`
+          - main: \`${{ steps.converge.outputs.main_sha }}\`
+          - Production: \`${{ steps.converge.outputs.production_sha }}\`
+          - candidate: \`${{ steps.converge.outputs.candidate_sha }}\`
+          - builder run: \`${{ steps.converge.outputs.builder_run_id }}\`
+          - exact validation run: \`${{ steps.converge.outputs.exact_run_id }}\`
+          - release PR: \`${{ steps.converge.outputs.release_pr }}\`
+          - validation PR: \`${{ steps.converge.outputs.validation_pr }}\`
+          - evidence digest: \`sha256:${{ steps.converge.outputs.evidence_digest }}\`
+          - merge executed: false
+          - deployment executed: false
+          EOF

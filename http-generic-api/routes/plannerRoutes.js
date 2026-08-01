@@ -4,13 +4,20 @@ import { getPool } from "../db.js";
 import { resolveAccess } from "../accessDecisionEngine.js";
 import { dispatchPlan } from "../connectorExecutor.js";
 import {
-  getSequentialPlanTimeline,
   persistCompiledSequentialPlan,
   resumeSequentialPlan,
-  runSequentialPlan,
   SEQUENTIAL_PLAN_RUN_JOB_TYPE,
-  tickSequentialPlan,
 } from "../sequentialPlanOrchestrator.js";
+import {
+  assertDurableRequestedStatus,
+  cancelDurableExecution,
+  explainDurableExecution,
+  getBoundedDurableTimeline,
+  getDurableExecutionStatus,
+  runDurableExecution,
+  tickDurableExecution,
+  transitionDurableExecution,
+} from "../durableExecutionControlService.js";
 function persistedPlanStatus(runtimeStatus = "draft") {
   if (runtimeStatus === "blocked") return "failed";
   if (["awaiting_approval", "paused"].includes(runtimeStatus)) return "validated";
@@ -216,15 +223,23 @@ export function buildPlannerRoutes(deps) {
   // ── PATCH /planner/plans/:id/status ──────────────────────────────────────
   router.patch("/planner/plans/:id/status", requireBackendApiKey, async (req, res) => {
     try {
-      const { status } = req.body || {};
-      const VALID = ["draft", "validated", "approved", "executing", "awaiting_approval", "paused", "blocked", "completed", "failed", "cancelled"];
-      if (!VALID.includes(status)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_status", message: `status must be one of: ${VALID.join(", ")}` } });
-      }
-      await getPool().query("UPDATE `execution_plans` SET plan_status = ?, runtime_status = ? WHERE plan_id = ?", [persistedPlanStatus(status), status, req.params.id]);
-      return res.status(200).json({ ok: true, plan_id: req.params.id, plan_status: status });
+      const { status, tenant_id, reason } = req.body || {};
+      const requestedStatus = assertDurableRequestedStatus(status);
+      const result = await transitionDurableExecution({
+        pool: getPool(),
+        planId: req.params.id,
+        tenantId: tenant_id || null,
+        toStatus: requestedStatus,
+        actorId: principalActor(req),
+        reason: reason || null,
+      });
+      return res.status(200).json(result);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "plan_update_failed", message: err.message } });
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "plan_update_failed", message: err.message },
+        secrets_included: false,
+      });
     }
   });
 
@@ -267,7 +282,7 @@ export function buildPlannerRoutes(deps) {
 
   router.post("/planner/plans/:id/tick", requireBackendApiKey, async (req, res) => {
     try {
-      const result = await tickSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
+      const result = await tickDurableExecution({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
       return res.status(200).json(result);
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "sequential_plan_tick_failed", message: err.message }, secrets_included: false });
@@ -276,7 +291,7 @@ export function buildPlannerRoutes(deps) {
 
   router.post("/planner/plans/:id/run", requireBackendApiKey, async (req, res) => {
     try {
-      const result = await runSequentialPlan({
+      const result = await runDurableExecution({
         pool: getPool(),
         planId: req.params.id,
         actorId: principalActor(req),
@@ -311,6 +326,49 @@ export function buildPlannerRoutes(deps) {
     }
   });
 
+  router.get("/planner/plans/:id/status", requireBackendApiKey, async (req, res) => {
+  try {
+    const result = await getDurableExecutionStatus({
+      pool: getPool(),
+      planId: req.params.id,
+      tenantId: req.query?.tenant_id || null,
+    });
+    if (!result) return res.status(404).json({ ok: false, error: { code: "durable_execution_not_found", message: "Execution plan not found." }, secrets_included: false });
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "durable_execution_status_failed", message: err.message }, secrets_included: false });
+  }
+});
+
+router.get("/planner/plans/:id/explain", requireBackendApiKey, async (req, res) => {
+  try {
+    const result = await explainDurableExecution({
+      pool: getPool(),
+      planId: req.params.id,
+      tenantId: req.query?.tenant_id || null,
+    });
+    if (!result) return res.status(404).json({ ok: false, error: { code: "durable_execution_not_found", message: "Execution plan not found." }, secrets_included: false });
+    return res.status(200).json({ ok: true, ...result });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "durable_execution_explain_failed", message: err.message }, secrets_included: false });
+  }
+});
+
+router.post("/planner/plans/:id/cancel", requireBackendApiKey, async (req, res) => {
+  try {
+    const result = await cancelDurableExecution({
+      pool: getPool(),
+      planId: req.params.id,
+      tenantId: req.body?.tenant_id || null,
+      actorId: principalActor(req),
+      reason: req.body?.reason || null,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "durable_execution_cancel_failed", message: err.message }, secrets_included: false });
+  }
+});
+
   router.post("/planner/plans/:id/resume", requireBackendApiKey, async (req, res) => {
     try {
       const result = await resumeSequentialPlan({ pool: getPool(), planId: req.params.id, actorId: principalActor(req) });
@@ -322,7 +380,12 @@ export function buildPlannerRoutes(deps) {
 
   router.get("/planner/plans/:id/timeline", requireBackendApiKey, async (req, res) => {
     try {
-      const timeline = await getSequentialPlanTimeline({ pool: getPool(), planId: req.params.id });
+      const timeline = await getBoundedDurableTimeline({
+      pool: getPool(),
+      planId: req.params.id,
+      tenantId: req.query?.tenant_id || null,
+      limit: req.query?.limit || 100,
+    });
       if (!timeline) return res.status(404).json({ ok: false, error: { code: "sequential_plan_not_found", message: "Execution plan not found." }, secrets_included: false });
       return res.status(200).json({ ok: true, ...timeline, secrets_included: false });
     } catch (err) {

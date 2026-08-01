@@ -1,4 +1,8 @@
 import { Router } from "express";
+import {
+  attachModeChoiceSubmissionEvidence,
+  governHostingerSshProbeJobSubmission,
+} from "../hostingerSshProbeModeChoiceBoundary.js";
 
 export function buildJobRoutes(deps) {
   const {
@@ -10,6 +14,8 @@ export function buildJobRoutes(deps) {
     executeSingleQueuedJob,
     normalizeJobStatus,
     toJobSummary,
+    governJobSubmission = governHostingerSshProbeJobSubmission,
+    attachJobSubmissionEvidence = attachModeChoiceSubmissionEvidence,
   } = deps;
 
   const router = Router();
@@ -29,8 +35,29 @@ export function buildJobRoutes(deps) {
     const idempotencyKey = String(
       (req.body?.idempotency_key) || req.header("Idempotency-Key") || ""
     ).trim();
-    const { status, body } = await executionFacade.submitJob(req.body, requestedBy, idempotencyKey);
-    return res.status(status).json(body);
+    const governance = await governJobSubmission({
+      body: req.body,
+      requestedBy,
+      idempotencyKey,
+      requestContext: {
+        request_id: req.id || req.header("X-Request-Id") || null,
+        actor_id: requestedBy,
+        actor_type: "backend_api",
+        tenant_id: req.body?.tenant_id || req.body?.request_payload?.tenant_id || null,
+        user_id: req.body?.user_id || req.body?.request_payload?.user_id || null,
+        session_id: req.body?.session_id || req.body?.request_payload?.session_id || null,
+        conversation_id: req.body?.conversation_id || req.body?.request_payload?.conversation_id || null,
+      },
+    });
+    if (!governance.proceed) {
+      return res.status(governance.status || 409).json(governance.body);
+    }
+    const { status, body } = await executionFacade.submitJob(
+      governance.request_body,
+      requestedBy,
+      idempotencyKey,
+    );
+    return res.status(status).json(attachJobSubmissionEvidence(body, governance));
   });
 
   router.get("/jobs/:jobId", requireBackendApiKey, async (req, res) => {
