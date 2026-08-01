@@ -6,15 +6,16 @@ on:
     paths:
       - .github/workflows/spec014-build-shared-hardening.yml
       - http-generic-api/scripts/build-spec014-shared-hardening.mjs
+      - http-generic-api/scripts/patch-spec014-shared-capture-once.mjs
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     if: github.head_ref == 'gpt/014-hostinger/shared-canary-postmerge-hardening-20260801'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
         with:
@@ -25,19 +26,22 @@ jobs:
           node-version: '22'
       - name: Apply Shared hardening transformation
         run: node http-generic-api/scripts/build-spec014-shared-hardening.mjs
-      - name: Package transformed candidate
+      - name: Apply dependency capture-once correction
+        run: node http-generic-api/scripts/patch-spec014-shared-capture-once.mjs
+      - name: Validate generated candidate
         run: |
-          tar -czf /tmp/spec014-shared-hardening-candidate.tgz \
-            http-generic-api/hostingerStorageSharedCanary.js \
-            http-generic-api/test-hostinger-storage-shared-canary.mjs \
-            http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs \
-            .github/workflows/hostinger-storage-shared-canary-guard.yml \
-            specs/014-governed-hostinger-storage-orchestration/e2e-phases.json \
-            specs/014-governed-hostinger-storage-orchestration/evidence/shared-canary-postmerge-hardening-20260801.md
-      - name: Upload transformed candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec014-shared-hardening-candidate-${{ github.run_id }}
-          path: /tmp/spec014-shared-hardening-candidate.tgz
-          if-no-files-found: error
-          retention-days: 1
+          node --check http-generic-api/hostingerStorageSharedCanary.js
+          node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
+          node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
+          node -e "JSON.parse(require('fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'utf8'))"
+      - name: Publish self-contained candidate branch
+        run: |
+          git rm \
+            .github/workflows/spec014-build-shared-hardening.yml \
+            http-generic-api/scripts/build-spec014-shared-hardening.mjs \
+            http-generic-api/scripts/patch-spec014-shared-capture-once.mjs
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git add .
+          git commit -m 'fix(spec-014): harden Shared pre-consumption provenance'
+          git push origin HEAD:refs/heads/gpt/014-hostinger/shared-canary-hardening-final-20260801
