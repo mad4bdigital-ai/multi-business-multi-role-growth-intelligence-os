@@ -9,6 +9,8 @@ import {
   computeSupportTicketDedupeKeyV2,
   computeSupportTicketSlaStatusV2,
   deriveSupportTicketIntegrity,
+  listSupportTicketsWithIntegrity,
+  reconcileSupportTicketIntegrity,
   resolveSupportTicketLifecyclePatch,
 } from "./supportTicketLifecycleIntegrityService.js";
 
@@ -39,13 +41,55 @@ const capabilityA = computeSupportTicketDedupeKeyV2({ ...baseEnvelope, target_ca
 const capabilityB = computeSupportTicketDedupeKeyV2({ ...baseEnvelope, target_capability: "capability-b" });
 assert.notEqual(capabilityA, capabilityB, "target capability must participate in dedupe identity");
 
-const testTicket = deriveSupportTicketIntegrity({
+const productionIdentity = computeSupportTicketDedupeKeyV2({
+  ...baseEnvelope,
+  environment: "production",
+  is_test: false,
+  visibility_class: "customer_visible",
+});
+const simulationIdentity = computeSupportTicketDedupeKeyV2({
+  ...baseEnvelope,
+  environment: "production",
+  is_test: true,
+  visibility_class: "internal_test",
+});
+const sandboxIdentity = computeSupportTicketDedupeKeyV2({
+  ...baseEnvelope,
+  environment: "sandbox",
+  is_test: false,
+  visibility_class: "partner_visible",
+});
+assert.notEqual(productionIdentity, simulationIdentity, "test and production tickets must not share a dedupe identity");
+assert.notEqual(productionIdentity, sandboxIdentity, "environment and visibility must participate in dedupe identity");
+
+const explicitlyTestTicket = deriveSupportTicketIntegrity({
   title: "Smoke test - support ticket email routing after governed outbox tools",
   environment: "production",
+  is_test: true,
 });
-assert.equal(testTicket.is_test, true);
-assert.equal(testTicket.environment, "production");
-assert.equal(testTicket.visibility_class, "internal_test");
+assert.equal(explicitlyTestTicket.is_test, true);
+assert.equal(explicitlyTestTicket.environment, "production");
+assert.equal(explicitlyTestTicket.visibility_class, "internal_test");
+
+const ordinaryProductionTestFailure = deriveSupportTicketIntegrity({
+  title: "Production test failure after provider deploy",
+  environment: "production",
+});
+assert.equal(
+  ordinaryProductionTestFailure.is_test,
+  false,
+  "ordinary title words must not hide a genuine production ticket",
+);
+assert.equal(ordinaryProductionTestFailure.visibility_class, "customer_visible");
+
+const explicitFalseWins = deriveSupportTicketIntegrity({
+  title: "QA outage affecting customers",
+  environment: "staging",
+  is_test: false,
+  metadata_json: { admin_simulation: true },
+});
+assert.equal(explicitFalseWins.is_test, false, "explicit false must override inference");
+assert.equal(explicitFalseWins.visibility_class, "customer_visible");
 
 const simulationTicket = deriveSupportTicketIntegrity({
   title: "Tenant user simulation: WhatsApp channel repair link",
@@ -57,9 +101,10 @@ assert.equal(simulationTicket.visibility_class, "internal_test");
 const customerTicket = deriveSupportTicketIntegrity({
   title: "Brand-scoped manager invitation required",
   environment: "production",
+  visibility_class: "partner_visible",
 });
 assert.equal(customerTicket.is_test, false);
-assert.equal(customerTicket.visibility_class, "customer_visible");
+assert.equal(customerTicket.visibility_class, "partner_visible");
 
 const now = new Date("2026-08-01T12:00:00Z");
 const completedMilestones = computeSupportTicketSlaStatusV2({
@@ -96,17 +141,25 @@ assert.equal(lifecycleContradiction.status, "resolved");
 
 const requiredIntegrityColumns = _testingSupportTicketLifecycleIntegrityCreation().REQUIRED_INTEGRITY_COLUMNS;
 
-function buildConnection({ schemaColumns = requiredIntegrityColumns, persistAffectedRows = 1, persistError = null } = {}) {
+function buildConnection({
+  schemaColumns = requiredIntegrityColumns,
+  persistAffectedRows = 1,
+  persistError = null,
+} = {}) {
   const events = [];
   return {
     events,
-    async query(sql) {
+    lastPersistSql: null,
+    lastPersistParams: null,
+    async query(sql, params = []) {
       if (sql.includes("INFORMATION_SCHEMA.COLUMNS")) {
         events.push("schema");
         return [schemaColumns.map((COLUMN_NAME) => ({ COLUMN_NAME }))];
       }
       if (sql.includes("UPDATE tickets")) {
         events.push("persist");
+        this.lastPersistSql = sql;
+        this.lastPersistParams = params;
         if (persistError) throw persistError;
         return [{ affectedRows: persistAffectedRows }];
       }
@@ -121,7 +174,13 @@ function buildConnection({ schemaColumns = requiredIntegrityColumns, persistAffe
 
 const successConnection = buildConnection();
 const successResult = await createOrAppendSupportTicketWithIntegrityAtomic(
-  { ...baseEnvelope, title: "Atomic integrity creation" },
+  {
+    ...baseEnvelope,
+    title: "Atomic integrity creation",
+    environment: "sandbox",
+    visibility_class: "partner_visible",
+    is_test: false,
+  },
   {
     pool: { async getConnection() { return successConnection; } },
     async createOrAppendSupportTicketFn(envelope, options) {
@@ -140,6 +199,12 @@ const successResult = await createOrAppendSupportTicketWithIntegrityAtomic(
 );
 assert.equal(successResult.integrity.persisted, true);
 assert.equal(successResult.integrity.schema_ready, true);
+assert.equal(successResult.integrity.environment, "sandbox");
+assert.equal(successResult.integrity.visibility_class, "partner_visible");
+assert.match(successConnection.lastPersistSql, /environment = \?/);
+assert.match(successConnection.lastPersistSql, /visibility_class = \?/);
+assert.doesNotMatch(successConnection.lastPersistSql, /COALESCE\(NULLIF\(environment/);
+assert.doesNotMatch(successConnection.lastPersistSql, /COALESCE\(NULLIF\(visibility_class/);
 assert.deepEqual(successConnection.events, ["schema", "begin", "create", "persist", "commit", "release"]);
 
 const missingSchemaConnection = buildConnection({
@@ -187,6 +252,186 @@ await assert.rejects(
 );
 assert.deepEqual(rollbackConnection.events, ["schema", "begin", "create", "persist", "rollback", "release"]);
 
+const listQueries = [];
+const listConnection = {
+  async query(sql, params = []) {
+    listQueries.push({ sql, params });
+    if (sql.includes("INFORMATION_SCHEMA.COLUMNS")) {
+      return [requiredIntegrityColumns.map((COLUMN_NAME) => ({ COLUMN_NAME }))];
+    }
+    return [[{
+      ticket_id: "ticket-customer-safe",
+      tenant_id: "tenant-a",
+      user_id: "user-a",
+      title: "Customer-visible ticket",
+      category: "support",
+      ticket_type: "general_support",
+      priority: "normal",
+      severity: "sev4",
+      status: "open",
+      lifecycle_state: "triage_pending",
+      customer_status: "received",
+      queue_key: "tenant_support",
+      assignment_status: "queue_assigned",
+      assigned_to: null,
+      service_mode: "managed",
+      dedupe_key: "ticket:v2:safe",
+      occurrence_count: 1,
+      customer_message: "We received your request.",
+      created_at: now,
+      updated_at: now,
+      last_seen_at: now,
+      latest_activity_at: now,
+      first_response_due_at: now,
+      triage_due_at: now,
+      resolution_due_at: now,
+      first_response_at: null,
+      triaged_at: null,
+      sla_status: "on_track",
+      metadata_json: JSON.stringify({ customer_safe: true }),
+      is_test: 0,
+      environment: "production",
+      visibility_class: "customer_visible",
+      target_capability: null,
+      related_ticket_id: null,
+      parent_ticket_id: null,
+      supersedes_ticket_id: null,
+      internal_summary: "must never be returned",
+      actor_id: "internal-actor",
+      source_tool: "internal-tool",
+    }]];
+  },
+  release() {},
+};
+const listed = await listSupportTicketsWithIntegrity(
+  { tenant_id: "tenant-a", user_id: "user-a", include_test: false, limit: 10 },
+  { pool: { async getConnection() { return listConnection; } } },
+);
+const listSql = listQueries[1].sql;
+assert.doesNotMatch(listSql, /SELECT\s+\*/i);
+assert.doesNotMatch(listSql, /customer_message\s+IS\s+NOT\s+NULL/i);
+assert.match(listSql, /\(t\.user_id = \? OR t\.user_id IS NULL\)/);
+assert.match(listSql, /ticket_lifecycle_events/);
+assert.equal(listed.tickets.length, 1);
+assert.equal("internal_summary" in listed.tickets[0], false);
+assert.equal("actor_id" in listed.tickets[0], false);
+assert.equal("source_tool" in listed.tickets[0], false);
+
+const reconcileQueries = [];
+const reconciliationRows = [
+  {
+    ticket_id: "ticket-newer",
+    tenant_id: "tenant-a",
+    title: "Newer",
+    status: "open",
+    lifecycle_state: "triage_pending",
+    customer_status: "received",
+    priority: "normal",
+    assigned_to: null,
+    sla_status: "breached",
+    first_response_due_at: "2026-08-01T08:00:00Z",
+    triage_due_at: "2026-08-01T09:00:00Z",
+    resolution_due_at: "2026-08-03T00:00:00Z",
+    stored_first_response_at: null,
+    stored_triaged_at: null,
+    first_response_at: "2026-08-01T07:55:00Z",
+    triaged_at: "2026-08-01T08:30:00Z",
+    last_seen_at: now,
+    updated_at: now,
+    created_at: now,
+    reconciliation_activity_at: "2026-08-01T11:00:00Z",
+    metadata_json: {},
+    is_test: 0,
+    environment: "production",
+    visibility_class: "customer_visible",
+  },
+  {
+    ticket_id: "ticket-middle",
+    tenant_id: "tenant-a",
+    title: "Middle",
+    status: "open",
+    lifecycle_state: "triage_pending",
+    customer_status: "received",
+    priority: "normal",
+    assigned_to: null,
+    sla_status: "on_track",
+    first_response_due_at: "2026-08-02T08:00:00Z",
+    triage_due_at: "2026-08-02T09:00:00Z",
+    resolution_due_at: "2026-08-03T00:00:00Z",
+    stored_first_response_at: null,
+    stored_triaged_at: null,
+    first_response_at: null,
+    triaged_at: null,
+    last_seen_at: now,
+    updated_at: now,
+    created_at: now,
+    reconciliation_activity_at: "2026-08-01T10:00:00Z",
+    metadata_json: {},
+    is_test: 0,
+    environment: "production",
+    visibility_class: "customer_visible",
+  },
+  {
+    ticket_id: "ticket-older",
+    tenant_id: "tenant-a",
+    title: "Older",
+    status: "open",
+    lifecycle_state: "triage_pending",
+    customer_status: "received",
+    priority: "normal",
+    assigned_to: null,
+    sla_status: "on_track",
+    first_response_due_at: "2026-08-02T08:00:00Z",
+    triage_due_at: "2026-08-02T09:00:00Z",
+    resolution_due_at: "2026-08-03T00:00:00Z",
+    stored_first_response_at: null,
+    stored_triaged_at: null,
+    first_response_at: null,
+    triaged_at: null,
+    last_seen_at: now,
+    updated_at: now,
+    created_at: now,
+    reconciliation_activity_at: "2026-08-01T09:00:00Z",
+    metadata_json: {},
+    is_test: 0,
+    environment: "production",
+    visibility_class: "customer_visible",
+  },
+];
+const reconcileConnection = {
+  async query(sql, params = []) {
+    reconcileQueries.push({ sql, params });
+    if (sql.includes("INFORMATION_SCHEMA.COLUMNS")) {
+      return [requiredIntegrityColumns.map((COLUMN_NAME) => ({ COLUMN_NAME }))];
+    }
+    return [reconciliationRows];
+  },
+  release() {},
+};
+const reconciliation = await reconcileSupportTicketIntegrity(
+  { tenant_id: "tenant-a", limit: 2, apply: false },
+  { pool: { async getConnection() { return reconcileConnection; } } },
+);
+assert.equal(reconciliation.count, 2);
+assert.equal(reconciliation.has_more, true);
+assert.deepEqual(reconciliation.next_cursor, {
+  activity_at: "2026-08-01T10:00:00Z",
+  ticket_id: "ticket-middle",
+});
+assert.equal(reconciliation.findings[0].milestone_evidence.first_response_backfill_required, true);
+assert.equal(reconciliation.findings[0].milestone_evidence.triage_backfill_required, true);
+assert.match(reconcileQueries[1].sql, /stored_first_response_at/);
+assert.match(reconcileQueries[1].sql, /ticket_lifecycle_events/);
+assert.equal(reconcileQueries[1].params.at(-1), 3, "reconciliation must fetch one extra row for has_more");
+
+await assert.rejects(
+  reconcileSupportTicketIntegrity(
+    { limit: 2, cursor_activity_at: "2026-08-01T10:00:00Z" },
+    { pool: { async getConnection() { return reconcileConnection; } } },
+  ),
+  (error) => error?.status === 400 && error?.code === "support_ticket_integrity_cursor_incomplete",
+);
+
 const migration = await readFile(new URL("./migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql", import.meta.url), "utf8");
 for (const column of [
   "is_test",
@@ -213,6 +458,8 @@ assert.match(routeSource, /router\.post\("\/me\/support\/tickets"/);
 assert.match(routeSource, /router\.get\("\/me\/support\/tickets"/);
 assert.match(routeSource, /include_test:\s*false/);
 assert.match(routeSource, /APPLY_SUPPORT_TICKET_INTEGRITY_RECONCILIATION/);
+assert.match(routeSource, /cursor_activity_at/);
+assert.match(routeSource, /cursor_ticket_id/);
 assert.match(routeSource, /import\s+\{\s*createUserJwtMiddleware\s*\}\s+from\s+"\.\.\/userJwtAuth\.js"/);
 assert.match(routeSource, /deps\.requireUserJwt\s*\|\|\s*createUserJwtMiddleware/);
 assert.doesNotMatch(routeSource, /from\s+["']jsonwebtoken["']/);
@@ -237,6 +484,20 @@ assert.match(creationSource, /await connection\.beginTransaction\(\)/);
 assert.match(creationSource, /await connection\.commit\(\)/);
 assert.match(creationSource, /await connection\.rollback\(\)/);
 assert.match(creationSource, /connection,\s*\n\s*\}\)/);
+assert.match(creationSource, /environment = \?/);
+assert.match(creationSource, /visibility_class = \?/);
+
+const integritySource = await readFile(new URL("./supportTicketLifecycleIntegrityService.js", import.meta.url), "utf8");
+assert.doesNotMatch(integritySource, /TEST_TITLE_PATTERN/);
+assert.doesNotMatch(integritySource, /customer_message IS NOT NULL/);
+assert.match(integritySource, /CUSTOMER_SAFE_TICKET_SELECT/);
+assert.match(integritySource, /FIRST_RESPONSE_EVIDENCE_SQL/);
+assert.match(integritySource, /TRIAGE_EVIDENCE_SQL/);
+assert.match(integritySource, /first_response_at = COALESCE\(first_response_at, \?\)/);
+assert.match(integritySource, /triaged_at = COALESCE\(triaged_at, \?\)/);
+assert.match(integritySource, /support_ticket_integrity_cursor_incomplete/);
+assert.match(integritySource, /has_more: hasMore/);
+assert.match(integritySource, /next_cursor: nextCursor/);
 
 const indexSource = await readFile(new URL("./routes/index.js", import.meta.url), "utf8");
 const integrityMount = indexSource.indexOf("buildSupportTicketLifecycleIntegrityRoutes");
@@ -245,4 +506,4 @@ assert.ok(integrityMount >= 0, "integrity router must be registered");
 assert.ok(legacyMount >= 0, "legacy support router must remain registered");
 assert.ok(integrityMount < legacyMount, "integrity router must mount before legacy support router");
 
-console.log("support ticket lifecycle, SLA, visibility, dedupe, centralized JWT, tenant ambiguity, schema preflight, and atomic rollback tests passed");
+console.log("support ticket lifecycle, SLA evidence, customer-safe projection, test isolation, pagination, centralized JWT, tenant ambiguity, schema preflight, and atomic rollback tests passed");
