@@ -94,14 +94,16 @@ jobs:
           const reserve = core.indexOf('authority_store.readReserve(');
           const preflight = core.indexOf('preflight({ protocol, protocolDigest: protocol_digest, repository, adapter, now });');
           const consume = core.indexOf('enablement_registry.consume({');
-          const repositoryBrand = wrapper.indexOf('requireCanonicalRepository(repository);');
-          const adapterBrand = wrapper.indexOf('requireCanonicalAdapter(adapter);');
-          const storeBrand = wrapper.indexOf('requireCanonicalAuthorityStore(authorityStore);');
-          const registryBrand = wrapper.indexOf('requireCanonicalEnablementRegistry(enablementRegistry);');
-          const quorumRead = wrapper.indexOf('store.readQuorum(record.policy_id)');
-          const planStatus = wrapper.indexOf('preflightPlanStatus({ authorization, repository });');
-          const capturedInput = wrapper.indexOf('const capturedInput = Object.freeze');
-          const coreDispatch = wrapper.indexOf('return executeCoreCanary(capturedInput);');
+          const executeStart = wrapper.indexOf('export function executeHostingerStorageSharedCanary(input = {})');
+          const executeBody = wrapper.slice(executeStart);
+          const repositoryBrand = executeBody.indexOf('requireCanonicalRepository(repository);');
+          const adapterBrand = executeBody.indexOf('requireCanonicalAdapter(adapter);');
+          const storeBrand = executeBody.indexOf('requireCanonicalAuthorityStore(authorityStore);');
+          const registryBrand = executeBody.indexOf('requireCanonicalEnablementRegistry(enablementRegistry);');
+          const quorumRead = executeBody.indexOf('governedQuorumBlockers(quorumRecord, authorityStore');
+          const planStatus = executeBody.indexOf('preflightPlanStatus({ authorization, repository });');
+          const capturedInput = executeBody.indexOf('const capturedInput = Object.freeze');
+          const coreDispatch = executeBody.indexOf('return executeCoreCanary(capturedInput);');
           if (!(impact >= 0 && approvals > impact && layout > approvals && reserve > layout && preflight > reserve && consume > preflight)) {
             throw new Error('Shared authority readback and executor preflight must complete before one-shot enablement consumption.');
           }
