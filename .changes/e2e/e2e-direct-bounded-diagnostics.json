@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "e2e-direct-bounded-diagnostics",
+  "title": "Bounded redacted diagnostics for direct E2E phase tests",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
+      ".changes/e2e/e2e-direct-bounded-diagnostics.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Place the first failing direct E2E test's bounded redacted stdout and stderr inside the canonical execution artifact so Job logs are not required for ordinary diagnosis.",
+      "e2e_journeys": [
+        {
+          "id": "capture-direct-test-failure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and reviewer",
+          "entrypoint": "A direct phase test exits non-zero after writing stdout and secret-like stderr",
+          "terminal_outcome": "The execution report preserves the exit code and includes bounded redacted diagnostic streams without exposing the secret-like value.",
+          "steps": [
+            "Execute the direct phase test with captured stdout and stderr.",
+            "Echo only redacted output when the test fails.",
+            "Store bounded diagnostic stream metadata and tails on the failed result.",
+            "Mark Job logs as diagnostic-only in the execution report."
+          ],
+          "assertions": [
+            "The original non-zero exit code is preserved.",
+            "The secret-like diagnostic value is removed.",
+            "The diagnostic tail is bounded to the shared maximum.",
+            "The execution report declares secrets_included=false.",
+            "The report itself contains enough evidence for normal root-cause triage."
+          ],
+          "tests": [
+            {
+              "id": "direct-e2e-bounded-diagnostic-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/e2e-phase-governance.mjs",
+            "http-generic-api/scripts/test-e2e-phase-governance-bounded-diagnostics.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Surface the first bounded direct-test diagnostic in the PR evidence comment."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise spawn errors, invalid UTF-8, oversized dual streams, and diagnostic helper failure."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe direct E2E failure reports across representative repository workflows."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require bounded diagnostics for every direct E2E failure before protected-branch merge readiness."
+    }
+  ]
+}

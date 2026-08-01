@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-generated-artifact-openapi-ordering",
+  "title": "Precise OpenAPI composition ordering in generated artifact evaluation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/test-openapi-autofill-missing-routes.mjs",
+      ".changes/e2e/ci-generated-artifact-openapi-ordering.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify that the registered generated-artifact runner composes authoritative precise OpenAPI contracts before generic route autofill and executes the regression before deciding readiness.",
+      "e2e_journeys": [
+        {
+          "id": "verify-precise-before-generic-autofill",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and reviewer",
+          "entrypoint": "OpenAPI autofill regression reads the registered refresh runner and executes isolated route fixtures",
+          "terminal_outcome": "The regression proves precise registry composition precedes generic autofill, registry-only paths remain authoritative, and occupied root paths fail closed.",
+          "steps": [
+            "Verify the pull-request evaluator delegates to the registered refresh runner.",
+            "Verify the runner orders precise registry synchronization before generic autofill.",
+            "Verify the runner executes this regression before its canonical decision.",
+            "Exercise missing, composed, final-check, and occupied-root fixture states."
+          ],
+          "assertions": [
+            "Registry-only precise paths are composed even when generic route discovery cannot find them.",
+            "Generic autofill creates only the remaining uncovered stub.",
+            "Subsequent precise and generic checks pass after composition.",
+            "An occupied conflicting root path fails closed.",
+            "The regression follows runner composition rather than deprecated inline workflow commands."
+          ],
+          "tests": [
+            {
+              "id": "openapi-autofill-ordering-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-autofill-missing-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-openapi-autofill-missing-routes.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Surface precise-versus-generic ordering failures directly in generated-artifact canonical comments."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise duplicate registry entries, malformed path-item refs, and partial composition rollback."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe ordering evidence on representative OpenAPI route additions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require precise-before-generic composition evidence for protected-branch readiness."
+    }
+  ]
+}
