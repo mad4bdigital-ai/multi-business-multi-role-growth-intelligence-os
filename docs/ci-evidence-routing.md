@@ -87,6 +87,16 @@ Never combine evidence from different candidates into one unlabeled status.
 
 For workstream failures, `e2e-parallel-test-runner.mjs` places bounded redacted stdout and stderr tails inside `e2e-parallel-execution.json`. Raw Job logs remain secondary.
 
+For direct phase tests, `e2e-phase-governance.mjs` captures stdout and stderr instead of discarding them. The first failed result contains:
+
+- the original exit code;
+- `diagnostic.stdout` and `diagnostic.stderr` produced by the shared bounded diagnostic helper;
+- redaction status, original size, returned size, SHA-256, truncation state, and a tail limited to 12,000 characters;
+- `secrets_included: false`;
+- `diagnostics.job_logs_role: diagnostic_only`.
+
+The direct execution report therefore remains the normal diagnostic authority. Job logs are consulted only when the canonical router explicitly reports missing, malformed, or insufficient structured evidence.
+
 ## Branch Test Diagnostic Shards
 
 `Branch Test Diagnostic Shards` publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. It is merge-candidate evidence; `ref` and `commitSha` identify the synthetic commit tested. Use its exact rerun coordinates rather than reading every shard log.
@@ -134,6 +144,8 @@ It requires:
 The tool verifies both local and remote head identity before generation, before commit, and before normal fast-forward push. It rejects `main`, `Production`, force push, concurrent branch movement, and every changed path outside its registered allowlist.
 
 Its canonical report contract is `mad4b.governed-generated-artifact-refresh.v1`. The JSON and Markdown report are uploaded before enforcement and declare `secrets_included: false` and `job_logs_role: diagnostic_only`.
+
+After the governed tool determines the resulting exact head, the workflow dispatches the read-only `PR Generated Artifact Refresh` evaluator for that SHA. This closes the GitHub Actions token boundary where a bot-authored generated commit would otherwise not start pull-request checks automatically.
 
 ## Repository Tool Lifecycle Governance
 
