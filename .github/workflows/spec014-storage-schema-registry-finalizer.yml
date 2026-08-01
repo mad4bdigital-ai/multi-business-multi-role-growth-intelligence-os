@@ -27,15 +27,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Repair finalizer literal escaping
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.github/scripts/finalize-spec014-storage-schema-registry.mjs')
-          text = path.read_text()
-          text = text.replace('${entry.name}: one canonical exact rule required', r'\${entry.name}: one canonical exact rule required')
-          path.write_text(text)
-          PY
       - name: Validate and apply bounded exact registry rules
         run: |
           node --check .github/scripts/finalize-spec014-storage-schema-registry.mjs
