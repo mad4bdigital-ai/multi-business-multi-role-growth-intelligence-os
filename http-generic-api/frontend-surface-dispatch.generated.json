@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c1b8ace39efd469c366d44088146dbc7ebd6f403909f1e9500e490ce246b2438",
+    "source_digest": "88d02985c7f293ff90e7303ea9013495c84a584390bb849f2689111d22404092",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "3a67e69cbed7a4f523cafe0c4d3e8e0a67e57e273202dff27d2f9c40ba959d94",
+        "sha256": "9b38355e2fd263bd584628cc13e0f6213b797e93a7bbe40b428e863163a60743",
         "present": true
       },
       {
@@ -616,7 +616,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+        "sha256": "fd11412bf42400e61891dad90afe4110adcc479e91a967f531895214eff9b71e",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c3f99169d147cec6a6e0fede6697ede94c4b70e419c0c1559d14f40bbbe725b8",
+        "sha256": "d1556d6393d0d20c68ef75f16dd4877aafa9bdef9e08e3401836ef54ce7e1409",
         "present": true
       },
       {
@@ -18677,7 +18677,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+      "source_digest": "fd11412bf42400e61891dad90afe4110adcc479e91a967f531895214eff9b71e",
       "mount_prefix": "/",
       "mount_order": 14962,
       "split_from_mixed_scope_file": false,
