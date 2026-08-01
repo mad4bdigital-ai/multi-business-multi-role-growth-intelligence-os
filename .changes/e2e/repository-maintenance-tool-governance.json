@@ -4,7 +4,7 @@
   "feature_key": "repository-maintenance-tool-governance",
   "title": "Repository maintenance tool lifecycle governance",
   "delivery_mode": "single_pr",
-  "current_phase": "operational",
+  "current_phase": "resilient",
   "scope": {
     "include": [
       ".github/pull_request_template.md",
@@ -107,25 +107,31 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on missing registration, unsafe mutation authority, workflow self-modification, and ambiguous tool lifecycle.",
+      "objective": "Fail closed on candidate policy tampering, unsafe registered tool bodies, undeclared write authority, missing registration, workflow self-modification, and ambiguous tool lifecycle.",
       "e2e_journeys": [
         {
           "id": "repository-tool-mutation-safety-fail-closed",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "automation attempting an unsafe repository mutation",
-          "entrypoint": "Changed workflow or maintenance script",
-          "terminal_outcome": "Unsafe automation is blocked with a bounded finding code and remediation before it reaches main.",
+          "entrypoint": "Changed workflow, candidate policy, or registered maintenance script",
+          "terminal_outcome": "Unsafe automation or policy weakening is blocked with a bounded finding code and remediation before it reaches main.",
           "steps": [
-            "Detect contents write combined with pull-request execution.",
-            "Detect work-branch literals, force push, and workflow self-deletion.",
-            "Require reusable maintenance scripts to be registered under the governed root.",
-            "Require future mutating tools to use explicit dispatch, expected head verification, and protected-branch rejection."
+            "Reject candidate policy changes that disable mandatory rules, remove protected branches, alter the governed root, or invalidate the canonical guard registration.",
+            "Retain baseline forbidden one-shot and trigger patterns even when the candidate policy omits them.",
+            "Read every registered maintenance tool entrypoint and compare declared mode with detected repository mutation behavior.",
+            "Detect pull-request write-all authority and repository pushes independently of the declared GitHub token permission block.",
+            "Require mutating tools and workflows to verify expected head identity and reject main and Production.",
+            "Detect work-branch literals, force push, and workflow self-deletion."
           ],
           "assertions": [
-            "No temporary automation can pass by hiding inside a versioned workflow name.",
-            "No one-off .trigger artifact can merge.",
-            "No unregistered maintenance tool can merge.",
+            "No candidate can disable a mandatory safety rule in the same pull request that introduces unsafe automation.",
+            "No registered read-only tool can contain git push or API mutation behavior.",
+            "No mutating registered tool can omit a changed-path allowlist, expected-head verification, or protected-branch rejection.",
+            "No pull-request workflow can gain write authority through permissions write-all.",
+            "No external credential or read-scoped workflow can bypass mutation guards when its body performs a repository write.",
+            "No temporary automation can pass by hiding inside a versioned or once-suffixed workflow name.",
+            "Deleting a prohibited temporary artifact is accepted as remediation rather than reported as surviving automation.",
             "Findings contain no repository secret or changed-file content."
           ],
           "tests": [
@@ -138,7 +144,10 @@
             }
           ],
           "evidence_paths": [
-            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
+            ".github/repository-maintenance-tool-governance.json",
+            "docs/repository-maintenance-tool-governance.md",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
           ]
         }
       ]
