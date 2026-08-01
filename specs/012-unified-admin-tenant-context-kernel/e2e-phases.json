@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "012-unified-admin-tenant-context-kernel",
+  "title": "Execution Capsule EC4 mutation dispatch and EC5 rollout governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/contextKernel/integration/executionCapsuleMutationDispatchGate.js",
+      "http-generic-api/contextKernel/integration/executionCapsuleRuntimeRollout.js",
+      "http-generic-api/contextKernel/integration/index.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+      "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+      "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+      "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md",
+      "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/e2e-phases.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the complete default-off synthetic mutation-dispatch-to-rollout-readback journey without granting runtime or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "execution-capsule-mutation-dispatch-to-rollout-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_operator",
+          "entrypoint": "Execution Capsule mutation dispatch integration boundary",
+          "terminal_outcome": "A reversible mutation dispatch is accepted only with complete current evidence, and rollout or legacy retirement remains gated by exact approval, executor readback, and rollback evidence.",
+          "steps": [
+            "Build an immutable Execution Capsule and reversible mutation operation contract",
+            "Refresh and bind approval, capability, authority, resource, provider, connection, and expected-SHA evidence",
+            "Project a secret-safe dispatch envelope and execute the bounded synthetic mutation adapter",
+            "Evaluate rollout and legacy-retirement readiness with exact executor readback and rollback controls"
+          ],
+          "assertions": [
+            "Incomplete, stale, mismatched, substituted, or secret-like evidence fails closed",
+            "Dispatch input remains bound to the exact tenant, workspace, brand, resource, connection, and expected SHA",
+            "Readiness evaluation cannot retire a legacy resolver or grant runtime authority automatically",
+            "The synthetic journey returns bounded readback and rollback evidence"
+          ],
+          "tests": [
+            {
+              "id": "execution-capsule-ec4-ec5-synthetic-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-execution-capsule-mutation-and-rollout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+            "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+            "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Mount the governed boundaries with durable operational controls after separate authorization."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Certify fault injection, unknown-outcome reconciliation, and recovery under mounted runtime conditions."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the same journey against an authorized live non-production target."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA and runtime readback under separate release authorization."
+    }
+  ]
+}

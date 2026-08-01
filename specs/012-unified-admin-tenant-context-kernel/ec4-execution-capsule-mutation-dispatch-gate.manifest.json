@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "slice_key": "spec-012-ec4-execution-capsule-mutation-dispatch-gate",
+  "parent_extension": "spec-012-execution-capsule-runtime-integration",
+  "phase": "EC4_mutation_dispatch_gate",
+  "status": "in_progress",
+  "runtime_authority": false,
+  "production_activation": false,
+  "provider_call": false,
+  "database_write": false,
+  "migration_apply": false,
+  "route_or_openapi_change": false,
+  "deployment": false,
+  "depends_on": [
+    "ec4-execution-capsule-mutation-validation-pilot.manifest.json"
+  ],
+  "artifacts": [
+    "ec4-execution-capsule-mutation-dispatch-gate.md",
+    "../../http-generic-api/contextKernel/integration/executionCapsuleMutationDispatchGate.js",
+    "../../http-generic-api/contextKernel/integration/index.js",
+    "../../http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+    "../../http-generic-api/scripts/test-manifest.mjs"
+  ],
+  "implemented_contracts": [
+    "default_off_reversible_mutation_dispatch_gate",
+    "canonical_capsule_validation",
+    "complete_current_dependency_vector_validation",
+    "complete_non_reducible_seven_item_dynamic_evidence_frontier",
+    "dynamic_refresh_complete_before_dispatch",
+    "approval_capability_authority_resource_provider_connection_and_expected_sha_evidence",
+    "operation_and_context_binding_for_every_dynamic_evidence_item",
+    "dispatch_input_context_identity_binding",
+    "resource_type_derived_input_reference_binding",
+    "dispatch_input_expected_sha_bound_to_refreshed_evidence",
+    "no_silent_tenant_workspace_brand_resource_or_connection_substitution",
+    "context_re_resolution_required_on_target_change",
+    "independent_mutation_governance_required",
+    "bounded_secret_safe_dispatch_input_projection",
+    "raw_evidence_and_capsule_excluded_from_dispatch",
+    "rollback_operation_contract_required",
+    "legacy_dispatch_identity_when_disabled",
+    "bounded_non_authoritative_telemetry"
+  ],
+  "pending_contracts": [
+    "generated_test_manifest_evidence_refresh",
+    "exact_head_ci_evidence",
+    "human_architecture_security_review",
+    "post_merge_main_readback"
+  ],
+  "constraints": [
+    "capsule_never_grants_execution_by_itself",
+    "reversible_mutation_only",
+    "no_reduced_dynamic_evidence_contract",
+    "no_dispatch_input_target_substitution",
+    "no_dispatch_input_expected_sha_substitution",
+    "no_silent_context_substitution",
+    "no_runtime_mount",
+    "no_provider_call",
+    "no_database_write",
+    "no_migration_apply",
+    "no_credential_mutation",
+    "no_production_activation",
+    "no_deployment"
+  ],
+  "secrets_included": false
+}
