@@ -89,6 +89,10 @@ import {
 } from "../capabilityEnablementBroker.js";
 import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import {
+  aggregatePlatformEndpointToolRows,
+  resolvePlatformEndpointToolBinding,
+} from "../platformEndpointToolAggregation.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -831,24 +835,16 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
         WHERE x.status = 'active'
           AND x.scope_class IN (?, ?)
           ${tenantClause.sql}
-        ORDER BY x.tool_name`,
+        ORDER BY x.tool_name, x.parent_action_key, x.endpoint_key`,
       [...scopeClasses, ...tenantClause.params]
     );
 
-    return rows
-      .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
-      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name))
-      .map((row) => ({
-        name: row.tool_name,
-        description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
-        requires_admin: row.scope_class === "admin",
-        inputSchema: normalizePlatformEndpointInputSchema(row.input_schema_json),
-        x_platform_endpoint: {
-          parent_action_key: row.parent_action_key,
-          endpoint_key: row.endpoint_key,
-          source: "platform_endpoint_tool_exports",
-        },
-      }));
+    return aggregatePlatformEndpointToolRows(rows, {
+      existingNames,
+      blockedNames: TENANT_BLOCKED_SYSTEM_TOOL_NAMES,
+      isAdmin: isAdminPrincipal(auth),
+      normalizeInputSchema: normalizePlatformEndpointInputSchema,
+    });
   } catch (err) {
     console.error("[systemLayerTools] Failed to list platform endpoint exports:", err?.message || err);
     return [];
@@ -1101,7 +1097,7 @@ function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
       readback: args.readback || { required: false, mode: "none" },
     };
 
-    for (const optionalAuthField of ["user_id", "tenant_id", "target_key", "brand_key", "brand_domain", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
+    for (const optionalAuthField of ["user_id", "tenant_id", "target_key", "brand_key", "brand_domain", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "mutation_approval", "dry_run", "preflight_only", "dry_run_preflight_completed", "approved_preflight_dry_run_validated", "live_execution_approved", "expect_json", "execution_trace_id", "source_layer"]) {
       if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
         payload[optionalAuthField] = args[optionalAuthField];
       }
@@ -1313,27 +1309,12 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
         AND x.status = 'active'
         AND x.scope_class IN (?, ?)
         ${tenantClause.sql}
-      LIMIT 2`,
+      ORDER BY x.parent_action_key, x.endpoint_key`,
     [name, ...scopeClasses, ...tenantClause.params]
   );
 
-  if (!rows.length) {
-    return { handled: false };
-  }
-
-  if (rows.length > 1) {
-    const err = new Error("The visible platform endpoint tool name resolves to more than one active binding.");
-    err.status = 409;
-    err.code = "platform_endpoint_tool_binding_ambiguous";
-    err.details = {
-      tool_name: String(name || ""),
-      candidate_count: rows.length,
-      secrets_included: false,
-    };
-    throw err;
-  }
-
-  const [row] = rows;
+  const row = resolvePlatformEndpointToolBinding(rows, { toolName: name, args });
+  if (!row) return { handled: false };
 
   if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
     const err = new Error("This platform endpoint tool requires admin access.");
