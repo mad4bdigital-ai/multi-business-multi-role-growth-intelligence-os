@@ -1,0 +1,7 @@
+{
+  "surface_key": "governed_policy_approvals",
+  "source_table": "governed_policy_approvals",
+  "reason": "Excluded temporarily because PR 4181 contributes an unregistered and unapplied approval persistence design only. Tenant-facing activation exposure and runtime route wiring remain deferred to governed T026 delivery.",
+  "owner": "spec-012-platform-governance",
+  "review_after": "2026-12-31"
+}

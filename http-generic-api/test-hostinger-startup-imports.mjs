@@ -26,6 +26,8 @@ async function importModule(relativePath) {
 }
 
 const syntaxOnlyFiles = [
+  "../server.js",
+  "../hostinger-entrypoint-runtime.js",
   "server.js",
   "routes/activationRoutes.js",
   "routes/gptSessionRoutes.js",
@@ -59,6 +61,16 @@ assert(
   serverSource.includes("resolveAgentModelProvider"),
   "server.js must pass the effective model provider resolver into routes"
 );
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeGuard\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime guard exactly once"
+);
+assert.equal(
+  (serverSource.match(/app\.use\(createOperationRuntimeErrorHandler\(\)\)/g) || []).length,
+  1,
+  "server.js must mount the operation runtime error handler exactly once"
+);
 
 const devAgentRoutesSource = readFileSync(join(__dirname, "routes/devAgentRoutes.js"), "utf8");
 assert(
@@ -73,6 +85,54 @@ const routesIndexSource = readFileSync(join(__dirname, "routes/index.js"), "utf8
 assert(
   routesIndexSource.includes("buildN8nWorkflowRuntimeRoutes"),
   "n8n workflow runtime routes must stay mounted"
+);
+assert.equal(
+  (routesIndexSource.match(/buildBackupArtifactRoutes\(deps\)/g) || []).length,
+  1,
+  "backup artifact routes must be mounted exactly once"
+);
+assert.equal(
+  (routesIndexSource.match(/buildRegistryDataManagementRoutes\(\{ \.\.\.deps, requireAdminPrincipal \}\)/g) || []).length,
+  1,
+  "registry data management routes must be mounted exactly once with admin and tenant guards"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeGuard"),
+  false,
+  "operation runtime guard must be mounted only by server.js"
+);
+assert.equal(
+  routesIndexSource.includes("createOperationRuntimeErrorHandler"),
+  false,
+  "operation runtime error handler must be mounted only by server.js"
+);
+
+const rootEntrypointSource = readFileSync(join(__dirname, "..", "server.js"), "utf8");
+const rootRuntimeSource = readFileSync(
+  join(__dirname, "..", "hostinger-entrypoint-runtime.js"),
+  "utf8"
+);
+assert(
+  rootRuntimeSource.includes("error.stack"),
+  "root Hostinger runtime helpers must preserve startup stack traces"
+);
+assert.equal(
+  /^\s*if\s*\(\s*require\.main\s*===\s*module\s*\)/m.test(rootEntrypointSource),
+  false,
+  "root Hostinger entrypoint must not depend on require.main detection"
+);
+assert(
+  rootEntrypointSource.includes("const startupPromise = startApplication()"),
+  "root Hostinger entrypoint must start when loaded by the platform wrapper"
+);
+assert(
+  rootEntrypointSource.includes('require("./hostinger-entrypoint-runtime.js")'),
+  "root Hostinger entrypoint must use the side-effect-free runtime helper module"
+);
+assert.equal(
+  /const\s+startupPromise\s*=\s*startApplication\s*\(/.test(rootRuntimeSource),
+  false,
+  "Hostinger runtime helper imports must not launch the real server"
 );
 
 const modelReadinessMigration = readFileSync(

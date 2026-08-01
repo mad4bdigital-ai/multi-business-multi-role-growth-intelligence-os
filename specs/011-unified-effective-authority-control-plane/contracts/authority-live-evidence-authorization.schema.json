@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/ueacp/authority-live-evidence-authorization.schema.json",
+  "title": "UEACP Governed Live Evidence Authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "operation_mode",
+    "operation_ref",
+    "environment",
+    "target_schema",
+    "issued_at",
+    "expires_at",
+    "approved",
+    "read_only",
+    "applies_sql",
+    "provider_calls",
+    "credential_payload_read",
+    "external_writes",
+    "secrets_included"
+  ],
+  "properties": {
+    "contract": { "const": "mad4b.ueacp.authority-live-evidence-authorization.v1" },
+    "operation_mode": { "const": "read_only_live_authority_evidence" },
+    "operation_ref": { "$ref": "#/$defs/token" },
+    "environment": { "$ref": "#/$defs/token" },
+    "target_schema": { "$ref": "#/$defs/token" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "approved": { "const": true },
+    "read_only": { "const": true },
+    "applies_sql": { "const": false },
+    "provider_calls": { "const": false },
+    "credential_payload_read": { "const": false },
+    "external_writes": { "const": false },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 221,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$"
+    }
+  }
+}

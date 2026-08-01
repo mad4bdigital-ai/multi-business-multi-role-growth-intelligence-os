@@ -1,0 +1,20 @@
+{
+  "phase": "phase4_reconciliation_readback_wave",
+  "tasks": ["T160", "T161", "T162", "T163", "T164", "T165", "T166"],
+  "delivery_mode": "integrated_phase_wave",
+  "kernel_version": "spec011-governed-reconciliation-kernel-v2",
+  "same_operation_evidence_required": true,
+  "required_domains": [
+    "repository_pr",
+    "migration_ledger",
+    "deployment_parity",
+    "provider_adapter"
+  ],
+  "production_mutation": false,
+  "migration_apply": false,
+  "provider_write": false,
+  "automatic_retry": false,
+  "public_route": false,
+  "runtime_authority_changed": false,
+  "secrets_included": false
+}

@@ -1,4 +1,5 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
+import { testCommands as spec012Commands } from "./manifests/test-manifest-spec012.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
@@ -61,6 +62,7 @@ const staticDiscoveryCommands = [
   "node test-platform-plugin-contract-docs.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-resource-recipe-capability.mjs",
+  "node test-production-promotion-convergence-workflows.mjs",
   "node test-registry-data-management-service.mjs",
   "node test-remaining-resource-capability-completion-gates.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
@@ -88,6 +90,7 @@ const staticDiscoveryCommands = [
 export const testCommands = Object.freeze([
   ...new Set([
     ...spec011Commands,
+    ...spec012Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
