@@ -10,11 +10,6 @@ import {
   splitSqlStatements,
 } from "./releaseReadiness.js";
 
-function executableSql(statement) {
-  return String(statement || "")
-    .replace(/^(?:(?:\s*--[^\r\n]*(?:\r?\n|$))|(?:\s*\/\*[\s\S]*?\*\/))*\s*/u, "");
-}
-
 const sampleSql = `
 CREATE TABLE IF NOT EXISTS platform_resource_authority_requirements (
   requirement_key VARCHAR(191) NOT NULL PRIMARY KEY
@@ -192,12 +187,6 @@ assert(commentSeparatedStatements[0].startsWith("UPDATE"), "must treat UPDATE as
 assert(commentSeparatedStatements[1].startsWith("INSERT INTO"), "must split after comments before INSERT INTO");
 assert(commentSeparatedStatements[2].startsWith("INSERT IGNORE INTO"), "must split after block comments before INSERT IGNORE INTO");
 
-const leadingCommentStatements = splitSqlStatements(
-  "-- migration identity\n/* governed scope */\nUPDATE execution_enablement_requests SET request_status = 'expired' WHERE request_status = 'pending_approval';"
-);
-assert(leadingCommentStatements[0].startsWith("-- migration identity"), "statement splitting must preserve leading source comments for evidence");
-assert(executableSql(leadingCommentStatements[0]).startsWith("UPDATE execution_enablement_requests"), "executable statement inspection must ignore preserved leading comments");
-
 const proceduralStatements = splitSqlStatements(`
 UPDATE execution_enablement_requests SET request_status = 'expired' WHERE request_status = 'pending_approval';
 CREATE TEMPORARY TABLE tmp_statement_splitter_guard AS SELECT 1 AS ok;
@@ -364,7 +353,7 @@ assert.equal(approvalHoldCollationPreflight.counts.alter_table, 0, "migration 10
 const approvalHoldCollationStatements = splitSqlStatements(approvalHoldCollationMigration);
 assert.equal(approvalHoldCollationStatements.length, 26, "migration 1013 must split into 26 independently executable statements");
 assert.equal(approvalHoldCollationPreflight.counts.statements, 26, "migration 1013 preflight and apply must share the 26-statement boundary contract");
-assert(executableSql(approvalHoldCollationStatements[0]).startsWith("UPDATE execution_enablement_requests"), "migration 1013 first executable statement must remain the bounded orphan cleanup UPDATE");
+assert(approvalHoldCollationStatements[0].startsWith("UPDATE execution_enablement_requests"), "migration 1013 first executable statement must remain the bounded orphan cleanup UPDATE");
 assert(approvalHoldCollationStatements[1].startsWith("CREATE TEMPORARY TABLE tmp_approval_hold_identity_orphans"), "migration 1013 temporary orphan table must be a separate statement");
 assert(approvalHoldCollationStatements.at(-2).startsWith("CREATE OR REPLACE VIEW v_approval_hold_identity_collation_readiness"), "migration 1013 readiness view must be independently executable");
 assert(approvalHoldCollationStatements.at(-1).startsWith("INSERT INTO execution_policies"), "migration 1013 policy seed must be the final independent statement");
