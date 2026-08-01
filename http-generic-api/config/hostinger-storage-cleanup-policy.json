@@ -1,0 +1,111 @@
+{
+  "schema_version": "mad4b.hostinger-storage-control.v1",
+  "provider": "hostinger",
+  "scope": "hosting_plan_account",
+  "purpose": "Prevent disk or inode exhaustion from blocking File Manager, environment-variable updates, deployments, and runtime operations.",
+  "measurement": {
+    "authoritative_limits_source": "hpanel_resources_usage",
+    "ssh_inventory_source": "account_filesystem",
+    "dimensions": ["disk_bytes", "inode_count"],
+    "warning_percent": 70,
+    "critical_percent": 80,
+    "emergency_percent": 90,
+    "hpanel_usage_refresh_minutes": 15,
+    "never_treat_df_as_hosting_plan_quota": true
+  },
+  "execution": {
+    "runtime": "platform_managed_hostinger_ssh_target",
+    "public_web_runtime_allowed": false,
+    "freeform_shell_allowed": false,
+    "host_key_fingerprint_required": true,
+    "scan_schedule_allowed": true,
+    "automatic_apply_allowed": false,
+    "plan_ttl_seconds": 3600,
+    "maximum_files_per_plan": 5000,
+    "maximum_bytes_per_plan": 5368709120,
+    "workspace_owner_approval_required": true,
+    "capability_envelope_required": true,
+    "exact_plan_hash_required": true,
+    "typed_confirmation_required": true,
+    "post_apply_readback_required": true
+  },
+  "safe_candidate_classes": {
+    "npm_cache": {
+      "minimum_age_days": 14,
+      "risk": "low",
+      "recoverability": "npm_rebuildable"
+    },
+    "npm_logs": {
+      "minimum_age_days": 14,
+      "risk": "low",
+      "recoverability": "diagnostic_only"
+    },
+    "rotated_logs": {
+      "minimum_age_days": 14,
+      "risk": "low",
+      "recoverability": "historical_diagnostic_only"
+    }
+  },
+  "review_required_classes": [
+    "account_tmp",
+    "deployment_history",
+    "node_modules",
+    "build_artifacts",
+    "manual_backups",
+    "git_objects",
+    "uploaded_media",
+    "unknown_large_files",
+    "unknown_inode_hotspots"
+  ],
+  "protected_surfaces": [
+    "public_html",
+    ".env",
+    ".env.*",
+    ".ssh",
+    "secrets",
+    ".config",
+    "mail",
+    "backups",
+    "databases",
+    "ssl",
+    "private_keys",
+    "certificates",
+    "database_files",
+    "archives",
+    "package_manifests",
+    ".htaccess",
+    "server.js",
+    "active_deployment_root"
+  ],
+  "emergency_reserve": {
+    "recommended_bytes": 67108864,
+    "purpose": "Preserve enough writable space for cleanup metadata and hPanel recovery.",
+    "automatic_release_allowed": false,
+    "typed_release_confirmation_required": true
+  },
+  "operation_lifecycle": [
+    "observed",
+    "warning",
+    "critical",
+    "emergency",
+    "plan_created",
+    "plan_inspected",
+    "approval_open",
+    "approved",
+    "applying",
+    "readback_pending",
+    "completed",
+    "blocked",
+    "failed"
+  ],
+  "required_readbacks": [
+    "account_disk_usage_before_after",
+    "account_inode_count_before_after",
+    "hpanel_resources_usage_recalculation",
+    "file_create_delete_probe",
+    "auth_runtime_status",
+    "auth_runtime_health",
+    "auth_runtime_version",
+    "auth_runtime_deployment_info"
+  ]
+}
