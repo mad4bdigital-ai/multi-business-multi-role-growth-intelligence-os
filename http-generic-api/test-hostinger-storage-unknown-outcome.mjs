@@ -88,6 +88,61 @@ assert.deepEqual(recoveredAggregate.journals.map((row) => row.phase), ['prepared
 assert.equal(recoveredAggregate.journals.find((row) => row.phase === 'result').result, 'deleted_recovered');
 assert.equal(recoveredAggregate.reconciliations[0].outcome, 'applied');
 
+const replaySafe = createSyntheticExecutorFixture({
+  run_id: 'run-reconciliation-replay',
+  operation_id: 'operation-reconciliation-replay',
+  plan_id: 'plan-reconciliation-replay',
+  target_id: 'target-reconciliation-replay',
+});
+executeHostingerStorageSyntheticPlan({
+  protocol: replaySafe.protocol.protocol,
+  protocol_digest: replaySafe.protocol.protocol_digest,
+  repository: replaySafe.repository,
+  adapter: replaySafe.adapter,
+  fault: { phase: 'after_mutation', item_id: 'item-1' },
+  now_epoch: 1100,
+});
+let crashInjected = false;
+const crashAfterCommittedReconciliation = {
+  ...replaySafe.repository,
+  recordReconciliation(record) {
+    const persisted = replaySafe.repository.recordReconciliation(record);
+    if (!crashInjected) {
+      crashInjected = true;
+      const error = new Error('synthetic crash after reconciliation commit');
+      error.code = 'SYNTHETIC_TEST_CRASH_AFTER_RECONCILIATION_COMMIT';
+      throw error;
+    }
+    return persisted;
+  },
+};
+assert.throws(
+  () => reconcileHostingerStorageSyntheticOutcome({
+    protocol: replaySafe.protocol.protocol,
+    protocol_digest: replaySafe.protocol.protocol_digest,
+    repository: crashAfterCommittedReconciliation,
+    adapter: replaySafe.adapter,
+    now_epoch: 1120,
+  }),
+  (error) => error.code === 'SYNTHETIC_TEST_CRASH_AFTER_RECONCILIATION_COMMIT',
+);
+const afterCommittedCrash = replaySafe.repository.readAggregate(replaySafe.operation_id);
+assert.equal(afterCommittedCrash.operation.state, 'reconciling');
+assert.equal(afterCommittedCrash.reconciliations.length, 1);
+const persistedReviewedAt = afterCommittedCrash.reconciliations[0].reviewed_at_epoch;
+const replayedReconciliation = reconcileHostingerStorageSyntheticOutcome({
+  protocol: replaySafe.protocol.protocol,
+  protocol_digest: replaySafe.protocol.protocol_digest,
+  repository: replaySafe.repository,
+  adapter: replaySafe.adapter,
+  now_epoch: 1190,
+});
+assert.equal(replayedReconciliation.outcome, 'applied');
+const afterReplay = replaySafe.repository.readAggregate(replaySafe.operation_id);
+assert.equal(afterReplay.operation.state, 'completed');
+assert.equal(afterReplay.reconciliations.length, 1);
+assert.equal(afterReplay.reconciliations[0].reviewed_at_epoch, persistedReviewedAt);
+
 const conflict = createSyntheticExecutorFixture({
   run_id: 'run-conflict',
   operation_id: 'operation-conflict',
@@ -129,6 +184,7 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_unknown_outcome',
   crash_before_mutation_reconciled_not_applied: true,
   crash_after_mutation_recovered_from_receipt: true,
+  reconciliation_record_replay_safe: true,
   automatic_retry_forbidden: true,
   conflict_blocks_operation: true,
   dispatch_allowed: false,
