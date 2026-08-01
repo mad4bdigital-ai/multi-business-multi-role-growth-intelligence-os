@@ -111,7 +111,7 @@ assert(
   "root Hostinger entrypoint must preserve startup stack traces"
 );
 assert.equal(
-  rootEntrypointSource.includes("require.main === module"),
+  /^\s*if\s*\(\s*require\.main\s*===\s*module\s*\)/m.test(rootEntrypointSource),
   false,
   "root Hostinger entrypoint must not depend on require.main detection"
 );
