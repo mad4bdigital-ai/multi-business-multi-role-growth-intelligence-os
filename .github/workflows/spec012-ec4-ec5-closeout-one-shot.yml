@@ -1,0 +1,228 @@
+name: Spec 012 EC4 EC5 Closeout One Shot
+
+on:
+  push:
+    branches:
+      - gpt/spec-012-execution-capsule-ec4-ec5-closeout-20260801
+    paths:
+      - .github/workflows/spec012-ec4-ec5-closeout-one-shot.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec012-ec4-ec5-closeout-one-shot
+  cancel-in-progress: false
+
+jobs:
+  closeout:
+    name: Record EC4 and EC5 delivery evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact closeout branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-execution-capsule-ec4-ec5-closeout-20260801
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Record immutable closeout evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch="gpt/spec-012-execution-capsule-ec4-ec5-closeout-20260801"
+          implementation_merge="2533d3836fb004ec5835043a49b497011e44f4b0"
+          test "${GITHUB_REF_NAME}" = "${branch}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "+refs/heads/main:refs/remotes/origin/main"
+          git merge --no-edit origin/main
+          git merge-base --is-ancestor "${implementation_merge}" HEAD
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const root = 'specs/012-unified-admin-tenant-context-kernel';
+          const ec4Path = `${root}/ec4-execution-capsule-mutation-dispatch-gate.manifest.json`;
+          const ec5Path = `${root}/ec5-execution-capsule-rollout-and-retirement.manifest.json`;
+          const parentPath = `${root}/execution-capsule-runtime-extension.manifest.json`;
+          const ec4DocPath = `${root}/ec4-execution-capsule-mutation-dispatch-gate.md`;
+          const ec5DocPath = `${root}/ec5-execution-capsule-rollout-and-retirement.md`;
+          const e2ePath = `${root}/e2e-phases.json`;
+
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const writeJson = (path, value) => fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+          const unique = (values) => [...new Set(values)];
+
+          const evidence = {
+            pull_request: 4397,
+            superseded_pull_requests: [3956, 4391],
+            source_head_sha: '3abd8c44fbcad984e845e2171c1bd66aa548d9eb',
+            certified_head_sha: '0c1f00ccc6c8970143ad3a2c606fe4ad25514e83',
+            merge_sha: '2533d3836fb004ec5835043a49b497011e44f4b0',
+            required_ci: {
+              run_id: 30694523350,
+              result: 'success',
+              syntax_check: 'success',
+              architecture_drift: 'success',
+              execution_resolver: 'success',
+              unit_and_integration: 'success',
+              hardcoding_ratchet: 'success',
+              runtime_startup_evidence: 'success',
+              governance_contracts: 'success',
+              stale_readiness_rejection: 'success'
+            },
+            e2e_phase_governance: {
+              run_id: 30694523338,
+              evaluation: 'success',
+              current_phase_execution: 'success',
+              journey_id: 'execution-capsule-mutation-dispatch-to-rollout-readback'
+            },
+            diagnostic_shards: {
+              run_id: 30694523341,
+              sequential_manifest_suite: 'success',
+              all_family_shards: 'success'
+            },
+            side_workflows: {
+              frontend_surface_dispatch_run_id: 30694523337,
+              docs_agent_run_id: 30694523330,
+              fanout_relocation_run_id: 30694523352,
+              cleanup_readback_run_id: 30694523335,
+              remaining_scope_run_id: 30694523340,
+              result: 'success'
+            },
+            architecture_security_review: {
+              review_id: 4834433472,
+              result: 'no_blocking_findings',
+              requested_changes: 0,
+              unresolved_threads: 0
+            },
+            latest_main_reconciliation: {
+              observed_main_sha_before_merge: '177dcdcd048dda5a4f6bd7504fcb1bad9ef2cf25',
+              behind_by: 0,
+              changed_files: 11
+            },
+            post_merge_main_readback: {
+              observed_main_sha: '2533d3836fb004ec5835043a49b497011e44f4b0',
+              mutation_dispatch_blob_sha: '98a06ab63e290dcb4214fe5392bc18bf8d464c90',
+              rollout_blob_sha: '924cea3d41c2ecaaa2b5676a74aeb364c8e7902b',
+              integration_index_blob_sha: 'a5e18f0129c7eb4695f5df4053487053d740678f',
+              regression_blob_sha: '7f41641108eab666c9cb48ecf5ead4c198781b8c',
+              spec012_test_manifest_blob_sha: 'f6eb90aa9e8db7ec7fdaaa7a540197871e93c79e',
+              e2e_contract_blob_sha_before_closeout: '554e832a9e940b9d00aeeca0443365fdde934d16',
+              runtime_authority: false,
+              production_activation: false
+            }
+          };
+
+          const normalizeArtifacts = (manifest) => {
+            const current = Array.isArray(manifest.artifacts) ? manifest.artifacts : [];
+            manifest.artifacts = unique(current
+              .filter((value) => value !== '../../http-generic-api/scripts/test-manifest.mjs')
+              .concat([
+                '../../http-generic-api/scripts/manifests/test-manifest-spec012.mjs',
+                'e2e-phases.json'
+              ]));
+          };
+
+          const ec4 = readJson(ec4Path);
+          ec4.status = 'complete';
+          normalizeArtifacts(ec4);
+          ec4.pending_contracts = [];
+          ec4.registration_evidence = {
+            status: 'verified_exact_head_and_post_merge',
+            registered_commands: ['node test-execution-capsule-mutation-and-rollout.mjs'],
+            registry_path: '../../http-generic-api/scripts/manifests/test-manifest-spec012.mjs',
+            exact_registration_count: 1,
+            frontend_surface_dispatch: 'success',
+            temporary_workflow_present: false
+          };
+          ec4.completion_evidence = evidence;
+          writeJson(ec4Path, ec4);
+
+          const ec5 = readJson(ec5Path);
+          ec5.status = 'complete';
+          normalizeArtifacts(ec5);
+          ec5.pending_contracts = [];
+          ec5.registration_evidence = {
+            status: 'verified_exact_head_and_post_merge',
+            registered_commands: ['node test-execution-capsule-mutation-and-rollout.mjs'],
+            registry_path: '../../http-generic-api/scripts/manifests/test-manifest-spec012.mjs',
+            exact_registration_count: 1,
+            frontend_surface_dispatch: 'success',
+            temporary_workflow_present: false
+          };
+          ec5.completion_evidence = evidence;
+          writeJson(ec5Path, ec5);
+
+          const parent = readJson(parentPath);
+          parent.status = 'complete';
+          parent.slice_status.EC4_mutation_dispatch_gate = 'complete';
+          parent.slice_status.EC5_rollout_and_duplicate_resolver_retirement = 'complete';
+          parent.completion_evidence = {
+            implementation_pull_request: 4397,
+            merge_sha: evidence.merge_sha,
+            certified_head_sha: evidence.certified_head_sha,
+            exact_head_ci: 'success',
+            e2e_phase_governance: 'success',
+            post_merge_main_readback: 'verified',
+            runtime_authority: false,
+            production_activation: false,
+            deployment: false,
+            migration_apply: false
+          };
+          writeJson(parentPath, parent);
+
+          function closeDoc(path, phaseLabel) {
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace('## Status\n\n`in_progress`', '## Status\n\n`complete`');
+            const marker = '## Delivery closeout evidence';
+            if (!content.includes(marker)) {
+              content = `${content.trim()}\n\n${marker}\n\n${phaseLabel} was delivered through PR #4397 and merged at \`2533d3836fb004ec5835043a49b497011e44f4b0\`. Exact-head CI, phased E2E evaluation and execution, the complete diagnostic matrix, Architecture/Security Review, and post-merge \`main\` readback succeeded. The implementation remains default-off and unmounted; runtime authority, Production activation, provider calls, credential access, database writes, migration apply, deployment, and automatic legacy retirement remain false.\n`;
+            }
+            fs.writeFileSync(path, content);
+          }
+
+          closeDoc(ec4DocPath, 'EC4 Mutation Dispatch Gate');
+          closeDoc(ec5DocPath, 'EC5 Rollout and Legacy Retirement Gate');
+
+          const e2e = readJson(e2ePath);
+          const mvp = e2e.phases.find((phase) => phase.id === 'mvp');
+          const journey = mvp?.e2e_journeys?.find((item) => item.id === 'execution-capsule-mutation-dispatch-to-rollout-readback');
+          if (!journey) throw new Error('EC4/EC5 E2E journey not found');
+          journey.assertions = unique([
+            ...(journey.assertions || []),
+            'Post-merge main readback records the exact merge and complete slice manifests while runtime authority and Production activation remain false'
+          ]);
+          journey.evidence_paths = unique([
+            ...(journey.evidence_paths || []),
+            'http-generic-api/scripts/manifests/test-manifest-spec012.mjs',
+            'specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json',
+            'specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json',
+            'specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json'
+          ]);
+          writeJson(e2ePath, e2e);
+          NODE
+
+          rm .github/workflows/spec012-ec4-ec5-closeout-one-shot.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "docs(spec-012): close EC4 dispatch and EC5 rollout delivery"
+
+          (
+            cd http-generic-api
+            node test-execution-capsule-mutation-and-rollout.mjs
+          )
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base origin/main \
+            --head HEAD \
+            --report-file "${RUNNER_TEMP}/spec012-ec4-ec5-closeout-e2e.json"
+
+          git push origin "HEAD:${branch}"
