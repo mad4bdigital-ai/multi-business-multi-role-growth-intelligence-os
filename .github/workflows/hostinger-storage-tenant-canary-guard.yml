@@ -52,7 +52,7 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
-          node --check http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
+          node --check .github/tests/spec014/tenant-canary-repository-provenance.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
@@ -103,9 +103,9 @@ jobs:
           ! grep -q "executeBaseTenantCanary" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "authority_store_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
           grep -q "enablement_registry_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
-          grep -q "direct_control_plane_repository_rejected: true" http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
-          grep -q "missing_adapter_is_explicit_null: true" http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
-          grep -q "existing_ast_and_store_provenance_tests_preserved: true" http-generic-api/test-hostinger-storage-tenant-canary-repository-provenance.mjs
+          grep -q "direct_control_plane_repository_rejected: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "missing_adapter_is_explicit_null: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "existing_ast_and_store_provenance_tests_preserved: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
           grep -q "typescript_ast" http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce policy not-before contracts
         run: |
@@ -161,4 +161,4 @@ jobs:
           node test-hostinger-storage-tenant-canary-token-normalization.mjs
           node test-hostinger-storage-tenant-canary-token-delegation.mjs
           node test-hostinger-storage-tenant-canary-store-provenance.mjs
-          node test-hostinger-storage-tenant-canary-repository-provenance.mjs
+          node ../.github/tests/spec014/tenant-canary-repository-provenance.mjs
