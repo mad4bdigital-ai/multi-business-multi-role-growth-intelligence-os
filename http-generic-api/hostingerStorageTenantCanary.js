@@ -28,8 +28,12 @@ function fail(status, code, message, details = {}) {
   return error;
 }
 
-function token(value) {
-  return String(value ?? '').trim();
+function boundedIdToken(value) {
+  return String(value ?? '').trim().slice(0, 256);
+}
+
+function boundedHashToken(value) {
+  return String(value ?? '').trim().slice(0, 64).toLowerCase();
 }
 
 export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
@@ -53,9 +57,9 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       return result;
     },
     updateAllowlist(input = {}) {
-      const id = token(input.allowlist_id);
+      const id = boundedIdToken(input.allowlist_id);
       const current = base.readAllowlist(id);
-      const nextRevision = token(input.record?.revision);
+      const nextRevision = boundedIdToken(input.record?.revision);
       const history = allowlistRevisionHistory.get(id) || new Set(current ? [current.revision] : []);
       if (current && nextRevision !== current.revision && history.has(nextRevision)) {
         throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED', 'Allowlist revisions are monotonic and may never be reused.', {
@@ -77,9 +81,9 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       return result;
     },
     updateApproval(input = {}) {
-      const id = token(input.approval_id);
+      const id = boundedIdToken(input.approval_id);
       const current = base.readApproval(id);
-      const nextEvidence = token(input.record?.evidence_digest).toLowerCase();
+      const nextEvidence = boundedHashToken(input.record?.evidence_digest);
       const history = approvalEvidenceHistory.get(id) || new Set(current ? [current.evidence_digest] : []);
       if (current && nextEvidence !== current.evidence_digest && history.has(nextEvidence)) {
         throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED', 'Approval evidence tokens are monotonic and may never be reused.', {
