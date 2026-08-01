@@ -7,10 +7,19 @@ const sourceBranch = process.env.SOURCE_BRANCH;
 const sourceSha = process.env.SOURCE_SHA;
 const finalBranch = process.env.FINAL_BRANCH;
 const runId = process.env.GITHUB_RUN_ID ?? null;
-const builderHeadSha = process.env.GITHUB_SHA ?? null;
 const runnerTemp = process.env.RUNNER_TEMP ?? '/tmp';
 const reportJsonPath = path.join(runnerTemp, 'spec014-migration-builder-summary.json');
 const reportMarkdownPath = path.join(runnerTemp, 'spec014-migration-builder-summary.md');
+
+let builderHeadSha = process.env.GITHUB_SHA ?? null;
+try {
+  if (process.env.GITHUB_EVENT_PATH && fs.existsSync(process.env.GITHUB_EVENT_PATH)) {
+    const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+    builderHeadSha = event.pull_request?.head?.sha ?? builderHeadSha;
+  }
+} catch {
+  // GITHUB_SHA remains a safe fallback for diagnostics.
+}
 
 for (const [name, value] of Object.entries({ integrationBranch, sourceBranch, sourceSha, finalBranch })) {
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -32,12 +41,14 @@ const allowedFiles = [
 
 let currentStage = 'initialized';
 let candidateSha = null;
+let sourceBranchHeadSha = null;
 let changedFileCount = null;
 const checks = [];
 
 function truncate(value, limit = 3000) {
-  const text = String(value ?? '').trim();
-  return text.length <= limit ? text : `${text.slice(0, limit)}\n...[truncated]`;
+  const text = Buffer.isBuffer(value) ? value.toString('utf8') : String(value ?? '');
+  const normalized = text.trim();
+  return normalized.length <= limit ? normalized : `${normalized.slice(0, limit)}\n...[truncated]`;
 }
 
 function writeEvidence(outcome, exitCode, error = null) {
@@ -51,7 +62,8 @@ function writeEvidence(outcome, exitCode, error = null) {
     builder_head_sha: builderHeadSha,
     integration_branch: integrationBranch,
     source_branch: sourceBranch,
-    source_sha: sourceSha,
+    source_branch_head_sha: sourceBranchHeadSha,
+    pinned_source_sha: sourceSha,
     final_branch: finalBranch,
     candidate_sha: candidateSha,
     changed_file_count: changedFileCount,
@@ -72,7 +84,8 @@ function writeEvidence(outcome, exitCode, error = null) {
     `- Run ID: \`${runId}\``,
     `- Builder head: \`${builderHeadSha}\``,
     `- Integration branch: \`${integrationBranch}\``,
-    `- Source SHA: \`${sourceSha}\``,
+    `- Source branch head: \`${sourceBranchHeadSha}\``,
+    `- Pinned source SHA: \`${sourceSha}\``,
     `- Final branch: \`${finalBranch}\``,
     `- Candidate SHA: \`${candidateSha}\``,
     `- Changed file count: \`${changedFileCount}\``,
@@ -90,14 +103,13 @@ function writeEvidence(outcome, exitCode, error = null) {
   fs.writeFileSync(reportMarkdownPath, `${lines.join('\n')}\n`);
 }
 
-function execute(stage, command, args, options = {}) {
+function execute(stage, command, args) {
   currentStage = stage;
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     env: process.env,
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
-    ...options,
   });
   const status = result.status ?? 1;
   const check = {
@@ -116,6 +128,31 @@ function execute(stage, command, args, options = {}) {
     throw new Error(`${stage}: ${detail}`);
   }
   return String(result.stdout ?? '').trim();
+}
+
+function copyFromPinnedSource(file) {
+  currentStage = `copy:${file}`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const result = spawnSync('git', ['show', `${sourceSha}:${file}`], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: null,
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const status = result.status ?? 1;
+  const ok = status === 0 && Buffer.isBuffer(result.stdout);
+  checks.push({
+    stage: currentStage,
+    command: `git show ${sourceSha}:${file}`,
+    status,
+    ok,
+    stdout: ok ? `bytes=${result.stdout.length}` : '',
+    stderr: truncate(result.stderr),
+  });
+  writeEvidence('running', null);
+  if (result.error) throw result.error;
+  if (!ok) throw new Error(`${currentStage}: ${truncate(result.stderr) || `exit ${status}`}`);
+  fs.writeFileSync(file, result.stdout);
 }
 
 function assertEqual(stage, actual, expected) {
@@ -139,19 +176,14 @@ writeEvidence('running', null);
 try {
   execute('fetch_sources', 'git', ['fetch', 'origin', integrationBranch, sourceBranch]);
 
-  const resolvedSourceSha = execute('resolve_source_sha', 'git', ['rev-parse', `origin/${sourceBranch}`]);
-  assertEqual('verify_pinned_source_sha', resolvedSourceSha, sourceSha);
+  sourceBranchHeadSha = execute('resolve_current_source_branch_head', 'git', ['rev-parse', `origin/${sourceBranch}`]);
+  execute('verify_pinned_source_commit_exists', 'git', ['cat-file', '-e', `${sourceSha}^{commit}`]);
+  execute('verify_pinned_source_is_ancestor', 'git', ['merge-base', '--is-ancestor', sourceSha, `origin/${sourceBranch}`]);
 
   execute('checkout_current_integration', 'git', ['checkout', '-B', finalBranch, `origin/${integrationBranch}`]);
 
-  for (const file of allowedFiles) {
-    currentStage = `copy:${file}`;
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const content = execute(currentStage, 'git', ['show', `${sourceSha}:${file}`], { encoding: 'buffer' });
-    fs.writeFileSync(file, Buffer.isBuffer(content) ? content : Buffer.from(content));
-  }
+  for (const file of allowedFiles) copyFromPinnedSource(file);
 
-  currentStage = 'align_manifest_validator_contract';
   const manifestPath = '.github/contracts/spec014/hostinger-storage-migration-drafts.json';
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   assertEqual('verify_manifest_contract_v3', manifest.contract, 'spec014.hostinger-storage-migration-drafts.v3');
@@ -213,11 +245,12 @@ try {
   checks.push({ stage: currentStage, command: 'complete', status: 0, ok: true, stdout: candidateSha, stderr: '' });
   writeEvidence('passed', 0);
 } catch (error) {
-  try {
-    candidateSha = candidateSha ?? execute('capture_failure_head_sha', 'git', ['rev-parse', 'HEAD']);
-  } catch {
-    // Keep the original failure as authority.
+  const failedStage = currentStage;
+  if (!candidateSha) {
+    const capture = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: process.cwd(), env: process.env, encoding: 'utf8' });
+    if (capture.status === 0) candidateSha = String(capture.stdout).trim();
   }
+  currentStage = failedStage;
   writeEvidence('failed', 1, error);
   console.error(error);
   process.exitCode = 1;
