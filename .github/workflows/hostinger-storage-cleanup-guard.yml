@@ -5,14 +5,18 @@ on:
     paths:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "docs/hostinger-storage-cleanup.md"
+      - "docs/hostinger-storage-control-plane.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   push:
     branches: [main]
     paths:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "docs/hostinger-storage-cleanup.md"
+      - "docs/hostinger-storage-control-plane.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   workflow_dispatch:
 
@@ -35,6 +39,9 @@ jobs:
 
       - name: Validate shell syntax
         run: bash -n http-generic-api/scripts/hostinger-storage-cleanup.sh
+
+      - name: Validate machine-readable policy
+        run: node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-cleanup-policy.json','utf8'))"
 
       - name: Execute filesystem safety regression
         run: node http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs
