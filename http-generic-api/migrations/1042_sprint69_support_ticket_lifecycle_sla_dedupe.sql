@@ -191,6 +191,12 @@ SELECT
   GREATEST(
     COALESCE(t.last_seen_at, '1970-01-01 00:00:00'),
     COALESCE(t.updated_at, '1970-01-01 00:00:00'),
-    COALESCE(t.created_at, '1970-01-01 00:00:00')
+    COALESCE(t.created_at, '1970-01-01 00:00:00'),
+    COALESCE((
+      SELECT MAX(activity_event.created_at)
+        FROM ticket_lifecycle_events activity_event
+       WHERE activity_event.tenant_id = t.tenant_id
+         AND activity_event.ticket_id = t.ticket_id
+    ), '1970-01-01 00:00:00')
   ) AS latest_activity_at
 FROM tickets t;
