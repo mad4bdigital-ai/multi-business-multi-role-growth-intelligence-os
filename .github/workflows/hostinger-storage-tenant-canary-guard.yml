@@ -41,7 +41,8 @@ jobs:
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
             http-generic-api/hostingerStorageTenantCanaryV2.js \
             http-generic-api/hostingerStorageTenantCanaryPolicy.js
-          grep -q "export \* from './hostingerStorageTenantCanaryV2.js'" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "createV2AuthorityStore" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "expected_generation" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "synthetic_only: true" http-generic-api/hostingerStorageTenantCanaryV2.js
           grep -q "dispatch_allowed: false" http-generic-api/hostingerStorageTenantCanaryV2.js
           grep -q "production_ready: false" http-generic-api/hostingerStorageTenantCanaryV2.js
