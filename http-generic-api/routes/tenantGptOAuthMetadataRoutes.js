@@ -6,10 +6,10 @@ import {
 } from "../tenantGptOAuthResourceProfile.js";
 import { TENANT_GPT_SCOPE_LINKS } from "../tenantGptOAuthPreset.js";
 import {
-  buildChatGptProtectedResourceMetadata,
-  chatGptMcpEnabled,
-  resolveChatGptMcpResource,
-} from "../chatgptMcpRuntime.js";
+  buildRemoteMcpProtectedResourceMetadata,
+  remoteMcpEnabled,
+  resolveRemoteMcpResource,
+} from "../remoteMcpConnectorRuntime.js";
 
 function requestHost(req) {
   return normalizeTenantGptRequestHost(
@@ -21,7 +21,7 @@ function requestHost(req) {
 
 function configuredMcpHost(env) {
   try {
-    return new URL(resolveChatGptMcpResource(env)).hostname.toLowerCase();
+    return new URL(resolveRemoteMcpResource(env)).hostname.toLowerCase();
   } catch {
     return "";
   }
@@ -47,7 +47,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   router.get("/.well-known/oauth-protected-resource", (req, res) => {
     const mcpHost = configuredMcpHost(env);
     if (mcpHost && requestHost(req) === mcpHost) {
-      if (!chatGptMcpEnabled(env)) {
+      if (!remoteMcpEnabled(env)) {
         return res.status(404).json({
           ok: false,
           error: { code: "MCP_DISABLED", message: "Not found." },
@@ -55,7 +55,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
         });
       }
       res.setHeader("Cache-Control", "public, max-age=300");
-      return res.status(200).json(buildChatGptProtectedResourceMetadata(env));
+      return res.status(200).json(buildRemoteMcpProtectedResourceMetadata(env));
     }
 
     return res.status(200).json({
