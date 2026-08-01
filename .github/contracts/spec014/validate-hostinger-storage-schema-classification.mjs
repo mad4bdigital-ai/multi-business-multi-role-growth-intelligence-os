@@ -26,7 +26,7 @@ const expectedNames = [
 assert.equal(contract.contract, 'spec014.hostinger-storage-schema-classification.v1');
 assert.equal(contract.feature_key, '014-governed-hostinger-storage-orchestration');
 assert.deepEqual(contract.tasks, ['T021', 'T022']);
-assert.equal(contract.status, 'classified_pending_canonical_registry');
+assert.equal(contract.status, 'canonical_registry_registered');
 assert.equal(contract.canonical_registry_task, 'T023');
 assert.equal(contract.default_disposition, 'blocked');
 assert.equal(contract.migration_apply_authorized, false);
@@ -68,6 +68,28 @@ for (const entry of contract.objects) {
   assert.doesNotMatch(entry.sensitive_data_policy, /(^|_)(raw_secret|private_key|password|token_payload)($|_)/i);
 }
 
+const canonicalRegistryPath = new URL('../../../.specify/work-map-schema-classification-registry.json', import.meta.url);
+const canonicalRegistry = JSON.parse(fs.readFileSync(canonicalRegistryPath, 'utf8'));
+const canonicalRules = canonicalRegistry.rules.filter((rule) => String(rule.rule_key || '').startsWith('spec014_hostinger_storage_'));
+assert.equal(canonicalRules.length, contract.objects.length);
+for (const entry of contract.objects) {
+  const matches = canonicalRules.filter((rule) => Array.isArray(rule?.match?.exact_names) && rule.match.exact_names.includes(entry.name));
+  assert.equal(matches.length, 1, entry.name + ': one canonical exact rule required');
+  const [rule] = matches;
+  assert.equal(rule.scope, 'bounded_exact');
+  assert.deepEqual(rule.match, { exact_names: [entry.name] });
+  assert.equal(rule.domain, entry.primary_domain);
+  assert.deepEqual(rule.existing_map_refs, entry.work_maps);
+}
+assert.equal(contract.canonical_registry_registration.task, 'T023');
+assert.equal(contract.canonical_registry_registration.registry_path, '.specify/work-map-schema-classification-registry.json');
+assert.equal(contract.canonical_registry_registration.rule_scope, 'bounded_exact');
+assert.equal(contract.canonical_registry_registration.rule_count, contract.objects.length);
+assert.equal(contract.canonical_registry_registration.sql_created, false);
+assert.equal(contract.canonical_registry_registration.migration_apply_authorized, false);
+assert.equal(contract.canonical_registry_registration.secrets_included, false);
+assert.equal(contract.required_invariants.canonical_registry_registered_before_sql, true);
+
 const byName = new Map(contract.objects.map((entry) => [entry.name, entry]));
 assert.deepEqual(byName.get('storage_cleanup_plan_items').unique_keys, [
   ['plan_id', 'ordinal'],
@@ -103,7 +125,8 @@ console.log(JSON.stringify({
   tasks_classified: contract.tasks,
   object_count: contract.objects.length,
   migration_waves: [...new Set(contract.objects.map((entry) => entry.migration_wave))].sort(),
-  canonical_registry_task_pending: contract.canonical_registry_task,
+  canonical_registry_task_completed: contract.canonical_registry_registration.task,
+  canonical_registry_rule_count: contract.canonical_registry_registration.rule_count,
   sql_created: false,
   migration_apply_authorized: false,
   secrets_included: false,

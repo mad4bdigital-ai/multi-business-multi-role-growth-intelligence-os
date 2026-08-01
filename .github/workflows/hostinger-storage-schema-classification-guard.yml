@@ -23,9 +23,13 @@ jobs:
         run: node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
       - name: Validate exact schema classification contract
         run: node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+      - name: Validate canonical Work Map registry contract
+        run: node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+      - name: Validate current Work Map classification coverage
+        run: node http-generic-api/scripts/work-map-schema-classification.mjs
       - name: Enforce pre-SQL boundary
         run: |
-          grep -q '"status":"classified_pending_canonical_registry"' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"status":"canonical_registry_registered"' .github/contracts/spec014/hostinger-storage-schema-classification.json
           grep -q '"canonical_registry_task":"T023"' .github/contracts/spec014/hostinger-storage-schema-classification.json
           grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
           grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
