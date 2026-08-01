@@ -1,0 +1,35 @@
+name: Hostinger Storage Migration Drafts Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/contracts/spec014/hostinger-storage-migration-drafts.json'
+      - '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
+      - '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
+      - 'specs/014-governed-hostinger-storage-orchestration/migrations/**'
+
+permissions:
+  contents: read
+
+jobs:
+  migration-drafts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check migration draft validator syntax
+        run: node --check .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+      - name: Validate bounded migration drafts
+        run: node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+      - name: Preserve non-apply boundary
+        run: |
+          test ! -e http-generic-api/migrations/wave-1-foundation.sql
+          test ! -e http-generic-api/migrations/wave-2-control-plane.sql
+          test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
+          grep -q '"discoverable_by_governed_migration_runner": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"migration_apply_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"provider_dispatch_authorized": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-migration-drafts.json
