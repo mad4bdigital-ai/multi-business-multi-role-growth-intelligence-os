@@ -1,4 +1,4 @@
-name: Spec 014 Contracts Workstream Classifier
+name: Spec 014 Schema Classification Workstream Generator
 
 on:
   pull_request:
@@ -12,11 +12,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: spec014-contracts-workstream-classifier
+  group: spec014-schema-classification-workstream-generator
   cancel-in-progress: true
 
 jobs:
-  classify:
+  generate:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -25,32 +25,32 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - name: Preserve classifier and reset to exact T023 candidate
+      - name: Preserve generator and reset to exact T023 implementation
         run: |
-          cp .github/scripts/finalize-spec014-storage-schema-registry.mjs /tmp/classify-spec014-contracts-workstream.mjs
+          cp .github/scripts/finalize-spec014-storage-schema-registry.mjs /tmp/generate-spec014-schema-classification-workstream.mjs
           git checkout --detach c17f29be718851ad43df8c99450f04b1e11842cd
           test "$(git rev-parse HEAD)" = 'c17f29be718851ad43df8c99450f04b1e11842cd'
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Extend contracts workstream ownership
+      - name: Add ready schema-classification workstream
         run: |
-          node --check /tmp/classify-spec014-contracts-workstream.mjs
-          node /tmp/classify-spec014-contracts-workstream.mjs
+          node --check /tmp/generate-spec014-schema-classification-workstream.mjs
+          node /tmp/generate-spec014-schema-classification-workstream.mjs
       - name: Validate exact governed write set
         run: |
-          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json','utf8'))"
+          node -e "const c=JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/e2e-phases.json','utf8')); const w=c.parallel_work.workstreams.find(x=>x.id==='schema-classification'); if(!w||w.status!=='ready_for_integration'||w.scope.include.length!==4) process.exit(1)"
           actual="$(git diff --name-only | sort)"
           expected='specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'
           test "$actual" = "$expected"
-          grep -q 'gpt/014-hostinger/contracts-\*' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
-          grep -q 'hostinger-storage-schema-classification-contract' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
-      - name: Create workstream-classified PR branch
+          grep -q 'gpt/014-hostinger/schema-classification-\*' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+          grep -q 'ready_for_integration' specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+      - name: Create schema-classification PR branch
         run: |
-          branch='gpt/014-hostinger/contracts-schema-classification-20260802'
+          branch='gpt/014-hostinger/schema-classification-t023-20260802'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -b "$branch"
           git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
-          git commit -m 'docs(spec-014): classify schema registry under contracts workstream'
+          git commit -m 'docs(spec-014): declare schema classification workstream ready'
           git push origin "HEAD:refs/heads/$branch"
