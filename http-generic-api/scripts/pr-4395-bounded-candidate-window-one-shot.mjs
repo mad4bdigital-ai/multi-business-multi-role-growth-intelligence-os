@@ -7,6 +7,7 @@ const TRANSFORM = "scripts/pr-4395-bounded-candidate-window-fix.py";
 const REPORT = "pr-4395-bounded-candidate-window-diagnostic.json";
 const PACKAGE = "package.json";
 const MARKER_SCRIPT = "pr4395:bounded-candidate-window";
+const MARKER_COMMAND = "node --check scripts/pr-4395-bounded-candidate-window-one-shot.mjs";
 const CANONICAL_DISPATCH = "node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write";
 const HOOKED_DISPATCH = `node ${HELPER} && ${CANONICAL_DISPATCH}`;
 
@@ -59,7 +60,7 @@ const branch = String(process.env.GITHUB_HEAD_REF || raw("git", ["branch", "--sh
 if (branch !== TARGET_BRANCH) throw new Error(`unexpected branch: ${branch}`);
 const packageJson = JSON.parse(readFileSync(PACKAGE, "utf8"));
 if (packageJson.scripts?.["frontend:dispatch:generate"] !== HOOKED_DISPATCH) throw new Error("candidate-window hook mismatch");
-if (packageJson.scripts?.[MARKER_SCRIPT] !== "node -e \"process.exit(0)\"") throw new Error("candidate-window marker mismatch");
+if (packageJson.scripts?.[MARKER_SCRIPT] !== MARKER_COMMAND) throw new Error("candidate-window marker mismatch");
 if (existsSync(REPORT)) unlinkSync(REPORT);
 
 run("apply bounded candidate-window transform", "python3", [TRANSFORM]);
