@@ -265,6 +265,37 @@ await assert.rejects(
   (error) => error?.code === "RECONCILIATION_EVIDENCE_DEPTH_EXCEEDED" && error?.status === 400,
 );
 
+const deeplyNestedProviderState = {};
+let providerCursor = deeplyNestedProviderState;
+for (let depth = 0; depth < 20_000; depth += 1) {
+  providerCursor.next = {};
+  providerCursor = providerCursor.next;
+}
+
+const builtInDeepEvidenceKernel = createGovernedReconciliationKernel({
+  adapters: {
+    provider_adapter: createProviderAdapterReconciler({
+      inspectProvider: async () => deeplyNestedProviderState,
+      inspectInternalLedger: async () => expectedInternalLedger,
+    }),
+  },
+});
+await assert.rejects(
+  () => builtInDeepEvidenceKernel.reconcile({
+    domain: "provider_adapter",
+    input: {
+      expected_provider: expectedProvider,
+      expected_internal_ledger: expectedInternalLedger,
+      operation_id: operationId,
+      evidence_operation_id: operationId,
+      evidence_verified: true,
+    },
+  }),
+  (error) => !(error instanceof RangeError)
+    && error?.code === "RECONCILIATION_EVIDENCE_DEPTH_EXCEEDED"
+    && error?.status === 400,
+);
+
 const mutatingKernel = createGovernedReconciliationKernel({
   adapters: {
     provider_adapter: {
