@@ -172,12 +172,41 @@
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Apply migration 1042 in an authorized non-production database and verify columns, claim table, trigger, ledger, reconciliation, and audited ticket readback."
+      "objective": "Apply migration 1042 in an authorized non-production database and verify columns, claim table, trigger, ledger, reconciliation, and audited ticket readback.",
+      "planned_e2e_journey": {
+        "id": "support-ticket-integrity-canary-readback",
+        "required_level": "live_non_production",
+        "actor": "authorized release operator",
+        "entrypoint": "Governed migration dry-run and apply followed by cursor-paged integrity reconciliation",
+        "terminal_outcome": "The canary database reports migration ledger success, all required columns, the dedupe-claim table and milestone trigger, and corrected audited tickets without customer-field leakage.",
+        "steps": [
+          "Verify the target database is an approved non-production environment.",
+          "Run checksum-bound migration dry-run and inspect statement, destructive-operation, and confirmation evidence.",
+          "Apply migration 1042 through the governed migration executor under a current capability envelope.",
+          "Read back migration ledger, schema readiness, dedupe claim table count, and trigger count in the same cycle.",
+          "Run every reconciliation dry-run cursor page, apply approved corrections, and verify exact audited ticket identities."
+        ]
+      }
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Promote the reviewed exact head, apply migration 1042 through the governed Production path, and verify customer-safe readback and serialized dedupe behavior."
+      "objective": "Promote the reviewed exact head, apply migration 1042 through the governed Production path, and verify customer-safe readback and serialized dedupe behavior.",
+      "planned_e2e_journey": {
+        "id": "support-ticket-integrity-production-readback",
+        "required_level": "production_readback",
+        "actor": "authorized production release operator",
+        "entrypoint": "Exact-SHA Production promotion, governed migration apply, and post-deploy tenant/admin verification",
+        "terminal_outcome": "Production reports the reviewed SHA, successful migration and schema evidence, serialized duplicate creation, lifecycle-aware SLA, test exclusion, latest-event ordering, and customer-safe tenant responses.",
+        "steps": [
+          "Promote the exact reviewed main SHA through the governed Production synchronization process.",
+          "Verify Production runtime parity before database mutation.",
+          "Run checksum-bound migration dry-run and apply migration 1042 under an independently approved Production capability envelope.",
+          "Read back migration ledger, columns, claim table, trigger, and exact audited tickets.",
+          "Run cursor-paged dry-run and approved reconciliation apply.",
+          "Verify tenant list field safety, test exclusion, event activity ordering, SLA state, and concurrent dedupe behavior."
+        ]
+      }
     }
   ]
 }
