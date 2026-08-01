@@ -12,7 +12,7 @@
   "forbidden_path_patterns": [
     "(^|/)\\.changes/e2e/.*trigger$",
     "(^|/).*\\.trigger$",
-    "^\\.github/workflows/.*(?:temporary|one-off|patch-trigger|runtime-hardening-v[0-9]+).*$"
+    "^\\.github/workflows/.*(?:temporary|one-off|(?:^|[/_.-])once(?:[/_.-]|$)|patch-trigger|runtime-hardening-v[0-9]+).*$"
   ],
   "rules": {
     "one_off_automation_must_not_merge": true,
