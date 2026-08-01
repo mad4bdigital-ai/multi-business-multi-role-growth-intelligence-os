@@ -21,6 +21,7 @@ const codes = new Map();
 const grantsById = new Map();
 const grantsByAccessJti = new Map();
 const grantsByRefreshHash = new Map();
+let membershipActive = true;
 
 function result(affectedRows = 0) {
   return [{ affectedRows }, []];
@@ -52,7 +53,9 @@ const pool = {
       return [[{ user_id: "user-1", email: "user@example.test", display_name: "User One", status: "active" }], []];
     }
     if (sql.includes("FROM memberships m") && sql.includes("JOIN tenants")) {
-      return [[{ tenant_id: "workspace-1", role: "owner", status: "active", tenant_status: "active" }], []];
+      return [membershipActive
+        ? [{ tenant_id: "workspace-1", role: "owner", status: "active", tenant_status: "active" }]
+        : [], []];
     }
     if (sql.includes("INSERT INTO remote_mcp_oauth_authorization_codes")) {
       codes.set(params[0], {
@@ -270,6 +273,23 @@ try {
   assert(codeResult.redirect_to.includes("state=state-1"));
   assert(codeResult.redirect_to.includes("code="));
 
+  const wrongResourceResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: registered.client_id,
+      code: codeResult.code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier,
+      resource: "https://other.example.test",
+    }),
+  });
+  const wrongResource = await json(wrongResourceResponse);
+  assert.equal(wrongResourceResponse.status, 400);
+  assert.equal(wrongResource.error, "invalid_target");
+  assert.equal(codes.get(sha256(codeResult.code)).status, "issued");
+
   const wrongVerifierResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -352,6 +372,22 @@ try {
   const replayRefresh = await json(replayRefreshResponse);
   assert.equal(replayRefreshResponse.status, 400);
   assert.equal(replayRefresh.error, "invalid_grant");
+
+  membershipActive = false;
+  const inactiveRefreshResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: registered.client_id,
+      refresh_token: refreshed.refresh_token,
+      resource: env.REMOTE_MCP_RESOURCE_URL,
+    }),
+  });
+  const inactiveRefresh = await json(inactiveRefreshResponse);
+  assert.equal(inactiveRefreshResponse.status, 400);
+  assert.equal(inactiveRefresh.error, "invalid_grant");
+  assert.equal(grantsByAccessJti.get(refreshedClaims.jti).status, "active");
 
   const revokeResponse = await fetch(`${baseUrl}/auth/mcp/oauth/revoke`, {
     method: "POST",
