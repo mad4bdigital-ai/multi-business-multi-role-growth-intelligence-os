@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "c1b8ace39efd469c366d44088146dbc7ebd6f403909f1e9500e490ce246b2438",
+    "source_digest": "a7b9fbbc0ab4e4f26fcb99f2f02037dc5d064026de41d1f06c7f310515259ce7",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -901,7 +901,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+        "sha256": "447ed972fe270db89fac1aa2eaae8cb1686d5467b5b93c1973623143698c4d7a",
         "present": true
       },
       {
@@ -9297,7 +9297,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "447ed972fe270db89fac1aa2eaae8cb1686d5467b5b93c1973623143698c4d7a",
       "mount_prefix": "/",
       "mount_order": 13578,
       "split_from_mixed_scope_file": true,
@@ -10063,7 +10063,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "447ed972fe270db89fac1aa2eaae8cb1686d5467b5b93c1973623143698c4d7a",
       "mount_prefix": "/",
       "mount_order": 13578,
       "split_from_mixed_scope_file": true,
