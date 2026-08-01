@@ -1,0 +1,91 @@
+name: Register Spec 014 control-plane repository brand
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/control-plane-repository-brand-20260801
+    paths:
+      - .github/workflows/spec014-register-control-plane-repository-brand.yml
+
+permissions:
+  contents: write
+
+jobs:
+  register:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/control-plane-repository-brand-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Register governed repository provenance correction
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const workstream = contract.parallel_work.workstreams.find((row) => row.id === 'durable-control-plane');
+          if (!workstream) throw new Error('durable-control-plane workstream not found');
+
+          workstream.status = 'ready_for_integration';
+          workstream.scope.include = workstream.scope.include.map((path) => {
+            if (path === 'http-generic-api/hostingerStorageControlPlaneRepository.js') {
+              return 'http-generic-api/hostingerStorageControlPlaneRepository*.js';
+            }
+            if (path === 'http-generic-api/test-hostinger-storage-control-plane-repository.mjs') {
+              return 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs';
+            }
+            return path;
+          });
+          const deliverable = 'Factory-owned provenance brands for the non-production memory persistence adapter and governed repository';
+          if (!workstream.deliverables.includes(deliverable)) workstream.deliverables.push(deliverable);
+          const test = {
+            id: 'hostinger-storage-control-plane-repository-brand',
+            runner: 'node',
+            working_directory: 'http-generic-api',
+            path: 'test-hostinger-storage-control-plane-repository-brand.mjs',
+            args: [],
+          };
+          if (!workstream.required_tests.some((row) => row.id === test.id)) workstream.required_tests.push(test);
+          workstream.commit_evidence = {
+            head_sha: process.env.SOURCE_SHA,
+            commits: [process.env.SOURCE_SHA],
+          };
+
+          const mvp = contract.phases.find((phase) => phase.id === 'mvp');
+          const blocker = 'The durable Control Plane repository provenance correction is ready for integration; persistence remains non-production and memory-backed.';
+          if (mvp && !mvp.blockers.includes(blocker)) mvp.blockers.splice(1, 0, blocker);
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract)}\n`);
+
+          const evidencePath = 'specs/014-governed-hostinger-storage-orchestration/evidence/control-plane-repository-brand-20260801.md';
+          fs.writeFileSync(evidencePath, `# Control-plane repository provenance brand\n\n- Workstream: durable-control-plane\n- Correction state: ready_for_integration\n- Persistence provenance: factory-owned WeakSet\n- Repository provenance: granted only when built over canonical memory persistence\n- Frozen copies and repositories built over forged persistence: rejected\n- Production ready: false\n- Secrets included: false\n`);
+
+          const guardPath = '.github/workflows/hostinger-storage-control-plane-guard.yml';
+          let guard = fs.readFileSync(guardPath, 'utf8');
+          const anchor = '          grep -q "new WeakSet()" http-generic-api/hostingerStorageControlPlaneRepository.js\n';
+          const additions = [
+            '          grep -q "canonicalPersistenceAdapters.add(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js',
+            '          grep -q "canonicalPersistenceAdapters.has(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js',
+            '          grep -q "isCanonicalMemoryHostingerStoragePersistenceAdapter" http-generic-api/hostingerStorageControlPlaneRepository.js',
+          ].join('\n') + '\n';
+          if (!guard.includes('canonicalPersistenceAdapters.add(adapter)')) {
+            if (!guard.includes(anchor)) throw new Error('control-plane guard anchor not found');
+            guard = guard.replace(anchor, anchor + additions);
+          }
+          fs.writeFileSync(guardPath, guard);
+
+          fs.rmSync('.github/workflows/spec014-register-control-plane-repository-brand.yml');
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(spec-014): register control-plane repository brand'
+          git push origin HEAD:gpt/014-hostinger/control-plane-repository-brand-20260801
