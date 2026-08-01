@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fa1aa1673260290ea0a892bfb930a12dadfd636f99bf795564b5bcf81307c7bc",
+    "source_digest": "02c886679fd50e3cfad4a9469c42010c1790bb276ac2ac0346a144fa5bb538fa",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -196,7 +196,7 @@
       },
       {
         "file": "openapi/tenant-requests.openapi.yaml",
-        "sha256": "7e258d2c00087af8c8a578327543a078974b6c5993e5526a1f3cb56fd7932502",
+        "sha256": "9aa15e030ffceb8024075d8db9128e06ef9534be746e4d1761d7bfeae9db97c0",
         "present": true
       },
       {
@@ -1047,11 +1047,10 @@
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 389,
     "auth_parity_counts": {
-      "equivalent": 1018,
-      "exempt": 16,
-      "unknown": 4
+      "equivalent": 1022,
+      "exempt": 16
     },
-    "auth_contract_gap_count": 4,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 628,
     "unresolved_operation_class_count": 568,
@@ -32770,15 +32769,20 @@
           },
           "openapi_auth": {
             "source_file": "openapi/tenant-requests.openapi.yaml",
-            "security_declared": false,
-            "security_alternatives": null,
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "openapi_security_inheritance_unresolved"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -32833,15 +32837,20 @@
           },
           "openapi_auth": {
             "source_file": "openapi/tenant-requests.openapi.yaml",
-            "security_declared": false,
-            "security_alternatives": null,
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "openapi_security_inheritance_unresolved"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -38031,22 +38040,7 @@
         "POST /admin/support/tickets/{ticket_id}/assign",
         "POST /admin/support/tickets/{ticket_id}/events"
       ],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /admin/tenant-requests",
-          "state": "unknown",
-          "reasons": [
-            "openapi_security_inheritance_unresolved"
-          ]
-        },
-        {
-          "signature": "GET /admin/tenant-requests/{ticketId}",
-          "state": "unknown",
-          "reasons": [
-            "openapi_security_inheritance_unresolved"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [
         "GET /admin/support/tickets/auth-email-outbox/status",
         "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview"
@@ -38534,7 +38528,7 @@
         }
       ],
       "risk": {
-        "score": 14,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -38579,15 +38573,17 @@
           },
           "openapi_auth": {
             "source_file": "openapi/tenant-requests.openapi.yaml",
-            "security_declared": false,
-            "security_alternatives": null,
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "openapi_security_inheritance_unresolved"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -38637,15 +38633,17 @@
           },
           "openapi_auth": {
             "source_file": "openapi/tenant-requests.openapi.yaml",
-            "security_declared": false,
-            "security_alternatives": null,
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
             "unknown_security_schemes": []
           },
           "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "openapi_security_inheritance_unresolved"
-            ]
+            "state": "equivalent",
+            "reasons": []
           },
           "openapi_documented": true,
           "openapi_canonical_documented": true,
@@ -38921,22 +38919,7 @@
         "GET /me/support/tickets/{ticket_id}",
         "POST /me/support/tickets/{ticket_id}/events"
       ],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /tenants/{tenantId}/requests",
-          "state": "unknown",
-          "reasons": [
-            "openapi_security_inheritance_unresolved"
-          ]
-        },
-        {
-          "signature": "GET /tenants/{tenantId}/requests/{ticketId}",
-          "state": "unknown",
-          "reasons": [
-            "openapi_security_inheritance_unresolved"
-          ]
-        }
-      ],
+      "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
@@ -38986,8 +38969,8 @@
         }
       ],
       "risk": {
-        "score": 9,
-        "class": "critical"
+        "score": 7,
+        "class": "high"
       },
       "wave": "F1-tenant-shell"
     },
@@ -87021,7 +87004,6 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -91904,7 +91886,6 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
-        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
