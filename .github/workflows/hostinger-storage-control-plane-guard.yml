@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - 'gpt/014-hostinger/control-plane-*'
+      - 'gpt/014-hostinger/repository-provenance-*'
     paths:
       - '**/*.js'
       - '**/*.mjs'
@@ -49,14 +50,21 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs
       - name: Enforce governed repository factory
         run: |
-          test "$(grep -R -l "hostingerStorageControlPlaneRepositoryBase.js" . \
+          BASE_IMPORT_RE='hostingerStorageControlPlaneRepositoryBase(\.js)?'
+          test "$(grep -R -E -l "$BASE_IMPORT_RE" . \
             --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)" = "http-generic-api/hostingerStorageControlPlaneRepository.js"
+          probe='control-plane-base-import-probe.cjs'
+          printf "require('./http-generic-api/hostingerStorageControlPlaneRepositoryBase')\n" > "$probe"
+          grep -E -q "$BASE_IMPORT_RE" "$probe"
+          rm "$probe"
           grep -q "new WeakSet()" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalPersistenceAdapters.add(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalPersistenceAdapters.has(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "isCanonicalMemoryHostingerStoragePersistenceAdapter" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "const adapter = options?.adapter" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "createBaseHostingerStorageControlPlaneRepository({ adapter })" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.add(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.has(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageControlPlaneRepository.js
