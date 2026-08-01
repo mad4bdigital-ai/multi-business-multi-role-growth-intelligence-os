@@ -59,7 +59,7 @@
   },
   "required_zero_activity": {
     "provider_calls": 0,
-    "credential_payload_reads": 0,
+    "protected_payload_reads": 0,
     "external_writes": 0,
     "secrets_included": false
   },
