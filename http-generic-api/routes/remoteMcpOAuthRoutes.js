@@ -138,6 +138,12 @@ async function activeUserContext(pool, claims) {
   return { user_id: userId, tenant_id: membership.tenant_id };
 }
 
+function exactSubjectContext(context, userId, tenantId) {
+  return Boolean(context)
+    && context.user_id === userId
+    && (context.tenant_id || null) === (tenantId || null);
+}
+
 function authorizePage({ client, scope, authorizationRequest }) {
   const request = safeJson({ authorization_request: authorizationRequest });
   const name = String(client.client_name || "Remote MCP client").replace(/[<>]/gu, "");
@@ -298,6 +304,8 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       const client = await authenticateClient(req, pool);
       if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
       const resource = resolveRemoteMcpOAuthResource(env);
+      const requestedResource = String(req.body?.resource || resource).replace(/\/+$/u, "");
+      if (requestedResource !== resource) return oauthError(res, 400, "invalid_target", "resource is invalid.");
       const grantType = text(req.body?.grant_type, 64);
 
       if (grantType === "authorization_code") {
@@ -306,6 +314,8 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         const record = await readRemoteMcpAuthorizationCode({ pool, code: req.body?.code, clientId: client.client_id, redirectUri });
         if (!record || record.resource !== resource || record.code_challenge_method !== "S256") return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
         if (!verifyPkceS256(req.body?.code_verifier, record.code_challenge)) return oauthError(res, 400, "invalid_grant", "PKCE verification failed.");
+        const subject = await activeUserContext(pool, { user_id: record.user_id, tenant_id: record.tenant_id });
+        if (!exactSubjectContext(subject, record.user_id, record.tenant_id)) return oauthError(res, 400, "invalid_grant", "The authorization subject is no longer active.");
         const consumed = await consumeRemoteMcpAuthorizationCode({ pool, code: req.body?.code, clientId: client.client_id, redirectUri });
         if (!consumed) return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
         const jti = randomUUID();
@@ -320,6 +330,8 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         const refreshToken = String(req.body?.refresh_token || "");
         const current = await readRemoteMcpGrantByRefreshToken(refreshToken, { pool });
         if (!current || current.client_id !== client.client_id || current.resource !== resource) return oauthError(res, 400, "invalid_grant", "Refresh token is invalid, expired, or revoked.");
+        const subject = await activeUserContext(pool, { user_id: current.user_id, tenant_id: current.tenant_id });
+        if (!exactSubjectContext(subject, current.user_id, current.tenant_id)) return oauthError(res, 400, "invalid_grant", "The refresh subject is no longer active.");
         const jti = randomUUID();
         const accessExpiresAt = new Date(Date.now() + REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS * 1000);
         const rotated = await rotateRemoteMcpOAuthGrant({ pool, refreshToken, accessJti: jti, accessExpiresAt });
