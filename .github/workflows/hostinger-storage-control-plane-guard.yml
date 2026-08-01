@@ -5,18 +5,20 @@ on:
     paths:
       - 'http-generic-api/hostingerStorageExecutionAuthorization.js'
       - 'http-generic-api/hostingerStorageExecutionAuthorizationV2.js'
-      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository*.js'
       - 'http-generic-api/test-hostinger-storage-execution-authorization.mjs'
-      - 'http-generic-api/test-hostinger-storage-control-plane-repository.mjs'
+      - 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs'
       - '.github/workflows/hostinger-storage-control-plane-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
   push:
+    branches:
+      - 'gpt/014-hostinger/control-plane-*'
     paths:
       - 'http-generic-api/hostingerStorageExecutionAuthorization.js'
       - 'http-generic-api/hostingerStorageExecutionAuthorizationV2.js'
-      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository*.js'
       - 'http-generic-api/test-hostinger-storage-execution-authorization.mjs'
-      - 'http-generic-api/test-hostinger-storage-control-plane-repository.mjs'
+      - 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs'
       - '.github/workflows/hostinger-storage-control-plane-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
@@ -36,21 +38,37 @@ jobs:
         run: |
           node --check http-generic-api/hostingerStorageExecutionAuthorization.js
           node --check http-generic-api/hostingerStorageExecutionAuthorizationV2.js
+          node --check http-generic-api/hostingerStorageControlPlaneRepositoryBase.js
           node --check http-generic-api/hostingerStorageControlPlaneRepository.js
           node --check http-generic-api/test-hostinger-storage-execution-authorization.mjs
           node --check http-generic-api/test-hostinger-storage-control-plane-repository.mjs
+          node --check http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs
+      - name: Enforce governed repository factory
+        run: |
+          test "$(grep -R -l "hostingerStorageControlPlaneRepositoryBase.js" . \
+            --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
+            --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
+            | sed 's#^./##' | sort)" = "http-generic-api/hostingerStorageControlPlaneRepository.js"
+          grep -q "new WeakSet()" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "canonicalRepositories.add(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "canonicalRepositories.has(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageControlPlaneRepository.js
       - name: Block runtime process dispatch in the control-plane core
         run: |
           ! grep -R -E "from ['\"]node:child_process['\"]|require\(['\"]child_process['\"]\)|\b(exec|execFile|spawn|fork)\s*\(" \
             http-generic-api/hostingerStorageExecutionAuthorization.js \
             http-generic-api/hostingerStorageExecutionAuthorizationV2.js \
+            http-generic-api/hostingerStorageControlPlaneRepositoryBase.js \
             http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "dispatch_allowed: false" http-generic-api/hostingerStorageExecutionAuthorizationV2.js
           grep -q "provider_dispatch_default_off: true" http-generic-api/hostingerStorageExecutionAuthorizationV2.js
-          grep -q "production_ready: false" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "production_ready: false" http-generic-api/hostingerStorageControlPlaneRepositoryBase.js
       - name: Validate unified execution authorization bundle
         working-directory: http-generic-api
         run: node test-hostinger-storage-execution-authorization.mjs
       - name: Validate CAS repository and restart-safe journal contract
         working-directory: http-generic-api
         run: node test-hostinger-storage-control-plane-repository.mjs
+      - name: Validate repository provenance brand
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-control-plane-repository-brand.mjs
