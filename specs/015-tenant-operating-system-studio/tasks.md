@@ -9,9 +9,10 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T003 Produce field-level reuse matrix for package/component/installation logical entities.
 - [x] T004 Inventory PR #3922 and classify generic substrate versus Retail Commerce child-pack content.
 - [x] T005 Inventory PR #4432 and classify generic assurance template versus Evidence Intelligence child-pack content.
-- [ ] T006 Resolve duplicate Spec 014 identities and canonical target paths.
+- [ ] T006 Resolve duplicate numeric Spec identities 011 and 014 and approve canonical semantic target paths.
 - [x] T007 Update Work Map and schema-domain classification.
 - [ ] T008 Approve architecture, product, security, privacy, agency/client ownership, and portability decisions for Phase 1.
+- [x] T009 Inventory all open Draft Spec PRs, register live divergence, implementation trains, overlaps, truthfulness findings, and portfolio dispositions.
 
 ## Phase 1 — Package/component foundation
 
@@ -89,10 +90,10 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 
 - [ ] T080 Reconstruct generic Business Profile/Activity/Blueprint substrate from PR #3922 on current main.
 - [ ] T081 Reconstruct Retail Commerce child package from PR #3922.
-- [ ] T082 Reconstruct generic development/CI assurance template from PR #4432.
+- [ ] T082 Reconstruct generic repository delivery/development/CI assurance from PRs #2284, #2949, and #4432.
 - [ ] T083 Reconstruct Evidence Intelligence child package from PR #4432.
-- [ ] T084 Validate both packages against Spec 015 contracts.
-- [ ] T085 Confirm no duplicate Spec identity, stale base, or copied generated artifact remains.
+- [ ] T084 Reconstruct Hostinger Storage and Local Connector Recovery as bounded services or reference packages from PRs #4386 and #2385.
+- [ ] T085 Validate all four package/service targets, operation-fabric integration, canonical paths, and absence of duplicate Spec identity or stale copied artifacts.
 
 ## Phase 9 — Pilot and closeout
 
