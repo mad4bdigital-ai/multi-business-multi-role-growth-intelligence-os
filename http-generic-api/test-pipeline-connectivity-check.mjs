@@ -125,15 +125,20 @@ function setup() {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const workflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml"), "utf8");
   const manifest = fs.readFileSync(path.join(repoRoot, "http-generic-api/scripts/run-test-manifest.mjs"), "utf8");
+  const triggerBlock = workflow.slice(workflow.indexOf("on:"), workflow.indexOf("permissions:"));
   const concurrencyBlock = workflow.slice(workflow.indexOf("concurrency:"), workflow.indexOf("jobs:"));
   const permissionsBlock = workflow.slice(workflow.indexOf("permissions:"), workflow.indexOf("concurrency:"));
+  const jobAuthorizationBlock = workflow.slice(workflow.indexOf("jobs:"), workflow.indexOf("runs-on:"));
 
-  assert.ok(concurrencyBlock.includes("format('spec-kit-work-map-noop-{0}', github.run_id)"), "Unauthorised reopened events must use a run-unique no-op concurrency group");
-  assert.ok(concurrencyBlock.includes("github.event.action == 'reopened'"), "Concurrency authorization must require a reopened event");
-  assert.ok(concurrencyBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"), "Concurrency authorization must require a same-repository head");
-  assert.ok(concurrencyBlock.includes("github.actor != 'github-actions[bot]'"), "Concurrency authorization must reject bot-authored reopened events");
-  assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Concurrency authorization must require the explicit marker");
+  assert.ok(triggerBlock.includes("types: [reopened]"), "Pull-request autofix must only be triggered by an explicit reopened event");
+  assert.ok(concurrencyBlock.includes("format('spec-kit-work-map-noop-{0}', github.run_id)"), "Unauthorised events must use a run-unique no-op concurrency group");
+  assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Authorized artifact writes must share the governed branch concurrency group");
   assert.ok(concurrencyBlock.includes("cancel-in-progress: false"), "Authorized writes must queue behind the active artifact writer instead of cancelling it");
+
+  assert.ok(jobAuthorizationBlock.includes("github.event.action == 'reopened'"), "Job authorization must require a reopened event");
+  assert.ok(jobAuthorizationBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"), "Job authorization must require a same-repository head");
+  assert.ok(jobAuthorizationBlock.includes("github.actor != 'github-actions[bot]'"), "Job authorization must reject bot-authored reopened events");
+  assert.ok(jobAuthorizationBlock.includes("work-map-autofix:authorized"), "Job authorization must require the explicit marker");
 
   assert.ok(permissionsBlock.includes("pull-requests: write"), "Sticky diagnostics require explicit pull-request write permission");
   assert.ok(workflow.includes("Bootstrap Work Map diagnostic envelope"), "Checkout and setup failures require a bootstrap report");
