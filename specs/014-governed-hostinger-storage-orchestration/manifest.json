@@ -20,11 +20,7 @@
     "service_principal",
     "delegated_support_operator"
   ],
-  "ownership_scopes": [
-    "platform",
-    "tenant",
-    "shared"
-  ],
+  "ownership_scopes": ["platform", "tenant", "shared"],
   "invariants": [
     "single_shared_orchestration_service",
     "separate_admin_and_tenant_http_surfaces",
@@ -73,11 +69,20 @@
     "http-generic-api/config/hostinger-storage-cleanup-policy.json",
     "http-generic-api/config/hostinger-storage-orchestration-policy.json",
     "http-generic-api/hostingerStorageOrchestrationPolicy.js",
+    "http-generic-api/hostingerStorageOrchestrator.js",
     "http-generic-api/scripts/hostinger-storage-cleanup.sh",
     "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs",
     "http-generic-api/test-hostinger-storage-orchestration-policy.mjs",
+    "http-generic-api/test-hostinger-storage-orchestrator.mjs",
     ".github/workflows/hostinger-storage-cleanup-guard.yml"
   ],
+  "implementation_state": {
+    "conservative_filesystem_adapter_core": "implemented_non_production",
+    "admin_tenant_authority_policy": "implemented_pure",
+    "orchestration_envelope_idempotency_projection_reconciliation_core": "implemented_pure_non_durable",
+    "durable_repositories_routes_worker_and_provider_dispatch": "pending",
+    "live_apply_dispatch": "disabled"
+  },
   "public_api_boundary": {
     "status": "contract_only",
     "admin_surface": "planned",
