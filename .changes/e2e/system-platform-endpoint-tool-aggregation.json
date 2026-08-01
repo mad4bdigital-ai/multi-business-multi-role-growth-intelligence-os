@@ -10,6 +10,7 @@
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/platformEndpointToolAggregation.js",
       "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
       "http-generic-api/test-system-tool-catalog-v2.mjs"
     ]
   },
@@ -35,7 +36,7 @@
             "Normalize the descriptor through System Tool Catalog V2 without a descriptor-name collision.",
             "Regenerate the frontend dispatch evidence from the exact candidate head.",
             "Resolve an allowed endpoint_key to its exact registry binding for runtime dispatch.",
-            "Reject missing, unknown, parent-mismatched, or residually ambiguous selections with typed fail-closed errors."
+            "Enforce the grouped-dispatch runtime ratchet and reject selector regressions."
           ],
           "assertions": [
             "The public catalog contains exactly one descriptor for github_rest_endpoint_dispatch.",
@@ -52,10 +53,18 @@
               "working_directory": "http-generic-api",
               "path": "test-system-tool-catalog-v2.mjs",
               "args": []
+            },
+            {
+              "id": "system-tool-grouped-dispatch-runtime-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec013-runtime-ratchet-contract.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
             "http-generic-api/test-system-tool-catalog-v2.mjs"
           ]
         }
