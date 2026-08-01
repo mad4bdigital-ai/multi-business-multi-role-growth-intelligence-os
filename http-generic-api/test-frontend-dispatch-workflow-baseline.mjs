@@ -73,9 +73,8 @@ assert.match(
   /git fetch origin main --depth=1[\s\S]*?git branch -f main origin\/main[\s\S]*?BASE_REF="main"[\s\S]*?node scripts\/openapi-runtime-auth-sync\.mjs --write[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
   "refresh and validation must resolve main from the same freshly fetched commit and apply auth sync before projection",
 );
-assert.match(
-  refreshBlock,
-  /openapi\.yaml\|openapi\/support-tickets\\\.yaml/u,
+assert.ok(
+  refreshBlock.includes("openapi\\.yaml|openapi/support-tickets\\.yaml"),
   "refresh must keep canonical auth repair bounded to the reviewed OpenAPI files",
 );
 
