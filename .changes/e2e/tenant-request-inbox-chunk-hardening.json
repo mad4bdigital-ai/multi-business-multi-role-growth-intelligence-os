@@ -16,6 +16,7 @@
       "http-generic-api/supportTicketResolutionService.js",
       "http-generic-api/tenantRequestInboxService.js",
       "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+      "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
     ]
   },
@@ -67,12 +68,20 @@
               "working_directory": "http-generic-api",
               "path": "test-governed-tool-response-chunk-store.mjs",
               "args": []
+            },
+            {
+              "id": "gpt-tools-bounded-inline-chunk-fallback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-gpt-tools-response-chunking.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/tenant-requests.openapi.yaml",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+            "http-generic-api/test-gpt-tools-response-chunking.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
           ]
         }
