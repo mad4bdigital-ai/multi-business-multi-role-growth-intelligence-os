@@ -5,6 +5,7 @@ on:
     paths:
       - '**/*.js'
       - '**/*.mjs'
+      - '**/*.cjs'
       - '**/*.ts'
       - '**/*.tsx'
       - '**/*.mts'
@@ -17,6 +18,7 @@ on:
     paths:
       - '**/*.js'
       - '**/*.mjs'
+      - '**/*.cjs'
       - '**/*.ts'
       - '**/*.tsx'
       - '**/*.mts'
@@ -66,11 +68,11 @@ jobs:
       - name: Enforce governed Base imports repository-wide
         run: |
           tenant_imports="$(grep -R -l "hostingerStorageTenantCanaryBase.js" . \
-            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
+            --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)"
           policy_imports="$(grep -R -l "hostingerStorageTenantCanaryPolicyBase.js" . \
-            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
+            --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.ts' --include='*.tsx' --include='*.mts' --include='*.cts' \
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)"
           test "$tenant_imports" = "http-generic-api/hostingerStorageTenantCanary.js"
