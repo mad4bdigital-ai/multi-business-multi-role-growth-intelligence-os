@@ -111,7 +111,7 @@
     {
       "key": "docs-agent",
       "workflow": ".github/workflows/docs-agent.yml",
-      "mode": "preview_and_followup_pr",
+      "mode": "preview_governed_work_map_write_and_followup_pr",
       "required_permissions": {
         "contents": "read"
       },
@@ -126,6 +126,17 @@
         "platform-work-map-generator.mjs --write",
         "Upload generated documentation preview",
         "Report preview-only PR mode",
+        "Governed exact-head Work Map write",
+        "docs-agent-write",
+        "work-map-autofix-diagnostics.mjs",
+        "pin-authorized-head",
+        "Consume one-time write label",
+        "regenerate-and-verify-idempotency",
+        "commit-and-push-work-maps",
+        "docs/work-maps",
+        "work-map-autofix-diagnostic-report",
+        "actions/upload-artifact@v4",
+        "GITHUB_STEP_SUMMARY",
         "Main follow-up docs PR",
         "git checkout -b",
         "gh pr create",
@@ -135,10 +146,10 @@
         "github.event.pull_request.head.repo.full_name == github.repository"
       ],
       "forbidden_commands": [
-        "docs-agent-write",
         "docs-agent-automerge",
         "Commit generated documentation to PR branch",
-        "HEAD:refs/heads/${TARGET_BRANCH}"
+        "--force",
+        "--force-with-lease"
       ]
     },
     {
@@ -177,7 +188,7 @@
     {
       "from": "docs-agent",
       "to": "platform_work_maps",
-      "type": "followup_pr_produces"
+      "type": "governed_and_followup_pr_produces"
     },
     {
       "from": "openapi-auto-sync",
@@ -202,7 +213,7 @@
     {
       "from": "docs-agent",
       "to": "spec-kit-work-map-integration",
-      "type": "followup_pr_dispatches_validation"
+      "type": "governed_or_followup_pr_dispatches_validation"
     }
   ]
 }
