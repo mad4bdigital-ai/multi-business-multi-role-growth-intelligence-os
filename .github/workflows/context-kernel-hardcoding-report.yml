@@ -23,6 +23,9 @@ concurrency:
   group: context-kernel-hardcoding-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   report:
     name: Publish and enforce structured hardcoding report
@@ -31,6 +34,7 @@ jobs:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
         with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
@@ -57,7 +61,6 @@ jobs:
           else
             git diff --name-only HEAD^...HEAD > "$changed_files"
           fi
-          echo "Changed files included in the structured scan:"
           cat "$changed_files"
 
       - name: Generate exact-scope structured scanner report
@@ -70,18 +73,32 @@ jobs:
 
       - name: Build canonical report and Step Summary
         env:
-          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           CANDIDATE_HEAD_REF: ${{ github.head_ref || github.ref_name }}
           CANDIDATE_BASE_REF: ${{ github.base_ref || 'main' }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const crypto = require('node:crypto');
+          const shaPattern = /^[0-9a-f]{40}$/;
           const sourceFile = process.env.RUNNER_TEMP + '/context-kernel-hardcoding-source.json';
-          const sourceText = fs.readFileSync(sourceFile, 'utf8');
-          const source = JSON.parse(sourceText);
-          const active = Array.isArray(source.findings) ? source.findings.filter((item) => !item.suppressed) : [];
+          if (!shaPattern.test(process.env.CI_CANDIDATE_SHA || '')) throw new Error('Invalid exact candidate SHA.');
+          const raw = JSON.parse(fs.readFileSync(sourceFile, 'utf8'));
+          if (raw.secrets_included === true || raw.secretsIncluded === true) throw new Error('Scanner source declared secrets.');
+          const active = Array.isArray(raw.findings) ? raw.findings.filter((item) => !item.suppressed) : [];
           const runtime = active.filter((item) => item.zone === 'runtime');
+          const source = {
+            ...raw,
+            contract: 'mad4b.context-kernel-hardcoding-source.v1',
+            candidate_kind: 'head',
+            candidate_sha: process.env.CI_CANDIDATE_SHA,
+            ok: runtime.length === 0,
+            secrets_included: false
+          };
+          const sourceText = JSON.stringify(source, null, 2) + '\n';
+          fs.writeFileSync(sourceFile, sourceText);
+          if (source.contract !== 'mad4b.context-kernel-hardcoding-source.v1' || source.candidate_kind !== 'head' || source.candidate_sha !== process.env.CI_CANDIDATE_SHA || typeof source.ok !== 'boolean' || source.secrets_included !== false) {
+            throw new Error('Context Kernel source evidence failed canonical validation.');
+          }
           const first = runtime[0] || active[0] || null;
           const summary = {
             contract: 'mad4b.context-kernel-hardcoding-summary.v1',
@@ -89,7 +106,9 @@ jobs:
             identity: {
               workflow: 'Context Kernel Hardcoding Report',
               run_id: process.env.GITHUB_RUN_ID,
-              commit_sha: process.env.CANDIDATE_SHA,
+              candidate_kind: 'head',
+              candidate_sha: process.env.CI_CANDIDATE_SHA,
+              source_head_sha: process.env.CI_CANDIDATE_SHA,
               head_ref: process.env.CANDIDATE_HEAD_REF,
               base_ref: process.env.CANDIDATE_BASE_REF
             },
@@ -101,7 +120,11 @@ jobs:
             },
             first_blocking_finding: first,
             source_report: {
-              contract: source.contract || null,
+              contract: source.contract,
+              candidate_kind: source.candidate_kind,
+              candidate_sha: source.candidate_sha,
+              ok: source.ok,
+              secrets_included: source.secrets_included,
               scan_scope: source.scan_scope || null,
               sha256: crypto.createHash('sha256').update(sourceText).digest('hex')
             },
@@ -119,8 +142,10 @@ jobs:
             '# Context Kernel hardcoding report',
             '',
             `- Outcome: **${summary.outcome}**`,
-            `- Exact head: \`${summary.identity.commit_sha}\``,
+            `- Candidate kind: \`${summary.identity.candidate_kind}\``,
+            `- Exact candidate SHA: \`${summary.identity.candidate_sha}\``,
             `- Head/Base: \`${summary.identity.head_ref}\` → \`${summary.identity.base_ref}\``,
+            `- Source contract: \`${summary.source_report.contract}\``,
             `- Active findings: **${summary.counts.finding_count}**`,
             `- Runtime blocking findings: **${summary.counts.runtime_finding_count}**`,
             `- Suppressed findings: **${summary.counts.suppressed_count}**`,
@@ -128,17 +153,7 @@ jobs:
             '- Job logs: **diagnostic-only; not required for the decision**'
           ];
           if (first) {
-            lines.push(
-              '',
-              '## First blocking finding',
-              '',
-              `- Rule: \`${first.rule_id}\``,
-              `- Path: \`${first.path}:${first.line}\``,
-              `- Zone: \`${first.zone}\``,
-              `- Message: ${first.message}`,
-              `- Remediation: ${first.remediation}`,
-              `- Bounded evidence: \`${String(first.evidence || '').replace(/`/g, '\\`')}\``
-            );
+            lines.push('', '## First blocking finding', '', `- Rule: \`${first.rule_id}\``, `- Path: \`${first.path}:${first.line}\``, `- Zone: \`${first.zone}\``, `- Message: ${first.message}`, `- Remediation: ${first.remediation}`, `- Bounded evidence: \`${String(first.evidence || '').replace(/`/g, '\\`')}\``);
           }
           const markdown = lines.join('\n') + '\n';
           fs.writeFileSync(process.env.RUNNER_TEMP + '/context-kernel-hardcoding-summary.md', markdown);
