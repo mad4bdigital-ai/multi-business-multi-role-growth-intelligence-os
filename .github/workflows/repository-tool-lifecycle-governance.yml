@@ -27,6 +27,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Run repository-tool lifecycle regression
+        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
       - name: Prepare exact changed-file inventory
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
