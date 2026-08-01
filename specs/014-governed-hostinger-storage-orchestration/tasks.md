@@ -24,11 +24,11 @@
 
 ## Phase 1 — Contract freeze
 
-- [ ] **T010** [P] [FR-001–FR-010/OP-001–OP-004] Finalize OpenAPI 3.1 Admin/Tenant read contracts and examples.
-- [ ] **T011** [P] [FR-011–FR-023/OP-003–OP-009] Finalize plan/apply/readback operation schema.
-- [ ] **T012** [P] [FR-012–FR-026] Finalize plan and evidence JSON Schemas with no-secret constraints.
-- [ ] **T013** Validate contracts using repository OpenAPI/JSON Schema tooling and negative examples.
-- [ ] **T014** Freeze error catalog and compatibility/versioning policy.
+- [x] **T010** [P] [FR-001–FR-010/OP-001–OP-004] Finalize OpenAPI 3.1 Admin/Tenant read contracts and examples. Evidence: `contracts/openapi.yaml` and the 18-operation compatibility floor in `contracts/contract-compatibility-baseline.json`.
+- [x] **T011** [P] [FR-011–FR-023/OP-003–OP-009] Finalize plan/apply/readback operation schema. Evidence: `contracts/storage-operation.schema.json` and executable contract regression.
+- [x] **T012** [P] [FR-012–FR-026] Finalize plan and evidence JSON Schemas with no-secret constraints. Evidence: `storage-plan.schema.json`, `storage-evidence.schema.json`, closed-object and `secrets_included=false` assertions.
+- [x] **T013** Validate contracts using repository OpenAPI/JSON Schema tooling and negative examples. Evidence: `http-generic-api/test-hostinger-storage-contracts.mjs`; first successful Workstream head `03ffa7a46c0dc74627892105f8b7d447294ca084`.
+- [x] **T014** Freeze error catalog and compatibility/versioning policy. Evidence: 59-code baseline plus `contracts/compatibility.md` additive-only policy.
 
 ## Phase 2 — Data model and migration design
 
