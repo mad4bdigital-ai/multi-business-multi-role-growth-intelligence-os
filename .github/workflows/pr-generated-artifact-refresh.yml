@@ -35,37 +35,65 @@ on:
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "canonicals/openapi/**/*.yaml"
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Exact governed work branch to evaluate
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character branch head SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-generated-artifact-refresh-${{ github.event.pull_request.number || github.ref }}
+  group: pr-generated-artifact-refresh-${{ github.event.pull_request.number || inputs.target_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   refresh:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
-       startsWith(github.event.pull_request.head.ref, 'cert/')) &&
-      github.actor != 'github-actions[bot]'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
+        startsWith(github.event.pull_request.head.ref, 'cert/')) &&
+       github.actor != 'github-actions[bot]')
     permissions:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
+      CI_SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
       REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
       REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
     steps:
+      - name: Validate exact candidate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${CI_SOURCE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${TARGET_REF}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
+
       - name: Checkout exact governed PR head
         uses: actions/checkout@v5
         with:
           ref: ${{ env.CI_SOURCE_HEAD_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify local and remote exact-head identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          [[ "$local_sha" == "$CI_SOURCE_HEAD_SHA" ]]
+          [[ "$remote_sha" == "$CI_SOURCE_HEAD_SHA" ]]
 
       - name: Setup Node
         uses: actions/setup-node@v6
