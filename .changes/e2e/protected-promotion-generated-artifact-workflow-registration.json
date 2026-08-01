@@ -12,7 +12,9 @@
       ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/protected-promotion-generated-artifact-refresh.yml",
       "docs/ci-evidence-routing.md",
+      "http-generic-api/scripts/openapi-autofill-missing-routes.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/test-openapi-autofill-missing-routes.mjs",
       ".changes/e2e/protected-promotion-generated-artifact-workflow-registration.json"
     ]
   },
@@ -23,7 +25,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Register a uniquely named pull-request workflow for exact same-repository promotions targeting Production while retaining the existing read-only work-branch evaluator, one canonical evidence contract, and the separately governed writer.",
+      "objective": "Register a uniquely named pull-request workflow for exact same-repository promotions targeting Production while retaining the existing read-only work-branch evaluator, one canonical evidence contract, the separately governed writer, and the inherited fail-closed OpenAPI coverage boundary.",
       "e2e_journeys": [
         {
           "id": "schedule-protected-promotion-generated-artifact-evidence",
@@ -31,7 +33,7 @@
           "level": "synthetic_runtime",
           "actor": "repository release automation and reviewer",
           "entrypoint": "A same-repository pull request is opened, synchronized, or reopened with base Production",
-          "terminal_outcome": "GitHub schedules the uniquely named Protected Promotion Generated Artifact Refresh workflow, which evaluates the exact source head, publishes the canonical generated-artifact report, and performs no repository mutation.",
+          "terminal_outcome": "GitHub schedules the uniquely named Protected Promotion Generated Artifact Refresh workflow, which evaluates the exact source head, publishes the canonical generated-artifact report, performs no repository mutation, and preserves the fail-closed missing-route coverage gate inherited from main.",
           "steps": [
             "Exclude Production-target pull requests from the existing work-branch generated-artifact workflow.",
             "Register a distinct workflow file and unique display name whose pull_request branch filter targets Production without path filtering.",
@@ -40,6 +42,7 @@
             "Checkout the exact source head without persisted credentials.",
             "Verify local and remote exact-head identity.",
             "Run publisher, mutation-boundary, generation, and verification regressions in the ephemeral runner.",
+            "Re-run the inherited OpenAPI missing-route fail-closed regression because branch reconciliation leaves that byte-identical runtime file in the changed-path set.",
             "Upload mad4b.pr-generated-artifact-refresh-summary.v1 evidence before enforcing its decision.",
             "Route both generated-artifact workflow names through the trusted publisher into the same canonical evidence section."
           ],
@@ -52,6 +55,7 @@
             "Machine routing registers both names as aliases of mad4b.pr-generated-artifact-refresh-summary.v1.",
             "The governed writer remains workflow-dispatch-only and rejects main and Production.",
             "The generated-artifact report remains read-only with commit_sha null and repository_mutation_performed false.",
+            "The inherited missing-route coverage gate remains byte-preserving and rejects uncontracted routes without repository mutation.",
             "No migration, SQL execution, deployment, provider call, credential access, external send, protected-branch mutation, or force push occurs."
           ],
           "tests": [
@@ -68,6 +72,13 @@
               "working_directory": "http-generic-api",
               "path": "test-test-manifest-runner.mjs",
               "args": []
+            },
+            {
+              "id": "openapi-missing-route-fail-closed-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-autofill-missing-routes.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -76,7 +87,9 @@
             ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/protected-promotion-generated-artifact-refresh.yml",
             "docs/ci-evidence-routing.md",
-            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
+            "http-generic-api/scripts/openapi-autofill-missing-routes.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/test-openapi-autofill-missing-routes.mjs"
           ]
         }
       ]
