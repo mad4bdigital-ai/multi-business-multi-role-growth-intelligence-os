@@ -90,6 +90,11 @@ assert.equal(
   "backup artifact routes must be mounted exactly once"
 );
 assert.equal(
+  (routesIndexSource.match(/buildRegistryDataManagementRoutes\(\{ \.\.\.deps, requireAdminPrincipal \}\)/g) || []).length,
+  1,
+  "registry data management routes must be mounted exactly once with admin and tenant guards"
+);
+assert.equal(
   routesIndexSource.includes("createOperationRuntimeGuard"),
   false,
   "operation runtime guard must be mounted only by server.js"
@@ -98,11 +103,6 @@ assert.equal(
   routesIndexSource.includes("createOperationRuntimeErrorHandler"),
   false,
   "operation runtime error handler must be mounted only by server.js"
-);
-assert.equal(
-  routesIndexSource.includes("buildRegistryDataManagementRoutes"),
-  false,
-  "unused registry data management route imports must not expand startup failure surface"
 );
 
 const rootEntrypointSource = readFileSync(join(__dirname, "..", "server.js"), "utf8");
