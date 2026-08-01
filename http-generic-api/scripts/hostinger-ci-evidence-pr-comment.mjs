@@ -9,7 +9,8 @@ import {
   upsertEvidenceComment
 } from "./ci-evidence-pr-comment.mjs";
 
-const WORKFLOW = "Hostinger Storage Tenant Canary Guard";
+const SOURCE_WORKFLOW = "Hostinger Storage Tenant Canary Canonical Evidence";
+const REPORT_WORKFLOW = "Hostinger Storage Tenant Canary Guard";
 const CONTRACT = "mad4b.hostinger-guard-summary.v1";
 const GUARD_KEY = "hostinger-storage-tenant-canary";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -97,7 +98,7 @@ export function normalizeHostingerEvidence({
 }) {
   if (!WORKFLOW_CONCLUSIONS.has(workflowConclusion)) throw new Error("Unsupported workflow conclusion.");
   if (report?.contract !== CONTRACT) throw new Error("Unexpected Hostinger canonical contract.");
-  if (report?.workflow !== WORKFLOW) throw new Error("Hostinger report workflow identity mismatch.");
+  if (report?.workflow !== REPORT_WORKFLOW) throw new Error("Hostinger logical guard identity mismatch.");
   if (report?.guard_key !== GUARD_KEY) throw new Error("Hostinger report guard identity mismatch.");
   if (report?.secrets_included !== false) throw new Error("Hostinger report must declare secrets_included=false.");
   if (report?.job_logs_consulted !== false) throw new Error("Hostinger canonical decision must not consult Job logs.");
@@ -136,7 +137,7 @@ export function normalizeHostingerEvidence({
     : `${passed}/${selected} guard checks passed; first failure: ${report.first_failure.check_id}`;
   return {
     slug: GUARD_KEY,
-    workflow: WORKFLOW,
+    workflow: SOURCE_WORKFLOW,
     workflowConclusion,
     runId: workflowRunId,
     candidateKind: "head",
