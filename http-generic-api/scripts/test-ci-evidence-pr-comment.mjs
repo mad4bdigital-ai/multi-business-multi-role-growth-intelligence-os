@@ -1,9 +1,16 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { COMMENT_MARKER, normalizeEvidence, renderEvidenceSection, upsertEvidenceComment } from "./ci-evidence-pr-comment.mjs";
+import {
+  COMMENT_MARKER,
+  assertCurrentPullRequestIdentity,
+  normalizeEvidence,
+  renderEvidenceSection,
+  upsertEvidenceComment
+} from "./ci-evidence-pr-comment.mjs";
 
 const HEAD = "a".repeat(40);
 const MERGE = "b".repeat(40);
+const OTHER = "c".repeat(40);
 
 const e2e = normalizeEvidence({
   workflow: "E2E Phase Governance",
@@ -115,9 +122,29 @@ assert.throws(() => normalizeEvidence({
   }
 }), /Successful workflow_run cannot publish a non-passed canonical outcome/u);
 
+assert.equal(assertCurrentPullRequestIdentity({ head: { sha: HEAD }, merge_commit_sha: MERGE }, e2e), true);
+assert.throws(
+  () => assertCurrentPullRequestIdentity({ head: { sha: OTHER }, merge_commit_sha: MERGE }, e2e),
+  /stale PR head/u
+);
+assert.equal(assertCurrentPullRequestIdentity({ head: { sha: HEAD }, merge_commit_sha: MERGE }, branch), true);
+assert.throws(
+  () => assertCurrentPullRequestIdentity({ head: { sha: HEAD }, merge_commit_sha: OTHER }, branch),
+  /stale or substituted merge candidate/u
+);
+
+const sanitized = renderEvidenceSection({
+  ...e2e,
+  detail: "@octocat <b>unsafe</b> `inline`"
+});
+assert.doesNotMatch(sanitized, /@octocat/u);
+assert.doesNotMatch(sanitized, /<b>/u);
+assert.match(sanitized, /＠octocat/u);
+assert.match(sanitized, /&lt;b&gt;unsafe&lt;\/b&gt;/u);
+
 console.log(JSON.stringify({
   ok: true,
-  tests: 8,
-  gate: "ci_evidence_pr_comment_supersession_and_conclusion_binding",
+  tests: 13,
+  gate: "ci_evidence_pr_comment_identity_conclusion_and_sanitization",
   secrets_included: false
 }));
