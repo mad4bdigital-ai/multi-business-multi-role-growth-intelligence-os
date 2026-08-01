@@ -38,11 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
+      EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
 
       - uses: actions/setup-node@v6
         with:
@@ -80,6 +81,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          tested_head_sha="$(git rev-parse HEAD)"
+          if [[ "${tested_head_sha}" != "${EXPECTED_CHECKED_OUT_SHA}" ]]; then
+            echo "Repair candidate checkout mismatch. Expected ${EXPECTED_CHECKED_OUT_SHA}, found ${tested_head_sha}."
+            exit 1
+          fi
+          export WORK_MAP_TESTED_HEAD_SHA="${tested_head_sha}"
+
           rm -rf "${WORK_MAP_REPAIR_ROOT}"
           mkdir -p "${WORK_MAP_REPAIR_ROOT}/docs"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
@@ -111,12 +119,15 @@ jobs:
             run_id: process.env.GITHUB_RUN_ID,
             run_attempt: process.env.GITHUB_RUN_ATTEMPT,
             event_name: process.env.GITHUB_EVENT_NAME,
-            tested_head_sha: process.env.GITHUB_SHA,
+            event_sha: process.env.GITHUB_SHA,
+            expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA,
+            tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA,
             source_hash_sha256: sourceHash,
             changed_files: changedFiles,
             changed_count: changedFiles.length,
             allowed_root: "docs/work-maps",
-            generated_from_exact_checked_out_head: true,
+            generated_from_exact_checked_out_head:
+              process.env.WORK_MAP_TESTED_HEAD_SHA === process.env.EXPECTED_CHECKED_OUT_SHA,
             remote_write_executed: false,
             secrets_included: false,
           };
@@ -127,7 +138,7 @@ jobs:
         if: steps.work_map_currentness.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
           path: ${{ runner.temp }}/work-map-repair-candidate
           if-no-files-found: error
           retention-days: 14
