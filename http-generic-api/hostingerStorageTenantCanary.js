@@ -129,8 +129,12 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const id = safeId(allowlist_id, 'allowlist_id');
       const current = allowlists.get(id);
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_ALLOWLIST_NOT_FOUND', 'Authoritative allowlist record was not found.');
-      if (current.revision !== safeId(expected_revision, 'expected_revision')) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
+      const expectedRevision = safeId(expected_revision, 'expected_revision');
+      if (current.revision !== expectedRevision) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
       const normalized = deepFreeze(normalizeCurrentAllowlist({ ...record, allowlist_id: id }));
+      if (normalized.revision === current.revision) {
+        throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_NOT_ADVANCED', 'Allowlist updates must advance the authoritative revision token.', { current_revision: current.revision });
+      }
       allowlists.set(id, normalized);
       return clone(normalized);
     },
@@ -148,8 +152,12 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const id = safeId(approval_id, 'approval_id');
       const current = approvals.get(id);
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_APPROVAL_NOT_FOUND', 'Authoritative approval record was not found.');
-      if (current.evidence_digest !== hash(expected_evidence_digest, 'expected_evidence_digest')) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
+      const expectedEvidenceDigest = hash(expected_evidence_digest, 'expected_evidence_digest');
+      if (current.evidence_digest !== expectedEvidenceDigest) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
       const normalized = deepFreeze(normalizeCurrentApproval({ ...record, approval_id: id }));
+      if (normalized.evidence_digest === current.evidence_digest) {
+        throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_NOT_ADVANCED', 'Approval updates must advance the authoritative evidence token.', { current_evidence_digest: current.evidence_digest });
+      }
       approvals.set(id, normalized);
       return clone(normalized);
     },
