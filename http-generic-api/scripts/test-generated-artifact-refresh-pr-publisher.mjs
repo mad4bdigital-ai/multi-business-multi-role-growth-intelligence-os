@@ -111,21 +111,48 @@ assert.throws(() => assertGeneratedArtifactPrIdentity(
   "gpt/example",
 ), /current PR head/iu);
 
-const readOnlyWorkflow = readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
+const workBranchReadOnlyWorkflow = readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
+const protectedPromotionReadOnlyWorkflow = readFileSync("../.github/workflows/protected-promotion-generated-artifact-refresh.yml", "utf8");
 const governedWriterWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 const governedWriterTool = readFileSync("scripts/maintenance-tools/generated-artifact-refresh.mjs", "utf8");
 
 assert.match(
-  readOnlyWorkflow,
-  /head\.ref == github\.event\.repository\.default_branch[\s\S]*base\.ref == 'Production'/u,
-  "read-only pull-request evaluation must permit only the default-branch to Production promotion path",
+  workBranchReadOnlyWorkflow,
+  /branches-ignore:[\s\S]*- Production/u,
+  "the work-branch evaluator must not compete with the dedicated Production promotion workflow",
 );
-assert.match(readOnlyWorkflow, /EVENT_NAME: \$\{\{ github\.event_name \}\}/u);
-assert.match(readOnlyWorkflow, /PR_BASE_REF: \$\{\{ github\.event\.pull_request\.base\.ref \|\| '' \}\}/u);
-assert.match(readOnlyWorkflow, /elif \[\[ "\$\{TARGET_REF\}" == "\$\{DEFAULT_BRANCH\}" \]\]; then[\s\S]*PR_BASE_REF[\s\S]*Production/u);
-assert.match(readOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
-assert.match(readOnlyWorkflow, /persist-credentials: false/u);
-assert.doesNotMatch(readOnlyWorkflow, /git push/u);
+assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'gpt\/'\)/u);
+assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'cert\/'\)/u);
+assert.match(workBranchReadOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
+assert.match(workBranchReadOnlyWorkflow, /persist-credentials: false/u);
+assert.doesNotMatch(workBranchReadOnlyWorkflow, /contents: write/u);
+assert.doesNotMatch(workBranchReadOnlyWorkflow, /git push/u);
+
+assert.match(
+  protectedPromotionReadOnlyWorkflow,
+  /pull_request:[\s\S]*branches:[\s\S]*- Production/u,
+  "the dedicated evaluator must be registered for Production-target pull requests",
+);
+assert.doesNotMatch(protectedPromotionReadOnlyWorkflow, /workflow_dispatch:/u);
+assert.match(
+  protectedPromotionReadOnlyWorkflow,
+  /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
+);
+assert.match(protectedPromotionReadOnlyWorkflow, /github\.event\.pull_request\.base\.ref/u);
+assert.match(protectedPromotionReadOnlyWorkflow, /PR_BASE_REF[\s\S]*Production/u);
+assert.match(protectedPromotionReadOnlyWorkflow, /CI_SOURCE_HEAD_SHA/u);
+assert.match(protectedPromotionReadOnlyWorkflow, /persist-credentials: false/u);
+assert.match(protectedPromotionReadOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
+assert.doesNotMatch(protectedPromotionReadOnlyWorkflow, /contents: write/u);
+assert.doesNotMatch(protectedPromotionReadOnlyWorkflow, /git push/u);
+assert.match(
+  protectedPromotionReadOnlyWorkflow,
+  /pr-generated-artifact-refresh-\$\{\{ github\.run_id \}\}-summary/u,
+);
+assert.match(
+  protectedPromotionReadOnlyWorkflow,
+  /mad4b\.pr-generated-artifact-refresh-summary\.v1/u,
+);
 
 assert.match(governedWriterWorkflow, /on:\s*\n\s*workflow_dispatch:/u);
 assert.doesNotMatch(governedWriterWorkflow, /pull_request:/u);
@@ -143,7 +170,8 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 20,
+  cases: 28,
+  work_branch_evaluator_excludes_production: true,
   protected_promotion_read_only: true,
   protected_writer_mutation: false,
   secrets_included: false,
