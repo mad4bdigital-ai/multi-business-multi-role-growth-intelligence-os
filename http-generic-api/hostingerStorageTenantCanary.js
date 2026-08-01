@@ -1,7 +1,7 @@
 import {
   HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
   createMemoryHostingerStorageTenantCanaryAuthorityStore as createBaseAuthorityStore,
-  createMemoryHostingerStorageTenantCanaryEnablementRegistry,
+  createMemoryHostingerStorageTenantCanaryEnablementRegistry as createBaseEnablementRegistry,
   executeHostingerStorageTenantCanary as executeBaseTenantCanary,
 } from './hostingerStorageTenantCanaryBase.js';
 import { createHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';
@@ -10,10 +10,7 @@ import {
   createMemoryHostingerStoragePersistenceAdapter,
 } from './hostingerStorageControlPlaneRepository.js';
 
-export {
-  HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
-  createMemoryHostingerStorageTenantCanaryEnablementRegistry,
-};
+export { HOSTINGER_STORAGE_TENANT_CANARY_VERSION };
 
 const REQUIRED_REPOSITORY_METHODS = Object.freeze([
   'readAggregate',
@@ -26,8 +23,12 @@ const CANONICAL_ADAPTER_KEY = 'hostinger_storage_synthetic_memory_adapter_v1';
 const CANONICAL_ADAPTER_VERSION = 'spec014-hostinger-storage-synthetic-adapter-v1';
 const CANONICAL_REPOSITORY_VERSION = 'spec014-storage-control-plane-repository-v1';
 const CANONICAL_REPOSITORY_ADAPTER_KEY = 'hostinger_storage_memory_test_adapter_v1';
+const CANONICAL_AUTHORITY_STORE_KEY = 'memory_hostinger_storage_tenant_canary_authority_v1';
+const CANONICAL_ENABLEMENT_REGISTRY_KEY = 'memory_hostinger_storage_tenant_canary_enablement_v1';
 const tenantCanaryAdapters = new WeakSet();
 const tenantCanaryRepositories = new WeakSet();
+const tenantCanaryAuthorityStores = new WeakSet();
+const tenantCanaryEnablementRegistries = new WeakSet();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -90,7 +91,7 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
     history.set(id, values);
   }
 
-  return Object.freeze({
+  const store = Object.freeze({
     adapter_key: base.adapter_key,
     synthetic_only: true,
     production_ready: false,
@@ -148,6 +149,14 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       return base.exportState();
     },
   });
+  tenantCanaryAuthorityStores.add(store);
+  return store;
+}
+
+export function createMemoryHostingerStorageTenantCanaryEnablementRegistry() {
+  const registry = createBaseEnablementRegistry();
+  tenantCanaryEnablementRegistries.add(registry);
+  return registry;
 }
 
 function requireCanonicalRepository(repository) {
@@ -190,6 +199,38 @@ function requireCanonicalAdapter(adapter) {
   }
 }
 
+function requireCanonicalAuthorityStore(store) {
+  if (!store
+    || !tenantCanaryAuthorityStores.has(store)
+    || !Object.isFrozen(store)
+    || store.adapter_key !== CANONICAL_AUTHORITY_STORE_KEY
+    || store.synthetic_only !== true
+    || store.production_ready !== false
+    || typeof store.readAllowlist !== 'function'
+    || typeof store.readApproval !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORITY_STORE_INVALID', 'Tenant canary requires an authority store created by the Tenant-owned factory.', {
+      authority_store_provenance: 'tenant_factory_owned_required',
+      expected_adapter_key: CANONICAL_AUTHORITY_STORE_KEY,
+    });
+  }
+}
+
+function requireCanonicalEnablementRegistry(registry) {
+  if (!registry
+    || !tenantCanaryEnablementRegistries.has(registry)
+    || !Object.isFrozen(registry)
+    || registry.adapter_key !== CANONICAL_ENABLEMENT_REGISTRY_KEY
+    || registry.synthetic_only !== true
+    || registry.production_ready !== false
+    || typeof registry.read !== 'function'
+    || typeof registry.consume !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_REGISTRY_INVALID', 'Tenant canary requires a one-shot registry created by the Tenant-owned factory.', {
+      enablement_registry_provenance: 'tenant_factory_owned_required',
+      expected_adapter_key: CANONICAL_ENABLEMENT_REGISTRY_KEY,
+    });
+  }
+}
+
 function revalidatePlanAuthority({ repository, protocol }) {
   const aggregate = repository.readAggregate(protocol?.operation_id);
   if (!aggregate?.operation) {
@@ -217,6 +258,8 @@ function revalidatePlanAuthority({ repository, protocol }) {
 export function executeHostingerStorageTenantCanary(options = {}) {
   requireCanonicalRepository(options.repository);
   requireCanonicalAdapter(options.adapter);
+  requireCanonicalAuthorityStore(options.authority_store);
+  requireCanonicalEnablementRegistry(options.enablement_registry);
   revalidatePlanAuthority({ repository: options.repository, protocol: options.protocol });
   return executeBaseTenantCanary(options);
 }
