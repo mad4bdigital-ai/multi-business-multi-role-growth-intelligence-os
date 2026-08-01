@@ -306,6 +306,7 @@ function makeReadback(source, value, expected, operation) {
   if (expected === undefined || expected === null) {
     throw fail(400, "RECONCILIATION_EXPECTED_STATE_REQUIRED", "Each required readback requires an explicit non-null expected state.", { source });
   }
+  assertSecretFree(value, `${source}.observed`);
   const exists = value !== null && value !== undefined;
   const match = exists && digest(value) === digest(expected);
   return Object.freeze({
