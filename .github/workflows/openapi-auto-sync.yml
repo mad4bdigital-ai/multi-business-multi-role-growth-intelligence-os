@@ -21,14 +21,24 @@ on:
       - "http-generic-api/scripts/surface-contract-discovery.mjs"
       - "http-generic-api/scripts/repo-maintenance-sync.mjs"
       - "http-generic-api/scripts/update-repo-planning-docs.mjs"
+      - "http-generic-api/scripts/pipeline-connectivity-check.mjs"
+      - "http-generic-api/test-pipeline-connectivity-check.mjs"
+      - ".specify/pipeline-connectivity-contract.json"
+      - ".github/workflows/openapi-auto-sync.yml"
       - "canonicals/openapi/**/*.yaml"
       - "edge/activation-gateway/**"
       - "docs/**/*.md"
       - "canonicals/**/*.md"
       - "*.md"
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -39,7 +49,12 @@ concurrency:
 jobs:
   repo-contract-sync:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      (github.event_name == 'push' &&
+       github.ref_name == 'main' &&
+       github.actor != 'github-actions[bot]') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref_name == 'main')
 
     steps:
       - name: Checkout repository
@@ -53,6 +68,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
 
       - name: Install dependencies
         working-directory: http-generic-api
@@ -69,11 +89,20 @@ jobs:
             echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
           fi
 
-      - name: Run repository contract maintenance sync
+      - name: Run repository contract maintenance sync without Work Map ownership
         id: maintenance
         working-directory: http-generic-api
         run: |
-          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
+          node scripts/repo-maintenance-sync.mjs --write --skip-work-maps --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
+
+      - name: Refuse Work Map mutation outside the governed writer
+        shell: bash
+        run: |
+          if ! git diff --quiet -- docs/work-maps; then
+            echo "OpenAPI Auto Sync must not modify docs/work-maps. Use the governed Work Map Autofix writer."
+            git diff --name-only -- docs/work-maps
+            exit 1
+          fi
 
       - name: Generate Custom GPT schemas from canonical sources
         working-directory: http-generic-api
@@ -91,7 +120,15 @@ jobs:
         id: diff
         shell: bash
         run: |
-          CHANGED_FILES="$(git diff --name-only --             http-generic-api/openapi.yaml             http-generic-api/openapi.*.yaml             http-generic-api/openapi/**/*.yaml             canonicals/openapi/**/*.yaml             edge/activation-gateway/**             docs/**/*.md             canonicals/**/*.md             '*.md')"
+          CHANGED_FILES="$(git diff --name-only -- \
+            http-generic-api/openapi.yaml \
+            http-generic-api/openapi.*.yaml \
+            http-generic-api/openapi/**/*.yaml \
+            canonicals/openapi/**/*.yaml \
+            edge/activation-gateway/** \
+            docs/**/*.md \
+            canonicals/**/*.md \
+            '*.md')"
 
           if [ -z "$CHANGED_FILES" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -121,9 +158,25 @@ jobs:
 
           echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
 
+      - name: Refuse stale main snapshot before PR creation
+        id: freshness
+        if: steps.diff.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          latest_main_sha="$(git rev-parse origin/main)"
+          echo "latest_main_sha=${latest_main_sha}" >> "$GITHUB_OUTPUT"
+          if [[ "${latest_main_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale repository auto-sync run. Triggered at ${GITHUB_SHA}, current main is ${latest_main_sha}."
+            exit 0
+          fi
+          echo "current=true" >> "$GITHUB_OUTPUT"
+
       - name: Create repository contract sync PR
         id: cpr
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.diff.outputs.changed == 'true' && steps.freshness.outputs.current == 'true'
         continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
@@ -137,17 +190,20 @@ jobs:
             automated
           token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           body: |
+            <!-- openapi-auto-sync-source:${{ github.sha }} -->
+
             Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
 
             Generation sequence:
-            1. Update the canonical `openapi.yaml` and repository planning docs.
+            1. Update the canonical `openapi.yaml` and repository planning docs without Work Map mutation.
             2. Generate split Custom GPT schemas into a temporary directory.
             3. Validate all request/response schemas recursively.
             4. Write generated artifacts only after validation succeeds.
             5. Verify committed artifacts exactly match their canonical sources.
 
-            Do not merge this PR as-is until the generated stubs and schema changes have been reviewed by a human or GPT.
-            Generated schema changes are never auto-merged. They require review of contracts, authentication, operation counts, backward compatibility, and Builder warnings.
+            Work Maps are intentionally excluded. Their sole remote writer is the governed Spec Kit Work Map Autofix workflow.
+
+            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or non-Markdown changes; those require human/GPT review. Safe Markdown-only synchronization may be auto-merged only after required checks pass. The merge parent is reconciled against the pinned source SHA after merge.
 
             Review checklist:
             - Replace any `TODO document ...` summaries with precise contracts.
@@ -157,9 +213,78 @@ jobs:
             - Confirm each Custom GPT schema stays within its operation budget.
             - Confirm canonical and generated artifacts remain byte-for-byte aligned.
 
-      - name: Enable auto-merge for safe docs-only sync PRs
-        if: steps.diff.outputs.auto_merge == 'true' && steps.cpr.outputs.pull-request-number != ''
+      - name: Enable guarded auto-merge for safe docs-only sync PRs
+        if: steps.diff.outputs.auto_merge == 'true' && steps.freshness.outputs.current == 'true' && steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "${latest_main_sha}" != "${GITHUB_SHA}" ]]; then
+            gh pr close "${PR_NUMBER}" --comment "Closing stale docs-only auto-sync PR: main moved from ${GITHUB_SHA} to ${latest_main_sha} before auto-merge registration. A newer run owns regeneration."
+            echo "Refused stale docs-only auto-merge."
+            exit 0
+          fi
+
+          pr_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          changed_files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')"
+          if [[ "${changed_files}" == "0" ]]; then
+            gh pr close "${PR_NUMBER}" --comment "Closing empty repository auto-sync PR; generated changes are already present on main."
+            echo "Refused empty docs-only auto-merge."
+            exit 0
+          fi
+
+          gh pr merge "${PR_NUMBER}" \
+            --auto \
+            --squash \
+            --delete-branch \
+            --match-head-commit "${pr_head_sha}"
+          echo "Registered guarded auto-merge for PR ${PR_NUMBER} at head ${pr_head_sha}."
+
+  reconcile-auto-sync-merge:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'chore/repo-contract-auto-sync-')
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile merged PR against pinned source SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          source_sha="$(
+            printf '%s\n' "${PR_BODY}" |
+              sed -nE 's/.*<!-- openapi-auto-sync-source:([0-9a-f]{40}) -->.*/\1/p' |
+              head -n 1
+          )"
+          merge_parent_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${MERGE_SHA}" \
+              --jq '.parents[0].sha'
+          )"
+
+          if [[ -n "${source_sha}" && "${merge_parent_sha}" == "${source_sha}" ]]; then
+            echo "Auto-sync merge ${MERGE_SHA} is bound to source ${source_sha}."
+            exit 0
+          fi
+
+          current_main_sha="$(
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+              --jq '.object.sha'
+          )"
+          gh workflow run openapi-auto-sync.yml --ref main
+          gh pr comment "${PR_NUMBER}" --body "OpenAPI Auto Sync reconciliation dispatched on current main \`${current_main_sha}\`. Pinned source: \`${source_sha:-missing}\`; actual merge parent: \`${merge_parent_sha}\`."
+          echo "Dispatched reconciliation because the merged base did not match the pinned source."
