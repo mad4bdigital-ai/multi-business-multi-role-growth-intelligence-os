@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ef98ec281d6c0fb6cbb71c8d52b0fdd077505daafa1904ff9e1afa72718ae719",
+    "source_digest": "0746d5d030373d9f71059c0178ea82f616713310cbe5a211ae0367c3f7fdc133",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -941,7 +941,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
+        "sha256": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
         "present": true
       },
       {
@@ -1545,7 +1545,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
+      "source_digest": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
       "mount_prefix": "/",
       "mount_order": 12082,
       "split_from_mixed_scope_file": false,
