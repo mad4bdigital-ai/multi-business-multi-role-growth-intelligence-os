@@ -21,7 +21,7 @@ function requestHost(req) {
 
 function configuredMcpHost(env) {
   try {
-    return new URL(resolveChatGptMcpResource(env)).host.toLowerCase();
+    return new URL(resolveChatGptMcpResource(env)).hostname.toLowerCase();
   } catch {
     return "";
   }
