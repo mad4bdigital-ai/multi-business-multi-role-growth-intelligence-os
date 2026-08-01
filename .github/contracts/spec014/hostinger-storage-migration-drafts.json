@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "contract": "spec014.hostinger-storage-migration-drafts.v1",
+  "contract": "spec014.hostinger-storage-migration-drafts.v2",
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "tasks": [
     "T024",
@@ -8,7 +8,9 @@
     "T026",
     "T027"
   ],
-  "status": "draft_review_only",
+  "status": "draft_review_ready",
+  "classification_source": ".github/contracts/spec014/hostinger-storage-schema-classification.json",
+  "runtime_contract_source": ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
   "location_policy": {
     "spec_local_only": true,
     "runtime_migration_directory": "http-generic-api/migrations",
@@ -40,7 +42,13 @@
         "storage_cleanup_approvals",
         "storage_execution_leases"
       ],
-      "purpose": "Durable operation, immutable plan, impact, approval, and CAS lease control plane."
+      "runtime_adapter_tables": [
+        "storage_cleanup_operations",
+        "storage_cleanup_plans",
+        "storage_cleanup_approvals",
+        "storage_execution_leases"
+      ],
+      "purpose": "Durable operation, immutable plan, impact, approval, and CAS lease control plane aligned to the merged SQL adapter."
     },
     {
       "id": 3,
@@ -53,6 +61,10 @@
         "storage_emergency_reserves",
         "storage_pressure_incidents"
       ],
+      "runtime_adapter_tables": [
+        "storage_cleanup_run_items",
+        "storage_reconciliation_results"
+      ],
       "views": [
         "v_storage_admin_target_readiness",
         "v_storage_tenant_target_readiness",
@@ -63,7 +75,7 @@
         "hostinger_storage_plan_inspect",
         "hostinger_storage_plan_apply"
       ],
-      "purpose": "Execution journal, reconciliation, reserve/incident evidence, read-only projections, and default-off tool drafts."
+      "purpose": "Execution journal, reconciliation, reserve/incident evidence, additive read-only projections, and default-off tool drafts."
     }
   ],
   "verification": {
@@ -73,6 +85,7 @@
     "rollback_file": "specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql",
     "validator_file": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
     "same_cycle_readback_required": true,
+    "signed_schema_verification_required_before_runtime_mount": true,
     "rollback_requires_separate_authority": true,
     "rollback_pre_live_only": true
   },
@@ -85,6 +98,25 @@
     ],
     "reason": "Exact parent type, length, charset, and collation must be read from the target database before FK DDL is finalized."
   },
+  "runtime_deferred_fk_policy": {
+    "emit_fk_before_parent_writer_exists": false,
+    "deferred": [
+      "storage_cleanup_run_items.run_id->storage_cleanup_runs.id",
+      "storage_cleanup_run_items.plan_item_id->storage_cleanup_plan_items.id",
+      "storage_reconciliation_results.run_id->storage_cleanup_runs.id"
+    ],
+    "reason": "The merged SQL adapter currently persists journal and reconciliation records without creating run or plan-item parent rows; premature FKs would make the mounted adapter fail."
+  },
+  "compatibility": {
+    "runtime_table_count": 6,
+    "adapter_insert_compatible": true,
+    "canonical_record_json_required": true,
+    "record_digest_required": true,
+    "row_version_cas_required": true,
+    "extra_not_null_columns_require_default_generated_or_auto_increment": true,
+    "lease_history_column_reserved": true,
+    "lease_history_service_append_required_before_production_ready": true
+  },
   "required_invariants": {
     "exact_table_count": 15,
     "exact_view_count": 3,
@@ -92,12 +124,15 @@
     "all_tables_additive": true,
     "internal_foreign_keys_present": true,
     "external_foreign_keys_deferred_until_preflight": true,
+    "runtime_parent_foreign_keys_deferred_until_parent_writer": true,
     "all_paths_opaque_or_encrypted": true,
     "credentials_or_secret_payloads_stored": false,
     "raw_file_contents_stored": false,
     "tool_seeds_enabled": false,
     "provider_dispatch_authorized": false,
     "migration_apply_authorized": false,
+    "schema_verified": false,
+    "production_ready": false,
     "secrets_included": false
   }
 }
