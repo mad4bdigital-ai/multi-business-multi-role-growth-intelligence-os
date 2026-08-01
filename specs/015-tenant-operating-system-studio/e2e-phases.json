@@ -15,42 +15,52 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, complete open-Draft portfolio, Work Map, candidate classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
+      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, base Draft portfolio, append-only live delta, Work Map, candidate classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "spec015-contract-integrity",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository specification maintainer",
-          "entrypoint": "Run the Spec-local deterministic validator from the exact candidate tree",
-          "terminal_outcome": "The file inventory, JSON/OpenAPI contracts, 12 primary Draft Specs, 22 related Draft PRs, duplicate identity and feature clusters, four delivery trains, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
+          "entrypoint": "Run the Spec-local deterministic base and live-delta validators from the exact candidate tree",
+          "terminal_outcome": "The file inventory, JSON/OpenAPI contracts, immutable 34-PR base snapshot, one-entry live delta, current 35-PR total, duplicate identity and feature clusters, delivery trains, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as structured reports.",
           "steps": [
             "Validate the exact manifest inventory and specification-only boundaries.",
-            "Validate package, installation, lifecycle, candidate-convergence, Draft portfolio, and OpenAPI contract structure.",
-            "Validate all 34 observed open Draft PRs are classified exactly once as a primary Spec or related delivery.",
+            "Validate package, installation, lifecycle, candidate-convergence, base Draft portfolio, live-delta, and OpenAPI contract structure.",
+            "Validate the base snapshot classifies 12 primary Draft Specs and 22 related Draft PRs exactly once.",
+            "Validate the append-only delta adds PR #4464 without colliding with the base registry and produces 23 related Drafts and 35 current classified Draft PRs.",
             "Validate duplicate numeric identities 011 and 014 plus the duplicate 013 System Tool Catalog feature cluster.",
-            "Validate Operation Fabric, Hostinger, System Tool Catalog, and ChatGPT/MCP delivery trains.",
+            "Validate Operation Fabric, Hostinger, System Tool Catalog, and ChatGPT/MCP delivery trains, including PR #4464 as a Hostinger repository-provenance correction.",
             "Validate PR #3922 and PR #4432 detailed extraction into generic substrate and bounded reference packages.",
             "Validate Spec 016 is an external integration surface and PR #4462 is its read-only implementation child without independent authority.",
             "Validate all 19 Work Maps and 16 schema domains have explicit decisions while Spec 015 runtime implementation remains blocked.",
             "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns."
           ],
           "assertions": [
-            "The report declares ok=true, primary_draft_specs=12, related_open_drafts=22, total_open_drafts_classified=34, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
+            "The base report declares ok=true, primary_draft_specs=12, related_open_drafts=22, total_open_drafts_classified=34, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
+            "The live-delta report declares ok=true, current_total_open_drafts_classified=35, added_pull_requests=[4464], mutation_authority_granted=false, and secrets_included=false.",
             "Numeric Spec numbers are not accepted as unique portfolio authority identities.",
             "PRs #3139, #3145, and #3159 are one unresolved System Tool Catalog feature cluster rather than independent canonical features.",
             "PRs #3922, #4386, and #4432 remain bounded package or service sources, while PRs #2949 and #2950 retain distinct subsystem and application roles.",
             "PR #4460 consumes existing tool, context, capability, operation, package, and readback authorities; PR #4462 stays feature-flagged and read-only.",
+            "PR #4464 remains a non-production Hostinger workstream correction and creates no independent authority.",
             "Diverged Draft branches remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
             "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion."
           ],
           "tests": [
             {
-              "id": "validate-spec015-contracts",
+              "id": "validate-spec015-base-contracts",
               "runner": "node",
               "working_directory": "specs/015-tenant-operating-system-studio",
               "path": "tools/validate-spec.mjs",
               "args": ["--only", "all"]
+            },
+            {
+              "id": "validate-spec015-live-portfolio-delta",
+              "runner": "node",
+              "working_directory": "specs/015-tenant-operating-system-studio",
+              "path": "tools/validate-portfolio-live-delta.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -58,10 +68,14 @@
             "specs/015-tenant-operating-system-studio/candidate-convergence.json",
             "specs/015-tenant-operating-system-studio/draft-spec-portfolio.json",
             "specs/015-tenant-operating-system-studio/draft-spec-portfolio.md",
+            "specs/015-tenant-operating-system-studio/draft-spec-portfolio-live-delta.json",
+            "specs/015-tenant-operating-system-studio/draft-spec-portfolio-live-delta.md",
             "specs/015-tenant-operating-system-studio/contracts/draft-spec-portfolio.schema.json",
+            "specs/015-tenant-operating-system-studio/contracts/draft-spec-portfolio-live-delta.schema.json",
             "specs/015-tenant-operating-system-studio/work-map-integration.json",
             "specs/015-tenant-operating-system-studio/completion.json",
-            "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
+            "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
+            "specs/015-tenant-operating-system-studio/tools/validate-portfolio-live-delta.mjs"
           ]
         }
       ]
@@ -76,6 +90,7 @@
         "Duplicate numeric Spec 011 and 014 identities require review.",
         "The duplicate System Tool Catalog v2 feature cluster has no selected canonical reconstruction.",
         "Stale completion ledgers, mixed Spec/implementation branches, and related Draft dispositions require reconciliation.",
+        "The newly observed Hostinger repository-provenance workstream requires exact-head validation and integration review.",
         "Spec 016 OAuth, tool-catalog, Context Kernel, public endpoint, and Developer mode gates remain open."
       ],
       "planned_e2e_journey": {
