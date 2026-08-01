@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-plugin-mcp-integration",
+  "status": "specification_only",
+  "phases": [
+    {
+      "id": "phase_1_protocol_contract",
+      "status": "not_started",
+      "objective": "Prove one bounded Streamable HTTP MCP endpoint and a read-only metadata contract without relying on ChatGPT selection behavior.",
+      "entrypoint": "MCP Inspector against a development /mcp endpoint",
+      "terminal_outcome": "Initialization, tools/list, and representative read calls pass with correct schemas, annotations, errors, and metadata fingerprint.",
+      "journeys": ["OP-001", "OP-002"],
+      "assertions": [
+        "The endpoint uses the supported MCP transport rather than split public REST routes.",
+        "All exposed phase-1 tools are proven read-only.",
+        "No query-string secret is required by the new endpoint.",
+        "Results are bounded and contain no secrets."
+      ],
+      "evidence": ["Inspector transcript", "catalog fingerprint", "annotation parity report", "redaction report"]
+    },
+    {
+      "id": "phase_2_developer_mode_reads",
+      "status": "not_started",
+      "objective": "Connect the endpoint in ChatGPT developer mode and validate focused tool selection for supported read-only goals.",
+      "entrypoint": "Personal ChatGPT plugin connection",
+      "terminal_outcome": "Supported prompts select the correct tool and unsupported or write prompts do not cause mutation.",
+      "journeys": ["US1", "US3", "OP-004", "OP-005", "OP-008"],
+      "assertions": [
+        "ChatGPT discovers the same catalog fingerprint as source and Inspector.",
+        "Correct tool selection meets the agreed threshold.",
+        "Unsupported requests have safe no-call behavior.",
+        "The plugin works without custom UI."
+      ],
+      "evidence": ["developer connection fingerprint", "prompt evaluation report", "package validation"]
+    },
+    {
+      "id": "phase_3_oauth_and_isolation",
+      "status": "not_started",
+      "objective": "Prove OAuth 2.1 account linking, resource-bound tokens, current membership resolution, and tenant-safe denial.",
+      "entrypoint": "Protected read tool invoked from ChatGPT",
+      "terminal_outcome": "Authorized resources are readable and every wrong-resource, wrong-scope, revoked, or cross-tenant attempt fails closed.",
+      "journeys": ["US2", "US4", "OP-003", "OP-004", "OP-010"],
+      "assertions": [
+        "Protected-resource and authorization-server discovery work.",
+        "Authorization code plus PKCE S256 works.",
+        "Wrong issuer, audience/resource, scope, signature, expiry, and revocation are rejected.",
+        "Cross-tenant and cross-Brand leakage is zero.",
+        "Revocation takes effect within the operational SLA."
+      ],
+      "evidence": ["OAuth conformance report", "isolation matrix", "revoke/disable drill"]
+    },
+    {
+      "id": "phase_4_governed_writes",
+      "status": "blocked_by_phase_1_to_3",
+      "objective": "Enable a small reviewed set of write tools with capability, policy, confirmation, idempotency, operation status, readback, and compensation.",
+      "entrypoint": "Focused write tool from ChatGPT",
+      "terminal_outcome": "Each accepted request produces at most one governed side effect and an authoritative operation/readback result.",
+      "journeys": ["US5", "US6", "OP-006", "OP-007"],
+      "assertions": [
+        "Confirmation is bound to principal, tool, target, intent, and expiry.",
+        "Authorization is rechecked immediately before dispatch.",
+        "Unknown outcomes are reconciled before retry.",
+        "Annotations match actual external and destructive behavior.",
+        "Each tool can be disabled independently."
+      ],
+      "evidence": ["idempotency report", "confirmation replay tests", "operation readback", "compensation drill"]
+    },
+    {
+      "id": "phase_5_public_review_and_release",
+      "status": "blocked_by_production_and_policy_readiness",
+      "objective": "Submit, approve, explicitly publish, monitor, and maintain one production plugin version with exact reviewed metadata.",
+      "entrypoint": "OpenAI plugin submission portal",
+      "terminal_outcome": "An approved version is published only after release authorization and production parity, with rollback and revocation proven.",
+      "journeys": ["US7", "OP-009", "OP-010"],
+      "assertions": [
+        "Publisher identity and submission permissions are verified.",
+        "Privacy, terms, test access, listing, and release notes are complete.",
+        "Source, runtime, package, scan, approved, and published fingerprints match.",
+        "Publishing is a separate explicit action after approval.",
+        "Later metadata changes use a new reviewed version."
+      ],
+      "evidence": ["submission dossier", "approved snapshot", "publication readback", "production monitoring", "rollback rehearsal"]
+    }
+  ],
+  "secrets_included": false
+}
