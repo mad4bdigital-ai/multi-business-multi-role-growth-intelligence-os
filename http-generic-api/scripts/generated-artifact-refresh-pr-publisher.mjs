@@ -49,14 +49,21 @@ function parseArgs(argv) {
 async function request(url, { token, method = "GET", body } = {}) {
   const response = await fetch(url, {
     method,
-    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "mad4b-generated-artifact-evidence-publisher" },
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-generated-artifact-evidence-publisher",
+    },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) throw new Error(`GitHub API ${method} ${url} failed: ${response.status}`);
   return response.status === 204 ? null : response.json();
 }
 
-function merged(pr) { return pr?.merged === true || Boolean(pr?.merged_at); }
+function isMerged(pr) {
+  return pr?.merged === true || Boolean(pr?.merged_at);
+}
 
 async function resolvePullRequest(options, api) {
   if (options.prNumber) return request(`${api}/pulls/${options.prNumber}`, { token: options.token });
@@ -68,12 +75,17 @@ async function resolvePullRequest(options, api) {
   }
   candidates.push(...await request(`${api}/commits/${options.sourceHeadSha}/pulls?per_page=100`, { token: options.token }));
   const unique = [...new Map(candidates.filter((pr) => Number.isInteger(pr?.number)).map((pr) => [pr.number, pr])).values()];
-  const branchMatches = unique.filter((pr) => pr?.head?.repo?.full_name === options.repository && (!options.headBranch || pr?.head?.ref === options.headBranch));
-  const open = branchMatches.filter((pr) => pr.state === "open");
+  const exact = unique.filter((pr) => (
+    pr?.head?.repo?.full_name === options.repository
+    && pr?.head?.sha === options.sourceHeadSha
+    && (!options.headBranch || pr?.head?.ref === options.headBranch)
+  ));
+  const open = exact.filter((pr) => pr.state === "open");
   if (open.length === 1) return open[0];
   if (open.length > 1) throw new Error("Ambiguous open PR resolution.");
-  const mergedMatches = branchMatches.filter((pr) => pr.state === "closed" && merged(pr));
-  if (mergedMatches.length === 1) return mergedMatches[0];
+  const merged = exact.filter((pr) => pr.state === "closed" && isMerged(pr));
+  if (merged.length === 1) return merged[0];
+  if (merged.length > 1) throw new Error("Ambiguous merged PR resolution.");
   throw new Error("Unable to resolve an exact open or merged PR.");
 }
 
@@ -81,11 +93,18 @@ export function normalizeGeneratedArtifactEvidence({ report, workflowConclusion,
   if (report?.contract !== CONTRACT) throw new Error("Unexpected generated-artifact canonical contract.");
   if (report?.secrets_included !== false) throw new Error("Report must declare secrets_included=false.");
   if (report?.identity?.candidate_kind !== "head") throw new Error("Report must describe a head candidate.");
-  if (!SHA_PATTERN.test(report?.identity?.source_head_sha || "") || report.identity.source_head_sha !== sourceHeadSha) throw new Error("Report source head does not match workflow_run head_sha.");
-  if (!SHA_PATTERN.test(report?.identity?.candidate_sha || "")) throw new Error("Report candidate SHA is invalid.");
-  const generatedSha = report?.generated_artifacts?.commit_sha || null;
-  if (generatedSha !== null && (!SHA_PATTERN.test(generatedSha) || generatedSha !== report.identity.candidate_sha)) throw new Error("Generated commit and candidate SHA must match.");
-  if (generatedSha === null && report.identity.candidate_sha !== sourceHeadSha) throw new Error("No-change report candidate must equal source head.");
+  if (!SHA_PATTERN.test(report?.identity?.source_head_sha || "") || report.identity.source_head_sha !== sourceHeadSha) {
+    throw new Error("Report source head does not match workflow_run head_sha.");
+  }
+  if (report?.identity?.candidate_sha !== sourceHeadSha) {
+    throw new Error("Read-only PR refresh evidence candidate must equal source head.");
+  }
+  if (report?.generated_artifacts?.commit_sha !== null) {
+    throw new Error("Read-only PR refresh evidence may not report a generated commit.");
+  }
+  if (report?.generated_artifacts?.repository_mutation_performed !== false) {
+    throw new Error("Read-only PR refresh evidence must declare repository_mutation_performed=false.");
+  }
   const passed = report.outcome === "passed";
   if (workflowConclusion === "success" && !passed) throw new Error("Successful workflow cannot publish a blocked report.");
   if (workflowConclusion !== "success" && passed) throw new Error("Non-successful workflow cannot publish a passed report.");
@@ -95,19 +114,18 @@ export function normalizeGeneratedArtifactEvidence({ report, workflowConclusion,
     workflowConclusion,
     runId: workflowRunId,
     candidateKind: "head",
-    candidateSha: report.identity.candidate_sha,
+    candidateSha: sourceHeadSha,
     sourceHeadSha,
     outcome: report.outcome,
-    detail: report.first_failure?.code || (generatedSha ? `published ${generatedSha}` : "generated artifacts already current"),
+    detail: report.first_failure?.code || "generated artifacts current",
     artifactContract: report.contract,
   };
 }
 
-export function assertGeneratedArtifactPrIdentity(pr, evidence, report, expectedBranch = null) {
-  if (pr?.state !== "open" && !merged(pr)) throw new Error("Refusing to publish to a closed unmerged PR.");
+export function assertGeneratedArtifactPrIdentity(pr, evidence, expectedBranch = null) {
+  if (pr?.state !== "open" && !isMerged(pr)) throw new Error("Refusing to publish to a closed unmerged PR.");
   if (expectedBranch && pr?.head?.ref !== expectedBranch) throw new Error("PR head branch mismatch.");
-  if (pr?.head?.sha !== evidence.candidateSha) throw new Error("Current PR head does not match the exact generated candidate.");
-  if (report?.identity?.source_head_sha !== evidence.sourceHeadSha) throw new Error("Source-head evidence mismatch.");
+  if (pr?.head?.sha !== evidence.candidateSha) throw new Error("Current PR head does not match the exact read-only candidate.");
   return true;
 }
 
@@ -116,7 +134,7 @@ export async function publishGeneratedArtifactEvidence(options) {
   const pr = await resolvePullRequest(options, api);
   const report = JSON.parse(fs.readFileSync(path.resolve(options.reportFile), "utf8"));
   const evidence = normalizeGeneratedArtifactEvidence({ ...options, report });
-  assertGeneratedArtifactPrIdentity(pr, evidence, report, options.headBranch);
+  assertGeneratedArtifactPrIdentity(pr, evidence, options.headBranch);
   const comments = await request(`${api}/issues/${pr.number}/comments?per_page=100`, { token: options.token });
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(COMMENT_MARKER));
   const updated = upsertEvidenceComment(existing?.body || "", evidence);
@@ -135,5 +153,8 @@ export async function run(argv = process.argv.slice(2)) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  run().catch((error) => { console.error(error?.stack || error?.message || String(error)); process.exitCode = 2; });
+  run().catch((error) => {
+    console.error(error?.stack || error?.message || String(error));
+    process.exitCode = 2;
+  });
 }
