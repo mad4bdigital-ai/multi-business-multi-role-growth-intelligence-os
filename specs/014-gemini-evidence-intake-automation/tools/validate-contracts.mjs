@@ -5,8 +5,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const VALID_STAGES = new Set(["manifest", "development", "ci", "completion", "secrets"]);
 const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), "utf8"));
 const exists = (relativePath) => fs.existsSync(path.join(ROOT, relativePath));
+
+function parseArgs(argv) {
+  const requested = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const value = argv[index];
+    if (value === "--only") {
+      const stage = argv[++index];
+      if (!VALID_STAGES.has(stage)) throw new Error(`Unsupported --only stage: ${stage || "missing"}.`);
+      requested.push(stage);
+    } else if (value === "--help" || value === "-h") {
+      process.stdout.write("Usage: node tools/validate-contracts.mjs [--only manifest|development|ci|completion|secrets]...\n");
+      process.exit(0);
+    } else {
+      throw new Error(`Unknown argument: ${value}`);
+    }
+  }
+  return requested.length ? [...new Set(requested)] : [...VALID_STAGES];
+}
 
 function fail(message, details = {}) {
   const error = new Error(message);
@@ -15,6 +34,7 @@ function fail(message, details = {}) {
 }
 
 function uniqueIndex(items, keyName, label) {
+  if (!Array.isArray(items)) fail(`${label} collection must be an array.`);
   const index = new Map();
   for (const item of items) {
     const key = item?.[keyName];
@@ -75,11 +95,13 @@ function scanNoSecrets(files) {
     }
   }
   if (findings.length) fail("Potential secrets found in Spec artifacts.", { findings });
+  return { scanned_files: files.length, finding_count: 0 };
 }
 
 function validateDevelopmentContract(contract) {
   if (contract.schema_version !== 1) fail("Unsupported development contract schema version.");
   if (contract.authority_boundary?.contract_is_authority !== false) fail("Development contract must not be mutation authority.");
+  if (contract.authority_boundary?.nested_authority_required !== true) fail("Development contract must require nested authority.");
   if (contract.secrets_included !== false) fail("Development contract must declare secrets_included=false.");
 
   const requirements = uniqueIndex(contract.requirements, "id", "requirement");
@@ -138,18 +160,18 @@ function validateDevelopmentContract(contract) {
 function validateCiContract(contract, developmentIndexes) {
   if (contract.schema_version !== 1) fail("Unsupported CI contract schema version.");
   if (contract.secrets_included !== false) fail("CI contract must declare secrets_included=false.");
-  for (const [key, expected] of Object.entries({
-    exact_candidate_binding: true,
-    changed_scope_fail_closed: true,
-    canonical_structured_evidence: true,
-    diagnostics_are_not_status_authority: true,
-    read_only_validation_by_default: true,
-    sole_governed_writer: true,
-    least_privilege: true,
-    no_secret_evidence: true,
-    exact_head_completion: true
-  })) {
-    if (contract.principles?.[key] !== expected) fail(`CI principle ${key} must be true.`);
+  for (const key of [
+    "exact_candidate_binding",
+    "changed_scope_fail_closed",
+    "canonical_structured_evidence",
+    "diagnostics_are_not_status_authority",
+    "read_only_validation_by_default",
+    "sole_governed_writer",
+    "least_privilege",
+    "no_secret_evidence",
+    "exact_head_completion"
+  ]) {
+    if (contract.principles?.[key] !== true) fail(`CI principle ${key} must be true.`);
   }
 
   const families = uniqueIndex(contract.test_families, "key", "test family");
@@ -180,7 +202,6 @@ function validateCiContract(contract, developmentIndexes) {
   const completion = contract.completion_policy;
   requireRefs(completion.required_pipeline_keys, pipelines, "completion_policy", "pipeline");
   requireRefs(completion.required_evidence_keys, evidence, "completion_policy", "canonical evidence contract");
-
   for (const key of completion.required_evidence_keys) {
     const item = evidence.get(key);
     if (!["canonical_status", "completion"].includes(item.authority)) {
@@ -206,6 +227,7 @@ function validateManifest(manifest) {
   if (manifest.secrets_included !== false) fail("Manifest must declare secrets_included=false.");
   const missingFiles = (manifest.files || []).filter((file) => !exists(file));
   if (missingFiles.length) fail("Manifest references missing files.", { missingFiles });
+  return { file_count: manifest.files.length };
 }
 
 function validateCompletion(completion) {
@@ -218,54 +240,72 @@ function validateCompletion(completion) {
       }
     }
   }
+  return { status: completion.status, blocker_count: completion.completion_blockers?.length || 0 };
 }
 
 function main() {
+  const selectedStages = parseArgs(process.argv.slice(2));
   const manifest = readJson("manifest.json");
-  const development = readJson("development-automation.json");
-  const ci = readJson("ci-automation.json");
-  const completion = readJson("completion.json");
+  const stageResults = {};
+  let currentStage = "bootstrap";
+  let developmentIndexes = null;
+  let ciIndexes = null;
 
-  validateManifest(manifest);
-  const developmentIndexes = validateDevelopmentContract(development);
-  const ciIndexes = validateCiContract(ci, developmentIndexes);
-  validateCompletion(completion);
-  scanNoSecrets(manifest.files);
+  const run = (stage, fn) => {
+    currentStage = stage;
+    stageResults[stage] = fn();
+  };
 
-  const report = {
+  if (selectedStages.includes("manifest")) run("manifest", () => validateManifest(manifest));
+  if (selectedStages.includes("development") || selectedStages.includes("ci")) {
+    run("development", () => {
+      developmentIndexes = validateDevelopmentContract(readJson("development-automation.json"));
+      return {
+        requirements: developmentIndexes.requirements.size,
+        acceptance_criteria: developmentIndexes.acceptance.size,
+        operation_paths: developmentIndexes.operations.size,
+        implementation_waves: developmentIndexes.waves.size,
+        tasks: developmentIndexes.tasks.size,
+        open_decisions: developmentIndexes.decisions.size
+      };
+    });
+  }
+  if (selectedStages.includes("ci")) {
+    run("ci", () => {
+      ciIndexes = validateCiContract(readJson("ci-automation.json"), developmentIndexes);
+      return {
+        test_families: ciIndexes.families.size,
+        pipelines: ciIndexes.pipelines.size,
+        canonical_evidence_contracts: ciIndexes.evidence.size,
+        stage_evidence_keys: ciIndexes.stageEvidenceKeys.size
+      };
+    });
+  }
+  if (selectedStages.includes("completion")) run("completion", () => validateCompletion(readJson("completion.json")));
+  if (selectedStages.includes("secrets")) run("secrets", () => scanNoSecrets(manifest.files));
+
+  process.stdout.write(`${JSON.stringify({
     contract: "mad4b.spec014.contract-integrity-report.v1",
     ok: true,
     spec_key: manifest.spec_key,
-    development_contract: {
-      requirements: developmentIndexes.requirements.size,
-      acceptance_criteria: developmentIndexes.acceptance.size,
-      operation_paths: developmentIndexes.operations.size,
-      implementation_waves: developmentIndexes.waves.size,
-      tasks: developmentIndexes.tasks.size,
-      open_decisions: developmentIndexes.decisions.size
-    },
-    ci_contract: {
-      test_families: ciIndexes.families.size,
-      pipelines: ciIndexes.pipelines.size,
-      canonical_evidence_contracts: ciIndexes.evidence.size,
-      stage_evidence_keys: ciIndexes.stageEvidenceKeys.size
-    },
-    completion_status: completion.status,
+    selected_stages: selectedStages,
+    stage_results: stageResults,
     secrets_included: false
-  };
-  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  }, null, 2)}\n`);
 }
 
+let activeStage = "argument_parsing";
 try {
+  activeStage = "validation";
   main();
 } catch (error) {
-  const report = {
+  process.stderr.write(`${JSON.stringify({
     contract: "mad4b.spec014.contract-integrity-report.v1",
     ok: false,
+    stage: activeStage,
     error: error.message,
     details: error.details || null,
     secrets_included: false
-  };
-  process.stderr.write(`${JSON.stringify(report, null, 2)}\n`);
+  }, null, 2)}\n`);
   process.exitCode = 1;
 }
