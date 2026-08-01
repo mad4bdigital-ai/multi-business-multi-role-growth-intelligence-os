@@ -127,11 +127,11 @@ function splitCommand(command) {
 export function redactDiagnosticOutput(value) {
   return String(value || "")
     .replace(/::add-mask::[^\r\n]*/giu, "::add-mask::[REDACTED]")
+    .replace(/-----BEGIN [^-]+ PRIVATE KEY-----[\s\S]*?-----END [^-]+ PRIVATE KEY-----/gu, "[REDACTED_PRIVATE_KEY]")
     .replace(/\b(?:github_pat_|gh[pousr]_)[A-Za-z0-9_]{16,}\b/gu, "[REDACTED_GITHUB_TOKEN]")
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{12,}\b/giu, "Bearer [REDACTED]")
     .replace(/(["']?)(authorization|api[_-]?key|token|secret|password|passwd|private[_-]?key|cookie)\1\s*[:=]\s*(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s,;]+)/giu, "$1$2$1=[REDACTED]")
-    .replace(/(https?:\/\/)([^\s/@:]+):([^\s/@]+)@/giu, "$1[REDACTED]@")
-    .replace(/-----BEGIN [^-]+ PRIVATE KEY-----[\s\S]*?-----END [^-]+ PRIVATE KEY-----/gu, "[REDACTED_PRIVATE_KEY]");
+    .replace(/(https?:\/\/)([^\s/@:]+):([^\s/@]+)@/giu, "$1[REDACTED]@");
 }
 
 export function buildDiagnosticStream(value, maxChars = MAX_DIAGNOSTIC_STREAM_CHARS) {
