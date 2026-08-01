@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/spec014-migration-drafts-clean-builder-v2.yml'
+      - '.github/scripts/spec014-migration-drafts-clean-builder-v2.mjs'
 
 permissions:
   contents: write
@@ -19,8 +20,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      BUILDER_REPORT_JSON: ${{ runner.temp }}/spec014-migration-builder-summary.json
-      BUILDER_REPORT_MD: ${{ runner.temp }}/spec014-migration-builder-summary.md
       INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
       SOURCE_BRANCH: gpt/014-hostinger/migration-drafts-t024-t027-20260802
       SOURCE_SHA: cfe4334ed9bb0a932d6aa51b1398b8e5feb4da19
@@ -32,215 +31,22 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Initialize structured builder evidence
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          report = {
-              "contract": "spec014.migration-drafts-clean-builder-evidence.v1",
-              "outcome": "running",
-              "stage": "initialized",
-              "exit_code": None,
-              "run_id": os.environ["GITHUB_RUN_ID"],
-              "builder_head_sha": os.environ["GITHUB_SHA"],
-              "integration_branch": os.environ["INTEGRATION_BRANCH"],
-              "source_branch": os.environ["SOURCE_BRANCH"],
-              "source_sha": os.environ["SOURCE_SHA"],
-              "final_branch": os.environ["FINAL_BRANCH"],
-              "candidate_sha": None,
-              "changed_file_count": None,
-              "secrets_included": False,
-          }
-          Path(os.environ["BUILDER_REPORT_JSON"]).write_text(json.dumps(report, indent=2) + "\n")
-          Path(os.environ["BUILDER_REPORT_MD"]).write_text(
-              "## Spec 014 migration builder evidence\n\n"
-              "- Outcome: **running**\n"
-              "- Last stage: `initialized`\n"
-              f"- Run ID: `{report['run_id']}`\n"
-              f"- Builder head: `{report['builder_head_sha']}`\n"
-              f"- Source SHA: `{report['source_sha']}`\n"
-              f"- Final branch: `{report['final_branch']}`\n"
-              "- Secrets included: `false`\n"
-          )
-          PY
+      - name: Validate builder automation syntax
+        run: node --check .github/scripts/spec014-migration-drafts-clean-builder-v2.mjs
 
       - name: Build validated ancestry-clean candidate
-        id: builder
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          stage='bootstrap'
-
-          write_report() {
-            local outcome="$1"
-            local exit_code="$2"
-            local candidate_sha="${3:-}"
-            local changed_file_count="${4:-}"
-            STAGE="$stage" OUTCOME="$outcome" EXIT_CODE="$exit_code" CANDIDATE_SHA="$candidate_sha" CHANGED_FILE_COUNT="$changed_file_count" python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          def nullable_int(value):
-              return int(value) if value else None
-
-          report = {
-              "contract": "spec014.migration-drafts-clean-builder-evidence.v1",
-              "outcome": os.environ["OUTCOME"],
-              "stage": os.environ["STAGE"],
-              "exit_code": nullable_int(os.environ["EXIT_CODE"]),
-              "run_id": os.environ["GITHUB_RUN_ID"],
-              "builder_head_sha": os.environ["GITHUB_SHA"],
-              "integration_branch": os.environ["INTEGRATION_BRANCH"],
-              "source_branch": os.environ["SOURCE_BRANCH"],
-              "source_sha": os.environ["SOURCE_SHA"],
-              "final_branch": os.environ["FINAL_BRANCH"],
-              "candidate_sha": os.environ["CANDIDATE_SHA"] or None,
-              "changed_file_count": nullable_int(os.environ["CHANGED_FILE_COUNT"]),
-              "secrets_included": False,
-          }
-          Path(os.environ["BUILDER_REPORT_JSON"]).write_text(json.dumps(report, indent=2) + "\n")
-          lines = [
-              "## Spec 014 migration builder evidence",
-              "",
-              f"- Outcome: **{report['outcome']}**",
-              f"- Last stage: `{report['stage']}`",
-              f"- Exit code: `{report['exit_code']}`",
-              f"- Run ID: `{report['run_id']}`",
-              f"- Builder head: `{report['builder_head_sha']}`",
-              f"- Integration branch: `{report['integration_branch']}`",
-              f"- Source SHA: `{report['source_sha']}`",
-              f"- Final branch: `{report['final_branch']}`",
-              f"- Candidate SHA: `{report['candidate_sha']}`",
-              f"- Changed file count: `{report['changed_file_count']}`",
-              "- Migration apply performed: `false`",
-              "- Live database or provider access: `false`",
-              "- Secrets included: `false`",
-          ]
-          Path(os.environ["BUILDER_REPORT_MD"]).write_text("\n".join(lines) + "\n")
-          PY
-          }
-
-          on_error() {
-            local rc=$?
-            local candidate_sha=''
-            local changed_file_count=''
-            candidate_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-            if git rev-parse --verify "origin/${INTEGRATION_BRANCH}" >/dev/null 2>&1; then
-              changed_file_count="$(git diff --name-only "origin/${INTEGRATION_BRANCH}...HEAD" 2>/dev/null | wc -l | tr -d ' ' || true)"
-            fi
-            write_report 'failed' "$rc" "$candidate_sha" "$changed_file_count"
-            exit "$rc"
-          }
-          trap on_error ERR
-
-          stage='fetch_sources'
-          git fetch origin "${INTEGRATION_BRANCH}" "${SOURCE_BRANCH}"
-
-          stage='verify_pinned_source_sha'
-          test "$(git rev-parse "origin/${SOURCE_BRANCH}")" = "${SOURCE_SHA}"
-
-          stage='checkout_current_integration'
-          git checkout -B "${FINAL_BRANCH}" "origin/${INTEGRATION_BRANCH}"
-
-          stage='copy_exact_11_artifacts'
-          files=(
-            '.changes/e2e/spec014-migration-drafts-t024-t027.json'
-            '.github/contracts/spec014/hostinger-storage-migration-drafts.json'
-            '.github/contracts/spec014/migrations/wave-1-foundation.sql'
-            '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
-            '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql'
-            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql'
-          )
-          for file in "${files[@]}"; do
-            mkdir -p "$(dirname "$file")"
-            git show "${SOURCE_SHA}:${file}" > "$file"
-          done
-
-          stage='align_manifest_validator_contract'
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          manifest_path = Path('.github/contracts/spec014/hostinger-storage-migration-drafts.json')
-          manifest = json.loads(manifest_path.read_text())
-          assert manifest['contract'] == 'spec014.hostinger-storage-migration-drafts.v3'
-
-          validator_path = Path('.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs')
-          validator = validator_path.read_text()
-          old = "'spec014.hostinger-storage-migration-drafts.v2'"
-          new = "'spec014.hostinger-storage-migration-drafts.v3'"
-          assert validator.count(old) == 1
-          validator_path.write_text(validator.replace(old, new, 1))
-          PY
-
-          stage='validator_syntax_check'
-          node --check .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-
-          stage='schema_classification_validation'
-          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-
-          stage='sql_runtime_contract_validation'
-          node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
-
-          stage='migration_drafts_validation'
-          node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
-
-          stage='git_diff_check'
-          git diff --check
-
-          stage='create_candidate_commit'
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add --all
-          git commit -m 'feat(spec-014): draft governed storage migration waves'
-
-          stage='e2e_parallel_work_governance'
-          node http-generic-api/scripts/e2e-parallel-work-governance.mjs check --head HEAD
-
-          stage='verify_single_commit_ahead'
-          test "$(git rev-list --count "origin/${INTEGRATION_BRANCH}..HEAD")" = '1'
-
-          stage='verify_exact_11_file_diff'
-          changed_file_count="$(git diff --name-only "origin/${INTEGRATION_BRANCH}...HEAD" | wc -l | tr -d ' ')"
-          test "$changed_file_count" = '11'
-
-          stage='verify_temporary_builder_excluded'
-          test ! -e .github/workflows/spec014-migration-drafts-clean-builder-v2.yml
-
-          stage='verify_live_migration_paths_excluded'
-          test ! -e http-generic-api/migrations/wave-1-foundation.sql
-          test ! -e http-generic-api/migrations/wave-2-control-plane.sql
-          test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
-
-          stage='verify_final_branch_absent'
-          if git ls-remote --exit-code --heads origin "${FINAL_BRANCH}" >/dev/null 2>&1; then
-            echo "Final branch already exists; refusing to overwrite it." >&2
-            exit 1
-          fi
-
-          stage='push_final_branch'
-          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
-
-          stage='completed'
-          candidate_sha="$(git rev-parse HEAD)"
-          write_report 'passed' '0' "$candidate_sha" "$changed_file_count"
-          trap - ERR
+        run: node .github/scripts/spec014-migration-drafts-clean-builder-v2.mjs
 
       - name: Publish builder evidence to workflow summary
         if: always()
         shell: bash
-        run: cat "${BUILDER_REPORT_MD}" >> "${GITHUB_STEP_SUMMARY}"
+        run: |
+          report="${RUNNER_TEMP}/spec014-migration-builder-summary.md"
+          if [[ -f "$report" ]]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '%s\n' '## Spec 014 migration builder evidence' '' '- Outcome: **failed before evidence initialization**' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload structured builder evidence
         if: always()
@@ -250,7 +56,7 @@ jobs:
           path: |
             ${{ runner.temp }}/spec014-migration-builder-summary.json
             ${{ runner.temp }}/spec014-migration-builder-summary.md
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Upsert diagnostic PR evidence comment
@@ -262,8 +68,10 @@ jobs:
           script: |
             const fs = require('fs');
             const marker = '<!-- spec014-migration-builder-evidence -->';
-            const report = fs.readFileSync(process.env.REPORT_PATH, 'utf8');
-            const body = `${marker}\n${report}\n\nThis evidence is emitted by repository automation and is diagnostic-only; merge authority remains with the governed exact-head checks.`;
+            const report = fs.existsSync(process.env.REPORT_PATH)
+              ? fs.readFileSync(process.env.REPORT_PATH, 'utf8')
+              : '## Spec 014 migration builder evidence\n\n- Outcome: **failed before evidence initialization**\n';
+            const body = `${marker}\n${report}\nThis evidence is emitted by repository automation and is diagnostic-only; merge authority remains with the governed exact-head checks.`;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
@@ -287,8 +95,3 @@ jobs:
                 body,
               });
             }
-
-      - name: Preserve builder failure after evidence publication
-        if: steps.builder.outcome != 'success'
-        shell: bash
-        run: exit 1
