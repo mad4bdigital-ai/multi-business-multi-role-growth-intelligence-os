@@ -36,19 +36,22 @@ Use this runbook when any of the following is true:
 - the Hostinger build completed but runtime readback reports an older commit;
 - the Hostinger filesystem contains the expected files but the process still serves older code;
 - production route or contract behavior differs from the exact protected `Production` tree;
-- a database repair succeeded but the loaded runtime remains stale.
+- a database repair succeeded but the loaded runtime remains stale;
+- a credential-intake profile exists but live `repo_inspect` cannot prove the expected route fields and auto-promotion behavior.
 
 ## Required preflight
 
 Before production promotion:
 
 1. Confirm exact-head CI for the intended `main` snapshot.
-2. Confirm generated artifacts are current.
-3. Confirm the current `Production` head has not moved since candidate construction.
-4. Confirm candidate tree equality with the approved `main` snapshot.
-5. Confirm candidate ancestry preserves the current `Production` head.
-6. Confirm no unresolved review threads or required-check failures.
-7. Confirm deployment and migration scopes remain separate.
+2. Run `release_readiness` and require `overall: pass`.
+3. Confirm generated artifacts are current.
+4. Confirm the current `Production` head has not moved since candidate construction.
+5. Confirm candidate tree equality with the approved `main` snapshot.
+6. Confirm candidate ancestry preserves the current `Production` head.
+7. Confirm no unresolved review threads or required-check failures.
+8. Use live `repo_inspect` readback for changed runtime routes and symbols.
+9. Confirm deployment and migration scopes remain separate.
 
 Before declaring production live:
 
@@ -59,7 +62,7 @@ Before declaring production live:
 5. Confirm `/health` is healthy.
 6. Confirm `/version` reports the same commit.
 7. Confirm `/deployment-info` uses explicit branch and commit evidence.
-8. Run targeted route or connector-agent readback when the release changes those surfaces.
+8. Run targeted `repo_inspect`, route, credential-intake, or connector-agent readback when the release changes those surfaces.
 
 ## Normal Auto Deploy path
 
@@ -116,6 +119,29 @@ It must require:
 
 The break-glass path must not become the default deployment mechanism and must not bypass Hostinger Auto Deploy branch authority.
 
+## Remote database intake readiness
+
+Remote database credential intake is separate from Hostinger deployment and separate from SSH credential intake.
+
+Before issuing a remote database intake link, live `repo_inspect` must confirm the deployed credential-intake route contains:
+
+- `remote_database`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `maybeAutoPromotePlatformSecrets`
+
+SSH credential intake fields are only:
+
+- `ssh_host`
+- `ssh_port`
+- `ssh_user`
+- `ssh_private_key`
+
+Do not place `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, or `DB_PASSWORD` inside an SSH intake form. Do not issue a remote database intake link until live-code readback proves the exact deployed route supports the required fields and `maybeAutoPromotePlatformSecrets` behavior.
+
 ## Staging boundary
 
 `dev.mad4b.com` is planned as a local-device staging runtime sourced from `main`.
@@ -146,19 +172,20 @@ Record bounded, non-secret evidence for:
 - previous and resulting protected `Production` SHAs;
 - candidate SHA and tree equality;
 - exact-head CI results;
+- `release_readiness` result;
 - review and approval identity/reference;
 - Hostinger build identifier and timestamps;
 - deployment manifest branch and commit;
 - `/health`, `/version`, and `/deployment-info` results;
 - process restart/redeploy action when required;
-- targeted runtime symbol or route readback;
+- targeted runtime symbol or route readback through `repo_inspect`;
 - remaining migration or provider certification gaps.
 
 Never record raw credentials, authorization headers, private keys, provider tokens, database passwords, or unbounded runtime output.
 
 ## Deployment and database separation
 
-Repository promotion, Hostinger deployment, runtime reload, migration application, and provider certification are separate states.
+Repository promotion, Hostinger deployment, runtime reload, migration application, credential intake, and provider certification are separate states.
 
 Do not mark a SQL or dispatcher rollout complete from branch or runtime parity alone. Migrations require checksum-bound authorization, preflight, apply, ledger evidence, and same-cycle schema/runtime readback.
 
@@ -174,6 +201,9 @@ A database repair that clears a query error before process reload must be record
 - Do not use arbitrary SSH or unregistered shell commands.
 - Do not treat `dev.mad4b.com` as a production fallback.
 - Do not apply SQL as part of repository or Hostinger deployment without separate governed authorization.
+- Do not paste SSH, DB, API, or Hostinger credentials into chat.
+- Do not set `remote_runtime_targets.validation_status = 'valid'` without a real probe.
+- Do not issue a credential-intake link when live route code is missing required fields.
 
 ## Completion classification
 
