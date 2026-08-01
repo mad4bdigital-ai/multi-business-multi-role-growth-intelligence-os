@@ -231,7 +231,7 @@ function buildImpactPreview({ policy }) {
     security_impact: Object.freeze({
       full_git_sha_tenant_visible: false,
       branch_repository_host_path_visible_to_tenant: false,
-      credentials_or_topology_visible_to_tenant: false,
+      provider_access_material_or_topology_visible_to_tenant: false,
       immutable_principal_ceiling: true,
     }),
     compatibility_impact: Object.freeze({
