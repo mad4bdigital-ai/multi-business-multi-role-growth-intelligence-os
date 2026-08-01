@@ -32,11 +32,14 @@ Complete this section for a workstream or integration PR.
 
 - Workflow:
 - Run ID:
-- Exact head SHA:
+- Candidate kind: `head` / `merge_candidate`
+- Exact candidate SHA:
+- Head SHA, when candidate kind is `merge_candidate`:
 - Canonical report contract/artifact:
 - First blocking finding or failed test:
 - Job-log access required: no / yes, with policy reason
-- [ ] Report, artifacts, and checks belong to the same exact head SHA
+- [ ] Report, artifacts, and checks belong to the same exact candidate SHA
+- [ ] Head evidence and merge-candidate evidence are labeled separately
 - [ ] Canonical summary was read before any Job log
 - [ ] Job logs were treated as diagnostic-only and did not override structured evidence
 
