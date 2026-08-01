@@ -105,15 +105,15 @@ DROP TRIGGER IF EXISTS trg_ticket_lifecycle_sla_milestones;
 CREATE TRIGGER trg_ticket_lifecycle_sla_milestones
 AFTER INSERT ON ticket_lifecycle_events
 FOR EACH ROW
-UPDATE tickets t
-   SET t.first_response_at = CASE
+UPDATE tickets
+   SET first_response_at = CASE
          WHEN NEW.visibility = 'customer'
           AND NEW.event_type NOT IN ('ticket_created', 'dedupe_matched', 'queue_assigned')
           AND LOWER(COALESCE(NEW.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
-         THEN COALESCE(t.first_response_at, NEW.created_at)
-         ELSE t.first_response_at
+         THEN COALESCE(first_response_at, NEW.created_at)
+         ELSE first_response_at
        END,
-       t.triaged_at = CASE
+       triaged_at = CASE
          WHEN LOWER(COALESCE(NEW.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
           AND (
             NEW.event_type IN ('triaged', 'ticket_triaged', 'assignee_changed', 'diagnostic_started')
@@ -122,11 +122,11 @@ UPDATE tickets t
               AND LOWER(COALESCE(NEW.to_state, '')) NOT IN ('', 'triage_pending', 'received')
             )
           )
-         THEN COALESCE(t.triaged_at, NEW.created_at)
-         ELSE t.triaged_at
+         THEN COALESCE(triaged_at, NEW.created_at)
+         ELSE triaged_at
        END
- WHERE t.tenant_id = NEW.tenant_id
-   AND t.ticket_id = NEW.ticket_id;
+ WHERE tenant_id = NEW.tenant_id
+   AND ticket_id = NEW.ticket_id;
 
 -- Milestone-aware SLA reconciliation. A completed milestone is not treated as
 -- breached merely because its due timestamp is in the past.
