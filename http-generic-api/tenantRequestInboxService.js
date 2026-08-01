@@ -2,7 +2,7 @@ import { getPool } from "./db.js";
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 50;
-const TENANT_EVENT_VISIBILITIES = new Set(["customer", "tenant_admin"]);
+const TENANT_ADMIN_EVENT_ROLES = new Set(["owner", "admin", "platform_owner"]);
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|raw_prompt|system_prompt)/i;
 
 function text(value = "") {
@@ -53,6 +53,11 @@ export function decodeTenantRequestCursor(cursor) {
     error.code = "tenant_request_cursor_invalid";
     throw error;
   }
+}
+
+export function canViewTenantAdminTicketEvents(scope = {}) {
+  if (scope?.isAdmin === true) return true;
+  return TENANT_ADMIN_EVENT_ROLES.has(text(scope?.role).toLowerCase());
 }
 
 async function hasResolutionTicketIdColumn(pool) {
@@ -323,7 +328,10 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
     error.code = "tenant_request_not_found";
     throw error;
   }
-  const visibilitySql = scope.isAdmin ? "" : `AND visibility IN ('customer','tenant_admin')`;
+  const canViewTenantAdmin = canViewTenantAdminTicketEvents(scope);
+  const visibilitySql = scope.isAdmin
+    ? ""
+    : (canViewTenantAdmin ? `AND visibility IN ('customer','tenant_admin')` : `AND visibility = 'customer'`);
   const [ticketEvents] = await pool.query(
     `SELECT event_id, event_type, from_state, to_state, summary, visibility, payload_json, created_at
        FROM ticket_lifecycle_events
@@ -355,14 +363,23 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
     );
   }
   const timeline = [
-    ...ticketEvents.filter((event) => scope.isAdmin || TENANT_EVENT_VISIBILITIES.has(event.visibility)).map(tenantVisibleTicketEvent),
+    ...ticketEvents
+      .filter((event) => scope.isAdmin
+        || event.visibility === "customer"
+        || (canViewTenantAdmin && event.visibility === "tenant_admin"))
+      .map(tenantVisibleTicketEvent),
     ...caseEvents.map((event) => caseEvent(event, scope.isAdmin)),
     ...readbacks.map((entry) => readbackRow(entry, scope.isAdmin)),
   ].sort((left, right) => String(left.createdAt || "").localeCompare(String(right.createdAt || "")));
   return {
     ...projectInboxRow(row),
     timeline,
-    authorization: { mode: scope.isAdmin ? "platform_admin" : "tenant_membership", tenantId: row.tenant_id },
+    authorization: {
+      mode: scope.isAdmin ? "platform_admin" : "tenant_membership",
+      tenantId: row.tenant_id,
+      role: scope.role || null,
+      tenantAdminEventsVisible: canViewTenantAdmin,
+    },
     schema: { explicitTicketCaseLinkAvailable: hasTicketId },
     secretsIncluded: false,
   };
