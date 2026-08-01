@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-generated-artifact-materialization",
+  "title": "Generated frontend governance and dispatch evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      ".changes/e2e/ci-generated-artifact-materialization.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that generated frontend governance and dispatch evidence is reproducible from the reviewed source authority and is current for the exact pull-request head.",
+      "e2e_journeys": [
+        {
+          "id": "generate-and-verify-frontend-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and reviewer",
+          "entrypoint": "Frontend governance and dispatch generators on the exact candidate head",
+          "terminal_outcome": "Both generated JSON artifacts match their source authority and pass deterministic verification without manual editing.",
+          "steps": [
+            "Generate frontend operation governance evidence from the canonical runtime and test manifest sources.",
+            "Generate frontend surface dispatch evidence from the governance artifact and canonical route authorities.",
+            "Verify source digests, required operations, and deterministic output on the exact candidate head."
+          ],
+          "assertions": [
+            "frontend-operation-governance.generated.json is generator-owned and current.",
+            "frontend-surface-dispatch.generated.json is generator-owned and current.",
+            "The generated artifacts are not accepted as hand-edited runtime authority.",
+            "Verification runs without repository mutation or Job-log reconstruction."
+          ],
+          "tests": [
+            {
+              "id": "frontend-operation-governance-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-dispatch-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish exact-head generated-artifact drift summaries for every governed writer workflow."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale digest, partial generation, and source-authority mismatch failures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe generated evidence consistency on representative pull requests."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require deterministic generated evidence before protected-branch merge readiness."
+    }
+  ]
+}
