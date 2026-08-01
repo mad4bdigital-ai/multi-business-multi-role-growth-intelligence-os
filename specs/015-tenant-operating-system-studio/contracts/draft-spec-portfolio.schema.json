@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mad4b.com/schemas/spec-015/draft-spec-portfolio.schema.json",
-  "title": "Open Draft Spec Portfolio Registry",
+  "title": "Open Draft Spec and Related Delivery Portfolio Registry",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,7 +12,9 @@
     "portfolio_owner",
     "identity_policy",
     "draft_specs",
+    "related_open_drafts",
     "duplicate_numeric_identities",
+    "duplicate_feature_clusters",
     "relationship_edges",
     "implementation_trains",
     "portfolio_decisions",
@@ -20,7 +22,7 @@
   ],
   "properties": {
     "$schema": { "const": "contracts/draft-spec-portfolio.schema.json" },
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "repository": { "const": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" },
     "observed_at": { "type": "string", "format": "date-time" },
     "main_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
@@ -28,101 +30,44 @@
     "identity_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["canonical_identity", "numeric_spec_number_is_unique_authority", "merge_rule"],
+      "required": ["canonical_identity", "numeric_spec_number_is_unique_authority", "open_draft_classification", "merge_rule"],
       "properties": {
         "canonical_identity": { "const": "feature_key_plus_canonical_role" },
         "numeric_spec_number_is_unique_authority": { "const": false },
+        "open_draft_classification": { "const": "primary_spec_or_related_delivery" },
         "merge_rule": { "const": "reconstruct_against_current_main_and_existing_authorities" }
       }
     },
     "draft_specs": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": { "$ref": "#/$defs/draftSpec" }
+    },
+    "related_open_drafts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relatedDraft" }
     },
     "duplicate_numeric_identities": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["number", "pull_requests", "resolution_status"],
-        "properties": {
-          "number": { "type": "integer", "minimum": 1 },
-          "pull_requests": {
-            "type": "array",
-            "minItems": 2,
-            "uniqueItems": true,
-            "items": { "type": "integer", "minimum": 1 }
-          },
-          "resolution_status": { "enum": ["open", "partially_classified", "resolved"] },
-          "resolution": { "type": "string", "minLength": 10 }
-        }
-      }
+      "items": { "$ref": "#/$defs/duplicateIdentity" }
+    },
+    "duplicate_feature_clusters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/duplicateFeatureCluster" }
     },
     "relationship_edges": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["from", "to", "relationship", "rationale"],
-        "properties": {
-          "from": { "type": "string", "minLength": 3 },
-          "to": { "type": "string", "minLength": 3 },
-          "relationship": {
-            "enum": [
-              "depends_on",
-              "consumes",
-              "extends",
-              "overlaps",
-              "extracts_generic_substrate_from",
-              "reconstructs_as_child_package",
-              "implementation_train_for",
-              "converges_under",
-              "must_not_replace"
-            ]
-          },
-          "rationale": { "type": "string", "minLength": 10 }
-        }
-      }
+      "items": { "$ref": "#/$defs/relationshipEdge" }
     },
     "implementation_trains": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["train_key", "parent_pr", "delivery_shape", "pull_requests", "portfolio_status"],
-        "properties": {
-          "train_key": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
-          "parent_pr": { "type": "integer", "minimum": 1 },
-          "delivery_shape": { "enum": ["strict_stack", "parallel_workstreams", "mixed"] },
-          "pull_requests": {
-            "type": "array",
-            "uniqueItems": true,
-            "items": { "type": "integer", "minimum": 1 }
-          },
-          "portfolio_status": { "enum": ["active", "stale", "partially_integrated", "blocked", "requires_reconstruction"] },
-          "notes": { "type": "array", "items": { "type": "string", "minLength": 3 } }
-        }
-      }
+      "items": { "$ref": "#/$defs/implementationTrain" }
     },
     "portfolio_decisions": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["decision_id", "status", "decision"],
-        "properties": {
-          "decision_id": { "type": "string", "pattern": "^DS-[0-9]{3}$" },
-          "status": { "enum": ["approved", "proposed", "blocked"] },
-          "decision": { "type": "string", "minLength": 10 },
-          "affected_pull_requests": {
-            "type": "array",
-            "uniqueItems": true,
-            "items": { "type": "integer", "minimum": 1 }
-          }
-        }
-      }
+      "items": { "$ref": "#/$defs/portfolioDecision" }
     },
     "secrets_included": { "const": false }
   },
@@ -148,7 +93,7 @@
       ],
       "properties": {
         "pull_request": { "type": "integer", "minimum": 1 },
-        "feature_key": { "type": "string", "minLength": 3 },
+        "feature_key": { "type": "string", "pattern": "^[0-9]{3}-[a-z0-9-]+$" },
         "title": { "type": "string", "minLength": 3 },
         "spec_root": { "type": "string", "pattern": "^specs/" },
         "branch": { "type": "string", "minLength": 3 },
@@ -164,12 +109,14 @@
             "infrastructure_recovery_subsystem",
             "operation_fabric_subsystem",
             "tenant_application_component",
+            "system_tool_catalog_subsystem",
             "reference_solution_package_source",
             "integration_rollup",
-            "portfolio_convergence_parent"
+            "portfolio_convergence_parent",
+            "external_integration_surface"
           ]
         },
-        "portfolio_tier": { "enum": ["foundation", "kernel", "platform_service", "tenant_product", "reference_package", "convergence"] },
+        "portfolio_tier": { "enum": ["foundation", "kernel", "platform_service", "tenant_product", "reference_package", "convergence", "external_surface"] },
         "live_compare": {
           "type": "object",
           "additionalProperties": false,
@@ -186,6 +133,137 @@
         "portfolio_disposition": { "type": "string", "minLength": 10 },
         "target_package_key": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
         "truthfulness_findings": { "type": "array", "items": { "type": "string", "minLength": 3 } }
+      }
+    },
+    "relatedDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pull_request",
+        "title",
+        "classification",
+        "parent_feature_key",
+        "branch",
+        "observed_head_sha",
+        "state",
+        "draft",
+        "portfolio_status",
+        "disposition"
+      ],
+      "properties": {
+        "pull_request": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 3 },
+        "classification": {
+          "enum": [
+            "stacked_implementation",
+            "implementation_child",
+            "reconciliation_candidate",
+            "manifest_or_test_helper",
+            "closure_workflow",
+            "contract_and_docs",
+            "migration_candidate",
+            "security_hardening",
+            "readiness_repair"
+          ]
+        },
+        "parent_feature_key": { "type": "string", "minLength": 3 },
+        "branch": { "type": "string", "minLength": 3 },
+        "observed_head_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "state": { "const": "open" },
+        "draft": { "const": true },
+        "portfolio_status": { "enum": ["active", "blocked", "stale", "duplicate_candidate", "requires_reconstruction", "pending_ci"] },
+        "disposition": { "type": "string", "minLength": 10 }
+      }
+    },
+    "duplicateIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "pull_requests", "resolution_status", "resolution"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "pull_requests": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "resolution_status": { "enum": ["open", "partially_classified", "resolved"] },
+        "resolution": { "type": "string", "minLength": 10 }
+      }
+    },
+    "duplicateFeatureCluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_key", "primary_pull_request", "related_pull_requests", "resolution_status", "resolution"],
+      "properties": {
+        "feature_key": { "type": "string", "minLength": 3 },
+        "primary_pull_request": { "type": "integer", "minimum": 1 },
+        "related_pull_requests": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "resolution_status": { "enum": ["open", "partially_classified", "resolved"] },
+        "resolution": { "type": "string", "minLength": 10 }
+      }
+    },
+    "relationshipEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "relationship", "rationale"],
+      "properties": {
+        "from": { "type": "string", "minLength": 3 },
+        "to": { "type": "string", "minLength": 3 },
+        "relationship": {
+          "enum": [
+            "depends_on",
+            "consumes",
+            "extends",
+            "overlaps",
+            "extracts_generic_substrate_from",
+            "reconstructs_as_child_package",
+            "implementation_train_for",
+            "implements",
+            "exposes_through",
+            "converges_under",
+            "must_not_replace"
+          ]
+        },
+        "rationale": { "type": "string", "minLength": 10 }
+      }
+    },
+    "implementationTrain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["train_key", "parent_pr", "delivery_shape", "pull_requests", "portfolio_status"],
+      "properties": {
+        "train_key": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
+        "parent_pr": { "type": "integer", "minimum": 1 },
+        "delivery_shape": { "enum": ["strict_stack", "parallel_workstreams", "mixed", "single_child"] },
+        "pull_requests": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        },
+        "portfolio_status": { "enum": ["active", "stale", "partially_integrated", "blocked", "requires_reconstruction"] },
+        "notes": { "type": "array", "items": { "type": "string", "minLength": 3 } }
+      }
+    },
+    "portfolioDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "status", "decision"],
+      "properties": {
+        "decision_id": { "type": "string", "pattern": "^DS-[0-9]{3}$" },
+        "status": { "enum": ["approved", "proposed", "blocked"] },
+        "decision": { "type": "string", "minLength": 10 },
+        "affected_pull_requests": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1 }
+        }
       }
     }
   }
