@@ -130,3 +130,122 @@ jobs:
             Scope is restricted to `docs/auto-docs-agent/**`.
             Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
             Review is required; this workflow does not auto-merge the follow-up PR.
+
+  exact-head-bootstrap:
+    name: One-time exact-head Work Map bootstrap
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-governance-final-atomic-20260731'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_BASE_SHA: 74a764ab175ab3a6f105aa7a076e588541ea5766
+      AUTHORIZED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+      DOCS_AGENT_WORKFLOW: .github/workflows/docs-agent.yml
+    steps:
+      - name: Checkout authorized temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.AUTHORIZED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact temporary ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          actual_parent="$(git rev-parse HEAD^)"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${actual_head}" != "${AUTHORIZED_HEAD_SHA}" || "${remote_head}" != "${AUTHORIZED_HEAD_SHA}" ]]; then
+            echo "Refusing stale bootstrap head."
+            exit 1
+          fi
+          if [[ "${actual_parent}" != "${EXPECTED_BASE_SHA}" ]]; then
+            echo "Refusing bootstrap ancestry: expected parent ${EXPECTED_BASE_SHA}, found ${actual_parent}."
+            exit 1
+          fi
+
+      - name: Restore durable Docs Agent before source discovery
+        shell: bash
+        run: git show "${EXPECTED_BASE_SHA}:${DOCS_AGENT_WORKFLOW}" > "${DOCS_AGENT_WORKFLOW}"
+
+      - name: Validate durable writer ownership contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
+
+      - name: Generate exact-head Work Maps idempotently
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary "${EXPECTED_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary "${EXPECTED_BASE_SHA}" -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_hash}" != "${second_hash}" ]]; then
+            echo "Refusing non-idempotent Work Map generation."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Enforce net Work Map-only diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(git diff --name-only "${EXPECTED_BASE_SHA}" | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Bootstrap net diff contains unexpected files:"
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+          changed_count="$(git diff --name-only "${EXPECTED_BASE_SHA}" -- docs/work-maps | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [[ "${changed_count}" -eq 0 ]]; then
+            echo "No generated Work Map changes found."
+            exit 1
+          fi
+          echo "Generated Work Map file count: ${changed_count}"
+
+      - name: Commit restored workflow and generated maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head}" != "${AUTHORIZED_HEAD_SHA}" ]]; then
+            echo "Refusing stale bootstrap push."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps "${DOCS_AGENT_WORKFLOW}"
+          git commit -m "docs(work-maps): regenerate governed platform maps"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+      - name: Verify final remote scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_head="$(git rev-parse HEAD)"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${local_head}" != "${remote_head}" ]]; then
+            echo "Bootstrap push readback mismatch."
+            exit 1
+          fi
+          unexpected="$(git diff --name-only "${EXPECTED_BASE_SHA}"...HEAD | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Final bootstrap diff contains unexpected files:"
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
