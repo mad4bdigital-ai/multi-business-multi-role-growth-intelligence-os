@@ -21,25 +21,28 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add a trusted exact-head publisher route for the Hostinger Storage Tenant Canary Guard without changing the existing general CI publisher or granting repository/runtime mutation authority.",
+      "objective": "Add a trusted exact-head publisher route for the companion Hostinger Storage Tenant Canary Canonical Evidence workflow without changing the existing general CI publisher or granting repository/runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "hostinger-tenant-canary-canonical-evidence-publication",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository reviewer and trusted workflow_run publisher",
-          "entrypoint": "A completed Hostinger Storage Tenant Canary Guard run with a canonical structured artifact",
-          "terminal_outcome": "The trusted main-based publisher validates the exact PR head, contract, counts, no-secret declaration, and no-log decision before updating the shared authoritative PR comment.",
+          "entrypoint": "A completed Hostinger Storage Tenant Canary Canonical Evidence run carrying a canonical structured artifact for the logical Hostinger Storage Tenant Canary Guard",
+          "terminal_outcome": "The trusted main-based publisher validates the exact PR head, source workflow, logical guard, contract, counts, no-secret declaration, and no-log decision before updating the shared authoritative PR comment.",
           "steps": [
-            "Receive a completed workflow_run event for Hostinger Storage Tenant Canary Guard.",
+            "Receive a completed workflow_run event only for Hostinger Storage Tenant Canary Canonical Evidence.",
             "Checkout trusted main without persisted credentials.",
             "Download only the run-bound hostinger-storage-tenant-canary summary artifact.",
-            "Validate workflow identity, guard identity, contract, candidate kind, exact candidate SHA, check counts, result count, first failure, secrets declaration, and job_logs_consulted=false.",
+            "Validate that the report logical workflow is Hostinger Storage Tenant Canary Guard while the source workflow is the companion canonical-evidence workflow.",
+            "Validate guard identity, contract, candidate kind, exact candidate SHA, check counts, result count, first failure, secrets declaration, and job_logs_consulted=false.",
             "Resolve exactly one open or merged PR from event PR number or exact repository, branch, and head SHA.",
             "Reject stale, substituted, ambiguous, or closed-unmerged PR identities.",
             "Add or replace only the Hostinger Tenant Canary section inside the existing mad4b canonical evidence comment."
           ],
           "assertions": [
+            "The source workflow is Hostinger Storage Tenant Canary Canonical Evidence.",
+            "The report logical guard is Hostinger Storage Tenant Canary Guard and guard_key is hostinger-storage-tenant-canary.",
             "The canonical contract is mad4b.hostinger-guard-summary.v1.",
             "The candidate kind is head and candidate SHA equals workflow_run.head_sha.",
             "Passed evidence requires all selected checks to pass, zero integrity findings, and first_failure=null.",
@@ -47,7 +50,7 @@
             "The report declares secrets_included=false and job_logs_consulted=false.",
             "The publisher runs from trusted main with actions:read, issues:write, pull-requests:write, contents:read, and persist-credentials:false.",
             "The specialized publisher shares the existing authoritative comment marker rather than creating a competing status surface.",
-            "No PR-head workflow receives comment-write authority.",
+            "Neither the existing Tenant Canary Guard nor the companion PR-head workflow receives comment-write authority.",
             "No deployment, provider call, credential access, migration, SQL, external send, Production mutation, protected-branch mutation, or force push occurs."
           ],
           "tests": [
@@ -71,12 +74,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the first real Tenant Canary canonical artifact after the producer child PR is integrated and verify trusted comment publication on the exact head."
+      "objective": "Observe the first real companion Tenant Canary canonical artifact after the producer child PR is integrated and verify trusted comment publication on the exact head."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise artifact absence, malformed JSON, stale SHA, conflicting counts, ambiguous PR resolution, cancelled workflow runs, and publisher retries while keeping Job logs diagnostic-only."
+      "objective": "Exercise artifact absence, malformed JSON, stale SHA, source/logical workflow mismatch, conflicting counts, ambiguous PR resolution, cancelled workflow runs, and publisher retries while keeping Job logs diagnostic-only."
     },
     {
       "id": "canary",
