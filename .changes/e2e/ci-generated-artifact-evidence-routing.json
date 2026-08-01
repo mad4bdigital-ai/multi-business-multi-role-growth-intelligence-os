@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-generated-artifact-evidence-routing",
+  "title": "Canonical evidence for generated artifact refresh",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/ci-evidence-routing.json",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "docs/ci-evidence-routing.md",
+      "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+      ".changes/e2e/ci-generated-artifact-evidence-routing.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish one bounded canonical report for generated-artifact reconciliation and preserve the exact relationship between the triggering PR head and any generated commit that becomes the new PR head.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-refresh-canonical-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and PR reviewer",
+          "entrypoint": "PR Generated Artifact Refresh on an internal gpt/* or cert/* pull request",
+          "terminal_outcome": "The workflow uploads a machine-readable exact-head decision and the trusted workflow_run publisher updates the authoritative PR comment without requiring Job-log reconstruction.",
+          "steps": [
+            "Checkout the exact source PR head and record it as source_head_sha.",
+            "Generate and verify only the bounded artifact write set.",
+            "Refuse to push when the remote PR head moved after checkout.",
+            "Record the generated commit as candidate_sha when a commit is published, otherwise retain the source head as candidate_sha.",
+            "Upload the canonical JSON and Markdown report before enforcing its decision.",
+            "Validate the source-to-generated-head transition against the current PR before updating the canonical evidence comment."
+          ],
+          "assertions": [
+            "The report contract is mad4b.pr-generated-artifact-refresh-summary.v1.",
+            "The report always declares secrets_included=false and bounded redacted diagnostics.",
+            "A generated commit must equal candidate_sha while source_head_sha remains the workflow trigger identity.",
+            "A no-change run must use the source head as candidate_sha.",
+            "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
+            "Job logs remain diagnostic-only and never override the canonical report."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-evidence-publisher-identity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/ci-evidence-routing.md",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add aggregate reporting for all remaining governed writer workflows that do not yet publish canonical evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise artifact-download failure, stale-head races, malformed reports, and publisher retry behavior without consulting Job logs for the workflow decision."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the canonical section on representative generated-artifact PRs before making it a required branch-protection signal."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require exact generated-artifact canonical evidence for protected-branch merge readiness."
+    }
+  ]
+}
