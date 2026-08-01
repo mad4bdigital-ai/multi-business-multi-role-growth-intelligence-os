@@ -53,7 +53,7 @@ jobs:
           if (JSON.stringify(shared) !== sharedBefore) {
             throw new Error('Shared workstream changed during Tenant-only reconciliation.');
           }
-          if (shared.status !== 'ready_for_integration') {
+          if (shared.status !== 'integrated') {
             throw new Error(`Shared status changed unexpectedly: ${shared.status}`);
           }
           fs.writeFileSync(path, `${JSON.stringify(document)}\n`);
