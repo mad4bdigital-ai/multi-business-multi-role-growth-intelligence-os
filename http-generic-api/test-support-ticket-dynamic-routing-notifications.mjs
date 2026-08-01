@@ -56,6 +56,7 @@ assert.match(email.body_text, /Tenant: tenant_abc/);
 assert.match(email.body_text, /Recipient route: same_tenant_admin_owner/);
 assert.equal(email.body_html, null);
 
+// Same-tenant delivery is owner/admin-only; platform escalation remains a separate route class.
 const observedSql = [];
 const connection = {
   async query(sql) {
