@@ -12,9 +12,9 @@ on:
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
       - "specs/014-governed-hostinger-storage-orchestration/**"
-      - "docs/hostinger-storage-cleanup.md"
-      - "docs/hostinger-storage-control-plane.md"
-      - "docs/hostinger-storage-admin-tenant-orchestration.md"
+      - "**/hostinger-storage-cleanup.md"
+      - "**/hostinger-storage-control-plane.md"
+      - "**/hostinger-storage-admin-tenant-orchestration.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   push:
     branches: [main]
@@ -28,9 +28,9 @@ on:
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
       - "specs/014-governed-hostinger-storage-orchestration/**"
-      - "docs/hostinger-storage-cleanup.md"
-      - "docs/hostinger-storage-control-plane.md"
-      - "docs/hostinger-storage-admin-tenant-orchestration.md"
+      - "**/hostinger-storage-cleanup.md"
+      - "**/hostinger-storage-control-plane.md"
+      - "**/hostinger-storage-admin-tenant-orchestration.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   workflow_dispatch:
 
