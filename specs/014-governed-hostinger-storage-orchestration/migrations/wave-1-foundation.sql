@@ -2,6 +2,8 @@
 -- DRAFT ONLY: specification-local SQL; not discoverable by governed-migration-runner.
 -- Tasks: T024
 -- migration_apply_authorized=false
+-- schema_verified=false
+-- production_ready=false
 -- destructive_ddl=false
 -- external_fk_ddl_deferred_until_exact_parent_readback=true
 -- no_provider_call
@@ -34,7 +36,7 @@ CREATE TABLE IF NOT EXISTS storage_provider_accounts (
   CONSTRAINT chk_storage_provider_accounts_tenant_audience
     CHECK (
       (ownership_scope = 'tenant' AND tenant_id IS NOT NULL AND workspace_id IS NOT NULL)
-      OR (ownership_scope IN ('platform', 'shared'))
+      OR (ownership_scope IN ('platform', 'shared') AND tenant_id IS NULL AND workspace_id IS NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
