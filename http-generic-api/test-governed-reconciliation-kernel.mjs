@@ -50,13 +50,20 @@ const successWithOptionalObserver = classifyMutationOutcome({
   receipt: { state: "succeeded", outcome_classification: "verified_success" },
   readbacks: [
     ...matchingReadbacks,
-    readback({ source: "optional_observer", required: false }),
+    readback({
+      source: "optional_observer",
+      required: false,
+      status: "not_applied",
+      match: false,
+      exists: false,
+      absence_proven: true,
+    }),
   ],
 });
 assert.equal(
   successWithOptionalObserver.classification,
   OUTCOME_CLASSIFICATIONS.CONFIRMED_SUCCESS,
-  "optional readbacks must not alter required-source counts",
+  "optional readback failure markers must not alter required-source classification",
 );
 
 const wrongOperation = classifyMutationOutcome({
@@ -69,6 +76,19 @@ const wrongOperation = classifyMutationOutcome({
 assert.equal(wrongOperation.classification, OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED);
 assert.equal(wrongOperation.reason_code, "RECONCILIATION_SAME_OPERATION_EVIDENCE_REQUIRED");
 
+const splitOperationReadbacks = [
+  readback({ source: "provider", operation_id: "operation-a", evidence_operation_id: "operation-a" }),
+  readback({ source: "internal_ledger", operation_id: "operation-b", evidence_operation_id: "operation-b" }),
+];
+const splitOperation = classifyMutationOutcome({
+  dispatch: { status: "completed", dispatched: true },
+  receipt: { state: "succeeded", outcome_classification: "verified_success" },
+  readbacks: splitOperationReadbacks,
+});
+assert.equal(splitOperation.classification, OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED);
+assert.equal(splitOperation.reason_code, "RECONCILIATION_SAME_OPERATION_EVIDENCE_REQUIRED");
+assert.equal(splitOperation.evidence.same_operation_complete, false);
+
 const failureReadbacks = [
   readback({ source: "provider", status: "not_applied", match: false, exists: false, absence_proven: true }),
   readback({ source: "internal_ledger", status: "not_applied", match: false, exists: false, absence_proven: true }),
@@ -80,6 +100,17 @@ const failure = classifyMutationOutcome({
 });
 assert.equal(failure.classification, OUTCOME_CLASSIFICATIONS.CONFIRMED_FAILURE);
 assert.equal(failure.retry_allowed, true);
+
+const splitOperationFailure = classifyMutationOutcome({
+  dispatch: { status: "failed_before_dispatch", dispatched: false },
+  receipt: { state: "reconciled", outcome_classification: "confirmed_failure" },
+  readbacks: [
+    readback({ source: "provider", status: "not_applied", match: false, exists: false, absence_proven: true, operation_id: "operation-a", evidence_operation_id: "operation-a" }),
+    readback({ source: "internal_ledger", status: "not_applied", match: false, exists: false, absence_proven: true, operation_id: "operation-b", evidence_operation_id: "operation-b" }),
+  ],
+});
+assert.equal(splitOperationFailure.classification, OUTCOME_CLASSIFICATIONS.RECONCILIATION_REQUIRED);
+assert.equal(splitOperationFailure.retry_allowed, false);
 
 const unknown = classifyMutationOutcome({
   dispatch: { status: "transport_failed", dispatched: true },
@@ -103,6 +134,15 @@ assert.throws(
   () => assertReadBeforeRetry({
     priorOutcome: OUTCOME_CLASSIFICATIONS.UNKNOWN_OUTCOME,
     reconciliation: success,
+    idempotencyKey: "stable-retry-key",
+  }),
+  (error) => error?.code === "RECONCILIATION_READ_BEFORE_RETRY_REQUIRED" && error?.status === 409,
+);
+
+assert.throws(
+  () => assertReadBeforeRetry({
+    priorOutcome: OUTCOME_CLASSIFICATIONS.UNKNOWN_OUTCOME,
+    reconciliation: splitOperationFailure,
     idempotencyKey: "stable-retry-key",
   }),
   (error) => error?.code === "RECONCILIATION_READ_BEFORE_RETRY_REQUIRED" && error?.status === 409,
@@ -182,8 +222,47 @@ for (const [domain, expected] of cases) {
 }
 
 await assert.rejects(
+  () => kernel.reconcile({
+    domain: "provider_adapter",
+    input: {
+      expected_provider: expectedProvider,
+      operation_id: operationId,
+      evidence_operation_id: operationId,
+      evidence_verified: true,
+    },
+  }),
+  (error) => error?.code === "RECONCILIATION_EXPECTED_STATE_REQUIRED" && error?.status === 400,
+);
+
+await assert.rejects(
   () => kernel.reconcile({ domain: "provider_adapter", input: { access_token: "forbidden" } }),
   (error) => error?.code === "RECONCILIATION_SECRET_FIELD_REJECTED",
+);
+
+const deeplyNestedObserved = {};
+let nestedCursor = deeplyNestedObserved;
+for (let depth = 0; depth < 14; depth += 1) {
+  nestedCursor.next = {};
+  nestedCursor = nestedCursor.next;
+}
+nestedCursor.access_token = "must-never-be-copied";
+
+const deepEvidenceKernel = createGovernedReconciliationKernel({
+  adapters: {
+    provider_adapter: {
+      inspect: async () => ({
+        domain: "provider_adapter",
+        dispatch: {},
+        receipt: {},
+        readbacks: [readback({ observed: deeplyNestedObserved })],
+        mutation_performed: false,
+      }),
+    },
+  },
+});
+await assert.rejects(
+  () => deepEvidenceKernel.reconcile({ domain: "provider_adapter" }),
+  (error) => error?.code === "RECONCILIATION_EVIDENCE_DEPTH_EXCEEDED" && error?.status === 400,
 );
 
 const mutatingKernel = createGovernedReconciliationKernel({
