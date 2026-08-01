@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const GOVERNED_RECONCILIATION_KERNEL_VERSION = "spec011-governed-reconciliation-kernel-v2";
+export const GOVERNED_RECONCILIATION_KERNEL_VERSION = "spec011-governed-reconciliation-kernel-v3";
 export const OUTCOME_CLASSIFICATIONS = Object.freeze({
   CONFIRMED_SUCCESS: "confirmed_success",
   CONFIRMED_FAILURE: "confirmed_failure",
@@ -30,6 +30,7 @@ const UNKNOWN = new Set([
   "unknown_outcome", "reconciliation_required",
 ]);
 const SECRET_KEY = /(secret(?!s_included$)|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie|session)/i;
+const MAX_EVIDENCE_DEPTH = 12;
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -58,7 +59,13 @@ function digest(value) {
 }
 
 function assertSecretFree(value, path = "evidence", depth = 0) {
-  if (depth > 12 || value === null || value === undefined) return;
+  if (depth > MAX_EVIDENCE_DEPTH) {
+    throw fail(400, "RECONCILIATION_EVIDENCE_DEPTH_EXCEEDED", "Reconciliation evidence exceeds the maximum validation depth.", {
+      path,
+      maximum_depth: MAX_EVIDENCE_DEPTH,
+    });
+  }
+  if (value === null || value === undefined) return;
   if (Array.isArray(value)) {
     value.forEach((item, index) => assertSecretFree(item, `${path}[${index}]`, depth + 1));
     return;
@@ -121,6 +128,15 @@ function includesMarker(source, catalog) {
   return [...source].some((item) => catalog.has(item));
 }
 
+function canonicalOperationEvidenceComplete(required) {
+  const canonicalOperationId = required[0]?.operation_id || null;
+  return required.length > 0
+    && Boolean(canonicalOperationId)
+    && required.every((item) => item.evidence_verified
+      && item.operation_id === canonicalOperationId
+      && item.evidence_operation_id === canonicalOperationId);
+}
+
 export function classifyMutationOutcome({ dispatch = {}, receipt = {}, readbacks = [] } = {}) {
   assertSecretFree(dispatch, "dispatch");
   assertSecretFree(receipt, "receipt");
@@ -130,11 +146,11 @@ export function classifyMutationOutcome({ dispatch = {}, receipt = {}, readbacks
   const normalized = readbacks.map(normalizeReadback);
   const required = normalized.filter((item) => item.required);
   const complete = required.length > 0 && required.every((item) => item.read_performed && (item.match || item.absence_proven || item.conflict));
-  const sameOperation = required.length > 0 && required.every((item) => item.evidence_verified && item.operation_id && item.evidence_operation_id === item.operation_id);
+  const sameOperation = canonicalOperationEvidenceComplete(required);
   const requiredMatches = required.filter((item) => item.match);
   const requiredAbsence = required.filter((item) => item.absence_proven);
   const requiredConflicts = required.filter((item) => item.conflict);
-  const evidenceMarkers = markers(dispatch, receipt, normalized);
+  const evidenceMarkers = markers(dispatch, receipt, required);
   const success = includesMarker(evidenceMarkers, SUCCESS);
   const failure = includesMarker(evidenceMarkers, FAILURE);
   const unknown = includesMarker(evidenceMarkers, UNKNOWN);
@@ -210,11 +226,14 @@ export function assertReadBeforeRetry({ priorOutcome, reconciliation, idempotenc
     });
   }
   const required = reconciliation.evidence?.readbacks?.filter((item) => item.required !== false) || [];
-  const proven = required.length > 0 && required.every((item) => item.read_performed === true
-    && item.absence_proven === true
-    && item.evidence_verified === true
-    && item.operation_id
-    && item.evidence_operation_id === item.operation_id);
+  const canonicalOperationId = required[0]?.operation_id || null;
+  const proven = required.length > 0
+    && Boolean(canonicalOperationId)
+    && required.every((item) => item.read_performed === true
+      && item.absence_proven === true
+      && item.evidence_verified === true
+      && item.operation_id === canonicalOperationId
+      && item.evidence_operation_id === canonicalOperationId);
   if (!proven) {
     throw fail(409, "RECONCILIATION_ABSENCE_PROOF_REQUIRED", "Retry requires complete same-operation absence proof from every required source.", { automatic_retry_performed: false });
   }
@@ -284,8 +303,12 @@ export function createGovernedReconciliationKernel({ adapters = {}, clock = () =
 }
 
 function makeReadback(source, value, expected, operation) {
+  if (expected === undefined || expected === null) {
+    throw fail(400, "RECONCILIATION_EXPECTED_STATE_REQUIRED", "Each required readback requires an explicit non-null expected state.", { source });
+  }
+  assertSecretFree(value, `${source}.observed`);
   const exists = value !== null && value !== undefined;
-  const match = exists && expected !== undefined && expected !== null ? digest(value) === digest(expected) : exists;
+  const match = exists && digest(value) === digest(expected);
   return Object.freeze({
     source,
     required: true,
@@ -293,7 +316,7 @@ function makeReadback(source, value, expected, operation) {
     match,
     exists,
     absence_proven: !exists,
-    conflict: exists && expected !== undefined && expected !== null && !match,
+    conflict: exists && !match,
     status: match ? "readback_verified" : !exists ? "not_applied" : "conflict",
     fingerprint: digest({ source, value, expected }),
     observed: value,
