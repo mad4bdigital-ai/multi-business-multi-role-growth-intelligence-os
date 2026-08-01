@@ -16,23 +16,39 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+function gitNameOnly(root, args) {
+  try {
+    return execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).split(/\r?\n/).map(normalize).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function changedFiles(root, base, head) {
+  const files = new Set();
   const candidates = [
     base ? `${base}...${head || "HEAD"}` : null,
     process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}...HEAD` : null,
     "origin/main...HEAD",
     "HEAD~1...HEAD"
   ].filter(Boolean);
+
   for (const range of candidates) {
-    try {
-      return execFileSync("git", ["diff", "--name-only", range], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      }).split(/\r?\n/).map(normalize).filter(Boolean);
-    } catch {}
+    const committed = gitNameOnly(root, ["diff", "--name-only", range]);
+    if (committed.length) {
+      for (const file of committed) files.add(file);
+      break;
+    }
   }
-  return [];
+
+  for (const file of gitNameOnly(root, ["diff", "--name-only"])) files.add(file);
+  for (const file of gitNameOnly(root, ["diff", "--name-only", "--cached"])) files.add(file);
+  for (const file of gitNameOnly(root, ["ls-files", "--others", "--exclude-standard"])) files.add(file);
+  return [...files].sort();
 }
 
 function parseArgs(argv) {
@@ -109,9 +125,9 @@ function titleFromFeatureKey(featureKey) {
     .join(" ") || featureKey;
 }
 
-function buildContract(featureKey, title, deliveryMode, scope, contractFile) {
+function buildContract(featureKey, title, deliveryMode, scope) {
   return {
-    $schema: contractFile.startsWith("specs/") ? "../../.specify/schemas/e2e-phases.schema.json" : "../../.specify/schemas/e2e-phases.schema.json",
+    $schema: "../../.specify/schemas/e2e-phases.schema.json",
     schema_version: 1,
     feature_key: featureKey,
     title,
@@ -169,8 +185,9 @@ function main() {
   const proposedScope = [...new Set([...specScope, ...scope])].sort();
   if (!proposedScope.length) throw new Error("No Spec or runtime changes were detected for this feature.");
 
+  const existed = fs.existsSync(absoluteContract);
   let contract;
-  if (fs.existsSync(absoluteContract)) {
+  if (existed) {
     if (!options.refreshScope && !options.force) {
       throw new Error(`${relativeContract} already exists. Use --refresh-scope to add changed files or --force to replace it.`);
     }
@@ -179,15 +196,15 @@ function main() {
       contract.scope = contract.scope || {};
       contract.scope.include = [...new Set([...(contract.scope.include || []), ...proposedScope])].sort();
     } else {
-      contract = buildContract(featureKey, options.title || titleFromFeatureKey(featureKey), options.deliveryMode, proposedScope, relativeContract);
+      contract = buildContract(featureKey, options.title || titleFromFeatureKey(featureKey), options.deliveryMode, proposedScope);
     }
   } else {
-    contract = buildContract(featureKey, options.title || titleFromFeatureKey(featureKey), options.deliveryMode, proposedScope, relativeContract);
+    contract = buildContract(featureKey, options.title || titleFromFeatureKey(featureKey), options.deliveryMode, proposedScope);
   }
 
   const output = {
     ok: true,
-    action: fs.existsSync(absoluteContract) ? (options.refreshScope ? "scope_refreshed" : "replaced") : "created",
+    action: existed ? (options.refreshScope ? "scope_refreshed" : "replaced") : "created",
     feature_key: featureKey,
     contract_path: relativeContract,
     changed_files: files,
