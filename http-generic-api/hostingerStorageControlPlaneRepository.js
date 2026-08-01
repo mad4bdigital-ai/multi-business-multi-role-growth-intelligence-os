@@ -8,7 +8,7 @@ import {
   createMySqlHostingerStoragePersistenceAdapter as createBaseMySqlHostingerStoragePersistenceAdapter,
 } from './hostingerStorageSqlPersistenceAdapter.js';
 
-const canonicalMemoryPersistenceAdapters = new WeakSet();
+const canonicalPersistenceAdapters = new WeakSet();
 const canonicalSqlPersistenceAdapters = new WeakSet();
 const canonicalRepositories = new WeakSet();
 
@@ -19,14 +19,14 @@ export {
 
 export function createMemoryHostingerStoragePersistenceAdapter(options = {}) {
   const adapter = createBaseMemoryHostingerStoragePersistenceAdapter(options);
-  canonicalMemoryPersistenceAdapters.add(adapter);
+  canonicalPersistenceAdapters.add(adapter);
   return adapter;
 }
 
 export function isCanonicalMemoryHostingerStoragePersistenceAdapter(adapter) {
   return Boolean(
     adapter
-    && canonicalMemoryPersistenceAdapters.has(adapter)
+    && canonicalPersistenceAdapters.has(adapter)
     && Object.isFrozen(adapter)
     && adapter.adapter_key === 'hostinger_storage_memory_test_adapter_v1'
     && adapter.production_ready === false
