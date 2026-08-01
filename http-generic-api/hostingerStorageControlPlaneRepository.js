@@ -29,8 +29,9 @@ export function isCanonicalMemoryHostingerStoragePersistenceAdapter(adapter) {
 }
 
 export function createHostingerStorageControlPlaneRepository(options = {}) {
-  const repository = createBaseHostingerStorageControlPlaneRepository(options);
-  if (isCanonicalMemoryHostingerStoragePersistenceAdapter(options.adapter)) {
+  const adapter = options?.adapter;
+  const repository = createBaseHostingerStorageControlPlaneRepository({ adapter });
+  if (isCanonicalMemoryHostingerStoragePersistenceAdapter(adapter)) {
     canonicalRepositories.add(repository);
   }
   return repository;
