@@ -1,0 +1,69 @@
+name: Spec 014 Storage Schema Registry Finalizer
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/canonical-schema-registry-20260801
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Repair finalizer literal escaping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/finalize-spec014-storage-schema-registry.mjs')
+          text = path.read_text()
+          text = text.replace('${entry.name}: one canonical exact rule required', r'\${entry.name}: one canonical exact rule required')
+          path.write_text(text)
+          PY
+      - name: Validate and apply bounded exact registry rules
+        run: |
+          node --check .github/scripts/finalize-spec014-storage-schema-registry.mjs
+          node .github/scripts/finalize-spec014-storage-schema-registry.mjs
+      - name: Validate final governed tree
+        run: |
+          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          grep -q '"status":"canonical_registry_registered"' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"rule_count":15' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
+      - name: Remove temporary finalizer surfaces
+        run: |
+          git rm .github/scripts/finalize-spec014-storage-schema-registry.mjs
+          git rm .github/workflows/spec014-storage-schema-registry-finalizer.yml
+      - name: Enforce exact final write set
+        run: |
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            '.github/contracts/spec014/hostinger-storage-schema-classification.json' \
+            '.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs' \
+            '.github/workflows/hostinger-storage-schema-classification-guard.yml' \
+            '.specify/work-map-schema-classification-registry.json' \
+            'specs/014-governed-hostinger-storage-orchestration/tasks.md' | sort)"
+          test "$actual" = "$expected"
+      - name: Commit governed registry update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/contracts/spec014/hostinger-storage-schema-classification.json \
+            .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs \
+            .github/workflows/hostinger-storage-schema-classification-guard.yml \
+            .specify/work-map-schema-classification-registry.json \
+            specs/014-governed-hostinger-storage-orchestration/tasks.md
+          git commit -m 'docs(spec-014): register storage schema objects canonically'
+          git push origin HEAD:gpt/014-hostinger/canonical-schema-registry-20260801
