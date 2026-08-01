@@ -37,6 +37,14 @@ function hash(value, field) {
   return normalized;
 }
 
+function positiveInteger(value, field) {
+  const normalized = Number(value);
+  if (!Number.isSafeInteger(normalized) || normalized < 1) {
+    throw fail(400, 'STORAGE_EXECUTOR_INTEGER_BINDING_INVALID', 'A positive integer binding is required.', { field });
+  }
+  return normalized;
+}
+
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
   if (!value || typeof value !== 'object') return value;
@@ -150,9 +158,11 @@ export function buildHostingerStorageSyntheticExecutionProtocol({
     plan_id: canonical.envelope.plan_id,
     plan_hash: canonical.plan_hash,
     candidate_set_hash: canonical.candidate_set_hash,
+    plan_expires_at_epoch: positiveInteger(canonical.envelope.expires_at_epoch, 'plan.expires_at_epoch'),
     authorization_bundle_hash: hash(authorization.bundle_hash, 'authorization.bundle_hash'),
     lease_id: safeId(bundle.execution_lease?.lease_id, 'bundle.execution_lease.lease_id'),
-    lease_generation: Number(bundle.execution_lease?.generation),
+    lease_generation: positiveInteger(bundle.execution_lease?.generation, 'bundle.execution_lease.generation'),
+    lease_expires_at_epoch: positiveInteger(bundle.execution_lease?.expires_at_epoch, 'bundle.execution_lease.expires_at_epoch'),
     synthetic_only: true,
     production_ready: false,
     provider_dispatch_allowed: false,
@@ -180,6 +190,9 @@ export function verifyHostingerStorageSyntheticExecutionProtocol({ protocol, exp
     || protocol?.automatic_retry_allowed !== false) {
     throw fail(409, 'STORAGE_EXECUTOR_PROTOCOL_IDENTITY_INVALID', 'Unexpected or unsafe synthetic execution protocol identity.');
   }
+  positiveInteger(protocol.plan_expires_at_epoch, 'protocol.plan_expires_at_epoch');
+  positiveInteger(protocol.lease_generation, 'protocol.lease_generation');
+  positiveInteger(protocol.lease_expires_at_epoch, 'protocol.lease_expires_at_epoch');
   const observed = digest(protocol);
   if (observed !== hash(expected_digest, 'expected_digest')) {
     throw fail(409, 'STORAGE_EXECUTOR_PROTOCOL_TAMPERED', 'Synthetic execution protocol digest mismatch.');
