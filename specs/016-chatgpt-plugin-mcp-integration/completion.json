@@ -32,8 +32,8 @@
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 23,
-    "file_count_recorded": 23,
+    "file_count_expected": 24,
+    "file_count_recorded": 24,
     "functional_requirements": 32,
     "non_functional_requirements": 12,
     "success_criteria": 10,
@@ -46,6 +46,7 @@
     "e2e_phases": 5
   },
   "verification": {
+    "specification_contract_validator": "implemented_pending_ci",
     "json_parse": "pending_ci",
     "yaml_parse": "pending_ci",
     "openapi_validation": "pending_ci",
@@ -110,6 +111,7 @@
     "field_level_schema_reuse_matrix_missing"
   ],
   "notes": [
+    "The specification now includes an executable synthetic MVP validator for manifest inventory, JSON contracts, OpenAPI route presence, completion truthfulness, Work Map blocking posture, and secret-like value detection.",
     "The current repository MCP surface is a verified baseline, not proof of ChatGPT compatibility.",
     "Draft PR #4462 starts a feature-flagged read-only adapter and does not complete OAuth 2.1 or production readiness.",
     "The first implementation phase works without custom UI and leaves all new feature flags disabled by default.",
