@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { buildMcpHandlers } from "../mcpRuntime.js";
-import { buildChatGptMcpRoutes } from "./chatgptMcpRoutes.js";
+import { buildRemoteMcpConnectorRoutes } from "./remoteMcpConnectorRoutes.js";
 
 export function buildMcpRoutes(deps) {
   const {
@@ -13,9 +13,10 @@ export function buildMcpRoutes(deps) {
 
   const router = Router();
 
-  // Standards-oriented ChatGPT/Codex surface. It is disabled by default and
-  // remains isolated from the legacy query-token routes below.
-  router.use(buildChatGptMcpRoutes(deps));
+  // Standards-oriented remote MCP surface for ChatGPT, Claude, Codex, and
+  // other approved conforming clients. It is disabled by default and remains
+  // isolated from the legacy query-token routes below.
+  router.use(buildRemoteMcpConnectorRoutes(deps));
 
   // Legacy MCP-labelled compatibility routes. Their auth and transport
   // semantics are intentionally unchanged until consumer inventory and
