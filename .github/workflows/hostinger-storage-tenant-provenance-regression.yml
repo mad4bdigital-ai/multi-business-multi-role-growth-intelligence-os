@@ -1,0 +1,39 @@
+name: Hostinger Storage Tenant Provenance Regression
+
+on:
+  pull_request:
+    paths:
+      - '.github/tests/spec014/tenant-canary-repository-provenance.mjs'
+      - '.github/workflows/hostinger-storage-tenant-provenance-regression.yml'
+      - 'http-generic-api/hostingerStorageTenantCanaryBase.js'
+      - 'http-generic-api/hostingerStorageTenantCanary.js'
+      - 'http-generic-api/hostingerStorageTenantCanaryPolicy.js'
+      - 'http-generic-api/hostingerStorageTenantCanaryPolicyBase.js'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/test-hostinger-storage-executor-fixtures.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  tenant-provenance-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check regression syntax
+        run: node --check .github/tests/spec014/tenant-canary-repository-provenance.mjs
+      - name: Enforce regression evidence contract
+        run: |
+          grep -q "direct_control_plane_repository_rejected: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "missing_adapter_is_explicit_null: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "validation_before_one_shot_consumption: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "existing_ast_and_store_provenance_tests_preserved: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "synthetic_only: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "production_ready: false" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "secrets_included: false" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+      - name: Execute Tenant provenance regression
+        run: node .github/tests/spec014/tenant-canary-repository-provenance.mjs
