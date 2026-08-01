@@ -4,7 +4,7 @@
   "feature_key": "support-ticket-lifecycle-sla-dedupe",
   "title": "Support ticket lifecycle, SLA, test visibility, and dedupe integrity",
   "delivery_mode": "single_pr",
-  "current_phase": "operational",
+  "current_phase": "resilient",
   "scope": {
     "include": [
       "http-generic-api/frontend-operation-governance.generated.json",
