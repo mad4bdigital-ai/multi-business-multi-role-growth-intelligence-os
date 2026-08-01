@@ -46,12 +46,13 @@ Temporary automation may help diagnose or construct a change on a work branch, b
 - branch-specific workflows;
 - files ending in `.trigger`;
 - repeated `v2`, `v3`, or similar patch-runner revisions;
+- workflows whose names identify one-shot execution, including `*-once.yml`;
 - workflows that write on `pull_request`;
 - workflows that delete or rewrite themselves;
 - embedded scripts that push to one hard-coded branch;
 - patch logic that remains in automation instead of becoming reviewed runtime code.
 
-Before Ready for Review, move the resulting runtime changes into normal source files, retain only reusable registered tooling, and delete all one-off artifacts.
+Before Ready for Review, move the resulting runtime changes into normal source files, retain only reusable registered tooling, and delete all one-off artifacts. A deleted diff entry is the required remediation and is not treated as an artifact surviving into the merge candidate.
 
 ## Mutation safety
 
