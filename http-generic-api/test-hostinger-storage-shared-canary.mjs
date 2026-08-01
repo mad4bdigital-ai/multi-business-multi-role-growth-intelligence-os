@@ -7,34 +7,39 @@ import {
   createMemoryHostingerStorageSharedCanaryEnablementRegistry,
   executeHostingerStorageSharedCanary,
 } from './hostingerStorageSharedCanary.js';
+import {
+  createHostingerStorageControlPlaneRepository,
+  createMemoryHostingerStoragePersistenceAdapter,
+} from './hostingerStorageControlPlaneRepository.js';
 import { createSyntheticExecutorFixture, digest, h } from './test-hostinger-storage-executor-fixtures.mjs';
 
 const productionSha = '1'.repeat(40);
 
+function createRepositoryFromSnapshot(snapshot) {
+  const persistence = createMemoryHostingerStoragePersistenceAdapter({ snapshot });
+  return createHostingerStorageControlPlaneRepository({ adapter: persistence });
+}
+
 function createAdminRepository(fixture) {
-  const delegated = Object.fromEntries(Object.entries(fixture.repository).map(([key, value]) => [
-    key,
-    typeof value === 'function' ? value.bind(fixture.repository) : value,
-  ]));
-  delegated.readAggregate = (operationId) => {
-    const aggregate = fixture.repository.readAggregate(operationId);
-    return aggregate?.operation ? { ...aggregate, operation: { ...aggregate.operation, context_mode: 'admin' } } : aggregate;
-  };
-  return Object.freeze(delegated);
+  const snapshot = structuredClone(fixture.repository.exportSnapshot());
+  const operation = snapshot.state.operations[fixture.operation_id];
+  if (!operation) throw new Error('Shared test operation missing from snapshot.');
+  delete operation.record_digest;
+  operation.context_mode = 'admin';
+  operation.record_digest = digest(operation);
+  snapshot.state_digest = digest(snapshot.state);
+  return createRepositoryFromSnapshot(snapshot);
 }
 
 function createPlanStatusRepository(repository, status) {
-  const delegated = Object.fromEntries(Object.entries(repository).map(([key, value]) => [
-    key,
-    typeof value === 'function' ? value.bind(repository) : value,
-  ]));
-  delegated.readAggregate = (operationId) => {
-    const aggregate = repository.readAggregate(operationId);
-    return aggregate
-      ? { ...aggregate, plans: (aggregate.plans || []).map((plan) => ({ ...plan, status })) }
-      : aggregate;
-  };
-  return Object.freeze(delegated);
+  const snapshot = structuredClone(repository.exportSnapshot());
+  for (const plan of Object.values(snapshot.state.plans || {})) {
+    delete plan.record_digest;
+    plan.status = status;
+    plan.record_digest = digest(plan);
+  }
+  snapshot.state_digest = digest(snapshot.state);
+  return createRepositoryFromSnapshot(snapshot);
 }
 
 function protocolItemSetDigest(fixture) {
@@ -356,7 +361,7 @@ const lease = prepare(leaseFixture);
 const leaseStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
 const leaseRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
 register(leaseStore, leaseRegistry, leaseFixture, lease);
-leaseFixture.repository.renewLease({ target_id: leaseFixture.target_id, lease_id: leaseFixture.lease.lease_id, operation_id: leaseFixture.operation_id, holder_ref: leaseFixture.lease.holder_ref, expected_generation: leaseFixture.lease.generation, expires_at_epoch: 1700, evidence_digest: h('5'), now_epoch: 1050 });
+lease.repository.renewLease({ target_id: leaseFixture.target_id, lease_id: leaseFixture.lease.lease_id, operation_id: leaseFixture.operation_id, holder_ref: leaseFixture.lease.holder_ref, expected_generation: leaseFixture.lease.generation, expires_at_epoch: 1700, evidence_digest: h('5'), now_epoch: 1050 });
 assert.throws(() => execute(leaseFixture, lease, leaseStore, leaseRegistry), (error) => error.code === 'STORAGE_SHARED_CANARY_EXECUTOR_LEASE_INVALID');
 assert.equal(leaseRegistry.exportState()[0].consumed, false);
 
@@ -383,6 +388,125 @@ tamperedProtocol.items[0].expected.inode = 9999;
 assert.throws(() => execute(tamperedFixture, tampered, tamperedStore, tamperedRegistry, { protocol: tamperedProtocol }), (error) => error.code === 'STORAGE_EXECUTOR_PROTOCOL_TAMPERED');
 assert.equal(tamperedRegistry.exportState()[0].consumed, false);
 
+function assertUnconsumedAndUnchanged(fixture, registry) {
+  assert.equal(registry.exportState()[0].consumed, false);
+  assert.equal(fixture.adapter.exportState().items[0].exists, true);
+}
+
+const forgedRepositoryFixture = fixtureFor('shared-forged-repository');
+const forgedRepositoryPrepared = prepare(forgedRepositoryFixture);
+const forgedRepositoryStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const forgedRepositoryRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(forgedRepositoryStore, forgedRepositoryRegistry, forgedRepositoryFixture, forgedRepositoryPrepared);
+let forgedRepositoryReadCalled = false;
+const genuineRepository = forgedRepositoryPrepared.repository;
+const forgedRepository = Object.freeze({
+  repository_version: genuineRepository.repository_version,
+  adapter_key: genuineRepository.adapter_key,
+  production_ready: false,
+  readAggregate(...args) { forgedRepositoryReadCalled = true; return genuineRepository.readAggregate(...args); },
+  transitionOperation: (...args) => genuineRepository.transitionOperation(...args),
+  consumePlan: (...args) => genuineRepository.consumePlan(...args),
+  appendJournalEvent: (...args) => genuineRepository.appendJournalEvent(...args),
+  recordReconciliation: (...args) => genuineRepository.recordReconciliation(...args),
+});
+assert.throws(
+  () => execute(forgedRepositoryFixture, forgedRepositoryPrepared, forgedRepositoryStore, forgedRepositoryRegistry, { repository: forgedRepository }),
+  (error) => error.code === 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID'
+    && error.details?.repository_provenance === 'canonical_factory_owned_required',
+);
+assert.equal(forgedRepositoryReadCalled, false);
+assertUnconsumedAndUnchanged(forgedRepositoryFixture, forgedRepositoryRegistry);
+
+const forgedAdapterFixture = fixtureFor('shared-forged-adapter');
+const forgedAdapterPrepared = prepare(forgedAdapterFixture);
+const forgedAdapterStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const forgedAdapterRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(forgedAdapterStore, forgedAdapterRegistry, forgedAdapterFixture, forgedAdapterPrepared);
+let forgedAdapterCalled = false;
+const genuineAdapter = forgedAdapterFixture.adapter;
+const forgedAdapter = Object.freeze({
+  ...genuineAdapter,
+  mutateExact(...args) { forgedAdapterCalled = true; return genuineAdapter.mutateExact(...args); },
+  readbackItem(...args) { forgedAdapterCalled = true; return genuineAdapter.readbackItem(...args); },
+  readMutationReceipt(...args) { forgedAdapterCalled = true; return genuineAdapter.readMutationReceipt(...args); },
+});
+assert.throws(
+  () => execute(forgedAdapterFixture, forgedAdapterPrepared, forgedAdapterStore, forgedAdapterRegistry, { adapter: forgedAdapter }),
+  (error) => error.code === 'STORAGE_SHARED_CANARY_EXECUTOR_ADAPTER_INVALID'
+    && error.details?.adapter_provenance === 'canonical_factory_owned_required',
+);
+assert.equal(forgedAdapterCalled, false);
+assertUnconsumedAndUnchanged(forgedAdapterFixture, forgedAdapterRegistry);
+
+const forgedStoreFixture = fixtureFor('shared-forged-store');
+const forgedStorePrepared = prepare(forgedStoreFixture);
+const genuineStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const forgedStoreRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(genuineStore, forgedStoreRegistry, forgedStoreFixture, forgedStorePrepared);
+let forgedStoreReadCalled = false;
+const forgedStore = Object.freeze({
+  ...genuineStore,
+  readImpact(...args) { forgedStoreReadCalled = true; return genuineStore.readImpact(...args); },
+  readApproval(...args) { forgedStoreReadCalled = true; return genuineStore.readApproval(...args); },
+  readLayout(...args) { forgedStoreReadCalled = true; return genuineStore.readLayout(...args); },
+  readReserve(...args) { forgedStoreReadCalled = true; return genuineStore.readReserve(...args); },
+  readQuorum(...args) { forgedStoreReadCalled = true; return genuineStore.readQuorum(...args); },
+});
+assert.throws(
+  () => execute(forgedStoreFixture, forgedStorePrepared, forgedStore, forgedStoreRegistry),
+  (error) => error.code === 'STORAGE_SHARED_CANARY_AUTHORITY_STORE_INVALID'
+    && error.details?.authority_store_provenance === 'shared_factory_owned_required',
+);
+assert.equal(forgedStoreReadCalled, false);
+assertUnconsumedAndUnchanged(forgedStoreFixture, forgedStoreRegistry);
+
+const forgedRegistryFixture = fixtureFor('shared-forged-registry');
+const forgedRegistryPrepared = prepare(forgedRegistryFixture);
+const forgedRegistryStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const genuineRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(forgedRegistryStore, genuineRegistry, forgedRegistryFixture, forgedRegistryPrepared);
+let forgedRegistryReadCalled = false;
+let forgedRegistryConsumeCalled = false;
+const forgedRegistry = Object.freeze({
+  ...genuineRegistry,
+  read(...args) { forgedRegistryReadCalled = true; return genuineRegistry.read(...args); },
+  consume(...args) { forgedRegistryConsumeCalled = true; return genuineRegistry.consume(...args); },
+});
+assert.throws(
+  () => execute(forgedRegistryFixture, forgedRegistryPrepared, forgedRegistryStore, forgedRegistry),
+  (error) => error.code === 'STORAGE_SHARED_CANARY_ENABLEMENT_REGISTRY_INVALID'
+    && error.details?.enablement_registry_provenance === 'shared_factory_owned_required',
+);
+assert.equal(forgedRegistryReadCalled, false);
+assert.equal(forgedRegistryConsumeCalled, false);
+assertUnconsumedAndUnchanged(forgedRegistryFixture, genuineRegistry);
+
+const captureOnceFixture = fixtureFor('shared-capture-once');
+const captureOncePrepared = prepare(captureOnceFixture);
+const captureOnceStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
+const captureOnceRegistry = createMemoryHostingerStorageSharedCanaryEnablementRegistry();
+register(captureOnceStore, captureOnceRegistry, captureOnceFixture, captureOncePrepared);
+const dependencyReads = { repository: 0, adapter: 0, authority_store: 0, enablement_registry: 0 };
+const captureOnceInput = {
+  canary_authorization: captureOncePrepared.authorization,
+  protocol: captureOncePrepared.protocol,
+  protocol_digest: captureOncePrepared.protocolDigest,
+  fault: null,
+  now_epoch: 1100,
+};
+const poisonedDependency = Object.freeze({});
+Object.defineProperties(captureOnceInput, {
+  repository: { enumerable: true, get() { dependencyReads.repository += 1; return dependencyReads.repository === 1 ? captureOncePrepared.repository : poisonedDependency; } },
+  adapter: { enumerable: true, get() { dependencyReads.adapter += 1; return dependencyReads.adapter === 1 ? captureOnceFixture.adapter : poisonedDependency; } },
+  authority_store: { enumerable: true, get() { dependencyReads.authority_store += 1; return dependencyReads.authority_store === 1 ? captureOnceStore : poisonedDependency; } },
+  enablement_registry: { enumerable: true, get() { dependencyReads.enablement_registry += 1; return dependencyReads.enablement_registry === 1 ? captureOnceRegistry : poisonedDependency; } },
+});
+const captureOnceResult = executeHostingerStorageSharedCanary(captureOnceInput);
+assert.equal(captureOnceResult.ok, true);
+assert.deepEqual(dependencyReads, { repository: 1, adapter: 1, authority_store: 1, enablement_registry: 1 });
+assert.equal(captureOnceRegistry.exportState()[0].consumed, true);
+
 const unknownFixture = fixtureFor('shared-unknown');
 const unknown = prepare(unknownFixture);
 const unknownStore = createMemoryHostingerStorageSharedCanaryAuthorityStore();
@@ -408,6 +532,12 @@ console.log(JSON.stringify({
   rollback_set_retained: true,
   reserve_certified_but_not_released: true,
   current_authority_revalidated: true,
+  repository_factory_provenance_required: true,
+  adapter_factory_provenance_required: true,
+  authority_store_factory_provenance_required: true,
+  enablement_registry_factory_provenance_required: true,
+  forged_dependency_callbacks_not_invoked: true,
+  dependency_getters_captured_once: true,
   authority_evidence_cas_advances: true,
   preflight_before_enablement_consumption: true,
   unknown_outcome_consumes_one_shot: true,
