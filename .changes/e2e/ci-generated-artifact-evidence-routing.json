@@ -36,11 +36,13 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation and PR reviewer",
-          "entrypoint": "PR Generated Artifact Refresh on an internal governed pull request after the trusted workflow definition is present on the default branch",
-          "terminal_outcome": "The pull-request workflow reports exact-head pass, drift, or first failure without repository mutation, and the trusted workflow_run publisher updates the authoritative PR comment without Job-log reconstruction.",
+          "entrypoint": "PR Generated Artifact Refresh through pull_request or exact-head workflow_dispatch after the trusted workflow definition is present on the default branch",
+          "terminal_outcome": "The read-only workflow reports exact-head pass, drift, or first failure without repository mutation, and the trusted workflow_run publisher updates the authoritative PR comment without Job-log reconstruction.",
           "steps": [
             "Treat the workflow definition on the default branch as the active pull-request automation authority until this change is merged.",
-            "Checkout the exact source PR head with read-only contents permission and without persisted credentials.",
+            "Resolve candidate SHA and target ref from the pull request or explicit workflow_dispatch inputs.",
+            "Checkout the exact candidate with read-only contents permission and without persisted credentials.",
+            "Verify that both local HEAD and the remote target ref equal the declared candidate SHA.",
             "Generate and verify the bounded artifact set only inside the ephemeral runner workspace.",
             "Return generated_artifact_drift_detected when reviewed generated files differ.",
             "Upload canonical JSON and Markdown before enforcing the decision.",
@@ -48,8 +50,9 @@
           ],
           "assertions": [
             "The report contract is mad4b.pr-generated-artifact-refresh-summary.v1.",
-            "candidate_sha and source_head_sha equal the exact pull-request head.",
-            "The PR workflow contains no repository write permission, git push, or persisted checkout credentials.",
+            "candidate_sha and source_head_sha equal the exact branch head.",
+            "The read-only workflow contains no repository write permission, git push, or persisted checkout credentials.",
+            "A workflow_dispatch run is accepted only for PR Generated Artifact Refresh and an exact current work-branch head.",
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
             "The tests remain discoverable through the canonical repository test manifest.",
@@ -82,21 +85,26 @@
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
           "entrypoint": "Governed Generated Artifact Refresh workflow_dispatch",
-          "terminal_outcome": "A registered tool mutates only reviewed generated paths on a non-protected work branch after exact-head and typed-confirmation checks, and emits a canonical report before enforcement.",
+          "terminal_outcome": "A registered tool mutates only reviewed generated paths on a non-protected work branch, emits its canonical report, and dispatches read-only verification on the resulting exact head so bot-authored pushes do not leave the PR without evidence.",
           "steps": [
             "Require target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation.",
             "Reject main, Production, invalid branch names, and malformed SHAs before generation.",
             "Compare both local and remote heads to expected_head_sha before commit and again before push.",
             "Generate and verify the bounded artifact set.",
             "Reject every path outside the registered allowlist.",
-            "Commit and push by normal fast-forward only, then upload JSON and Markdown evidence."
+            "Commit and push by normal fast-forward only.",
+            "Resolve the resulting commit SHA from the canonical apply report and verify the remote target equals it.",
+            "Dispatch PR Generated Artifact Refresh on the resulting exact branch head.",
+            "Upload apply and dispatch evidence as JSON and Markdown."
           ],
           "assertions": [
             "The tool is registered as mutating under the governed maintenance-tool root.",
-            "The workflow is workflow_dispatch-only and not pull_request-triggered.",
+            "The apply workflow is workflow_dispatch-only and not pull_request-triggered.",
             "Protected branches are rejected and force push is absent.",
             "Concurrent target-ref movement returns an expected-head mismatch without writing.",
-            "The report contract is mad4b.governed-generated-artifact-refresh.v1 with secrets_included=false.",
+            "The apply report contract is mad4b.governed-generated-artifact-refresh.v1 with secrets_included=false.",
+            "The dispatch evidence contract is mad4b.generated-artifact-refresh-verification-dispatch.v1 with the resulting candidate SHA.",
+            "A bot-authored generated commit is followed by an explicit read-only workflow_dispatch on that exact head.",
             "Job logs remain diagnostic-only."
           ],
           "tests": [
@@ -120,17 +128,17 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Add trusted PR-comment routing for manually dispatched maintenance-tool reports where an exact PR association is supplied."
+      "objective": "Add trusted PR-comment routing for the mutating apply report itself while retaining the exact-head read-only report as merge authority."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise artifact-download failure, stale-head races, malformed reports, publisher retries, and generated write-set violations without consulting Job logs for the decision."
+      "objective": "Exercise artifact-download failure, stale-head races, malformed reports, publisher retries, dispatch rejection, and generated write-set violations without consulting Job logs for the decision."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe canonical read-only evaluation and governed apply reports on representative generated-artifact PRs after the workflow definition reaches the default branch."
+      "objective": "Observe canonical read-only evaluation and governed apply-to-verification chaining on representative generated-artifact PRs after the workflow definition reaches the default branch."
     },
     {
       "id": "production",
