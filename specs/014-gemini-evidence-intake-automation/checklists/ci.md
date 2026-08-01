@@ -4,8 +4,9 @@
 
 - [ ] `ci-automation.json` validates against `contracts/ci-automation.schema.json`.
 - [ ] Every Test Family resolves to existing Requirement and Task IDs.
-- [ ] Every Pipeline stage produces a declared Evidence Contract.
-- [ ] Required pipeline and evidence keys in the completion policy exist.
+- [ ] Every Pipeline stage produces a stable bounded evidence key.
+- [ ] Every canonical, repair-candidate, or completion artifact shared between Pipelines has a declared Evidence Contract and producer.
+- [ ] Required pipeline and canonical evidence keys in the completion policy exist.
 - [ ] Pipeline graph has no missing producer, consumer, or writer edge.
 - [ ] `secrets_included=false` is required on every canonical artifact.
 
