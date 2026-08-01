@@ -9,7 +9,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const argv = process.argv.slice(2);
 const onlyIndex = argv.indexOf('--only');
 const ONLY = onlyIndex >= 0 ? argv[onlyIndex + 1] : 'all';
-const ALLOWED_STAGES = new Set(['all', 'manifest', 'contracts', 'convergence', 'work-map', 'completion', 'secrets']);
+const ALLOWED_STAGES = new Set(['all', 'manifest', 'contracts', 'convergence', 'portfolio', 'work-map', 'completion', 'secrets']);
 
 if (!ALLOWED_STAGES.has(ONLY)) {
   fail('INVALID_STAGE', `Unsupported validation stage: ${ONLY}`);
@@ -82,6 +82,10 @@ function validateManifest() {
     assert(typeof dependency === 'string' && dependency.length > 2, 'MANIFEST_DEPENDENCY', 'Invalid manifest dependency');
   }
 
+  assert(manifest.coverage?.open_draft_specs_reviewed === 10, 'MANIFEST_PORTFOLIO_COUNT', 'Manifest must record ten reviewed open Draft Specs');
+  assert(manifest.coverage?.duplicate_numeric_identities === 2, 'MANIFEST_DUPLICATE_COUNT', 'Manifest must record the duplicate 011 and 014 identities');
+  assert(manifest.coverage?.implementation_trains_registered === 2, 'MANIFEST_TRAIN_COUNT', 'Manifest must record both implementation trains');
+
   return { manifest, actual };
 }
 
@@ -90,7 +94,8 @@ function validateContracts() {
     'contracts/solution-package.schema.json',
     'contracts/package-installation.schema.json',
     'contracts/lifecycle-definition.schema.json',
-    'contracts/candidate-convergence.schema.json'
+    'contracts/candidate-convergence.schema.json',
+    'contracts/draft-spec-portfolio.schema.json'
   ];
 
   for (const file of schemaFiles) {
@@ -114,7 +119,7 @@ function validateConvergence() {
   const convergence = readJson('candidate-convergence.json');
   assert(convergence.spec_key === '015-tenant-operating-system-studio', 'CONVERGENCE_SPEC_KEY', 'Unexpected convergence spec key');
   assert(convergence.status === 'draft_review_required', 'CONVERGENCE_STATUS', 'Candidate convergence must remain review-required');
-  assert(Array.isArray(convergence.candidates) && convergence.candidates.length === 2, 'CONVERGENCE_CANDIDATES', 'Exactly PR #3922 and #4432 must be classified');
+  assert(Array.isArray(convergence.candidates) && convergence.candidates.length === 2, 'CONVERGENCE_CANDIDATES', 'Exactly PR #3922 and #4432 must be classified in the detailed candidate extraction contract');
 
   const byPr = new Map(convergence.candidates.map((candidate) => [candidate.pull_request, candidate]));
   for (const number of [3922, 4432]) {
@@ -129,6 +134,63 @@ function validateConvergence() {
   assert(byPr.get(3922).child_package.package_key === 'platform.reference.retail_commerce_operations', 'RETAIL_PACKAGE_KEY', 'Unexpected Retail Commerce package key');
   assert(byPr.get(4432).child_package.package_key === 'platform.reference.evidence_intelligence_operations', 'EVIDENCE_PACKAGE_KEY', 'Unexpected Evidence Intelligence package key');
   assert(convergence.secrets_included === false, 'CONVERGENCE_SECRET_FLAG', 'Convergence must declare secrets_included=false');
+}
+
+function validatePortfolio() {
+  const portfolio = readJson('draft-spec-portfolio.json');
+  assert(portfolio.schema_version === 1, 'PORTFOLIO_SCHEMA_VERSION', 'Unexpected portfolio schema version');
+  assert(portfolio.repository === 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os', 'PORTFOLIO_REPOSITORY', 'Unexpected repository');
+  assert(portfolio.portfolio_owner === '015-tenant-operating-system-studio', 'PORTFOLIO_OWNER', 'Unexpected portfolio owner');
+  assert(portfolio.identity_policy?.canonical_identity === 'feature_key_plus_canonical_role', 'PORTFOLIO_IDENTITY', 'Portfolio identity must be feature key plus canonical role');
+  assert(portfolio.identity_policy?.numeric_spec_number_is_unique_authority === false, 'PORTFOLIO_NUMERIC_AUTHORITY', 'Numeric Spec numbers must not be treated as unique authority');
+  assert(portfolio.identity_policy?.merge_rule === 'reconstruct_against_current_main_and_existing_authorities', 'PORTFOLIO_MERGE_RULE', 'Unexpected portfolio merge rule');
+  assert(portfolio.secrets_included === false, 'PORTFOLIO_SECRET_FLAG', 'Portfolio must declare secrets_included=false');
+
+  const expectedPrs = [1898, 1935, 2284, 2385, 2949, 2950, 3922, 4386, 4432, 4456];
+  assert(Array.isArray(portfolio.draft_specs) && portfolio.draft_specs.length === expectedPrs.length, 'PORTFOLIO_SPEC_COUNT', 'Expected ten open Draft Spec entries');
+  const byPr = new Map(portfolio.draft_specs.map((entry) => [entry.pull_request, entry]));
+  assert(byPr.size === expectedPrs.length, 'PORTFOLIO_DUPLICATE_PR', 'Draft Spec PR entries must be unique');
+
+  for (const number of expectedPrs) {
+    const entry = byPr.get(number);
+    assert(entry, 'PORTFOLIO_PR_MISSING', `PR #${number} is missing from the portfolio`);
+    assert(entry.state === 'open' && entry.draft === true, 'PORTFOLIO_PR_STATE', `PR #${number} must be recorded as open Draft at the observed snapshot`);
+    assert(/^specs\//.test(entry.spec_root), 'PORTFOLIO_SPEC_ROOT', `PR #${number} has an invalid Spec root`);
+    assert(/^[0-9a-f]{40}$/.test(entry.observed_head_sha), 'PORTFOLIO_HEAD_SHA', `PR #${number} has an invalid observed head SHA`);
+    assert(Number.isInteger(entry.live_compare?.ahead_by) && entry.live_compare.ahead_by >= 0, 'PORTFOLIO_AHEAD', `PR #${number} has invalid ahead_by`);
+    assert(Number.isInteger(entry.live_compare?.behind_by) && entry.live_compare.behind_by >= 0, 'PORTFOLIO_BEHIND', `PR #${number} has invalid behind_by`);
+    assert(typeof entry.portfolio_disposition === 'string' && entry.portfolio_disposition.length > 20, 'PORTFOLIO_DISPOSITION', `PR #${number} lacks a substantive disposition`);
+    assert(Array.isArray(entry.truthfulness_findings), 'PORTFOLIO_TRUTHFULNESS', `PR #${number} truthfulness findings must be an array`);
+  }
+
+  assert(byPr.get(2950).scope_mode === 'mixed_spec_and_implementation', 'TENANT_GPT_SCOPE_MODE', 'PR #2950 must be classified as mixed Spec and implementation');
+  assert(byPr.get(4386).scope_mode === 'integration_rollup', 'HOSTINGER_SCOPE_MODE', 'PR #4386 must be classified as an integration rollup');
+  assert(byPr.get(4456).canonical_role === 'portfolio_convergence_parent', 'PORTFOLIO_PARENT_ROLE', 'PR #4456 must own portfolio convergence');
+
+  const duplicateByNumber = new Map(portfolio.duplicate_numeric_identities.map((entry) => [entry.number, entry]));
+  assert(JSON.stringify([...(duplicateByNumber.get(11)?.pull_requests ?? [])].sort((a, b) => a - b)) === JSON.stringify([2949, 2950]), 'DUPLICATE_011', 'Numeric Spec 011 classification is incomplete');
+  assert(JSON.stringify([...(duplicateByNumber.get(14)?.pull_requests ?? [])].sort((a, b) => a - b)) === JSON.stringify([3922, 4386, 4432]), 'DUPLICATE_014', 'Numeric Spec 014 classification is incomplete');
+
+  const trainByKey = new Map(portfolio.implementation_trains.map((train) => [train.train_key, train]));
+  const operationTrain = trainByKey.get('operation-fabric-stack');
+  assert(operationTrain?.delivery_shape === 'strict_stack', 'OPERATION_TRAIN_SHAPE', 'Operation Fabric must be a strict stack');
+  assert(operationTrain?.pull_requests?.length === 13, 'OPERATION_TRAIN_COUNT', 'Operation Fabric train must contain thirteen implementation PRs');
+  const hostingerTrain = trainByKey.get('hostinger-storage-workstreams');
+  assert(hostingerTrain?.delivery_shape === 'parallel_workstreams', 'HOSTINGER_TRAIN_SHAPE', 'Hostinger delivery must use parallel workstreams');
+  assert(hostingerTrain?.pull_requests?.includes(4455), 'HOSTINGER_TENANT_CANARY', 'Hostinger train must include the open Tenant Canary hardening PR');
+
+  const packageKeys = new Set(portfolio.draft_specs.map((entry) => entry.target_package_key).filter(Boolean));
+  for (const key of [
+    'platform.reference.retail_commerce_operations',
+    'platform.reference.evidence_intelligence_operations',
+    'platform.reference.hostinger_storage_operations',
+    'platform.reference.local_connector_recovery'
+  ]) {
+    assert(packageKeys.has(key), 'PORTFOLIO_PACKAGE_KEY', `Missing target package key ${key}`);
+  }
+
+  assert(Array.isArray(portfolio.relationship_edges) && portfolio.relationship_edges.length >= 10, 'PORTFOLIO_RELATIONSHIPS', 'Portfolio relationship graph is incomplete');
+  assert(Array.isArray(portfolio.portfolio_decisions) && portfolio.portfolio_decisions.length >= 6, 'PORTFOLIO_DECISIONS', 'Portfolio decisions are incomplete');
 }
 
 function validateWorkMap() {
@@ -161,10 +223,14 @@ function validateCompletion() {
   assert(completion.specification?.complete === true, 'SPEC_COMPLETION', 'Specification package should be marked complete');
   assert(completion.specification?.file_count_expected === manifest.file_count, 'COMPLETION_FILE_COUNT', 'Completion expected file count must match manifest');
   assert(completion.specification?.file_count_recorded === manifest.file_count, 'COMPLETION_FILE_RECORDED', 'Completion recorded file count must match manifest');
+  assert(completion.specification?.completed_phase0_tasks?.includes('T009'), 'COMPLETION_PORTFOLIO_TASK', 'T009 portfolio inventory must be recorded complete');
+  assert(completion.portfolio_scan?.open_draft_specs_reviewed === 10, 'COMPLETION_PORTFOLIO_COUNT', 'Completion must record ten reviewed Draft Specs');
+  assert(completion.portfolio_scan?.canonical_paths_finalized === false, 'COMPLETION_CANONICAL_PATHS', 'Canonical paths must remain pending review');
+  assert(completion.portfolio_scan?.close_or_supersede_actions_executed === false, 'COMPLETION_PORTFOLIO_MUTATION', 'No close or supersede action may be claimed');
   assert(completion.implementation?.started === false, 'IMPLEMENTATION_STARTED', 'Runtime implementation must remain not started');
   assert(completion.implementation?.migrations_applied === false, 'COMPLETION_MIGRATION', 'No migration may be claimed');
   assert(completion.implementation?.runtime_deployed === false, 'COMPLETION_DEPLOYMENT', 'No runtime deployment may be claimed');
-  assert(completion.convergence?.duplicate_spec_identity_resolved === false, 'DUPLICATE_SPEC_IDENTITY', 'Duplicate Spec 014 identity must remain an explicit blocker');
+  assert(completion.convergence?.duplicate_spec_identity_resolved === false, 'DUPLICATE_SPEC_IDENTITY', 'Duplicate Spec identity must remain an explicit blocker');
   assert(completion.secrets_included === false, 'COMPLETION_SECRET_FLAG', 'Completion must declare secrets_included=false');
 }
 
@@ -191,13 +257,14 @@ function validateSecrets() {
 }
 
 const stages = ONLY === 'all'
-  ? ['manifest', 'contracts', 'convergence', 'work-map', 'completion', 'secrets']
+  ? ['manifest', 'contracts', 'convergence', 'portfolio', 'work-map', 'completion', 'secrets']
   : [ONLY];
 
 const stageFunctions = {
   manifest: validateManifest,
   contracts: validateContracts,
   convergence: validateConvergence,
+  portfolio: validatePortfolio,
   'work-map': validateWorkMap,
   completion: validateCompletion,
   secrets: validateSecrets
