@@ -38,6 +38,10 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-runtime-startup-deployment-evidence.mjs
 
+      - name: Guard disabled OAuth startup boundary
+        working-directory: http-generic-api
+        run: node test-remote-mcp-disabled-startup-boundary.mjs
+
       - name: Generate structured runtime startup evidence
         id: runtime_evidence
         continue-on-error: true
