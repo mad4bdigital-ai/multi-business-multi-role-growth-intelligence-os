@@ -12,7 +12,6 @@ permissions:
   actions: read
   contents: read
   issues: write
-  pull-requests: write
 
 concurrency:
   group: ci-evidence-pr-publisher-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
