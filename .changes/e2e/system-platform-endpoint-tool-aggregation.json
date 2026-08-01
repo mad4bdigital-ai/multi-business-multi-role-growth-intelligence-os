@@ -10,6 +10,7 @@
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/platformEndpointToolAggregation.js",
       "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/test-platform-endpoint-tool-discovery-contract.mjs",
       "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
       "http-generic-api/test-system-tool-catalog-v2.mjs"
     ]
@@ -32,8 +33,8 @@
           "terminal_outcome": "One collision-free public descriptor is listed and exact endpoint selection succeeds while missing or invalid selectors fail closed.",
           "steps": [
             "Load multiple active platform endpoint export rows that share one public tool name but preserve distinct endpoint schemas.",
-            "Aggregate the rows into one deterministic descriptor with an endpoint_key enum and exact binding metadata.",
-            "Normalize the descriptor through System Tool Catalog V2 without a descriptor-name collision.",
+            "Aggregate only genuinely shared names into one deterministic descriptor with an endpoint_key enum and exact binding metadata.",
+            "Preserve each endpoint binding schema through System Tool Catalog normalization and retain the original schema for single-binding tools.",
             "Regenerate the frontend dispatch evidence from the exact candidate head.",
             "Resolve an allowed endpoint_key to its exact registry binding for runtime dispatch.",
             "Enforce the grouped-dispatch runtime ratchet and reject selector regressions."
@@ -41,6 +42,8 @@
           "assertions": [
             "The public catalog contains exactly one descriptor for github_rest_endpoint_dispatch.",
             "The endpoint selector enum is deterministic and contains every visible exported endpoint.",
+            "Per-endpoint input schemas remain discoverable after catalog normalization.",
+            "A single-binding export retains its original required fields and does not gain a required endpoint_key.",
             "Catalog normalization does not throw SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION.",
             "Generated frontend dispatch evidence is refreshed from the same candidate head.",
             "Dispatch cannot select a different endpoint than the caller-authorized endpoint_key.",
@@ -55,6 +58,13 @@
               "args": []
             },
             {
+              "id": "system-tool-platform-endpoint-discovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-endpoint-tool-discovery-contract.mjs",
+              "args": []
+            },
+            {
               "id": "system-tool-grouped-dispatch-runtime-ratchet",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -64,6 +74,7 @@
           ],
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-platform-endpoint-tool-discovery-contract.mjs",
             "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
             "http-generic-api/test-system-tool-catalog-v2.mjs"
           ]
