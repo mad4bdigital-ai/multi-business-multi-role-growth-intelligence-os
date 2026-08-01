@@ -4,7 +4,6 @@ import {
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
   executeHostingerStorageTenantCanary as executeBaseTenantCanary,
 } from './hostingerStorageTenantCanaryBase.js';
-import { isCanonicalHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';
 
 export {
   HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
@@ -18,6 +17,8 @@ const REQUIRED_REPOSITORY_METHODS = Object.freeze([
   'appendJournalEvent',
   'recordReconciliation',
 ]);
+const CANONICAL_ADAPTER_KEY = 'hostinger_storage_synthetic_memory_adapter_v1';
+const CANONICAL_ADAPTER_VERSION = 'spec014-hostinger-storage-synthetic-adapter-v1';
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -111,9 +112,20 @@ function requireCompleteRepository(repository) {
 }
 
 function requireCanonicalAdapter(adapter) {
-  if (!isCanonicalHostingerStorageSyntheticAdapter(adapter)) {
-    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires an adapter created by the canonical in-memory synthetic adapter factory.', {
-      expected_adapter_key: 'hostinger_storage_synthetic_memory_adapter_v1',
+  if (!adapter
+    || adapter.adapter_key !== CANONICAL_ADAPTER_KEY
+    || adapter.adapter_version !== CANONICAL_ADAPTER_VERSION
+    || adapter.synthetic_only !== true
+    || adapter.production_ready !== false
+    || adapter.live_provider !== false
+    || adapter.filesystem_access !== false
+    || adapter.shell_access !== false
+    || typeof adapter.mutateExact !== 'function'
+    || typeof adapter.readbackItem !== 'function'
+    || typeof adapter.readMutationReceipt !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires the canonical in-memory synthetic adapter identity and contract.', {
+      expected_adapter_key: CANONICAL_ADAPTER_KEY,
+      expected_adapter_version: CANONICAL_ADAPTER_VERSION,
     });
   }
 }
