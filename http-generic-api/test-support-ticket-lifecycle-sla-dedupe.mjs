@@ -121,6 +121,13 @@ assert.match(routeSource, /deps\.requireUserJwt\s*\|\|\s*createUserJwtMiddleware
 assert.doesNotMatch(routeSource, /from\s+["']jsonwebtoken["']/);
 assert.doesNotMatch(routeSource, /development_fallback_secret_only/);
 assert.doesNotMatch(routeSource, /function\s+(?:verifyUserJwt|requireUserJwt)\s*\(/);
+assert.match(routeSource, /ORDER BY m\.granted_at ASC, m\.id ASC\s+LIMIT 2/);
+assert.match(routeSource, /if \(rows\.length > 1\)/);
+assert.match(routeSource, /tenant_context_required/);
+assert.match(routeSource, /tenant_membership_ambiguous/);
+assert.match(routeSource, /const \[membership = null\] = rows/);
+assert.doesNotMatch(routeSource, /rows\s*\[\s*0\s*\]/);
+assert.doesNotMatch(routeSource, /LIMIT\s+1/);
 
 const indexSource = await readFile(new URL("./routes/index.js", import.meta.url), "utf8");
 const integrityMount = indexSource.indexOf("buildSupportTicketLifecycleIntegrityRoutes");
@@ -129,4 +136,4 @@ assert.ok(integrityMount >= 0, "integrity router must be registered");
 assert.ok(legacyMount >= 0, "legacy support router must remain registered");
 assert.ok(integrityMount < legacyMount, "integrity router must mount before legacy support router");
 
-console.log("support ticket lifecycle, SLA, test visibility, dedupe integrity, and centralized JWT auth tests passed");
+console.log("support ticket lifecycle, SLA, test visibility, dedupe integrity, centralized JWT auth, and tenant ambiguity tests passed");
