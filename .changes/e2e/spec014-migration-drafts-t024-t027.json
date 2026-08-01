@@ -11,8 +11,8 @@
       ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
       ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
       ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
-      ".github/workflows/hostinger-storage-migration-drafts-guard.yml",
-      "specs/014-governed-hostinger-storage-orchestration/migrations/**"
+      ".github/contracts/spec014/migrations/**",
+      ".github/workflows/hostinger-storage-migration-drafts-guard.yml"
     ]
   },
   "merge_contract": {
@@ -22,32 +22,32 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Draft all three additive Spec 014 migration waves and read-only preflight/readback/rollback contracts, while proving that the six durable SQL adapter tables accept the merged adapter INSERT shape and remain outside the runnable migration directory.",
+      "objective": "Draft all three additive Spec 014 migration waves and read-only preflight/readback/rollback contracts, while proving synthetically that the six durable SQL adapter tables accept the merged adapter INSERT shape and remain outside every runnable or full-Spec phase directory.",
       "e2e_journeys": [
         {
           "id": "migration-draft-to-runtime-contract-parity",
           "end_to_end": true,
-          "level": "contract_runtime",
+          "level": "synthetic_runtime",
           "actor": "governed migration reviewer",
           "entrypoint": "Hostinger Storage Migration Drafts Guard",
-          "terminal_outcome": "The specification-local SQL contains exactly 15 classified tables, three additive views, and three disabled tool seeds; every adapter-required column/key is present, adapter-omitted NOT NULL columns are safe, and no migration or provider action is executable.",
+          "terminal_outcome": "Contract-local SQL contains exactly 15 classified tables, three additive views, and three disabled tool seeds; every adapter-required column and key is present, adapter-omitted NOT NULL columns are safe, and no migration or provider action is executable.",
           "steps": [
-            "Load the canonical schema classification, merged SQL runtime contract, migration manifest, adapter source, and all draft SQL.",
+            "Load the canonical schema classification, merged SQL runtime contract, migration manifest, adapter source, and all contract-local draft SQL.",
             "Validate the exact table allocation across waves 1, 2, and 3.",
             "Parse the adapter INSERT columns and require exact parity with each runtime table contract.",
-            "Parse each runtime table DDL and require all columns, primary/unique keys, record JSON/digest, and row-version CAS fields.",
+            "Parse each runtime table DDL and require all columns, primary and unique keys, record JSON and digest, and row-version CAS fields.",
             "Reject any adapter-omitted NOT NULL column without a default, generated expression, or auto-increment.",
             "Validate read-only preflight, same-cycle readback, and pre-live rollback planning.",
-            "Prove the SQL remains specification-local and absent from the governed runtime migration directory."
+            "Prove the SQL is absent from the governed runtime migration directory and the full Spec phase directory."
           ],
           "assertions": [
             "Exactly 15 classified tables, three views, and three disabled tool seeds are declared.",
             "The six SQL adapter tables match the merged runtime contract and adapter INSERT order.",
             "Journal and reconciliation rows remain append-only and runtime-parent FKs are explicitly deferred until their parent writer exists.",
-            "Preflight reads parent types, runtime columns/indexes, tool registry columns, and existing tool-key conflicts.",
-            "Readback proves object counts, runtime column/index compatibility, constraints, and default-off tools but does not sign schema verification.",
+            "Preflight reads parent types, runtime columns and indexes, tool registry columns, and existing tool-key conflicts.",
+            "Readback proves object counts, runtime column and index compatibility, constraints, and default-off tools but does not sign schema verification.",
             "Rollback returns separately governed statements as data and executes no destructive SQL.",
-            "No draft file is discoverable by the governed migration runner.",
+            "No draft file is discoverable by the governed migration runner or owned by the blocked full-Spec MVP phase contract.",
             "The temporary builder PR is closed and this single PR is the only active delivery path for this feature key.",
             "No migration apply, live database access, credential read, Hostinger access, provider dispatch, deployment, main merge, or Production mutation occurs."
           ],
@@ -70,9 +70,9 @@
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
             ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
-            "specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql",
-            "specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql",
-            "specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql"
+            ".github/contracts/spec014/migrations/preflight.sql",
+            ".github/contracts/spec014/migrations/readback.sql",
+            ".github/contracts/spec014/migrations/rollback-prelive.sql"
           ]
         }
       ]
@@ -85,7 +85,7 @@
     {
       "id": "resilient",
       "status": "not_applicable",
-      "objective": "CAS and restart behavior belong to the merged SQL adapter journey; this slice only proves migration compatibility contracts."
+      "objective": "CAS and restart behavior belong to the merged SQL adapter journey; this slice proves migration compatibility synthetically."
     },
     {
       "id": "canary",
