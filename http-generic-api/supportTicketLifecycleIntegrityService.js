@@ -3,7 +3,6 @@ import { getPool } from "./db.js";
 import { createOrAppendSupportTicket } from "./supportTicketService.js";
 
 const OPEN_TICKET_STATUSES = new Set(["open", "in_review", "awaiting_approval"]);
-const TEST_TITLE_PATTERN = /\b(smoke|simulation|simulated|test|e2e|qa)\b|اختبار|محاكاة/i;
 const TEST_ENVIRONMENTS = new Set(["test", "testing", "ci", "qa", "staging", "development", "dev"]);
 const REQUIRED_INTEGRITY_COLUMNS = Object.freeze([
   "is_test",
@@ -16,6 +15,78 @@ const REQUIRED_INTEGRITY_COLUMNS = Object.freeze([
   "first_response_at",
   "triaged_at",
 ]);
+
+const CUSTOMER_SAFE_TICKET_SELECT = `
+  t.ticket_id,
+  t.tenant_id,
+  t.title,
+  t.category,
+  t.ticket_type,
+  t.priority,
+  t.severity,
+  t.status,
+  t.lifecycle_state,
+  t.customer_status,
+  t.queue_key,
+  t.assignment_status,
+  t.assigned_to,
+  t.service_mode,
+  t.dedupe_key,
+  t.occurrence_count,
+  t.customer_message,
+  t.created_at,
+  t.updated_at,
+  t.last_seen_at,
+  t.first_response_due_at,
+  t.triage_due_at,
+  t.resolution_due_at,
+  t.sla_status,
+  t.metadata_json,
+  t.is_test,
+  t.environment,
+  t.visibility_class,
+  t.target_capability,
+  t.related_ticket_id,
+  t.parent_ticket_id,
+  t.supersedes_ticket_id
+`;
+
+const ACTIVITY_SQL = `GREATEST(
+  COALESCE(t.last_seen_at, '1970-01-01 00:00:00'),
+  COALESCE(t.updated_at, '1970-01-01 00:00:00'),
+  COALESCE(t.created_at, '1970-01-01 00:00:00')
+)`;
+
+const FIRST_RESPONSE_EVIDENCE_SQL = `COALESCE(
+  t.first_response_at,
+  (
+    SELECT MIN(e.created_at)
+      FROM ticket_lifecycle_events e
+     WHERE e.tenant_id = t.tenant_id
+       AND e.ticket_id = t.ticket_id
+       AND e.visibility = 'customer'
+       AND e.event_type NOT IN ('ticket_created', 'dedupe_matched', 'queue_assigned')
+       AND LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+  )
+)`;
+
+const TRIAGE_EVIDENCE_SQL = `COALESCE(
+  t.triaged_at,
+  (
+    SELECT MIN(e.created_at)
+      FROM ticket_lifecycle_events e
+     WHERE e.tenant_id = t.tenant_id
+       AND e.ticket_id = t.ticket_id
+       AND LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+       AND (
+         e.event_type IN ('triaged', 'ticket_triaged', 'assignee_changed', 'diagnostic_started')
+         OR (
+           e.event_type = 'state_transition'
+           AND LOWER(COALESCE(e.to_state, '')) NOT IN ('', 'triage_pending', 'received')
+         )
+       )
+  )
+)`;
 
 function normalizeString(value, fallback = "") {
   const normalized = String(value ?? "").trim();
@@ -47,23 +118,74 @@ function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && String(value).trim() !== "") ?? null;
 }
 
+function parseExplicitBoolean(value) {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  const normalized = normalizeLower(value);
+  if (["true", "1", "yes"].includes(normalized)) return true;
+  if (["false", "0", "no"].includes(normalized)) return false;
+  return null;
+}
+
+function customerSafeTicket(row = {}) {
+  return {
+    ticket_id: row.ticket_id,
+    tenant_id: row.tenant_id,
+    title: row.title,
+    category: row.category,
+    ticket_type: row.ticket_type || null,
+    priority: row.priority,
+    severity: row.severity || null,
+    status: row.status,
+    lifecycle_state: row.lifecycle_state || null,
+    customer_status: row.customer_status || null,
+    queue_key: row.queue_key || null,
+    assignment_status: row.assignment_status || null,
+    assigned_to: row.assigned_to || null,
+    service_mode: row.service_mode,
+    dedupe_key: row.dedupe_key || null,
+    occurrence_count: Number(row.occurrence_count || 1),
+    customer_message: row.customer_message || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    last_seen_at: row.last_seen_at || null,
+    latest_activity_at: row.latest_activity_at || null,
+    first_response_due_at: row.first_response_due_at || null,
+    triage_due_at: row.triage_due_at || null,
+    resolution_due_at: row.resolution_due_at || null,
+    first_response_at: row.first_response_at || null,
+    triaged_at: row.triaged_at || null,
+    sla_status: row.sla_status || null,
+    metadata_json: parseJsonObject(row.metadata_json, null),
+    is_test: Boolean(row.is_test),
+    environment: row.environment || "production",
+    visibility_class: row.visibility_class || "customer_visible",
+    target_capability: row.target_capability || null,
+    related_ticket_id: row.related_ticket_id || null,
+    parent_ticket_id: row.parent_ticket_id || null,
+    supersedes_ticket_id: row.supersedes_ticket_id || null,
+    secrets_included: false,
+  };
+}
+
 export function deriveSupportTicketIntegrity(envelope = {}) {
   const metadata = parseJsonObject(envelope.metadata_json || envelope.metadata, {});
   const environment = normalizeLower(
     firstDefined(envelope.environment, metadata.environment, metadata.runtime_environment),
     "production",
   );
-  const explicitIsTest = firstDefined(envelope.is_test, metadata.is_test, metadata.admin_simulation);
-  const inferredTest = TEST_TITLE_PATTERN.test(normalizeString(envelope.title))
-    || TEST_ENVIRONMENTS.has(environment)
-    || explicitIsTest === true
-    || explicitIsTest === 1
-    || normalizeLower(explicitIsTest) === "true";
-  const isTest = Boolean(inferredTest);
-  const visibilityClass = normalizeLower(
+  const explicitIsTest = firstDefined(envelope.is_test, metadata.is_test);
+  const explicitIsTestBoolean = parseExplicitBoolean(explicitIsTest);
+  const trustedSimulation = parseExplicitBoolean(metadata.admin_simulation) === true
+    || normalizeLower(envelope.actor_type) === "admin_simulation";
+  const isTest = explicitIsTestBoolean !== null
+    ? explicitIsTestBoolean
+    : trustedSimulation || TEST_ENVIRONMENTS.has(environment);
+  const requestedVisibility = normalizeLower(
     firstDefined(envelope.visibility_class, metadata.visibility_class),
     isTest ? "internal_test" : "customer_visible",
   );
+  const visibilityClass = isTest ? "internal_test" : requestedVisibility;
   const targetCapability = normalizeString(firstDefined(
     envelope.target_capability,
     metadata.target_capability,
@@ -111,6 +233,9 @@ export function computeSupportTicketDedupeKeyV2(envelope = {}) {
     resource_ref: normalizeString(firstDefined(envelope.resource?.ref, envelope.resource_ref), "none"),
     intended_parent_ticket_id: integrity.parent_ticket_id || "none",
     relationship: normalizeLower(firstDefined(envelope.resource?.relationship, metadata.resource_relationship), "subject"),
+    is_test: integrity.is_test,
+    environment: integrity.environment,
+    visibility_class: integrity.visibility_class,
   };
   const digest = createHash("sha256").update(stableCanonicalJson(canonical)).digest("hex");
   return `ticket:v2:${digest}`;
@@ -223,9 +348,9 @@ async function persistIntegrityFields(connection, ticketId, integrity) {
   if (!schema.ready) return { updated: false, schema, secrets_included: false };
   await connection.query(
     `UPDATE tickets
-        SET is_test = CASE WHEN ? = 1 THEN 1 ELSE COALESCE(is_test, 0) END,
-            environment = CASE WHEN ? = 1 THEN ? ELSE COALESCE(NULLIF(environment, ''), ?) END,
-            visibility_class = CASE WHEN ? = 1 THEN 'internal_test' ELSE COALESCE(NULLIF(visibility_class, ''), ?) END,
+        SET is_test = ?,
+            environment = ?,
+            visibility_class = ?,
             target_capability = COALESCE(?, target_capability),
             parent_ticket_id = COALESCE(?, parent_ticket_id),
             related_ticket_id = COALESCE(?, related_ticket_id),
@@ -234,10 +359,7 @@ async function persistIntegrityFields(connection, ticketId, integrity) {
       WHERE ticket_id = ?`,
     [
       integrity.is_test ? 1 : 0,
-      integrity.is_test ? 1 : 0,
       integrity.environment,
-      integrity.environment,
-      integrity.is_test ? 1 : 0,
       integrity.visibility_class,
       integrity.target_capability,
       integrity.parent_ticket_id,
@@ -302,41 +424,44 @@ export async function listSupportTicketsWithIntegrity({
   try {
     const schema = await readIntegritySchema(connection);
     const params = [tenant_id];
-    const filters = ["tenant_id = ?"];
+    const filters = ["t.tenant_id = ?"];
     if (status) {
-      filters.push("status = ?");
+      filters.push("t.status = ?");
       params.push(status);
     }
     if (user_id) {
-      filters.push("(user_id IS NULL OR user_id = ? OR customer_message IS NOT NULL)");
+      filters.push("(t.user_id = ? OR t.user_id IS NULL)");
       params.push(user_id);
     }
     if (!include_test) {
       if (schema.ready) {
-        filters.push("COALESCE(is_test, 0) = 0");
+        filters.push("COALESCE(t.is_test, 0) = 0");
       } else {
-        filters.push("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.is_test')), 'false') NOT IN ('true','1')");
-        filters.push("LOWER(COALESCE(title, '')) NOT REGEXP '(^|[^a-z])(smoke|simulation|simulated|test|e2e|qa)([^a-z]|$)'");
+        filters.push("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(t.metadata_json, '$.is_test')), 'false') NOT IN ('true','1')");
+        filters.push("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(t.metadata_json, '$.admin_simulation')), 'false') NOT IN ('true','1')");
+        filters.push(`LOWER(COALESCE(
+          JSON_UNQUOTE(JSON_EXTRACT(t.metadata_json, '$.environment')),
+          JSON_UNQUOTE(JSON_EXTRACT(t.metadata_json, '$.runtime_environment')),
+          'production'
+        )) NOT IN ('test','testing','ci','qa','staging','development','dev')`);
       }
     }
     const max = Math.min(Math.max(Number(limit) || 100, 1), 200);
     params.push(max);
     const [rows] = await connection.query(
-      `SELECT *,
-              GREATEST(
-                COALESCE(last_seen_at, '1970-01-01 00:00:00'),
-                COALESCE(updated_at, '1970-01-01 00:00:00'),
-                COALESCE(created_at, '1970-01-01 00:00:00')
-              ) AS latest_activity_at
-         FROM tickets
+      `SELECT ${CUSTOMER_SAFE_TICKET_SELECT},
+              ${FIRST_RESPONSE_EVIDENCE_SQL} AS first_response_at,
+              ${TRIAGE_EVIDENCE_SQL} AS triaged_at,
+              ${ACTIVITY_SQL} AS latest_activity_at
+         FROM tickets t
         WHERE ${filters.join(" AND ")}
-        ORDER BY latest_activity_at DESC, ticket_id DESC
+        ORDER BY latest_activity_at DESC, t.ticket_id DESC
         LIMIT ?`,
       params,
     );
     return {
       ok: true,
-      tickets: rows.map((row) => ({ ...row, metadata_json: parseJsonObject(row.metadata_json, null), secrets_included: false })),
+      tickets: rows.map(customerSafeTicket),
       count: rows.length,
       include_test: Boolean(include_test),
       schema_ready: schema.ready,
@@ -351,6 +476,8 @@ export async function listSupportTicketsWithIntegrity({
 export async function reconcileSupportTicketIntegrity({
   tenant_id = null,
   limit = 100,
+  cursor_activity_at = null,
+  cursor_ticket_id = null,
   apply = false,
   actor_id = "support_ticket_integrity_reconciler",
   actor_type = "system",
@@ -367,25 +494,48 @@ export async function reconcileSupportTicketIntegrity({
       error.schema = schema;
       throw error;
     }
+    if (Boolean(cursor_activity_at) !== Boolean(cursor_ticket_id)) {
+      const error = new Error("cursor_activity_at and cursor_ticket_id must be supplied together.");
+      error.status = 400;
+      error.code = "support_ticket_integrity_cursor_incomplete";
+      throw error;
+    }
     const params = [];
-    const filters = ["status IN ('open','in_review','awaiting_approval')"];
+    const filters = ["t.status IN ('open','in_review','awaiting_approval')"];
     if (tenant_id) {
-      filters.push("tenant_id = ?");
+      filters.push("t.tenant_id = ?");
       params.push(tenant_id);
     }
-    params.push(max);
-    const [rows] = await connection.query(
-      `SELECT *
-         FROM tickets
+    if (cursor_activity_at && cursor_ticket_id) {
+      filters.push(`(
+        ${ACTIVITY_SQL} < ?
+        OR (${ACTIVITY_SQL} = ? AND t.ticket_id < ?)
+      )`);
+      params.push(cursor_activity_at, cursor_activity_at, cursor_ticket_id);
+    }
+    params.push(max + 1);
+    const [queriedRows] = await connection.query(
+      `SELECT t.*,
+              t.first_response_at AS stored_first_response_at,
+              t.triaged_at AS stored_triaged_at,
+              ${FIRST_RESPONSE_EVIDENCE_SQL} AS first_response_at,
+              ${TRIAGE_EVIDENCE_SQL} AS triaged_at,
+              ${ACTIVITY_SQL} AS reconciliation_activity_at
+         FROM tickets t
         WHERE ${filters.join(" AND ")}
-        ORDER BY GREATEST(
-          COALESCE(last_seen_at, '1970-01-01 00:00:00'),
-          COALESCE(updated_at, '1970-01-01 00:00:00'),
-          COALESCE(created_at, '1970-01-01 00:00:00')
-        ) DESC, ticket_id DESC
+        ORDER BY reconciliation_activity_at DESC, t.ticket_id DESC
         LIMIT ?`,
       params,
     );
+    const hasMore = queriedRows.length > max;
+    const rows = queriedRows.slice(0, max);
+    const lastRow = rows.at(-1) || null;
+    const nextCursor = hasMore && lastRow
+      ? {
+          activity_at: lastRow.reconciliation_activity_at,
+          ticket_id: lastRow.ticket_id,
+        }
+      : null;
     const now = new Date();
     const findings = rows.map((row) => {
       const integrity = deriveSupportTicketIntegrity({
@@ -396,6 +546,10 @@ export async function reconcileSupportTicketIntegrity({
       const lifecycle = resolveSupportTicketLifecyclePatch(row);
       const backfillLastSeen = !row.last_seen_at;
       const urgentUnassigned = normalizeLower(row.priority) === "urgent" && !row.assigned_to;
+      const milestoneEvidenceMissing = (
+        (!row.stored_first_response_at && row.first_response_at)
+        || (!row.stored_triaged_at && row.triaged_at)
+      );
       const needsIntegrityUpdate = schema.ready && (
         Boolean(row.is_test) !== integrity.is_test
         || normalizeLower(row.environment, "production") !== integrity.environment
@@ -404,6 +558,7 @@ export async function reconcileSupportTicketIntegrity({
         || (!row.related_ticket_id && integrity.related_ticket_id)
         || (!row.supersedes_ticket_id && integrity.supersedes_ticket_id)
         || (!row.target_capability && integrity.target_capability)
+        || milestoneEvidenceMissing
       );
       return {
         ticket_id: row.ticket_id,
@@ -419,12 +574,20 @@ export async function reconcileSupportTicketIntegrity({
         },
         lifecycle,
         integrity,
+        milestone_evidence: {
+          first_response_at: row.first_response_at || null,
+          triaged_at: row.triaged_at || null,
+          first_response_backfill_required: Boolean(!row.stored_first_response_at && row.first_response_at),
+          triage_backfill_required: Boolean(!row.stored_triaged_at && row.triaged_at),
+          secrets_included: false,
+        },
         backfill_last_seen_at: backfillLastSeen,
         urgent_unassigned: urgentUnassigned,
         should_update: lifecycle.should_update
           || normalizeLower(row.sla_status, "on_track") !== sla.status
           || backfillLastSeen
           || needsIntegrityUpdate,
+        reconciliation_activity_at: row.reconciliation_activity_at,
         secrets_included: false,
       };
     });
@@ -440,6 +603,8 @@ export async function reconcileSupportTicketIntegrity({
                   customer_status = ?,
                   sla_status = ?,
                   last_seen_at = COALESCE(last_seen_at, updated_at, created_at, NOW()),
+                  first_response_at = COALESCE(first_response_at, ?),
+                  triaged_at = COALESCE(triaged_at, ?),
                   is_test = ?,
                   environment = ?,
                   visibility_class = ?,
@@ -454,6 +619,8 @@ export async function reconcileSupportTicketIntegrity({
             finding.lifecycle.lifecycle_state || row.lifecycle_state,
             finding.lifecycle.customer_status || row.customer_status,
             finding.sla.computed_status,
+            finding.milestone_evidence.first_response_at,
+            finding.milestone_evidence.triaged_at,
             finding.integrity.is_test ? 1 : 0,
             finding.integrity.environment,
             finding.integrity.visibility_class,
@@ -481,6 +648,7 @@ export async function reconcileSupportTicketIntegrity({
               sla: finding.sla,
               lifecycle: finding.lifecycle,
               integrity: finding.integrity,
+              milestone_evidence: finding.milestone_evidence,
               backfill_last_seen_at: finding.backfill_last_seen_at,
               urgent_unassigned: finding.urgent_unassigned,
               secrets_included: false,
@@ -498,6 +666,8 @@ export async function reconcileSupportTicketIntegrity({
       update_count: findings.filter((finding) => finding.should_update).length,
       urgent_unassigned_count: findings.filter((finding) => finding.urgent_unassigned).length,
       test_ticket_count: findings.filter((finding) => finding.integrity.is_test).length,
+      has_more: hasMore,
+      next_cursor: nextCursor,
       schema,
       findings,
       secrets_included: false,
@@ -516,7 +686,10 @@ export function _testingSupportTicketLifecycleIntegrity() {
   return {
     REQUIRED_INTEGRITY_COLUMNS,
     TEST_ENVIRONMENTS,
-    TEST_TITLE_PATTERN,
+    CUSTOMER_SAFE_TICKET_SELECT,
+    ACTIVITY_SQL,
+    FIRST_RESPONSE_EVIDENCE_SQL,
+    TRIAGE_EVIDENCE_SQL,
     stableCanonicalJson,
   };
 }
