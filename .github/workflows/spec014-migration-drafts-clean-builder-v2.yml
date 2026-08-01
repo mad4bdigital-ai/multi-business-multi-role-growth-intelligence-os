@@ -1,0 +1,98 @@
+name: Spec 014 Migration Drafts Clean Builder V2
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/spec014-migration-drafts-clean-builder-v2.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-migration-drafts-clean-builder-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact builder head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Build validated ancestry-clean candidate
+        shell: bash
+        env:
+          INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          SOURCE_BRANCH: gpt/014-hostinger/migration-drafts-t024-t027-20260802
+          SOURCE_SHA: cfe4334ed9bb0a932d6aa51b1398b8e5feb4da19
+          FINAL_BRANCH: gpt/014-hostinger/migration-drafts-t024-t027-clean-v2-20260802
+        run: |
+          set -euo pipefail
+          git fetch origin "${INTEGRATION_BRANCH}" "${SOURCE_BRANCH}"
+          test "$(git rev-parse "origin/${SOURCE_BRANCH}")" = "${SOURCE_SHA}"
+          git checkout -B "${FINAL_BRANCH}" "origin/${INTEGRATION_BRANCH}"
+
+          files=(
+            '.changes/e2e/spec014-migration-drafts-t024-t027.json'
+            '.github/contracts/spec014/hostinger-storage-migration-drafts.json'
+            '.github/contracts/spec014/migrations/wave-1-foundation.sql'
+            '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
+            '.github/workflows/hostinger-storage-migration-drafts-guard.yml'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql'
+            'specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql'
+          )
+
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "$file")"
+            git show "${SOURCE_SHA}:${file}" > "$file"
+          done
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path('.github/contracts/spec014/hostinger-storage-migration-drafts.json')
+          manifest = json.loads(manifest_path.read_text())
+          assert manifest['contract'] == 'spec014.hostinger-storage-migration-drafts.v3'
+
+          validator_path = Path('.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs')
+          validator = validator_path.read_text()
+          old = "'spec014.hostinger-storage-migration-drafts.v2'"
+          new = "'spec014.hostinger-storage-migration-drafts.v3'"
+          assert validator.count(old) == 1
+          validator_path.write_text(validator.replace(old, new, 1))
+          PY
+
+          node --check .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+          git diff --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'feat(spec-014): draft governed storage migration waves'
+
+          node http-generic-api/scripts/e2e-parallel-work-governance.mjs check --head HEAD
+          test "$(git rev-list --count "origin/${INTEGRATION_BRANCH}..HEAD")" = '1'
+          test "$(git diff --name-only "origin/${INTEGRATION_BRANCH}...HEAD" | wc -l | tr -d ' ')" = '11'
+          test ! -e .github/workflows/spec014-migration-drafts-clean-builder-v2.yml
+          test ! -e http-generic-api/migrations/wave-1-foundation.sql
+          test ! -e http-generic-api/migrations/wave-2-control-plane.sql
+          test ! -e http-generic-api/migrations/wave-3-execution-evidence.sql
+
+          if git ls-remote --exit-code --heads origin "${FINAL_BRANCH}" >/dev/null 2>&1; then
+            echo "Final branch already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
