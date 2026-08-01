@@ -12,14 +12,13 @@ script = script.replace(
     "    count = text.count(old)\n",
     """    count = text.count(old)
     if count != 1 and label == \"chunk required columns\":
-        import re
-        matches = list(re.finditer(
-            r'const\\s+GOVERNED_RESPONSE_CHUNK_TABLE\\s*=\\s*[\"\\\']governed_tool_response_chunks[\"\\\'];\\r?\\n',
-            text,
-        ))
-        if len(matches) == 1:
-            match = matches[0]
-            path.write_text(text[:match.start()] + new + text[match.end():], encoding=\"utf-8\")
+        matching_lines = [
+            line for line in text.splitlines(keepends=True)
+            if line.strip().startswith(\"const GOVERNED_RESPONSE_CHUNK_TABLE\")
+            and \"governed_tool_response_chunks\" in line
+        ]
+        if len(matching_lines) == 1:
+            path.write_text(text.replace(matching_lines[0], new, 1), encoding=\"utf-8\")
             print(f\"{label}: applied by semantic anchor\")
             return
 """,
