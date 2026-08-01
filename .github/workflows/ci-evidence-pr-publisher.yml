@@ -12,16 +12,18 @@ permissions:
   actions: read
   contents: read
   issues: write
+  pull-requests: read
 
 concurrency:
-  group: ci-evidence-pr-publisher-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  group: ci-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
   publish:
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0].number != null
+      github.event.workflow_run.head_sha != null &&
+      github.event.workflow_run.head_branch != null
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted default branch
@@ -83,20 +85,28 @@ jobs:
           echo "path=$report" >> "$GITHUB_OUTPUT"
 
       - name: Upsert authoritative PR evidence comment
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           REPORT_PATH: ${{ steps.report.outputs.path }}
-        run: >-
-          node http-generic-api/scripts/ci-evidence-pr-comment.mjs
-          --repository "${GITHUB_REPOSITORY}"
-          --pr-number "${PR_NUMBER}"
-          --workflow "${WORKFLOW_NAME}"
-          --workflow-conclusion "${WORKFLOW_CONCLUSION}"
-          --report "${REPORT_PATH}"
-          --workflow-run-id "${WORKFLOW_RUN_ID}"
-          --source-head-sha "${SOURCE_HEAD_SHA}"
+        run: |
+          set -euo pipefail
+          args=(
+            --repository "${GITHUB_REPOSITORY}"
+            --head-branch "${HEAD_BRANCH}"
+            --workflow "${WORKFLOW_NAME}"
+            --workflow-conclusion "${WORKFLOW_CONCLUSION}"
+            --report "${REPORT_PATH}"
+            --workflow-run-id "${WORKFLOW_RUN_ID}"
+            --source-head-sha "${SOURCE_HEAD_SHA}"
+          )
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            args+=(--pr-number "${PR_NUMBER}")
+          fi
+          node http-generic-api/scripts/ci-evidence-pr-comment.mjs "${args[@]}"
