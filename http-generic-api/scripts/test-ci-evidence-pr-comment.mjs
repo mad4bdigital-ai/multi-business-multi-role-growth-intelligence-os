@@ -125,43 +125,89 @@ assert.throws(() => normalizeEvidence({
   }
 }), /Successful workflow_run cannot publish a non-passed canonical outcome/u);
 
-const matchingPr = {
+const openPr = {
   number: 42,
   state: "open",
+  merged: false,
+  merged_at: null,
   head: { repo: { full_name: REPOSITORY }, ref: HEAD_BRANCH, sha: HEAD },
   merge_commit_sha: MERGE
 };
+const mergedPr = {
+  ...openPr,
+  number: 43,
+  state: "closed",
+  merged: true,
+  merged_at: "2026-08-01T10:00:00Z"
+};
+const closedUnmergedPr = {
+  ...openPr,
+  number: 44,
+  state: "closed",
+  merged: false,
+  merged_at: null
+};
+
 assert.equal(selectCurrentPullRequest({
-  pullRequests: [matchingPr],
+  pullRequests: [openPr],
+  repository: REPOSITORY,
+  headBranch: HEAD_BRANCH,
+  sourceHeadSha: HEAD
+}).number, 42);
+assert.equal(selectCurrentPullRequest({
+  pullRequests: [mergedPr],
+  repository: REPOSITORY,
+  headBranch: HEAD_BRANCH,
+  sourceHeadSha: HEAD
+}).number, 43);
+assert.equal(selectCurrentPullRequest({
+  pullRequests: [mergedPr, openPr],
   repository: REPOSITORY,
   headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
 }).number, 42);
 assert.throws(() => selectCurrentPullRequest({
-  pullRequests: [{ ...matchingPr, head: { ...matchingPr.head, sha: OTHER } }],
+  pullRequests: [{ ...openPr, head: { ...openPr.head, sha: OTHER } }],
   repository: REPOSITORY,
   headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
-}), /Unable to resolve an open pull request/u);
+}), /Unable to resolve an open or merged pull request/u);
 assert.throws(() => selectCurrentPullRequest({
-  pullRequests: [matchingPr, { ...matchingPr, number: 43 }],
+  pullRequests: [closedUnmergedPr],
   repository: REPOSITORY,
   headBranch: HEAD_BRANCH,
   sourceHeadSha: HEAD
-}), /Ambiguous pull request resolution/u);
+}), /Unable to resolve an open or merged pull request/u);
+assert.throws(() => selectCurrentPullRequest({
+  pullRequests: [openPr, { ...openPr, number: 45 }],
+  repository: REPOSITORY,
+  headBranch: HEAD_BRANCH,
+  sourceHeadSha: HEAD
+}), /Ambiguous open pull request resolution/u);
+assert.throws(() => selectCurrentPullRequest({
+  pullRequests: [mergedPr, { ...mergedPr, number: 46 }],
+  repository: REPOSITORY,
+  headBranch: HEAD_BRANCH,
+  sourceHeadSha: HEAD
+}), /Ambiguous merged pull request resolution/u);
 
-assert.equal(assertCurrentPullRequestIdentity(matchingPr, e2e, HEAD_BRANCH), true);
+assert.equal(assertCurrentPullRequestIdentity(openPr, e2e, HEAD_BRANCH), true);
+assert.equal(assertCurrentPullRequestIdentity(mergedPr, e2e, HEAD_BRANCH), true);
 assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...matchingPr, head: { ...matchingPr.head, sha: OTHER } }, e2e, HEAD_BRANCH),
+  () => assertCurrentPullRequestIdentity(closedUnmergedPr, e2e, HEAD_BRANCH),
+  /closed pull request that was not merged/u
+);
+assert.throws(
+  () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, sha: OTHER } }, e2e, HEAD_BRANCH),
   /stale PR head/u
 );
 assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...matchingPr, head: { ...matchingPr.head, ref: "gpt/substituted" } }, e2e, HEAD_BRANCH),
+  () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, ref: "gpt/substituted" } }, e2e, HEAD_BRANCH),
   /substituted PR head branch/u
 );
-assert.equal(assertCurrentPullRequestIdentity(matchingPr, branch, HEAD_BRANCH), true);
+assert.equal(assertCurrentPullRequestIdentity(openPr, branch, HEAD_BRANCH), true);
 assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...matchingPr, merge_commit_sha: OTHER }, branch, HEAD_BRANCH),
+  () => assertCurrentPullRequestIdentity({ ...openPr, merge_commit_sha: OTHER }, branch, HEAD_BRANCH),
   /stale or substituted merge candidate/u
 );
 
@@ -176,7 +222,7 @@ assert.match(sanitized, /&lt;b&gt;unsafe&lt;\/b&gt;/u);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 17,
-  gate: "ci_evidence_pr_resolution_identity_conclusion_and_sanitization",
+  tests: 23,
+  gate: "ci_evidence_open_or_merged_pr_resolution_and_identity",
   secrets_included: false
 }));
