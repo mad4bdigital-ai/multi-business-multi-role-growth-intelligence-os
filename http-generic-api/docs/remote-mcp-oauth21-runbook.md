@@ -6,6 +6,8 @@ This runbook covers the shared OAuth 2.1 authorization boundary used by the remo
 
 The implementation is disabled by default. Merging source does not apply the migration, register a client, create DNS, activate a route, or prove a live third-party connection.
 
+Generated dispatch evidence is accepted only when it is committed on the current candidate and every exact-head check passes against that same source and evidence snapshot. Evidence generated for an earlier candidate is not authoritative.
+
 ## Canonical resources
 
 ```text
