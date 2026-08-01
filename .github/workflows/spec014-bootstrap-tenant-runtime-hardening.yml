@@ -1,0 +1,159 @@
+name: Bootstrap Spec 014 Tenant runtime hardening
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-bootstrap-tenant-runtime-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: github.head_ref == 'gpt/014-hostinger/tenant-runtime-hardening-v2-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/tenant-runtime-hardening-v2-20260801
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Build clean Tenant runtime hardening tree
+        env:
+          TARGET_BRANCH: gpt/014-hostinger/tenant-runtime-hardening-v2-20260801
+          SOURCE_BRANCH: gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
+          INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          GH_PUSH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin "${SOURCE_BRANCH}" "${INTEGRATION_BRANCH}"
+          SOURCE_SHA="$(git rev-parse "origin/${SOURCE_BRANCH}")"
+          export SOURCE_SHA
+          git checkout -B "${TARGET_BRANCH}" "origin/${INTEGRATION_BRANCH}"
+          git checkout "origin/${SOURCE_BRANCH}" -- \
+            .github/workflows/hostinger-storage-tenant-canary-guard.yml \
+            http-generic-api/hostingerStorageTenantCanary.js \
+            http-generic-api/hostingerStorageTenantCanaryBase.js \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanaryPolicyBase.js \
+            http-generic-api/test-hostinger-storage-tenant-canary.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs \
+            http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const wrapperPath = 'http-generic-api/hostingerStorageTenantCanary.js';
+          let wrapper = fs.readFileSync(wrapperPath, 'utf8');
+          const importNeedle = `import {\n  createHostingerStorageControlPlaneRepository,\n  createMemoryHostingerStoragePersistenceAdapter,\n} from './hostingerStorageControlPlaneRepository.js';`;
+          const importReplacement = `import {\n  createHostingerStorageControlPlaneRepository,\n  createMemoryHostingerStoragePersistenceAdapter,\n  isCanonicalHostingerStorageControlPlaneRepository,\n} from './hostingerStorageControlPlaneRepository.js';`;
+          if (!wrapper.includes('isCanonicalHostingerStorageControlPlaneRepository')) {
+            if (!wrapper.includes(importNeedle)) throw new Error('Tenant repository import anchor not found');
+            wrapper = wrapper.replace(importNeedle, importReplacement);
+          }
+          const start = wrapper.indexOf('function requireCanonicalRepository(repository) {');
+          const end = wrapper.indexOf('\nfunction requireCanonicalAdapter(adapter) {', start);
+          if (start < 0 || end < 0) throw new Error('Tenant repository preflight function not found');
+          const replacement = `function requireCanonicalRepository(repository) {\n  if (!isCanonicalHostingerStorageControlPlaneRepository(repository)\n    || !tenantCanaryRepositories.has(repository)) {\n    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires a centrally authenticated repository created by the Tenant-owned in-memory control-plane factory.', {\n      repository_provenance: 'central_and_tenant_factory_owned_required',\n      expected_repository_version: CANONICAL_REPOSITORY_VERSION,\n      expected_adapter_key: CANONICAL_REPOSITORY_ADAPTER_KEY,\n      required_methods: REQUIRED_REPOSITORY_METHODS,\n      missing_methods: REQUIRED_REPOSITORY_METHODS,\n    });\n  }\n  const missing = REQUIRED_REPOSITORY_METHODS.filter((method) => typeof repository[method] !== 'function');\n  if (!Object.isFrozen(repository)\n    || repository.repository_version !== CANONICAL_REPOSITORY_VERSION\n    || repository.adapter_key !== CANONICAL_REPOSITORY_ADAPTER_KEY\n    || repository.production_ready !== false\n    || missing.length) {\n    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires the complete centrally authenticated non-production repository contract.', {\n      repository_provenance: 'central_and_tenant_factory_owned_required',\n      expected_repository_version: CANONICAL_REPOSITORY_VERSION,\n      expected_adapter_key: CANONICAL_REPOSITORY_ADAPTER_KEY,\n      required_methods: REQUIRED_REPOSITORY_METHODS,\n      missing_methods: missing,\n    });\n  }\n}\n`;
+          wrapper = `${wrapper.slice(0, start)}${replacement}${wrapper.slice(end + 1)}`;
+          fs.writeFileSync(wrapperPath, wrapper);
+
+          const testPath = 'http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs';
+          let test = fs.readFileSync(testPath, 'utf8');
+          const importAnchor = `} from './hostingerStorageTenantCanary.js';\n`;
+          const centralImport = `import {\n  createHostingerStorageControlPlaneRepository,\n  createMemoryHostingerStoragePersistenceAdapter,\n} from './hostingerStorageControlPlaneRepository.js';\n`;
+          if (!test.includes("from './hostingerStorageControlPlaneRepository.js'")) {
+            if (!test.includes(importAnchor)) throw new Error('Tenant hardening test import anchor not found');
+            test = test.replace(importAnchor, importAnchor + centralImport);
+          }
+          if (!test.includes('tenant-canary-central-only-repository-operation')) {
+            const marker = 'const stalePlanFixture = createSyntheticExecutorFixture({';
+            const insertion = `const centralOnlyRepositoryFixture = createSyntheticExecutorFixture({\n  run_id: 'tenant-canary-central-only-repository-run',\n  operation_id: 'tenant-canary-central-only-repository-operation',\n  plan_id: 'tenant-canary-central-only-repository-plan',\n  target_id: 'tenant-canary-central-only-repository-target',\n});\nconst centralOnlyRepositoryAuthorization = buildAuthorization(centralOnlyRepositoryFixture);\nconst centralOnlyRepositoryPrepared = prepare(centralOnlyRepositoryFixture, centralOnlyRepositoryAuthorization);\nconst centralOnlyPersistence = createMemoryHostingerStoragePersistenceAdapter({\n  snapshot: centralOnlyRepositoryFixture.repository.exportSnapshot(),\n});\nconst centralOnlyRepository = createHostingerStorageControlPlaneRepository({ adapter: centralOnlyPersistence });\nassert.throws(\n  () => execute({\n    fixture: centralOnlyRepositoryFixture,\n    authorization: centralOnlyRepositoryAuthorization,\n    ...centralOnlyRepositoryPrepared,\n    repository: centralOnlyRepository,\n  }),\n  (error) => error.code === 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID'\n    && error.details?.repository_provenance === 'central_and_tenant_factory_owned_required',\n);\nassertUnconsumedAndUnchanged(centralOnlyRepositoryFixture, centralOnlyRepositoryPrepared.registry);\n\nlet forgedRepositoryGetterReads = 0;\nconst forgedRepository = {};\nObject.defineProperty(forgedRepository, 'readAggregate', {\n  enumerable: true,\n  get() {\n    forgedRepositoryGetterReads += 1;\n    throw new Error('forged repository getter must not be evaluated');\n  },\n});\nObject.freeze(forgedRepository);\nassert.throws(\n  () => execute({\n    fixture: centralOnlyRepositoryFixture,\n    authorization: centralOnlyRepositoryAuthorization,\n    ...centralOnlyRepositoryPrepared,\n    repository: forgedRepository,\n  }),\n  (error) => error.code === 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID',\n);\nassert.equal(forgedRepositoryGetterReads, 0);\nassertUnconsumedAndUnchanged(centralOnlyRepositoryFixture, centralOnlyRepositoryPrepared.registry);\n\n`;
+            if (!test.includes(marker)) throw new Error('Tenant hardening test insertion marker not found');
+            test = test.replace(marker, insertion + marker);
+          }
+          fs.writeFileSync(testPath, test);
+
+          const guardPath = '.github/workflows/hostinger-storage-tenant-canary-guard.yml';
+          let guard = fs.readFileSync(guardPath, 'utf8');
+          const guardMarker = '      - name: Validate Tenant canary\n';
+          if (!guard.includes('Enforce central repository provenance before Tenant reads')) {
+            const step = `      - name: Enforce central repository provenance before Tenant reads\n        run: |\n          grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageTenantCanary.js\n          grep -q "central_and_tenant_factory_owned_required" http-generic-api/hostingerStorageTenantCanary.js\n          node --input-type=module <<'CHECK'\n          import fs from 'node:fs';\n          const source = fs.readFileSync('http-generic-api/hostingerStorageTenantCanary.js', 'utf8');\n          const central = source.indexOf('isCanonicalHostingerStorageControlPlaneRepository(repository)');\n          const tenant = source.indexOf('tenantCanaryRepositories.has(repository)', central);\n          const methodRead = source.indexOf('const missing = REQUIRED_REPOSITORY_METHODS.filter', tenant);\n          const delegate = source.indexOf('return executeBaseTenantCanary(options);');\n          if (!(central >= 0 && tenant > central && methodRead > tenant && delegate > methodRead)) {\n            throw new Error('Central and Tenant repository provenance must be proven before repository reads and delegated one-shot execution.');\n          }\n          CHECK\n`;
+            if (!guard.includes(guardMarker)) throw new Error('Tenant guard insertion marker not found');
+            guard = guard.replace(guardMarker, step + guardMarker);
+          }
+          fs.writeFileSync(guardPath, guard);
+
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const id = 'tenant-runtime-hardening';
+          contract.parallel_work.workstreams = contract.parallel_work.workstreams.filter((row) => row.id !== id);
+          contract.parallel_work.workstreams.push({
+            id,
+            title: 'Tenant runtime provenance and authority hardening',
+            status: 'ready_for_integration',
+            owner_type: 'mixed',
+            branch_pattern: 'gpt/014-hostinger/tenant-runtime-hardening-*',
+            scope: { include: [
+              '.github/workflows/hostinger-storage-tenant-canary-guard.yml',
+              'http-generic-api/hostingerStorageTenantCanary*.js',
+              'http-generic-api/test-hostinger-storage-tenant-canary*.mjs',
+            ] },
+            depends_on: ['tenant-canary', 'control-plane-repository-brand', 'synthetic-executor'],
+            deliverables: [
+              'Central and Tenant factory-owned repository provenance before any repository read or one-shot consumption',
+              'Tenant-owned adapter, authority-store, and enablement-registry provenance before delegated execution',
+              'Execution-time authority, immutable-plan revision, and not-before revalidation',
+              'Never-reusable normalized ABA authority tokens with accessor-free primitive snapshots',
+              'Repository-wide Base-import governance across JavaScript, CommonJS, and TypeScript source sets',
+            ],
+            integration_points: ['tenant-storage-canary-v1', 'hostinger-storage-operation-state-v1', 'hostinger-storage-synthetic-executor-v1'],
+            required_tests: [
+              { id: 'hostinger-storage-tenant-canary', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-authority-cas', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-authority-cas.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-postmerge-hardening', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-postmerge-hardening.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-token-delegation', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-token-delegation.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-token-normalization', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-token-normalization.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-base-import-boundary', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-base-import-boundary.mjs', args: [] },
+              { id: 'hostinger-storage-tenant-canary-store-provenance', runner: 'node', working_directory: 'http-generic-api', path: 'test-hostinger-storage-tenant-canary-store-provenance.mjs', args: [] },
+            ],
+            commit_evidence: { head_sha: process.env.SOURCE_SHA, commits: [process.env.SOURCE_SHA] },
+          });
+          const overlap = 'tenant-canary-runtime-hardening';
+          contract.parallel_work.declared_overlaps = contract.parallel_work.declared_overlaps.filter((row) => row.id !== overlap);
+          contract.parallel_work.declared_overlaps.push({
+            id: overlap,
+            workstreams: ['tenant-canary', id],
+            patterns: [
+              '.github/workflows/hostinger-storage-tenant-canary-guard.yml',
+              'http-generic-api/hostingerStorageTenantCanary*.js',
+              'http-generic-api/test-hostinger-storage-tenant-canary*.mjs',
+            ],
+            reason: 'The correction wraps the integrated Tenant canary entry point to enforce central and Tenant-owned provenance plus current authority before one-shot consumption.',
+            coordinator: 'spec-014-integration-rollup',
+          });
+          if (!contract.parallel_work.integration.required_workstreams.includes(id)) {
+            const index = contract.parallel_work.integration.required_workstreams.indexOf('tenant-canary');
+            contract.parallel_work.integration.required_workstreams.splice(index + 1, 0, id);
+          }
+          const mvp = contract.phases.find((phase) => phase.id === 'mvp');
+          const blocker = 'The Tenant runtime provenance and authority hardening correction is ready for integration; the canary remains synthetic and not route-mounted.';
+          if (mvp && !mvp.blockers.includes(blocker)) mvp.blockers.push(blocker);
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract)}\n`);
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(spec-014): recover Tenant runtime hardening on current Integration'
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
