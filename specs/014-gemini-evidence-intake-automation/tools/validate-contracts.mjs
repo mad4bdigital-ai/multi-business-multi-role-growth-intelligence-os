@@ -162,21 +162,31 @@ function validateCiContract(contract, developmentIndexes) {
     if (!family.changed_paths?.length || !family.commands?.length) fail(`${family.key} must declare changed paths and commands.`);
   }
 
+  const stageEvidenceKeys = new Set();
   for (const pipeline of pipelines.values()) {
     if (!pipeline.stages?.length) fail(`${pipeline.key} has no stages.`);
     for (const stage of pipeline.stages) {
-      if (!evidence.has(stage.evidence_key)) fail(`${pipeline.key}/${stage.key} references unknown evidence key ${stage.evidence_key}.`);
+      if (!stage.evidence_key) fail(`${pipeline.key}/${stage.key} is missing an evidence key.`);
+      stageEvidenceKeys.add(stage.evidence_key);
     }
   }
 
   for (const item of evidence.values()) {
     if (!pipelines.has(item.producer_pipeline)) fail(`${item.key} references unknown producer pipeline ${item.producer_pipeline}.`);
     if (item.secrets_included !== false) fail(`${item.key} must declare secrets_included=false.`);
+    if (!stageEvidenceKeys.has(item.key)) fail(`${item.key} is declared but no pipeline stage produces it.`);
   }
 
   const completion = contract.completion_policy;
   requireRefs(completion.required_pipeline_keys, pipelines, "completion_policy", "pipeline");
-  requireRefs(completion.required_evidence_keys, evidence, "completion_policy", "evidence contract");
+  requireRefs(completion.required_evidence_keys, evidence, "completion_policy", "canonical evidence contract");
+
+  for (const key of completion.required_evidence_keys) {
+    const item = evidence.get(key);
+    if (!["canonical_status", "completion"].includes(item.authority)) {
+      fail(`Completion evidence ${key} must have canonical_status or completion authority.`);
+    }
+  }
 
   const writerKey = contract.writer_policy?.writer_pipeline_key;
   if (!writerKey || !pipelines.has(writerKey)) fail("Writer policy references an unknown writer pipeline.");
@@ -188,7 +198,7 @@ function validateCiContract(contract, developmentIndexes) {
     fail("Exactly one source/generated-artifact writer pipeline is allowed.", { sourceWriterPipelines: sourceWriterPipelines.map((item) => item.key) });
   }
 
-  return { families, pipelines, evidence };
+  return { families, pipelines, evidence, stageEvidenceKeys };
 }
 
 function validateManifest(manifest) {
@@ -237,7 +247,8 @@ function main() {
     ci_contract: {
       test_families: ciIndexes.families.size,
       pipelines: ciIndexes.pipelines.size,
-      evidence_contracts: ciIndexes.evidence.size
+      canonical_evidence_contracts: ciIndexes.evidence.size,
+      stage_evidence_keys: ciIndexes.stageEvidenceKeys.size
     },
     completion_status: completion.status,
     secrets_included: false
