@@ -9,7 +9,9 @@
     "include": [
       ".changes/e2e/spec014-tenant-runtime-bridge.json",
       ".github/workflows/hostinger-storage-tenant-runtime-guard.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/hostingerStorageTenantRuntime.js",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/routes/hostingerStorageTenantRoutes.js",
       "http-generic-api/routes/index.js",
       "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
@@ -58,7 +60,9 @@
           ],
           "evidence_paths": [
             "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
-            ".github/workflows/hostinger-storage-tenant-runtime-guard.yml"
+            ".github/workflows/hostinger-storage-tenant-runtime-guard.yml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
           ]
         }
       ]
