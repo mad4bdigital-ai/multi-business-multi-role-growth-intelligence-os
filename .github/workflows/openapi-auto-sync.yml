@@ -190,7 +190,7 @@ jobs:
 
             Work Maps are intentionally excluded. Their sole remote writer is the governed Spec Kit Work Map Autofix workflow.
 
-            Safe Markdown-only synchronization may be merged automatically only while `main` remains pinned to the triggering SHA. Generated schema, runtime, authentication, or non-Markdown changes are never auto-merged and require review.
+            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or non-Markdown changes; those require human/GPT review. Safe Markdown-only synchronization may be merged automatically only while `main` remains pinned to the triggering SHA.
 
             Review checklist:
             - Replace any `TODO document ...` summaries with precise contracts.
