@@ -1,0 +1,47 @@
+name: Hostinger Storage Runtime Migration Promotion Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-runtime-migration-promotion.json'
+      - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml'
+      - 'http-generic-api/config/governed-migration-dependencies.json'
+      - 'http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql'
+      - 'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql'
+      - 'http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql'
+      - 'http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs'
+      - '.github/contracts/spec014/migrations/**'
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-migration-promotion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check validator syntax
+        run: node --check http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+      - name: Validate governed migration promotion
+        run: node http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+      - name: Preserve non-apply boundary
+        run: |
+          ! git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -E '(^|/)(server\.js|db\.js)$'
+          ! grep -R -E '\b(governed_migration_execute|bootstrapGovernedMigrationAuthorization)\s*\(' \
+            http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs \
+            .github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml
+          grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+          grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+          grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+          grep -q 'secrets_included: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
