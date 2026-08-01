@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./test-governed-reconciliation-kernel.mjs";
 import {
   GENERALIZED_INTERRUPTION_SIGNALS,
   RECONCILIATION_SEQUENCE,
