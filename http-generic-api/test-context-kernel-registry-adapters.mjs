@@ -11,3 +11,6 @@ await import("./test-context-kernel-provider-consent-persistence-runtime-composi
 await import("./test-context-kernel-provider-consent-activation-certification-pilot.mjs");
 await import("./test-context-kernel-provider-consent-activation-certification-guards.mjs");
 await import("./test-context-kernel-provider-consent-activation-revocation-rollback.mjs");
+await import("./test-context-kernel-provider-consent-adapter-evidence-nonprod-readiness.mjs");
+await import("./test-context-kernel-provider-consent-adapter-evidence-certification-guards.mjs");
+await import("./test-context-kernel-provider-consent-unknown-outcome-reconciliation.mjs");

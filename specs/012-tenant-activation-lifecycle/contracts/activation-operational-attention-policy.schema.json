@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/activation-operational-attention-policy-v1.json",
+  "title": "Activation Operational Attention Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "policy_type": { "const": "activation_operational_attention_policy" },
+    "operation_status_severity": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(created|authenticating|authorized|resolving_session|bootstrapping|validating|preparing_tools|ready|executing|readback_pending|delivery_pending|acknowledgement_pending|retry_scheduled|unknown_outcome|reconciling|active|degraded|authorization_gated|validation_rate_limited|contract_degraded|failed|cancelled|rolled_back)$": {
+          "type": ["string", "null"],
+          "enum": ["info", "low", "medium", "high", "critical", null]
+        }
+      }
+    },
+    "deployment_state_severity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "current": { "type": ["string", "null"], "enum": ["info", "low", "medium", "high", "critical", null] },
+        "deploying": { "type": ["string", "null"], "enum": ["info", "low", "medium", "high", "critical", null] },
+        "stale": { "type": ["string", "null"], "enum": ["info", "low", "medium", "high", "critical", null] },
+        "diverged": { "type": ["string", "null"], "enum": ["info", "low", "medium", "high", "critical", null] },
+        "unknown": { "type": ["string", "null"], "enum": ["info", "low", "medium", "high", "critical", null] }
+      },
+      "required": ["current", "deploying", "stale", "diverged", "unknown"]
+    },
+    "minimum_emit_severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+    "repeat_window_seconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+    "stale_after_seconds": { "type": "integer", "minimum": 60, "maximum": 604800 },
+    "auto_resolve_on_recovery": { "type": "boolean" },
+    "notify_high_and_critical": { "type": "boolean" },
+    "critical_requires_confirmation": { "type": "boolean" },
+    "unknown_outcome_minimum_severity": { "const": "high" },
+    "cross_tenant_projection_allowed": { "const": false },
+    "raw_error_message_exposed": { "const": false },
+    "deployment_mismatch_reconnect_required": { "const": false },
+    "questionnaire_provenance": { "type": "object" },
+    "policy_payload_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "secrets_included": { "const": false }
+  },
+  "required": [
+    "policy_type", "operation_status_severity", "deployment_state_severity",
+    "minimum_emit_severity", "repeat_window_seconds", "stale_after_seconds",
+    "auto_resolve_on_recovery", "notify_high_and_critical",
+    "critical_requires_confirmation", "unknown_outcome_minimum_severity",
+    "cross_tenant_projection_allowed", "raw_error_message_exposed",
+    "deployment_mismatch_reconnect_required", "questionnaire_provenance",
+    "policy_payload_sha256", "secrets_included"
+  ],
+  "allOf": [
+    {
+      "properties": {
+        "operation_status_severity": {
+          "properties": {
+            "unknown_outcome": { "enum": ["high", "critical"] }
+          },
+          "required": ["unknown_outcome"]
+        }
+      }
+    }
+  ]
+}

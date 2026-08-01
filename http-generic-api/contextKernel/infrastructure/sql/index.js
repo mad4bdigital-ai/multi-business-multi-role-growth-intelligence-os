@@ -14,6 +14,15 @@ export {
   createDurableProviderConsentHandoffAdapter,
 } from "./providerConsentActivationPilotRepositories.js";
 export {
+  createAes256GcmProviderCredentialEnvelopeService,
+} from "./providerConsentNonProductionCredentialEnvelope.js";
+export {
+  createSqlProviderConsentHandoffStore,
+} from "./providerConsentNonProductionHandoffStore.js";
+export {
+  createNonProductionProviderExchangeAdapter,
+} from "./providerConsentNonProductionProviderExchange.js";
+export {
   createBrandManagementAuthorityRepository,
   createProviderConnectionAccessRepository,
   createProviderConsentReadinessRepository,
