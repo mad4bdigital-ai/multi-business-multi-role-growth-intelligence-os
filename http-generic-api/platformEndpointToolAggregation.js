@@ -22,7 +22,28 @@ function parentActionSelectorSchema(values = []) {
   return { type: "string", enum: parentActionKeys };
 }
 
-function groupedDispatcherInputSchema(rows = []) {
+function bindingMetadata(row = {}, normalizeInputSchema = (value) => value) {
+  return {
+    parent_action_key: normalizedText(row.parent_action_key),
+    endpoint_key: normalizedText(row.endpoint_key),
+    scope_class: normalizedText(row.scope_class) || null,
+    method: normalizedText(row.method).toUpperCase() || null,
+    inputSchema: normalizeInputSchema(row.input_schema_json),
+  };
+}
+
+function platformEndpointMetadata(bindings = [], { grouped = true } = {}) {
+  return {
+    source: "platform_endpoint_tool_exports",
+    grouped,
+    endpoint_count: bindings.length,
+    parent_action_keys: uniqueSorted(bindings.map((binding) => binding.parent_action_key)),
+    endpoint_keys: uniqueSorted(bindings.map((binding) => binding.endpoint_key)),
+    bindings,
+  };
+}
+
+function groupedDispatcherInputSchema(rows = [], bindings = []) {
   return {
     type: "object",
     required: ["endpoint_key"],
@@ -50,16 +71,7 @@ function groupedDispatcherInputSchema(rows = []) {
       timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
     },
     additionalProperties: false,
-  };
-}
-
-function bindingMetadata(row = {}, normalizeInputSchema = (value) => value) {
-  return {
-    parent_action_key: normalizedText(row.parent_action_key),
-    endpoint_key: normalizedText(row.endpoint_key),
-    scope_class: normalizedText(row.scope_class) || null,
-    method: normalizedText(row.method).toUpperCase() || null,
-    inputSchema: normalizeInputSchema(row.input_schema_json),
+    "x-platform-endpoint": platformEndpointMetadata(bindings, { grouped: true }),
   };
 }
 
@@ -94,21 +106,18 @@ export function aggregatePlatformEndpointToolRows(rows = [], options = {}) {
         `${normalizedText(left.parent_action_key)}\u0000${normalizedText(left.endpoint_key)}\u0000${normalizedText(left.scope_class)}`
           .localeCompare(`${normalizedText(right.parent_action_key)}\u0000${normalizedText(right.endpoint_key)}\u0000${normalizedText(right.scope_class)}`));
       const bindings = sortedRows.map((row) => bindingMetadata(row, normalizeInputSchema));
-      const endpointKeys = uniqueSorted(bindings.map((binding) => binding.endpoint_key));
-      const parentActionKeys = uniqueSorted(bindings.map((binding) => binding.parent_action_key));
+      const metadata = platformEndpointMetadata(bindings, { grouped: bindings.length > 1 });
+      const singleBinding = bindings.length === 1;
       return {
         name: toolName,
-        description: `Registry endpoint dispatcher ${toolName} with ${bindings.length} governed endpoint binding${bindings.length === 1 ? "" : "s"}.`,
+        description: singleBinding
+          ? `Registry endpoint tool ${toolName}.`
+          : `Registry endpoint dispatcher ${toolName} with ${bindings.length} governed endpoint bindings.`,
         requires_admin: sortedRows.every((row) => normalizedText(row.scope_class) === "admin"),
-        inputSchema: groupedDispatcherInputSchema(sortedRows),
-        x_platform_endpoint: {
-          source: "platform_endpoint_tool_exports",
-          grouped: true,
-          endpoint_count: bindings.length,
-          parent_action_keys: parentActionKeys,
-          endpoint_keys: endpointKeys,
-          bindings,
-        },
+        inputSchema: singleBinding
+          ? bindings[0].inputSchema
+          : groupedDispatcherInputSchema(sortedRows, bindings),
+        x_platform_endpoint: metadata,
       };
     });
 }
