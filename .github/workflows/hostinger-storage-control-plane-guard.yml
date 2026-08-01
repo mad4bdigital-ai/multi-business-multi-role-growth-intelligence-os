@@ -3,22 +3,26 @@ name: Hostinger Storage Control Plane Guard
 on:
   pull_request:
     paths:
-      - 'http-generic-api/hostingerStorageExecutionAuthorization.js'
-      - 'http-generic-api/hostingerStorageExecutionAuthorizationV2.js'
-      - 'http-generic-api/hostingerStorageControlPlaneRepository*.js'
-      - 'http-generic-api/test-hostinger-storage-execution-authorization.mjs'
-      - 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.cts'
       - '.github/workflows/hostinger-storage-control-plane-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
   push:
     branches:
       - 'gpt/014-hostinger/control-plane-*'
     paths:
-      - 'http-generic-api/hostingerStorageExecutionAuthorization.js'
-      - 'http-generic-api/hostingerStorageExecutionAuthorizationV2.js'
-      - 'http-generic-api/hostingerStorageControlPlaneRepository*.js'
-      - 'http-generic-api/test-hostinger-storage-execution-authorization.mjs'
-      - 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs'
+      - '**/*.js'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.mts'
+      - '**/*.cts'
       - '.github/workflows/hostinger-storage-control-plane-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
@@ -50,6 +54,9 @@ jobs:
             --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
             | sed 's#^./##' | sort)" = "http-generic-api/hostingerStorageControlPlaneRepository.js"
           grep -q "new WeakSet()" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "canonicalPersistenceAdapters.add(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "canonicalPersistenceAdapters.has(adapter)" http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q "isCanonicalMemoryHostingerStoragePersistenceAdapter" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.add(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "canonicalRepositories.has(repository)" http-generic-api/hostingerStorageControlPlaneRepository.js
           grep -q "isCanonicalHostingerStorageControlPlaneRepository" http-generic-api/hostingerStorageControlPlaneRepository.js
