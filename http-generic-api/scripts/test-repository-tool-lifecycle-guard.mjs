@@ -6,9 +6,13 @@ import {
   validateGovernanceInputs,
 } from "./maintenance-tools/repository-tool-lifecycle-guard.mjs";
 
+const REPORT_CONTRACT = "mad4b.repository-tool-lifecycle-report.v1";
+const GUARD_ENTRYPOINT = "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs";
+
 const policy = {
   contract: "mad4b.repository-maintenance-tool-governance.v1",
-  canonical_report_contract: "mad4b.repository-tool-lifecycle-report.v1",
+  canonical_report_contract: REPORT_CONTRACT,
+  protected_branches: ["main", "Production"],
   tool_root: "http-generic-api/scripts/maintenance-tools",
   forbidden_path_patterns: [
     "(^|/)\\.changes/e2e/.*trigger$",
@@ -24,17 +28,22 @@ const policy = {
     force_push_forbidden: true,
     expected_head_sha_required_for_mutation: true,
     protected_branch_mutation_forbidden: true,
+    canonical_report_required: true,
+    job_logs_are_diagnostic_only: true,
   },
   tools: {
-    guard: {
-      entrypoint: "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+    "repository-tool-lifecycle-guard": {
+      entrypoint: GUARD_ENTRYPOINT,
+      mode: "read_only",
+      allowed_changed_path_patterns: [],
+      report_contract: REPORT_CONTRACT,
     },
   },
 };
 
-async function evaluate(entries, contents = {}) {
+async function evaluate(entries, contents = {}, selectedPolicy = policy) {
   return evaluateRepositoryToolLifecycle({
-    policy,
+    policy: selectedPolicy,
     entries,
     readText: async (path) => contents[path] || "",
   });
@@ -55,6 +64,23 @@ const invalidIdentity = validateGovernanceInputs({
 assert(invalidIdentity.some((item) => item.code === "REPORT_CONTRACT_MISMATCH"));
 assert(invalidIdentity.some((item) => item.code === "INVALID_CANDIDATE_SHA"));
 assert(invalidIdentity.some((item) => item.code === "INVALID_BASE_SHA"));
+
+const disabledRuleFindings = validateGovernanceInputs({
+  policy: {
+    ...policy,
+    rules: { ...policy.rules, force_push_forbidden: false },
+  },
+  candidateSha: "a".repeat(40),
+  baseSha: "b".repeat(40),
+});
+assert(disabledRuleFindings.some((item) => item.code === "MANDATORY_RULE_DISABLED"));
+
+const removedGuardFindings = validateGovernanceInputs({
+  policy: { ...policy, tools: {} },
+  candidateSha: "a".repeat(40),
+  baseSha: "b".repeat(40),
+});
+assert(removedGuardFindings.some((item) => item.code === "INVALID_GUARD_REGISTRATION"));
 
 const branchSpecificWorkflow = ".github/workflows/apply-runtime-hardening-v3.yml";
 const branchSpecificFindings = await evaluate(
@@ -113,6 +139,13 @@ permissions:
 );
 assert(oneShotFindings.some((item) => item.code === "TEMPORARY_AUTOMATION_ARTIFACT"));
 
+const baselinePatternFindings = await evaluate(
+  [{ status: "A", path: oneShotWorkflow }],
+  { [oneShotWorkflow]: "on:\n  workflow_dispatch:\n" },
+  { ...policy, forbidden_path_patterns: [] },
+);
+assert(baselinePatternFindings.some((item) => item.code === "TEMPORARY_AUTOMATION_ARTIFACT"));
+
 const deletionFindings = await evaluate([
   { status: "D", path: oneShotWorkflow },
   { status: "D", path: ".changes/e2e/.runtime-patch-trigger" },
@@ -123,6 +156,88 @@ const unregisteredToolFindings = await evaluate([
   { status: "A", path: "http-generic-api/scripts/maintenance-tools/unregistered.mjs" },
 ]);
 assert(unregisteredToolFindings.some((item) => item.code === "UNREGISTERED_MAINTENANCE_TOOL"));
+
+const unsafeReadOnlyTool = "http-generic-api/scripts/maintenance-tools/unsafe-read-only.mjs";
+const unsafeReadOnlyPolicy = {
+  ...policy,
+  tools: {
+    ...policy.tools,
+    "unsafe-read-only": {
+      entrypoint: unsafeReadOnlyTool,
+      mode: "read_only",
+      allowed_changed_path_patterns: [],
+      report_contract: REPORT_CONTRACT,
+    },
+  },
+};
+const unsafeReadOnlyFindings = await evaluate(
+  [{ status: "A", path: unsafeReadOnlyTool }],
+  { [unsafeReadOnlyTool]: "git push --force origin HEAD:unsafe\n" },
+  unsafeReadOnlyPolicy,
+);
+assert(unsafeReadOnlyFindings.some((item) => item.code === "READ_ONLY_TOOL_MUTATION"));
+assert(unsafeReadOnlyFindings.some((item) => item.code === "FORCE_PUSH_AUTOMATION"));
+
+const unguardedMutatingTool = "http-generic-api/scripts/maintenance-tools/unguarded-mutator.mjs";
+const mutatingPolicy = {
+  ...policy,
+  tools: {
+    ...policy.tools,
+    "unguarded-mutator": {
+      entrypoint: unguardedMutatingTool,
+      mode: "mutating",
+      allowed_changed_path_patterns: ["^docs/"],
+      report_contract: REPORT_CONTRACT,
+    },
+  },
+};
+const mutatingToolFindings = await evaluate(
+  [{ status: "A", path: unguardedMutatingTool }],
+  { [unguardedMutatingTool]: "git push origin HEAD:work\n" },
+  mutatingPolicy,
+);
+assert(mutatingToolFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
+assert(mutatingToolFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
+
+const writeAllWorkflow = ".github/workflows/write-all-pr.yml";
+const writeAllFindings = await evaluate(
+  [{ status: "A", path: writeAllWorkflow }],
+  {
+    [writeAllWorkflow]: `
+on:
+  pull_request:
+permissions: write-all
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo inspect
+`,
+  },
+);
+assert(writeAllFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
+const externalTokenWorkflow = ".github/workflows/external-token-push.yml";
+const externalTokenFindings = await evaluate(
+  [{ status: "A", path: externalTokenWorkflow }],
+  {
+    [externalTokenWorkflow]: `
+on:
+  push:
+permissions:
+  contents: read
+jobs:
+  apply:
+    steps:
+      - env:
+          TOKEN: secret
+        run: git push origin HEAD:work
+`,
+  },
+);
+assert(externalTokenFindings.some((item) => item.code === "UNGUARDED_AUTOMATION_MUTATION"));
+assert(externalTokenFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
+assert(externalTokenFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
 
 const apiMutationWorkflow = ".github/workflows/api-mutation.yml";
 const apiMutationFindings = await evaluate(
@@ -167,13 +282,7 @@ assert(selfDeletingFindings.some((item) => item.code === "SELF_DELETING_WORKFLOW
 
 const compliantWorkflow = ".github/workflows/governed-branch-maintenance.yml";
 const compliantFindings = await evaluate(
-  [
-    { status: "A", path: compliantWorkflow },
-    {
-      status: "A",
-      path: "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
-    },
-  ],
+  [{ status: "A", path: compliantWorkflow }],
   {
     [compliantWorkflow]: `
 on:
@@ -197,4 +306,9 @@ jobs:
 );
 assert.deepEqual(compliantFindings, []);
 
-console.log("repository tool lifecycle guard tests passed");
+console.log(JSON.stringify({
+  ok: true,
+  gate: "repository_tool_lifecycle_governance",
+  cases: 18,
+  secrets_included: false,
+}));
