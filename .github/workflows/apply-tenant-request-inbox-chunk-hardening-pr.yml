@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Reuse bounded patch script
+      - name: Apply bounded runtime patch
         shell: bash
         run: |
           python - <<'PY'
@@ -37,8 +37,12 @@ jobs:
           lines = text[start:end].splitlines()
           script = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
           exec(compile(script, str(workflow), 'exec'), {'__name__': '__main__'})
-          Path('.github/workflows/apply-tenant-request-inbox-chunk-hardening-pr.yml').unlink()
           PY
+          git restore --source=HEAD -- \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening.yml \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening-pr.yml \
+            .github/workflows/apply-tenant-request-inbox-chunk-hardening-target.yml \
+            .changes/e2e/.tenant-request-patch-trigger
       - name: Run focused validation
         run: |
           node --check http-generic-api/tenantRequestInboxService.js
@@ -47,11 +51,16 @@ jobs:
           node --check http-generic-api/governedToolResponseChunkStore.js
           node --check http-generic-api/routes/gptToolsRoutes.js
           node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
-      - name: Commit authoritative branch result
+      - name: Commit runtime-only result branch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add \
+            http-generic-api/supportTicketResolutionService.js \
+            http-generic-api/routes/supportTicketRoutes.js \
+            http-generic-api/governedToolResponseChunkStore.js \
+            http-generic-api/routes/gptToolsRoutes.js
+          git diff --cached --check
           git commit -m "feat(tenant-requests): wire inbox and harden chunk fallback"
-          git push origin HEAD:gpt/tenant-request-inbox-chunk-store-hardening-20260801
+          git push origin HEAD:refs/heads/gpt/tenant-request-inbox-chunk-store-hardening-patched-v3-20260801
