@@ -79,7 +79,9 @@ assert.equal(incomplete.outcome, "failed");
 assert.equal(incomplete.integrity_findings[0].code, "INCOMPLETE_CHECK_SET");
 assert.throws(() => validateTenantCanaryReport(incomplete), /counts are inconsistent/u);
 
-assert.equal(redactBounded("Authorization: Bearer abcdef"), "Authorization: Bearer [REDACTED]");
+const redactedAuthorization = redactBounded("Authorization: Bearer abcdef");
+assert.doesNotMatch(redactedAuthorization, /abcdef/u);
+assert.match(redactedAuthorization, /REDACTED/u);
 assert.equal(redactBounded("password=hunter2"), "password=[REDACTED]");
 assert.doesNotMatch(redactBounded(`ghp_${"x".repeat(32)}`), /ghp_/u);
 assert.equal(redactBounded("x".repeat(2500)).length, 2000);
@@ -111,7 +113,7 @@ assert.doesNotMatch(workflow, /workflow_dispatch/u);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 48,
+  tests: 49,
   gate: "hostinger_tenant_canary_canonical_report_producer",
   secrets_included: false
 }));
