@@ -97,7 +97,8 @@ async function authorizeTenantRequestScope({ auth = {}, tenantId, pool }) {
     error.code = "tenant_request_scope_violation";
     throw error;
   }
-  return { isAdmin: false, tenantId: requestedTenantId, role: rows[0].role || null };
+  const [membership] = rows;
+  return { isAdmin: false, tenantId: requestedTenantId, role: membership.role || null };
 }
 
 function latestActivitySql(alias = "t", caseAlias = "c") {
