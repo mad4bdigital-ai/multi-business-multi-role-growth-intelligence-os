@@ -139,10 +139,13 @@ const lifecycleContradiction = resolveSupportTicketLifecyclePatch({
 assert.equal(lifecycleContradiction.should_update, true);
 assert.equal(lifecycleContradiction.status, "resolved");
 
-const requiredIntegrityColumns = _testingSupportTicketLifecycleIntegrityCreation().REQUIRED_INTEGRITY_COLUMNS;
+const creationContract = _testingSupportTicketLifecycleIntegrityCreation();
+const requiredIntegrityColumns = creationContract.REQUIRED_INTEGRITY_COLUMNS;
+const requiredIntegrityTables = creationContract.REQUIRED_INTEGRITY_TABLES;
 
 function buildConnection({
   schemaColumns = requiredIntegrityColumns,
+  schemaTables = requiredIntegrityTables,
   persistAffectedRows = 1,
   persistError = null,
 } = {}) {
@@ -153,8 +156,20 @@ function buildConnection({
     lastPersistParams: null,
     async query(sql, params = []) {
       if (sql.includes("INFORMATION_SCHEMA.COLUMNS")) {
-        events.push("schema");
+        events.push("schema_columns");
         return [schemaColumns.map((COLUMN_NAME) => ({ COLUMN_NAME }))];
+      }
+      if (sql.includes("INFORMATION_SCHEMA.TABLES")) {
+        events.push("schema_tables");
+        return [schemaTables.map((TABLE_NAME) => ({ TABLE_NAME }))];
+      }
+      if (sql.includes("INSERT INTO support_ticket_dedupe_claims")) {
+        events.push("claim_insert");
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("FROM support_ticket_dedupe_claims") && sql.includes("FOR UPDATE")) {
+        events.push("claim_lock");
+        return [[{ tenant_id: params[0], dedupe_key: params[1] }]];
       }
       if (sql.includes("UPDATE tickets")) {
         events.push("persist");
@@ -199,13 +214,25 @@ const successResult = await createOrAppendSupportTicketWithIntegrityAtomic(
 );
 assert.equal(successResult.integrity.persisted, true);
 assert.equal(successResult.integrity.schema_ready, true);
+assert.equal(successResult.integrity.dedupe_serialized, true);
+assert.equal(successResult.integrity.dedupe_coordination.mode, "transaction_row_claim");
 assert.equal(successResult.integrity.environment, "sandbox");
 assert.equal(successResult.integrity.visibility_class, "partner_visible");
 assert.match(successConnection.lastPersistSql, /environment = \?/);
 assert.match(successConnection.lastPersistSql, /visibility_class = \?/);
 assert.doesNotMatch(successConnection.lastPersistSql, /COALESCE\(NULLIF\(environment/);
 assert.doesNotMatch(successConnection.lastPersistSql, /COALESCE\(NULLIF\(visibility_class/);
-assert.deepEqual(successConnection.events, ["schema", "begin", "create", "persist", "commit", "release"]);
+assert.deepEqual(successConnection.events, [
+  "schema_columns",
+  "schema_tables",
+  "begin",
+  "claim_insert",
+  "claim_lock",
+  "create",
+  "persist",
+  "commit",
+  "release",
+]);
 
 const missingSchemaConnection = buildConnection({
   schemaColumns: requiredIntegrityColumns.filter((column) => column !== "triaged_at"),
@@ -227,7 +254,19 @@ await assert.rejects(
     && error?.schema?.missing_columns?.includes("triaged_at"),
 );
 assert.equal(preflightCreateCalls, 0);
-assert.deepEqual(missingSchemaConnection.events, ["schema", "release"]);
+assert.deepEqual(missingSchemaConnection.events, ["schema_columns", "schema_tables", "release"]);
+
+const missingClaimTableConnection = buildConnection({ schemaTables: [] });
+await assert.rejects(
+  createOrAppendSupportTicketWithIntegrityAtomic(
+    { ...baseEnvelope, title: "Missing dedupe claim table" },
+    { pool: { async getConnection() { return missingClaimTableConnection; } } },
+  ),
+  (error) => error?.status === 409
+    && error?.code === "support_ticket_integrity_schema_not_ready"
+    && error?.schema?.missing_tables?.includes("support_ticket_dedupe_claims"),
+);
+assert.deepEqual(missingClaimTableConnection.events, ["schema_columns", "schema_tables", "release"]);
 
 const rollbackConnection = buildConnection({ persistError: new Error("integrity update failed") });
 await assert.rejects(
@@ -250,7 +289,17 @@ await assert.rejects(
   ),
   /integrity update failed/,
 );
-assert.deepEqual(rollbackConnection.events, ["schema", "begin", "create", "persist", "rollback", "release"]);
+assert.deepEqual(rollbackConnection.events, [
+  "schema_columns",
+  "schema_tables",
+  "begin",
+  "claim_insert",
+  "claim_lock",
+  "create",
+  "persist",
+  "rollback",
+  "release",
+]);
 
 const listQueries = [];
 const listConnection = {
@@ -446,6 +495,8 @@ for (const column of [
 ]) {
   assert.match(migration, new RegExp(`\\b${column}\\b`), `migration must contain ${column}`);
 }
+assert.match(migration, /CREATE TABLE IF NOT EXISTS support_ticket_dedupe_claims/);
+assert.match(migration, /PRIMARY KEY \(tenant_id, dedupe_key\)/);
 assert.match(migration, /310f39c8-d2f7-4523-95db-9a783c59f9cf/);
 assert.match(migration, /b48a7b04-fa30-4e7d-ac5b-7a97515e7dd4/);
 assert.match(migration, /685dc4d9-c137-4941-81f4-de13306a8508/);
@@ -473,13 +524,19 @@ assert.match(routeSource, /const \[membership = null\] = rows/);
 assert.doesNotMatch(routeSource, /rows\s*\[\s*0\s*\]/);
 assert.doesNotMatch(routeSource, /LIMIT\s+1/);
 assert.match(routeSource, /createOrAppendSupportTicketWithIntegrityAtomic/);
+assert.match(routeSource, /reconcileSupportTicketIntegrityWithEffectiveLifecycle/);
 assert.doesNotMatch(routeSource, /createOrAppendSupportTicketWithIntegrity\(/);
 
 const creationSource = await readFile(new URL("./supportTicketLifecycleIntegrityCreationService.js", import.meta.url), "utf8");
 const schemaPreflightIndex = creationSource.indexOf("const schema = await readIntegritySchema(connection)");
+const claimIndex = creationSource.indexOf("dedupeClaim = await acquireDedupeClaim");
 const mutationIndex = creationSource.indexOf("const result = await createTicket");
-assert.ok(schemaPreflightIndex >= 0 && mutationIndex > schemaPreflightIndex, "schema preflight must precede ticket mutation");
+assert.ok(schemaPreflightIndex >= 0 && claimIndex > schemaPreflightIndex, "schema preflight must precede dedupe claim");
+assert.ok(mutationIndex > claimIndex, "dedupe claim must precede ticket mutation");
 assert.match(creationSource, /support_ticket_integrity_schema_not_ready/);
+assert.match(creationSource, /support_ticket_dedupe_claims/);
+assert.match(creationSource, /ON DUPLICATE KEY UPDATE claim_token = claim_token/);
+assert.match(creationSource, /FOR UPDATE/);
 assert.match(creationSource, /await connection\.beginTransaction\(\)/);
 assert.match(creationSource, /await connection\.commit\(\)/);
 assert.match(creationSource, /await connection\.rollback\(\)/);
@@ -499,6 +556,15 @@ assert.match(integritySource, /support_ticket_integrity_cursor_incomplete/);
 assert.match(integritySource, /has_more: hasMore/);
 assert.match(integritySource, /next_cursor: nextCursor/);
 
+const reconciliationSource = await readFile(
+  new URL("./supportTicketLifecycleIntegrityReconciliationService.js", import.meta.url),
+  "utf8",
+);
+assert.match(reconciliationSource, /resolveSupportTicketLifecyclePatch\(row\)/);
+assert.match(reconciliationSource, /computeSupportTicketSlaStatusV2\(effectiveRow, now\)/);
+assert.match(reconciliationSource, /FROM tickets[\s\S]*FOR UPDATE/);
+assert.match(reconciliationSource, /support_ticket_integrity_apply_target_missing/);
+
 const indexSource = await readFile(new URL("./routes/index.js", import.meta.url), "utf8");
 const integrityMount = indexSource.indexOf("buildSupportTicketLifecycleIntegrityRoutes");
 const legacyMount = indexSource.indexOf("buildSupportTicketRoutes");
@@ -506,4 +572,4 @@ assert.ok(integrityMount >= 0, "integrity router must be registered");
 assert.ok(legacyMount >= 0, "legacy support router must remain registered");
 assert.ok(integrityMount < legacyMount, "integrity router must mount before legacy support router");
 
-console.log("support ticket lifecycle, SLA evidence, customer-safe projection, test isolation, pagination, centralized JWT, tenant ambiguity, schema preflight, and atomic rollback tests passed");
+console.log("support ticket lifecycle, SLA evidence, customer-safe projection, test isolation, pagination, centralized JWT, tenant ambiguity, schema preflight, serialized atomic rollback, and effective reconciliation tests passed");
