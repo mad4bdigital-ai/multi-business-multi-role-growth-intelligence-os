@@ -43,6 +43,7 @@ const growthControlContinuationTestCommands = Object.freeze([
 const diagnosticAutomationTestCommands = Object.freeze([
   "node test-branch-test-diagnostic-shards.mjs",
   "node test-sequential-test-progress-report.mjs",
+  "node test-work-map-autofix-diagnostics.mjs",
 ]);
 
 export const testCommands = Object.freeze([
