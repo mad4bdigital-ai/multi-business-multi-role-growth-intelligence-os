@@ -133,7 +133,7 @@ function setup() {
   assert.ok(concurrencyBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"), "Concurrency authorization must require a same-repository head");
   assert.ok(concurrencyBlock.includes("github.actor != 'github-actions[bot]'"), "Concurrency authorization must reject bot-authored reopened events");
   assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Concurrency authorization must require the explicit marker");
-  assert.ok(concurrencyBlock.includes("cancel-in-progress: true"), "Authorized retries must retain cancellation semantics within their trusted group");
+  assert.ok(concurrencyBlock.includes("cancel-in-progress: false"), "Authorized writes must queue behind the active artifact writer instead of cancelling it");
 
   assert.ok(permissionsBlock.includes("pull-requests: write"), "Sticky diagnostics require explicit pull-request write permission");
   assert.ok(workflow.includes("Bootstrap Work Map diagnostic envelope"), "Checkout and setup failures require a bootstrap report");
