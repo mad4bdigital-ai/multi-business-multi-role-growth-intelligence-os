@@ -28,56 +28,18 @@
     }
   ],
   "portfolio_sources": [
-    {
-      "pull_request": 1898,
-      "feature_key": "004-tenant-asset-federation",
-      "canonical_role": "architectural_doctrine_source"
-    },
-    {
-      "pull_request": 1935,
-      "feature_key": "006-adaptive-authorization-execution-governance",
-      "canonical_role": "authority_kernel_candidate"
-    },
-    {
-      "pull_request": 2284,
-      "feature_key": "008-governed-pr-delivery-orchestration",
-      "canonical_role": "repository_delivery_subsystem"
-    },
-    {
-      "pull_request": 2385,
-      "feature_key": "009-local-connector-reachability-recovery",
-      "canonical_role": "infrastructure_recovery_subsystem"
-    },
-    {
-      "pull_request": 2949,
-      "feature_key": "011-database-driven-operation-fabric",
-      "canonical_role": "operation_fabric_subsystem"
-    },
-    {
-      "pull_request": 2950,
-      "feature_key": "011-tenant-gpt-effective-capability-envelope",
-      "canonical_role": "tenant_application_component"
-    },
-    {
-      "pull_request": 3922,
-      "feature_key": "014-retail-commerce-operations-growth-os",
-      "canonical_role": "reference_solution_package_source"
-    },
-    {
-      "pull_request": 4386,
-      "feature_key": "014-governed-hostinger-storage-orchestration",
-      "canonical_role": "integration_rollup"
-    },
-    {
-      "pull_request": 4432,
-      "feature_key": "014-gemini-evidence-intake-automation",
-      "canonical_role": "reference_solution_package_source"
-    },
-    {
-      "pull_request": 4456,
-      "feature_key": "015-tenant-operating-system-studio",
-      "canonical_role": "portfolio_convergence_parent"
-    }
+    { "pull_request": 1898, "feature_key": "004-tenant-asset-federation", "canonical_role": "architectural_doctrine_source" },
+    { "pull_request": 1935, "feature_key": "006-adaptive-authorization-execution-governance", "canonical_role": "authority_kernel_candidate" },
+    { "pull_request": 2284, "feature_key": "008-governed-pr-delivery-orchestration", "canonical_role": "repository_delivery_subsystem" },
+    { "pull_request": 2385, "feature_key": "009-local-connector-reachability-recovery", "canonical_role": "infrastructure_recovery_subsystem" },
+    { "pull_request": 2949, "feature_key": "011-database-driven-operation-fabric", "canonical_role": "operation_fabric_subsystem" },
+    { "pull_request": 2950, "feature_key": "011-tenant-gpt-effective-capability-envelope", "canonical_role": "tenant_application_component" },
+    { "pull_request": 3159, "feature_key": "013-system-tool-catalog-v2", "canonical_role": "system_tool_catalog_subsystem" },
+    { "pull_request": 3922, "feature_key": "014-retail-commerce-operations-growth-os", "canonical_role": "reference_solution_package_source" },
+    { "pull_request": 4386, "feature_key": "014-governed-hostinger-storage-orchestration", "canonical_role": "integration_rollup" },
+    { "pull_request": 4432, "feature_key": "014-gemini-evidence-intake-automation", "canonical_role": "reference_solution_package_source" },
+    { "pull_request": 4456, "feature_key": "015-tenant-operating-system-studio", "canonical_role": "portfolio_convergence_parent" },
+    { "pull_request": 4460, "feature_key": "016-chatgpt-plugin-mcp-integration", "canonical_role": "external_integration_surface" }
   ],
   "file_count": 30,
   "files": [
@@ -127,10 +89,13 @@
     "schema_domains": 16,
     "e2e_phases": 5,
     "implemented_spec_e2e_journeys": 1,
-    "open_draft_specs_reviewed": 10,
+    "open_draft_specs_reviewed": 12,
+    "related_open_drafts_reviewed": 22,
+    "total_open_drafts_classified": 34,
     "duplicate_numeric_identities": 2,
-    "implementation_trains_registered": 2,
-    "portfolio_relationship_edges": 10
+    "duplicate_feature_clusters": 1,
+    "implementation_trains_registered": 4,
+    "portfolio_relationship_edges": 15
   },
   "reference_package_targets": [
     "platform.reference.evidence_intelligence_operations",
