@@ -12,10 +12,10 @@
   },
   "delivery": {
     "specification_pr": {
-      "number": "current",
+      "number": 4456,
       "branch": "gpt/spec-015-tenant-operating-system-studio-20260801",
       "role": "convergence_specification",
-      "status": "current_pr"
+      "status": "open_draft"
     },
     "implementation_prs": [],
     "reference_package_prs": [],
@@ -35,23 +35,32 @@
     "risks": 25,
     "tasks": 73,
     "e2e_phase_contract": "e2e-phases.json",
-    "implemented_spec_e2e_journeys": 1
+    "implemented_spec_e2e_journeys": 1,
+    "completed_phase0_tasks": ["T001", "T004", "T005", "T007"]
   },
   "convergence": {
     "candidate_prs": [3922, 4432],
     "classification_contract": "candidate-convergence.json",
     "status": "classified_pending_review",
+    "candidate_pr_comments_added": true,
+    "candidate_prs": [3922, 4432],
     "duplicate_spec_identity_resolved": false,
     "current_main_reconstruction_started": false,
     "candidate_branches_merged": false
   },
   "verification": {
-    "json_parse": "pending_ci",
-    "json_schema_validation": "pending_ci",
-    "openapi_validation": "pending_ci",
-    "manifest_inventory": "pending_ci",
-    "e2e_phase_contract": "pending_ci",
-    "spec_local_contract_integrity": "pending_ci",
+    "json_parse": "verified_by_exact_candidate_ci",
+    "json_schema_validation": "verified_by_exact_candidate_ci",
+    "openapi_validation": "verified_by_spec_contract_and_ci",
+    "manifest_inventory": "verified_by_exact_candidate_ci",
+    "e2e_phase_contract": "verified_by_e2e_phase_governance",
+    "spec_local_contract_integrity": "verified_by_declared_mvp_journey",
+    "repository_ci": "passed",
+    "e2e_phase_governance": "passed",
+    "docs_agent": "passed",
+    "repository_tool_lifecycle_governance": "passed",
+    "platform_remaining_scope_scorecard": "passed",
+    "platform_completion_cleanup_readback": "passed",
     "work_map_review": "pending_pr_review",
     "traceability_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
