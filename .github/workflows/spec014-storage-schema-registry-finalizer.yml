@@ -20,17 +20,23 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout helper candidate
+        uses: actions/checkout@v5
         with:
-          ref: gpt/014-hostinger/canonical-schema-registry-20260801
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      - name: Preserve governed finalizer and reset to exact Integration
+        run: |
+          cp .github/scripts/finalize-spec014-storage-schema-registry.mjs /tmp/finalize-spec014-storage-schema-registry.mjs
+          git checkout --detach ff1c279fe9ad173a7731de6d3c1ec51e282bcb8b
+          test "$(git rev-parse HEAD)" = 'ff1c279fe9ad173a7731de6d3c1ec51e282bcb8b'
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
       - name: Validate and apply bounded exact registry rules
         run: |
-          node --check .github/scripts/finalize-spec014-storage-schema-registry.mjs
-          node .github/scripts/finalize-spec014-storage-schema-registry.mjs
+          node --check /tmp/finalize-spec014-storage-schema-registry.mjs
+          node /tmp/finalize-spec014-storage-schema-registry.mjs
       - name: Validate final governed tree
         run: |
           node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
@@ -41,11 +47,7 @@ jobs:
           grep -q '"rule_count":15' .github/contracts/spec014/hostinger-storage-schema-classification.json
           grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
           grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
-      - name: Remove temporary finalizer surfaces
-        run: |
-          git rm .github/scripts/finalize-spec014-storage-schema-registry.mjs
-          git rm .github/workflows/spec014-storage-schema-registry-finalizer.yml
-      - name: Enforce exact final write set
+      - name: Enforce exact permanent write set
         run: |
           actual="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' \
@@ -58,7 +60,7 @@ jobs:
       - name: Upload validated permanent write set
         uses: actions/upload-artifact@v4
         with:
-          name: spec014-t023-permanent-write-set-${{ github.sha }}
+          name: spec014-t023-clean-write-set-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 1
           path: |
@@ -67,14 +69,16 @@ jobs:
             .github/workflows/hostinger-storage-schema-classification-guard.yml
             .specify/work-map-schema-classification-registry.json
             specs/014-governed-hostinger-storage-orchestration/tasks.md
-      - name: Commit governed registry update
+      - name: Create clean PR branch
         run: |
+          branch='gpt/014-hostinger/canonical-schema-registry-generated-20260802'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$branch"
           git add .github/contracts/spec014/hostinger-storage-schema-classification.json \
             .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs \
             .github/workflows/hostinger-storage-schema-classification-guard.yml \
             .specify/work-map-schema-classification-registry.json \
             specs/014-governed-hostinger-storage-orchestration/tasks.md
           git commit -m 'docs(spec-014): register storage schema objects canonically'
-          git push origin HEAD:gpt/014-hostinger/canonical-schema-registry-20260801
+          git push origin "HEAD:refs/heads/$branch"
