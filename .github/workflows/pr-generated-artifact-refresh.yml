@@ -13,7 +13,9 @@ on:
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs"
       - "http-generic-api/scripts/generated-artifact-refresh-runner.mjs"
+      - "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
       - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
       - "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
@@ -63,6 +65,10 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Test canonical evidence publisher
+        working-directory: http-generic-api
+        run: node scripts/test-generated-artifact-refresh-pr-publisher.mjs
 
       - name: Generate, verify, and publish bounded artifacts
         working-directory: http-generic-api
