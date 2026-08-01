@@ -50,42 +50,51 @@
   },
   "portfolio_scan": {
     "status": "complete_pending_exact_head_ci",
-    "observed_at": "2026-08-01T15:22:00Z",
+    "observed_at": "2026-08-01T15:48:00Z",
     "main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
     "registry": "draft-spec-portfolio.json",
     "human_review": "draft-spec-portfolio.md",
     "schema": "contracts/draft-spec-portfolio.schema.json",
-    "open_draft_specs_reviewed": 10,
+    "open_draft_specs_reviewed": 12,
+    "related_open_drafts_reviewed": 22,
+    "total_open_drafts_classified": 34,
     "duplicate_numeric_identities": [11, 14],
+    "duplicate_feature_clusters": ["013-system-tool-catalog-v2"],
     "implementation_trains_registered": [
       "operation-fabric-stack",
-      "hostinger-storage-workstreams"
+      "hostinger-storage-workstreams",
+      "system-tool-catalog-v2-reconciliation",
+      "chatgpt-mcp-integration"
     ],
+    "new_primary_specs_added_after_initial_scan": [4460],
+    "new_implementation_children_added_after_initial_scan": [4462],
     "truthfulness_findings_recorded": true,
+    "all_observed_open_drafts_classified": true,
     "field_level_reuse_matrices_complete": false,
     "canonical_paths_finalized": false,
     "close_or_supersede_actions_executed": false
   },
   "verification": {
-    "json_parse": "pending_final_head_ci_after_portfolio_update",
-    "schema_contract_structure": "pending_final_head_ci_after_portfolio_update",
-    "openapi_contract_structure": "pending_final_head_ci_after_portfolio_update",
-    "manifest_inventory": "pending_final_head_ci_after_portfolio_update",
-    "portfolio_contract": "pending_final_head_ci_after_portfolio_update",
-    "e2e_phase_contract": "pending_final_head_ci_after_portfolio_update",
-    "spec_local_contract_integrity": "pending_final_head_ci_after_portfolio_update",
-    "repository_ci": "pending_final_head_ci_after_portfolio_update",
-    "e2e_phase_governance": "pending_final_head_ci_after_portfolio_update",
-    "docs_agent": "pending_final_head_ci_after_portfolio_update",
-    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_portfolio_update",
-    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_portfolio_update",
-    "platform_completion_cleanup_readback": "pending_final_head_ci_after_portfolio_update",
+    "json_parse": "pending_final_head_ci_after_complete_portfolio_update",
+    "schema_contract_structure": "pending_final_head_ci_after_complete_portfolio_update",
+    "openapi_contract_structure": "pending_final_head_ci_after_complete_portfolio_update",
+    "manifest_inventory": "pending_final_head_ci_after_complete_portfolio_update",
+    "portfolio_contract": "pending_final_head_ci_after_complete_portfolio_update",
+    "e2e_phase_contract": "pending_final_head_ci_after_complete_portfolio_update",
+    "spec_local_contract_integrity": "pending_final_head_ci_after_complete_portfolio_update",
+    "repository_ci": "pending_final_head_ci_after_complete_portfolio_update",
+    "e2e_phase_governance": "pending_final_head_ci_after_complete_portfolio_update",
+    "docs_agent": "pending_final_head_ci_after_complete_portfolio_update",
+    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_complete_portfolio_update",
+    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_complete_portfolio_update",
+    "platform_completion_cleanup_readback": "pending_final_head_ci_after_complete_portfolio_update",
     "work_map_review": "pending_pr_review",
     "traceability_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
     "security_review": "pending_pr_review",
     "agency_client_ownership_review": "pending_pr_review",
-    "portfolio_disposition_review": "pending_pr_review"
+    "portfolio_disposition_review": "pending_pr_review",
+    "external_integration_review": "pending_pr_review"
   },
   "implementation": {
     "started": false,
@@ -127,11 +136,21 @@
       "target_package_key": "platform.reference.local_connector_recovery"
     }
   },
+  "external_surfaces": {
+    "chatgpt_mcp": {
+      "source_pr": 4460,
+      "implementation_prs": [4462],
+      "status": "specification_and_read_only_adapter_draft",
+      "authority_posture": "transport_and_tool_projection_only"
+    }
+  },
   "required_closeout_evidence": [
     "field_level_current_main_reuse_matrix",
     "canonical_spec_identity_resolution",
     "draft_spec_portfolio_disposition_review",
     "truthful_completion_ledger_reconciliation",
+    "system_tool_catalog_single_canonical_resolution",
+    "external_mcp_tool_projection_and_authority_review",
     "package_and_component_registry_runtime",
     "installation_compiler_determinism",
     "custom_entity_and_lifecycle_runtime",
@@ -152,18 +171,24 @@
     "field_level_reuse_matrix_missing",
     "duplicate_spec_011_identity_not_resolved",
     "duplicate_spec_014_identity_not_resolved",
+    "duplicate_feature_013_reconciliation_not_resolved",
     "stale_completion_ledgers_require_reconciliation",
+    "open_related_draft_dispositions_not_approved",
     "package_registry_mapping_open",
     "custom_entity_persistence_open",
-    "candidate_pr_reconstruction_not_started"
+    "candidate_pr_reconstruction_not_started",
+    "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
   ],
   "notes": [
     "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
     "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are not unique authorities.",
+    "All 34 observed open Draft PRs are classified as 12 primary Specs or 22 related delivery/repair PRs.",
     "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
     "PRs 3922, 4386, and 4432 are bounded package or service sources, not competing universal parent Specs.",
-    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for a numeric Spec 011 identity.",
-    "The implemented MVP E2E journey validates specification contracts only and grants no runtime mutation authority.",
+    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for numeric Spec 011 identity.",
+    "PRs 3139, 3145, and 3159 form one unresolved System Tool Catalog v2 feature cluster.",
+    "PR 4460 is the canonical external ChatGPT/MCP integration specification and PR 4462 is its first read-only implementation child; neither creates independent execution authority.",
+    "The MVP E2E journey validates specification and portfolio contracts only and grants no runtime mutation authority.",
     "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
   ],
   "secrets_included": false
