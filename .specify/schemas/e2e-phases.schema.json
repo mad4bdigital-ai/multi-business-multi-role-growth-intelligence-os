@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/e2e-phases.schema.json",
+  "title": "MAD4B E2E Phase Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "feature_key",
+    "title",
+    "delivery_mode",
+    "current_phase",
+    "scope",
+    "merge_contract",
+    "phases"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "feature_key": { "type": "string", "minLength": 3 },
+    "title": { "type": "string", "minLength": 3 },
+    "delivery_mode": { "enum": ["single_pr", "multi_pr"] },
+    "current_phase": { "$ref": "#/$defs/phaseId" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["include"],
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "merge_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_phase"],
+      "properties": {
+        "minimum_phase": { "const": "mvp" }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/phase" }
+    }
+  },
+  "$defs": {
+    "phaseId": {
+      "enum": ["mvp", "operational", "resilient", "canary", "production"]
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "objective"],
+      "properties": {
+        "id": { "$ref": "#/$defs/phaseId" },
+        "status": { "enum": ["implemented", "planned", "blocked", "not_applicable"] },
+        "objective": { "type": "string", "minLength": 3 },
+        "blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 3 }
+        },
+        "planned_e2e_journey": { "$ref": "#/$defs/plannedJourney" },
+        "e2e_journeys": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/journey" }
+        }
+      }
+    },
+    "plannedJourney": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "required_level", "actor", "entrypoint", "terminal_outcome", "steps"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "required_level": { "$ref": "#/$defs/e2eLevel" },
+        "actor": { "type": "string", "minLength": 3 },
+        "entrypoint": { "type": "string", "minLength": 3 },
+        "terminal_outcome": { "type": "string", "minLength": 3 },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 3 }
+        }
+      }
+    },
+    "journey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "end_to_end",
+        "level",
+        "actor",
+        "entrypoint",
+        "terminal_outcome",
+        "steps",
+        "assertions",
+        "tests",
+        "evidence_paths"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "end_to_end": { "const": true },
+        "level": { "$ref": "#/$defs/e2eLevel" },
+        "actor": { "type": "string", "minLength": 3 },
+        "entrypoint": { "type": "string", "minLength": 3 },
+        "terminal_outcome": { "type": "string", "minLength": 3 },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 3 }
+        },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 3 }
+        },
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/test" }
+        },
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "e2eLevel": {
+      "enum": ["component", "in_process", "synthetic_runtime", "live_non_production", "production_readback"]
+    },
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "runner", "working_directory", "args"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3 },
+        "runner": { "enum": ["node", "npm"] },
+        "working_directory": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "script": { "type": "string", "pattern": "^[A-Za-z0-9:_-]+$" },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "runner": { "const": "node" } } },
+          "then": { "required": ["path"] }
+        },
+        {
+          "if": { "properties": { "runner": { "const": "npm" } } },
+          "then": { "required": ["script"] }
+        }
+      ]
+    }
+  }
+}
