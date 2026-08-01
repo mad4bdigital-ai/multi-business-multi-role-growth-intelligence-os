@@ -56,6 +56,29 @@ Source of the first complete reference package:
 
 Those artifacts become an **Evidence Intelligence Solution Pack** and a reusable package-development assurance template, not the universal tenant customization model.
 
+## Open Draft Spec portfolio
+
+Spec 015 now maintains a portfolio-level view of all verified open Draft Specs rather than treating PR #3922 and PR #4432 in isolation.
+
+- `draft-spec-portfolio.md` — human-readable architecture, dependency, overlap, staleness, and implementation-train review.
+- `draft-spec-portfolio.json` — machine-readable registry of ten open Draft Specs, duplicate numeric identities, relationship edges, implementation trains, truthfulness findings, and dispositions.
+- `contracts/draft-spec-portfolio.schema.json` — fail-closed contract for the registry.
+
+The portfolio currently covers:
+
+- PR #1898 — shared asset and contextual platform doctrine;
+- PR #1935 — adaptive authorization and execution governance;
+- PR #2284 — governed PR delivery orchestration;
+- PR #2385 — Local Connector reachability recovery;
+- PR #2949 — database-driven operation fabric;
+- PR #2950 — Tenant GPT effective capability envelope;
+- PR #3922 — Business Profile and Retail Commerce;
+- PR #4386 — governed Hostinger storage orchestration;
+- PR #4432 — Evidence Intelligence and development assurance;
+- PR #4456 — Tenant Operating System Studio convergence parent.
+
+The portfolio identity is `feature_key + canonical_role`. Numeric Spec numbers are historical/display labels and cannot establish unique authority, because the open portfolio contains two distinct `011` Specs and three distinct `014` Specs.
+
 ## Product outcome
 
 ```text
@@ -70,6 +93,17 @@ Tenant or delegated agency operator
 → upgrade, rollback, transfer, suspend, archive, or retire with evidence
 ```
 
+## Initial bounded reference packages and services
+
+```text
+platform.reference.retail_commerce_operations
+platform.reference.evidence_intelligence_operations
+platform.reference.hostinger_storage_operations
+platform.reference.local_connector_recovery
+```
+
+These are optional bounded packages or platform services. None becomes a universal requirement for unrelated Tenant systems.
+
 ## Safety boundary
 
 This is a specification-only package. It does not:
@@ -80,7 +114,7 @@ This is a specification-only package. It does not:
 - grant tenant capabilities;
 - create provider connections;
 - copy credentials or permissions;
-- merge PR #3922 or #4432;
+- merge, close, rebase, or rewrite any candidate PR;
 - deploy or promote Production.
 
-Implementation begins only through bounded child PRs after Work Map classification, review, and implementation-readiness gates.
+Implementation begins only through bounded child PRs after Work Map classification, current-main reuse review, canonical identity resolution, architecture review, and implementation-readiness gates.
