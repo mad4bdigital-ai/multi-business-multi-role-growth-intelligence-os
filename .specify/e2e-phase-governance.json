@@ -4,6 +4,7 @@
   "enforcement_mode": "fail_closed",
   "spec_root": "specs",
   "spec_contract_file": "e2e-phases.json",
+  "contract_schema_path": ".specify/schemas/e2e-phases.schema.json",
   "non_spec_contract_root": ".changes/e2e",
   "delivery_modes": ["single_pr", "multi_pr"],
   "phase_order": ["mvp", "operational", "resilient", "canary", "production"],
@@ -34,12 +35,11 @@
     "scripts/**"
   ],
   "spec_patterns": ["specs/**"],
-  "docs_only_patterns": ["docs/**", "**/*.md"],
+  "docs_only_patterns": ["docs/**"],
   "governance_only_patterns": [
     ".github/**",
     ".specify/**",
-    "http-generic-api/scripts/e2e-phase-governance.mjs",
-    "http-generic-api/scripts/e2e-phase-governance-self-test.mjs"
+    "http-generic-api/scripts/e2e-phase-*.mjs"
   ],
   "ignored_patterns": [
     ".gitignore",
@@ -48,6 +48,7 @@
   ],
   "forbidden_scope_patterns": ["*", "**", "**/**"],
   "allowed_test_runners": ["node", "npm"],
+  "auto_scope_mode": "exact_changed_runtime_files",
   "max_test_count_per_contract": 25,
   "max_test_args": 30,
   "require_changed_contract": true,
