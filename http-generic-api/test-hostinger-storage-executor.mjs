@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { executeHostingerStorageSyntheticPlan } from './hostingerStorageSyntheticExecutor.js';
 import { verifyHostingerStorageSyntheticExecutionProtocol } from './hostingerStorageExecutorProtocol.js';
-import { createSyntheticExecutorFixture } from './test-hostinger-storage-executor-fixtures.mjs';
+import { createSyntheticExecutorFixture, h } from './test-hostinger-storage-executor-fixtures.mjs';
 
 const success = createSyntheticExecutorFixture();
 const protocolVerification = verifyHostingerStorageSyntheticExecutionProtocol({
@@ -11,6 +11,8 @@ const protocolVerification = verifyHostingerStorageSyntheticExecutionProtocol({
 });
 assert.equal(protocolVerification.valid, true);
 assert.equal(protocolVerification.dispatch_allowed, false);
+assert.equal(success.protocol.protocol.plan_expires_at_epoch, 1800);
+assert.equal(success.protocol.protocol.lease_expires_at_epoch, 1600);
 
 const applied = executeHostingerStorageSyntheticPlan({
   protocol: success.protocol.protocol,
@@ -63,6 +65,103 @@ assert.equal(changed.adapter.exportState().items[0].exists, true);
 assert.equal(changed.repository.readAggregate(changed.operation_id).journals.find((row) => row.phase === 'result').result, 'skipped_changed');
 assert.equal(changed.repository.readAggregate(changed.operation_id).operation.state, 'completed');
 
+const expiredPlan = createSyntheticExecutorFixture({
+  run_id: 'run-expired-plan',
+  operation_id: 'operation-expired-plan',
+  plan_id: 'plan-expired-plan',
+  target_id: 'target-expired-plan',
+  plan_expires_at_epoch: 1200,
+});
+assert.throws(
+  () => executeHostingerStorageSyntheticPlan({
+    protocol: expiredPlan.protocol.protocol,
+    protocol_digest: expiredPlan.protocol.protocol_digest,
+    repository: expiredPlan.repository,
+    adapter: expiredPlan.adapter,
+    now_epoch: 1201,
+  }),
+  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_PLAN_EXPIRED',
+);
+assert.equal(expiredPlan.repository.readAggregate(expiredPlan.operation_id).journals.length, 0);
+assert.equal(expiredPlan.adapter.exportState().items[0].exists, true);
+
+const expiredLease = createSyntheticExecutorFixture({
+  run_id: 'run-expired-lease',
+  operation_id: 'operation-expired-lease',
+  plan_id: 'plan-expired-lease',
+  target_id: 'target-expired-lease',
+});
+assert.throws(
+  () => executeHostingerStorageSyntheticPlan({
+    protocol: expiredLease.protocol.protocol,
+    protocol_digest: expiredLease.protocol.protocol_digest,
+    repository: expiredLease.repository,
+    adapter: expiredLease.adapter,
+    now_epoch: 1701,
+  }),
+  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_EXPIRED',
+);
+assert.equal(expiredLease.repository.readAggregate(expiredLease.operation_id).journals.length, 0);
+assert.equal(expiredLease.adapter.exportState().items[0].exists, true);
+
+const releasedLease = createSyntheticExecutorFixture({
+  run_id: 'run-released-lease',
+  operation_id: 'operation-released-lease',
+  plan_id: 'plan-released-lease',
+  target_id: 'target-released-lease',
+});
+releasedLease.repository.releaseLease({
+  target_id: releasedLease.target_id,
+  lease_id: releasedLease.lease.lease_id,
+  operation_id: releasedLease.operation_id,
+  holder_ref: releasedLease.lease.holder_ref,
+  expected_generation: releasedLease.lease.generation,
+  evidence_digest: h('a'),
+  now_epoch: 1050,
+});
+assert.throws(
+  () => executeHostingerStorageSyntheticPlan({
+    protocol: releasedLease.protocol.protocol,
+    protocol_digest: releasedLease.protocol.protocol_digest,
+    repository: releasedLease.repository,
+    adapter: releasedLease.adapter,
+    now_epoch: 1100,
+  }),
+  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_NOT_ACTIVE',
+);
+assert.equal(releasedLease.repository.readAggregate(releasedLease.operation_id).journals.length, 0);
+assert.equal(releasedLease.adapter.exportState().items[0].exists, true);
+
+const renewedLease = createSyntheticExecutorFixture({
+  run_id: 'run-renewed-lease',
+  operation_id: 'operation-renewed-lease',
+  plan_id: 'plan-renewed-lease',
+  target_id: 'target-renewed-lease',
+});
+renewedLease.repository.renewLease({
+  target_id: renewedLease.target_id,
+  lease_id: renewedLease.lease.lease_id,
+  operation_id: renewedLease.operation_id,
+  holder_ref: renewedLease.lease.holder_ref,
+  expected_generation: renewedLease.lease.generation,
+  expires_at_epoch: 1700,
+  evidence_digest: h('b'),
+  now_epoch: 1050,
+});
+assert.throws(
+  () => executeHostingerStorageSyntheticPlan({
+    protocol: renewedLease.protocol.protocol,
+    protocol_digest: renewedLease.protocol.protocol_digest,
+    repository: renewedLease.repository,
+    adapter: renewedLease.adapter,
+    now_epoch: 1100,
+  }),
+  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_BINDING_STALE'
+    && error.details?.mismatches?.includes('generation'),
+);
+assert.equal(renewedLease.repository.readAggregate(renewedLease.operation_id).journals.length, 0);
+assert.equal(renewedLease.adapter.exportState().items[0].exists, true);
+
 const tampered = structuredClone(success.protocol.protocol);
 tampered.items[0].expected.inode = 999;
 assert.throws(
@@ -99,6 +198,8 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_synthetic_executor',
   exact_plan_applied_in_memory: true,
   changed_inode_skipped: true,
+  plan_expiry_revalidated: true,
+  lease_status_generation_and_expiry_revalidated: true,
   append_only_journal: true,
   provider_dispatch_allowed: false,
   live_provider_mutated: false,
