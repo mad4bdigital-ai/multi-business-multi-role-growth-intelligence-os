@@ -4,6 +4,7 @@ import { readRemoteMcpGrantByAccessJti } from "./remoteMcpOAuthStore.js";
 import {
   resolveRemoteMcpAuthorizationIssuer,
   resolveRemoteMcpOAuthResource,
+  resolveRemoteMcpOAuthSigningSecret,
 } from "./remoteMcpOAuthProfile.js";
 
 function bearerToken(authorization) {
@@ -20,6 +21,11 @@ function scopeSet(value) {
   return new Set(raw.map((scope) => String(scope || "").trim()).filter(Boolean));
 }
 
+function optionalId(value) {
+  const normalized = String(value || "").trim();
+  return normalized || null;
+}
+
 export async function verifyRemoteMcpBearerAuthorization(
   authorization,
   {
@@ -32,7 +38,7 @@ export async function verifyRemoteMcpBearerAuthorization(
   const token = bearerToken(authorization);
   if (!token) return failure(401, "MCP_AUTH_REQUIRED", "OAuth account linking is required for this tool.");
 
-  const secret = String(env.JWT_SECRET || "").trim();
+  const secret = resolveRemoteMcpOAuthSigningSecret(env);
   const issuer = resolveRemoteMcpAuthorizationIssuer(env);
   const resource = resolveRemoteMcpOAuthResource(env);
   if (!secret || !issuer || !resource) {
@@ -51,13 +57,18 @@ export async function verifyRemoteMcpBearerAuthorization(
   }
 
   const userId = String(claims?.user_id || "").trim();
-  const clientId = String(claims?.client_id || claims?.azp || "").trim();
+  const clientId = String(claims?.client_id || "").trim();
+  const authorizedParty = String(claims?.azp || "").trim();
+  const tenantId = optionalId(claims?.tenant_id);
   const jti = String(claims?.jti || "").trim();
+  const expectedSubject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
   if (
     claims?.purpose !== "remote_mcp_access"
     || !userId
     || !clientId
+    || authorizedParty !== clientId
     || !jti
+    || claims?.sub !== expectedSubject
     || String(claims?.resource || "").replace(/\/+$/u, "") !== resource
   ) {
     return failure(401, "MCP_TOKEN_INVALID", "OAuth access token claims are invalid.");
@@ -81,8 +92,10 @@ export async function verifyRemoteMcpBearerAuthorization(
   if (!grant) return failure(401, "MCP_TOKEN_REVOKED", "OAuth access token is revoked or no longer active.");
 
   const grantScopes = scopeSet(grant.scopes);
+  const grantTenantId = optionalId(grant.tenant_id);
   const inconsistent = grant.client_id !== clientId
     || grant.user_id !== userId
+    || grantTenantId !== tenantId
     || String(grant.resource || "").replace(/\/+$/u, "") !== resource
     || [...grantedScopes].some((scope) => !grantScopes.has(scope));
   if (inconsistent) {
@@ -94,13 +107,14 @@ export async function verifyRemoteMcpBearerAuthorization(
     claims: {
       ...claims,
       user_id: userId,
-      tenant_id: claims.tenant_id || grant.tenant_id || null,
+      tenant_id: tenantId,
       client_id: clientId,
       auth_mode: "remote_mcp_oauth_2_1",
     },
     grant: {
       grant_id: grant.grant_id,
       client_id: grant.client_id,
+      tenant_id: grantTenantId,
       scopes: [...grantScopes],
       secrets_included: false,
     },
