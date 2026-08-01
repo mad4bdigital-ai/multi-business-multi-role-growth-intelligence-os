@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: spec014-storage-schema-registry-finalizer
+  cancel-in-progress: false
+
 jobs:
   finalize:
     runs-on: ubuntu-24.04
