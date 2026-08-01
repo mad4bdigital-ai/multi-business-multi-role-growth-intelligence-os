@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "feature_key": "<feature-key>",
+  "title": "<feature title>",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/<feature-key>/**",
+      "<owned-runtime-path>/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Deliver the smallest complete request-to-readback functional slice.",
+      "e2e_journeys": [
+        {
+          "id": "<journey-id>",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "<actor>",
+          "entrypoint": "<HTTP, CLI, event, or scheduled entrypoint>",
+          "terminal_outcome": "<observable user or system result>",
+          "steps": [
+            "<entry action>",
+            "<owned runtime processing>",
+            "<readback or observable result>"
+          ],
+          "assertions": [
+            "<observable assertion>"
+          ],
+          "tests": [
+            {
+              "id": "<test-id>",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "<e2e-test-file>.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "<e2e-test-file>.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add operational controls while preserving the MVP journey."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove recovery, reconciliation, and bounded failure behavior."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the same journey against a live non-production target."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact production SHA and runtime readback."
+    }
+  ]
+}
