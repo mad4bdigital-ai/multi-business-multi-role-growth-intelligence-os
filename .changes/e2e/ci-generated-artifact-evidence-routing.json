@@ -18,6 +18,7 @@
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
       ".changes/e2e/ci-generated-artifact-evidence-routing.json"
     ]
   },
@@ -50,6 +51,7 @@
             "The PR workflow contains no repository write permission, git push, or persisted checkout credentials.",
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
+            "The tests remain discoverable through the canonical repository test manifest.",
             "Job logs remain diagnostic-only and never override the canonical report."
           ],
           "tests": [
@@ -68,7 +70,8 @@
             "docs/ci-evidence-routing.md",
             "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
             "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
-            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/test-manifest.mjs"
           ]
         },
         {
