@@ -20,7 +20,14 @@ import {
 assert.equal(resolveRemoteMcpOAuthResource({}), REMOTE_MCP_RESOURCE);
 assert.equal(resolveRemoteMcpAuthorizationIssuer({}), REMOTE_MCP_AUTHORIZATION_SERVER);
 assert.equal(resolveRemoteMcpOAuthSigningSecret({}), "");
-assert.equal(resolveRemoteMcpOAuthSigningSecret({ REMOTE_MCP_OAUTH_SIGNING_SECRET: "oauth-secret" }), "oauth-secret");
+assert.equal(resolveRemoteMcpOAuthSigningSecret({ REMOTE_MCP_OAUTH_SIGNING_SECRET: "short-secret" }), "");
+const strongSecret = "remote-mcp-oauth-profile-test-secret";
+assert(strongSecret.length >= 32);
+assert.equal(resolveRemoteMcpOAuthSigningSecret({ REMOTE_MCP_OAUTH_SIGNING_SECRET: strongSecret }), strongSecret);
+assert.equal(resolveRemoteMcpOAuthSigningSecret({
+  REMOTE_MCP_OAUTH_SIGNING_SECRET: strongSecret,
+  JWT_SECRET: strongSecret,
+}), "");
 assert.equal(remoteMcpOAuthEnabled({ REMOTE_MCP_OAUTH_ENABLED: "true" }), true);
 assert.equal(remoteMcpOAuthEnabled({ REMOTE_MCP_OAUTH_ENABLED: "false" }), false);
 assert.equal(remoteMcpDynamicClientRegistrationEnabled({ REMOTE_MCP_OAUTH_DCR_ENABLED: "TRUE" }), true);
