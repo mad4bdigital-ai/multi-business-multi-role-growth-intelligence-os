@@ -139,24 +139,34 @@ export function normalizeEvidence({ workflow, workflowConclusion, report, prNumb
   };
 }
 
+function isMergedPullRequest(pullRequest) {
+  return pullRequest?.merged === true || Boolean(pullRequest?.merged_at);
+}
+
 export function selectCurrentPullRequest({ pullRequests, repository, headBranch, sourceHeadSha }) {
   if (!Array.isArray(pullRequests)) throw new Error("Pull request search result must be an array.");
-  const matches = pullRequests.filter((pullRequest) => (
-    pullRequest?.state === "open" &&
+  const exact = pullRequests.filter((pullRequest) => (
     pullRequest?.head?.repo?.full_name === repository &&
     pullRequest?.head?.ref === headBranch &&
     pullRequest?.head?.sha === sourceHeadSha
   ));
-  if (matches.length === 0) {
-    throw new Error("Unable to resolve an open pull request for the exact workflow_run head identity.");
+  const openMatches = exact.filter((pullRequest) => pullRequest?.state === "open");
+  if (openMatches.length === 1) return openMatches[0];
+  if (openMatches.length > 1) {
+    throw new Error("Ambiguous open pull request resolution for the exact workflow_run head identity.");
   }
-  if (matches.length > 1) {
-    throw new Error("Ambiguous pull request resolution for the exact workflow_run head identity.");
+  const mergedMatches = exact.filter((pullRequest) => pullRequest?.state === "closed" && isMergedPullRequest(pullRequest));
+  if (mergedMatches.length === 1) return mergedMatches[0];
+  if (mergedMatches.length > 1) {
+    throw new Error("Ambiguous merged pull request resolution for the exact workflow_run head identity.");
   }
-  return matches[0];
+  throw new Error("Unable to resolve an open or merged pull request for the exact workflow_run head identity.");
 }
 
 export function assertCurrentPullRequestIdentity(pullRequest, evidence, expectedHeadBranch = null) {
+  if (pullRequest?.state !== "open" && !isMergedPullRequest(pullRequest)) {
+    throw new Error("Refusing to publish canonical evidence to a closed pull request that was not merged.");
+  }
   if (pullRequest?.head?.sha !== evidence.sourceHeadSha) {
     throw new Error("Refusing to publish canonical evidence for a stale PR head.");
   }
@@ -227,7 +237,7 @@ async function resolvePullRequest(options, api) {
   }
   const owner = options.repository.split("/")[0];
   const query = new URLSearchParams({
-    state: "open",
+    state: "all",
     head: `${owner}:${options.headBranch}`,
     per_page: "100"
   });
