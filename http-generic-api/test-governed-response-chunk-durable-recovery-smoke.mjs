@@ -139,6 +139,9 @@ async function main() {
   assert.equal(result.expiry.sliding_extension_verified, true);
   assert.notEqual(result.expiry.initial_expires_at, result.expiry.final_expires_at);
   assert.equal(result.payload_summary.raw_payload_returned, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "payload"), false);
+  assert.equal(JSON.stringify(result).includes("مرحبا بالعالم"), false);
+  assert.equal(JSON.stringify(result).includes("🌍✅"), false);
   assert.equal(result.provider_calls, 0);
   assert.equal(result.external_writes, 0);
   assert.equal(result.secrets_included, false);
