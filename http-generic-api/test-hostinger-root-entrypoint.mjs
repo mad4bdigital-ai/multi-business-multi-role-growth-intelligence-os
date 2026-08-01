@@ -9,7 +9,7 @@ const repositoryRoot = resolve(testDirectory, "..");
 const applicationRoot = resolve(repositoryRoot, "http-generic-api");
 const rootPackage = JSON.parse(readFileSync(resolve(repositoryRoot, "package.json"), "utf8"));
 const require = createRequire(import.meta.url);
-const { resolveApplicationRoot, startApplication } = require("../server.js");
+const { resolveApplicationRoot, startApplication } = require("../hostinger-entrypoint-runtime.js");
 
 assert.equal(rootPackage.main, "server.js");
 assert.equal(rootPackage.scripts.start, "node server.js");
