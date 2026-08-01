@@ -9,7 +9,7 @@ export {
   buildHostingerStorageTenantCanaryAuthorization,
 };
 
-function unique(values = []) {
+function uniqueFrozenValues(values = []) {
   return Object.freeze([...new Set(values.filter(Boolean))].sort());
 }
 
@@ -37,7 +37,7 @@ export function verifyHostingerStorageTenantCanaryAuthorization({
   if (Number(authorization?.manual_enablement?.enabled_at_epoch) > now) {
     blockers.push('STORAGE_TENANT_CANARY_ENABLEMENT_NOT_STARTED');
   }
-  const normalizedBlockers = unique(blockers);
+  const normalizedBlockers = uniqueFrozenValues(blockers);
   return Object.freeze({
     ...base,
     valid: normalizedBlockers.length === 0,
