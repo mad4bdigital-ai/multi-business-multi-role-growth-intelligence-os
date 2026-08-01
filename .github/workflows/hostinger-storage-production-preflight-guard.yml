@@ -41,12 +41,19 @@ jobs:
           grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "mutation_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "separate_release_authority_required: true" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "const captured = clone(input)" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "mad4b.ci-evidence-summary.v1" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "release_candidate_sha !== candidate.candidate_sha" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "source_reports_ok !== true" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "pressure.source !== 'hpanel_read_only'" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_LIMIT_EXCEEDED" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_SOURCE_SHA_MISMATCH" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_BLOCKING" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_ACTIVE_SHA_MISMATCH" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_ROLLBACK_SET_REQUIRED" http-generic-api/hostingerStorageProductionPreflight.js
           grep -q "STORAGE_PRODUCTION_PREFLIGHT_SECRET_EVIDENCE_REJECTED" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "storagePressureReads, 1" http-generic-api/test-hostinger-storage-production-preflight.mjs
       - name: Validate Production preflight
         working-directory: http-generic-api
         run: node test-hostinger-storage-production-preflight.mjs
