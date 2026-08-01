@@ -21,17 +21,14 @@ A valid canonical report is the status authority. Job logs may never override it
 
 Every report must label the tested candidate:
 
-- `head`: the PR branch head itself. E2E Phase Governance and Context Kernel Hardcoding Report explicitly checkout this SHA.
+- `head`: the PR branch head itself. E2E Phase Governance, Context Kernel Hardcoding Report, and PR Generated Artifact Refresh explicitly checkout this SHA.
 - `merge_candidate`: GitHub's synthetic `refs/pull/<number>/merge` commit. Branch Test Diagnostic Shards use it to prove compatibility with the current base.
 
 A merge-candidate SHA must never be described as the PR head. The two evidence kinds may complement one another, but their SHA, run ID, artifact, and conclusion must remain separate.
 
-A workflow that creates a governed generated-artifact commit must preserve two identities:
+The pull-request generated-artifact evaluator is read-only. Its `candidate_sha` and `source_head_sha` must both equal the exact workflow-run head. It may not report or publish a generated commit.
 
-- `source_head_sha`: the exact PR head that triggered the run;
-- `candidate_sha`: the resulting generated commit that is now the PR head, or the source head when no commit was required.
-
-The publisher accepts this transition only when the report links both SHAs, the generated commit equals `candidate_sha`, and the current PR head equals that candidate.
+Repository mutation is a separate governed operation. The manually dispatched Generated Artifact Refresh tool records `target_ref`, `expected_head_sha`, and the resulting commit in its own maintenance-tool report; that report must not be substituted for PR workflow evidence.
 
 ## Fail-closed source contract
 
@@ -107,17 +104,45 @@ The canonical report is uploaded before enforcement, so a blocked guard remains 
 
 ## PR Generated Artifact Refresh
 
-`PR Generated Artifact Refresh` publishes `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing its decision.
+`PR Generated Artifact Refresh` is a read-only pull-request evaluator. It uses `contents: read`, does not persist checkout credentials, and performs no commit or push.
+
+It generates and verifies the bounded artifact set only inside the ephemeral runner workspace, then publishes `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing the decision.
 
 The report contains:
 
-- workflow source head and exact resulting candidate SHA;
-- bounded generated write set and generated commit SHA;
-- first failed step, command, exit status, and redacted bounded stdout/stderr tails;
+- exact `candidate_sha` and `source_head_sha`, both equal to the workflow-run PR head;
+- bounded generated drift paths;
+- `commit_sha: null` and `repository_mutation_performed: false`;
+- the first failed step, command, exit status, and redacted bounded stdout/stderr tails;
 - `secrets_included: false`;
 - `routing.job_logs_role: diagnostic_only`.
 
-The workflow verifies the remote target ref before publishing a generated commit and refuses to write if the PR head moved. Its trusted publisher validates the source-to-generated-head transition against the current PR before updating the authoritative comment.
+If generated files differ, the canonical result is `generated_artifact_drift_detected`. The remediation is to run the registered governed mutation tool; the pull-request workflow itself never writes.
+
+## Governed Generated Artifact Refresh
+
+`Governed Generated Artifact Refresh` is a separate `workflow_dispatch` operation backed by the registered tool:
+
+`http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs`
+
+It requires:
+
+- a governed non-protected `target_ref`;
+- an exact 40-character `expected_head_sha`;
+- typed confirmation `APPLY_GENERATED_ARTIFACT_REFRESH`.
+
+The tool verifies both local and remote head identity before generation, before commit, and before normal fast-forward push. It rejects `main`, `Production`, force push, concurrent branch movement, and every changed path outside its registered allowlist.
+
+Its canonical report contract is `mad4b.governed-generated-artifact-refresh.v1`. The JSON and Markdown report are uploaded before enforcement and declare `secrets_included: false` and `job_logs_role: diagnostic_only`.
+
+## Repository Tool Lifecycle Governance
+
+Repository automation changes are governed by `mad4b.repository-tool-lifecycle-report.v1`. Read its artifact before opening Job logs. In particular:
+
+- pull-request workflows must remain read-only;
+- reusable mutating tools must be registered under the governed maintenance-tool root;
+- mutations require expected-head verification and protected-branch rejection;
+- force push, self-deleting workflows, and branch-specific one-shot automation fail closed.
 
 ## PR-visible evidence
 
