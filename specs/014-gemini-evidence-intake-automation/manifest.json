@@ -37,6 +37,7 @@
     "tasks.md",
     "development-automation.json",
     "ci-automation.json",
+    "e2e-phases.json",
     "work-map-integration.json",
     "completion.json",
     "contracts/development-automation.schema.json",
@@ -54,6 +55,8 @@
     "functional": 52,
     "non_functional": 20,
     "success_criteria": 18,
+    "e2e_phases": 5,
+    "implemented_e2e_journeys": 2,
     "ci_test_families": 10,
     "ci_pipelines": 9,
     "ci_evidence_contracts": 8,
@@ -72,6 +75,11 @@
       "schema": "contracts/ci-automation.schema.json",
       "validator": "tools/validate-contracts.mjs",
       "purpose": "Machine-readable test-family, pipeline, candidate-identity, canonical-evidence, governed-writer, and completion contract"
+    },
+    "e2e": {
+      "instance": "e2e-phases.json",
+      "schema": ".specify/schemas/e2e-phases.schema.json",
+      "purpose": "Executable phase and journey contract consumed by the repository E2E Phase Governance gate"
     }
   },
   "boundaries": {
