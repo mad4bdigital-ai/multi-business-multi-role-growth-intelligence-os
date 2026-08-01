@@ -29,12 +29,13 @@
         "merge_sha": "c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94"
       },
       {
-        "number": null,
-        "branch": "gpt/016-remote-mcp-oauth21-operational-20260801",
+        "number": 4493,
+        "branch": "gpt/016-remote-mcp-oauth21-current-main-20260801",
         "role": "oauth21_operational_authorization_grant_and_revocation",
-        "status": "implementation_branch_pending_pr_and_ci"
+        "status": "open_draft_exact_head_ci_pending"
       }
     ],
+    "superseded_prs": [4479, 4488],
     "release_prs": [],
     "closeout_pr": null
   },
@@ -64,14 +65,15 @@
     "manifest_inventory": "passed_on_merged_pr_4460",
     "reference_integrity": "passed_on_merged_pr_4460",
     "multi_client_scope_extension": "merged_pr_4462",
-    "oauth21_profile_tests": "implemented_pending_operational_pr_ci",
-    "oauth21_route_flow_tests": "implemented_pending_operational_pr_ci",
-    "resource_scope_revocation_tests": "implemented_pending_operational_pr_ci",
+    "generated_dispatch_evidence": "refreshed_on_pr_4493_pending_exact_head_acceptance",
+    "oauth21_profile_tests": "implemented_pending_pr_4493_exact_head_ci",
+    "oauth21_route_flow_tests": "implemented_pending_pr_4493_exact_head_ci",
+    "resource_scope_revocation_tests": "implemented_pending_pr_4493_exact_head_ci",
     "work_map_review": "pending_canonical_scaffold_and_operational_pr_review",
-    "architecture_review": "pending_operational_pr_review",
-    "identity_review": "pending_operational_pr_review",
-    "security_review": "pending_operational_pr_review",
-    "privacy_review": "pending_operational_pr_review",
+    "architecture_review": "pending_pr_4493_review",
+    "identity_review": "pending_pr_4493_review",
+    "security_review": "pending_pr_4493_review",
+    "privacy_review": "pending_pr_4493_review",
     "product_tool_catalog_review": "pending_review"
   },
   "implementation": {
@@ -81,13 +83,13 @@
     "streamable_http_adapter_implemented": "merged_pr_4462",
     "multi_client_profile_layer_implemented": "merged_pr_4462",
     "neutral_remote_mcp_configuration_implemented": "merged_pr_4462",
-    "oauth_protected_resource_metadata_implemented": "merged_pr_4462_plus_operational_branch",
-    "oauth_authorization_server_metadata_implemented": "operational_branch_pending_ci",
-    "dynamic_client_registration_implemented": "operational_branch_pending_ci",
-    "authorization_code_pkce_s256_implemented": "operational_branch_pending_ci",
-    "resource_bound_token_validation_implemented": "operational_branch_pending_ci",
-    "refresh_rotation_implemented": "operational_branch_pending_ci",
-    "grant_revocation_implemented": "operational_branch_pending_ci",
+    "oauth_protected_resource_metadata_implemented": "merged_pr_4462_plus_pr_4493",
+    "oauth_authorization_server_metadata_implemented": "pr_4493_pending_exact_head_ci",
+    "dynamic_client_registration_implemented": "pr_4493_pending_exact_head_ci",
+    "authorization_code_pkce_s256_implemented": "pr_4493_pending_exact_head_ci",
+    "resource_bound_token_validation_implemented": "pr_4493_pending_exact_head_ci",
+    "refresh_rotation_implemented": "pr_4493_pending_exact_head_ci",
+    "grant_revocation_implemented": "pr_4493_pending_exact_head_ci",
     "oauth_authorization_server_conformance_verified": false,
     "phase_1_tool_catalog_approved": false,
     "phase_1_read_tools_implemented": "merged_pr_4462",
@@ -132,7 +134,7 @@
     "post_merge_audit"
   ],
   "blocking_reasons": [
-    "operational_oauth_pr_and_exact_head_ci_pending",
+    "pr_4493_exact_head_ci_pending",
     "governed_migration_not_applied",
     "canonical_work_map_operational_review_pending",
     "live_oauth_conformance_not_verified",
@@ -145,7 +147,8 @@
   "notes": [
     "PR #4460 merged the canonical multi-client specification at 734b73660ba468415080aaa4dc4b4864534dea27.",
     "PR #4462 merged the disabled-by-default read-only multi-client MCP adapter at c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94 after exact-head CI passed.",
-    "The operational branch adds path-scoped OAuth metadata, DCR, exact redirects, explicit consent, PKCE S256, short-lived resource-bound tokens, refresh rotation, durable grant state, scope enforcement, and revocation.",
+    "PR #4493 replaces the divergent PR #4479 and synchronization PR #4488 with one clean operational candidate built directly on the then-current main.",
+    "The operational candidate adds path-scoped OAuth metadata, DCR, exact redirects, explicit consent, PKCE S256, short-lived resource-bound tokens, refresh rotation, durable grant state, scope enforcement, and revocation.",
     "Client profile recognition remains operational metadata only and never grants tenant, workspace, Brand, resource, capability, connection, or operation authority.",
     "Generic internal dispatch tools remain unavailable from the public catalog.",
     "No migration, OAuth client registration, DNS change, deployment, ChatGPT connection, Claude connector, directory submission, publication, or Production activation has occurred."
