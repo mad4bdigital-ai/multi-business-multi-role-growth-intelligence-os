@@ -42,8 +42,8 @@ jobs:
           node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
-          node http-generic-api/scripts/e2e-parallel-test-runner-diagnostics-self-test.mjs
-          node http-generic-api/scripts/ci-evidence-router-self-test.mjs
+          node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
+          node http-generic-api/scripts/test-ci-evidence-router.mjs
 
       - name: Classify and validate parallel PR mode
         id: parallel
