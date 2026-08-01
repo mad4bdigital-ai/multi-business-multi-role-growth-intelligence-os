@@ -4,14 +4,18 @@ import {
   buildHostingerStorageSharedCanaryAuthorization as buildCoreAuthorization,
   verifyHostingerStorageSharedCanaryAuthorization as verifyCoreAuthorization,
   createMemoryHostingerStorageSharedCanaryAuthorityStore as createCoreAuthorityStore,
-  createMemoryHostingerStorageSharedCanaryEnablementRegistry,
+  createMemoryHostingerStorageSharedCanaryEnablementRegistry as createCoreEnablementRegistry,
   executeHostingerStorageSharedCanary as executeCoreCanary,
 } from './hostingerStorageSharedCanaryCore.js';
+import { isCanonicalHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';
+import { isCanonicalHostingerStorageControlPlaneRepository } from './hostingerStorageControlPlaneRepository.js';
 
-export { HOSTINGER_STORAGE_SHARED_CANARY_VERSION, createMemoryHostingerStorageSharedCanaryEnablementRegistry };
+export { HOSTINGER_STORAGE_SHARED_CANARY_VERSION };
 
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/i;
+const sharedCanaryAuthorityStores = new WeakSet();
+const sharedCanaryEnablementRegistries = new WeakSet();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -139,9 +143,63 @@ function layoutBindingBlockers(record, authorization) {
   return unique(blockers);
 }
 
+function isCanonicalSharedCanaryAuthorityStore(store) {
+  return Boolean(
+    store
+    && sharedCanaryAuthorityStores.has(store)
+    && Object.isFrozen(store)
+    && store.synthetic_only === true
+    && store.production_ready === false
+    && typeof store.readImpact === 'function'
+    && typeof store.readApproval === 'function'
+    && typeof store.readLayout === 'function'
+    && typeof store.readReserve === 'function'
+    && typeof store.readQuorum === 'function'
+  );
+}
+
+function isCanonicalSharedCanaryEnablementRegistry(registry) {
+  return Boolean(
+    registry
+    && sharedCanaryEnablementRegistries.has(registry)
+    && Object.isFrozen(registry)
+    && registry.synthetic_only === true
+    && registry.production_ready === false
+    && typeof registry.read === 'function'
+    && typeof registry.consume === 'function'
+  );
+}
+
+function requireCanonicalRepository(repository) {
+  if (!isCanonicalHostingerStorageControlPlaneRepository(repository)) {
+    throw fail(409, 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID', 'Shared canary requires the canonical factory-owned in-memory control-plane repository.', { repository_provenance: 'canonical_factory_owned_required' });
+  }
+}
+
+function requireCanonicalAdapter(adapter) {
+  if (!isCanonicalHostingerStorageSyntheticAdapter(adapter)
+    || typeof adapter.mutateExact !== 'function'
+    || typeof adapter.readbackItem !== 'function'
+    || typeof adapter.readMutationReceipt !== 'function') {
+    throw fail(409, 'STORAGE_SHARED_CANARY_EXECUTOR_ADAPTER_INVALID', 'Shared canary requires the canonical factory-owned synthetic adapter.', { adapter_provenance: 'canonical_factory_owned_required' });
+  }
+}
+
+function requireCanonicalAuthorityStore(store) {
+  if (!isCanonicalSharedCanaryAuthorityStore(store)) {
+    throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORITY_STORE_INVALID', 'Shared canary requires an authority store created by the Shared factory.', { authority_store_provenance: 'shared_factory_owned_required' });
+  }
+}
+
+function requireCanonicalEnablementRegistry(registry) {
+  if (!isCanonicalSharedCanaryEnablementRegistry(registry)) {
+    throw fail(409, 'STORAGE_SHARED_CANARY_ENABLEMENT_REGISTRY_INVALID', 'Shared canary requires a one-shot registry created by the Shared factory.', { enablement_registry_provenance: 'shared_factory_owned_required' });
+  }
+}
+
 function governedQuorumBlockers(record, store, authorization, now) {
   const blockers = quorumBindingBlockers(record, authorization, now);
-  if (!store || store.synthetic_only !== true || store.production_ready !== false || typeof store.readQuorum !== 'function') {
+  if (!isCanonicalSharedCanaryAuthorityStore(store)) {
     blockers.push('STORAGE_SHARED_CANARY_QUORUM_AUTHORITY_REQUIRED');
     return unique(blockers);
   }
@@ -203,7 +261,7 @@ export function verifyHostingerStorageSharedCanaryAuthorization({ authorization,
 export function createMemoryHostingerStorageSharedCanaryAuthorityStore() {
   const core = createCoreAuthorityStore();
   const quorumRecords = new Map();
-  return Object.freeze({
+  const store = Object.freeze({
     ...core,
     registerQuorum(record) {
       const normalized = deepFreeze(normalizeQuorumEvidence(record));
@@ -227,10 +285,18 @@ export function createMemoryHostingerStorageSharedCanaryAuthorityStore() {
       return clone(normalized);
     },
   });
+  sharedCanaryAuthorityStores.add(store);
+  return store;
+}
+
+export function createMemoryHostingerStorageSharedCanaryEnablementRegistry() {
+  const registry = createCoreEnablementRegistry();
+  sharedCanaryEnablementRegistries.add(registry);
+  return registry;
 }
 
 function preflightPlanStatus({ authorization, repository }) {
-  if (!repository || typeof repository.readAggregate !== 'function') throw fail(409, 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID', 'The governed control-plane repository is required.');
+  requireCanonicalRepository(repository);
   const aggregate = repository.readAggregate(authorization.operation.operation_id);
   const plan = aggregate?.plans?.find((row) => row.plan_id === authorization.protocol.plan_id);
   const mismatches = [];
@@ -243,18 +309,42 @@ function preflightPlanStatus({ authorization, repository }) {
 }
 
 export function executeHostingerStorageSharedCanary(input = {}) {
-  const authorization = input.canary_authorization?.authorization;
+  const canaryAuthorization = input.canary_authorization;
+  const protocol = input.protocol;
+  const protocolDigest = input.protocol_digest;
+  const repository = input.repository;
+  const adapter = input.adapter;
+  const authorityStore = input.authority_store;
+  const enablementRegistry = input.enablement_registry;
+  const fault = input.fault ?? null;
+  const nowEpoch = input.now_epoch ?? Math.floor(Date.now() / 1000);
+  const authorization = canaryAuthorization?.authorization;
   const verification = verifyHostingerStorageSharedCanaryAuthorization({
     authorization,
-    expected_digest: input.canary_authorization?.authorization_digest,
-    now_epoch: input.now_epoch,
+    expected_digest: canaryAuthorization?.authorization_digest,
+    now_epoch: nowEpoch,
   });
   if (!verification.valid) throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORIZATION_INVALID', 'Shared canary authorization is stale or blocked.', { blockers: verification.blockers });
+  requireCanonicalRepository(repository);
+  requireCanonicalAdapter(adapter);
+  requireCanonicalAuthorityStore(authorityStore);
+  requireCanonicalEnablementRegistry(enablementRegistry);
   if (authorization?.quorum_policy?.mode === 'approved_quorum') {
     const quorumRecord = normalizeQuorumEvidence(authorization.quorum_policy);
-    const blockers = governedQuorumBlockers(quorumRecord, input.authority_store, authorization, epoch(input.now_epoch ?? Math.floor(Date.now() / 1000), 'now_epoch'));
+    const blockers = governedQuorumBlockers(quorumRecord, authorityStore, authorization, epoch(nowEpoch, 'now_epoch'));
     if (blockers.length) throw fail(409, 'STORAGE_SHARED_CANARY_QUORUM_CURRENT_STATE_INVALID', 'Current governed quorum evidence no longer authorizes this Shared canary.', { blockers });
   }
-  preflightPlanStatus({ authorization, repository: input.repository });
-  return executeCoreCanary(input);
+  preflightPlanStatus({ authorization, repository });
+  const capturedInput = Object.freeze({
+    canary_authorization: canaryAuthorization,
+    protocol,
+    protocol_digest: protocolDigest,
+    repository,
+    adapter,
+    authority_store: authorityStore,
+    enablement_registry: enablementRegistry,
+    fault,
+    now_epoch: nowEpoch,
+  });
+  return executeCoreCanary(capturedInput);
 }
