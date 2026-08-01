@@ -210,7 +210,7 @@ assert.throws(
     repository: spoofedRepository,
   }),
   (error) => error.code === 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID'
-    && error.details?.repository_provenance === 'tenant_factory_owned_required',
+    && error.details?.repository_provenance === 'tenant_and_control_plane_factory_owned_required',
 );
 assertUnconsumedAndUnchanged(spoofedRepositoryFixture, spoofedRepositoryPrepared.registry);
 
