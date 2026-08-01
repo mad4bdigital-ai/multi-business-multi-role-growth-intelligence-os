@@ -37,6 +37,11 @@ function hash(value, field) {
   return normalized;
 }
 
+function optionalHash(value, field) {
+  const normalized = text(value, 64).toLowerCase();
+  return normalized ? hash(normalized, field) : null;
+}
+
 function epoch(value, field) {
   const normalized = Number(value);
   if (!Number.isSafeInteger(normalized) || normalized < 0) throw fail(400, 'STORAGE_SHARED_CANARY_TIME_INVALID', 'A non-negative epoch timestamp is required.', { field });
@@ -94,6 +99,17 @@ function normalizeQuorumEvidence(input = {}) {
   };
 }
 
+function normalizeLayoutEvidence(input = {}, authorization = {}) {
+  const coreLayout = authorization.deployment_layout_proof || {};
+  return {
+    ...clone(coreLayout),
+    plan_hash: optionalHash(input.plan_hash, 'layout.plan_hash'),
+    candidate_set_hash: optionalHash(input.candidate_set_hash, 'layout.candidate_set_hash'),
+    item_set_digest: optionalHash(input.item_set_digest, 'layout.item_set_digest'),
+    secrets_included: false,
+  };
+}
+
 function workspaceSlotInvalid(approval = {}) {
   const role = text(approval.role, 256);
   if (role !== 'workspace_owner') return false;
@@ -114,6 +130,15 @@ function quorumBindingBlockers(record, authorization, now) {
   return unique(blockers);
 }
 
+function layoutBindingBlockers(record, authorization) {
+  const blockers = [];
+  if (!record.plan_hash || !record.candidate_set_hash || !record.item_set_digest) blockers.push('STORAGE_SHARED_CANARY_LAYOUT_PLAN_BINDING_REQUIRED');
+  if (record.plan_hash !== authorization.immutable_plan.plan_hash
+    || record.candidate_set_hash !== authorization.immutable_plan.candidate_set_hash
+    || record.item_set_digest !== authorization.immutable_plan.item_set_digest) blockers.push('STORAGE_SHARED_CANARY_LAYOUT_PLAN_BINDING_MISMATCH');
+  return unique(blockers);
+}
+
 function governedQuorumBlockers(record, store, authorization, now) {
   const blockers = quorumBindingBlockers(record, authorization, now);
   if (!store || store.synthetic_only !== true || store.production_ready !== false || typeof store.readQuorum !== 'function') {
@@ -125,9 +150,10 @@ function governedQuorumBlockers(record, store, authorization, now) {
   return unique(blockers);
 }
 
-function rebuildResult(coreResult, extraBlockers, quorumRecord = null) {
+function rebuildResult(coreResult, extraBlockers, quorumRecord = null, layoutRecord = null) {
   const authorization = clone(coreResult.authorization);
   if (quorumRecord) authorization.quorum_policy = quorumRecord;
+  if (layoutRecord) authorization.deployment_layout_proof = layoutRecord;
   authorization.blockers = unique([...(authorization.blockers || []), ...extraBlockers]);
   const authorizationDigest = digest(authorization);
   return deepFreeze({
@@ -150,20 +176,25 @@ export function buildHostingerStorageSharedCanaryAuthorization(input = {}) {
   const approvals = Array.isArray(input.workspace_approvals) ? input.workspace_approvals : [];
   if (approvals.some(workspaceSlotInvalid)) extraBlockers.push('STORAGE_SHARED_CANARY_WORKSPACE_APPROVAL_SLOT_INVALID');
 
+  const layoutRecord = normalizeLayoutEvidence(input.deployment_layout_proof, coreResult.authorization);
+  const previewAuthorization = clone(coreResult.authorization);
+  previewAuthorization.deployment_layout_proof = layoutRecord;
+  extraBlockers.push(...layoutBindingBlockers(layoutRecord, previewAuthorization));
+
   let quorumRecord = null;
   if (text(input.quorum_policy?.mode, 64) === 'approved_quorum') {
     quorumRecord = normalizeQuorumEvidence(input.quorum_policy);
-    const previewAuthorization = clone(coreResult.authorization);
     previewAuthorization.quorum_policy = quorumRecord;
     extraBlockers.push(...governedQuorumBlockers(quorumRecord, quorum_authority_store, previewAuthorization, epoch(input.now_epoch ?? Math.floor(Date.now() / 1000), 'now_epoch')));
   }
-  return rebuildResult(coreResult, unique(extraBlockers), quorumRecord);
+  return rebuildResult(coreResult, unique(extraBlockers), quorumRecord, layoutRecord);
 }
 
 export function verifyHostingerStorageSharedCanaryAuthorization({ authorization, expected_digest, now_epoch = Math.floor(Date.now() / 1000) } = {}) {
   const core = verifyCoreAuthorization({ authorization, expected_digest, now_epoch });
   const blockers = [...(core.blockers || [])];
   if ((authorization?.workspace_approvals || []).some(workspaceSlotInvalid)) blockers.push('STORAGE_SHARED_CANARY_WORKSPACE_APPROVAL_SLOT_INVALID');
+  blockers.push(...layoutBindingBlockers(normalizeLayoutEvidence(authorization?.deployment_layout_proof, authorization), authorization));
   if (authorization?.quorum_policy?.mode === 'approved_quorum') blockers.push(...quorumBindingBlockers(normalizeQuorumEvidence(authorization.quorum_policy), authorization, epoch(now_epoch, 'now_epoch')));
   const normalized = unique(blockers);
   return deepFreeze({ ...clone(core), valid: normalized.length === 0, blockers: normalized, dispatch_allowed: false, secrets_included: false });
@@ -198,18 +229,32 @@ export function createMemoryHostingerStorageSharedCanaryAuthorityStore() {
   });
 }
 
+function preflightPlanStatus({ authorization, repository }) {
+  if (!repository || typeof repository.readAggregate !== 'function') throw fail(409, 'STORAGE_SHARED_CANARY_CONTROL_PLANE_INVALID', 'The governed control-plane repository is required.');
+  const aggregate = repository.readAggregate(authorization.operation.operation_id);
+  const plan = aggregate?.plans?.find((row) => row.plan_id === authorization.protocol.plan_id);
+  const mismatches = [];
+  if (!plan) mismatches.push('missing');
+  else {
+    if (!['approved', 'consumed'].includes(plan.status)) mismatches.push('status');
+    if (plan.consumed === true && plan.consumed_run_id !== authorization.protocol.run_id) mismatches.push('consumed_run_id');
+  }
+  if (mismatches.length) throw fail(409, 'STORAGE_SHARED_CANARY_EXECUTOR_PLAN_INVALID', 'Current immutable plan status is not eligible for Shared canary execution.', { mismatches });
+}
+
 export function executeHostingerStorageSharedCanary(input = {}) {
   const authorization = input.canary_authorization?.authorization;
+  const verification = verifyHostingerStorageSharedCanaryAuthorization({
+    authorization,
+    expected_digest: input.canary_authorization?.authorization_digest,
+    now_epoch: input.now_epoch,
+  });
+  if (!verification.valid) throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORIZATION_INVALID', 'Shared canary authorization is stale or blocked.', { blockers: verification.blockers });
   if (authorization?.quorum_policy?.mode === 'approved_quorum') {
-    const verification = verifyHostingerStorageSharedCanaryAuthorization({
-      authorization,
-      expected_digest: input.canary_authorization?.authorization_digest,
-      now_epoch: input.now_epoch,
-    });
-    if (!verification.valid) throw fail(409, 'STORAGE_SHARED_CANARY_AUTHORIZATION_INVALID', 'Shared canary authorization is stale or blocked.', { blockers: verification.blockers });
     const quorumRecord = normalizeQuorumEvidence(authorization.quorum_policy);
     const blockers = governedQuorumBlockers(quorumRecord, input.authority_store, authorization, epoch(input.now_epoch ?? Math.floor(Date.now() / 1000), 'now_epoch'));
     if (blockers.length) throw fail(409, 'STORAGE_SHARED_CANARY_QUORUM_CURRENT_STATE_INVALID', 'Current governed quorum evidence no longer authorizes this Shared canary.', { blockers });
   }
+  preflightPlanStatus({ authorization, repository: input.repository });
   return executeCoreCanary(input);
 }
