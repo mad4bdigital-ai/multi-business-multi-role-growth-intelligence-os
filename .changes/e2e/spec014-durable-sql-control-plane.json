@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-sql-control-plane",
+  "title": "Spec 014 Durable SQL Control Plane Adapter",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-sql-control-plane.json",
+      ".github/contracts/spec014/hostinger-storage-schema-classification.json",
+      ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
+      ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+      ".github/workflows/hostinger-storage-sql-control-plane-guard.yml",
+      "http-generic-api/hostingerStorageControlPlaneRepository.js",
+      "http-generic-api/hostingerStorageSqlPersistenceAdapter.js",
+      "http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a mysql2-compatible durable persistence adapter that reuses the canonical Spec 014 repository state machine and proves transactional CAS, immutable-plan replay, lease generation safety, append-only journals, reconciliation retention, and restart-safe aggregate readback without applying a migration.",
+      "e2e_journeys": [
+        {
+          "id": "durable-sql-transaction-cas-restart-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "certified_storage_control_plane",
+          "entrypoint": "createMySqlHostingerStoragePersistenceAdapter",
+          "terminal_outcome": "A second repository instance reconstructs the same operation aggregate from SQL rows, stale lease generations and row-version conflicts fail closed, and no DDL or provider dispatch occurs.",
+          "steps": [
+            "Create a mysql2-compatible SQL adapter over an isolated synthetic database and pass it to the existing canonical control-plane repository.",
+            "Persist an operation, immutable plan, approval, execution lease, prepared/result journal events, and reconciliation evidence through SQL transactions.",
+            "Recreate the adapter and repository over the same durable rows to simulate worker or runtime restart.",
+            "Read the operation aggregate and prove equality with the pre-restart aggregate.",
+            "Reject stale lease generation and forced row-version CAS conflict while rolling back the transaction.",
+            "Transition the operation and consume the immutable plan exactly once with idempotent same-run replay."
+          ],
+          "assertions": [
+            "Every mutation executes inside a MySQL transaction and uses an advisory writer lock plus SELECT FOR UPDATE.",
+            "Changed mutable rows require row_version compare-and-swap and any CAS miss rolls back.",
+            "Journal and reconciliation rows remain append-only.",
+            "Lease generation is monotonic and a stale holder cannot renew a newer generation.",
+            "Restart reconstruction preserves operation, plan, approval, lease, journal, reconciliation, and aggregate digest.",
+            "The adapter contains no DDL, provider dispatch, credential access, filesystem access, or shell execution.",
+            "Migration apply and Production mounting remain unauthorized."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-runtime-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-sql-persistence-adapter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-sql-persistence-adapter.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
+            ".github/workflows/hostinger-storage-sql-control-plane-guard.yml",
+            "http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This slice adds no scheduler, queue, migration runner, or runtime mounting."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Restart-safe reconstruction and rollback are proven in the MVP journey; dedicated worker crash recovery remains a separate integration slice."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database schema or Hostinger target is modified by this adapter slice."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Migration apply, runtime mounting, provider dispatch, deployment, and Production readiness remain outside this PR."
+    }
+  ]
+}
