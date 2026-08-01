@@ -14,8 +14,42 @@
 | G-008 Generated tenant-safe surfaces | FR-040..044 | T053..T056 | AC-027..028, AC-042 |
 | G-009 Sandbox and acceptance | FR-069..074 | T062, T066, T090..T097 | AC-040..041, AC-050 |
 | G-010 Portability and handover | FR-056..068 | T074..T076 | AC-036..039 |
-| G-011 Machine-readable assurance | FR-069..074 | T001, T018, T066, T082 | AC-040, AC-045..047 |
+| G-011 Machine-readable assurance | FR-069..074 | T001, T009, T018, T066, T082 | AC-040, AC-045..047 |
 | G-012 No secrets/implicit authority | FR-002, FR-006..007, FR-023, FR-036, FR-047, FR-050 | all security tasks | AC-006..007, AC-014, AC-037 |
+
+## Open Draft Spec portfolio traceability
+
+| PR | Feature key | Canonical role | Spec 015 relationship | Required next proof |
+|---:|---|---|---|---|
+| #1898 | `004-tenant-asset-federation` | Architectural doctrine source | extract reviewed generic decisions | current-main ADR/reuse matrix |
+| #1935 | `006-adaptive-authorization-execution-governance` | Authority kernel candidate | dependency; must not be replaced by Studio | current auth/context authority map |
+| #2284 | `008-governed-pr-delivery-orchestration` | Repository delivery subsystem | consolidate with assurance extracted from #4432 | workflow and repository-automation reuse map |
+| #2385 | `009-local-connector-reachability-recovery` | Infrastructure recovery subsystem | bounded service/package source | current device/resource/probe authority map |
+| #2949 | `011-database-driven-operation-fabric` | Operation fabric subsystem | installation/operation compiler dependency | ordered implementation-train reconciliation |
+| #2950 | `011-tenant-gpt-effective-capability-envelope` | Tenant application component | Studio assistant and questionnaire component source | runtime/spec split and context-kernel reconciliation |
+| #3922 | `014-retail-commerce-operations-growth-os` | Reference package source | generic profile substrate plus Retail Commerce Pack | current-main reconstruction and package validation |
+| #4386 | `014-governed-hostinger-storage-orchestration` | Integration rollup | Hostinger Storage service/package source | live rollup, durable authority, canary, and production gates |
+| #4432 | `014-gemini-evidence-intake-automation` | Reference package source | assurance template plus Evidence Intelligence Pack | completion repair and current-main reconstruction |
+| #4456 | `015-tenant-operating-system-studio` | Portfolio convergence parent | owns portfolio awareness and package composition | architecture review and implementation readiness |
+
+The machine-readable authority for this table is `draft-spec-portfolio.json`. The numeric Spec number does not define uniqueness. `feature_key + canonical_role` is the portfolio identity.
+
+## Duplicate identity traceability
+
+### Numeric `011`
+
+| PR | Distinct function | Resolution |
+|---:|---|---|
+| #2949 | operation registry, compiled bindings, durable operation lifecycle | operation-fabric subsystem beneath current workflow/control-plane authorities |
+| #2950 | Tenant GPT capability discovery, questionnaires, and preview orchestration | tenant application/Studio assistant component |
+
+### Numeric `014`
+
+| PR | Distinct function | Resolution |
+|---:|---|---|
+| #3922 | Business Profile substrate and Retail Commerce | extract generic substrate; reconstruct Retail Commerce Pack |
+| #4386 | Hostinger storage control and execution rollup | bounded platform service and operational package |
+| #4432 | Evidence Intelligence and development assurance | extract assurance; reconstruct Evidence Intelligence Pack |
 
 ## Candidate PR extraction traceability
 
@@ -45,6 +79,40 @@
 | Gemini gateway/result schemas | AI component/provider example | structured output/manual fallback |
 | Review/promotion lifecycles | Evidence Intelligence child pack | human authority and audit |
 | E2E phases | package acceptance template | sandbox/canary/production boundaries |
+
+### PR #4386
+
+| Candidate content | Spec 015 destination | Required proof |
+| storage plan and operation contracts | Hostinger Storage operational package | closed schemas and deterministic plan hash |
+| Admin/Tenant authority projections | reusable service boundary | exact context and no cross-scope authority |
+| read-only and synthetic adapters | package certification examples | factory provenance and no live dispatch |
+| recovery and checkpoint contracts | operational component family | restore sample and unknown-outcome tests |
+| provider-specific toolchain | Hostinger package implementation | pinned tool/binary certification |
+
+### PR #2385
+
+| Candidate content | Spec 015 destination | Required proof |
+| connection and device health model | Local Connector Recovery package | current resource/device authority reuse |
+| diagnostic and probe contracts | reusable recovery components | bounded read-only evidence |
+| recovery planner | optional package workflow | fresh authorization and same-cycle readback |
+| Admin break-glass path | platform-only authority | never exposed as Tenant package authority |
+
+## Implementation train traceability
+
+### PR #2949 strict stack
+
+```text
+#3005 → #3021 → #3026 → #3044 → #3054 → #3070
+→ #3083 → #3089 → #3097 → #3109 → #3119 → #3130 → #3134
+```
+
+These PRs collectively implement registry foundation, repository contracts, compiler, immutable manifests, verifier, authority preflight, SQL loading, guarded fallback, revision pinning, capability lifecycle binding, chunk collection, durable lifecycle, and write receipts. They must be reviewed as one dependency-ordered train.
+
+### PR #4386 parallel integration
+
+- #4390 contracts: integrated.
+- #4458 and #4459 synthetic adapter provenance corrections: integrated.
+- #4455 Tenant Canary hardening: open child PR at the observed snapshot.
 
 ## Operation paths to requirements
 
