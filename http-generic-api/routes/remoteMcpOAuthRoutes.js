@@ -25,6 +25,7 @@ import {
   consumeRemoteMcpAuthorizationCode,
   createRemoteMcpOAuthGrant,
   issueRemoteMcpAuthorizationCode,
+  readRemoteMcpAuthorizationCode,
   readRemoteMcpGrantByRefreshToken,
   readRemoteMcpOAuthClient,
   registerRemoteMcpOAuthClient,
@@ -195,7 +196,8 @@ function buildAuthorizeHtml({ client, redirectUri, state, scope, resource, codeC
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#eef4ff;display:grid;min-height:100vh;place-items:center}
 main{width:min(480px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.28)}
-label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}button.secondary{background:#17233e}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px;min-height:42px}.muted{color:#a8b6d8;font-size:13px}</style>
+label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button{border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;font-weight:800;margin-top:14px;cursor:pointer}button.secondary{background:#17233e}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px;min-height:42px}.muted{color:#a8b6d8;font-size:13px}.consent{display:flex;gap:10px;align-items:flex-start;margin:16px 0;color:#eef4ff}.consent input{width:auto;margin-top:2px}
+</style>
 </head>
 <body><main>
 <h1>Connect ${String(client.client_name).replace(/[<>]/gu, "")}</h1>
@@ -203,9 +205,10 @@ label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:1
 <label>Email</label><input id="email" type="email" autocomplete="username"/>
 <label>Password</label><input id="password" type="password" autocomplete="current-password"/>
 <label id="name-label" hidden>Display name</label><input id="display-name" hidden autocomplete="name"/>
+<label class="consent"><input id="consent" type="checkbox"/><span>I authorize this client to use the read-only scopes shown above. I can revoke the connection later.</span></label>
 <button id="login">Sign in and connect</button>
 <button id="register" class="secondary">Create account</button>
-<pre id="out">Waiting for sign-in.</pre>
+<pre id="out">Waiting for sign-in and consent.</pre>
 <script>
 const request=${safeJsonForHtml(payload)};
 const out=document.getElementById('out');
@@ -216,6 +219,7 @@ async function finish(token){
   location.assign(data.redirect_to);
 }
 async function authenticate(kind){
+  if(!document.getElementById('consent').checked)throw new Error('Consent is required before connecting this client.');
   out.textContent='Signing in…';
   const body={email:document.getElementById('email').value,password:document.getElementById('password').value};
   if(kind==='register')body.display_name=document.getElementById('display-name').value||body.email;
@@ -225,7 +229,11 @@ async function authenticate(kind){
   await finish(data.token);
 }
 document.getElementById('login').onclick=()=>authenticate('login').catch(error=>out.textContent=error.message);
-document.getElementById('register').onclick=()=>{document.getElementById('name-label').hidden=false;document.getElementById('display-name').hidden=false;authenticate('register').catch(error=>out.textContent=error.message);};
+document.getElementById('register').onclick=()=>{
+  const displayName=document.getElementById('display-name');
+  if(displayName.hidden){document.getElementById('name-label').hidden=false;displayName.hidden=false;out.textContent='Enter a display name, confirm consent, then click Create account again.';return;}
+  authenticate('register').catch(error=>out.textContent=error.message);
+};
 </script>
 </main></body></html>`;
 }
@@ -268,8 +276,6 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
         client_id: registered.client_id,
         ...(clientSecret ? { client_secret: clientSecret, client_secret_expires_at: 0 } : {}),
         client_id_issued_at: Math.floor(Date.now() / 1000),
-        registration_access_token: registered.registration_access_token,
-        registration_client_uri: `${resolveRemoteMcpAuthorizationIssuer(env)}/oauth/register/${registered.client_id}`,
         redirect_uris: redirectUris,
         token_endpoint_auth_method: authMethod,
         grant_types: ["authorization_code", "refresh_token"],
@@ -370,26 +376,34 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       if (grantType === "authorization_code") {
         const redirectUri = normalizeRemoteMcpRedirectUri(req.body?.redirect_uri, env);
         if (!redirectUri || !client.redirect_uris.includes(redirectUri)) return oauthError(res, 400, "invalid_grant", "redirect_uri does not match the authorization request.");
+        const codeRecord = await readRemoteMcpAuthorizationCode({
+          pool,
+          code: req.body?.code,
+          clientId: client.client_id,
+          redirectUri,
+        });
+        if (!codeRecord || codeRecord.resource !== resource || codeRecord.code_challenge_method !== "S256") {
+          return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
+        }
+        if (!verifyPkceS256(req.body?.code_verifier, codeRecord.code_challenge)) {
+          return oauthError(res, 400, "invalid_grant", "PKCE verification failed.");
+        }
         const consumed = await consumeRemoteMcpAuthorizationCode({
           pool,
           code: req.body?.code,
           clientId: client.client_id,
           redirectUri,
         });
-        if (!consumed || consumed.resource !== resource || consumed.code_challenge_method !== "S256") {
-          return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
-        }
-        if (!verifyPkceS256(req.body?.code_verifier, consumed.code_challenge)) {
-          return oauthError(res, 400, "invalid_grant", "PKCE verification failed.");
-        }
+        if (!consumed) return oauthError(res, 400, "invalid_grant", "Authorization code is invalid, expired, or already used.");
+
         const accessJti = randomUUID();
         const accessExpiresAt = new Date(Date.now() + REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS * 1000);
         const accessToken = issueAccessToken({
           env,
           client,
-          userId: consumed.user_id,
-          tenantId: consumed.tenant_id,
-          scopes: consumed.scopes,
+          userId: codeRecord.user_id,
+          tenantId: codeRecord.tenant_id,
+          scopes: codeRecord.scopes,
           resource,
           jti: accessJti,
         });
@@ -397,10 +411,10 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
           pool,
           accessJti,
           clientId: client.client_id,
-          userId: consumed.user_id,
-          tenantId: consumed.tenant_id,
+          userId: codeRecord.user_id,
+          tenantId: codeRecord.tenant_id,
           resource,
-          scopes: consumed.scopes,
+          scopes: codeRecord.scopes,
           accessExpiresAt,
         });
         noStore(res);
@@ -410,7 +424,7 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
           expires_in: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS,
           refresh_token: grant.refresh_token,
           refresh_token_expires_in: REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS,
-          scope: consumed.scopes.join(" "),
+          scope: codeRecord.scopes.join(" "),
         });
       }
 
