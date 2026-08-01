@@ -1,0 +1,138 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "system-platform-endpoint-tool-aggregation",
+  "title": "System platform endpoint tool aggregation and exact dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/platformEndpointToolAggregation.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/test-platform-endpoint-tool-discovery-contract.mjs",
+      "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
+      "http-generic-api/test-system-tool-catalog-v2.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose one stable System Tool Catalog descriptor for shared platform endpoint exports and dispatch only the explicitly selected governed endpoint binding.",
+      "e2e_journeys": [
+        {
+          "id": "system-platform-endpoint-tool-list-and-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated admin system-tool caller",
+          "entrypoint": "System Tool Catalog normalization followed by grouped platform endpoint binding resolution",
+          "terminal_outcome": "One collision-free public descriptor is listed and exact endpoint selection succeeds while missing or invalid selectors fail closed.",
+          "steps": [
+            "Load multiple active platform endpoint export rows that share one public tool name but preserve distinct endpoint schemas.",
+            "Aggregate only genuinely shared names into one deterministic descriptor with an endpoint_key enum and exact binding metadata.",
+            "Preserve each endpoint binding schema through System Tool Catalog normalization and retain the original schema for single-binding tools.",
+            "Regenerate the frontend dispatch evidence from the exact candidate head.",
+            "Resolve an allowed endpoint_key to its exact registry binding for runtime dispatch.",
+            "Enforce the grouped-dispatch runtime ratchet and reject selector regressions."
+          ],
+          "assertions": [
+            "The public catalog contains exactly one descriptor for github_rest_endpoint_dispatch.",
+            "The endpoint selector enum is deterministic and contains every visible exported endpoint.",
+            "Per-endpoint input schemas remain discoverable after catalog normalization.",
+            "A single-binding export retains its original required fields and does not gain a required endpoint_key.",
+            "Catalog normalization does not throw SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION.",
+            "Generated frontend dispatch evidence is refreshed from the same candidate head.",
+            "Dispatch cannot select a different endpoint than the caller-authorized endpoint_key.",
+            "No export row is deleted, archived, or renamed."
+          ],
+          "tests": [
+            {
+              "id": "system-tool-catalog-grouped-platform-exports",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-system-tool-catalog-v2.mjs",
+              "args": []
+            },
+            {
+              "id": "system-tool-platform-endpoint-discovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-endpoint-tool-discovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "system-tool-grouped-dispatch-runtime-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec013-runtime-ratchet-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-platform-endpoint-tool-discovery-contract.mjs",
+            "http-generic-api/test-spec013-runtime-ratchet-contract.mjs",
+            "http-generic-api/test-system-tool-catalog-v2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "No new operational scheduler or stateful background process is introduced by this catalog projection fix."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Preserve fail-closed behavior for invalid selector and residual ambiguity conditions.",
+      "e2e_journeys": [
+        {
+          "id": "system-platform-endpoint-tool-selection-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated system-tool caller with malformed or unauthorized endpoint selection",
+          "entrypoint": "Grouped platform endpoint binding resolver",
+          "terminal_outcome": "The resolver returns a typed bounded error without selecting or calling an unintended endpoint.",
+          "steps": [
+            "Submit a grouped tool call without endpoint_key or with an endpoint outside the exported enum.",
+            "Validate optional parent_action_key against the selected endpoint binding.",
+            "Stop before runtime endpoint execution when selection is missing, invalid, mismatched, or ambiguous."
+          ],
+          "assertions": [
+            "Missing endpoint_key is rejected for a multi-binding tool.",
+            "Unknown endpoint_key is rejected with the allowed enum in non-secret details.",
+            "A mismatched parent_action_key is rejected.",
+            "No provider call or external write occurs during failed selection."
+          ],
+          "tests": [
+            {
+              "id": "system-tool-catalog-grouped-platform-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-system-tool-catalog-v2.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-system-tool-catalog-v2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify the grouped descriptor against the live non-production System Tool Catalog after deployment."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify Production lists one grouped descriptor and dispatches a read-only selected endpoint with exact SHA readback."
+    }
+  ]
+}
