@@ -136,6 +136,26 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   try {
     const metadata = await getJson(baseUrl, "/.well-known/oauth-authorization-server/auth/mcp");
     assert.equal(metadata.status, 200);
+    assert.equal(metadata.body.registration_endpoint, undefined, "DCR must not be advertised without a usable redirect policy");
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+{
+  const app = express();
+  app.use(buildTenantGptOAuthMetadataRoutes({
+    env: {
+      REMOTE_MCP_OAUTH_ENABLED: "true",
+      REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
+      REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://claude.ai",
+      REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
+    },
+  }));
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const metadata = await getJson(baseUrl, "/.well-known/oauth-authorization-server/auth/mcp");
+    assert.equal(metadata.status, 200);
     assert.equal(metadata.body.registration_endpoint, "https://auth.example.test/auth/mcp/oauth/register");
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
