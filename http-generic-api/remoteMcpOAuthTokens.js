@@ -1,12 +1,14 @@
 import jwt from "jsonwebtoken";
 import {
   REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS,
+  REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS,
   resolveRemoteMcpAuthorizationIssuer,
   resolveRemoteMcpOAuthResource,
+  resolveRemoteMcpOAuthSigningSecret,
 } from "./remoteMcpOAuthProfile.js";
 
 function signingConfiguration(env = process.env) {
-  const secret = String(env.JWT_SECRET || "").trim();
+  const secret = resolveRemoteMcpOAuthSigningSecret(env);
   const issuer = resolveRemoteMcpAuthorizationIssuer(env);
   const resource = resolveRemoteMcpOAuthResource(env);
   if (!secret || !issuer || !resource) {
@@ -15,6 +17,59 @@ function signingConfiguration(env = process.env) {
     throw error;
   }
   return { secret, issuer, resource };
+}
+
+export function issueRemoteMcpAuthorizationRequest({
+  env = process.env,
+  clientId,
+  redirectUri,
+  state,
+  scopes,
+  resource,
+  codeChallenge,
+  jti,
+}) {
+  const configuration = signingConfiguration(env);
+  if (String(resource || "").replace(/\/+$/u, "") !== configuration.resource) {
+    const error = new Error("OAuth authorization request resource is invalid.");
+    error.code = "invalid_target";
+    throw error;
+  }
+  return jwt.sign(
+    {
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state,
+      resource: configuration.resource,
+      scope: scopes.join(" "),
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      purpose: "remote_mcp_authorization_request",
+    },
+    configuration.secret,
+    {
+      algorithm: "HS256",
+      issuer: configuration.issuer,
+      audience: configuration.resource,
+      expiresIn: REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS,
+      jwtid: jti,
+    },
+  );
+}
+
+export function verifyRemoteMcpAuthorizationRequest(token, { env = process.env } = {}) {
+  const configuration = signingConfiguration(env);
+  const claims = jwt.verify(String(token || ""), configuration.secret, {
+    algorithms: ["HS256"],
+    issuer: configuration.issuer,
+    audience: configuration.resource,
+  });
+  if (claims?.purpose !== "remote_mcp_authorization_request") {
+    const error = new Error("OAuth authorization request is invalid.");
+    error.code = "invalid_authorization_request";
+    throw error;
+  }
+  return claims;
 }
 
 export function issueRemoteMcpAccessToken({
@@ -34,8 +89,6 @@ export function issueRemoteMcpAccessToken({
   }
   return jwt.sign(
     {
-      iss: configuration.issuer,
-      aud: configuration.resource,
       azp: client.client_id,
       client_id: client.client_id,
       client_profile_key: client.client_profile_key,
@@ -49,6 +102,8 @@ export function issueRemoteMcpAccessToken({
     configuration.secret,
     {
       algorithm: "HS256",
+      issuer: configuration.issuer,
+      audience: configuration.resource,
       expiresIn: REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS,
       jwtid: jti,
     },
