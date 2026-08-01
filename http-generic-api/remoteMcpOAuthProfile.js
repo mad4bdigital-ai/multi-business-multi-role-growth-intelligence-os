@@ -5,6 +5,7 @@ export const REMOTE_MCP_AUTHORIZATION_SERVER = "https://auth.mad4b.com/auth/mcp"
 export const REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 export const REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS = 5 * 60;
+export const REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS = 5 * 60;
 export const REMOTE_MCP_SCOPES = Object.freeze([
   "workspaces.read",
   "brands.read",
@@ -50,6 +51,10 @@ export function resolveRemoteMcpAuthorizationIssuer(env = process.env) {
   }
 }
 
+export function resolveRemoteMcpOAuthSigningSecret(env = process.env) {
+  return String(env.REMOTE_MCP_OAUTH_SIGNING_SECRET || "").trim();
+}
+
 export function remoteMcpOAuthEnabled(env = process.env) {
   return envFlag(env.REMOTE_MCP_OAUTH_ENABLED);
 }
@@ -72,6 +77,33 @@ export function normalizeRemoteMcpRedirectUri(value, env = process.env) {
   } catch {
     return "";
   }
+}
+
+export function resolveRemoteMcpAllowedRedirectOrigins(env = process.env) {
+  const origins = String(env.REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS || "")
+    .split(/[\s,]+/u)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        const url = new URL(value);
+        if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") return "";
+        return url.origin;
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
+  return new Set(origins);
+}
+
+export function remoteMcpDynamicRedirectUriAllowed(value, env = process.env) {
+  const normalized = normalizeRemoteMcpRedirectUri(value, env);
+  if (!normalized) return false;
+  const url = new URL(normalized);
+  const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname.toLowerCase());
+  if (loopback) return url.protocol === "http:" && envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
+  return resolveRemoteMcpAllowedRedirectOrigins(env).has(url.origin);
 }
 
 export function normalizeRemoteMcpScopes(value, allowedScopes = REMOTE_MCP_SCOPES) {
