@@ -23,7 +23,13 @@ const WORKFLOWS = Object.freeze({
 });
 
 function text(value, max = 240) {
-  return String(value ?? "unknown").replace(/[\u0000-\u001f\u007f]/gu, " ").replace(/`/gu, "'").slice(0, max);
+  return String(value ?? "unknown")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/@/gu, "＠")
+    .replace(/</gu, "&lt;")
+    .replace(/>/gu, "&gt;")
+    .replace(/`/gu, "'")
+    .slice(0, max);
 }
 
 function parseArgs(argv) {
@@ -125,6 +131,16 @@ export function normalizeEvidence({ workflow, workflowConclusion, report, prNumb
   };
 }
 
+export function assertCurrentPullRequestIdentity(pullRequest, evidence) {
+  if (pullRequest?.head?.sha !== evidence.sourceHeadSha) {
+    throw new Error("Refusing to publish canonical evidence for a stale PR head.");
+  }
+  if (evidence.candidateKind === "merge_candidate" && pullRequest?.merge_commit_sha !== evidence.candidateSha) {
+    throw new Error("Refusing to publish diagnostic evidence for a stale or substituted merge candidate.");
+  }
+  return true;
+}
+
 export function renderEvidenceSection(evidence) {
   const start = `<!-- ci-evidence-section:${evidence.slug}:start run_id=${evidence.runId} -->`;
   const end = `<!-- ci-evidence-section:${evidence.slug}:end -->`;
@@ -182,9 +198,7 @@ export async function publishEvidenceComment(options) {
   const evidence = normalizeEvidence({ ...options, report });
   const api = `https://api.github.com/repos/${options.repository}`;
   const pullRequest = await githubRequest(`${api}/pulls/${options.prNumber}`, { token: options.token });
-  if (pullRequest?.head?.sha !== options.sourceHeadSha) {
-    throw new Error("Refusing to publish canonical evidence for a stale PR head.");
-  }
+  assertCurrentPullRequestIdentity(pullRequest, evidence);
   const comments = await githubRequest(`${api}/issues/${options.prNumber}/comments?per_page=100`, { token: options.token });
   const existing = comments.find((comment) => typeof comment.body === "string" && comment.body.includes(COMMENT_MARKER));
   const updated = upsertEvidenceComment(existing?.body || "", evidence);
