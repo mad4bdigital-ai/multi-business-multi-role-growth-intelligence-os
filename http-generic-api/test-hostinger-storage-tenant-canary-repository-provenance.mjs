@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   createHostingerStorageTenantCanaryControlPlaneRepository,
   executeHostingerStorageTenantCanary,
@@ -9,6 +10,12 @@ import {
   createMemoryHostingerStoragePersistenceAdapter,
   isCanonicalHostingerStorageControlPlaneRepository,
 } from './hostingerStorageControlPlaneRepository.js';
+
+const wrapperSource = fs.readFileSync(new URL('./hostingerStorageTenantCanary.js', import.meta.url), 'utf8');
+assert.match(wrapperSource, /from '\.\/hostingerStorageTenantCanaryBase\.js';/u);
+assert.doesNotMatch(wrapperSource, /new WeakSet\(\)/u);
+assert.doesNotMatch(wrapperSource, /function requireCanonical(?:Repository|Adapter)/u);
+assert.doesNotMatch(wrapperSource, /executeBaseTenantCanary/u);
 
 const directPersistence = createMemoryHostingerStoragePersistenceAdapter();
 const directRepository = createHostingerStorageControlPlaneRepository({ adapter: directPersistence });
@@ -47,6 +54,8 @@ assert.throws(
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_tenant_canary_repository_provenance',
+  wrapper_is_reexport_only: true,
+  single_base_provenance_authority: true,
   direct_control_plane_repository_rejected: true,
   tenant_factory_repository_control_plane_canonical: true,
   repository_identity_metadata_pinned: true,
