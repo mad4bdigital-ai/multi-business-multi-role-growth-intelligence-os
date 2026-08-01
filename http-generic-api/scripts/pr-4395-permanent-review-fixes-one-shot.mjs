@@ -2,10 +2,10 @@ import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const TARGET_BRANCH = "gpt/tenant-request-inbox-chunk-store-hardening-20260801";
-const TRIGGER_SUBJECT = "fix(ci): make permanent review one-shot checkout-safe";
 const HELPER = "scripts/pr-4395-permanent-review-fixes-one-shot.mjs";
 const TRANSFORM = "scripts/pr-4395-permanent-review-fixes.py";
 const PACKAGE = "package.json";
+const MARKER_SCRIPT = "pr4395:permanent-review-fixes";
 const CANONICAL_DISPATCH = "node scripts/frontend-operation-governance-generator.mjs --write && node scripts/frontend-surface-dispatch.mjs --write";
 const HOOKED_DISPATCH = `node ${HELPER} && ${CANONICAL_DISPATCH}`;
 
@@ -26,13 +26,14 @@ const branch = String(
   || spawnSync("git", ["branch", "--show-current"], { encoding: "utf8" }).stdout
   || "",
 ).trim();
-const subject = spawnSync("git", ["log", "-1", "--format=%s"], { encoding: "utf8" }).stdout.trim();
 if (branch !== TARGET_BRANCH) throw new Error(`unexpected branch: ${branch}`);
-if (subject !== TRIGGER_SUBJECT) throw new Error(`unexpected trigger commit: ${subject}`);
 
 const packageJson = JSON.parse(readFileSync(PACKAGE, "utf8"));
 if (packageJson.scripts?.["frontend:dispatch:generate"] !== HOOKED_DISPATCH) {
   throw new Error("one-shot dispatch hook is not the exact expected contract");
+}
+if (packageJson.scripts?.[MARKER_SCRIPT] !== "node -e \"process.exit(0)\"") {
+  throw new Error("one-shot marker script is not the exact expected contract");
 }
 
 run("python3", [TRANSFORM]);
@@ -45,6 +46,7 @@ run("node", ["test-tenant-request-inbox-and-chunk-hardening.mjs"]);
 run("node", ["test-platform-routes.mjs"]);
 
 packageJson.scripts["frontend:dispatch:generate"] = CANONICAL_DISPATCH;
+delete packageJson.scripts[MARKER_SCRIPT];
 writeFileSync(PACKAGE, `${JSON.stringify(packageJson, null, 2)}\n`);
 unlinkSync(TRANSFORM);
 unlinkSync(HELPER);
