@@ -1,0 +1,52 @@
+name: Hostinger Storage Production Preflight Guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hostinger-storage-production-preflight-guard.yml'
+      - 'http-generic-api/hostingerStorageProductionPreflight*.js'
+      - 'http-generic-api/test-hostinger-storage-production-preflight*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/**'
+  push:
+    branches:
+      - 'gpt/014-hostinger/production-preflight-*'
+    paths:
+      - '.github/workflows/hostinger-storage-production-preflight-guard.yml'
+      - 'http-generic-api/hostingerStorageProductionPreflight*.js'
+      - 'http-generic-api/test-hostinger-storage-production-preflight*.mjs'
+      - 'specs/014-governed-hostinger-storage-orchestration/**'
+
+permissions:
+  contents: read
+
+jobs:
+  production-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageProductionPreflight.js
+          node --check http-generic-api/test-hostinger-storage-production-preflight.mjs
+      - name: Enforce read-only Production boundary
+        run: |
+          ! grep -E "from ['\"]node:(child_process|fs|fs/promises|net|tls|http|https)['\"]|require\(['\"](child_process|fs|net|tls|http|https)['\"]\)|\b(fetch|exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "deployment_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "production_promotion_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "auto_cleanup_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "mutation_allowed: false" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "separate_release_authority_required: true" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_SOURCE_SHA_MISMATCH" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_PRESSURE_BLOCKING" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_SHARED_CANARY_INVALID" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_ACTIVE_SHA_MISMATCH" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_ROLLBACK_SET_REQUIRED" http-generic-api/hostingerStorageProductionPreflight.js
+          grep -q "STORAGE_PRODUCTION_PREFLIGHT_SECRET_EVIDENCE_REJECTED" http-generic-api/hostingerStorageProductionPreflight.js
+      - name: Validate Production preflight
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-production-preflight.mjs
