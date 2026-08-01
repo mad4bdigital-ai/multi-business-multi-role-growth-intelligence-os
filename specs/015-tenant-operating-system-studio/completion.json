@@ -8,7 +8,8 @@
     "production_verification": true,
     "post_merge_audit": true,
     "handover_continuity": true,
-    "reference_package_validation": true
+    "reference_package_validation": true,
+    "draft_spec_portfolio_governance": true
   },
   "delivery": {
     "specification_pr": {
@@ -24,8 +25,8 @@
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 27,
-    "file_count_recorded": 27,
+    "file_count_expected": 30,
+    "file_count_recorded": 30,
     "functional_requirements": 74,
     "non_functional_requirements": 15,
     "success_criteria": 12,
@@ -33,10 +34,10 @@
     "operation_paths": 16,
     "acceptance_cases": 50,
     "risks": 25,
-    "tasks": 73,
+    "tasks": 74,
     "e2e_phase_contract": "e2e-phases.json",
     "implemented_spec_e2e_journeys": 1,
-    "completed_phase0_tasks": ["T001", "T004", "T005", "T007"]
+    "completed_phase0_tasks": ["T001", "T004", "T005", "T007", "T009"]
   },
   "convergence": {
     "candidate_prs": [3922, 4432],
@@ -47,24 +48,44 @@
     "current_main_reconstruction_started": false,
     "candidate_branches_merged": false
   },
+  "portfolio_scan": {
+    "status": "complete_pending_exact_head_ci",
+    "observed_at": "2026-08-01T15:22:00Z",
+    "main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+    "registry": "draft-spec-portfolio.json",
+    "human_review": "draft-spec-portfolio.md",
+    "schema": "contracts/draft-spec-portfolio.schema.json",
+    "open_draft_specs_reviewed": 10,
+    "duplicate_numeric_identities": [11, 14],
+    "implementation_trains_registered": [
+      "operation-fabric-stack",
+      "hostinger-storage-workstreams"
+    ],
+    "truthfulness_findings_recorded": true,
+    "field_level_reuse_matrices_complete": false,
+    "canonical_paths_finalized": false,
+    "close_or_supersede_actions_executed": false
+  },
   "verification": {
-    "json_parse": "verified_by_spec_local_validator_and_ci",
-    "schema_contract_structure": "verified_by_spec_local_validator_and_ci",
-    "openapi_contract_structure": "verified_by_spec_local_validator_and_ci",
-    "manifest_inventory": "verified_by_exact_candidate_ci",
-    "e2e_phase_contract": "verified_by_e2e_phase_governance",
-    "spec_local_contract_integrity": "verified_by_declared_mvp_journey",
-    "repository_ci": "passed_on_prior_candidate_pending_final_head_rerun",
-    "e2e_phase_governance": "passed_on_prior_candidate_pending_final_head_rerun",
-    "docs_agent": "passed_on_prior_candidate_pending_final_head_rerun",
-    "repository_tool_lifecycle_governance": "passed_on_prior_candidate_pending_final_head_rerun",
-    "platform_remaining_scope_scorecard": "passed_on_prior_candidate_pending_final_head_rerun",
-    "platform_completion_cleanup_readback": "passed_on_prior_candidate_pending_final_head_rerun",
+    "json_parse": "pending_final_head_ci_after_portfolio_update",
+    "schema_contract_structure": "pending_final_head_ci_after_portfolio_update",
+    "openapi_contract_structure": "pending_final_head_ci_after_portfolio_update",
+    "manifest_inventory": "pending_final_head_ci_after_portfolio_update",
+    "portfolio_contract": "pending_final_head_ci_after_portfolio_update",
+    "e2e_phase_contract": "pending_final_head_ci_after_portfolio_update",
+    "spec_local_contract_integrity": "pending_final_head_ci_after_portfolio_update",
+    "repository_ci": "pending_final_head_ci_after_portfolio_update",
+    "e2e_phase_governance": "pending_final_head_ci_after_portfolio_update",
+    "docs_agent": "pending_final_head_ci_after_portfolio_update",
+    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_portfolio_update",
+    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_portfolio_update",
+    "platform_completion_cleanup_readback": "pending_final_head_ci_after_portfolio_update",
     "work_map_review": "pending_pr_review",
     "traceability_review": "pending_pr_review",
     "architecture_review": "pending_pr_review",
     "security_review": "pending_pr_review",
-    "agency_client_ownership_review": "pending_pr_review"
+    "agency_client_ownership_review": "pending_pr_review",
+    "portfolio_disposition_review": "pending_pr_review"
   },
   "implementation": {
     "started": false,
@@ -94,11 +115,23 @@
       "source_pr": 3922,
       "status": "not_reconstructed",
       "target_package_key": "platform.reference.retail_commerce_operations"
+    },
+    "hostinger_storage": {
+      "source_pr": 4386,
+      "status": "integration_rollup_not_reconstructed_as_package",
+      "target_package_key": "platform.reference.hostinger_storage_operations"
+    },
+    "local_connector_recovery": {
+      "source_pr": 2385,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.local_connector_recovery"
     }
   },
   "required_closeout_evidence": [
     "field_level_current_main_reuse_matrix",
     "canonical_spec_identity_resolution",
+    "draft_spec_portfolio_disposition_review",
+    "truthful_completion_ledger_reconciliation",
     "package_and_component_registry_runtime",
     "installation_compiler_determinism",
     "custom_entity_and_lifecycle_runtime",
@@ -117,17 +150,21 @@
   "blocking_reasons": [
     "work_map_and_architecture_review_pending",
     "field_level_reuse_matrix_missing",
+    "duplicate_spec_011_identity_not_resolved",
     "duplicate_spec_014_identity_not_resolved",
+    "stale_completion_ledgers_require_reconciliation",
     "package_registry_mapping_open",
     "custom_entity_persistence_open",
     "candidate_pr_reconstruction_not_started"
   ],
   "notes": [
     "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
-    "Spec 006 remains workflow/runtime authority; Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
-    "PR #3922 and PR #4432 are classified sources and future reference packages, not competing canonical parent Specs.",
+    "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are not unique authorities.",
+    "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
+    "PRs 3922, 4386, and 4432 are bounded package or service sources, not competing universal parent Specs.",
+    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for a numeric Spec 011 identity.",
     "The implemented MVP E2E journey validates specification contracts only and grants no runtime mutation authority.",
-    "Status remains in_progress until runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
+    "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
   ],
   "secrets_included": false
 }
