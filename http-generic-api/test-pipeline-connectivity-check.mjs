@@ -124,13 +124,37 @@ function setup() {
 {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const workflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml"), "utf8");
+  const manifest = fs.readFileSync(path.join(repoRoot, "http-generic-api/scripts/run-test-manifest.mjs"), "utf8");
   const concurrencyBlock = workflow.slice(workflow.indexOf("concurrency:"), workflow.indexOf("jobs:"));
+  const permissionsBlock = workflow.slice(workflow.indexOf("permissions:"), workflow.indexOf("concurrency:"));
+
   assert.ok(concurrencyBlock.includes("format('spec-kit-work-map-noop-{0}', github.run_id)"), "Unauthorised reopened events must use a run-unique no-op concurrency group");
   assert.ok(concurrencyBlock.includes("github.event.action == 'reopened'"), "Concurrency authorization must require a reopened event");
   assert.ok(concurrencyBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"), "Concurrency authorization must require a same-repository head");
   assert.ok(concurrencyBlock.includes("github.actor != 'github-actions[bot]'"), "Concurrency authorization must reject bot-authored reopened events");
   assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Concurrency authorization must require the explicit marker");
   assert.ok(concurrencyBlock.includes("cancel-in-progress: true"), "Authorized retries must retain cancellation semantics within their trusted group");
+
+  assert.ok(permissionsBlock.includes("pull-requests: write"), "Sticky diagnostics require explicit pull-request write permission");
+  assert.ok(workflow.includes("Bootstrap Work Map diagnostic envelope"), "Checkout and setup failures require a bootstrap report");
+  assert.ok(workflow.includes("WORK_MAP_STEP_OUTCOMES"), "The diagnostic report must include a workflow step ledger");
+  assert.ok(workflow.includes("work-map-autofix-diagnostic-report"), "The PR diagnostic comment must use a stable marker");
+  assert.ok(workflow.includes("gh api --method PATCH"), "Existing diagnostic comments must be updated rather than duplicated");
+  assert.ok(workflow.includes("gh api --method POST"), "The first diagnostic run must create a PR comment");
+  assert.ok(workflow.includes("actions/upload-artifact@v4"), "Raw diagnostic reports and logs must remain downloadable");
+  assert.ok(workflow.includes("GITHUB_STEP_SUMMARY"), "Human-readable diagnostics must be published to the run summary");
+  assert.ok(workflow.includes("regenerate-and-verify-idempotency"), "Generator and idempotency failures must run through the governed recorder");
+  assert.ok(workflow.includes("commit-push-and-dispatch"), "Commit, push, readback, and validation dispatch failures must run through the governed recorder");
+  assert.ok(manifest.includes("node test-work-map-autofix-diagnostics.mjs"), "Diagnostic reporter regression must remain in the canonical CI test manifest");
+
+  const bootstrapIndex = workflow.indexOf("Bootstrap Work Map diagnostic envelope");
+  const checkoutIndex = workflow.indexOf("actions/checkout@v5");
+  const finalizeIndex = workflow.indexOf("Finalize Work Map diagnostic report");
+  const uploadIndex = workflow.indexOf("Upload Work Map diagnostic report");
+  const publishIndex = workflow.indexOf("Publish sticky Work Map diagnostic report");
+  assert.ok(bootstrapIndex >= 0 && bootstrapIndex < checkoutIndex, "Bootstrap reporting must exist before checkout");
+  assert.ok(finalizeIndex >= 0 && finalizeIndex < uploadIndex, "The report must be finalized before artifact upload");
+  assert.ok(uploadIndex >= 0 && uploadIndex < publishIndex, "Artifact upload must precede PR publication so the run contains downloadable evidence");
 }
 
 console.log("Pipeline connectivity contract regression passed");
