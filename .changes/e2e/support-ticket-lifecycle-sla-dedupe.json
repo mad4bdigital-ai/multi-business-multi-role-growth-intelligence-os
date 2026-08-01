@@ -16,7 +16,8 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
       "http-generic-api/supportTicketLifecycleIntegrityService.js",
-      "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
+      "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs",
+      "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs"
     ]
   },
   "merge_contract": {
@@ -26,7 +27,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prevent cross-parent dedupe, classify test records, calculate milestone-aware SLA, and persist ticket integrity atomically.",
+      "objective": "Prevent cross-context dedupe, classify test records from trusted evidence, calculate milestone-aware SLA, and persist ticket integrity atomically.",
       "e2e_journeys": [
         {
           "id": "tenant-ticket-create-list-integrity",
@@ -34,21 +35,23 @@
           "level": "synthetic_runtime",
           "actor": "authenticated tenant member",
           "entrypoint": "POST and GET /me/support/tickets",
-          "terminal_outcome": "Ticket creation uses structured dedupe and atomic integrity persistence; the tenant inbox excludes internal test records while preserving latest activity order.",
+          "terminal_outcome": "Ticket creation uses structured dedupe and atomic integrity persistence; the tenant inbox returns only customer-safe fields, excludes trusted internal tests, and preserves latest activity order.",
           "steps": [
             "Resolve one unambiguous active tenant membership.",
-            "Build the v2 dedupe identity from tenant, user, type, capability, resource, relationship, and intended parent.",
+            "Build the v2 dedupe identity from tenant, user, type, capability, resource, relationship, intended parent, test classification, environment, and visibility.",
             "Verify migration 1042 schema readiness before mutation.",
             "Create or append the ticket and persist integrity fields in one database transaction.",
-            "List tenant-visible records without internal tests and order by latest real activity."
+            "List only the requesting user's or workspace-shared customer-safe records without internal tests and order them by latest real activity."
           ],
           "assertions": [
             "Different parent tickets and target capabilities produce different dedupe keys.",
+            "Production, test, environment, and visibility contexts cannot dedupe onto one another.",
             "Multiple active memberships require an explicit tenant_id instead of selecting the first candidate.",
             "Schema-not-ready creation fails before ticket mutation.",
             "Integrity persistence failure rolls back ticket creation or dedupe append.",
             "Completed response and triage milestones do not create false SLA breaches.",
-            "Smoke and simulation records are excluded from the tenant inbox by default."
+            "Ordinary title words cannot classify a genuine request as a test; explicit false wins.",
+            "Tenant list responses omit internal summaries, internal actor/source data, and other database-only fields."
           ],
           "tests": [
             {
@@ -57,13 +60,22 @@
               "working_directory": "http-generic-api",
               "path": "test-support-ticket-lifecycle-sla-dedupe.mjs",
               "args": []
+            },
+            {
+              "id": "support-ticket-sla-milestone-trigger-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-sla-milestone-trigger.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/supportTicketLifecycleIntegrityCreationService.js",
             "http-generic-api/supportTicketLifecycleIntegrityService.js",
             "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
-            "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs"
+            "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+            "http-generic-api/test-support-ticket-lifecycle-sla-dedupe.mjs",
+            "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs"
           ]
         }
       ]
@@ -71,7 +83,7 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Expose bounded dry-run findings and guarded apply reconciliation.",
+      "objective": "Expose cursor-paged dry-run findings and guarded apply reconciliation while deriving durable SLA milestones from governed lifecycle events.",
       "e2e_journeys": [
         {
           "id": "admin-ticket-integrity-reconciliation",
@@ -79,18 +91,21 @@
           "level": "synthetic_runtime",
           "actor": "platform administrator",
           "entrypoint": "GET and POST /admin/support/tickets/integrity/reconcile",
-          "terminal_outcome": "The administrator receives lifecycle, SLA, visibility, relationship, and assignment findings; apply remains schema- and confirmation-gated.",
+          "terminal_outcome": "The administrator receives lifecycle, SLA, visibility, relationship, milestone-evidence, assignment, and continuation findings; apply remains schema- and confirmation-gated.",
           "steps": [
             "Authenticate the administrator and backend API key.",
-            "Inspect schema readiness and calculate bounded findings.",
-            "Return dry-run evidence without mutation.",
-            "Require typed confirmation and schema readiness before transactional apply."
+            "Inspect schema readiness and calculate one keyset-paged finding batch.",
+            "Return dry-run evidence and next_cursor without mutation.",
+            "Require typed confirmation and schema readiness before transactional apply.",
+            "Backfill durable first-response and triage timestamps from governed lifecycle events."
           ],
           "assertions": [
             "Dry-run never mutates tickets.",
             "Apply requires APPLY_SUPPORT_TICKET_INTEGRITY_RECONCILIATION.",
             "Apply fails closed until migration 1042 is present.",
-            "Urgent unassigned and test-ticket counts are explicit."
+            "Urgent unassigned and test-ticket counts are explicit.",
+            "Reconciliation can continue beyond the newest 250 tickets through a stable keyset cursor.",
+            "Migration 1042 backfills existing lifecycle evidence and installs an idempotent single-statement milestone trigger."
           ],
           "tests": [
             {
@@ -99,11 +114,20 @@
               "working_directory": "http-generic-api",
               "path": "test-support-ticket-lifecycle-sla-dedupe.mjs",
               "args": []
+            },
+            {
+              "id": "support-ticket-milestone-trigger-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-sla-milestone-trigger.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/routes/supportTicketLifecycleIntegrityRoutes.js",
-            "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql"
+            "http-generic-api/supportTicketLifecycleIntegrityService.js",
+            "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+            "http-generic-api/test-support-ticket-sla-milestone-trigger.mjs"
           ]
         }
       ]
@@ -120,7 +144,7 @@
         "terminal_outcome": "Tenant reads remain available through fallbacks while creation and schema-dependent apply fail closed before mutation and legacy routes remain reachable.",
         "steps": [
           "Start the route stack against a pre-migration schema fixture.",
-          "Verify tenant list fallback and test suppression.",
+          "Verify tenant list fallback and trusted test suppression.",
           "Attempt ticket creation and verify schema-not-ready rejection before mutation.",
           "Attempt apply reconciliation and verify a typed schema-not-ready rejection.",
           "Verify legacy detail and workflow routes remain reachable."
@@ -136,11 +160,11 @@
         "required_level": "live_non_production",
         "actor": "authorized release operator",
         "entrypoint": "Governed migration apply followed by dry-run and typed apply reconciliation",
-        "terminal_outcome": "The canary database exposes required columns and audited records read back with corrected lifecycle, visibility, relationship, and SLA state.",
+        "terminal_outcome": "The canary database exposes required columns and trigger, and audited records read back with corrected lifecycle, visibility, relationship, milestone, and SLA state.",
         "steps": [
           "Apply migration 1042 under separate authorization.",
-          "Read schema readiness and migration ledger evidence.",
-          "Run dry-run reconciliation, inspect findings, then apply approved corrections.",
+          "Read schema readiness, milestone_trigger_count, and migration ledger evidence.",
+          "Run dry-run reconciliation through every cursor page, inspect findings, then apply approved corrections.",
           "Verify audited ticket IDs and tenant inbox exclusion."
         ]
       }
@@ -154,12 +178,12 @@
         "required_level": "production_readback",
         "actor": "authorized production release operator",
         "entrypoint": "Production promotion, governed migration apply, and post-deploy reconciliation",
-        "terminal_outcome": "Production reports exact SHA, migration evidence, corrected ticket states, test exclusion, and milestone-aware SLA.",
+        "terminal_outcome": "Production reports exact SHA, migration evidence, corrected ticket states, test exclusion, customer-safe projection, durable milestones, and milestone-aware SLA.",
         "steps": [
           "Promote the reviewed exact head through the governed Production process.",
           "Apply migration 1042 under separate authorization.",
-          "Run dry-run then approved typed apply reconciliation.",
-          "Verify exact ticket IDs, inbox ordering, SLA status, and tenant-safe readback."
+          "Run cursor-paged dry-run then approved typed apply reconciliation.",
+          "Verify exact ticket IDs, inbox ordering, customer-safe fields, SLA status, and tenant-safe readback."
         ]
       }
     }
