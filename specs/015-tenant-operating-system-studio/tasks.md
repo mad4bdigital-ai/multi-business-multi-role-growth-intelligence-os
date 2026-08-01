@@ -1,16 +1,16 @@
 # Dependency-Ordered Tasks
 
-No runtime task is complete in this specification PR.
+No runtime task is complete in this specification PR. Completed Phase 0 items below are specification/convergence work only.
 
 ## Phase 0 — Convergence and classification
 
-- [ ] T001 Validate this Spec Kit and all contracts in CI.
+- [x] T001 Validate this Spec Kit and all contracts in CI.
 - [ ] T002 Inventory current-main Spec 006/010/011/012 and Dynamic Container Authority implementations.
 - [ ] T003 Produce field-level reuse matrix for package/component/installation logical entities.
-- [ ] T004 Inventory PR #3922 and classify generic substrate versus Retail Commerce child-pack content.
-- [ ] T005 Inventory PR #4432 and classify generic assurance template versus Evidence Intelligence child-pack content.
+- [x] T004 Inventory PR #3922 and classify generic substrate versus Retail Commerce child-pack content.
+- [x] T005 Inventory PR #4432 and classify generic assurance template versus Evidence Intelligence child-pack content.
 - [ ] T006 Resolve duplicate Spec 014 identities and canonical target paths.
-- [ ] T007 Update Work Map and schema-domain classification.
+- [x] T007 Update Work Map and schema-domain classification.
 - [ ] T008 Approve architecture, product, security, privacy, agency/client ownership, and portability decisions for Phase 1.
 
 ## Phase 1 — Package/component foundation
