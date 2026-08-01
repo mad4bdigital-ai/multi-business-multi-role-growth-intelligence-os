@@ -16,3 +16,14 @@ export {
   ExecutionCapsuleMutationValidationError,
   createExecutionCapsuleMutationValidationPilot,
 } from "./executionCapsuleMutationValidationPilot.js";
+export {
+  ExecutionCapsuleMutationDispatchError,
+  createExecutionCapsuleMutationDispatchGate,
+} from "./executionCapsuleMutationDispatchGate.js";
+export {
+  ExecutionCapsuleRuntimeRolloutError,
+  ExecutionCapsuleRuntimeRolloutStatus,
+  computeExecutionCapsuleRuntimeMetricsDigest,
+  createExecutionCapsuleRuntimeRolloutGate,
+  evaluateExecutionCapsuleRuntimeRollout,
+} from "./executionCapsuleRuntimeRollout.js";
