@@ -110,6 +110,15 @@ assert(
   rootEntrypointSource.includes("error.stack"),
   "root Hostinger entrypoint must preserve startup stack traces"
 );
+assert.equal(
+  rootEntrypointSource.includes("require.main === module"),
+  false,
+  "root Hostinger entrypoint must not depend on require.main detection"
+);
+assert(
+  rootEntrypointSource.includes("const startupPromise = startApplication()"),
+  "root Hostinger entrypoint must start when loaded by the platform wrapper"
+);
 
 const modelReadinessMigration = readFileSync(
   join(__dirname, "migrations/114_sprint62y_register_model_readiness_tool.sql"),
