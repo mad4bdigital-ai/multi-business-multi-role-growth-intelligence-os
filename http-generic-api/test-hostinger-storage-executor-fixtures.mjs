@@ -21,6 +21,7 @@ export function createSyntheticExecutorFixture({
   plan_id = 'plan-1',
   target_id = 'target-1',
   item_metadata = null,
+  plan_expires_at_epoch = 1800,
 } = {}) {
   const expected = item_metadata || {
     size_bytes: 1024,
@@ -59,7 +60,7 @@ export function createSyntheticExecutorFixture({
     total_bytes: expected.size_bytes,
     category_totals: [{ category: 'npm_cache', count: 1, bytes: expected.size_bytes }],
     created_at_epoch: 800,
-    expires_at_epoch: 1800,
+    expires_at_epoch: plan_expires_at_epoch,
     items: [itemCore],
     secrets_included: false,
   };
@@ -165,7 +166,7 @@ export function createSyntheticExecutorFixture({
     source_snapshot_id: 'snapshot-1',
     item_count: 1,
     total_bytes: expected.size_bytes,
-    expires_at_epoch: 1800,
+    expires_at_epoch: plan_expires_at_epoch,
     status: 'approved',
     consumed: false,
     immutable_envelope_digest: planHash,
@@ -260,6 +261,7 @@ export function createSyntheticExecutorFixture({
     repository,
     persistence,
     adapter,
+    lease,
     operation_id,
     run_id,
     plan_id,
