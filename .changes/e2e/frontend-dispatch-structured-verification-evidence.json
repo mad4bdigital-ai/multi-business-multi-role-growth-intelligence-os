@@ -10,9 +10,12 @@
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/frontend-surface-dispatch.yml",
       ".github/workflows/frontend-surface-dispatch-refresh.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "http-generic-api/scripts/dispatch-governed-generated-artifact-refresh.mjs",
       "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
+      "http-generic-api/scripts/test-dispatch-governed-generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
@@ -28,15 +31,15 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with one exact-candidate structured report, produce and apply a bounded exact-operation OpenAPI auth repair through the registered generated-artifact maintenance tool without widening document defaults, keep pull-request validation read-only, and isolate repository mutation behind an explicitly dispatched exact-head workflow.",
+      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with exact-candidate structured reports, produce and apply a bounded exact-operation OpenAPI auth repair through the registered generated-artifact maintenance tool without widening document defaults, keep pull-request verification read-only, and trigger the mutating boundary through a reusable labeled dispatch adapter with exact-head evidence.",
       "e2e_journeys": [
         {
           "id": "frontend-dispatch-structured-verification",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation and pull-request reviewer",
-          "entrypoint": "Read-only Frontend surface dispatch on a pull request, with a separately dispatched governed generated-artifact refresh when canonical evidence must change",
-          "terminal_outcome": "The pull-request workflow publishes bounded JSON and Markdown identifying the first failed verification stage or proving all checks, while the registered exact-head maintenance tool applies only the reviewed canonical and generated files and emits a canonical mutation report.",
+          "entrypoint": "Read-only Frontend surface dispatch and PR Generated Artifact Refresh, with the generated-artifact-refresh label explicitly requesting the registered exact-head mutator",
+          "terminal_outcome": "The pull-request workflows publish bounded JSON and Markdown identifying the first failed verification or dispatch stage, while the registered maintenance tool applies only reviewed canonical and generated files and emits its canonical mutation report.",
           "steps": [
             "Checkout the exact pull-request candidate without persisted credentials for validation.",
             "Fetch the canonical default branch and force the local canonical ref to the fetched origin ref.",
@@ -44,32 +47,36 @@
             "Generate bounded canonical OpenAPI auth repairs in the ephemeral runner workspace.",
             "Generate frontend dispatch, operation-governance, and runtime OpenAPI evidence against that exact canonical ref.",
             "Reject changes outside openapi.yaml, openapi/support-tickets.yaml, and the governed generated evidence set.",
-            "Validate the structured evidence reporter.",
+            "Validate the structured verification and dispatch evidence reporters.",
             "Run each frontend verification command as a named ordered evidence stage.",
             "Check committed generated-output parity as a named evidence stage.",
             "Stop at the first failure and retain bounded redacted diagnostics.",
-            "Upload the structured report and bounded repair files before enforcing the decision.",
-            "Keep the pull-request verification workflow read-only with no repository push capability.",
-            "Dispatch the registered generated-artifact refresh with target branch, exact expected head SHA, and typed confirmation.",
-            "Re-check local and remote exact-head identity immediately before commit and push.",
+            "Upload structured reports and bounded repair files before enforcing decisions.",
+            "Keep pull-request verification jobs at contents: read with no direct repository push capability.",
+            "On the generated-artifact-refresh label event, submit workflow_dispatch for the registered mutator using exact target branch, exact head SHA, and typed confirmation.",
+            "Record the workflow-dispatch HTTP decision in mad4b.governed-refresh-dispatch-evidence.v1.",
+            "Re-check local and remote exact-head identity immediately before the registered tool commits and pushes.",
             "Commit only registered canonical and generated files by non-force push.",
             "Publish mad4b.governed-generated-artifact-refresh.v1 as the mutation evidence source."
           ],
           "assertions": [
             "The verification report contract is mad4b.frontend-dispatch-verification-evidence.v1.",
+            "The dispatch report contract is mad4b.governed-refresh-dispatch-evidence.v1.",
             "The mutation report contract is mad4b.governed-generated-artifact-refresh.v1.",
             "Pull-request evidence records merge-candidate SHA separately from source-head SHA.",
             "Validation and governed refresh both move local main to origin/main after fetching.",
             "Canonical auth repair inserts exact operation-level security and never widens a mixed document root security default.",
             "Unrelated inherited public operations remain unchanged.",
-            "The report names the first failed verification stage and exit code.",
-            "Diagnostics are bounded and redact authorization values, OAuth tokens, secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values.",
-            "Both reports declare secrets_included=false.",
-            "Job logs are diagnostic-only and are consulted only when bounded structured diagnostics are absent.",
-            "The pull-request verification workflow has contents read permission only and contains no git push.",
+            "Verification and dispatch reports name the first failed stage or code with bounded diagnostics.",
+            "Diagnostics redact authorization values, OAuth tokens, secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values.",
+            "All reports declare secrets_included=false.",
+            "Job logs are diagnostic-only and are not required when structured diagnostics exist.",
+            "Pull-request jobs keep contents read-only and never perform a direct git push.",
+            "The label adapter delegates mutation only to governed-generated-artifact-refresh.yml on main.",
+            "The dispatched inputs contain exact target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation.",
             "The mutating refresh workflow remains workflow_dispatch-only and requires exact-head typed confirmation.",
             "The maintenance tool refuses main, Production, stale local heads, and stale remote heads.",
-            "The registered repair write set includes only the reviewed canonical OpenAPI and generated contract files.",
+            "The registered repair write set includes only reviewed canonical OpenAPI and generated contract files.",
             "Force push is forbidden."
           ],
           "tests": [
@@ -78,6 +85,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-frontend-dispatch-verification-evidence.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-refresh-dispatch-evidence-adapter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-dispatch-governed-generated-artifact-refresh.mjs",
               "args": []
             },
             {
@@ -106,9 +120,12 @@
             ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/frontend-surface-dispatch.yml",
             ".github/workflows/frontend-surface-dispatch-refresh.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/dispatch-governed-generated-artifact-refresh.mjs",
             "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
+            "http-generic-api/scripts/test-dispatch-governed-generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
@@ -121,17 +138,17 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Route the verification and mutation reports through the trusted canonical PR evidence publisher after the workflow and maintenance-tool definitions are present on the default branch."
+      "objective": "Route verification, dispatch, and mutation reports through the trusted canonical PR evidence publisher after all workflow and maintenance-tool definitions are present on the default branch."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise process spawn faults, missing reports, oversized diagnostics, stale candidates, concurrent refresh pushes, mixed-profile canonical documents, write-set violations, and artifact upload failures."
+      "objective": "Exercise dispatch authorization rejection, process spawn faults, missing reports, oversized diagnostics, stale candidates, concurrent refresh pushes, mixed-profile canonical documents, write-set violations, and artifact upload failures."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe the first non-production exact-candidate report and verify reviewers no longer require manual Job-log reading."
+      "objective": "Observe the first non-production label-driven exact-head dispatch and verify reviewers no longer require manual Job-log reading."
     },
     {
       "id": "production",
