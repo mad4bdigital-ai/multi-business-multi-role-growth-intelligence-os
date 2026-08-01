@@ -3,7 +3,7 @@ name: Hostinger CI Evidence PR Publisher
 on:
   workflow_run:
     workflows:
-      - Hostinger Storage Tenant Canary Guard
+      - Hostinger Storage Tenant Canary Canonical Evidence
     types: [completed]
 
 permissions:
