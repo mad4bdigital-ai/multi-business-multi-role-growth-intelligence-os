@@ -12,8 +12,7 @@ import {
 
 function executableSql(statement) {
   return String(statement || "")
-    .replace(/^\s*(?:(?:--[^\r\n]*(?:\r?\n|$))|(?:\/\*[\s\S]*?\*\/\s*))*/u, "")
-    .trimStart();
+    .replace(/^(?:(?:\s*--[^\r\n]*(?:\r?\n|$))|(?:\s*\/\*[\s\S]*?\*\/))*\s*/u, "");
 }
 
 const sampleSql = `
