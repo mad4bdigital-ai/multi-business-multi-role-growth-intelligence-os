@@ -72,6 +72,15 @@ function selectedCapability(toolchainResolution, capability) {
   return (toolchainResolution?.selections || []).find((row) => row?.capability === capability) || null;
 }
 
+function normalizeToolBinding(selection, field) {
+  return Object.freeze({
+    tool_id: safeId(selection?.selected_tool_id, `${field}.tool_id`),
+    binary_sha256: hash(selection?.selected?.binary_sha256, `${field}.binary_sha256`),
+    version: safeId(selection?.selected?.observed_version, `${field}.version`),
+    secrets_included: false,
+  });
+}
+
 function normalizePlanBinding(plan = {}) {
   return Object.freeze({
     plan_id: safeId(plan.plan_id, 'plan_id'),
@@ -82,6 +91,27 @@ function normalizePlanBinding(plan = {}) {
     authority_context_hash: hash(plan.authority_context_hash, 'authority_context_hash'),
     ownership_revision: safeId(plan.ownership_revision, 'ownership_revision'),
     policy_revision: safeId(plan.policy_revision, 'policy_revision'),
+    secrets_included: false,
+  });
+}
+
+function normalizeObservedTags(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((entry) => text(entry, 256)).filter(Boolean))].sort();
+}
+
+function buildRequirementBinding({ riskProfile, requestedAt, planBinding, checkpointRequired, restoreSampleRequired, replicaRequired }) {
+  return Object.freeze({
+    schema_version: 1,
+    binding_key: 'hostinger_storage_recovery_requirement_v1',
+    recovery_version: HOSTINGER_STORAGE_RECOVERY_VERSION,
+    risk_profile: riskProfile,
+    requested_at: requestedAt,
+    plan_binding: planBinding,
+    checkpoint_required: checkpointRequired,
+    restore_sample_required: restoreSampleRequired,
+    replica_verification_required: replicaRequired,
+    automatic_retry_allowed: false,
     secrets_included: false,
   });
 }
@@ -102,12 +132,24 @@ export function buildHostingerStorageRecoveryCheckpoint({
   const checkpointRequired = risk.checkpoint_required === true;
   const restoreSampleRequired = risk.restore_sample_required === true;
   const replicaRequired = risk.replica_verification_required === true;
+  const requirementBinding = buildRequirementBinding({
+    riskProfile: risk_profile,
+    requestedAt,
+    planBinding: binding,
+    checkpointRequired,
+    restoreSampleRequired,
+    replicaRequired,
+  });
+  const requirementBindingDigest = digest(requirementBinding);
+
   if (!checkpointRequired) {
     return Object.freeze({
       ok: true,
       checkpoint_required: false,
       restore_sample_required: false,
       replica_verification_required: false,
+      requirement_binding: requirementBinding,
+      requirement_binding_digest: requirementBindingDigest,
       plan_binding: binding,
       dispatch_allowed: false,
       blockers: [],
@@ -119,6 +161,18 @@ export function buildHostingerStorageRecoveryCheckpoint({
   if (!checkpointCapability?.satisfied || checkpointCapability.selected_tool_id !== 'restic') {
     throw fail(409, 'STORAGE_RECOVERY_CHECKPOINT_TOOL_REQUIRED', 'A ready restic checkpoint capability is required.');
   }
+  const checkpointTool = normalizeToolBinding(checkpointCapability, 'checkpoint_tool');
+
+  let replicaVerificationTool = null;
+  if (replicaRequired) {
+    const replicaCapability = selectedCapability(toolchain_resolution, 'replica_verification');
+    const allowedReplicaTools = policy?.selection_rules?.replica_verification || [];
+    if (!replicaCapability?.satisfied || !allowedReplicaTools.includes(replicaCapability.selected_tool_id)) {
+      throw fail(409, 'STORAGE_RECOVERY_REPLICA_TOOL_REQUIRED', 'A ready allowlisted replica-verification capability is required.');
+    }
+    replicaVerificationTool = normalizeToolBinding(replicaCapability, 'replica_verification_tool');
+  }
+
   const resticPolicy = policy.tools?.restic;
   const backend = text(repository?.backend, 32).toLowerCase();
   if (!(resticPolicy?.repository_backends || []).includes(backend)) {
@@ -142,22 +196,21 @@ export function buildHostingerStorageRecoveryCheckpoint({
     recovery_version: HOSTINGER_STORAGE_RECOVERY_VERSION,
     risk_profile,
     requested_at: requestedAt,
+    checkpoint_required: true,
+    restore_sample_required: restoreSampleRequired,
+    replica_verification_required: replicaRequired,
+    requirement_binding_digest: requirementBindingDigest,
     plan_binding: binding,
     repository_binding: repositoryBinding,
     repository_binding_digest: repositoryBindingDigest,
-    checkpoint_tool: {
-      tool_id: 'restic',
-      binary_sha256: hash(checkpointCapability.selected?.binary_sha256, 'restic.binary_sha256'),
-      version: text(checkpointCapability.selected?.observed_version, 64),
-    },
+    checkpoint_tool: checkpointTool,
+    replica_verification_tool: replicaVerificationTool,
     required_tags: [
       `operation:${binding.operation_id}`,
       `plan:${binding.plan_hash}`,
       `target:${binding.target_id}`,
       `policy:${binding.policy_revision}`,
     ],
-    restore_sample_required: restoreSampleRequired,
-    replica_verification_required: replicaRequired,
     automatic_retry_allowed: false,
     secrets_included: false,
   };
@@ -166,6 +219,8 @@ export function buildHostingerStorageRecoveryCheckpoint({
     checkpoint_required: true,
     restore_sample_required: restoreSampleRequired,
     replica_verification_required: replicaRequired,
+    requirement_binding: requirementBinding,
+    requirement_binding_digest: requirementBindingDigest,
     checkpoint_contract: Object.freeze(contractCore),
     checkpoint_contract_digest: digest(contractCore),
     dispatch_allowed: false,
@@ -176,21 +231,47 @@ export function buildHostingerStorageRecoveryCheckpoint({
 }
 
 export function verifyHostingerStorageRecoveryEvidence({ checkpoint, evidence, verified_at } = {}) {
-  assertSecretFree(evidence, 'recovery_evidence');
-  if (!checkpoint?.checkpoint_required) {
+  assertSecretFree({ checkpoint, evidence }, 'recovery_verification');
+  const requirement = checkpoint?.requirement_binding;
+  if (!requirement || checkpoint.requirement_binding_digest !== digest(requirement)) {
+    throw fail(409, 'STORAGE_RECOVERY_REQUIREMENT_TAMPERED', 'Recovery requirement binding digest does not match.');
+  }
+  if (
+    checkpoint.checkpoint_required !== requirement.checkpoint_required
+    || checkpoint.restore_sample_required !== requirement.restore_sample_required
+    || checkpoint.replica_verification_required !== requirement.replica_verification_required
+  ) {
+    throw fail(409, 'STORAGE_RECOVERY_REQUIREMENT_TAMPERED', 'Recovery requirement flags do not match the bound risk profile.');
+  }
+
+  const verifiedAt = iso(verified_at, 'verified_at');
+  const verifiedAtEpoch = Date.parse(verifiedAt);
+  if (!requirement.checkpoint_required) {
     return Object.freeze({
       ok: true,
       required: false,
       ready: true,
       blockers: [],
-      proof_digest: digest({ required: false, plan: checkpoint?.plan_binding || null }),
+      requirement_binding_digest: checkpoint.requirement_binding_digest,
+      proof_digest: digest({ required: false, requirement_binding_digest: checkpoint.requirement_binding_digest }),
       secrets_included: false,
     });
   }
+
   const contract = checkpoint.checkpoint_contract;
   if (!contract || checkpoint.checkpoint_contract_digest !== digest(contract)) {
     throw fail(409, 'STORAGE_RECOVERY_CHECKPOINT_CONTRACT_TAMPERED', 'Checkpoint contract digest does not match.');
   }
+  if (
+    contract.requirement_binding_digest !== checkpoint.requirement_binding_digest
+    || contract.checkpoint_required !== requirement.checkpoint_required
+    || contract.restore_sample_required !== requirement.restore_sample_required
+    || contract.replica_verification_required !== requirement.replica_verification_required
+    || digest(contract.plan_binding) !== digest(requirement.plan_binding)
+  ) {
+    throw fail(409, 'STORAGE_RECOVERY_CHECKPOINT_CONTRACT_TAMPERED', 'Checkpoint contract does not match its bound requirement.');
+  }
+
   const blockers = [];
   const snapshotId = text(evidence?.snapshot_id, 191);
   if (!SAFE_ID_RE.test(snapshotId)) blockers.push('STORAGE_RECOVERY_SNAPSHOT_REQUIRED');
@@ -198,23 +279,42 @@ export function verifyHostingerStorageRecoveryEvidence({ checkpoint, evidence, v
   if (text(evidence?.plan_hash, 64).toLowerCase() !== contract.plan_binding.plan_hash) blockers.push('STORAGE_RECOVERY_PLAN_HASH_MISMATCH');
   if (text(evidence?.candidate_set_hash, 64).toLowerCase() !== contract.plan_binding.candidate_set_hash) blockers.push('STORAGE_RECOVERY_CANDIDATE_SET_MISMATCH');
   if (evidence?.repository_check_passed !== true) blockers.push('STORAGE_RECOVERY_REPOSITORY_CHECK_REQUIRED');
+
+  const observedTags = normalizeObservedTags(evidence?.snapshot_tags);
+  if (!contract.required_tags.every((tag) => observedTags.includes(tag))) blockers.push('STORAGE_RECOVERY_SNAPSHOT_TAGS_MISMATCH');
+
+  const requestedAtEpoch = Date.parse(contract.requested_at);
   const backupCompletedAt = Date.parse(text(evidence?.backup_completed_at, 64));
   if (!Number.isFinite(backupCompletedAt)) blockers.push('STORAGE_RECOVERY_BACKUP_TIME_REQUIRED');
+  else {
+    if (backupCompletedAt < requestedAtEpoch) blockers.push('STORAGE_RECOVERY_BACKUP_BEFORE_CHECKPOINT_REQUEST');
+    if (backupCompletedAt > verifiedAtEpoch) blockers.push('STORAGE_RECOVERY_BACKUP_AFTER_VERIFICATION');
+  }
 
+  let restoreSampleVerifiedAt = Number.NaN;
   if (contract.restore_sample_required) {
     if (evidence?.restore_sample?.verified !== true) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_REQUIRED');
     if (!SHA256_RE.test(text(evidence?.restore_sample?.content_digest, 64))) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_DIGEST_REQUIRED');
-    if (!Number.isFinite(Date.parse(text(evidence?.restore_sample?.verified_at, 64)))) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_TIME_REQUIRED');
+    restoreSampleVerifiedAt = Date.parse(text(evidence?.restore_sample?.verified_at, 64));
+    if (!Number.isFinite(restoreSampleVerifiedAt)) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_TIME_REQUIRED');
+    else {
+      if (Number.isFinite(backupCompletedAt) && restoreSampleVerifiedAt < backupCompletedAt) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_BEFORE_BACKUP');
+      if (restoreSampleVerifiedAt > verifiedAtEpoch) blockers.push('STORAGE_RECOVERY_RESTORE_SAMPLE_AFTER_VERIFICATION');
+    }
   }
+
   if (contract.replica_verification_required) {
     if (evidence?.replica?.verified !== true) blockers.push('STORAGE_RECOVERY_REPLICA_VERIFICATION_REQUIRED');
     if (!SHA256_RE.test(text(evidence?.replica?.verification_digest, 64))) blockers.push('STORAGE_RECOVERY_REPLICA_DIGEST_REQUIRED');
+    if (text(evidence?.replica?.tool_id, 191) !== contract.replica_verification_tool?.tool_id) blockers.push('STORAGE_RECOVERY_REPLICA_TOOL_MISMATCH');
+    if (text(evidence?.replica?.tool_version, 191) !== contract.replica_verification_tool?.version) blockers.push('STORAGE_RECOVERY_REPLICA_VERSION_MISMATCH');
+    if (text(evidence?.replica?.tool_binary_sha256, 64).toLowerCase() !== contract.replica_verification_tool?.binary_sha256) blockers.push('STORAGE_RECOVERY_REPLICA_BINARY_MISMATCH');
   }
 
-  const verifiedAt = iso(verified_at, 'verified_at');
   const proof = {
     schema_version: 1,
     proof_key: 'hostinger_storage_recovery_proof_v1',
+    requirement_binding_digest: checkpoint.requirement_binding_digest,
     operation_id: contract.plan_binding.operation_id,
     plan_id: contract.plan_binding.plan_id,
     plan_hash: contract.plan_binding.plan_hash,
@@ -222,12 +322,18 @@ export function verifyHostingerStorageRecoveryEvidence({ checkpoint, evidence, v
     target_id: contract.plan_binding.target_id,
     repository_binding_digest: contract.repository_binding_digest,
     snapshot_id: snapshotId || null,
+    snapshot_tags: observedTags,
+    snapshot_tags_digest: digest(observedTags),
     backup_completed_at: Number.isFinite(backupCompletedAt) ? new Date(backupCompletedAt).toISOString() : null,
     repository_check_passed: evidence?.repository_check_passed === true,
     restore_sample_verified: evidence?.restore_sample?.verified === true,
     restore_sample_digest: SHA256_RE.test(text(evidence?.restore_sample?.content_digest, 64)) ? text(evidence.restore_sample.content_digest, 64).toLowerCase() : null,
+    restore_sample_verified_at: Number.isFinite(restoreSampleVerifiedAt) ? new Date(restoreSampleVerifiedAt).toISOString() : null,
     replica_verified: evidence?.replica?.verified === true,
     replica_verification_digest: SHA256_RE.test(text(evidence?.replica?.verification_digest, 64)) ? text(evidence.replica.verification_digest, 64).toLowerCase() : null,
+    replica_tool_id: contract.replica_verification_tool?.tool_id || null,
+    replica_tool_version: contract.replica_verification_tool?.version || null,
+    replica_tool_binary_sha256: contract.replica_verification_tool?.binary_sha256 || null,
     verified_at: verifiedAt,
     blockers: [...new Set(blockers)].sort(),
     secrets_included: false,
