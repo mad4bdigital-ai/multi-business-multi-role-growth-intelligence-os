@@ -58,6 +58,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/automation-overlap-guard.yml`
 - `.github/workflows/branch-test-diagnostic-shards.yml`
 - `.github/workflows/brand-skill-mariadb-certification.yml`
+- `.github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml`
+- `.github/workflows/brand-skill-staging-preflight-push-fallback.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
@@ -69,6 +71,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-local-connector-production-closure-push.yml`
 - `.github/workflows/governed-local-connector-production-closure.yml`
 - `.github/workflows/governed-migration-dependency-gate.yml`
+- `.github/workflows/governed-production-candidate-dispatch-bridge.yml`
+- `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
+- `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
@@ -77,10 +82,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
 - `.github/workflows/pr-generated-artifact-refresh.yml`
 - `.github/workflows/pr-risk-labeler.yml`
+- `.github/workflows/production-certified-release-cut-validation.yml`
 - `.github/workflows/production-promotion-candidate-contract.yml`
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
+- `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
+- `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
+- `.github/workflows/spec-kit-work-map-autofix.yml`
+- `.github/workflows/spec-kit-work-map-integration.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
@@ -164,6 +174,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
+- `http-generic-api/test-work-map-schema-classification-contract.mjs`
+- `http-generic-api/test-work-map-schema-classification.mjs`
 
 ## Maintenance Contract
 
