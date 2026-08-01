@@ -2,12 +2,36 @@ import { createHash } from 'node:crypto';
 import { verifyHostingerStorageSyntheticExecutionProtocol } from './hostingerStorageExecutorProtocol.js';
 import { executeHostingerStorageSyntheticPlan } from './hostingerStorageSyntheticExecutor.js';
 import { verifyHostingerStorageTenantCanaryAuthorization } from './hostingerStorageTenantCanaryPolicy.js';
+import {
+  createHostingerStorageSyntheticAdapter,
+  isCanonicalHostingerStorageSyntheticAdapter,
+} from './hostingerStorageSyntheticAdapter.js';
+import {
+  createHostingerStorageControlPlaneRepository,
+  createMemoryHostingerStoragePersistenceAdapter,
+  isCanonicalHostingerStorageControlPlaneRepository,
+} from './hostingerStorageControlPlaneRepository.js';
 
 export const HOSTINGER_STORAGE_TENANT_CANARY_VERSION = 'spec014-hostinger-storage-tenant-canary-v1';
 
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const SAFE_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,510}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/i;
+const REQUIRED_REPOSITORY_METHODS = Object.freeze([
+  'readAggregate',
+  'transitionOperation',
+  'consumePlan',
+  'appendJournalEvent',
+  'recordReconciliation',
+]);
+const CANONICAL_REPOSITORY_VERSION = 'spec014-storage-control-plane-repository-v1';
+const CANONICAL_REPOSITORY_ADAPTER_KEY = 'hostinger_storage_memory_test_adapter_v1';
+const AUTHORITY_STORE_KEY = 'memory_hostinger_storage_tenant_canary_authority_v1';
+const ENABLEMENT_REGISTRY_KEY = 'memory_hostinger_storage_tenant_canary_enablement_v1';
+const tenantCanaryAdapters = new WeakSet();
+const tenantCanaryRepositories = new WeakSet();
+const tenantCanaryAuthorityStores = new WeakSet();
+const tenantCanaryEnablementRegistries = new WeakSet();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -19,6 +43,14 @@ function fail(status, code, message, details = {}) {
 
 function text(value, max = 512) {
   return String(value ?? '').trim().slice(0, max);
+}
+
+function boundedIdToken(value) {
+  return String(value ?? '').trim().slice(0, 256);
+}
+
+function boundedHashToken(value) {
+  return String(value ?? '').trim().slice(0, 64).toLowerCase();
 }
 
 function safeId(value, field) {
@@ -68,6 +100,27 @@ function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
 }
 
+function snapshotAuthorityRecord(record, tokenField, normalizeToken) {
+  if (!record || typeof record !== 'object') {
+    throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority update record must be a plain data object.', { field: tokenField });
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(record);
+  const tokenDescriptor = descriptors[tokenField];
+  if (!tokenDescriptor || !Object.hasOwn(tokenDescriptor, 'value') || typeof tokenDescriptor.value !== 'string') {
+    throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority token must be an owned primitive string value.', { field: tokenField });
+  }
+  const snapshot = {};
+  for (const [field, descriptor] of Object.entries(descriptors)) {
+    if (!Object.hasOwn(descriptor, 'value')) {
+      throw fail(400, 'STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID', 'Authority update records must not contain accessor properties.', { field });
+    }
+    snapshot[field] = descriptor.value;
+  }
+  const normalizedToken = normalizeToken(tokenDescriptor.value);
+  snapshot[tokenField] = normalizedToken;
+  return { snapshot, normalizedToken };
+}
+
 function normalizeCurrentAllowlist(record = {}) {
   return {
     allowlist_id: safeId(record.allowlist_id, 'allowlist.allowlist_id'),
@@ -111,11 +164,39 @@ function normalizeCurrentApproval(record = {}) {
   };
 }
 
+export function createHostingerStorageTenantCanarySyntheticAdapter(options = {}) {
+  const adapter = createHostingerStorageSyntheticAdapter(options);
+  if (!isCanonicalHostingerStorageSyntheticAdapter(adapter)) {
+    throw fail(500, 'STORAGE_TENANT_CANARY_SYNTHETIC_ADAPTER_FACTORY_INVALID', 'Tenant canary adapter factory failed canonical synthetic provenance verification.');
+  }
+  tenantCanaryAdapters.add(adapter);
+  return adapter;
+}
+
+export function createHostingerStorageTenantCanaryControlPlaneRepository({ snapshot = null } = {}) {
+  const persistence = createMemoryHostingerStoragePersistenceAdapter({ snapshot });
+  const repository = createHostingerStorageControlPlaneRepository({ adapter: persistence });
+  if (!isCanonicalHostingerStorageControlPlaneRepository(repository)) {
+    throw fail(500, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_FACTORY_INVALID', 'Tenant canary repository factory failed canonical Control Plane provenance verification.');
+  }
+  tenantCanaryRepositories.add(repository);
+  return repository;
+}
+
 export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
   const allowlists = new Map();
   const approvals = new Map();
+  const allowlistRevisionHistory = new Map();
+  const approvalEvidenceHistory = new Map();
+
+  function remember(history, id, value) {
+    const values = history.get(id) || new Set();
+    values.add(value);
+    history.set(id, values);
+  }
+
   const store = {
-    adapter_key: 'memory_hostinger_storage_tenant_canary_authority_v1',
+    adapter_key: AUTHORITY_STORE_KEY,
     synthetic_only: true,
     production_ready: false,
     registerAllowlist(record) {
@@ -123,19 +204,30 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const existing = allowlists.get(normalized.allowlist_id);
       if (existing && digest(existing) !== digest(normalized)) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_ID_CONFLICT', 'Allowlist ID is already bound to different authority evidence.');
       if (!existing) allowlists.set(normalized.allowlist_id, normalized);
+      remember(allowlistRevisionHistory, normalized.allowlist_id, normalized.revision);
       return clone(allowlists.get(normalized.allowlist_id));
     },
     updateAllowlist({ allowlist_id, expected_revision, record } = {}) {
-      const id = safeId(allowlist_id, 'allowlist_id');
-      const current = allowlists.get(id);
+      const id = boundedIdToken(allowlist_id);
+      const current = allowlists.get(safeId(id, 'allowlist_id'));
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_ALLOWLIST_NOT_FOUND', 'Authoritative allowlist record was not found.');
-      const expectedRevision = safeId(expected_revision, 'expected_revision');
-      if (current.revision !== expectedRevision) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
-      const normalized = deepFreeze(normalizeCurrentAllowlist({ ...record, allowlist_id: id }));
+      const expectedRevision = boundedIdToken(expected_revision);
+      if (current.revision !== safeId(expectedRevision, 'expected_revision')) throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_CONFLICT', 'Allowlist revision changed before update.', { current_revision: current.revision });
+      const { snapshot, normalizedToken: nextRevision } = snapshotAuthorityRecord(record, 'revision', boundedIdToken);
+      const history = allowlistRevisionHistory.get(id) || new Set([current.revision]);
+      if (nextRevision !== current.revision && history.has(nextRevision)) {
+        throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED', 'Allowlist revisions are monotonic and may never be reused.', {
+          allowlist_id: id,
+          current_revision: current.revision,
+          rejected_revision: nextRevision,
+        });
+      }
+      const normalized = deepFreeze(normalizeCurrentAllowlist({ ...snapshot, allowlist_id: id }));
       if (normalized.revision === current.revision) {
         throw fail(409, 'STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_NOT_ADVANCED', 'Allowlist updates must advance the authoritative revision token.', { current_revision: current.revision });
       }
       allowlists.set(id, normalized);
+      remember(allowlistRevisionHistory, id, normalized.revision);
       return clone(normalized);
     },
     readAllowlist(allowlistId) {
@@ -146,19 +238,30 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       const existing = approvals.get(normalized.approval_id);
       if (existing && digest(existing) !== digest(normalized)) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_ID_CONFLICT', 'Approval ID is already bound to different authority evidence.');
       if (!existing) approvals.set(normalized.approval_id, normalized);
+      remember(approvalEvidenceHistory, normalized.approval_id, normalized.evidence_digest);
       return clone(approvals.get(normalized.approval_id));
     },
     updateApproval({ approval_id, expected_evidence_digest, record } = {}) {
-      const id = safeId(approval_id, 'approval_id');
-      const current = approvals.get(id);
+      const id = boundedIdToken(approval_id);
+      const current = approvals.get(safeId(id, 'approval_id'));
       if (!current) throw fail(404, 'STORAGE_TENANT_CANARY_APPROVAL_NOT_FOUND', 'Authoritative approval record was not found.');
-      const expectedEvidenceDigest = hash(expected_evidence_digest, 'expected_evidence_digest');
-      if (current.evidence_digest !== expectedEvidenceDigest) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
-      const normalized = deepFreeze(normalizeCurrentApproval({ ...record, approval_id: id }));
+      const expectedEvidenceDigest = boundedHashToken(expected_evidence_digest);
+      if (current.evidence_digest !== hash(expectedEvidenceDigest, 'expected_evidence_digest')) throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_CONFLICT', 'Approval evidence changed before update.');
+      const { snapshot, normalizedToken: nextEvidence } = snapshotAuthorityRecord(record, 'evidence_digest', boundedHashToken);
+      const history = approvalEvidenceHistory.get(id) || new Set([current.evidence_digest]);
+      if (nextEvidence !== current.evidence_digest && history.has(nextEvidence)) {
+        throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED', 'Approval evidence tokens are monotonic and may never be reused.', {
+          approval_id: id,
+          current_evidence_digest: current.evidence_digest,
+          rejected_evidence_digest: nextEvidence,
+        });
+      }
+      const normalized = deepFreeze(normalizeCurrentApproval({ ...snapshot, approval_id: id }));
       if (normalized.evidence_digest === current.evidence_digest) {
         throw fail(409, 'STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_NOT_ADVANCED', 'Approval updates must advance the authoritative evidence token.', { current_evidence_digest: current.evidence_digest });
       }
       approvals.set(id, normalized);
+      remember(approvalEvidenceHistory, id, normalized.evidence_digest);
       return clone(normalized);
     },
     readApproval(approvalId) {
@@ -171,13 +274,14 @@ export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
       });
     },
   };
+  tenantCanaryAuthorityStores.add(store);
   return Object.freeze(store);
 }
 
 export function createMemoryHostingerStorageTenantCanaryEnablementRegistry() {
   const records = new Map();
   const registry = {
-    adapter_key: 'memory_hostinger_storage_tenant_canary_enablement_v1',
+    adapter_key: ENABLEMENT_REGISTRY_KEY,
     synthetic_only: true,
     production_ready: false,
     register(record) {
@@ -222,26 +326,57 @@ export function createMemoryHostingerStorageTenantCanaryEnablementRegistry() {
       return clone([...records.values()].sort((left, right) => left.enablement_id.localeCompare(right.enablement_id)));
     },
   };
+  tenantCanaryEnablementRegistries.add(registry);
   return Object.freeze(registry);
 }
 
 function requireAuthorityStore(store) {
-  if (!store || store.synthetic_only !== true || store.production_ready !== false
-    || typeof store.readAllowlist !== 'function' || typeof store.readApproval !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORITY_STORE_INVALID', 'A non-production authoritative canary store is required.');
+  if (!store
+    || !tenantCanaryAuthorityStores.has(store)
+    || !Object.isFrozen(store)
+    || store.adapter_key !== AUTHORITY_STORE_KEY
+    || store.synthetic_only !== true
+    || store.production_ready !== false
+    || typeof store.readAllowlist !== 'function'
+    || typeof store.readApproval !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_AUTHORITY_STORE_INVALID', 'A Tenant-factory-owned non-production authoritative canary store is required.', {
+      authority_store_provenance: 'tenant_factory_owned_required',
+    });
   }
 }
 
 function requireRegistry(registry) {
-  if (!registry || registry.synthetic_only !== true || registry.production_ready !== false
-    || typeof registry.read !== 'function' || typeof registry.consume !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_REGISTRY_INVALID', 'A non-production one-shot enablement registry is required.');
+  if (!registry
+    || !tenantCanaryEnablementRegistries.has(registry)
+    || !Object.isFrozen(registry)
+    || registry.adapter_key !== ENABLEMENT_REGISTRY_KEY
+    || registry.synthetic_only !== true
+    || registry.production_ready !== false
+    || typeof registry.read !== 'function'
+    || typeof registry.consume !== 'function') {
+    throw fail(409, 'STORAGE_TENANT_CANARY_ENABLEMENT_REGISTRY_INVALID', 'A Tenant-factory-owned non-production one-shot enablement registry is required.', {
+      enablement_registry_provenance: 'tenant_factory_owned_required',
+    });
   }
 }
 
 function requireControlPlaneRepository(repository) {
-  if (!repository || repository.production_ready === true || typeof repository.readAggregate !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires the non-production governed control-plane repository.');
+  const missing = REQUIRED_REPOSITORY_METHODS.filter((method) => typeof repository?.[method] !== 'function');
+  if (!repository
+    || !tenantCanaryRepositories.has(repository)
+    || !isCanonicalHostingerStorageControlPlaneRepository(repository)
+    || !Object.isFrozen(repository)
+    || repository.repository_version !== CANONICAL_REPOSITORY_VERSION
+    || repository.adapter_key !== CANONICAL_REPOSITORY_ADAPTER_KEY
+    || repository.production_ready !== false
+    || missing.length) {
+    throw fail(409, 'STORAGE_TENANT_CANARY_CONTROL_PLANE_INVALID', 'Tenant canary requires a repository created by the Tenant-owned factory over the canonical Control Plane factory.', {
+      repository_provenance: 'tenant_and_control_plane_factory_owned_required',
+      expected_repository_version: CANONICAL_REPOSITORY_VERSION,
+      expected_adapter_key: CANONICAL_REPOSITORY_ADAPTER_KEY,
+      required_methods: REQUIRED_REPOSITORY_METHODS,
+      missing_methods: missing,
+    });
   }
 }
 
@@ -274,11 +409,16 @@ function revalidateCurrentAuthority({ authorization, authorityStore, now }) {
 
 function preflightSyntheticExecutorInputs({ protocol, protocolDigest, repository, adapter, now }) {
   verifyHostingerStorageSyntheticExecutionProtocol({ protocol, expected_digest: protocolDigest });
-  if (!adapter || adapter.synthetic_only !== true || adapter.production_ready !== false || adapter.live_provider !== false
-    || adapter.filesystem_access !== false || adapter.shell_access !== false
-    || typeof adapter.mutateExact !== 'function' || typeof adapter.readbackItem !== 'function'
+  if (!adapter
+    || !tenantCanaryAdapters.has(adapter)
+    || !isCanonicalHostingerStorageSyntheticAdapter(adapter)
+    || !Object.isFrozen(adapter)
+    || typeof adapter.mutateExact !== 'function'
+    || typeof adapter.readbackItem !== 'function'
     || typeof adapter.readMutationReceipt !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Canary execution requires the canonical in-memory synthetic adapter contract.');
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Canary execution requires an adapter created by the Tenant-owned factory over the canonical synthetic adapter factory.', {
+      adapter_provenance: 'tenant_and_synthetic_factory_owned_required',
+    });
   }
   const aggregate = repository.readAggregate(protocol.operation_id);
   if (!aggregate?.operation) throw fail(404, 'STORAGE_TENANT_CANARY_OPERATION_NOT_FOUND', 'Canary operation aggregate was not found during executor preflight.');
@@ -293,6 +433,9 @@ function preflightSyntheticExecutorInputs({ protocol, protocolDigest, repository
     if (plan.target_id !== protocol.target_id) planMismatches.push('target_id');
     if (plan.plan_hash !== protocol.plan_hash) planMismatches.push('plan_hash');
     if (plan.candidate_set_hash !== protocol.candidate_set_hash) planMismatches.push('candidate_set_hash');
+    if (plan.authority_context_hash !== aggregate.operation.authority_context_hash) planMismatches.push('authority_context_hash');
+    if (plan.ownership_revision !== aggregate.operation.ownership_revision) planMismatches.push('ownership_revision');
+    if (plan.policy_revision !== aggregate.operation.policy_revision) planMismatches.push('policy_revision');
     if (Number(plan.expires_at_epoch) !== Number(protocol.plan_expires_at_epoch)) planMismatches.push('expires_at_epoch');
     if (!['approved', 'consumed'].includes(plan.status)) planMismatches.push('status');
     if (plan.consumed === true && plan.consumed_run_id !== protocol.run_id) planMismatches.push('consumed_run_id');
