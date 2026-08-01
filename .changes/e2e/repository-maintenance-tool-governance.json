@@ -1,0 +1,157 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-maintenance-tool-governance",
+  "title": "Repository maintenance tool lifecycle governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      ".github/pull_request_template.md",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      "docs/repository-maintenance-tool-governance.md",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "operational"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify repository automation and reject branch-specific or unregistered temporary tooling before merge.",
+      "e2e_journeys": [
+        {
+          "id": "classify-and-reject-temporary-repository-automation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "pull request author or repository automation agent",
+          "entrypoint": "Repository Tool Lifecycle Governance pull-request workflow",
+          "terminal_outcome": "A bounded canonical report accepts registered reusable tooling and rejects one-off triggers, branch literals, pull-request writes, force pushes, and self-deleting workflows.",
+          "steps": [
+            "Checkout the exact pull-request head SHA and inventory changed files against the exact base SHA.",
+            "Load the machine-readable repository maintenance tool policy.",
+            "Classify changed workflows and scripts as registered reusable tools, temporary artifacts, or product runtime.",
+            "Write machine-readable and human-readable lifecycle reports before enforcement.",
+            "Fail the required check when any governed rule is violated."
+          ],
+          "assertions": [
+            "A branch-specific write workflow is rejected.",
+            "A pull-request-triggered workflow with contents write is rejected.",
+            "Trigger files and versioned one-off patch runners are rejected.",
+            "Unregistered scripts under the governed tool root are rejected.",
+            "A registered read-only lifecycle guard and compliant manually dispatched workflow are accepted.",
+            "The report identifies the exact candidate and base SHA and declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-guard-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
+            "docs/repository-maintenance-tool-governance.md",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Make the lifecycle rule an automatic pull-request gate and preserve canonical evidence without manual Job-log reconstruction.",
+      "e2e_journeys": [
+        {
+          "id": "publish-and-enforce-canonical-tool-lifecycle-report",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer",
+          "entrypoint": "A pull request changing repository automation",
+          "terminal_outcome": "The reviewer reads one exact-head lifecycle artifact and the check blocks merge until temporary artifacts are removed or promoted.",
+          "steps": [
+            "Run the guard regression before evaluating the candidate.",
+            "Generate repository-tool-lifecycle-report.json and repository-tool-lifecycle-report.md.",
+            "Upload the report even when enforcement fails.",
+            "Expose the bounded report in the GitHub Step Summary.",
+            "Enforce the report result without treating Job logs as status authority."
+          ],
+          "assertions": [
+            "The canonical artifact is uploaded on both pass and fail paths.",
+            "The PR template requires automation classification and cleanup confirmation.",
+            "The documentation defines promotion and deletion rules for future tools.",
+            "The guard itself is registered as a permanent read-only repository tool."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/pull_request_template.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on missing registration, unsafe mutation authority, workflow self-modification, and ambiguous tool lifecycle.",
+      "e2e_journeys": [
+        {
+          "id": "repository-tool-mutation-safety-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "automation attempting an unsafe repository mutation",
+          "entrypoint": "Changed workflow or maintenance script",
+          "terminal_outcome": "Unsafe automation is blocked with a bounded finding code and remediation before it reaches main.",
+          "steps": [
+            "Detect contents write combined with pull-request execution.",
+            "Detect work-branch literals, force push, and workflow self-deletion.",
+            "Require reusable maintenance scripts to be registered under the governed root.",
+            "Require future mutating tools to use explicit dispatch, expected head verification, and protected-branch rejection."
+          ],
+          "assertions": [
+            "No temporary automation can pass by hiding inside a versioned workflow name.",
+            "No one-off .trigger artifact can merge.",
+            "No unregistered maintenance tool can merge.",
+            "Findings contain no repository secret or changed-file content."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the guard across several unrelated pull requests and tune only documented false positives without weakening the core safety rules."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Make Repository Tool Lifecycle Governance a required main-branch check after successful canary observation."
+    }
+  ]
+}
