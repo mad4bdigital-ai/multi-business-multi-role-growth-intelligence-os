@@ -17,7 +17,6 @@ on:
       - "http-generic-api/**"
       - "src/**"
       - "specs/012-unified-admin-tenant-context-kernel/**"
-      - "docs/context-kernel/**"
       - ".github/ci-evidence-routing.json"
       - ".github/workflows/context-kernel-hardcoding-report.yml"
 
