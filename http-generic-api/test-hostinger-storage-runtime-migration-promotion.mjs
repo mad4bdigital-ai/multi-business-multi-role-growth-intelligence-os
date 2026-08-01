@@ -11,6 +11,7 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
+const REPORT_FILE = process.env.MIGRATION_PROMOTION_REPORT_FILE || '';
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const sha256 = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const normalizeExecutableStatement = (value) => value
@@ -71,6 +72,24 @@ const waves = [
   },
 ];
 
+const report = {
+  gate: 'hostinger_storage_runtime_migration_promotion',
+  generated_at: new Date().toISOString(),
+  waves: [],
+  migration_apply_performed: false,
+  live_database_access_performed: false,
+  provider_dispatch_performed: false,
+  credential_access_performed: false,
+  production_mutation_performed: false,
+  secrets_included: false,
+};
+
+function writeReport() {
+  if (!REPORT_FILE) return;
+  fs.mkdirSync(path.dirname(REPORT_FILE), { recursive: true });
+  fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+}
+
 const reports = [];
 for (const wave of waves) {
   const sql = read(wave.runtime);
@@ -78,14 +97,28 @@ for (const wave of waves) {
   const filename = path.basename(wave.runtime);
   const statements = splitSqlStatements(sql);
   const candidateStatements = splitSqlStatements(candidateSql);
-  assert.equal(statements.length, candidateStatements.length, `${filename}: executable statement count drifted from reviewed candidate`);
-  assert.deepEqual(
-    statements.map(normalizeExecutableStatement),
-    candidateStatements.map(normalizeExecutableStatement),
-    `${filename}: executable SQL drifted from reviewed candidate`,
-  );
-
+  const normalizedStatements = statements.map(normalizeExecutableStatement);
+  const normalizedCandidateStatements = candidateStatements.map(normalizeExecutableStatement);
+  const mismatchIndex = normalizedStatements.findIndex((statement, index) => statement !== normalizedCandidateStatements[index]);
   const preflight = assessMigrationSqlPreflight(filename, sql);
+  const diagnostic = {
+    wave: wave.id,
+    migration: filename,
+    checksum_sha256: sha256(sql),
+    statement_count: statements.length,
+    candidate_statement_count: candidateStatements.length,
+    executable_candidate_parity: statements.length === candidateStatements.length && mismatchIndex === -1,
+    first_mismatch_index: mismatchIndex,
+    first_runtime_statement: mismatchIndex >= 0 ? normalizedStatements[mismatchIndex] : null,
+    first_candidate_statement: mismatchIndex >= 0 ? normalizedCandidateStatements[mismatchIndex] : null,
+    preflight,
+    dependency: wave.dependency,
+  };
+  report.waves.push(diagnostic);
+  writeReport();
+
+  assert.equal(statements.length, candidateStatements.length, `${filename}: executable statement count drifted from reviewed candidate`);
+  assert.equal(mismatchIndex, -1, `${filename}: executable SQL drifted from reviewed candidate`);
   assert.equal(preflight.status, 'pass', `${filename}: preflight must pass`);
   assert.equal(Number(preflight.risk_count || 0), 0, `${filename}: preflight must have zero risks`);
   assert.equal(Number(preflight?.counts?.statements || 0), statements.length, `${filename}: preflight statement count drift`);
@@ -109,7 +142,7 @@ for (const wave of waves) {
   reports.push({
     wave: wave.id,
     migration: filename,
-    checksum_sha256: sha256(sql),
+    checksum_sha256: diagnostic.checksum_sha256,
     statement_count: statements.length,
     dependency: wave.dependency,
     preflight_status: preflight.status,
@@ -122,14 +155,7 @@ assert.equal(reports.length, 3);
 assert.equal(reports[1].dependency, reports[0].migration);
 assert.equal(reports[2].dependency, reports[1].migration);
 
-console.log(JSON.stringify({
-  ok: true,
-  gate: 'hostinger_storage_runtime_migration_promotion',
-  reports,
-  migration_apply_performed: false,
-  live_database_access_performed: false,
-  provider_dispatch_performed: false,
-  credential_access_performed: false,
-  production_mutation_performed: false,
-  secrets_included: false,
-}, null, 2));
+report.ok = true;
+report.reports = reports;
+writeReport();
+console.log(JSON.stringify(report, null, 2));
