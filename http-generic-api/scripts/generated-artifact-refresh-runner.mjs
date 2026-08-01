@@ -6,9 +6,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const CONTRACT = "mad4b.pr-generated-artifact-refresh-summary.v1";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const REF_PATTERN = /^(?:gpt|cert)\/[A-Za-z0-9._/-]{1,240}$/u;
 const MAX_DIAGNOSTIC_CHARS = 4000;
-const ALLOWED_CHANGED_FILES = new Set([
+export const ALLOWED_GENERATED_ARTIFACT_PATHS = Object.freeze([
   "http-generic-api/openapi.yaml",
   "http-generic-api/frontend-operation-governance.generated.json",
   "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -19,7 +18,7 @@ const ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
 ]);
-
+const ALLOWED_CHANGED_FILES = new Set(ALLOWED_GENERATED_ARTIFACT_PATHS);
 const scriptPath = fileURLToPath(import.meta.url);
 const apiDir = path.resolve(path.dirname(scriptPath), "..");
 const repoRoot = path.resolve(apiDir, "..");
@@ -76,29 +75,6 @@ function parseChangedFiles() {
     .map((file) => file.includes(" -> ") ? file.split(" -> ").at(-1) : file);
 }
 
-function validateIdentity() {
-  const sourceHeadSha = process.env.CI_SOURCE_HEAD_SHA || "";
-  const targetRef = process.env.TARGET_REF || "";
-  if (!SHA_PATTERN.test(sourceHeadSha)) throw new StepFailure({ code: "source_head_sha_invalid", step: "identity", command: "validate source head SHA", status: null });
-  if (!REF_PATTERN.test(targetRef)) throw new StepFailure({ code: "target_ref_invalid", step: "identity", command: "validate target ref", status: null });
-  return { sourceHeadSha, targetRef };
-}
-
-function assertTargetStillPinned(targetRef, sourceHeadSha) {
-  const result = run("verify_target_ref", "git", ["ls-remote", "origin", `refs/heads/${targetRef}`], { cwd: repoRoot });
-  const remoteSha = String(result.stdout || "").trim().split(/\s+/u)[0] || "";
-  if (remoteSha !== sourceHeadSha) {
-    throw new StepFailure({
-      code: "target_ref_moved",
-      step: "verify_target_ref",
-      command: `git ls-remote origin refs/heads/${targetRef}`,
-      status: 1,
-      stdout: `expected=${sourceHeadSha} actual=${remoteSha || "missing"}`,
-      stderr: "Refusing to publish generated artifacts onto a moved PR head.",
-    });
-  }
-}
-
 function writeReport(reportPath, markdownPath, report) {
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -107,13 +83,10 @@ function writeReport(reportPath, markdownPath, report) {
     "# PR Generated Artifact Refresh",
     "",
     `- Outcome: **${report.outcome}**`,
-    `- Candidate kind: \`${report.identity.candidate_kind}\``,
     `- Exact candidate SHA: \`${report.identity.candidate_sha}\``,
-    `- Workflow source head SHA: \`${report.identity.source_head_sha}\``,
-    `- Head/Base: \`${report.identity.head_ref}\` → \`${report.identity.base_ref}\``,
     `- Contract: \`${report.contract}\``,
-    `- Changed generated files: **${report.generated_artifacts.changed_files.length}**`,
-    `- Published commit: \`${report.generated_artifacts.commit_sha || "none"}\``,
+    `- Generated drift files: **${report.generated_artifacts.changed_files.length}**`,
+    "- Repository mutation: **none (read-only PR evaluation)**",
     "- Evidence authority: **canonical summary → workflow status**",
     "- Job logs: **diagnostic-only**",
   ];
@@ -135,26 +108,18 @@ function writeReport(reportPath, markdownPath, report) {
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
 }
 
-export function runGeneratedArtifactRefresh() {
+export function runGeneratedArtifactRefreshEvaluation() {
   const reportPath = process.env.REPORT_PATH || path.join(process.env.RUNNER_TEMP || repoRoot, "pr-generated-artifact-refresh-summary.json");
   const markdownPath = process.env.REPORT_MARKDOWN_PATH || path.join(process.env.RUNNER_TEMP || repoRoot, "pr-generated-artifact-refresh-summary.md");
-  const initialSourceHeadSha = process.env.CI_SOURCE_HEAD_SHA || "unknown";
-  let identity = {
-    workflow: "PR Generated Artifact Refresh",
-    run_id: Number(process.env.GITHUB_RUN_ID || 0),
-    candidate_kind: "head",
-    candidate_sha: initialSourceHeadSha,
-    source_head_sha: initialSourceHeadSha,
-    head_ref: process.env.TARGET_REF || process.env.GITHUB_HEAD_REF || "unknown",
-    base_ref: process.env.GITHUB_BASE_REF || "main",
-  };
+  const sourceHeadSha = process.env.CI_SOURCE_HEAD_SHA || "unknown";
+  const headRef = process.env.TARGET_REF || process.env.GITHUB_HEAD_REF || "unknown";
   let changedFiles = [];
-  let commitSha = null;
   let firstFailure = null;
 
   try {
-    const { sourceHeadSha, targetRef } = validateIdentity();
-    identity = { ...identity, candidate_sha: sourceHeadSha, source_head_sha: sourceHeadSha, head_ref: targetRef };
+    if (!SHA_PATTERN.test(sourceHeadSha)) {
+      throw new StepFailure({ code: "source_head_sha_invalid", step: "identity", command: "validate source head SHA", status: null });
+    }
     run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
     run("fetch_main", "git", ["fetch", "origin", "main", "--depth=1"], { cwd: repoRoot });
     run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
@@ -185,17 +150,15 @@ export function runGeneratedArtifactRefresh() {
         stderr: "Generator changed files outside the bounded artifact set.",
       });
     }
-
     if (changedFiles.length) {
-      assertTargetStillPinned(targetRef, sourceHeadSha);
-      run("configure_git_identity", "git", ["config", "user.name", "github-actions[bot]"], { cwd: repoRoot });
-      run("configure_git_email", "git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], { cwd: repoRoot });
-      run("stage_generated_artifacts", "git", ["add", "--", ...changedFiles], { cwd: repoRoot });
-      run("commit_generated_artifacts", "git", ["commit", "-m", "chore(ci): refresh generated contract artifacts"], { cwd: repoRoot });
-      commitSha = run("read_generated_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
-      if (!SHA_PATTERN.test(commitSha)) throw new StepFailure({ code: "generated_commit_sha_invalid", step: "read_generated_commit", command: "git rev-parse HEAD", status: 1, stdout: commitSha });
-      run("push_generated_artifacts", "git", ["push", "origin", `HEAD:${targetRef}`], { cwd: repoRoot });
-      identity = { ...identity, candidate_sha: commitSha };
+      throw new StepFailure({
+        code: "generated_artifact_drift_detected",
+        step: "compare_generated_artifacts",
+        command: "git status --porcelain --untracked-files=all",
+        status: 1,
+        stdout: changedFiles.join("\n"),
+        stderr: "Run the registered governed generated-artifact refresh tool with the exact target ref and expected head SHA.",
+      });
     }
   } catch (error) {
     const failure = error instanceof StepFailure
@@ -215,14 +178,23 @@ export function runGeneratedArtifactRefresh() {
   const report = {
     contract: CONTRACT,
     generated_at: new Date().toISOString(),
-    identity,
+    identity: {
+      workflow: "PR Generated Artifact Refresh",
+      run_id: Number(process.env.GITHUB_RUN_ID || 0),
+      candidate_kind: "head",
+      candidate_sha: sourceHeadSha,
+      source_head_sha: sourceHeadSha,
+      head_ref: headRef,
+      base_ref: process.env.GITHUB_BASE_REF || "main",
+    },
     outcome: firstFailure ? "blocked" : "passed",
     first_failure: firstFailure,
     generated_artifacts: {
       changed_files: changedFiles,
-      commit_sha: commitSha,
-      target_ref: identity.head_ref,
-      source_head_sha: identity.source_head_sha,
+      commit_sha: null,
+      target_ref: headRef,
+      source_head_sha: sourceHeadSha,
+      repository_mutation_performed: false,
     },
     routing: {
       source_of_truth: "canonical_summary",
@@ -233,10 +205,10 @@ export function runGeneratedArtifactRefresh() {
     secrets_included: false,
   };
   writeReport(reportPath, markdownPath, report);
-  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, candidate_sha: report.identity.candidate_sha, source_head_sha: report.identity.source_head_sha, first_failure: report.first_failure?.code || null, secrets_included: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, candidate_sha: sourceHeadSha, first_failure: firstFailure?.code || null, secrets_included: false })}\n`);
   return report;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  runGeneratedArtifactRefresh();
+  runGeneratedArtifactRefreshEvaluation();
 }
