@@ -1,0 +1,193 @@
+name: Spec 012 EC4 EC5 Recovery One Shot
+
+on:
+  push:
+    branches:
+      - gpt/spec-012-execution-capsule-ec4-ec5-recovery-20260801
+    paths:
+      - .github/workflows/spec012-ec4-ec5-recovery-one-shot.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec012-ec4-ec5-recovery-one-shot
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Recover reviewed EC4 and EC5 scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/spec-012-execution-capsule-ec4-ec5-recovery-20260801
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Recover reviewed scope and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          recovery_branch="gpt/spec-012-execution-capsule-ec4-ec5-recovery-20260801"
+          source_branch="gpt/spec-012-execution-capsule-full-stage-ec3-ec5-20260731"
+          expected_source_sha="3abd8c44fbcad984e845e2171c1bd66aa548d9eb"
+
+          test "${GITHUB_REF_NAME}" = "${recovery_branch}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${source_branch}:refs/remotes/origin/${source_branch}"
+
+          source_sha="$(git rev-parse "refs/remotes/origin/${source_branch}")"
+          test "${source_sha}" = "${expected_source_sha}"
+
+          git merge --no-edit origin/main
+
+          files=(
+            "http-generic-api/contextKernel/integration/executionCapsuleMutationDispatchGate.js"
+            "http-generic-api/contextKernel/integration/executionCapsuleRuntimeRollout.js"
+            "http-generic-api/contextKernel/integration/index.js"
+            "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs"
+            "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json"
+            "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md"
+            "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json"
+            "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md"
+            "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json"
+          )
+
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "${file}")"
+            git show "${source_sha}:${file}" > "${file}"
+          done
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'http-generic-api/scripts/manifests/test-manifest-spec012.mjs';
+          const command = '  "node test-execution-capsule-mutation-and-rollout.mjs",';
+          let content = fs.readFileSync(path, 'utf8');
+          if (!content.includes('node test-execution-capsule-mutation-and-rollout.mjs')) {
+            const marker = content.lastIndexOf(']);');
+            if (marker < 0) throw new Error('Spec 012 manifest terminator not found');
+            content = `${content.slice(0, marker)}${command}\n${content.slice(marker)}`;
+            fs.writeFileSync(path, content);
+          }
+          NODE
+
+          cat > specs/012-unified-admin-tenant-context-kernel/e2e-phases.json <<'JSON'
+          {
+            "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+            "schema_version": 1,
+            "feature_key": "012-unified-admin-tenant-context-kernel",
+            "title": "Execution Capsule EC4 mutation dispatch and EC5 rollout governance",
+            "delivery_mode": "single_pr",
+            "current_phase": "mvp",
+            "scope": {
+              "include": [
+                "http-generic-api/contextKernel/integration/executionCapsuleMutationDispatchGate.js",
+                "http-generic-api/contextKernel/integration/executionCapsuleRuntimeRollout.js",
+                "http-generic-api/contextKernel/integration/index.js",
+                "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+                "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+                "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json",
+                "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+                "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json",
+                "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md",
+                "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
+                "specs/012-unified-admin-tenant-context-kernel/e2e-phases.json"
+              ]
+            },
+            "merge_contract": {
+              "minimum_phase": "mvp"
+            },
+            "phases": [
+              {
+                "id": "mvp",
+                "status": "implemented",
+                "objective": "Prove the complete default-off synthetic mutation-dispatch-to-rollout-readback journey without granting runtime or Production authority.",
+                "e2e_journeys": [
+                  {
+                    "id": "execution-capsule-mutation-dispatch-to-rollout-readback",
+                    "end_to_end": true,
+                    "level": "synthetic_runtime",
+                    "actor": "platform_operator",
+                    "entrypoint": "Execution Capsule mutation dispatch integration boundary",
+                    "terminal_outcome": "A reversible mutation dispatch is accepted only with complete current evidence, and rollout or legacy retirement remains gated by exact approval, executor readback, and rollback evidence.",
+                    "steps": [
+                      "Build an immutable Execution Capsule and reversible mutation operation contract",
+                      "Refresh and bind approval, capability, authority, resource, provider, connection, and expected-SHA evidence",
+                      "Project a secret-safe dispatch envelope and execute the bounded synthetic mutation adapter",
+                      "Evaluate rollout and legacy-retirement readiness with exact executor readback and rollback controls"
+                    ],
+                    "assertions": [
+                      "Incomplete, stale, mismatched, substituted, or secret-like evidence fails closed",
+                      "Dispatch input remains bound to the exact tenant, workspace, brand, resource, connection, and expected SHA",
+                      "Readiness evaluation cannot retire a legacy resolver or grant runtime authority automatically",
+                      "The synthetic journey returns bounded readback and rollback evidence"
+                    ],
+                    "tests": [
+                      {
+                        "id": "execution-capsule-ec4-ec5-synthetic-e2e",
+                        "runner": "node",
+                        "working_directory": "http-generic-api",
+                        "path": "test-execution-capsule-mutation-and-rollout.mjs",
+                        "args": []
+                      }
+                    ],
+                    "evidence_paths": [
+                      "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+                      "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+                      "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "operational",
+                "status": "planned",
+                "objective": "Mount the governed boundaries with durable operational controls after separate authorization."
+              },
+              {
+                "id": "resilient",
+                "status": "planned",
+                "objective": "Certify fault injection, unknown-outcome reconciliation, and recovery under mounted runtime conditions."
+              },
+              {
+                "id": "canary",
+                "status": "planned",
+                "objective": "Run the same journey against an authorized live non-production target."
+              },
+              {
+                "id": "production",
+                "status": "planned",
+                "objective": "Verify exact Production SHA and runtime readback under separate release authorization."
+              }
+            ]
+          }
+          JSON
+
+          rm .github/workflows/spec012-ec4-ec5-recovery-one-shot.yml
+
+          git add -A
+          git diff --cached --check
+          git commit -m "feat(spec-012): recover Execution Capsule EC4 dispatch and EC5 rollout"
+
+          (
+            cd http-generic-api
+            node test-execution-capsule-mutation-and-rollout.mjs
+          )
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base origin/main \
+            --head HEAD \
+            --report-file "${RUNNER_TEMP}/spec012-ec4-ec5-e2e-evaluation.json"
+
+          git push origin "HEAD:${recovery_branch}"
