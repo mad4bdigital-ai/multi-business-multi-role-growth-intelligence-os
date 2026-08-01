@@ -1,6 +1,6 @@
 {
   "contract": "mad4b.pr-4395-bounded-candidate-window-diagnostic.v1",
-  "source_head_sha": "2baef01dc739913b186d11108ab2f165cc48b05c",
+  "source_head_sha": "242bdbd0410c393a5e79fcd6de6b86b81e77f05b",
   "outcome": "failed",
   "first_failure": {
     "label": "context kernel hardcoding report",
