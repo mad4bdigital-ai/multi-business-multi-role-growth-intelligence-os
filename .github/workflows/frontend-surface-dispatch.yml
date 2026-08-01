@@ -68,6 +68,16 @@ jobs:
           git fetch origin "${CANONICAL_BASELINE_REF}" --depth=1
           git branch -f "${CANONICAL_BASELINE_REF}" "origin/${CANONICAL_BASELINE_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
+      - name: Guard bounded generated evidence set
+        shell: bash
+        run: |
+          set -euo pipefail
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
       - name: Verify generator contract evidence reporter
         run: node scripts/test-frontend-dispatch-verification-evidence.mjs
       - name: Generate structured frontend dispatch verification evidence
