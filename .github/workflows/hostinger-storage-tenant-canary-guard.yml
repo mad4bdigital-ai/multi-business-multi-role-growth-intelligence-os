@@ -38,6 +38,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - name: Install deterministic import parser
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check syntax
         run: |
           node --check http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
@@ -49,6 +51,8 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -77,6 +81,8 @@ jobs:
             | sed 's#^./##' | sort)"
           test "$tenant_imports" = "http-generic-api/hostingerStorageTenantCanary.js"
           test "$policy_imports" = "http-generic-api/hostingerStorageTenantCanaryPolicy.js"
+      - name: Parse static and dynamic Base imports
+        run: node http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
       - name: Enforce post-merge hardening contracts
         run: |
           grep -q "new WeakSet()" http-generic-api/hostingerStorageTenantCanary.js
@@ -91,6 +97,15 @@ jobs:
           grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "spec014-hostinger-storage-synthetic-adapter-v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryAuthorityStores.add(store)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryAuthorityStores.has(store)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryEnablementRegistries.add(registry)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "tenantCanaryEnablementRegistries.has(registry)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "memory_hostinger_storage_tenant_canary_authority_v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "memory_hostinger_storage_tenant_canary_enablement_v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "authority_store_provenance" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          grep -q "enablement_registry_provenance" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          grep -q "typescript_ast" http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
           grep -q "createHostingerStorageTenantCanarySyntheticAdapter" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary.mjs
           grep -q "createHostingerStorageTenantCanaryControlPlaneRepository" http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
@@ -134,10 +149,17 @@ jobs:
           const wrapper = fs.readFileSync('http-generic-api/hostingerStorageTenantCanary.js', 'utf8');
           const repository = wrapper.indexOf('requireCanonicalRepository(options.repository);');
           const adapter = wrapper.indexOf('requireCanonicalAdapter(options.adapter);');
+          const authorityStore = wrapper.indexOf('requireCanonicalAuthorityStore(options.authority_store);');
+          const registry = wrapper.indexOf('requireCanonicalEnablementRegistry(options.enablement_registry);');
           const planAuthority = wrapper.indexOf('revalidatePlanAuthority({ repository: options.repository, protocol: options.protocol });');
           const delegate = wrapper.indexOf('return executeBaseTenantCanary(options);');
-          if (!(repository >= 0 && adapter > repository && planAuthority > adapter && delegate > planAuthority)) {
-            throw new Error('Tenant-owned repository brand, adapter brand, and plan authority preflight must complete before delegated execution.');
+          if (!(repository >= 0
+            && adapter > repository
+            && authorityStore > adapter
+            && registry > authorityStore
+            && planAuthority > registry
+            && delegate > planAuthority)) {
+            throw new Error('All Tenant-owned provenance and authority checks must complete before delegated execution.');
           }
           NODE
       - name: Validate Tenant canary
@@ -148,3 +170,4 @@ jobs:
           node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
           node test-hostinger-storage-tenant-canary-token-normalization.mjs
           node test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node test-hostinger-storage-tenant-canary-store-provenance.mjs
