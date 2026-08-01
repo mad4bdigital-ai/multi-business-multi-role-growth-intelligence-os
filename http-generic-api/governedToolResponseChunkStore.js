@@ -61,8 +61,12 @@ function executor(deps = {}) {
 }
 
 function schemaReadinessCacheKey(deps = {}) {
-  const target = executor(deps);
-  return target && (typeof target === "object" || typeof target === "function") ? target : null;
+  try {
+    const target = executor(deps);
+    return target && (typeof target === "object" || typeof target === "function") ? target : null;
+  } catch {
+    return null;
+  }
 }
 
 export function invalidateGovernedResponseChunkSchemaReadiness(deps = {}) {
