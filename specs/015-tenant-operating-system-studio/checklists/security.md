@@ -1,0 +1,23 @@
+# Security and Isolation Checklist
+
+- [ ] Package definitions contain no credentials, tokens, signed URLs, authorization headers, grants, or raw provider payloads.
+- [ ] Tenant, Workspace, Brand, installation, client, resource, and connection context comes from signed/canonical authority.
+- [ ] Caller-provided scope values are constraints only.
+- [ ] Package/UI/form visibility never grants authority.
+- [ ] Final execution revalidates principal, membership/delegation, resource, capability, policy, approval, connection, and expected effect.
+- [ ] Mandatory platform policy survives override, extension, fork, import, and upgrade.
+- [ ] Arbitrary JavaScript, SQL, shell, network expressions, and unrestricted templates are rejected.
+- [ ] Bounded predicates have operator, depth, operand, recursion, and time limits.
+- [ ] Custom entities cannot choose raw table names or SQL.
+- [ ] Form/client links are non-enumerable, bounded, revocable, and expiring where required.
+- [ ] Two client Brands/Tenants cannot share records, files, queues, caches, search, embeddings, prompts/results, reports, recipients, connections, budgets, or approvals.
+- [ ] Delegation is capability/resource/environment/time bounded and independently revocable.
+- [ ] Revoked principals fail before file/provider/credential access.
+- [ ] Agency portfolio projections use explicit field allowlists.
+- [ ] Package fork/export strips installation/client/private/runtime state.
+- [ ] Marketplace/shared packages have provenance, trust, certification, no-secret, and sandbox gates.
+- [ ] AI output is untrusted draft and cannot publish, activate, grant, delete, share, spend, deploy, or send externally.
+- [ ] Prompt injection in package docs/files is treated as content, not instruction.
+- [ ] Generated surfaces use tenant-safe service boundaries and server-side enforcement.
+- [ ] All logs/evidence use bounded metadata and `secrets_included: false`.
+- [ ] Destructive uninstall/deletion is separate from package lifecycle and retention/legal-hold aware.
