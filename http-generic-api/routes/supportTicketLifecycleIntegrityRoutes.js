@@ -15,15 +15,30 @@ async function resolveTenantMembership({ userId, tenantId = null }) {
     params.push(tenantId);
   }
   const [rows] = await getPool().query(
-    `SELECT m.user_id, m.tenant_id, m.role, t.display_name AS tenant_display_name
+    `SELECT m.id AS membership_id,
+            m.user_id,
+            m.tenant_id,
+            m.role,
+            t.display_name AS tenant_display_name
        FROM memberships m
        JOIN tenants t ON t.tenant_id = m.tenant_id
       WHERE ${filters.join(" AND ")}
-      ORDER BY m.granted_at ASC
-      LIMIT 1`,
+      ORDER BY m.granted_at ASC, m.id ASC
+      LIMIT 2`,
     params,
   );
-  return rows[0] || null;
+  if (rows.length > 1) {
+    const error = new Error(
+      tenantId
+        ? "Multiple active membership rows violate the unique tenant membership contract."
+        : "An explicit tenant_id is required when the user has multiple active workspace memberships.",
+    );
+    error.status = 409;
+    error.code = tenantId ? "tenant_membership_ambiguous" : "tenant_context_required";
+    throw error;
+  }
+  const [membership = null] = rows;
+  return membership;
 }
 
 function buildTenantEnvelope(req, membership, overrides = {}) {
