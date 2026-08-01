@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-contract-recovery",
+  "title": "Tenant support ticket contracts and governed routing evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi-route-contracts.yaml",
+      "http-generic-api/openapi/support-tickets.yaml",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs",
+      ".changes/e2e/support-ticket-contract-recovery.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recover the missing tenant support-ticket API contracts and deterministic routing evidence without changing the already-merged runtime or granting repair authority.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-support-ticket-contract-and-routing-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated tenant user and support contract reviewer",
+          "entrypoint": "Tenant support-ticket create, list, detail, and event contracts plus the routing-resolution test harness",
+          "terminal_outcome": "The four tenant routes are precisely documented, resolution output remains sanitized and role-gated, same-tenant delivery is limited to owners and admins, and platform escalation remains separately classified.",
+          "steps": [
+            "Load the canonical split support-ticket contract and precise route registry entries.",
+            "Validate create-or-dedupe, tenant-scoped list, role-gated detail, and customer-visible event contracts.",
+            "Resolve routing recipients for a tenant member through the runtime service test harness.",
+            "Verify same-tenant queries restrict recipients to owner and admin roles.",
+            "Verify platform-admin escalation is retained as a separate route class.",
+            "Regenerate and verify frontend governance and dispatch evidence from the reconciled exact-head sources."
+          ],
+          "assertions": [
+            "POST and GET /me/support/tickets are registered through the precise contract registry.",
+            "GET /me/support/tickets/{ticket_id} exposes resolution details only under the documented tenant admin or owner boundary.",
+            "POST /me/support/tickets/{ticket_id}/events appends customer-visible evidence without provider dispatch or external delivery.",
+            "Resolution summaries are sanitized evidence and never authorize or apply a repair.",
+            "Same-tenant routing recipients are restricted to owner and admin roles.",
+            "Platform-admin escalation remains separately classified from same-tenant delivery.",
+            "The support resolution test is discoverable through the canonical composed test manifest.",
+            "Generated frontend governance and dispatch evidence is deterministic for the exact candidate head.",
+            "No migration, SQL execution, deployment, credential access, provider call, external email send, Production mutation, or force-push occurs."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-routing-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-dynamic-routing-notifications.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-resolution-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-resolution-service.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-openapi-split-governance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-split-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-generated-dispatch-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openapi-route-contracts.yaml",
+            "http-generic-api/openapi/support-tickets.yaml",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe tenant support-ticket contract usage and routing evidence after merge without enabling external delivery or repair mutation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise malformed ticket identifiers, stale resolution evidence, missing tenant membership, and unavailable routing metadata through bounded fail-closed responses."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify the recovered contracts against a controlled non-production tenant after any separately authorized migration and deployment steps."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require production runtime parity and post-deployment readback before treating the recovered contracts as operational production evidence."
+    }
+  ]
+}
