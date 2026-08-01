@@ -12,6 +12,7 @@ import {
 } from "../remoteMcpConnectorRuntime.js";
 import {
   REMOTE_MCP_SCOPES,
+  remoteMcpDynamicClientRegistrationEnabled,
   remoteMcpOAuthEnabled,
   resolveRemoteMcpAuthorizationIssuer,
 } from "../remoteMcpOAuthProfile.js";
@@ -67,7 +68,9 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       issuer,
       authorization_endpoint: `${issuer}/oauth/authorize`,
       token_endpoint: `${issuer}/oauth/token`,
-      registration_endpoint: `${issuer}/oauth/register`,
+      ...(remoteMcpDynamicClientRegistrationEnabled(env)
+        ? { registration_endpoint: `${issuer}/oauth/register` }
+        : {}),
       revocation_endpoint: `${issuer}/oauth/revoke`,
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", "refresh_token"],
