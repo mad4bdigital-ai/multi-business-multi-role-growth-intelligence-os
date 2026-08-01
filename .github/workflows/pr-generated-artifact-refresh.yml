@@ -1,4 +1,4 @@
-# Reconcile bounded generated artifacts and publish exact-head canonical evidence.
+# Evaluate bounded generated artifacts and publish exact-head canonical evidence.
 name: PR Generated Artifact Refresh
 
 on:
@@ -43,7 +43,7 @@ jobs:
        startsWith(github.event.pull_request.head.ref, 'cert/')) &&
       github.actor != 'github-actions[bot]'
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -57,7 +57,7 @@ jobs:
         with:
           ref: ${{ env.CI_SOURCE_HEAD_SHA }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -70,7 +70,7 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-generated-artifact-refresh-pr-publisher.mjs
 
-      - name: Generate, verify, and publish bounded artifacts
+      - name: Evaluate generated artifacts without repository mutation
         working-directory: http-generic-api
         run: node scripts/generated-artifact-refresh-runner.mjs
 
