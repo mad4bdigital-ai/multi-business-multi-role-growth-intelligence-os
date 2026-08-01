@@ -1,0 +1,83 @@
+name: Governed Generated Artifact Refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Governed work branch to refresh
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type APPLY_GENERATED_ARTIFACT_REFRESH
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: governed-generated-artifact-refresh-${{ inputs.target_ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OUTPUT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh
+    steps:
+      - name: Validate dispatch identity
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
+
+      - name: Checkout exact expected head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.expected_head_sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply registered generated-artifact refresh tool
+        run: >-
+          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
+          --target-ref "${{ inputs.target_ref }}"
+          --expected-head-sha "${{ inputs.expected_head_sha }}"
+          --confirmation "${{ inputs.confirmation }}"
+          --output-dir "${OUTPUT_DIR}"
+
+      - name: Upload canonical refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish bounded summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-report.md" ]]; then
+            cat "${OUTPUT_DIR}/generated-artifact-refresh-report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
