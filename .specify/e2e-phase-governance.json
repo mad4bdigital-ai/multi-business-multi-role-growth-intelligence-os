@@ -39,7 +39,8 @@
   "governance_only_patterns": [
     ".github/**",
     ".specify/**",
-    "http-generic-api/scripts/e2e-phase-*.mjs"
+    "http-generic-api/scripts/e2e-phase-*.mjs",
+    "http-generic-api/scripts/e2e-parallel-*.mjs"
   ],
   "ignored_patterns": [
     ".gitignore",
