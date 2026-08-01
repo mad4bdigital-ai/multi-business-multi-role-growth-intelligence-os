@@ -28,6 +28,18 @@ Complete this section for a workstream or integration PR.
 - [ ] Required workstream or convergence tests are declared and executable
 - [ ] Integration rollup contains the recorded work commits
 
+## Canonical CI Evidence
+
+- Workflow:
+- Run ID:
+- Exact head SHA:
+- Canonical report contract/artifact:
+- First blocking finding or failed test:
+- Job-log access required: no / yes, with policy reason
+- [ ] Report, artifacts, and checks belong to the same exact head SHA
+- [ ] Canonical summary was read before any Job log
+- [ ] Job logs were treated as diagnostic-only and did not override structured evidence
+
 ## Tests Run
 
 - [ ] Root typecheck: `npm run typecheck`
