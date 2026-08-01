@@ -108,12 +108,17 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TARGET_REF: ${{ github.head_ref }}
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      DISPATCH_REPORT_DIR: ${{ runner.temp }}/governed-refresh-dispatch-evidence
     steps:
-      - name: Dispatch registered generated-artifact maintenance tool
+      - name: Attempt registered generated-artifact refresh dispatch
         shell: bash
         run: |
-          set -euo pipefail
-          PAYLOAD="${RUNNER_TEMP}/governed-generated-artifact-refresh-dispatch.json"
+          set -uo pipefail
+          mkdir -p "${DISPATCH_REPORT_DIR}"
+          PAYLOAD="${DISPATCH_REPORT_DIR}/request.json"
+          STDOUT_FILE="${DISPATCH_REPORT_DIR}/stdout.txt"
+          STDERR_FILE="${DISPATCH_REPORT_DIR}/stderr.txt"
+          REPORT_FILE="${DISPATCH_REPORT_DIR}/governed-refresh-dispatch-evidence.json"
           node --input-type=module -e '
             import fs from "node:fs";
             const payload = {
@@ -126,8 +131,68 @@ jobs:
             };
             fs.writeFileSync(process.argv[1], `${JSON.stringify(payload)}\n`);
           ' "${PAYLOAD}"
+          set +e
           gh api \
             --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
-            --input "${PAYLOAD}"
-          echo "Dispatched governed refresh for ${TARGET_REF}@${EXPECTED_HEAD_SHA}."
+            --input "${PAYLOAD}" \
+            >"${STDOUT_FILE}" 2>"${STDERR_FILE}"
+          STATUS=$?
+          set -e
+          DISPATCH_STATUS="${STATUS}" REPORT_FILE="${REPORT_FILE}" STDOUT_FILE="${STDOUT_FILE}" STDERR_FILE="${STDERR_FILE}" node --input-type=module -e '
+            import fs from "node:fs";
+            const sanitize = (value) => String(value || "")
+              .replace(/\bBearer\s+[^\s]+/giu, "Bearer [REDACTED]")
+              .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu, "[REDACTED_GITHUB_TOKEN]")
+              .replace(/\b(authorization|token|secret|password|cookie|api[_-]?key)\b(\s*[:=]\s*)([^\s,;]+)/giu, "$1$2[REDACTED]")
+              .slice(-4000);
+            const status = Number(process.env.DISPATCH_STATUS || 1);
+            const report = {
+              contract: "mad4b.governed-refresh-dispatch-evidence.v1",
+              outcome: status === 0 ? "passed" : "failed",
+              target_ref: process.env.TARGET_REF,
+              expected_head_sha: process.env.EXPECTED_HEAD_SHA,
+              workflow: "governed-generated-artifact-refresh.yml",
+              exit_status: status,
+              first_failure: status === 0 ? null : {
+                code: "workflow_dispatch_failed",
+                stderr_tail: sanitize(fs.readFileSync(process.env.STDERR_FILE, "utf8")),
+                stdout_tail: sanitize(fs.readFileSync(process.env.STDOUT_FILE, "utf8"))
+              },
+              routing: {
+                source_of_truth: "structured_report",
+                job_logs_role: "diagnostic_only",
+                consult_job_logs: false
+              },
+              secrets_included: false
+            };
+            fs.writeFileSync(process.env.REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
+          '
+
+      - name: Upload governed refresh dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-refresh-dispatch-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/governed-refresh-dispatch-evidence/governed-refresh-dispatch-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce governed refresh dispatch decision
+        if: always()
+        env:
+          REPORT_FILE: ${{ runner.temp }}/governed-refresh-dispatch-evidence/governed-refresh-dispatch-evidence.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            if (!fs.existsSync(process.env.REPORT_FILE)) {
+              console.error(JSON.stringify({ ok: false, error: "governed_refresh_dispatch_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, "utf8"));
+            if (report.contract !== "mad4b.governed-refresh-dispatch-evidence.v1" || report.secrets_included !== false || report.outcome !== "passed") {
+              console.error(JSON.stringify({ ok: false, outcome: report.outcome, first_failure: report.first_failure?.code || "invalid_report", consult_job_logs: false, secrets_included: false }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ ok: true, outcome: report.outcome, target_ref: report.target_ref, expected_head_sha: report.expected_head_sha, secrets_included: false }));
+          '
