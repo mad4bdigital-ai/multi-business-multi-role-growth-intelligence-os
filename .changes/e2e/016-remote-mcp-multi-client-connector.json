@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "016-remote-mcp-multi-client-connector",
+  "title": "Remote MCP connector profiles for ChatGPT, Claude, and generic clients",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/remoteMcpConnectorRuntime.js",
+      "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+      "http-generic-api/routes/mcpRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
+      "http-generic-api/docs/remote-mcp-multi-client-connector.md",
+      ".changes/e2e/016-remote-mcp-multi-client-connector.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove one disabled-by-default remote MCP surface can classify and serve ChatGPT, Claude, and generic approved clients without changing platform authorization or exposing client-specific business logic.",
+      "e2e_journeys": [
+        {
+          "id": "remote-mcp-multi-client-initialize-and-discover",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "ChatGPT, Claude, or another approved standards-compliant remote MCP client",
+          "entrypoint": "POST /mcp initialize and tools/list using an allowed Origin or a non-browser client without Origin",
+          "terminal_outcome": "Every client receives the same bounded read-only protocol and tool contract, while unapproved browser origins fail closed and client classification grants no platform authority.",
+          "steps": [
+            "Resolve neutral REMOTE_MCP configuration with temporary CHATGPT_MCP compatibility aliases.",
+            "Classify known ChatGPT and Claude origins only for operational metadata.",
+            "Initialize the shared Streamable HTTP endpoint using each supported client profile.",
+            "List the same read-only tools and verify annotations remain unchanged.",
+            "Reject a browser Origin outside the explicit allowlist."
+          ],
+          "assertions": [
+            "ChatGPT and Claude use the same canonical /mcp resource and tool catalog.",
+            "A generic client can use the standards contract without a platform-specific handler.",
+            "Missing Origin does not bypass OAuth or server-side authorization for protected tools.",
+            "Client-profile detection never selects tenant, workspace, Brand, resource, connection, capability, or operation authority.",
+            "The existing CHATGPT_MCP environment contract remains a temporary backward-compatible alias."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-multi-client-profiles",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-multi-client-profiles.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/remoteMcpConnectorRuntime.js",
+            "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+            "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
+            "http-generic-api/docs/remote-mcp-multi-client-connector.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete shared OAuth 2.1 discovery, PKCE, client registration, resource-bound tokens, refresh, revocation, and per-client live acceptance."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove faults, revocation, origin policy, metadata drift, and recovery independently for each supported client profile."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Connect the exact candidate from ChatGPT Developer mode, Claude Custom Connector settings, and a neutral MCP Inspector client against an authorized non-production endpoint."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify production routing, OAuth linkage, client registrations, tenant isolation, monitoring, disable controls, and rollback for every advertised client profile."
+    }
+  ]
+}
