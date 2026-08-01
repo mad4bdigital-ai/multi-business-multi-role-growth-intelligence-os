@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 460
+- Migrations with detected surfaces: 461
 - Migrations reported here: 80
-- OpenAPI operations detected: 1098
-- OpenAPI paths detected: 1008
+- OpenAPI operations detected: 1100
+- OpenAPI paths detected: 1009
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,13 +32,13 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 458/460 (99.57%)
-- Documentation gap migrations: 2
-- Gap severity: high=20, medium=1, low=1
+- Documentation complete migrations: 458/461 (99.35%)
+- Documentation gap migrations: 3
+- Gap severity: high=20, medium=1, low=2
 - SQL route coverage in OpenAPI: 31/31 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 670/701
 - SQL routes missing OpenAPI path coverage: 0
-- Migrations without explicit `secrets_included=false` marker: 0
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 15 | 12 |
 | tools | 783 | 282 |
-| views | 502 | 200 |
+| views | 504 | 201 |
 | policies | 195 | 134 |
 | routes | 701 | 289 |
 
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 2 |
-| `deployment_parity_checklist.md` | 2 |
-| `docs/ai-docs-agent-governance.md` | 2 |
-| `docs/auto-docs-agent/README.md` | 2 |
-| `docs/change-documentation-governance.md` | 2 |
+| `Updating Registry Patch Index.md` | 3 |
+| `deployment_parity_checklist.md` | 3 |
+| `docs/ai-docs-agent-governance.md` | 3 |
+| `docs/auto-docs-agent/README.md` | 3 |
+| `docs/change-documentation-governance.md` | 3 |
 
 ### Safety Marker Coverage
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 22
+- Total queue items: 23
 - Critical review: 20
 - High review: 1
-- Medium review: 1
+- Medium review: 2
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
@@ -112,9 +112,9 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql` | critical_review | 737 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `200_sprint66_tenant_ssh_cli_approval_request_tool.sql` | critical_review | 730 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding, verify_readback_view |
 | `199_sprint66_tenant_ssh_cli_dry_run_tool.sql` | critical_review | 720 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
+| `196_sprint66_tenant_database_schema_read_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `197_sprint66_tenant_database_query_readonly_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `198_sprint66_tenant_ssh_probe_tool.sql` | critical_review | 719 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
-| `196_sprint66_tenant_database_schema_read_tool.sql` | critical_review | 718 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 | `191_sprint66_tenant_credential_intake_connection_status.sql` | critical_review | 717 | high | 0 | 0 | 0 | verify_callable_handler_or_admin_preview, verify_tool_registry_binding |
 
 
