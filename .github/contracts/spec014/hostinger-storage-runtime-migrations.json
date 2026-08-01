@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-runtime-migrations.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "metadata_pending_ci",
+  "source_contract": ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+  "migration_apply_authorized": false,
+  "live_database_access_performed": false,
+  "schema_verified": false,
+  "production_ready": false,
+  "waves": [
+    {
+      "wave": 1,
+      "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
+      "checksum_sha256": null,
+      "statement_count": null,
+      "dependency": null
+    },
+    {
+      "wave": 2,
+      "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "checksum_sha256": null,
+      "statement_count": null,
+      "dependency": "20260802_01_spec014_hostinger_storage_foundation.sql"
+    },
+    {
+      "wave": 3,
+      "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "checksum_sha256": null,
+      "statement_count": null,
+      "dependency": "20260802_02_spec014_hostinger_storage_control_plane.sql"
+    }
+  ],
+  "secrets_included": false
+}
