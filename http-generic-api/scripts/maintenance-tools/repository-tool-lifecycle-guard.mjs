@@ -148,6 +148,11 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
 
   for (const entry of entries) {
     const path = entry.path;
+
+    // Removing a prohibited temporary artifact is the required remediation.
+    // Deleted entries must not be treated as automation that survives the merge diff.
+    if (entry.status.startsWith("D")) continue;
+
     if (ruleEnabled(policy, "one_off_automation_must_not_merge")) {
       for (const pattern of forbiddenPatterns) {
         if (pattern.test(path)) {
@@ -160,8 +165,6 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
         }
       }
     }
-
-    if (entry.status.startsWith("D")) continue;
 
     if (
       ruleEnabled(policy, "reusable_tools_must_be_registered")
