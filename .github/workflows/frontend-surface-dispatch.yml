@@ -24,6 +24,8 @@ on:
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
+      - "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs"
+      - "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs"
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/openapi-route-coverage.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
@@ -65,21 +67,51 @@ jobs:
           git fetch origin "${CANONICAL_BASELINE_REF}" --depth=1
           git branch -f "${CANONICAL_BASELINE_REF}" "origin/${CANONICAL_BASELINE_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
-      - name: Verify generator contract
+      - name: Verify generator contract evidence reporter
+        run: node scripts/test-frontend-dispatch-verification-evidence.mjs
+      - name: Generate structured frontend dispatch verification evidence
+        id: frontend_verification
+        continue-on-error: true
+        env:
+          CI_CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'merge_candidate' || 'head' }}
+          CI_CANDIDATE_SHA: ${{ github.sha }}
+          CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FRONTEND_DISPATCH_EVIDENCE_DIR: ${{ runner.temp }}/frontend-dispatch-verification-evidence
+        run: node scripts/frontend-dispatch-verification-evidence.mjs --output-dir "$FRONTEND_DISPATCH_EVIDENCE_DIR"
+      - name: Upload structured frontend dispatch verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dispatch-verification-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/frontend-dispatch-verification-evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce structured frontend dispatch decision
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/frontend-dispatch-verification-evidence/frontend-dispatch-verification-evidence.json
         run: |
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-      - name: Enforce committed deterministic output
-        run: |
-          if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            echo "::error::frontend operation governance/dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
-            exit 1
-          fi
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) {
+              console.error(JSON.stringify({ ok: false, error: "frontend_dispatch_structured_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const valid = report.contract === "mad4b.frontend-dispatch-verification-evidence.v1" && report.secrets_included === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                first_failure: report.first_failure?.stage_id || "invalid_structured_report",
+                consult_job_logs: report.routing?.consult_job_logs === true,
+                secrets_included: false,
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ ok: true, outcome: report.outcome, candidate_sha: report.identity?.candidate_sha, secrets_included: false }));
+          '
       - name: Upload dispatch evidence
         if: always()
         uses: actions/upload-artifact@v4
