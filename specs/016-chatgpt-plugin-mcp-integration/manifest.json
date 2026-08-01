@@ -30,7 +30,7 @@
     "https://developers.openai.com/plugins/guides/security-privacy",
     "https://developers.openai.com/plugins/deploy/app-review"
   ],
-  "file_count": 23,
+  "file_count": 24,
   "files": [
     "README.md",
     "manifest.json",
@@ -54,7 +54,8 @@
     "contracts/chatgpt-plugin-mcp.openapi.yaml",
     "contracts/mcp-tool.schema.json",
     "contracts/oauth-protected-resource.schema.json",
-    "contracts/plugin-package.schema.json"
+    "contracts/plugin-package.schema.json",
+    "tools/validate-spec.mjs"
   ],
   "requirements": {
     "functional": 32,
