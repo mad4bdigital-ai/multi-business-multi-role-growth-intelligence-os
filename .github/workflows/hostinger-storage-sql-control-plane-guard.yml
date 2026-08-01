@@ -1,0 +1,59 @@
+name: Hostinger Storage SQL Control Plane Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-sql-control-plane.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-classification.json'
+      - '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json'
+      - '.github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs'
+      - '.github/workflows/hostinger-storage-sql-control-plane-guard.yml'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/hostingerStorageSqlPersistenceAdapter.js'
+      - 'http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  durable-sql-control-plane:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check durable SQL sources
+        run: |
+          node --check http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          node --check http-generic-api/hostingerStorageControlPlaneRepository.js
+          node --check http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs
+          node --check .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+      - name: Enforce no DDL, provider, credential, or shell boundary
+        run: |
+          ! grep -R -E '\b(CREATE|ALTER|DROP|TRUNCATE)[[:space:]]+TABLE\b|child_process|node:(fs|net|tls|http|https)|StrictHostKeyChecking=no|rm[[:space:]]+-rf' \
+            http-generic-api/hostingerStorageSqlPersistenceAdapter.js \
+            http-generic-api/hostingerStorageControlPlaneRepository.js
+          ! grep -R -E 'hostinger\.com|private[_-]?key|access[_-]?token|refresh[_-]?token|password[[:space:]]*[:=]' \
+            http-generic-api/hostingerStorageSqlPersistenceAdapter.js \
+            http-generic-api/hostingerStorageControlPlaneRepository.js
+          grep -q 'GET_LOCK' http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          grep -q ' FOR UPDATE' http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          grep -q 'row_version=row_version+1' http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          grep -q 'beginTransaction' http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          grep -q 'rollback' http-generic-api/hostingerStorageSqlPersistenceAdapter.js
+          grep -q 'migration_apply_authorized.*false' .github/contracts/spec014/hostinger-storage-sql-runtime-contract.json
+          grep -q 'provider_dispatch_authorized.*false' .github/contracts/spec014/hostinger-storage-sql-runtime-contract.json
+      - name: Validate classified SQL runtime contract
+        run: node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+      - name: Prove transaction CAS and restart readback
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-sql-persistence-adapter.mjs
