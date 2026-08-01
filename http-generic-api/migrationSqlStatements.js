@@ -106,5 +106,7 @@ export function splitMigrationSqlStatements(sql = "") {
   }
   statements.push(source.slice(cursor).trim());
 
-  return statements.filter((statement) => stripSqlComments(statement).trim().length > 0);
+  return statements
+    .map((statement) => stripSqlComments(statement).trim())
+    .filter(Boolean);
 }

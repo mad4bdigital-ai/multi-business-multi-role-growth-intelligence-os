@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -119,14 +118,6 @@ const modelReadinessMigration = readFileSync(
 assert(
   modelReadinessMigration.includes("dev_agent_model_readiness"),
   "model readiness admin tool must stay registered through migration"
-);
-
-const migration1006Source = readFileSync(
-  join(__dirname, "migrations/1006_sprint69_agent_capability_evidence_coverage.sql"),
-  "utf8"
-);
-console.log(
-  `[startup-checksum-diagnostic] migration_1006_sha256=${createHash("sha256").update(migration1006Source, "utf8").digest("hex")}`
 );
 
 await importModule("sessionSummaryService.js");
