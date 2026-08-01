@@ -42,6 +42,7 @@ jobs:
     env:
       TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
       EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      DIAGNOSTIC_ROOT: ${{ runner.temp }}/work-map-autofix-diagnostics
     steps:
       - name: Validate authorized target
         run: |
@@ -65,6 +66,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Initialize Work Map diagnostic report
+        run: node http-generic-api/scripts/work-map-autofix-diagnostics.mjs init --root "${DIAGNOSTIC_ROOT}"
+
       - name: Pin authorized branch head
         run: |
           set -euo pipefail
@@ -82,7 +86,6 @@ jobs:
       - name: Validate generator, classification, and pipeline contracts
         run: |
           set -euo pipefail
-          set -x
           echo "WORK_MAP_DIAGNOSTIC_HEAD=$(git rev-parse HEAD)"
           echo "WORK_MAP_DIAGNOSTIC_NODE=$(command -v node)"
           node --version
@@ -94,27 +97,23 @@ jobs:
           echo "WORK_MAP_DIAGNOSTIC_SOURCE_TERMS"
           grep -RInE 'primaryFamilies|SCHEMA_CLASSIFICATION_CONTRACT|UNKNOWN_DOMAIN' .specify http-generic-api --exclude-dir=node_modules || true
 
-          echo "WORK_MAP_COMMAND=syntax_checks"
-          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node --check http-generic-api/test-work-map-schema-classification.mjs
-          node --check http-generic-api/test-work-map-schema-classification-contract.mjs
-          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-platform-work-map-schema-intelligence -- node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-schema-classification -- node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-schema-classification-contract -- node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-pipeline-connectivity -- node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-autofix-diagnostics -- node --check http-generic-api/scripts/work-map-autofix-diagnostics.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-schema-classification -- node --check http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-schema-classification-contract -- node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-pipeline-connectivity -- node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-autofix-diagnostics -- node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
 
-          echo "WORK_MAP_COMMAND=pipeline_connectivity"
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          echo "WORK_MAP_COMMAND=pipeline_connectivity_regression"
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          echo "WORK_MAP_COMMAND=schema_classification_contract"
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          echo "WORK_MAP_COMMAND=schema_classification"
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          echo "WORK_MAP_COMMAND=schema_classification_regression"
-          node http-generic-api/test-work-map-schema-classification.mjs
-          echo "WORK_MAP_COMMAND=schema_classification_contract_regression"
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id pipeline-connectivity -- node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id pipeline-connectivity-regression -- node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id diagnostic-report-regression -- node http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-contract -- node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification -- node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-regression -- node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-contract-regression -- node http-generic-api/test-work-map-schema-classification-contract.mjs
 
       - name: Regenerate and verify idempotency
         run: |
@@ -162,3 +161,27 @@ jobs:
           fi
           gh workflow run ci.yml --ref "${TARGET_BRANCH}"
           gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+
+      - name: Finalize Work Map diagnostic report
+        if: always()
+        continue-on-error: true
+        env:
+          WORK_MAP_JOB_STATUS: ${{ job.status }}
+        run: |
+          set +e
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs finalize --root "${DIAGNOSTIC_ROOT}" --conclusion "${WORK_MAP_JOB_STATUS}"
+          finalize_status=$?
+          if [[ -f "${DIAGNOSTIC_ROOT}/report.md" ]]; then
+            cat "${DIAGNOSTIC_ROOT}/report.md" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          exit "${finalize_status}"
+
+      - name: Upload Work Map diagnostic report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-autofix-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-autofix-diagnostics
+          if-no-files-found: warn
+          retention-days: 14
