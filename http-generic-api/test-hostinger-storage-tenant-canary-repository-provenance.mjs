@@ -21,6 +21,9 @@ assert.throws(
 
 const tenantRepository = createHostingerStorageTenantCanaryControlPlaneRepository();
 assert.equal(Object.isFrozen(tenantRepository), true);
+assert.equal(tenantRepository.repository_version, 'spec014-storage-control-plane-repository-v1');
+assert.equal(tenantRepository.adapter_key, 'hostinger_storage_memory_test_adapter_v1');
+assert.equal(tenantRepository.production_ready, false);
 assert.equal(isCanonicalHostingerStorageControlPlaneRepository(tenantRepository), true);
 assert.throws(
   () => executeHostingerStorageTenantCanary({ repository: tenantRepository }),
@@ -39,6 +42,7 @@ console.log(JSON.stringify({
   gate: 'hostinger_storage_tenant_canary_repository_provenance',
   direct_control_plane_repository_rejected: true,
   tenant_factory_repository_control_plane_canonical: true,
+  repository_identity_metadata_pinned: true,
   copied_tenant_repository_rejected: true,
   validation_before_one_shot_consumption: true,
   production_ready: false,
