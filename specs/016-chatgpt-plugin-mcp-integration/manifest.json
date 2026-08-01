@@ -1,0 +1,91 @@
+{
+  "spec_key": "016-chatgpt-plugin-mcp-integration",
+  "title": "ChatGPT Plugin and Standards-Compliant MCP Integration",
+  "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
+  "status": "specification_draft_review_pending",
+  "specification_only": true,
+  "created_at": "2026-08-01T14:37:00Z",
+  "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+  "delivery_mode": "multi_pr",
+  "dependencies": [
+    "specs/005-dynamic-mcp-schema-surfaces",
+    "specs/006-platform-dynamic-workflow-runtime",
+    "specs/007-dynamic-capability-governance",
+    "specs/011-dynamic-multi-tenant-growth-control-plane",
+    "specs/012-unified-admin-tenant-context-kernel",
+    "http-generic-api/mcpRuntime.js",
+    "http-generic-api/routes/mcpRoutes.js",
+    "docs/work-maps",
+    ".specify/memory/constitution.md"
+  ],
+  "external_authorities": [
+    "https://developers.openai.com/plugins/quickstart",
+    "https://developers.openai.com/plugins/concepts/plugins",
+    "https://developers.openai.com/plugins/plan/tools",
+    "https://developers.openai.com/plugins/build/mcp-server",
+    "https://developers.openai.com/plugins/build/auth",
+    "https://developers.openai.com/plugins/build/plugins",
+    "https://developers.openai.com/plugins/deploy/connect-chatgpt",
+    "https://developers.openai.com/plugins/deploy/submission",
+    "https://developers.openai.com/plugins/guides/security-privacy",
+    "https://developers.openai.com/plugins/deploy/app-review"
+  ],
+  "file_count": 22,
+  "files": [
+    "README.md",
+    "manifest.json",
+    "spec.md",
+    "research.md",
+    "concerns.md",
+    "operation-paths.md",
+    "plan.md",
+    "data-model.md",
+    "quickstart.md",
+    "tasks.md",
+    "traceability.md",
+    "testing-strategy.md",
+    "work-map-integration.json",
+    "e2e-phases.json",
+    "completion.json",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/release-readiness.md",
+    "contracts/chatgpt-plugin-mcp.openapi.yaml",
+    "contracts/mcp-tool.schema.json",
+    "contracts/oauth-protected-resource.schema.json",
+    "contracts/plugin-package.schema.json"
+  ],
+  "requirements": {
+    "functional": 32,
+    "non_functional": 12,
+    "success_criteria": 10
+  },
+  "coverage": {
+    "user_scenarios": 7,
+    "operation_paths": 10,
+    "risks": 20,
+    "tasks": 42,
+    "work_maps": 19,
+    "schema_domains": 16,
+    "e2e_phases": 5
+  },
+  "target_surface": {
+    "plugin_type": "skills_plus_mcp_capable",
+    "phase_1_shape": "mcp_only_no_custom_ui",
+    "proposed_mcp_url": "https://mcp.mad4b.com/mcp",
+    "public_url_verified": false,
+    "authentication": "oauth_2_1_required_for_private_data_and_writes",
+    "transport": "mcp_streamable_http"
+  },
+  "boundaries": {
+    "runtime_changes": false,
+    "database_migrations": false,
+    "oauth_registration": false,
+    "provider_calls": false,
+    "external_writes": false,
+    "plugin_submission": false,
+    "production_activation": false,
+    "force_push": false,
+    "secrets_included": false
+  }
+}
