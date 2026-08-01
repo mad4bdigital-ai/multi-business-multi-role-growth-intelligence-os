@@ -59,6 +59,75 @@ UPDATE tickets
    SET last_seen_at = COALESCE(last_seen_at, updated_at, created_at, NOW())
  WHERE last_seen_at IS NULL;
 
+-- Derive completed SLA milestones from the lifecycle authority before the first
+-- SLA reconciliation. Tenant/customer-originated events cannot satisfy support
+-- milestones. Ticket creation/routing events are also excluded from response evidence.
+UPDATE tickets t
+JOIN (
+  SELECT
+    e.tenant_id,
+    e.ticket_id,
+    MIN(CASE
+      WHEN e.visibility = 'customer'
+       AND e.event_type NOT IN ('ticket_created', 'dedupe_matched', 'queue_assigned')
+       AND LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+      THEN e.created_at
+      ELSE NULL
+    END) AS derived_first_response_at,
+    MIN(CASE
+      WHEN LOWER(COALESCE(e.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+       AND (
+         e.event_type IN ('triaged', 'ticket_triaged', 'assignee_changed', 'diagnostic_started')
+         OR (
+           e.event_type = 'state_transition'
+           AND LOWER(COALESCE(e.to_state, '')) NOT IN ('', 'triage_pending', 'received')
+         )
+       )
+      THEN e.created_at
+      ELSE NULL
+    END) AS derived_triaged_at
+  FROM ticket_lifecycle_events e
+  GROUP BY e.tenant_id, e.ticket_id
+) evidence
+  ON evidence.tenant_id = t.tenant_id
+ AND evidence.ticket_id = t.ticket_id
+SET t.first_response_at = COALESCE(t.first_response_at, evidence.derived_first_response_at),
+    t.triaged_at = COALESCE(t.triaged_at, evidence.derived_triaged_at)
+WHERE (t.first_response_at IS NULL AND evidence.derived_first_response_at IS NOT NULL)
+   OR (t.triaged_at IS NULL AND evidence.derived_triaged_at IS NOT NULL);
+
+-- Existing event and transition APIs already write ticket_lifecycle_events. This
+-- trigger converts those governed events into durable milestone timestamps after
+-- migration 1042 is present, without requiring pre-migration routes to reference
+-- columns that do not yet exist.
+DROP TRIGGER IF EXISTS trg_ticket_lifecycle_sla_milestones;
+
+CREATE TRIGGER trg_ticket_lifecycle_sla_milestones
+AFTER INSERT ON ticket_lifecycle_events
+FOR EACH ROW
+UPDATE tickets t
+   SET t.first_response_at = CASE
+         WHEN NEW.visibility = 'customer'
+          AND NEW.event_type NOT IN ('ticket_created', 'dedupe_matched', 'queue_assigned')
+          AND LOWER(COALESCE(NEW.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+         THEN COALESCE(t.first_response_at, NEW.created_at)
+         ELSE t.first_response_at
+       END,
+       t.triaged_at = CASE
+         WHEN LOWER(COALESCE(NEW.actor_type, 'system')) NOT IN ('tenant_user', 'customer', 'user')
+          AND (
+            NEW.event_type IN ('triaged', 'ticket_triaged', 'assignee_changed', 'diagnostic_started')
+            OR (
+              NEW.event_type = 'state_transition'
+              AND LOWER(COALESCE(NEW.to_state, '')) NOT IN ('', 'triage_pending', 'received')
+            )
+          )
+         THEN COALESCE(t.triaged_at, NEW.created_at)
+         ELSE t.triaged_at
+       END
+ WHERE t.tenant_id = NEW.tenant_id
+   AND t.ticket_id = NEW.ticket_id;
+
 -- Milestone-aware SLA reconciliation. A completed milestone is not treated as
 -- breached merely because its due timestamp is in the past.
 UPDATE tickets
@@ -100,6 +169,10 @@ SELECT
     THEN 'ready'
     ELSE 'blocked'
   END AS readiness_status,
+  (SELECT COUNT(*)
+     FROM INFORMATION_SCHEMA.TRIGGERS
+    WHERE TRIGGER_SCHEMA = DATABASE()
+      AND TRIGGER_NAME = 'trg_ticket_lifecycle_sla_milestones') AS milestone_trigger_count,
   NOW() AS checked_at;
 
 CREATE OR REPLACE VIEW v_support_ticket_latest_activity AS
