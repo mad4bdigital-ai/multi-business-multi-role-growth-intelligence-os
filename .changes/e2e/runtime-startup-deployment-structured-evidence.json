@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-startup-deployment-structured-evidence",
+  "title": "Structured runtime startup and deployment evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/runtime-startup-deployment-evidence.yml",
+      "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+      "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs",
+      ".changes/e2e/runtime-startup-deployment-structured-evidence.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace manual reconstruction of the runtime-startup CI failure with an exact-candidate, bounded, redacted structured artifact that identifies the first failed stage before Job logs are consulted.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-startup-structured-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and pull-request reviewer",
+          "entrypoint": "Runtime Startup Deployment Evidence on a pull-request merge candidate or explicit workflow dispatch",
+          "terminal_outcome": "The workflow publishes JSON and Markdown proving deployment-manifest validation, manifest generation, and server-startup identity in order, or names the first failed stage with bounded redacted diagnostics while Job logs remain diagnostic-only.",
+          "steps": [
+            "Checkout the exact workflow candidate without persisted credentials.",
+            "Validate the structured evidence reporter before using it as the decision source.",
+            "Run deployment-manifest generator validation.",
+            "Generate the deployment manifest for the exact candidate SHA and branch.",
+            "Run the server startup and deployment identity smoke test.",
+            "Stop after the first failed stage and retain bounded redacted stdout and stderr tails.",
+            "Upload the structured JSON and Markdown artifact even when a stage fails.",
+            "Enforce the workflow outcome from the structured report rather than reconstructing status from Job logs."
+          ],
+          "assertions": [
+            "The report contract is mad4b.runtime-startup-deployment-evidence.v1.",
+            "Pull-request evidence identifies the merge candidate separately from the source head SHA.",
+            "Every stage records status, exit code, signal, and duration without embedding environment variables or credentials.",
+            "Authorization values, OAuth tokens, client secrets, API keys, passwords, cookies, GitHub tokens, and JWT-shaped values are redacted from diagnostics.",
+            "The report declares secrets_included=false.",
+            "The artifact is uploaded under if: always() before the final evidence decision is enforced.",
+            "Job logs remain diagnostic-only and are consulted only when the bounded structured diagnostic is absent."
+          ],
+          "tests": [
+            {
+              "id": "runtime-startup-deployment-structured-evidence-reporter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-runtime-startup-deployment-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/runtime-startup-deployment-evidence.yml",
+            "http-generic-api/scripts/runtime-startup-deployment-evidence.mjs",
+            "http-generic-api/scripts/test-runtime-startup-deployment-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Route the structured report through the trusted canonical PR evidence publisher after the workflow definition is established on the default branch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise process spawn errors, timeouts, oversized diagnostics, artifact upload faults, stale candidates, and missing-report enforcement without exposing secrets."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the first non-production exact-candidate runtime startup report and verify it replaces manual Job-log reconstruction."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require canonical structured runtime-startup evidence for protected release promotion and production deployment identity."
+    }
+  ]
+}
