@@ -66,8 +66,19 @@ for (const required of [
 
 for (const required of [
   /name: Certified Production Release Cut Validation/,
+  /pull_request_target:/,
+  /issues: write/,
   /gpt\/validate-certified-release-base-\*/,
   /gpt\/validate-certified-release-candidate-/,
+  /Validate trusted same-repository validation surface/,
+  /certified validation requires a same-repository head/,
+  /persist-credentials: false/,
+  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started/,
+  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched/,
+  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded/,
+  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed/,
+  /runner_pool=ubuntu-24\.04-arm/,
+  /execution_mode=direct_arm/,
   /candidate first parent must be the certified release cut/,
   /candidate tree differs from certified release cut/,
   /certified release cut is not contained by current main/,
@@ -77,16 +88,19 @@ for (const required of [
   /git merge-base --is-ancestor "\$PRODUCTION_SHA" "\$HEAD_SHA"/,
   /schema_version: "certified_production_release_cut\.v1"/,
   /release_mode: "certified_release_cut"/,
+  /execution_mode: "direct_arm"/,
+  /runner_pool: "ubuntu-24\.04-arm"/,
+  /exact_full_ci_success: true/,
   /candidate_tree_matches_certified_cut: true/,
   /certified_cut_is_ancestor_of_current_main: true/,
   /candidate_contains_production: true/,
   /candidate_and_base_refs_immutable_during_validation: true/,
   /production_ref_stable_during_validation: true/,
   /main_tip_may_advance: true/,
-  /Syntax Check/,
-  /Unit & Integration Tests/,
-  /Execution Resolver Gate/,
-  /Architecture Drift Detection/,
+  /name: Syntax Check/,
+  /name: Unit & Integration Tests/,
+  /name: Execution Resolver Gate/,
+  /name: Architecture Drift Detection/,
   /merge_executed: false/,
   /deployment_executed: false/,
   /migration_executed: false/,
@@ -97,6 +111,32 @@ for (const required of [
   assert.match(certifiedReleaseCut, required);
 }
 
+const certifiedJobHeader =
+  certifiedReleaseCut.match(/  certified-release-cut-ci:\n[\s\S]*?    steps:/)?.[0] ?? "";
+assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
+assert.doesNotMatch(
+  certifiedJobHeader,
+  /^    if:/m,
+  "certified release-cut validation must not use a job-level eligibility condition",
+);
+
+const armJobs = certifiedReleaseCut.match(/runs-on: ubuntu-24\.04-arm/g) ?? [];
+assert.equal(
+  armJobs.length,
+  6,
+  "certified release-cut validation must run preflight, four CI gates, and final evidence on ARM",
+);
+assert.doesNotMatch(
+  certifiedReleaseCut,
+  /gh workflow run ci\.yml/,
+  "certified validation must not dispatch the frozen candidate's x64 CI workflow",
+);
+assert.doesNotMatch(
+  certifiedReleaseCut,
+  /runs-on: ubuntu-latest/,
+  "certified release validation must not depend on the queued x64 runner pool",
+);
+
 for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
   assert.doesNotMatch(workflow, /gh pr merge/i);
   assert.doesNotMatch(workflow, /git push\s+--force/i);
@@ -104,5 +144,8 @@ for (const workflow of [launcher, postFinalizationGuard, certifiedReleaseCut]) {
   assert.doesNotMatch(workflow, /deployment_authorized=true/i);
   assert.doesNotMatch(workflow, /migration_authorized=true/i);
 }
+
+// Compose the independently reviewable migration-first response-chunk rollout contract into this already registered operational suite.
+await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
 
 console.log("Production promotion convergence workflow contract test passed");
