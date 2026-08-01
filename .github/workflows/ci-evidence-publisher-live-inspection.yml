@@ -20,36 +20,36 @@ jobs:
           SOURCE_RUN_ID: "30698015125"
         run: |
           set -euo pipefail
-          mkdir -p inspection
-          workflow_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml")"
-          runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml/runs?per_page=50")"
-          source_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          mkdir -p inspection/raw
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml" > inspection/raw/workflow.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci-evidence-pr-publisher.yml/runs?per_page=50" > inspection/raw/runs.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > inspection/raw/source.json
           jq -n \
-            --argjson workflow "$workflow_json" \
-            --argjson runs "$runs_json" \
-            --argjson source "$source_json" \
+            --slurpfile workflow inspection/raw/workflow.json \
+            --slurpfile runs inspection/raw/runs.json \
+            --slurpfile source inspection/raw/source.json \
             '{
               contract: "mad4b.ci-evidence-publisher-live-inspection.v1",
               workflow: {
-                id: $workflow.id,
-                name: $workflow.name,
-                path: $workflow.path,
-                state: $workflow.state,
-                created_at: $workflow.created_at,
-                updated_at: $workflow.updated_at
+                id: $workflow[0].id,
+                name: $workflow[0].name,
+                path: $workflow[0].path,
+                state: $workflow[0].state,
+                created_at: $workflow[0].created_at,
+                updated_at: $workflow[0].updated_at
               },
               source_run: {
-                id: $source.id,
-                name: $source.name,
-                event: $source.event,
-                status: $source.status,
-                conclusion: $source.conclusion,
-                head_branch: $source.head_branch,
-                head_sha: $source.head_sha,
-                pull_requests: [$source.pull_requests[]? | {number, head, base}]
+                id: $source[0].id,
+                name: $source[0].name,
+                event: $source[0].event,
+                status: $source[0].status,
+                conclusion: $source[0].conclusion,
+                head_branch: $source[0].head_branch,
+                head_sha: $source[0].head_sha,
+                pull_requests: [$source[0].pull_requests[]? | {number, head, base}]
               },
               publisher_runs: [
-                $runs.workflow_runs[]? | {
+                $runs[0].workflow_runs[]? | {
                   id,
                   name,
                   event,
@@ -64,7 +64,7 @@ jobs:
                   triggering_actor: .triggering_actor.login
                 }
               ],
-              publisher_run_count: ($runs.workflow_runs | length),
+              publisher_run_count: ($runs[0].workflow_runs | length),
               secrets_included: false
             }' > inspection/publisher-live-inspection.json
 
