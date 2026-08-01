@@ -12,19 +12,6 @@ on:
       - '**/*.cts'
       - '.github/workflows/hostinger-storage-shared-canary-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
-  push:
-    branches:
-      - 'gpt/014-hostinger/shared-canary-*'
-    paths:
-      - '**/*.js'
-      - '**/*.mjs'
-      - '**/*.cjs'
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.mts'
-      - '**/*.cts'
-      - '.github/workflows/hostinger-storage-shared-canary-guard.yml'
-      - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
   contents: read

@@ -7,14 +7,6 @@ on:
       - 'http-generic-api/hostingerStorageProductionPreflight*.js'
       - 'http-generic-api/test-hostinger-storage-production-preflight*.mjs'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
-  push:
-    branches:
-      - 'gpt/014-hostinger/production-preflight-*'
-    paths:
-      - '.github/workflows/hostinger-storage-production-preflight-guard.yml'
-      - 'http-generic-api/hostingerStorageProductionPreflight*.js'
-      - 'http-generic-api/test-hostinger-storage-production-preflight*.mjs'
-      - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
   contents: read

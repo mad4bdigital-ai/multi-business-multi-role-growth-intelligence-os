@@ -11,18 +11,6 @@ on:
       - 'http-generic-api/test-hostinger-storage-reserve-release*.mjs'
       - '.github/workflows/hostinger-storage-synthetic-executor-guard.yml'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
-  push:
-    branches:
-      - 'gpt/014-hostinger/synthetic-executor-*'
-    paths:
-      - 'http-generic-api/hostingerStorageExecutor*.js'
-      - 'http-generic-api/hostingerStorageSynthetic*.js'
-      - 'http-generic-api/hostingerStorageReserveRelease*.js'
-      - 'http-generic-api/test-hostinger-storage-executor*.mjs'
-      - 'http-generic-api/test-hostinger-storage-unknown-outcome*.mjs'
-      - 'http-generic-api/test-hostinger-storage-reserve-release*.mjs'
-      - '.github/workflows/hostinger-storage-synthetic-executor-guard.yml'
-      - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
   contents: read
