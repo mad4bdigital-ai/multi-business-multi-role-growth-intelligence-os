@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { createOrAppendSupportTicketWithIntegrityAtomic } from "../supportTicketLifecycleIntegrityCreationService.js";
 import {
-  createOrAppendSupportTicketWithIntegrity,
   listSupportTicketsWithIntegrity,
   reconcileSupportTicketIntegrity,
 } from "../supportTicketLifecycleIntegrityService.js";
@@ -110,7 +110,7 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
           secrets_included: false,
         });
       }
-      const result = await createOrAppendSupportTicketWithIntegrity(buildTenantEnvelope(req, membership));
+      const result = await createOrAppendSupportTicketWithIntegrityAtomic(buildTenantEnvelope(req, membership));
       return res.status(result.created ? 201 : 200).json(result);
     } catch (error) {
       return sendError(res, error, "support_ticket_integrity_create_failed");
@@ -162,7 +162,7 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
         body: req.body || {},
         auth: { user_id: membership.user_id },
       };
-      const result = await createOrAppendSupportTicketWithIntegrity(buildTenantEnvelope(simulatedReq, membership, {
+      const result = await createOrAppendSupportTicketWithIntegrityAtomic(buildTenantEnvelope(simulatedReq, membership, {
         user_id: membership.user_id,
         actor_id: req.auth?.user_id || "admin_ticket_simulation",
         actor_type: "admin_simulation",
