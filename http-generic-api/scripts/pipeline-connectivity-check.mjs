@@ -111,6 +111,9 @@ function validateContractShape(contract, findings) {
   if (!Array.isArray(contract?.pipelines) || contract.pipelines.length === 0) findings.push(finding("PIPELINES_REQUIRED", "At least one pipeline contract is required."));
   if (!Array.isArray(contract?.artifact_groups) || contract.artifact_groups.length === 0) findings.push(finding("ARTIFACT_GROUPS_REQUIRED", "At least one artifact group is required."));
   if (!Array.isArray(contract?.edges) || contract.edges.length === 0) findings.push(finding("EDGES_REQUIRED", "At least one connectivity edge is required."));
+  if (!Array.isArray(contract?.artifact_writer_policies) || contract.artifact_writer_policies.length === 0) {
+    findings.push(finding("ARTIFACT_WRITER_POLICIES_REQUIRED", "At least one remote artifact writer ownership policy is required."));
+  }
 }
 
 export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, contractPath = DEFAULT_CONTRACT } = {}) {
@@ -130,6 +133,7 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
   validateContractShape(contract, findings);
   const pipelineRows = Array.isArray(contract.pipelines) ? contract.pipelines : [];
   const artifactRows = Array.isArray(contract.artifact_groups) ? contract.artifact_groups : [];
+  const writerPolicyRows = Array.isArray(contract.artifact_writer_policies) ? contract.artifact_writer_policies : [];
   const edgeRows = Array.isArray(contract.edges) ? contract.edges : [];
   const pipelineKeys = pipelineRows.map((row) => row?.key).filter(Boolean);
   const artifactKeys = artifactRows.map((row) => row?.key).filter(Boolean);
@@ -142,6 +146,7 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
   }
 
   const workflowPathToKey = new Map();
+  const workflowTextByKey = new Map();
   for (const pipeline of pipelineRows) {
     if (!pipeline?.key || !pipeline?.workflow) {
       findings.push(finding("PIPELINE_IDENTITY_REQUIRED", "Every pipeline requires key and workflow fields."));
@@ -154,6 +159,7 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
       continue;
     }
     workflowPathToKey.set(path.resolve(workflowFile), pipeline.key);
+    workflowTextByKey.set(pipeline.key, text);
 
     for (const [permission, expected] of Object.entries(pipeline.required_permissions || {})) {
       const actual = detectPermission(text, permission);
@@ -199,7 +205,8 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
     const requiredConsumers = new Set(artifact.required_consumers || []);
     const actualProducerPaths = workflowFiles.filter((file) => {
       const commandText = executableCommands(readText(file));
-      return (artifact.producer_signatures || []).some((signature) => commandText.includes(signature));
+      const excluded = (artifact.producer_exclusion_signatures || []).some((signature) => commandText.includes(signature));
+      return !excluded && (artifact.producer_signatures || []).some((signature) => commandText.includes(signature));
     });
     const actualConsumerPaths = workflowFiles.filter((file) => {
       const commandText = executableCommands(readText(file));
@@ -227,11 +234,52 @@ export function validatePipelineConnectivity({ repoRoot = DEFAULT_REPO_ROOT, con
     }
   }
 
+  for (const policy of writerPolicyRows) {
+    const artifactKey = policy?.artifact_group;
+    const writerKey = policy?.writer_pipeline;
+    if (!artifactKey || !artifactKeys.includes(artifactKey)) {
+      findings.push(finding("WRITER_POLICY_ARTIFACT_MISSING", `Writer policy references an unknown artifact group: ${artifactKey || "unset"}.`, { policy: policy?.key || null }));
+      continue;
+    }
+    if (!writerKey || !pipelineKeys.includes(writerKey)) {
+      findings.push(finding("WRITER_POLICY_PIPELINE_MISSING", `Writer policy references an unknown writer pipeline: ${writerKey || "unset"}.`, { policy: policy?.key || null }));
+      continue;
+    }
+
+    const writerText = workflowTextByKey.get(writerKey) || "";
+    for (const command of policy.required_writer_commands || []) {
+      if (!writerText.includes(command)) findings.push(finding("WRITER_REQUIRED_COMMAND_DISCONNECTED", `${writerKey} is missing required remote-writer guard: ${command}`, { policy: policy.key, pipeline: writerKey, command }));
+    }
+    for (const command of policy.forbidden_writer_commands || []) {
+      if (writerText.includes(command)) findings.push(finding("WRITER_FORBIDDEN_COMMAND_CONNECTED", `${writerKey} contains a forbidden writer command: ${command}`, { policy: policy.key, pipeline: writerKey, command }));
+    }
+
+    for (const nonWriter of policy.non_writer_pipelines || []) {
+      const pipelineKey = nonWriter?.pipeline;
+      if (!pipelineKey || !pipelineKeys.includes(pipelineKey)) {
+        findings.push(finding("NON_WRITER_PIPELINE_MISSING", `Writer policy references an unknown non-writer pipeline: ${pipelineKey || "unset"}.`, { policy: policy.key }));
+        continue;
+      }
+      if (pipelineKey === writerKey) {
+        findings.push(finding("WRITER_ROLE_COLLISION", `${pipelineKey} cannot be both the remote writer and a non-writer.`, { policy: policy.key, pipeline: pipelineKey }));
+        continue;
+      }
+      const text = workflowTextByKey.get(pipelineKey) || "";
+      for (const command of nonWriter.required_commands || []) {
+        if (!text.includes(command)) findings.push(finding("NON_WRITER_REQUIRED_GUARD_DISCONNECTED", `${pipelineKey} is missing required non-writer guard: ${command}`, { policy: policy.key, pipeline: pipelineKey, command }));
+      }
+      for (const command of nonWriter.forbidden_commands || []) {
+        if (text.includes(command)) findings.push(finding("NON_WRITER_REMOTE_MUTATION_CONNECTED", `${pipelineKey} contains a forbidden remote Work Map mutation command: ${command}`, { policy: policy.key, pipeline: pipelineKey, command }));
+      }
+    }
+  }
+
   return {
     ok: findings.length === 0,
     contract_version: contract?.version ?? null,
     pipeline_count: pipelineRows.length,
     artifact_group_count: artifactRows.length,
+    artifact_writer_policy_count: writerPolicyRows.length,
     edge_count: edgeRows.length,
     findings,
   };
