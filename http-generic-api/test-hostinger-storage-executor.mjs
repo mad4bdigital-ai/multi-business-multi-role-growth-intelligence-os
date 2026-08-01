@@ -127,7 +127,8 @@ assert.throws(
     adapter: releasedLease.adapter,
     now_epoch: 1100,
   }),
-  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_NOT_ACTIVE',
+  (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_LEASE_BINDING_STALE'
+    && error.details?.mismatches?.includes('generation'),
 );
 assert.equal(releasedLease.repository.readAggregate(releasedLease.operation_id).journals.length, 0);
 assert.equal(releasedLease.adapter.exportState().items[0].exists, true);
