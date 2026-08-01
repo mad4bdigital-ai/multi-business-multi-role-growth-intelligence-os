@@ -30,7 +30,7 @@
     "https://developers.openai.com/plugins/guides/security-privacy",
     "https://developers.openai.com/plugins/deploy/app-review"
   ],
-  "file_count": 22,
+  "file_count": 23,
   "files": [
     "README.md",
     "manifest.json",
@@ -44,6 +44,7 @@
     "tasks.md",
     "traceability.md",
     "testing-strategy.md",
+    "implementation-handoff.md",
     "work-map-integration.json",
     "e2e-phases.json",
     "completion.json",
