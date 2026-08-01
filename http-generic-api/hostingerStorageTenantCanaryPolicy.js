@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 export const HOSTINGER_STORAGE_TENANT_CANARY_POLICY_VERSION = 'spec014-hostinger-storage-tenant-canary-policy-v1';
 
+const EXPECTED_SYNTHETIC_PROTOCOL_VERSION = 'spec014-hostinger-storage-executor-v1';
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const SAFE_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,510}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/i;
@@ -117,6 +118,14 @@ function normalizeOperation(operation = {}) {
 
 function normalizeProtocol(protocol = {}) {
   const items = Array.isArray(protocol.items) ? protocol.items : [];
+  let totalBytes = 0;
+  for (const [index, item] of items.entries()) {
+    const size = Number(item?.expected?.size_bytes);
+    if (!Number.isSafeInteger(size) || size < 0 || !Number.isSafeInteger(totalBytes + size)) {
+      throw fail(400, 'STORAGE_TENANT_CANARY_PROTOCOL_SIZE_INVALID', 'Synthetic item sizes must be bounded non-negative integers.', { index });
+    }
+    totalBytes += size;
+  }
   return {
     protocol_key: safeId(protocol.protocol_key, 'protocol.protocol_key'),
     protocol_version: safeId(protocol.protocol_version, 'protocol.protocol_version'),
@@ -132,7 +141,7 @@ function normalizeProtocol(protocol = {}) {
     provider_dispatch_allowed: protocol.provider_dispatch_allowed === true,
     automatic_retry_allowed: protocol.automatic_retry_allowed === true,
     item_count: items.length,
-    total_bytes: items.reduce((sum, item) => sum + Number(item?.expected?.size_bytes || 0), 0),
+    total_bytes: totalBytes,
     path_refs: items.map((item, index) => safeRef(item?.path_ref, `protocol.items[${index}].path_ref`)),
   };
 }
@@ -220,6 +229,8 @@ export function buildHostingerStorageTenantCanaryAuthorization({
   if (normalizedOperation.context_mode !== 'tenant') blockers.push('STORAGE_TENANT_CANARY_CONTEXT_REQUIRED');
   if (normalizedOperation.operation_key !== 'hostinger_storage_apply_plan') blockers.push('STORAGE_TENANT_CANARY_OPERATION_KEY_INVALID');
   if (normalizedProtocol.protocol_key !== 'hostinger_storage_synthetic_execution_protocol_v1') blockers.push('STORAGE_TENANT_CANARY_SYNTHETIC_PROTOCOL_REQUIRED');
+  if (normalizedProtocol.protocol_version !== EXPECTED_SYNTHETIC_PROTOCOL_VERSION) blockers.push('STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID');
+  if (normalizedProtocol.item_count < 1) blockers.push('STORAGE_TENANT_CANARY_ITEMS_REQUIRED');
   if (!normalizedProtocol.synthetic_only || normalizedProtocol.production_ready || normalizedProtocol.provider_dispatch_allowed || normalizedProtocol.automatic_retry_allowed) {
     blockers.push('STORAGE_TENANT_CANARY_UNSAFE_PROTOCOL');
   }
@@ -231,6 +242,7 @@ export function buildHostingerStorageTenantCanaryAuthorization({
   if (allowlist.environment !== 'synthetic_non_production') blockers.push('STORAGE_TENANT_CANARY_NON_PRODUCTION_REQUIRED');
   if (allowlist.target_scope !== 'tenant_exclusive' || allowlist.shared_target || allowlist.platform_target) blockers.push('STORAGE_TENANT_CANARY_TENANT_EXCLUSIVE_TARGET_REQUIRED');
   if (allowlist.valid_from_epoch > now || allowlist.expires_at_epoch <= now) blockers.push('STORAGE_TENANT_CANARY_ALLOWLIST_EXPIRED');
+  if (!allowlist.path_ref_prefix.endsWith('/')) blockers.push('STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED');
   for (const field of ['tenant_id', 'workspace_id', 'resource_id', 'target_id']) {
     if (allowlist[field] !== normalizedOperation[field]) blockers.push(`STORAGE_TENANT_CANARY_ALLOWLIST_${field.toUpperCase()}_MISMATCH`);
   }
@@ -264,6 +276,7 @@ export function buildHostingerStorageTenantCanaryAuthorization({
     policy_version: HOSTINGER_STORAGE_TENANT_CANARY_POLICY_VERSION,
     operation: normalizedOperation,
     protocol: {
+      protocol_version: normalizedProtocol.protocol_version,
       run_id: normalizedProtocol.run_id,
       operation_id: normalizedProtocol.operation_id,
       plan_id: normalizedProtocol.plan_id,
@@ -305,6 +318,7 @@ export function verifyHostingerStorageTenantCanaryAuthorization({ authorization,
   const now = epoch(now_epoch, 'now_epoch');
   if (authorization?.authorization_key !== 'hostinger_storage_tenant_canary_authorization_v1'
     || authorization?.policy_version !== HOSTINGER_STORAGE_TENANT_CANARY_POLICY_VERSION
+    || authorization?.protocol?.protocol_version !== EXPECTED_SYNTHETIC_PROTOCOL_VERSION
     || authorization?.synthetic_only !== true
     || authorization?.live_provider_allowed !== false
     || authorization?.production_ready !== false
