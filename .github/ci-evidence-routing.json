@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "policy_key": "ci_evidence_routing",
+  "authority_order": [
+    "canonical_summary",
+    "structured_source_reports",
+    "workflow_job_status",
+    "job_logs"
+  ],
+  "job_logs_authority": "diagnostic_only",
+  "same_candidate_required": true,
+  "source_validation": {
+    "require_known_filename": true,
+    "require_exact_contract": true,
+    "require_boolean_ok": true,
+    "require_candidate_kind": true,
+    "require_full_candidate_sha": true,
+    "require_exact_candidate_match": true,
+    "require_secrets_included_false": true,
+    "reject_unexpected_reports": true
+  },
+  "candidate_kinds": ["head", "merge_candidate"],
+  "log_access_conditions": [
+    "canonical_summary_missing_or_malformed",
+    "structured_report_integrity_failure",
+    "structured_report_marks_log_diagnosis_required",
+    "bounded_redacted_diagnostic_is_insufficient_for_root_cause"
+  ],
+  "pr_evidence_publisher": {
+    "workflow": "CI Evidence PR Publisher",
+    "trigger": "workflow_run",
+    "trusted_ref": "main",
+    "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
+    "update_mode": "replace_matching_workflow_section_when_run_id_is_newer",
+    "pr_head_workflows_may_write_comments": false
+  },
+  "routes": [
+    {
+      "workflow": "E2E Phase Governance",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.ci-evidence-summary.v1",
+      "canonical_artifact": "e2e-phase-summary-${run_id}",
+      "source_contracts": {
+        "e2e-parallel-work-evaluation.json": "mad4b.e2e-parallel-work-evaluation.v1",
+        "e2e-phase-evaluation.json": "mad4b.e2e-phase-evaluation.v1",
+        "e2e-parallel-execution.json": "mad4b.e2e-parallel-execution.v1",
+        "e2e-phase-execution.json": "mad4b.e2e-phase-execution.v1"
+      },
+      "source_artifacts": [
+        "e2e-phase-evaluation-${run_id}",
+        "e2e-phase-execution-${run_id}"
+      ]
+    },
+    {
+      "workflow": "Branch Test Diagnostic Shards",
+      "candidate_kind": "merge_candidate",
+      "canonical_contract": "mad4b.test-diagnostic-summary.v2",
+      "canonical_artifact": "branch-test-diagnostic-${run_id}-summary",
+      "source_artifacts": ["branch-test-diagnostic-${run_id}-*"]
+    },
+    {
+      "workflow": "Context Kernel Hardcoding Report",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.context-kernel-hardcoding-summary.v1",
+      "canonical_artifact": "context-kernel-hardcoding-summary-${run_id}",
+      "source_contracts": {
+        "context-kernel-hardcoding-source.json": "mad4b.context-kernel-hardcoding-source.v1"
+      },
+      "source_artifacts": ["context-kernel-hardcoding-source.json"]
+    }
+  ],
+  "secrets_included": false
+}
