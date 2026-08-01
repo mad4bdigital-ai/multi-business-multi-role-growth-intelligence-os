@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-migration-drafts.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "tasks": [
+    "T024",
+    "T025",
+    "T026",
+    "T027"
+  ],
+  "status": "draft_review_only",
+  "location_policy": {
+    "spec_local_only": true,
+    "runtime_migration_directory": "http-generic-api/migrations",
+    "discoverable_by_governed_migration_runner": false,
+    "migration_apply_authorized": false
+  },
+  "waves": [
+    {
+      "id": 1,
+      "task": "T024",
+      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-1-foundation.sql",
+      "objects": [
+        "storage_provider_accounts",
+        "storage_targets",
+        "storage_target_bindings",
+        "storage_pressure_snapshots"
+      ],
+      "purpose": "Provider account, target, ownership binding, and pressure observation foundation."
+    },
+    {
+      "id": 2,
+      "task": "T025",
+      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-2-control-plane.sql",
+      "objects": [
+        "storage_cleanup_operations",
+        "storage_cleanup_plans",
+        "storage_cleanup_plan_items",
+        "storage_cleanup_plan_impacts",
+        "storage_cleanup_approvals",
+        "storage_execution_leases"
+      ],
+      "purpose": "Durable operation, immutable plan, impact, approval, and CAS lease control plane."
+    },
+    {
+      "id": 3,
+      "task": "T026",
+      "file": "specs/014-governed-hostinger-storage-orchestration/migrations/wave-3-execution-evidence.sql",
+      "objects": [
+        "storage_cleanup_runs",
+        "storage_cleanup_run_items",
+        "storage_reconciliation_results",
+        "storage_emergency_reserves",
+        "storage_pressure_incidents"
+      ],
+      "views": [
+        "v_storage_admin_target_readiness",
+        "v_storage_tenant_target_readiness",
+        "v_storage_cleanup_operation_readback"
+      ],
+      "default_off_tools": [
+        "hostinger_storage_snapshot_read",
+        "hostinger_storage_plan_inspect",
+        "hostinger_storage_plan_apply"
+      ],
+      "purpose": "Execution journal, reconciliation, reserve/incident evidence, read-only projections, and default-off tool drafts."
+    }
+  ],
+  "verification": {
+    "task": "T027",
+    "preflight_file": "specs/014-governed-hostinger-storage-orchestration/migrations/preflight.sql",
+    "readback_file": "specs/014-governed-hostinger-storage-orchestration/migrations/readback.sql",
+    "rollback_file": "specs/014-governed-hostinger-storage-orchestration/migrations/rollback-prelive.sql",
+    "validator_file": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+    "same_cycle_readback_required": true,
+    "rollback_requires_separate_authority": true,
+    "rollback_pre_live_only": true
+  },
+  "external_fk_policy": {
+    "emit_external_fk_ddl_in_draft": false,
+    "required_parent_readback": [
+      "tenants.id",
+      "workspaces.id",
+      "platform_resources.id"
+    ],
+    "reason": "Exact parent type, length, charset, and collation must be read from the target database before FK DDL is finalized."
+  },
+  "required_invariants": {
+    "exact_table_count": 15,
+    "exact_view_count": 3,
+    "exact_default_off_tool_count": 3,
+    "all_tables_additive": true,
+    "internal_foreign_keys_present": true,
+    "external_foreign_keys_deferred_until_preflight": true,
+    "all_paths_opaque_or_encrypted": true,
+    "credentials_or_secret_payloads_stored": false,
+    "raw_file_contents_stored": false,
+    "tool_seeds_enabled": false,
+    "provider_dispatch_authorized": false,
+    "migration_apply_authorized": false,
+    "secrets_included": false
+  }
+}
