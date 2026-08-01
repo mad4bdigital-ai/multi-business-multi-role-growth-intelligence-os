@@ -5,14 +5,14 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 ## Phase 0 — Convergence and classification
 
 - [x] T001 Validate this Spec Kit and all contracts in CI.
-- [ ] T002 Inventory current-main Spec 006/010/011/012 and Dynamic Container Authority implementations.
-- [ ] T003 Produce field-level reuse matrix for package/component/installation logical entities.
+- [ ] T002 Inventory current-main Spec 006/010/011/012, Dynamic Container Authority, MCP, tool-catalog, operation, and external-surface implementations.
+- [ ] T003 Produce field-level reuse matrix for package/component/installation/tool/external-surface logical entities.
 - [x] T004 Inventory PR #3922 and classify generic substrate versus Retail Commerce child-pack content.
 - [x] T005 Inventory PR #4432 and classify generic assurance template versus Evidence Intelligence child-pack content.
-- [ ] T006 Resolve duplicate numeric Spec identities 011 and 014 and approve canonical semantic target paths.
+- [ ] T006 Resolve duplicate numeric Spec identities 011 and 014, the duplicate `013-system-tool-catalog-v2` feature cluster, and approve canonical semantic target paths.
 - [x] T007 Update Work Map and schema-domain classification.
-- [ ] T008 Approve architecture, product, security, privacy, agency/client ownership, and portability decisions for Phase 1.
-- [x] T009 Inventory all open Draft Spec PRs, register live divergence, implementation trains, overlaps, truthfulness findings, and portfolio dispositions.
+- [ ] T008 Approve architecture, product, security, privacy, agency/client ownership, portability, tool-catalog, and external-integration decisions for Phase 1.
+- [x] T009 Inventory and classify all 34 observed open Draft PRs as 12 primary Specs or 22 related delivery/repair PRs, including divergence, trains, overlaps, truthfulness findings, and dispositions.
 
 ## Phase 1 — Package/component foundation
 
@@ -56,7 +56,7 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T044 Implement folder template, naming, routing, sharing, retention, quarantine, duplicate, and recovery contracts.
 - [ ] T045 Add mobile, Arabic RTL, accessibility, replay, copied-link, cross-client, and file-isolation tests.
 
-## Phase 5 — AI, UI, and reports
+## Phase 5 — AI, UI, reports, and external projections
 
 - [ ] T050 Implement draft-only AI package authoring service.
 - [ ] T051 Implement AI use-case component definitions and provider abstraction bindings.
@@ -64,7 +64,7 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T053 Implement UI surface component definitions.
 - [ ] T054 Integrate generated surfaces with unified frontend dispatch and Resource/Application services.
 - [ ] T055 Implement report definitions, audience allowlists, redaction, and delivery-policy refs.
-- [ ] T056 Add prompt-injection, authority-invention, field/action visibility, accessibility, and localization tests.
+- [ ] T056 Add prompt-injection, authority-invention, field/action visibility, accessibility, localization, focused tool projection, and external-surface authorization tests.
 
 ## Phase 6 — Publication and installation lifecycle
 
@@ -74,7 +74,7 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T063 Implement fresh-authority activation with compare-and-set and readback.
 - [ ] T064 Implement three-way upgrade comparison and migration planning.
 - [ ] T065 Implement rollback, suspend, archive, uninstall-request, deprecation, and retirement.
-- [ ] T066 Add exact-candidate, stale-evidence, upgrade-conflict, rollback, and continuity tests.
+- [ ] T066 Add exact-candidate, stale-evidence, upgrade-conflict, rollback, disable/revocation, and continuity tests.
 
 ## Phase 7 — Agency/client operating models
 
@@ -83,17 +83,17 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T072 Implement bounded delegation lifecycle and revocation readback.
 - [ ] T073 Implement portfolio-safe summary projections.
 - [ ] T074 Implement export manifests and handover cases.
-- [ ] T075 Implement package IP, installation, data, file, connection, and deliverable ownership matrix.
-- [ ] T076 Add cross-Brand, cross-Tenant, revoked-delegation, portability, and post-handover continuity tests.
+- [ ] T075 Implement package IP, installation, data, file, connection, external exposure, and deliverable ownership matrix.
+- [ ] T076 Add cross-Brand, cross-Tenant, revoked-delegation, external-connection revocation, portability, and post-handover continuity tests.
 
-## Phase 8 — Candidate PR extraction and reference packs
+## Phase 8 — Candidate PR extraction and related subsystem convergence
 
 - [ ] T080 Reconstruct generic Business Profile/Activity/Blueprint substrate from PR #3922 on current main.
 - [ ] T081 Reconstruct Retail Commerce child package from PR #3922.
-- [ ] T082 Reconstruct generic repository delivery/development/CI assurance from PRs #2284, #2949, and #4432.
+- [ ] T082 Reconstruct one generic repository delivery/development/CI assurance subsystem from PRs #2284, #2949, and #4432, and one canonical System Tool Catalog v2 from #3139/#3145/#3159.
 - [ ] T083 Reconstruct Evidence Intelligence child package from PR #4432.
 - [ ] T084 Reconstruct Hostinger Storage and Local Connector Recovery as bounded services or reference packages from PRs #4386 and #2385.
-- [ ] T085 Validate all four package/service targets, operation-fabric integration, canonical paths, and absence of duplicate Spec identity or stale copied artifacts.
+- [ ] T085 Validate all four package/service targets, Operation Fabric integration, System Tool Catalog projection, Spec 016 external exposure contract, canonical paths, and absence of duplicate identities or stale copied artifacts.
 
 ## Phase 9 — Pilot and closeout
 
@@ -102,10 +102,10 @@ No runtime task is complete in this specification PR. Completed Phase 0 items be
 - [ ] T092 Pilot client-owned Tenant delegation and agency revocation.
 - [ ] T093 Run Evidence Intelligence Pack end-to-end.
 - [ ] T094 Run Retail Commerce Pack in sandbox/staging scope.
-- [ ] T095 Run load, recovery, backup/restore, provider outage, and manual fallback tests.
-- [ ] T096 Verify production migration/runtime/surface/health/rollback evidence separately.
-- [ ] T097 Update runbooks, documentation, training, Work Map, manifest, and completion state.
+- [ ] T095 Run load, recovery, backup/restore, provider outage, manual fallback, MCP read-only Developer mode, disable, and revocation tests.
+- [ ] T096 Verify production migration/runtime/generated-and-external-surface/health/rollback evidence separately.
+- [ ] T097 Update runbooks, documentation, training, Work Map, portfolio registry, manifest, and completion state.
 
 ## Completion rule
 
-Tasks may be marked implemented only with exact change evidence. Verified and closed require the additional test, runtime, migration, deployment, readback, and operational evidence declared by the task and acceptance matrix. A merged Spec or green documentation workflow is not runtime completion.
+Tasks may be marked implemented only with exact change evidence. Verified and closed require the additional test, runtime, migration, deployment, readback, external-integration, and operational evidence declared by the task and acceptance matrix. A merged Spec or green documentation workflow is not runtime completion.
