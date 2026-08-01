@@ -1,0 +1,219 @@
+import { getPool } from "./db.js";
+import { createOrAppendSupportTicket } from "./supportTicketService.js";
+import {
+  computeSupportTicketDedupeKeyV2,
+  deriveSupportTicketIntegrity,
+} from "./supportTicketLifecycleIntegrityService.js";
+
+const REQUIRED_INTEGRITY_COLUMNS = Object.freeze([
+  "is_test",
+  "environment",
+  "visibility_class",
+  "target_capability",
+  "related_ticket_id",
+  "parent_ticket_id",
+  "supersedes_ticket_id",
+  "first_response_at",
+  "triaged_at",
+]);
+const REQUIRED_INTEGRITY_TABLES = Object.freeze(["support_ticket_dedupe_claims"]);
+
+function parseJsonObject(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function readIntegritySchema(connection) {
+  const [columnRows] = await connection.query(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'tickets'
+        AND COLUMN_NAME IN (?)`,
+    [REQUIRED_INTEGRITY_COLUMNS],
+  );
+  const [tableRows] = await connection.query(
+    `SELECT TABLE_NAME
+       FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME IN (?)`,
+    [REQUIRED_INTEGRITY_TABLES],
+  );
+  const availableColumns = new Set(columnRows.map((row) => row.COLUMN_NAME || row.column_name));
+  const availableTables = new Set(tableRows.map((row) => row.TABLE_NAME || row.table_name));
+  const missingColumns = REQUIRED_INTEGRITY_COLUMNS.filter((column) => !availableColumns.has(column));
+  const missingTables = REQUIRED_INTEGRITY_TABLES.filter((table) => !availableTables.has(table));
+  return {
+    ready: missingColumns.length === 0 && missingTables.length === 0,
+    available_columns: [...availableColumns].sort(),
+    missing_columns: missingColumns,
+    available_tables: [...availableTables].sort(),
+    missing_tables: missingTables,
+    secrets_included: false,
+  };
+}
+
+function schemaNotReadyError(schema) {
+  const error = new Error("Support ticket integrity migration is required before ticket creation.");
+  error.status = 409;
+  error.code = "support_ticket_integrity_schema_not_ready";
+  error.schema = schema;
+  return error;
+}
+
+function externalTransactionRequiredError() {
+  const error = new Error("An externally supplied connection must already own the dedupe-claim transaction.");
+  error.status = 409;
+  error.code = "support_ticket_dedupe_external_transaction_required";
+  return error;
+}
+
+async function acquireDedupeClaim(connection, tenantId, dedupeKey) {
+  await connection.query(
+    `INSERT INTO support_ticket_dedupe_claims
+       (tenant_id, dedupe_key, claim_token, claimed_at, updated_at)
+     VALUES (?, ?, UUID(), NOW(), NOW())
+     ON DUPLICATE KEY UPDATE claim_token = claim_token`,
+    [tenantId, dedupeKey],
+  );
+  const [rows] = await connection.query(
+    `SELECT tenant_id, dedupe_key
+       FROM support_ticket_dedupe_claims
+      WHERE tenant_id = ? AND dedupe_key = ?
+      FOR UPDATE`,
+    [tenantId, dedupeKey],
+  );
+  if (rows.length !== 1) {
+    const error = new Error("Canonical support-ticket dedupe claim could not be acquired.");
+    error.status = 409;
+    error.code = "support_ticket_dedupe_claim_unavailable";
+    throw error;
+  }
+  return {
+    tenant_id: tenantId,
+    dedupe_key: dedupeKey,
+    mode: "transaction_row_claim",
+    secrets_included: false,
+  };
+}
+
+async function persistIntegrityFields(connection, ticketId, integrity) {
+  const [result] = await connection.query(
+    `UPDATE tickets
+        SET is_test = ?,
+            environment = ?,
+            visibility_class = ?,
+            target_capability = COALESCE(?, target_capability),
+            parent_ticket_id = COALESCE(?, parent_ticket_id),
+            related_ticket_id = COALESCE(?, related_ticket_id),
+            supersedes_ticket_id = COALESCE(?, supersedes_ticket_id),
+            updated_at = NOW()
+      WHERE ticket_id = ?`,
+    [
+      integrity.is_test ? 1 : 0,
+      integrity.environment,
+      integrity.visibility_class,
+      integrity.target_capability,
+      integrity.parent_ticket_id,
+      integrity.related_ticket_id,
+      integrity.supersedes_ticket_id,
+      ticketId,
+    ],
+  );
+  if (Number(result?.affectedRows || 0) !== 1) {
+    const error = new Error("Created support ticket could not be updated with the integrity contract.");
+    error.status = 409;
+    error.code = "support_ticket_integrity_persist_target_missing";
+    throw error;
+  }
+}
+
+export async function createOrAppendSupportTicketWithIntegrityAtomic(envelope = {}, options = {}) {
+  const integrity = deriveSupportTicketIntegrity(envelope);
+  const metadata = parseJsonObject(envelope.metadata_json || envelope.metadata, {});
+  const normalizedEnvelope = {
+    ...envelope,
+    dedupe_key: computeSupportTicketDedupeKeyV2(envelope),
+    metadata_json: {
+      ...metadata,
+      ticket_integrity_contract: "support-ticket-integrity-v2",
+      is_test: integrity.is_test,
+      environment: integrity.environment,
+      visibility_class: integrity.visibility_class,
+      target_capability: integrity.target_capability,
+      intended_parent_ticket_id: integrity.parent_ticket_id,
+      related_ticket_id: integrity.related_ticket_id,
+      supersedes_ticket_id: integrity.supersedes_ticket_id,
+      secrets_included: false,
+    },
+  };
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const createTicket = options.createOrAppendSupportTicketFn || createOrAppendSupportTicket;
+  const {
+    createOrAppendSupportTicketFn: _injectedCreateTicket,
+    externalTransactionActive: _externalTransactionActive,
+    ...baseOptions
+  } = options;
+  let transactionStarted = false;
+  let dedupeClaim = null;
+  try {
+    const schema = await readIntegritySchema(connection);
+    if (!schema.ready) throw schemaNotReadyError(schema);
+    if (!ownsConnection && options.externalTransactionActive !== true) {
+      throw externalTransactionRequiredError();
+    }
+    if (ownsConnection) {
+      await connection.beginTransaction();
+      transactionStarted = true;
+    }
+    dedupeClaim = await acquireDedupeClaim(
+      connection,
+      normalizedEnvelope.tenant_id,
+      normalizedEnvelope.dedupe_key,
+    );
+    const result = await createTicket(normalizedEnvelope, {
+      ...baseOptions,
+      pool,
+      connection,
+    });
+    await persistIntegrityFields(connection, result.ticket.ticket_id, integrity);
+    if (ownsConnection) {
+      await connection.commit();
+      transactionStarted = false;
+    }
+    return {
+      ...result,
+      integrity: {
+        ...integrity,
+        dedupe_key: normalizedEnvelope.dedupe_key,
+        dedupe_serialized: true,
+        dedupe_coordination: dedupeClaim,
+        schema_ready: true,
+        schema_missing_columns: [],
+        schema_missing_tables: [],
+        persisted: true,
+        secrets_included: false,
+      },
+      secrets_included: false,
+    };
+  } catch (error) {
+    if (ownsConnection && transactionStarted) {
+      try { await connection.rollback(); } catch { /* preserve primary failure */ }
+    }
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export function _testingSupportTicketLifecycleIntegrityCreation() {
+  return { REQUIRED_INTEGRITY_COLUMNS, REQUIRED_INTEGRITY_TABLES };
+}
