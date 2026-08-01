@@ -1,0 +1,14 @@
+{
+  "contract": "mad4b.pr-4395-permanent-review-fixes-diagnostic.v1",
+  "source_head_sha": "e93bad674d247da25e9a7b8cc80650f640f9439c",
+  "outcome": "failed",
+  "first_failure": {
+    "label": "push permanent review fixes",
+    "command": "git push origin HEAD:gpt/tenant-request-inbox-chunk-store-hardening-20260801",
+    "status": 1,
+    "signal": null,
+    "stdout_tail": "",
+    "stderr_tail": "To https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os\n ! [remote rejected]     HEAD -> gpt/tenant-request-inbox-chunk-store-hardening-20260801 (cannot lock ref 'refs/heads/gpt/tenant-request-inbox-chunk-store-hardening-20260801': is at e93bad674d247da25e9a7b8cc80650f640f9439c but expected 2cd8003bdca6b52ab9a545ff9e2550175651c5ed)\nerror: failed to push some refs to 'https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'\n"
+  },
+  "secrets_included": false
+}
