@@ -16,7 +16,7 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     concurrency:
       group: response-chunk-ownership-readiness
@@ -95,7 +95,7 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
       group: response-chunk-ownership-apply
@@ -174,7 +174,7 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'VERIFY_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_RUNTIME' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
       group: response-chunk-ownership-runtime-closure

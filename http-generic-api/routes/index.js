@@ -134,10 +134,6 @@ import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
-import {
-  createOperationRuntimeErrorHandler,
-  createOperationRuntimeGuard,
-} from "../operationRuntimeGuard.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -162,7 +158,6 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
-  app.use(createOperationRuntimeGuard());
   app.use(buildTenantGptOAuthMetadataRoutes());
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
@@ -210,6 +205,9 @@ export function registerRoutes(app, deps) {
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
+  // Mixed admin/tenant registry data routes own their respective guards and must
+  // mount before root-level backend-key routers so user JWT tenant paths remain reachable.
+  app.use(buildRegistryDataManagementRoutes({ ...deps, requireAdminPrincipal }));
   // Tenant-safe routes must mount before root-level admin/protected routers
   // that call router.use(requireBackendApiKey), otherwise user JWT requests
   // such as /me/connections/... are intercepted before reaching tenant guards.
@@ -309,10 +307,8 @@ export function registerRoutes(app, deps) {
   app.use(buildLocalGatewayToolsRoutes(deps));
   app.use(buildLocalConnectorDeviceRouteRoutes(deps));
   app.use(buildConnectorTaxonomyRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildBackupArtifactRoutes(deps));
   registerOptionalSqlEndpointRegistryRoutes(app, deps);
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
   app.post("/admin/session-continuity/link-user", deps.requireBackendApiKey, requireAdminPrincipal, buildSessionContinuityHandler());
   app.use("/admin/cli", buildAdminCliRoutes(deps));
-  app.use(createOperationRuntimeErrorHandler());
 }

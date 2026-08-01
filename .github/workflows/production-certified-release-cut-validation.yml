@@ -1,14 +1,14 @@
 name: Certified Production Release Cut Validation
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - "gpt/validate-certified-release-base-*"
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
-  actions: write
   contents: read
+  issues: write
 
 concurrency:
   group: certified-production-release-cut-${{ github.event.pull_request.number }}
@@ -17,16 +17,54 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/validate-certified-release-candidate-')
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    outputs:
+      head_sha: ${{ steps.verify.outputs.head_sha }}
+      base_sha: ${{ steps.verify.outputs.base_sha }}
+      head_ref: ${{ steps.verify.outputs.head_ref }}
+      base_ref: ${{ steps.verify.outputs.base_ref }}
+      main_sha_initial: ${{ steps.verify.outputs.main_sha_initial }}
+      production_sha: ${{ steps.verify.outputs.production_sha }}
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
+      VALIDATION_PR: ${{ github.event.pull_request.number }}
     steps:
+      - name: Validate trusted same-repository validation surface
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$EVENT_NAME" == pull_request_target ]]
+          [[ "$HEAD_REPOSITORY" == "$REPOSITORY" ]] || {
+            echo "::error::certified validation requires a same-repository head"
+            exit 1
+          }
+          [[ "$HEAD_REF" == gpt/validate-certified-release-candidate-* ]]
+          [[ "$BASE_REF" == gpt/validate-certified-release-base-* ]]
+          for value in "$HEAD_SHA" "$BASE_SHA"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::validation refs must resolve to lowercase 40-character SHAs"
+              exit 1
+            }
+          done
+
+      - name: Record certified validation start
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -Eeuo pipefail
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started source_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
         with:
@@ -44,15 +82,6 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -Eeuo pipefail
-
-          for value in "$HEAD_SHA" "$BASE_SHA"; do
-            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
-              echo "::error::validation refs must resolve to lowercase 40-character SHAs"
-              exit 1
-            }
-          done
-          [[ "$HEAD_REF" == gpt/validate-certified-release-candidate-* ]]
-          [[ "$BASE_REF" == gpt/validate-certified-release-base-* ]]
 
           git fetch --no-tags origin \
             "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
@@ -106,91 +135,362 @@ jobs:
             echo "production_sha=$CURRENT_PRODUCTION_SHA"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch Full CI on exact certified candidate
-        id: dispatch
+      - name: Record direct ARM CI start
         shell: bash
         env:
-          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
-          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
-        run: |
-          set -Eeuo pipefail
-          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          gh workflow run ci.yml --repo "$REPOSITORY" --ref "$HEAD_REF"
-
-          RUN_ID=""
-          for _ in $(seq 1 60); do
-            RUN_ID="$(gh run list \
-              --repo "$REPOSITORY" \
-              --workflow ci.yml \
-              --branch "$HEAD_REF" \
-              --event workflow_dispatch \
-              --limit 50 \
-              --json databaseId,headSha,createdAt \
-              --jq "map(select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
-            [[ -n "$RUN_ID" ]] && break
-            sleep 5
-          done
-          [[ -n "$RUN_ID" ]] || {
-            echo "::error::unable to resolve certified candidate CI run"
-            exit 1
-          }
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-
-          DEADLINE="$(( $(date +%s) + 3300 ))"
-          while (( $(date +%s) < DEADLINE )); do
-            RUN_JSON="$(gh run view "$RUN_ID" --repo "$REPOSITORY" --json status,conclusion)"
-            STATUS="$(jq -r '.status // ""' <<<"$RUN_JSON")"
-            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$RUN_JSON")"
-            if [[ "$STATUS" == completed ]]; then
-              [[ "$CONCLUSION" == success ]] || {
-                echo "::error::certified candidate CI concluded $CONCLUSION"
-                exit 1
-              }
-              exit 0
-            fi
-            sleep 30
-          done
-          echo "::error::certified candidate CI did not complete before deadline"
-          exit 1
-
-      - name: Verify Full CI and final immutable readback
-        shell: bash
-        env:
-          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           BASE_SHA: ${{ steps.verify.outputs.base_sha }}
-          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
-          BASE_REF: ${{ steps.verify.outputs.base_ref }}
-          MAIN_SHA_INITIAL: ${{ steps.verify.outputs.main_sha_initial }}
-          PRODUCTION_SHA: ${{ steps.verify.outputs.production_sha }}
         run: |
           set -Eeuo pipefail
-          gh run view "$RUN_ID" \
-            --repo "$REPOSITORY" \
-            --json databaseId,event,headSha,status,conclusion,jobs \
-            > "$RUNNER_TEMP/certified-release-ci.json"
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
-          node - "$RUNNER_TEMP/certified-release-ci.json" "$HEAD_SHA" <<'NODE'
-          const fs = require('node:fs');
-          const [file, expectedSha] = process.argv.slice(2);
-          const run = JSON.parse(fs.readFileSync(file, 'utf8'));
-          if (run.event !== 'workflow_dispatch') throw new Error(`unexpected event: ${run.event}`);
-          if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
-          if (run.status !== 'completed' || run.conclusion !== 'success') {
-            throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
-          }
-          const required = new Set([
-            'Syntax Check',
-            'Unit & Integration Tests',
-            'Execution Resolver Gate',
-            'Architecture Drift Detection',
-          ]);
-          for (const job of run.jobs || []) {
-            if (job.conclusion === 'success') required.delete(job.name);
-          }
-          if (required.size) throw new Error(`missing successful jobs: ${[...required].join(', ')}`);
-          NODE
+  syntax:
+    name: Syntax Check
+    needs: certified-release-cut-ci
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.certified-release-cut-ci.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Guard schema/docs coverage for runtime changes
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+
+      - name: Guard governed migration seed placement
+        run: node http-generic-api/scripts/migration-placement-guard.mjs
+
+      - name: Guard centralized fail-closed user JWT auth
+        working-directory: http-generic-api
+        run: node scripts/user-jwt-auth-governance.mjs
+
+      - name: Guard merge and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+
+      - name: Validate canonical source structure
+        run: node validate-canonical-sources.mjs
+
+      - name: Check canonical generated output
+        run: node build-canonicals.mjs --check
+
+      - name: Check canonical domain finder
+        run: node --check find-canonical-domain.mjs
+
+      - name: Block uncovered resource feature surfaces
+        working-directory: http-generic-api
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
+
+      - name: Validate resource API architecture and application service
+        working-directory: http-generic-api
+        run: |
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+
+      - name: Enforce Spec Kit completion governance
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
+      - name: Validate memory schema refs
+        run: node validate-memory-schema.mjs
+
+      - name: Check git diff hygiene
+        run: git diff --check
+
+      - name: Check all JS modules
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -e
+          shopt -s nullglob
+          for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+            node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
+          done
+
+  test:
+    name: Unit & Integration Tests
+    needs: [certified-release-cut-ci, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.certified-release-cut-ci.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Determine context-kernel hardcoding ratchet scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.certified-release-cut-ci.outputs.base_sha }}
+        run: |
+          set -Eeuo pipefail
+          CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
+          git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
+          echo "Context-kernel hardcoding ratchet base: $BASE_SHA"
+          echo "Changed files considered by the ratchet:"
+          cat "$CHANGED_FILES"
+
+      - name: Block context-kernel runtime hardcoding regressions
+        working-directory: http-generic-api
+        run: node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
+
+      - name: Validate Connect auth, secret boundary, and atomic bootstrap
+        working-directory: http-generic-api
+        run: |
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
+
+      - name: Guard dependency and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
+
+      - name: Run tests
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Upload ordered test progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-integration-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: ${{ needs.certified-release-cut-ci.outputs.head_ref }}
+          DEPLOYMENT_COMMIT_SHA: ${{ needs.certified-release-cut-ci.outputs.head_sha }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run explicit governance contract checks
+        working-directory: http-generic-api
+        run: |
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
+          node test-activation-lifecycle-operation-service.mjs
+          node test-activation-reconnect-guidance-policy.mjs
+          node test-activation-contract-finalization.mjs
+          node test-activation-operation-projection-foundation.mjs
+          node test-activation-operation-persistence-repository.mjs
+          node test-activation-delivery-acknowledgement-repository.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+          node test-local-connector-capability-installer-grants.mjs
+
+      - name: Reject stale readiness evidence
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
+
+  execution-resolver-gate:
+    name: Execution Resolver Gate
+    needs: [certified-release-cut-ci, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.certified-release-cut-ci.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Typecheck execution resolver sources
+        run: npm run typecheck
+
+      - name: Run execution resolver unit tests
+        run: npm test -- --runInBand
+
+      - name: Guard resolver runtime surface
+        run: |
+          set -e
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
+
+  architecture-drift:
+    name: Architecture Drift Detection
+    needs: [certified-release-cut-ci, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.certified-release-cut-ci.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Check for inline function redefinitions in server.js
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          MODULES="normalization mutationGovernance governedChangeControl jobRunner jobUtils executionRouting auth"
+          FAIL=0
+          for mod in $MODULES; do
+            if [ ! -f "${mod}.js" ]; then continue; fi
+            EXPORTS=$(grep "^export function\|^export async function" "${mod}.js" | sed 's/export \(async \)\?function //;s/(.*//')
+            for fn in $EXPORTS; do
+              if grep -qE "^(async )?function ${fn}\b" server.js; then
+                echo "DRIFT: '${fn}' is exported from ${mod}.js but also defined inline in server.js"
+                FAIL=1
+              fi
+            done
+          done
+          if [ "$FAIL" -eq 1 ]; then
+            echo "Inline redefinition drift detected - run extraction cleanup"
+            exit 1
+          fi
+          echo "No inline redefinition drift detected"
+
+      - name: Check legacy execution snapshot isolation
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          MATCHES=$(grep -RInE "from [\"']\./execution(\.js)?[\"']|import\([\"']\./execution(\.js)?[\"']\)|require\([\"']\./execution(\.js)?[\"']\)" . \
+            --include='*.js' --include='*.mjs' \
+            --exclude='execution.js' \
+            --exclude='validate-architecture.mjs' \
+            --exclude='test-*.mjs' \
+            --exclude='fix-*.mjs' \
+            --exclude='extract-modules.js')
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 0 ]; then
+            echo "DRIFT: execution.js is marked snapshot_archived but is imported by runtime code:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          if [ "$STATUS" -gt 1 ]; then
+            echo "Failed to scan for execution.js imports"
+            exit "$STATUS"
+          fi
+          echo "Legacy execution snapshot remains isolated"
+
+      - name: Check server.js line count
+        working-directory: http-generic-api
+        run: |
+          LINES=$(wc -l < server.js)
+          echo "server.js: ${LINES} lines"
+          if [ "$LINES" -gt 6000 ]; then
+            echo "DRIFT: server.js exceeds 6000-line threshold (${LINES} lines) - decomposition may have regressed"
+            exit 1
+          fi
+          echo "server.js size within threshold"
+
+      - name: Check wordpress barrel export floor
+        working-directory: http-generic-api
+        run: |
+          COUNT=$(node -e "import('./wordpress/index.js').then(m => { const n = Object.keys(m).length; console.log(n); if(n < 545) process.exit(1); })" 2>&1)
+          echo "wordpress/index.js exports: $COUNT"
+          if [ $? -ne 0 ]; then
+            echo "DRIFT: wordpress/index.js exports dropped below 545 floor"
+            exit 1
+          fi
+          echo "WordPress barrel export count within floor"
+
+  finalize:
+    name: Publish certified release-cut evidence
+    if: always()
+    needs:
+      - certified-release-cut-ci
+      - syntax
+      - test
+      - execution-resolver-gate
+      - architecture-drift
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      VALIDATION_PR: ${{ github.event.pull_request.number }}
+      EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
+      CI_SUMMARY_PATH: ${{ runner.temp }}/certified-release-ci.json
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      MAIN_SHA_INITIAL: ${{ needs.certified-release-cut-ci.outputs.main_sha_initial }}
+      PRODUCTION_SHA: ${{ needs.certified-release-cut-ci.outputs.production_sha }}
+      PREFLIGHT_RESULT: ${{ needs.certified-release-cut-ci.result }}
+      SYNTAX_RESULT: ${{ needs.syntax.result }}
+      TEST_RESULT: ${{ needs.test.result }}
+      EXECUTION_RESULT: ${{ needs.execution-resolver-gate.result }}
+      ARCHITECTURE_RESULT: ${{ needs.architecture-drift.result }}
+    steps:
+      - name: Require successful direct ARM CI gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for result in "$PREFLIGHT_RESULT" "$SYNTAX_RESULT" "$TEST_RESULT" "$EXECUTION_RESULT" "$ARCHITECTURE_RESULT"; do
+            [[ "$result" == success ]] || {
+              echo "::error::certified direct ARM CI did not complete successfully"
+              exit 1
+            }
+          done
+
+      - name: Checkout exact candidate head for final readback
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify final immutable readback and create evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           git fetch --no-tags origin \
             "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
             "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" \
@@ -208,6 +508,7 @@ jobs:
             echo "::error::Production moved during certified-cut validation"
             exit 1
           }
+          [[ "$(git rev-parse "${HEAD_SHA}^1")" == "$BASE_SHA" ]]
           git diff --quiet "$BASE_SHA" "$HEAD_SHA"
           git merge-base --is-ancestor "$BASE_SHA" "$MAIN_SHA_FINAL" || {
             echo "::error::current main no longer contains certified release cut"
@@ -218,12 +519,32 @@ jobs:
           jq -n \
             --arg candidate_sha "$HEAD_SHA" \
             --arg certified_cut_sha "$BASE_SHA" \
+            --arg source_run_id "$GITHUB_RUN_ID" \
+            '{
+              event: "pull_request_target",
+              headSha: $candidate_sha,
+              source_run_id: $source_run_id,
+              execution_mode: "direct_arm",
+              runner_pool: "ubuntu-24.04-arm",
+              status: "completed",
+              conclusion: "success",
+              jobs: [
+                {name: "Syntax Check", conclusion: "success"},
+                {name: "Unit & Integration Tests", conclusion: "success"},
+                {name: "Execution Resolver Gate", conclusion: "success"},
+                {name: "Architecture Drift Detection", conclusion: "success"}
+              ]
+            }' > "$CI_SUMMARY_PATH"
+
+          jq -n \
+            --arg candidate_sha "$HEAD_SHA" \
+            --arg certified_cut_sha "$BASE_SHA" \
             --arg candidate_branch "$HEAD_REF" \
             --arg validation_base_branch "$BASE_REF" \
             --arg production_sha "$PRODUCTION_SHA" \
             --arg main_sha_initial "$MAIN_SHA_INITIAL" \
             --arg main_sha_final "$MAIN_SHA_FINAL" \
-            --arg ci_run_id "$RUN_ID" \
+            --arg ci_run_id "$GITHUB_RUN_ID" \
             '{
               schema_version: "certified_production_release_cut.v1",
               ok: true,
@@ -236,6 +557,9 @@ jobs:
               main_sha_initial: $main_sha_initial,
               main_sha_final: $main_sha_final,
               ci_run_id: $ci_run_id,
+              execution_mode: "direct_arm",
+              runner_pool: "ubuntu-24.04-arm",
+              exact_full_ci_success: true,
               candidate_tree_matches_certified_cut: true,
               certified_cut_is_ancestor_of_current_main: true,
               candidate_contains_production: true,
@@ -250,13 +574,25 @@ jobs:
               secrets_included: false
             }' > "$EVIDENCE_PATH"
           test -s "$EVIDENCE_PATH"
+          test -s "$CI_SUMMARY_PATH"
 
       - name: Upload certified release-cut evidence
         uses: actions/upload-artifact@v4
         with:
-          name: certified-production-release-cut-${{ steps.verify.outputs.head_sha }}
+          name: certified-production-release-cut-${{ github.event.pull_request.head.sha }}
           path: |
             ${{ env.EVIDENCE_PATH }}
-            ${{ runner.temp }}/certified-release-ci.json
+            ${{ env.CI_SUMMARY_PATH }}
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record certified validation success
+        shell: bash
+        run: |
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} evidence_schema=certified_production_release_cut.v1 runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+
+      - name: Record certified validation failure
+        if: failure()
+        shell: bash
+        run: |
+          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false" || true

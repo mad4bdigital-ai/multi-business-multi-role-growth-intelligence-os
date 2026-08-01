@@ -45,7 +45,14 @@ assert(migration.includes("'workspace_assets'"), "migration must seed tenant wor
 assert(!migration.includes("'brands'"), "migration must not expose brands through generic CRUD because it contains credential-like columns");
 assert(!/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i.test(migration), "migration must be additive and non-destructive");
 
+const registryMount = "app.use(buildRegistryDataManagementRoutes({ ...deps, requireAdminPrincipal }));";
+const firstRootProtectedTenantMount = "app.use(buildTenantPlatformPluginRoutes());";
 assert(indexSource.includes("buildRegistryDataManagementRoutes"), "routes index must register registry data management routes");
+assert.equal(indexSource.split(registryMount).length - 1, 1, "registry data management routes must mount exactly once");
+assert(
+  indexSource.indexOf(registryMount) < indexSource.indexOf(firstRootProtectedTenantMount),
+  "registry data management routes must mount before root-level protected tenant routers"
+);
 assert(manifest.includes("node test-registry-data-management-service.mjs"), "test manifest must include registry data management test");
 
 console.log("registry data management tests passed");

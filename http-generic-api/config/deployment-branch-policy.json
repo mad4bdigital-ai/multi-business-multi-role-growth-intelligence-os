@@ -1,0 +1,54 @@
+{
+  "schema_version": "mad4b.deployment-branch-policy.v1",
+  "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  "source_of_change": {
+    "branch": "main",
+    "role": "development_and_staging_source",
+    "production_deploy_authority": false
+  },
+  "production": {
+    "hostname": "auth.mad4b.com",
+    "source_branch": "Production",
+    "upstream_branch": "main",
+    "deployment_provider": "hostinger",
+    "deployment_mode": "hostinger_auto_deploy",
+    "auto_deploy_on_push": true,
+    "required_environment_branch": "Production",
+    "required_readbacks": [
+      "/health",
+      "/version",
+      "/deployment-info"
+    ]
+  },
+  "staging": {
+    "hostname": "dev.mad4b.com",
+    "source_branch": "main",
+    "runtime_location": "local_device",
+    "lifecycle_status": "planned",
+    "deployment_mode": "local_staging_runtime",
+    "hostinger_auto_deploy": false,
+    "production_traffic_allowed": false
+  },
+  "promotion": {
+    "source_branch": "main",
+    "target_branch": "Production",
+    "mode": "governed_pull_request",
+    "force_push_allowed": false,
+    "required_before_merge": [
+      "exact_head_ci",
+      "review_and_typed_approval",
+      "production_branch_freshness"
+    ],
+    "required_after_merge": [
+      "hostinger_auto_deploy_build",
+      "exact_production_sha_manifest",
+      "health_readback",
+      "version_readback"
+    ]
+  },
+  "connector_recovery": {
+    "hostname": "connector.mad4b.com",
+    "deployment_provider": "cloudflare_tunnel_local_windows_service",
+    "hostinger_auto_deploy": false
+  }
+}
