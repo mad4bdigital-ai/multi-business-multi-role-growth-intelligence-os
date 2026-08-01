@@ -95,6 +95,112 @@ paths:
         principal: anonymous
         guard_chain: []
         configuration_dependencies: *a1
+  /admin/data-tables/{table_key}/rows/{row_id}:
+    delete:
+      operationId: deleteAdminDataTablesByTableKeyRowsByRowIdc5cc5bef
+      summary: DELETE /admin/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+    get:
+      operationId: getAdminDataTablesByTableKeyRowsByRowId18fde086
+      summary: GET /admin/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+    patch:
+      operationId: patchAdminDataTablesByTableKeyRowsByRowIdd727420b
+      summary: PATCH /admin/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /agents/{id}/skills/{skill_id}:
     delete:
       operationId: deleteAgentsByIdSkillsBySkillId51649c3c
@@ -749,6 +855,127 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /me/workspaces/{tenant_id}/data-tables/{table_key}/rows/{row_id}:
+    delete:
+      operationId: deleteMeWorkspacesByTenantIdDataTablesByTableKeyRowsByRowId6d044eaa
+      summary: DELETE /me/workspaces/{tenant_id}/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+    get:
+      operationId: getMeWorkspacesByTenantIdDataTablesByTableKeyRowsByRowId96588232
+      summary: GET /me/workspaces/{tenant_id}/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+    patch:
+      operationId: patchMeWorkspacesByTenantIdDataTablesByTableKeyRowsByRowId09a36e90
+      summary: PATCH /me/workspaces/{tenant_id}/data-tables/{table_key}/rows/{row_id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: row_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
   /tenants/{id}:
     delete:
       operationId: deleteTenantsById22872ff3
@@ -1308,6 +1535,88 @@ paths:
         principal: admin
         guard_chain:
           - requireAdmin
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/data-tables:
+    get:
+      operationId: getAdminDataTables036c58f4
+      summary: GET /admin/data-tables (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+  /admin/data-tables/{table_key}/rows:
+    get:
+      operationId: getAdminDataTablesByTableKeyRowsa42e376a
+      summary: GET /admin/data-tables/{table_key}/rows (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+    post:
+      operationId: postAdminDataTablesByTableKeyRows7c551cdc
+      summary: POST /admin/data-tables/{table_key}/rows (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
           - requireAdminPrincipal
           - requireBackendApiKey
         configuration_dependencies:
@@ -3120,6 +3429,104 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/workspaceResourceRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/data-tables:
+    get:
+      operationId: getMeWorkspacesByTenantIdDataTablese6df4fd8
+      summary: GET /me/workspaces/{tenant_id}/data-tables (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+  /me/workspaces/{tenant_id}/data-tables/{table_key}/rows:
+    get:
+      operationId: getMeWorkspacesByTenantIdDataTablesByTableKeyRows94cfb3f9
+      summary: GET /me/workspaces/{tenant_id}/data-tables/{table_key}/rows (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
+      x-mad4b-runtime-auth:
+        profile: user_jwt
+        principal: tenant_user
+        guard_chain:
+          - requireActiveMembership
+          - requireUserJwt
+        configuration_dependencies:
+          - JWT_SECRET
+    post:
+      operationId: postMeWorkspacesByTenantIdDataTablesByTableKeyRows96bf0d20
+      summary: POST /me/workspaces/{tenant_id}/data-tables/{table_key}/rows (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - userJwtAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: table_key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/registryDataManagementRoutes.js
       x-mad4b-runtime-auth:
         profile: user_jwt
         principal: tenant_user
