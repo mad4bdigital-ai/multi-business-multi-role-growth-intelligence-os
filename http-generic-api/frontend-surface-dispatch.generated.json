@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "4e81824cbd3a3cc02de4e9a5234eaec69a0ce383a90e12f7b5e398bd5965dac7",
+    "source_digest": "fa1aa1673260290ea0a892bfb930a12dadfd636f99bf795564b5bcf81307c7bc",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -551,7 +551,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+        "sha256": "9090952b327740654922ebff568c9164e311a357741ab5277094ce0b2ead2c4c",
         "present": true
       },
       {
@@ -901,7 +901,7 @@
       },
       {
         "file": "routes/supportTicketRoutes.js",
-        "sha256": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+        "sha256": "df2171cc85d0195e6ddd4e5056951f58fe023d6490afde96597ac22605f27b62",
         "present": true
       },
       {
@@ -1039,18 +1039,19 @@
     "mounted_family_count": 172,
     "mounted_route_file_count": 138,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1034,
-    "openapi_documented_count": 1018,
-    "openapi_canonical_documented_count": 629,
+    "operation_count": 1038,
+    "openapi_documented_count": 1022,
+    "openapi_canonical_documented_count": 633,
     "openapi_generated_index_count": 389,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 389,
     "auth_parity_counts": {
       "equivalent": 1018,
-      "exempt": 16
+      "exempt": 16,
+      "unknown": 4
     },
-    "auth_contract_gap_count": 0,
+    "auth_contract_gap_count": 4,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 628,
     "unresolved_operation_class_count": 568,
@@ -1061,7 +1062,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 172,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1031,
+    "untested_operation_count": 1035,
     "ready_task_count": 0,
     "blocked_task_count": 172,
     "coverage_complete": false
@@ -32728,15 +32729,141 @@
       "family_key": "support-ticket.admin",
       "label": "support ticket (admin)",
       "source_file": "routes/supportTicketRoutes.js",
-      "source_digest": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+      "source_digest": "df2171cc85d0195e6ddd4e5056951f58fe023d6490afde96597ac22605f27b62",
       "mount_prefix": "/",
       "mount_order": 16742,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
-      "group": "authentication",
+      "group": "support",
       "scope": "admin",
       "operations": [
+        {
+          "method": "GET",
+          "path": "/admin/tenant-requests",
+          "signature": "GET /admin/tenant-requests",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": null,
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "openapi_security_inheritance_unresolved"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/tenant-requests/{ticketId}",
+          "signature": "GET /admin/tenant-requests/{ticketId}",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": null,
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "openapi_security_inheritance_unresolved"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/admin/support/tickets/auth-email-outbox/status",
@@ -37904,13 +38031,30 @@
         "POST /admin/support/tickets/{ticket_id}/assign",
         "POST /admin/support/tickets/{ticket_id}/events"
       ],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /admin/tenant-requests",
+          "state": "unknown",
+          "reasons": [
+            "openapi_security_inheritance_unresolved"
+          ]
+        },
+        {
+          "signature": "GET /admin/tenant-requests/{ticketId}",
+          "state": "unknown",
+          "reasons": [
+            "openapi_security_inheritance_unresolved"
+          ]
+        }
+      ],
       "evidence_routes": [
         "GET /admin/support/tickets/auth-email-outbox/status",
         "POST /admin/support/tickets/{ticket_id}/notification-delivery/preview"
       ],
       "tests": [],
       "untested_operations": [
+        "GET /admin/tenant-requests",
+        "GET /admin/tenant-requests/{ticketId}",
         "GET /admin/support/tickets/auth-email-outbox/status",
         "POST /admin/support/tickets/auth-email-outbox/dry-run",
         "POST /admin/support/tickets/auth-email-outbox/skip-ineligible",
@@ -37998,6 +38142,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -38389,7 +38534,7 @@
         }
       ],
       "risk": {
-        "score": 12,
+        "score": 14,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -38398,7 +38543,7 @@
       "family_key": "support-ticket.tenant",
       "label": "support ticket (tenant)",
       "source_file": "routes/supportTicketRoutes.js",
-      "source_digest": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+      "source_digest": "df2171cc85d0195e6ddd4e5056951f58fe023d6490afde96597ac22605f27b62",
       "mount_prefix": "/",
       "mount_order": 16742,
       "split_from_mixed_scope_file": true,
@@ -38407,6 +38552,122 @@
       "group": "support",
       "scope": "tenant",
       "operations": [
+        {
+          "method": "GET",
+          "path": "/tenants/{tenantId}/requests",
+          "signature": "GET /tenants/{tenantId}/requests",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": null,
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "openapi_security_inheritance_unresolved"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenants/{tenantId}/requests/{ticketId}",
+          "signature": "GET /tenants/{tenantId}/requests/{ticketId}",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": false,
+            "security_alternatives": null,
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "unknown",
+            "reasons": [
+              "openapi_security_inheritance_unresolved"
+            ]
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "POST",
           "path": "/me/support/tickets",
@@ -38660,10 +38921,27 @@
         "GET /me/support/tickets/{ticket_id}",
         "POST /me/support/tickets/{ticket_id}/events"
       ],
-      "auth_contract_gaps": [],
+      "auth_contract_gaps": [
+        {
+          "signature": "GET /tenants/{tenantId}/requests",
+          "state": "unknown",
+          "reasons": [
+            "openapi_security_inheritance_unresolved"
+          ]
+        },
+        {
+          "signature": "GET /tenants/{tenantId}/requests/{ticketId}",
+          "state": "unknown",
+          "reasons": [
+            "openapi_security_inheritance_unresolved"
+          ]
+        }
+      ],
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
+        "GET /tenants/{tenantId}/requests",
+        "GET /tenants/{tenantId}/requests/{ticketId}",
         "POST /me/support/tickets",
         "GET /me/support/tickets",
         "GET /me/support/tickets/{ticket_id}",
@@ -38682,6 +38960,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -38707,8 +38986,8 @@
         }
       ],
       "risk": {
-        "score": 7,
-        "class": "high"
+        "score": 9,
+        "class": "critical"
       },
       "wave": "F1-tenant-shell"
     },
@@ -41812,7 +42091,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+      "source_digest": "9090952b327740654922ebff568c9164e311a357741ab5277094ce0b2ead2c4c",
       "mount_prefix": "/",
       "mount_order": 17156,
       "split_from_mixed_scope_file": false,
@@ -86742,6 +87021,7 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -86761,6 +87041,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -91623,6 +91904,7 @@
       "state": "blocked",
       "blockers": [
         "openapi_detail_contract_gap",
+        "auth_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -91642,6 +91924,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
