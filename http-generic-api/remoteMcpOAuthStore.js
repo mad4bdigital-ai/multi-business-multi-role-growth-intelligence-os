@@ -157,13 +157,34 @@ export async function issueRemoteMcpAuthorizationCode({
   return { code, expires_at: expiresAt };
 }
 
-export async function consumeRemoteMcpAuthorizationCode({
+export async function readRemoteMcpAuthorizationCode({
   pool = getPool(),
   code,
   clientId,
   redirectUri,
 }) {
   const codeHash = sha256(code);
+  const [rows] = await pool.query(
+    `SELECT client_id, user_id, tenant_id, redirect_uri, resource, scopes_json,
+            code_challenge, code_challenge_method, expires_at
+       FROM remote_mcp_oauth_authorization_codes
+      WHERE code_hash = ?
+        AND client_id = ?
+        AND redirect_uri = ?
+        AND status = 'issued'
+        AND expires_at > NOW()
+      LIMIT 1`,
+    [codeHash, clientId, redirectUri],
+  );
+  return codeFromRow(rows[0]);
+}
+
+export async function consumeRemoteMcpAuthorizationCode({
+  pool = getPool(),
+  code,
+  clientId,
+  redirectUri,
+}) {
   const [result] = await pool.query(
     `UPDATE remote_mcp_oauth_authorization_codes
         SET status = 'consumed', consumed_at = NOW()
@@ -172,18 +193,9 @@ export async function consumeRemoteMcpAuthorizationCode({
         AND redirect_uri = ?
         AND status = 'issued'
         AND expires_at > NOW()`,
-    [codeHash, clientId, redirectUri],
+    [sha256(code), clientId, redirectUri],
   );
-  if (Number(result?.affectedRows || 0) !== 1) return null;
-  const [rows] = await pool.query(
-    `SELECT client_id, user_id, tenant_id, redirect_uri, resource, scopes_json,
-            code_challenge, code_challenge_method, expires_at
-       FROM remote_mcp_oauth_authorization_codes
-      WHERE code_hash = ?
-      LIMIT 1`,
-    [codeHash],
-  );
-  return codeFromRow(rows[0]);
+  return Number(result?.affectedRows || 0) === 1;
 }
 
 export async function createRemoteMcpOAuthGrant({
