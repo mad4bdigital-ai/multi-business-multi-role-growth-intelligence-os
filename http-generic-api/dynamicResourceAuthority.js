@@ -16,6 +16,23 @@ function jsonArray(value) {
   }
 }
 
+const PERMISSION_RANK = Object.freeze({
+  view: 1,
+  comment: 2,
+  edit: 3,
+  operate: 4,
+  manage: 5,
+  admin: 6,
+  owner: 7,
+});
+
+function permissionAllows(permission, mutationRequired = false) {
+  const normalized = text(permission, 32)?.toLowerCase() || "";
+  const rank = PERMISSION_RANK[normalized] || 0;
+  const minimum = mutationRequired ? PERMISSION_RANK.edit : PERMISSION_RANK.view;
+  return rank >= minimum;
+}
+
 function contextFromArgs(args = {}) {
   const value = args?.authority_context || args?.resource_authority || {};
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -170,6 +187,7 @@ export async function resolveDynamicResourceAuthority({
   for (const binding of rows || []) {
     if (!isAdmin && binding.tenant_id !== tenantId) continue;
     if (!jsonArray(binding.allowed_modes_json).includes(operationMode)) continue;
+    if (!permissionAllows(binding.permission_level, mutationRequired)) continue;
     if (binding.source_system_id) {
       if (binding.source_system_status !== "active") continue;
       if (binding.tenant_id && binding.source_system_tenant_id !== binding.tenant_id) continue;
@@ -192,6 +210,7 @@ export async function resolveDynamicResourceAuthority({
       }
       if (!ownerGrant) continue;
     }
+    if (ownerGrant && !permissionAllows(ownerGrant.permission, mutationRequired)) continue;
 
     return decision({ ok: true, required: true, reasonCode: "dynamic_resource_authority_granted", context: normalizedContext, binding, ownerGrant });
   }
@@ -199,4 +218,4 @@ export async function resolveDynamicResourceAuthority({
   return decision({ ok: false, required: true, reasonCode: "dynamic_resource_authority_denied", context: normalizedContext });
 }
 
-export const _testingDynamicResourceAuthority = { text, jsonArray, ownerReferences };
+export const _testingDynamicResourceAuthority = { text, jsonArray, ownerReferences, permissionAllows };
