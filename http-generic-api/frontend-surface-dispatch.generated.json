@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "0746d5d030373d9f71059c0178ea82f616713310cbe5a211ae0367c3f7fdc133",
+    "source_digest": "bdab13cc61915bdc5f8bb43734147f86d186e25ccd40f56b80886a097e318c86",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -626,7 +626,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "feed81974d767cdd93954113255af1ae43111d21de169f23f15316c6f86955d6",
+        "sha256": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
         "present": true
       },
       {
@@ -18692,7 +18692,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "feed81974d767cdd93954113255af1ae43111d21de169f23f15316c6f86955d6",
+      "source_digest": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
       "mount_prefix": "/",
       "mount_order": 15067,
       "split_from_mixed_scope_file": false,
