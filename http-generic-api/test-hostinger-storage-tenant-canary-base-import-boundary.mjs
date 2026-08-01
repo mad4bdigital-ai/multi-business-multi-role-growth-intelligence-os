@@ -164,12 +164,13 @@ function walk(directory, output = []) {
   return output;
 }
 
+const tenantBaseFile = 'hostingerStorageTenantCanaryBase' + '.js';
 const selfTests = [
-  "import('../http-generic-api/hostingerStorageTenantCanaryBase.js')",
+  `import('../http-generic-api/${tenantBaseFile}')`,
   "import('../http-generic-api/hostingerStorageTenantCanaryBase' + '.js')",
   "const stem = '../http-generic-api/hostingerStorageTenantCanary'; const suffix = 'Base.js'; import(stem + suffix)",
   "require('../http-generic-api/hostingerStorageTenantCanaryPolicyBase' + '.js')",
-  "import(new URL('../http-generic-api/hostingerStorageTenantCanaryBase.js', import.meta.url))",
+  `import(new URL('../http-generic-api/${tenantBaseFile}', import.meta.url))`,
 ];
 for (const [index, source] of selfTests.entries()) {
   const findings = findForbiddenImports({
