@@ -2,15 +2,14 @@ openapi: 3.1.0
 info:
   title: Tenant Requests Inbox API
   version: 1.0.0
-  description: >-
-    Read-only projection that keeps tenant ticket status and internal resolution-case status
-    separate while presenting them in one bounded inbox. Tenant routes derive scope from the
-    authenticated membership; admin routes require the platform admin boundary.
+  description: Read-only unified projection of support tickets, resolution cases, events, and readbacks.
+servers:
+  - url: https://auth.mad4b.com
 paths:
   /admin/tenant-requests:
     get:
       operationId: listAdminTenantRequests
-      summary: List tenant requests across the authorized admin scope
+      summary: List tenant requests across authorized platform scope.
       security:
         - adminBearerAuth: []
         - backendApiKeyAuth: []
@@ -24,17 +23,16 @@ paths:
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          description: Bounded tenant request inbox page
+          description: Unified tenant requests page.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TenantRequestInboxPage' }
-        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /admin/tenant-requests/{ticketId}:
     get:
       operationId: getAdminTenantRequest
-      summary: Read one tenant request with an admin-redacted unified timeline
+      summary: Read one tenant request with the full admin timeline.
       security:
         - adminBearerAuth: []
         - backendApiKeyAuth: []
@@ -43,7 +41,7 @@ paths:
         - $ref: '#/components/parameters/TenantId'
       responses:
         '200':
-          description: Tenant request detail
+          description: Unified tenant request detail.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TenantRequestDetail' }
@@ -53,7 +51,7 @@ paths:
   /tenants/{tenantId}/requests:
     get:
       operationId: listTenantRequests
-      summary: List requests for the signed-in tenant membership
+      summary: List tenant requests inside the caller's active tenant membership.
       security:
         - userJwtAuth: []
       parameters:
@@ -66,17 +64,16 @@ paths:
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          description: Tenant-scoped bounded inbox page
+          description: Tenant-scoped request page.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TenantRequestInboxPage' }
-        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /tenants/{tenantId}/requests/{ticketId}:
     get:
       operationId: getTenantRequest
-      summary: Read one request with a tenant-safe timeline
+      summary: Read one tenant request inside the caller's active tenant membership.
       security:
         - userJwtAuth: []
       parameters:
@@ -84,7 +81,7 @@ paths:
         - $ref: '#/components/parameters/TicketIdPath'
       responses:
         '200':
-          description: Tenant-safe request detail
+          description: Tenant-scoped request detail with redacted timeline.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TenantRequestDetail' }
@@ -123,7 +120,7 @@ components:
     TicketStatus:
       name: status
       in: query
-      schema: { type: string, enum: [open, in_review, awaiting_approval, closed] }
+      schema: { type: string, enum: [open, in_review, awaiting_approval, resolved, closed] }
     CaseStatus:
       name: case_status
       in: query
@@ -172,13 +169,14 @@ components:
         createdAt: { type: [string, 'null'], format: date-time }
         updatedAt: { type: [string, 'null'], format: date-time }
         lastSeenAt: { type: [string, 'null'], format: date-time }
-        customerMessage: { type: [string, 'null'] }
+        customerMessage: { type: [string, 'null'], maxLength: 4000 }
         metadata: { type: [object, 'null'], additionalProperties: true }
     ResolutionCaseSummary:
-      type: [object, 'null']
+      type: object
+      required: [resolutionCaseId, status]
       properties:
         resolutionCaseId: { type: string }
-        status: { type: [string, 'null'] }
+        status: { type: string }
         severity: { type: [string, 'null'] }
         rootFamily: { type: [string, 'null'] }
         playbookKey: { type: [string, 'null'] }
@@ -193,9 +191,12 @@ components:
       required: [ticket, latestActivityAt, secretsIncluded]
       properties:
         ticket: { $ref: '#/components/schemas/TicketSummary' }
-        resolutionCase: { $ref: '#/components/schemas/ResolutionCaseSummary' }
+        resolutionCase:
+          oneOf:
+            - $ref: '#/components/schemas/ResolutionCaseSummary'
+            - type: 'null'
         latestActivityAt: { type: [string, 'null'], format: date-time }
-        secretsIncluded: { const: false }
+        secretsIncluded: { type: boolean, const: false }
     TenantRequestInboxPage:
       type: object
       required: [items, page, filters, schema, secretsIncluded]
@@ -206,15 +207,21 @@ components:
           items: { $ref: '#/components/schemas/TenantRequestItem' }
         page:
           type: object
-          required: [limit, hasMore, nextCursor]
+          required: [limit, hasMore]
           properties:
-            limit: { type: integer }
+            limit: { type: integer, minimum: 1, maximum: 100 }
             hasMore: { type: boolean }
             nextCursor: { type: [string, 'null'] }
-        filters: { type: object, additionalProperties: true }
-        schema: { type: object, additionalProperties: true }
-        secretsIncluded: { const: false }
-    TimelineItem:
+        filters:
+          type: object
+          additionalProperties: true
+        schema:
+          type: object
+          required: [explicitTicketCaseLinkAvailable]
+          properties:
+            explicitTicketCaseLinkAvailable: { type: boolean }
+        secretsIncluded: { type: boolean, const: false }
+    TimelineEntry:
       type: object
       required: [source, createdAt, secretsIncluded]
       properties:
@@ -222,13 +229,22 @@ components:
         eventId: { type: [string, 'null'] }
         readbackId: { type: [string, 'null'] }
         eventType: { type: [string, 'null'] }
-        decision: { type: [string, 'null'] }
         fromStatus: { type: [string, 'null'] }
         toStatus: { type: [string, 'null'] }
         summary: { type: [string, 'null'] }
+        visibility: { type: [string, 'null'] }
+        decision: { type: [string, 'null'] }
         createdAt: { type: [string, 'null'], format: date-time }
-        secretsIncluded: { const: false }
-      additionalProperties: true
+        payload: { type: [object, 'null'], additionalProperties: true }
+        actorType: { type: [string, 'null'] }
+        actorId: { type: [string, 'null'] }
+        evidenceRef: { type: [string, 'null'] }
+        event: { type: [object, 'null'], additionalProperties: true }
+        expectedState: { type: [object, 'null'], additionalProperties: true }
+        observedState: { type: [object, 'null'], additionalProperties: true }
+        blockingReasons: { type: [array, 'null'], items: {} }
+        sourceAlertsRemaining: { type: [array, 'null'], items: {} }
+        secretsIncluded: { type: boolean, const: false }
     TenantRequestDetail:
       allOf:
         - $ref: '#/components/schemas/TenantRequestItem'
@@ -238,31 +254,57 @@ components:
             timeline:
               type: array
               maxItems: 1200
-              items: { $ref: '#/components/schemas/TimelineItem' }
-            authorization: { type: object, additionalProperties: true }
-            schema: { type: object, additionalProperties: true }
-    ErrorEnvelope:
-      type: object
-      required: [ok, error, secrets_included]
-      properties:
-        ok: { const: false }
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code: { type: string }
-            message: { type: string }
-        secrets_included: { const: false }
+              items: { $ref: '#/components/schemas/TimelineEntry' }
+            authorization:
+              type: object
+              required: [mode, tenantId, tenantAdminEventsVisible]
+              properties:
+                mode: { type: string, enum: [platform_admin, tenant_membership] }
+                tenantId: { type: string }
+                role: { type: [string, 'null'] }
+                tenantAdminEventsVisible: { type: boolean }
+            schema:
+              type: object
+              required: [explicitTicketCaseLinkAvailable]
+              properties:
+                explicitTicketCaseLinkAvailable: { type: boolean }
   responses:
-    BadRequest:
-      description: Invalid cursor, filter, or request identifier
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Unauthorized:
-      description: Authentication required
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      description: Authentication required.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, const: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
     Forbidden:
-      description: Request is outside the caller's object-level scope
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      description: Caller is outside the requested tenant scope.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, const: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
     NotFound:
-      description: Request not found in authorized scope
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+      description: Tenant request not found in the authorized scope.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, const: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
