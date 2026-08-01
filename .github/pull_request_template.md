@@ -43,6 +43,19 @@ Complete this section for a workstream or integration PR.
 - [ ] Canonical summary was read before any Job log
 - [ ] Job logs were treated as diagnostic-only and did not override structured evidence
 
+## Repository Automation / Tool Lifecycle
+
+- Automation classification: none / permanent reusable tool / temporary work-branch aid / product runtime
+- Registered tool key, when permanent:
+- Canonical lifecycle report:
+- [ ] Reusable tools live under the governed tool root and are registered
+- [ ] Permanent workflows contain no PR number, date, SHA, tenant, ticket, or work-branch literal
+- [ ] Pull-request workflows are read-only
+- [ ] Mutating tools require explicit dispatch and an exact expected head SHA
+- [ ] `main` and `Production` mutations are rejected unless separately governed
+- [ ] Force push and workflow self-deletion are absent
+- [ ] Temporary workflows, triggers, and patch runners are removed from the final merge diff
+
 ## Tests Run
 
 - [ ] Root typecheck: `npm run typecheck`

@@ -1,0 +1,38 @@
+{
+  "contract": "mad4b.repository-maintenance-tool-governance.v1",
+  "protected_branches": [
+    "main",
+    "Production"
+  ],
+  "allowed_target_branch_patterns": [
+    "^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$"
+  ],
+  "tool_root": "http-generic-api/scripts/maintenance-tools",
+  "canonical_report_contract": "mad4b.repository-tool-lifecycle-report.v1",
+  "forbidden_path_patterns": [
+    "(^|/)\\.changes/e2e/.*trigger$",
+    "(^|/).*\\.trigger$",
+    "^\\.github/workflows/.*(?:temporary|one-off|(?:^|[/_.-])once(?:[/_.-]|$)|patch-trigger|runtime-hardening-v[0-9]+).*$"
+  ],
+  "rules": {
+    "one_off_automation_must_not_merge": true,
+    "reusable_tools_must_be_registered": true,
+    "branch_specific_workflow_literals_forbidden": true,
+    "pull_request_workflows_must_not_write_contents": true,
+    "workflow_self_deletion_forbidden": true,
+    "force_push_forbidden": true,
+    "expected_head_sha_required_for_mutation": true,
+    "protected_branch_mutation_forbidden": true,
+    "canonical_report_required": true,
+    "job_logs_are_diagnostic_only": true
+  },
+  "tools": {
+    "repository-tool-lifecycle-guard": {
+      "description": "Classify repository automation changes and reject branch-specific, self-mutating, unregistered, or temporary tooling before merge.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
+    }
+  }
+}
