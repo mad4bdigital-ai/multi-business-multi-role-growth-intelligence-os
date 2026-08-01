@@ -38,25 +38,36 @@ function token(overrides = {}) {
   );
 }
 
-function activePool({ active = true, grant = {} } = {}) {
+function activePool({ active = true, subjectActive = true, grant = {} } = {}) {
   return {
-    async query(sql, params) {
-      assert(String(sql).includes("FROM remote_mcp_oauth_grants"));
-      assert.deepEqual(params, ["access-jti-1"]);
-      return [active ? [{
-        grant_id: "grant-1",
-        access_jti: "access-jti-1",
-        refresh_token_hash: "hash",
-        client_id: "mcp_client_1",
-        user_id: "user-1",
-        tenant_id: "workspace-1",
-        resource: env.REMOTE_MCP_RESOURCE_URL,
-        scopes_json: JSON.stringify(["workspaces.read", "brands.read"]),
-        status: "active",
-        access_expires_at: new Date(Date.now() + 60000),
-        refresh_expires_at: new Date(Date.now() + 3600000),
-        ...grant,
-      }] : [], []];
+    async query(sqlValue, params) {
+      const sql = String(sqlValue);
+      if (sql.includes("FROM remote_mcp_oauth_grants")) {
+        assert.deepEqual(params, ["access-jti-1"]);
+        return [active ? [{
+          grant_id: "grant-1",
+          access_jti: "access-jti-1",
+          refresh_token_hash: "hash",
+          client_id: "mcp_client_1",
+          user_id: "user-1",
+          tenant_id: "workspace-1",
+          resource: env.REMOTE_MCP_RESOURCE_URL,
+          scopes_json: JSON.stringify(["workspaces.read", "brands.read"]),
+          status: "active",
+          access_expires_at: new Date(Date.now() + 60000),
+          refresh_expires_at: new Date(Date.now() + 3600000),
+          ...grant,
+        }] : [], []];
+      }
+      if (sql.includes("FROM memberships m")) {
+        assert.deepEqual(params, ["user-1", "workspace-1"]);
+        return [subjectActive ? [{ user_id: "user-1" }] : [], []];
+      }
+      if (sql.includes("FROM users")) {
+        assert.deepEqual(params, ["user-1"]);
+        return [subjectActive ? [{ user_id: "user-1" }] : [], []];
+      }
+      throw new Error(`Unexpected verifier query: ${sql}`);
     },
   };
 }
@@ -95,6 +106,16 @@ function activePool({ active = true, grant = {} } = {}) {
   });
   assert.equal(result.ok, false);
   assert.equal(result.code, "MCP_TOKEN_REVOKED");
+}
+
+{
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token()}`, {
+    env,
+    pool: activePool({ subjectActive: false }),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 401);
+  assert.equal(result.code, "MCP_SUBJECT_INACTIVE");
 }
 
 {
@@ -165,7 +186,7 @@ function activePool({ active = true, grant = {} } = {}) {
 }
 
 {
-  const result = await verifyRemoteMcpBearerAuthorization("", { env, pool: activePool() });
+  const result = await verifyRemoteMcpBearerAuthorization("");
   assert.equal(result.ok, false);
   assert.equal(result.code, "MCP_AUTH_REQUIRED");
 }
