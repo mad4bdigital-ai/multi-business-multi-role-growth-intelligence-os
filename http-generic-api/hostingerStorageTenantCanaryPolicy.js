@@ -10,7 +10,7 @@ export {
 };
 
 function unique(values = []) {
-  return [...new Set(values.filter(Boolean))].sort();
+  return Object.freeze([...new Set(values.filter(Boolean))].sort());
 }
 
 export function verifyHostingerStorageTenantCanaryAuthorization({
