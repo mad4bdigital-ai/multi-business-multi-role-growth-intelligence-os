@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "feature_key": "015-tenant-operating-system-studio",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "handover_continuity": true,
+    "reference_package_validation": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": "current",
+      "branch": "gpt/spec-015-tenant-operating-system-studio-20260801",
+      "role": "convergence_specification",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "reference_package_prs": [],
+    "closeout_pr": null
+  },
+  "specification": {
+    "complete": true,
+    "review_state": "draft",
+    "file_count_expected": 25,
+    "file_count_recorded": 25,
+    "functional_requirements": 74,
+    "non_functional_requirements": 15,
+    "success_criteria": 12,
+    "user_scenarios": 8,
+    "operation_paths": 16,
+    "acceptance_cases": 50,
+    "risks": 25,
+    "tasks": 73
+  },
+  "convergence": {
+    "candidate_prs": [3922, 4432],
+    "classification_contract": "candidate-convergence.json",
+    "status": "classified_pending_review",
+    "duplicate_spec_identity_resolved": false,
+    "current_main_reconstruction_started": false,
+    "candidate_branches_merged": false
+  },
+  "verification": {
+    "json_parse": "pending_ci",
+    "json_schema_validation": "pending_ci",
+    "openapi_validation": "pending_ci",
+    "manifest_inventory": "pending_ci",
+    "work_map_review": "pending_pr_review",
+    "traceability_review": "pending_pr_review",
+    "architecture_review": "pending_pr_review",
+    "security_review": "pending_pr_review",
+    "agency_client_ownership_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": false,
+    "package_registry_implemented": false,
+    "installation_compiler_implemented": false,
+    "custom_entities_implemented": false,
+    "forms_and_client_links_implemented": false,
+    "tenant_lifecycles_implemented": false,
+    "file_policy_components_implemented": false,
+    "ai_authoring_implemented": false,
+    "generated_surfaces_implemented": false,
+    "agency_delegation_productized": false,
+    "portability_and_handover_implemented": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "production_activated": false
+  },
+  "reference_packages": {
+    "evidence_intelligence": {
+      "source_pr": 4432,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.evidence_intelligence_operations"
+    },
+    "retail_commerce": {
+      "source_pr": 3922,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.retail_commerce_operations"
+    }
+  },
+  "required_closeout_evidence": [
+    "field_level_current_main_reuse_matrix",
+    "canonical_spec_identity_resolution",
+    "package_and_component_registry_runtime",
+    "installation_compiler_determinism",
+    "custom_entity_and_lifecycle_runtime",
+    "forms_client_links_and_file_policy_runtime",
+    "ai_draft_only_and_manual_fallback",
+    "generated_surface_authority_and_accessibility",
+    "two_client_brand_isolation",
+    "client_owned_tenant_delegation_and_revocation",
+    "handover_continuity",
+    "reference_package_validation",
+    "migration_apply_and_readback",
+    "backup_restore_and_rollback_rehearsal",
+    "production_canary_and_parity",
+    "post_merge_audit"
+  ],
+  "blocking_reasons": [
+    "work_map_and_architecture_review_pending",
+    "field_level_reuse_matrix_missing",
+    "duplicate_spec_014_identity_not_resolved",
+    "package_registry_mapping_open",
+    "custom_entity_persistence_open",
+    "candidate_pr_reconstruction_not_started"
+  ],
+  "notes": [
+    "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
+    "Spec 006 remains workflow/runtime authority; Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
+    "PR #3922 and PR #4432 are classified sources and future reference packages, not competing canonical parent Specs.",
+    "Status remains in_progress until runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
+  ],
+  "secrets_included": false
+}
