@@ -3,10 +3,11 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("./", import.meta.url));
-const runner = "scripts/run-test-manifest.mjs";
+const manifestRunner = "scripts/run-test-manifest.mjs";
+const shardRunner = "scripts/run-test-diagnostic-shard.mjs";
 const shardCount = 4;
 
-function invoke(args) {
+function invoke(runner, args) {
   return spawnSync(process.execPath, [runner, ...args], {
     cwd: root,
     encoding: "utf8",
@@ -14,32 +15,40 @@ function invoke(args) {
   });
 }
 
-function listCommands(args = []) {
-  const completed = invoke(["--list", ...args]);
-  assert.equal(
-    completed.status,
-    0,
-    `manifest list failed for ${args.join(" ") || "full suite"}: ${completed.stderr}`,
-  );
-
+function listManifestCommands() {
+  const completed = invoke(manifestRunner, ["--list"]);
+  assert.equal(completed.status, 0, `manifest list failed: ${completed.stderr}`);
   return completed.stdout
     .split(/\r?\n/)
-    .map((line) => line.match(/^\d+\.\s+(.+)$/)?.[1] || null)
+    .map((line) => line.match(/^\d+\.\s+\[test:\d+\]\s+(.+)$/u)?.[1] || null)
     .filter(Boolean);
 }
 
-const fullSuite = listCommands();
+function listShardCommands(args) {
+  const completed = invoke(shardRunner, ["--list", ...args]);
+  assert.equal(
+    completed.status,
+    0,
+    `diagnostic shard list failed for ${args.join(" ")}: ${completed.stderr}`,
+  );
+  return completed.stdout
+    .split(/\r?\n/)
+    .map((line) => line.match(/^\[[^\]]+\]\[test:\d+\]\s+(.+)$/u)?.[1] || null)
+    .filter(Boolean);
+}
+
+const fullSuite = listManifestCommands();
 assert.ok(fullSuite.length >= shardCount, "manifest must contain enough commands for every diagnostic shard");
 assert.equal(new Set(fullSuite).size, fullSuite.length, "full manifest contains duplicate commands");
 
 const selectedByShard = [];
-for (let shardIndex = 1; shardIndex <= shardCount; shardIndex += 1) {
+for (let shardIndex = 0; shardIndex < shardCount; shardIndex += 1) {
   const args = [`--shard-index=${shardIndex}`, `--shard-count=${shardCount}`];
-  const first = listCommands(args);
-  const second = listCommands(args);
+  const first = listShardCommands(args);
+  const second = listShardCommands(args);
 
-  assert.ok(first.length > 0, `diagnostic shard ${shardIndex}/${shardCount} is empty`);
-  assert.deepEqual(second, first, `diagnostic shard ${shardIndex}/${shardCount} is not deterministic`);
+  assert.ok(first.length > 0, `diagnostic shard ${shardIndex + 1}/${shardCount} is empty`);
+  assert.deepEqual(second, first, `diagnostic shard ${shardIndex + 1}/${shardCount} is not deterministic`);
   selectedByShard.push(...first.map((command) => ({ command, shardIndex })));
 }
 
@@ -60,19 +69,19 @@ assert.deepEqual(
 );
 
 const invalidArgumentSets = [
-  ["--shard-index=1"],
+  ["--shard-index=0"],
   ["--shard-count=4"],
-  ["--shard-index=0", "--shard-count=4"],
-  ["--shard-index=5", "--shard-count=4"],
+  ["--shard-index=-1", "--shard-count=4"],
+  ["--shard-index=4", "--shard-count=4"],
   ["--shard-index=one", "--shard-count=4"],
-  ["--shard-index=1", "--shard-count=0"],
+  ["--shard-index=0", "--shard-count=0"],
 ];
 
 for (const args of invalidArgumentSets) {
-  const completed = invoke(["--list", ...args]);
+  const completed = invoke(shardRunner, ["--list", ...args]);
   assert.notEqual(completed.status, 0, `invalid shard arguments unexpectedly passed: ${args.join(" ")}`);
 }
 
 console.log(
-  `Test manifest sharding contract passed: ${fullSuite.length} commands partitioned exactly once across ${shardCount} deterministic shards.`,
+  `Test manifest sharding contract passed: ${fullSuite.length} commands partitioned exactly once across ${shardCount} deterministic zero-based shards.`,
 );

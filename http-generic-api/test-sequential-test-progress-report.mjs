@@ -105,6 +105,26 @@ try {
   const redacted = redactDiagnosticOutput("password=hunter2 cookie=session-value");
   assert.equal(redacted.includes("hunter2"), false);
   assert.equal(redacted.includes("session-value"), false);
+
+  const structuredSecrets = [
+    '{"token":"clear-json-token","password":"hunter2"}',
+    "{'secret':'single-quoted-secret','api_key':'single-quoted-key'}",
+    '{"authorization":"Bearer structured-auth-value","cookie":"session-cookie"}',
+  ].join("\n");
+  const structuredRedacted = redactDiagnosticOutput(structuredSecrets);
+  for (const secret of [
+    "clear-json-token",
+    "hunter2",
+    "single-quoted-secret",
+    "single-quoted-key",
+    "structured-auth-value",
+    "session-cookie",
+  ]) {
+    assert.equal(structuredRedacted.includes(secret), false, `structured secret leaked: ${secret}`);
+  }
+  assert.match(structuredRedacted, /"token"=\[REDACTED\]/u);
+  assert.match(structuredRedacted, /'secret'=\[REDACTED\]/u);
+
   const bounded = buildDiagnosticStream("abcdef", 4);
   assert.deepEqual(bounded, {
     tail: "cdef",
