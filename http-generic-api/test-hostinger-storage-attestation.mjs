@@ -86,18 +86,22 @@ const recoveryProof = verifyHostingerStorageRecoveryEvidence({
 });
 assert.equal(recoveryProof.ready, true);
 
-const subject = buildHostingerStorageAttestationSubject({
+const authorization = {
+  authority_context_hash: authorityHash,
+  approval_set_hash: approvalHash,
+  capability_envelope_id: 'capability-envelope-1',
+  execution_lease_id: 'lease-1',
+};
+
+const buildSubject = (authorizationInput) => buildHostingerStorageAttestationSubject({
   plan,
-  authorization: {
-    authority_context_hash: authorityHash,
-    approval_set_hash: approvalHash,
-    capability_envelope_id: 'capability-envelope-1',
-    execution_lease_id: 'lease-1',
-  },
+  authorization: authorizationInput,
   toolchain_resolution: toolchainResolution,
   recovery_proof: recoveryProof,
   created_at: '2026-08-01T08:16:00.000Z',
 });
+
+const subject = buildSubject(authorization);
 
 assert.equal(subject.ok, true);
 assert.equal(subject.payload.plan.plan_hash, planHash);
@@ -109,6 +113,44 @@ assert.equal(subject.signing_allowed, false);
 assert.equal(subject.dispatch_allowed, false);
 assert.deepEqual(subject.blockers, ['STORAGE_DISPATCH_DISABLED']);
 assert.equal(subject.secrets_included, false);
+
+for (const forbidden of [
+  ['token', 'forbidden-token'],
+  ['authorization_header', 'Bearer forbidden'],
+  ['raw_authorization', 'Bearer forbidden'],
+  ['api_key', 'forbidden-key'],
+]) {
+  const [field, value] = forbidden;
+  assert.throws(
+    () => buildSubject({ ...authorization, [field]: value }),
+    (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+      && error.details?.reason === 'sensitive_key'
+      && error.details?.path === `attestation_subject.authorization.${field}`,
+  );
+}
+
+assert.throws(
+  () => buildSubject('Bearer forbidden'),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'authorization_envelope_must_be_object'
+    && error.details?.path === 'attestation_subject.authorization',
+);
+
+assert.throws(
+  () => buildSubject({ ...authorization, secrets_included: true }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'secret_declaration_must_be_false'
+    && error.details?.path === 'attestation_subject.authorization.secrets_included',
+);
+
+const cyclicAuthorization = { ...authorization };
+cyclicAuthorization.self = cyclicAuthorization;
+assert.throws(
+  () => buildSubject(cyclicAuthorization),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'cyclic_object'
+    && error.details?.path === 'attestation_subject.authorization.self',
+);
 
 const verificationPolicy = {
   allowed_signer_patterns: ['https://github.com/mad4bdigital-ai/*'],
@@ -222,13 +264,29 @@ assert.throws(
     observed_at: '2026-08-01T08:30:00.000Z',
     attributes: { file_path: '/home/private' },
   }),
-  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED',
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'sensitive_key',
+);
+
+assert.throws(
+  () => buildHostingerStorageTelemetryEnvelope({
+    required_attributes: [],
+    event_name: 'hostinger.storage.invalid',
+    observed_at: '2026-08-01T08:30:00.000Z',
+    attributes: { authorization: { authority_context_hash: authorityHash } },
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'authorization_envelope_not_allowed'
+    && error.details?.path === 'telemetry.attributes.authorization',
 );
 
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_attestation',
   recovery_bound: true,
+  authorization_envelope_validated: true,
+  sensitive_authorization_fields_rejected: true,
+  cyclic_inputs_rejected: true,
   signature_verification_ready: true,
   opa_shadow_activation_allowed: false,
   telemetry_runtime_wired: false,
