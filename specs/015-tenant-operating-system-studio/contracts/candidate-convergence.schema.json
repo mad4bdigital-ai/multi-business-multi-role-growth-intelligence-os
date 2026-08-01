@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-015/candidate-convergence.schema.json",
+  "title": "Candidate Spec Convergence Classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "spec_key", "status", "base_main_sha", "candidates", "canonical_targets", "invariants", "secrets_included"],
+  "properties": {
+    "schema_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "spec_key": { "const": "015-tenant-operating-system-studio" },
+    "status": { "type": "string", "enum": ["draft_review_required", "approved_for_reconstruction", "reconstruction_in_progress", "reconciled", "retired"] },
+    "base_main_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "canonical_targets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pull_request",
+        "source_branch",
+        "observed_head_sha",
+        "candidate_role",
+        "merge_posture",
+        "generic_substrate",
+        "child_package",
+        "must_not_become_universal",
+        "blocking_actions"
+      ],
+      "properties": {
+        "pull_request": { "type": "integer", "minimum": 1 },
+        "source_branch": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "observed_head_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "candidate_role": { "$ref": "#/$defs/reference" },
+        "merge_posture": { "type": "string", "enum": ["do_not_blind_merge_reconstruct_on_current_main", "merge_after_current_main_reconciliation", "retire", "reference_only"] },
+        "generic_substrate": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "child_package": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["package_key", "package_class", "content_families"],
+          "properties": {
+            "package_key": { "$ref": "#/$defs/reference" },
+            "package_class": { "type": "string", "enum": ["operating_system", "solution_pack", "component_bundle", "reference_pack"] },
+            "content_families": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/reference" }
+            }
+          }
+        },
+        "must_not_become_universal": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "blocking_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    }
+  }
+}
