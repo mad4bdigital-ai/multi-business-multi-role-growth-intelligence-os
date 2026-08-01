@@ -91,7 +91,7 @@ jobs:
           const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
           const fullSha = /^[0-9a-f]{40}$/u;
           if (report.contract !== 'mad4b.hostinger-guard-summary.v1') throw new Error('Tenant Canary canonical contract mismatch.');
-          if (report.workflow !== 'Hostinger Storage Tenant Canary Canonical Evidence') throw new Error('Tenant Canary workflow identity mismatch.');
+          if (report.workflow !== 'Hostinger Storage Tenant Canary Guard') throw new Error('Tenant Canary logical guard identity mismatch.');
           if (report.guard_key !== 'hostinger-storage-tenant-canary') throw new Error('Tenant Canary guard identity mismatch.');
           if (report.identity?.candidate_kind !== 'head') throw new Error('Tenant Canary candidate kind mismatch.');
           if (!fullSha.test(report.identity?.candidate_sha || '')) throw new Error('Tenant Canary candidate SHA is invalid.');
