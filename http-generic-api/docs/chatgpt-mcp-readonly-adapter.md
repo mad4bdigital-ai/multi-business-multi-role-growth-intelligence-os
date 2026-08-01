@@ -119,6 +119,21 @@ Or through the canonical manifest:
 node scripts/run-test-manifest.mjs --grep chatgpt-mcp-readonly
 ```
 
+## Controlled activation sequence
+
+The feature flags must not be enabled merely because the code is merged. Use this order for a future non-production verification cycle:
+
+1. Verify the deployed SHA and generated frontend/runtime evidence.
+2. Verify DNS, TLS, routing, and public reachability for the selected development resource origin.
+3. Set `CHATGPT_MCP_ENABLED=true` while keeping `CHATGPT_MCP_LEGACY_USER_JWT_ENABLED=false`.
+4. Confirm that initialization and `tools/list` work and protected calls return the OAuth challenge without exposing data.
+5. Complete OAuth authorization-server conformance or explicitly authorize the temporary read-only bridge in a controlled environment.
+6. When using the temporary bridge, set `CHATGPT_MCP_LEGACY_USER_JWT_ENABLED=true` only for the bounded development window.
+7. Run the targeted runtime test, MCP Inspector acceptance, workspace/Brand isolation tests, and no-secret inspection.
+8. Disable the temporary bridge after the development test and preserve the evidence IDs.
+
+No activation step is authorized by this pull request.
+
 ## Current delivery boundary
 
 This wave does not:
