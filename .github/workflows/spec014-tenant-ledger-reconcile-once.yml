@@ -1,0 +1,74 @@
+name: Spec 014 Tenant Ledger Reconcile Once
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'gpt/014-hostinger/tenant-hardening-current-integration-v3-20260801'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Reconcile Tenant required test without changing Shared
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const document = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const workstreams = document?.parallel_work?.workstreams;
+          if (!Array.isArray(workstreams)) throw new Error('Spec 014 workstreams are missing.');
+          const tenant = workstreams.find((entry) => entry?.id === 'tenant-canary');
+          const shared = workstreams.find((entry) => entry?.id === 'shared-canary');
+          if (!tenant || !shared) throw new Error('Tenant or Shared workstream is missing.');
+          const sharedBefore = JSON.stringify(shared);
+          const testPath = 'test-hostinger-storage-tenant-canary-repository-provenance.mjs';
+          const testId = 'hostinger-storage-tenant-canary-repository-provenance';
+          tenant.required_tests ??= [];
+          if (!tenant.required_tests.some((entry) => entry?.path === testPath)) {
+            tenant.required_tests.push({
+              id: testId,
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: testPath,
+              args: [],
+            });
+          }
+          const matches = tenant.required_tests.filter((entry) => entry?.path === testPath);
+          if (matches.length !== 1 || matches[0].id !== testId) {
+            throw new Error('Repository provenance test registration is not unique and canonical.');
+          }
+          if (JSON.stringify(shared) !== sharedBefore) {
+            throw new Error('Shared workstream changed during Tenant-only reconciliation.');
+          }
+          if (shared.status !== 'ready_for_integration') {
+            throw new Error(`Shared status changed unexpectedly: ${shared.status}`);
+          }
+          fs.writeFileSync(path, `${JSON.stringify(document)}\n`);
+          NODE
+      - name: Commit ledger and remove temporary workflow
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/spec014-tenant-ledger-reconcile-once.yml
+          git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+          if git diff --cached --quiet; then
+            echo 'No reconciliation change required.'
+            exit 0
+          fi
+          git commit -m 'docs(spec-014): register Tenant repository provenance test'
+          git push origin "HEAD:${BRANCH}"
