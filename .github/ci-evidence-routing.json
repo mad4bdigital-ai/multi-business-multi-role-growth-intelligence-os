@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "policy_key": "ci_evidence_routing",
+  "authority_order": [
+    "canonical_summary",
+    "structured_source_reports",
+    "workflow_job_status",
+    "job_logs"
+  ],
+  "job_logs_authority": "diagnostic_only",
+  "same_head_required": true,
+  "log_access_conditions": [
+    "canonical_summary_missing_or_malformed",
+    "structured_report_integrity_failure",
+    "structured_report_marks_log_diagnosis_required",
+    "bounded_redacted_diagnostic_is_insufficient_for_root_cause"
+  ],
+  "routes": [
+    {
+      "workflow": "E2E Phase Governance",
+      "canonical_contract": "mad4b.ci-evidence-summary.v1",
+      "canonical_artifact": "e2e-phase-summary-${run_id}",
+      "source_artifacts": [
+        "e2e-phase-evaluation-${run_id}",
+        "e2e-phase-execution-${run_id}"
+      ]
+    },
+    {
+      "workflow": "Branch Test Diagnostic Shards",
+      "canonical_contract": "mad4b.test-diagnostic-summary.v2",
+      "canonical_artifact": "branch-test-diagnostic-${run_id}-summary",
+      "source_artifacts": [
+        "branch-test-diagnostic-${run_id}-*"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
