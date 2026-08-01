@@ -1,0 +1,270 @@
+name: One-shot support ticket branch reconciliation
+
+on:
+  push:
+    branches:
+      - gpt/recover/support-ticket-contracts-current-main-20260801
+    paths:
+      - .github/workflows/one-shot-support-ticket-branch-reconcile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-support-ticket-branch-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/recover/support-ticket-contracts-current-main-20260801
+      MAIN_REF: origin/main
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Reconcile current main on the existing branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "${remote_head}" = "${GITHUB_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse "${MAIN_REF}")"
+
+          set +e
+          git merge --no-ff --no-commit "${MAIN_REF}"
+          merge_status=$?
+          set -e
+
+          mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
+          for path in "${unresolved[@]}"; do
+            case "${path}" in
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi-route-contracts.yaml|\
+              http-generic-api/scripts/test-manifest.mjs|\
+              http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs)
+                git checkout --theirs -- "${path}"
+                git add -- "${path}"
+                ;;
+              http-generic-api/openapi/support-tickets.yaml)
+                git checkout --ours -- "${path}"
+                git add -- "${path}"
+                ;;
+              *)
+                echo "Unexpected merge conflict: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          if [ "${merge_status}" -ne 0 ] && [ "${#unresolved[@]}" -eq 0 ]; then
+            echo "Merge failed without a resolvable conflict set" >&2
+            exit 1
+          fi
+
+          node <<'NODE'
+          import fs from 'node:fs';
+
+          const manifestPath = 'http-generic-api/scripts/test-manifest.mjs';
+          let manifest = fs.readFileSync(manifestPath, 'utf8');
+          const supportTest = '  "node test-support-ticket-resolution-service.mjs",';
+          if (!manifest.includes(supportTest)) {
+            const anchor = '  "node test-support-ticket-supervisor-runtime.mjs",';
+            if (!manifest.includes(anchor)) throw new Error('support ticket manifest anchor missing');
+            manifest = manifest.replace(anchor, `${anchor}\n${supportTest}`);
+            fs.writeFileSync(manifestPath, manifest);
+          }
+
+          const contractsPath = 'http-generic-api/openapi-route-contracts.yaml';
+          let contracts = fs.readFileSync(contractsPath, 'utf8').replace(/\s+$/, '');
+          if (!contracts.includes('POST /me/support/tickets:')) {
+            contracts += `
+
+  POST /me/support/tickets:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Tenant-scoped create-or-dedupe ticket contract. Resolution output is sanitized evidence and never authorizes a repair or external send.
+
+  GET /me/support/tickets:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Lists only customer-visible tickets in the authenticated tenant scope.
+
+  GET /me/support/tickets/{ticket_id}:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTicketById'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Returns role-gated resolution details only to a tenant admin or owner.
+
+  POST /me/support/tickets/{ticket_id}/events:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTicketEvents'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Appends a customer-visible event without provider dispatch or external delivery.`;
+            fs.writeFileSync(contractsPath, `${contracts}\n`);
+          }
+
+          const routingPath = 'http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs';
+          let routing = fs.readFileSync(routingPath, 'utf8');
+          if (!routing.includes('resolveSupportTicketRoutingRecipients,')) {
+            const importAnchor = '  rankTicketRole,\n} from "./supportTicketRoutingNotificationService.js";';
+            if (!routing.includes(importAnchor)) throw new Error('routing import anchor missing');
+            routing = routing.replace(
+              importAnchor,
+              '  rankTicketRole,\n  resolveSupportTicketRoutingRecipients,\n} from "./supportTicketRoutingNotificationService.js";',
+            );
+          }
+          routing = routing
+            .replace(
+              '{ email: "Admin@One.Example", role: "admin", route_reason: "same_tenant_superior" },',
+              '{ email: "Admin@One.Example", role: "admin", route_reason: "same_tenant_admin_owner" },',
+            )
+            .replace(
+              'assert.equal(recipients[0].route_reason, "same_tenant_superior");',
+              'assert.equal(recipients[0].route_reason, "same_tenant_admin_owner");',
+            )
+            .replace(
+              '    route_reason: "same_tenant_superior",',
+              '    route_reason: "same_tenant_admin_owner",',
+            )
+            .replace(
+              'assert.match(email.body_text, /Recipient route: same_tenant_superior/);',
+              'assert.match(email.body_text, /Recipient route: same_tenant_admin_owner/);',
+            );
+
+          if (!routing.includes('const observedSql = [];')) {
+            const consoleAnchor = 'console.log("support ticket dynamic routing notification tests passed");';
+            if (!routing.includes(consoleAnchor)) throw new Error('routing test append anchor missing');
+            const extra = `const observedSql = [];
+const connection = {
+  async query(sql) {
+    observedSql.push(sql);
+    if (sql.includes("m.user_id = ?") && sql.includes("LIMIT 1")) {
+      return [[{ user_id: "user_submitter", tenant_id: "tenant_abc", role: "member" }]];
+    }
+    if (sql.includes("m.role IN ('owner','admin')")) {
+      return [[
+        {
+          user_id: "tenant_owner",
+          tenant_id: "tenant_abc",
+          role: "owner",
+          email: "owner@tenant.example",
+          display_name: "Tenant Owner",
+          tenant_display_name: "Tenant Example",
+        },
+        {
+          user_id: "tenant_admin",
+          tenant_id: "tenant_abc",
+          role: "admin",
+          email: "admin@tenant.example",
+          display_name: "Tenant Admin",
+          tenant_display_name: "Tenant Example",
+        },
+      ]];
+    }
+    if (sql.includes("m.role IN ('platform_owner','owner','admin')")) {
+      return [[{
+        user_id: "platform_admin",
+        tenant_id: "00000000-0000-0000-0000-000000000000",
+        role: "admin",
+        email: "platform-admin@example.com",
+        display_name: "Platform Admin",
+        tenant_display_name: "Platform",
+      }]];
+    }
+    throw new Error(\`Unexpected SQL in routing test: \${sql}\`);
+  },
+};
+
+const routing = await resolveSupportTicketRoutingRecipients({
+  ticket_id: "ticket_123",
+  tenant_id: "tenant_abc",
+  user_id: "user_submitter",
+}, { connection });
+
+assert.ok(
+  observedSql.some((sql) => sql.includes("m.role IN ('owner','admin')")),
+  "same-tenant recipient query must restrict roles to owner and admin",
+);
+assert.deepEqual(
+  routing.recipients.map(({ role }) => role),
+  ["owner", "admin", "admin"],
+);
+assert.deepEqual(
+  routing.recipients.map(({ route_reason }) => route_reason),
+  ["same_tenant_admin_owner", "same_tenant_admin_owner", "platform_admin_escalation"],
+);
+assert.equal(routing.sources.same_tenant_admin_owner_count, 2);
+assert.equal(routing.sources.same_tenant_superior_count, 2);
+assert.equal(routing.sources.platform_admin_count, 1);
+assert.equal(routing.routing_version, "support-ticket-routing-notification-v2");`;
+            routing = routing.replace(consoleAnchor, `${extra}\n\n${consoleAnchor}`);
+          }
+          fs.writeFileSync(routingPath, routing);
+          NODE
+
+          npm ci --ignore-scripts --prefix http-generic-api
+          npm --prefix http-generic-api run frontend:dispatch:generate
+          npm --prefix http-generic-api run frontend:dispatch:check
+          node http-generic-api/test-support-ticket-resolution-service.mjs
+          node http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs
+          node http-generic-api/test-frontend-operation-governance-generator.mjs
+          node http-generic-api/test-frontend-surface-dispatch.mjs
+          node http-generic-api/test-openapi-split-governance.mjs
+          node http-generic-api/test-openapi-split-regeneration-parity.mjs
+
+          git rm -- .github/workflows/one-shot-support-ticket-branch-reconcile.yml
+          git add -- \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi-route-contracts.yaml \
+            http-generic-api/openapi/support-tickets.yaml \
+            http-generic-api/scripts/test-manifest.mjs \
+            http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain" >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+
+          remote_before_push="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "${remote_before_push}" = "${GITHUB_SHA}"
+
+          git commit -m "chore(sync): reconcile support ticket contracts with current main" \
+            -m "Merge main ${main_sha} into the existing recovery branch, retain only the reviewed support-ticket contracts/tests, regenerate frontend evidence from reconciled source authority, and remove the one-shot workflow. No force-push, migration, SQL, deployment, provider, credential, external-send, or Production mutation."
+
+          parent_line="$(git rev-list --parents -n 1 HEAD)"
+          test "$(wc -w <<<"${parent_line}")" -eq 3
+          grep -q "${GITHUB_SHA}" <<<"${parent_line}"
+          grep -q "${main_sha}" <<<"${parent_line}"
+
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
