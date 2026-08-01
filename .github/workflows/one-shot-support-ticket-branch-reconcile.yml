@@ -6,9 +6,19 @@ on:
       - gpt/recover/support-ticket-contracts-current-main-20260801
     paths:
       - .github/workflows/one-shot-support-ticket-branch-reconcile.yml
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - .github/workflows/one-shot-support-ticket-branch-reconcile.yml
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: one-shot-support-ticket-branch-reconcile
@@ -16,18 +26,22 @@ concurrency:
 
 jobs:
   reconcile:
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'gpt/recover/support-ticket-contracts-current-main-20260801'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/recover/support-ticket-contracts-current-main-20260801
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      TARGET_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
       MAIN_REF: origin/main
     steps:
-      - name: Checkout exact trigger head
+      - name: Checkout exact PR head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -41,11 +55,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "${TARGET_REF}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
 
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
-          test "${remote_head}" = "${GITHUB_SHA}"
+          test "${remote_head}" = "${TARGET_SHA}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -257,14 +271,14 @@ assert.equal(routing.routing_version, "support-ticket-routing-notification-v2");
           fi
 
           remote_before_push="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
-          test "${remote_before_push}" = "${GITHUB_SHA}"
+          test "${remote_before_push}" = "${TARGET_SHA}"
 
           git commit -m "chore(sync): reconcile support ticket contracts with current main" \
             -m "Merge main ${main_sha} into the existing recovery branch, retain only the reviewed support-ticket contracts/tests, regenerate frontend evidence from reconciled source authority, and remove the one-shot workflow. No force-push, migration, SQL, deployment, provider, credential, external-send, or Production mutation."
 
           parent_line="$(git rev-list --parents -n 1 HEAD)"
           test "$(wc -w <<<"${parent_line}")" -eq 3
-          grep -q "${GITHUB_SHA}" <<<"${parent_line}"
+          grep -q "${TARGET_SHA}" <<<"${parent_line}"
           grep -q "${main_sha}" <<<"${parent_line}"
 
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
