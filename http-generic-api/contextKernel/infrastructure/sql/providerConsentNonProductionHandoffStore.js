@@ -290,7 +290,7 @@ export function createSqlProviderConsentHandoffStore({
         { row_count: rows.length },
       );
     }
-    const row = rows[0];
+    const [row] = rows;
     return freeze({
       acquired: true,
       handoffRef,
@@ -365,7 +365,7 @@ export function createSqlProviderConsentHandoffStore({
       );
     }
     if (!rows.length) return null;
-    const row = rows[0];
+    const [row] = rows;
     return freeze({
       handoffRef: ref,
       status: row.status,
