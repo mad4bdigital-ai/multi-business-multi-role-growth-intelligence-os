@@ -5,14 +5,13 @@ import { upsertEvidenceComment } from "./ci-evidence-pr-comment.mjs";
 import { normalizeHostingerEvidence } from "./hostinger-ci-evidence-pr-comment.mjs";
 
 const HEAD = "a".repeat(40);
-const SOURCE_WORKFLOW = "Hostinger Storage Tenant Canary Canonical Evidence";
-const LOGICAL_GUARD = "Hostinger Storage Tenant Canary Guard";
+const WORKFLOW = "Hostinger Storage Tenant Canary Guard";
 
 function passingReport(overrides = {}) {
   return {
     contract: "mad4b.hostinger-guard-summary.v1",
     schema_version: 1,
-    workflow: LOGICAL_GUARD,
+    workflow: WORKFLOW,
     guard_key: "hostinger-storage-tenant-canary",
     identity: { candidate_kind: "head", candidate_sha: HEAD },
     outcome: "passed",
@@ -40,7 +39,7 @@ const passed = normalizeHostingerEvidence({
   report: passingReport()
 });
 assert.equal(passed.slug, "hostinger-storage-tenant-canary");
-assert.equal(passed.workflow, SOURCE_WORKFLOW);
+assert.equal(passed.workflow, WORKFLOW);
 assert.equal(passed.candidateKind, "head");
 assert.equal(passed.candidateSha, HEAD);
 assert.equal(passed.outcome, "passed");
@@ -50,7 +49,7 @@ const firstComment = upsertEvidenceComment("", passed);
 assert.equal(firstComment.changed, true);
 assert.match(firstComment.body, /mad4b-ci-evidence-authority/u);
 assert.match(firstComment.body, /ci-evidence-section:hostinger-storage-tenant-canary:start run_id=200/u);
-assert.match(firstComment.body, /Hostinger Storage Tenant Canary Canonical Evidence/u);
+assert.match(firstComment.body, /Hostinger Storage Tenant Canary Guard/u);
 assert.match(firstComment.body, /Job logs: diagnostic-only/u);
 
 const failedReport = passingReport({
@@ -111,8 +110,8 @@ assert.throws(() => normalizeHostingerEvidence({
   workflowConclusion: "success",
   workflowRunId: 204,
   sourceHeadSha: HEAD,
-  report: passingReport({ workflow: SOURCE_WORKFLOW })
-}), /logical guard identity mismatch/u);
+  report: passingReport({ workflow: "Other Guard" })
+}), /guard identity mismatch/u);
 assert.throws(() => normalizeHostingerEvidence({
   workflowConclusion: "success",
   workflowRunId: 205,
@@ -155,8 +154,7 @@ const publisherWorkflow = fs.readFileSync(
   "utf8"
 );
 assert.match(publisherWorkflow, /^name: Hostinger CI Evidence PR Publisher$/mu);
-assert.match(publisherWorkflow, /Hostinger Storage Tenant Canary Canonical Evidence/u);
-assert.doesNotMatch(publisherWorkflow, /^\s+- Hostinger Storage Tenant Canary Guard\s*$/mu);
+assert.match(publisherWorkflow, /^\s+- Hostinger Storage Tenant Canary Guard\s*$/mu);
 assert.match(publisherWorkflow, /^\s*actions:\s*read\s*$/mu);
 assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
 assert.match(publisherWorkflow, /^\s*pull-requests:\s*write\s*$/mu);
@@ -169,9 +167,8 @@ const routing = JSON.parse(fs.readFileSync(
   new URL("../../.github/ci-evidence-routing.json", import.meta.url),
   "utf8"
 ));
-const route = routing.routes.find((item) => item.workflow === SOURCE_WORKFLOW);
-assert.ok(route, "Hostinger Tenant Canary canonical evidence route must exist.");
-assert.equal(route.logical_guard, LOGICAL_GUARD);
+const route = routing.routes.find((item) => item.workflow === WORKFLOW);
+assert.ok(route, "Hostinger Tenant Canary evidence route must exist.");
 assert.equal(route.candidate_kind, "head");
 assert.equal(route.canonical_contract, "mad4b.hostinger-guard-summary.v1");
 assert.equal(route.canonical_artifact, "hostinger-storage-tenant-canary-${run_id}-summary");
@@ -180,7 +177,7 @@ assert.equal(routing.secrets_included, false);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 32,
+  tests: 31,
   gate: "hostinger_tenant_canary_canonical_evidence_publisher",
   secrets_included: false
 }));
