@@ -31,8 +31,34 @@ jobs:
         with:
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          # Pull-request workflows are defined by the protected base branch. Validate
+          # the proposed merge tree so newly introduced base-owned scripts cannot be
+          # missing merely because the feature branch predates them.
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate proposed merge checkout
+        shell: bash
+        env:
+          EXPECTED_EVENT_SHA: ${{ github.sha }}
+          EXPECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          tested_sha="$(git rev-parse HEAD)"
+          if [[ "${tested_sha}" != "${EXPECTED_EVENT_SHA}" ]]; then
+            echo "Docs Agent checkout mismatch: tested ${tested_sha}, expected event merge ${EXPECTED_EVENT_SHA}."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" "${tested_sha}"; then
+            echo "Docs Agent proposed merge does not contain expected base ${EXPECTED_BASE_SHA}."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${EXPECTED_HEAD_SHA}" "${tested_sha}"; then
+            echo "Docs Agent proposed merge does not contain expected PR head ${EXPECTED_HEAD_SHA}."
+            exit 1
+          fi
+          echo "Docs Agent validated proposed merge ${tested_sha} for base ${EXPECTED_BASE_SHA} and head ${EXPECTED_HEAD_SHA}."
 
       - uses: actions/setup-node@v6
         with:
