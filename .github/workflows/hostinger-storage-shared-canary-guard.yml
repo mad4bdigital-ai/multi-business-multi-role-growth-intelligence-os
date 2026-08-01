@@ -52,6 +52,9 @@ jobs:
           grep -q "STORAGE_SHARED_CANARY_QUORUM_AUTHORITY_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
           grep -q "STORAGE_SHARED_CANARY_QUORUM_CURRENT_STATE_INVALID" http-generic-api/hostingerStorageSharedCanary.js
           grep -q "STORAGE_SHARED_CANARY_QUORUM_EVIDENCE_NOT_ADVANCED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_LAYOUT_PLAN_BINDING_REQUIRED" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_LAYOUT_PLAN_BINDING_MISMATCH" http-generic-api/hostingerStorageSharedCanary.js
+          grep -q "STORAGE_SHARED_CANARY_EXECUTOR_PLAN_INVALID" http-generic-api/hostingerStorageSharedCanary.js
       - name: Enforce authority readback before one-shot consumption
         run: |
           node --input-type=module <<'NODE'
@@ -65,12 +68,13 @@ jobs:
           const preflight = core.indexOf('preflight({ protocol, protocolDigest: protocol_digest, repository, adapter, now });');
           const consume = core.indexOf('enablement_registry.consume({');
           const quorumRead = wrapper.indexOf('store.readQuorum(record.policy_id)');
+          const planStatus = wrapper.indexOf('preflightPlanStatus({ authorization, repository: input.repository });');
           const coreDispatch = wrapper.indexOf('return executeCoreCanary(input);');
           if (!(impact >= 0 && approvals > impact && layout > approvals && reserve > layout && preflight > reserve && consume > preflight)) {
             throw new Error('Shared authority readback and executor preflight must complete before one-shot enablement consumption.');
           }
-          if (!(quorumRead >= 0 && coreDispatch > quorumRead)) {
-            throw new Error('Governed quorum evidence must be reread before entering the Shared canary core.');
+          if (!(quorumRead >= 0 && planStatus > quorumRead && coreDispatch > planStatus)) {
+            throw new Error('Governed quorum and current plan status must be validated before entering the Shared canary core.');
           }
           NODE
       - name: Validate Shared canary
