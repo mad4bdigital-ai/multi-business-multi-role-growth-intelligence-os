@@ -175,6 +175,7 @@ scan_action() {
     printf 'tool_version=%s\npolicy_version=%s\nroot=%s\nfilesystem=%s\n' "$TOOL_VERSION" "$POLICY_VERSION" "$ROOT_CANON" "$snapshot"
     printf '\nTop directories (KiB):\n'; cat -- "$top_file"
     printf '\nLarge files (>100 MiB):\n'; cat -- "$large_file"
+    rm -f -- "$top_file" "$large_file"
     return 0
   fi
 
@@ -249,11 +250,12 @@ plan_action() {
   done < <(find -P "$HOME_CANON/domains" -mindepth 2 -maxdepth 2 -type d -name logs -print0 2>/dev/null || true)
 
   sort -nr -k1,1 -o "$PLAN_TMP" -- "$PLAN_TMP"
-  local created_epoch expires_epoch plan_hash plan_id plan_file meta_file token confirmation snapshot
+  local created_epoch expires_epoch plan_hash plan_nonce plan_id plan_file meta_file token confirmation snapshot
   created_epoch="$(date +%s)"
   expires_epoch=$((created_epoch + PLAN_TTL_SECONDS))
   plan_hash="$(sha256sum "$PLAN_TMP" | awk '{print $1}')"
-  plan_id="$(date -u +%Y%m%dT%H%M%SZ)-${plan_hash:0:12}"
+  plan_nonce="$(sha256_text "$$:$RANDOM:$created_epoch:$plan_hash" | cut -c1-6)"
+  plan_id="$(date -u +%Y%m%dT%H%M%SZ)-${plan_hash:0:12}-${plan_nonce}"
   plan_file="$PLAN_DIR/$plan_id.tsv"
   meta_file="$PLAN_DIR/$plan_id.meta"
   mv -- "$PLAN_TMP" "$plan_file"
@@ -276,7 +278,7 @@ read_meta_value() {
 
 apply_action() {
   acquire_lock
-  [[ "$PLAN_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ]] || fail invalid_plan_id "invalid plan id"
+  [[ "$PLAN_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}-[a-f0-9]{6}$ ]] || fail invalid_plan_id "invalid plan id"
   local plan_file="$PLAN_DIR/$PLAN_ID.tsv" meta_file="$PLAN_DIR/$PLAN_ID.meta"
   [[ -f "$plan_file" && -f "$meta_file" ]] || fail plan_not_found "plan not found"
 
@@ -323,8 +325,6 @@ apply_action() {
   printf '{"ok":true,"action":"apply","tool_version":"%s","policy_version":"%s","plan_id":"%s","deleted_count":%s,"deleted_bytes":%s,"skipped_count":%s,"filesystem":%s,"deletion_executed":true,"secrets_included":false}\n' \
     "$TOOL_VERSION" "$POLICY_VERSION" "$PLAN_ID" "$deleted_count" "$deleted_bytes" "$skipped_count" "$snapshot"
 }
-
-find -P "$PLAN_DIR" -type f -mtime +7 -delete 2>/dev/null || true
 
 case "$ACTION" in
   scan) acquire_lock; scan_action ;;
