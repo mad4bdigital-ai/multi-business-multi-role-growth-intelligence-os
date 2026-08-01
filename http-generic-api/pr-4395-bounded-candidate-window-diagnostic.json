@@ -1,0 +1,14 @@
+{
+  "contract": "mad4b.pr-4395-bounded-candidate-window-diagnostic.v1",
+  "source_head_sha": "2baef01dc739913b186d11108ab2f165cc48b05c",
+  "outcome": "failed",
+  "first_failure": {
+    "label": "context kernel hardcoding report",
+    "command": "node scripts/context-kernel-hardcoding-report.mjs --base-ref=main --head-ref=HEAD --report-only",
+    "status": 1,
+    "signal": null,
+    "stdout_tail": "",
+    "stderr_tail": "node:internal/modules/cjs/loader:1433\n  throw err;\n  ^\n\nError: Cannot find module '/home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/scripts/context-kernel-hardcoding-report.mjs'\n    at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)\n    at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)\n    at Function._load (node:internal/modules/cjs/loader:1216:25)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49 {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}\n\nNode.js v22.23.1\n"
+  },
+  "secrets_included": false
+}
