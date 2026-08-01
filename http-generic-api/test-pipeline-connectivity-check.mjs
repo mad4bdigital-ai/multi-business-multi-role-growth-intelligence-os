@@ -209,6 +209,12 @@ function setup() {
   assert.ok(jobAuthorizationBlock.includes("work-map-autofix:authorized"));
 
   assert.ok(permissionsBlock.includes("pull-requests: write"));
+  assert.ok(autofixWorkflow.includes("workflow_dispatch requires exactly one open same-repository PR targeting main"));
+  assert.ok(autofixWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
+  assert.ok(autofixWorkflow.includes("Consume one-time pull-request authorization"));
+  assert.ok(autofixWorkflow.includes("consume-one-time-authorization"));
+  assert.ok(autofixWorkflow.includes("Authorization marker removal readback failed"));
+  assert.ok(autofixWorkflow.includes('"consume_authorization":"${{ steps.consume_authorization.outcome }}"'));
   assert.ok(autofixWorkflow.includes("Bootstrap Work Map diagnostic envelope"));
   assert.ok(autofixWorkflow.includes("WORK_MAP_STEP_OUTCOMES"));
   assert.ok(autofixWorkflow.includes("work-map-autofix-diagnostic-report"));
@@ -222,10 +228,15 @@ function setup() {
 
   const bootstrapIndex = autofixWorkflow.indexOf("Bootstrap Work Map diagnostic envelope");
   const checkoutIndex = autofixWorkflow.indexOf("actions/checkout@v5");
+  const pinIndex = autofixWorkflow.indexOf("Pin authorized branch head");
+  const consumeIndex = autofixWorkflow.indexOf("Consume one-time pull-request authorization");
+  const regenerateIndex = autofixWorkflow.indexOf("Regenerate and verify idempotency");
   const finalizeIndex = autofixWorkflow.indexOf("Finalize Work Map diagnostic report");
   const uploadIndex = autofixWorkflow.indexOf("Upload Work Map diagnostic report");
   const publishIndex = autofixWorkflow.indexOf("Publish sticky Work Map diagnostic report");
   assert.ok(bootstrapIndex >= 0 && bootstrapIndex < checkoutIndex);
+  assert.ok(pinIndex >= 0 && pinIndex < consumeIndex);
+  assert.ok(consumeIndex >= 0 && consumeIndex < regenerateIndex);
   assert.ok(finalizeIndex >= 0 && finalizeIndex < uploadIndex);
   assert.ok(uploadIndex >= 0 && uploadIndex < publishIndex);
 }
