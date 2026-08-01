@@ -1,10 +1,8 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { createOrAppendSupportTicketWithIntegrityAtomic } from "../supportTicketLifecycleIntegrityCreationService.js";
-import {
-  listSupportTicketsWithIntegrity,
-  reconcileSupportTicketIntegrity,
-} from "../supportTicketLifecycleIntegrityService.js";
+import { reconcileSupportTicketIntegrityWithEffectiveLifecycle } from "../supportTicketLifecycleIntegrityReconciliationService.js";
+import { listSupportTicketsWithIntegrity } from "../supportTicketLifecycleIntegrityService.js";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 async function resolveTenantMembership({ userId, tenantId = null }) {
@@ -190,7 +188,7 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
 
   router.get("/admin/support/tickets/integrity/reconcile", ...adminGuards, async (req, res) => {
     try {
-      const result = await reconcileSupportTicketIntegrity({
+      const result = await reconcileSupportTicketIntegrityWithEffectiveLifecycle({
         tenant_id: req.query?.tenant_id || null,
         limit: req.query?.limit || 100,
         cursor_activity_at: req.query?.cursor_activity_at || null,
@@ -219,7 +217,7 @@ export function buildSupportTicketLifecycleIntegrityRoutes(deps = {}) {
           secrets_included: false,
         });
       }
-      const result = await reconcileSupportTicketIntegrity({
+      const result = await reconcileSupportTicketIntegrityWithEffectiveLifecycle({
         tenant_id: req.body?.tenant_id || null,
         limit: req.body?.limit || 100,
         cursor_activity_at: req.body?.cursor_activity_at || null,
