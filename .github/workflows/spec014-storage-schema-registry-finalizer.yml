@@ -55,6 +55,18 @@ jobs:
             '.specify/work-map-schema-classification-registry.json' \
             'specs/014-governed-hostinger-storage-orchestration/tasks.md' | sort)"
           test "$actual" = "$expected"
+      - name: Upload validated permanent write set
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-t023-permanent-write-set-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            .github/contracts/spec014/hostinger-storage-schema-classification.json
+            .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+            .github/workflows/hostinger-storage-schema-classification-guard.yml
+            .specify/work-map-schema-classification-registry.json
+            specs/014-governed-hostinger-storage-orchestration/tasks.md
       - name: Commit governed registry update
         run: |
           git config user.name 'github-actions[bot]'
