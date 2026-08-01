@@ -41,6 +41,7 @@ jobs:
           node --check http-generic-api/hostingerStorageExecutorProtocol.js
           node --check http-generic-api/hostingerStorageSyntheticAdapterBase.js
           node --check http-generic-api/hostingerStorageSyntheticAdapter.js
+          node --check http-generic-api/hostingerStorageSyntheticExecutorBase.js
           node --check http-generic-api/hostingerStorageSyntheticExecutor.js
           node --check http-generic-api/hostingerStorageReserveReleaseProtocol.js
           node --check http-generic-api/test-hostinger-storage-executor-fixtures.mjs
@@ -48,19 +49,33 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-executor-adapter-brand.mjs
           node --check http-generic-api/test-hostinger-storage-unknown-outcome.mjs
           node --check http-generic-api/test-hostinger-storage-reserve-release.mjs
-      - name: Enforce governed adapter factory
+      - name: Enforce governed adapter factory and dispatch
         run: |
           test "$(grep -R -l "hostingerStorageSyntheticAdapterBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageSyntheticAdapter.js"
+          test "$(grep -R -l "hostingerStorageSyntheticExecutorBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageSyntheticExecutor.js"
           grep -q "WeakSet" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "canonicalAdapters.add(adapter)" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "isCanonicalHostingerStorageSyntheticAdapter" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "canonicalAdapters.has(adapter)" http-generic-api/hostingerStorageSyntheticAdapter.js
+          grep -q "isCanonicalHostingerStorageSyntheticAdapter(adapter)" http-generic-api/hostingerStorageSyntheticExecutor.js
+          grep -q "STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_PROVENANCE_INVALID" http-generic-api/hostingerStorageSyntheticExecutor.js
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('http-generic-api/hostingerStorageSyntheticExecutor.js', 'utf8');
+          const brand = source.indexOf('requireFactoryOwnedAdapter(options.adapter);');
+          const execute = source.indexOf('return executeBaseSyntheticPlan(options);');
+          const reconcile = source.indexOf('return reconcileBaseSyntheticOutcome(options);');
+          if (!(brand >= 0 && execute > brand && reconcile > brand)) {
+            throw new Error('Factory-owned adapter provenance must be checked before execution and reconciliation dispatch.');
+          }
+          NODE
       - name: Enforce non-production execution boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|rm\s+-rf|StrictHostKeyChecking=no" \
             http-generic-api/hostingerStorageExecutorProtocol.js \
             http-generic-api/hostingerStorageSyntheticAdapterBase.js \
             http-generic-api/hostingerStorageSyntheticAdapter.js \
+            http-generic-api/hostingerStorageSyntheticExecutorBase.js \
             http-generic-api/hostingerStorageSyntheticExecutor.js \
             http-generic-api/hostingerStorageReserveReleaseProtocol.js
           grep -R -q "production_ready: false" \
@@ -69,7 +84,7 @@ jobs:
             http-generic-api/hostingerStorageReserveReleaseProtocol.js
           grep -R -q "dispatch_allowed: false" \
             http-generic-api/hostingerStorageExecutorProtocol.js \
-            http-generic-api/hostingerStorageSyntheticExecutor.js \
+            http-generic-api/hostingerStorageSyntheticExecutorBase.js \
             http-generic-api/hostingerStorageReserveReleaseProtocol.js
           grep -q "no_allocation_before_unlink: true" http-generic-api/hostingerStorageReserveReleaseProtocol.js
           grep -q "automatic_retry_allowed: false" http-generic-api/hostingerStorageExecutorProtocol.js
