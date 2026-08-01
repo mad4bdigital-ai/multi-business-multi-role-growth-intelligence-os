@@ -57,10 +57,14 @@ function defaultViolation({ reason, path, key }) {
 export function assertHostingerStorageSecretFree(value, {
   at = 'value',
   max_depth = DEFAULT_MAX_DEPTH,
+  allow_authorization_envelope = true,
   on_violation = defaultViolation,
 } = {}) {
   if (!Number.isInteger(max_depth) || max_depth < 1 || max_depth > 64) {
     throw new TypeError('max_depth must be an integer between 1 and 64.');
+  }
+  if (typeof allow_authorization_envelope !== 'boolean') {
+    throw new TypeError('allow_authorization_envelope must be boolean.');
   }
   if (typeof on_violation !== 'function') throw new TypeError('on_violation must be a function.');
 
@@ -95,6 +99,7 @@ export function assertHostingerStorageSecretFree(value, {
       }
 
       if (normalizedKey === AUTHORIZATION_ENVELOPE_KEY) {
+        if (!allow_authorization_envelope) reject('authorization_envelope_not_allowed', itemPath, key);
         if (!isPlainObject(item)) reject('authorization_envelope_must_be_object', itemPath, key);
         visit(item, itemPath, depth + 1);
         continue;
@@ -114,6 +119,7 @@ export function assertHostingerStorageSecretFree(value, {
 export const HOSTINGER_STORAGE_SECRET_FREE_CONTRACT = Object.freeze({
   contract: 'mad4b.hostinger-storage-secret-free.v1',
   max_depth: DEFAULT_MAX_DEPTH,
+  authorization_envelope_allowance_is_explicit: true,
   authorization_envelope_requires_object: true,
   secret_declaration_requires_false: true,
   cyclic_objects_rejected: true,
