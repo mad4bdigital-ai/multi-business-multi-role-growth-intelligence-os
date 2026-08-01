@@ -75,13 +75,36 @@ function selectedTools(resolution = {}) {
   const result = {};
   for (const row of resolution.selections || []) {
     if (!row?.capability || !row?.selected_tool_id) continue;
-    result[row.capability] = {
+    result[safeId(row.capability, `selection.${row.capability}.capability`)] = {
       tool_id: safeId(row.selected_tool_id, `selection.${row.capability}.tool_id`),
       version: text(row.selected?.observed_version, 64) || null,
       binary_sha256: row.selected?.binary_sha256 ? hash(row.selected.binary_sha256, `selection.${row.capability}.binary_sha256`) : null,
     };
   }
   return result;
+}
+
+function normalizeSelectedTools(value = {}) {
+  const result = {};
+  for (const [capability, tool] of Object.entries(value || {})) {
+    const key = safeId(capability, `toolchain.selected_tools.${capability}`);
+    result[key] = {
+      tool_id: safeId(tool?.tool_id, `toolchain.selected_tools.${capability}.tool_id`),
+      version: tool?.version ? safeId(tool.version, `toolchain.selected_tools.${capability}.version`) : null,
+      binary_sha256: tool?.binary_sha256 ? hash(tool.binary_sha256, `toolchain.selected_tools.${capability}.binary_sha256`) : null,
+    };
+  }
+  return result;
+}
+
+function normalizeToolchain(value = {}) {
+  const selected = normalizeSelectedTools(value.selected_tools || {});
+  return {
+    resolution_fingerprint: hash(value.resolution_fingerprint, 'toolchain.resolution_fingerprint'),
+    policy_fingerprint: hash(value.policy_fingerprint, 'toolchain.policy_fingerprint'),
+    selected_tools: selected,
+    selected_tools_digest: digest(selected),
+  };
 }
 
 function normalizePlan(plan = {}) {
@@ -118,6 +141,7 @@ function normalizeRecovery(recoveryProof, plan) {
       required: false,
       ready: true,
       proof_digest: recoveryProof?.proof_digest ? hash(recoveryProof.proof_digest, 'recovery_proof_digest') : null,
+      requirement_binding_digest: null,
     };
   }
   if (recoveryProof.ready !== true) {
@@ -128,6 +152,7 @@ function normalizeRecovery(recoveryProof, plan) {
     required: true,
     ready: true,
     proof_digest: hash(recoveryProof.proof_digest, 'recovery_proof_digest'),
+    requirement_binding_digest: hash(proof.requirement_binding_digest, 'recovery.requirement_binding_digest'),
     snapshot_id: safeId(proof.snapshot_id, 'recovery_snapshot_id'),
     operation_id: safeId(proof.operation_id, 'recovery.operation_id'),
     plan_id: safeId(proof.plan_id, 'recovery.plan_id'),
@@ -157,6 +182,7 @@ export function buildHostingerStorageAttestationSubject({
   assertSecretFree({ plan, authorization, toolchain_resolution, recovery_proof }, 'attestation_subject');
   const normalizedPlan = normalizePlan(plan);
   const normalizedAuthorization = normalizeAuthorization(authorization, normalizedPlan);
+  const tools = selectedTools(toolchain_resolution);
   const payload = {
     schema_version: 1,
     subject_key: SUBJECT_KEY,
@@ -167,7 +193,7 @@ export function buildHostingerStorageAttestationSubject({
     toolchain: {
       resolution_fingerprint: hash(toolchain_resolution?.resolution_fingerprint, 'resolution_fingerprint'),
       policy_fingerprint: hash(toolchain_resolution?.policy_fingerprint, 'policy_fingerprint'),
-      selected_tools: selectedTools(toolchain_resolution),
+      selected_tools: tools,
     },
     recovery: normalizeRecovery(recovery_proof, normalizedPlan),
     secrets_included: false,
@@ -205,11 +231,14 @@ function validateSubjectIdentity(subject) {
   }
   const plan = normalizePlan(payload.plan);
   const authorization = normalizeAuthorization(payload.authorization, plan);
+  const toolchain = normalizeToolchain(payload.toolchain);
+  const recovery = payload.recovery?.required === true
+    ? normalizeRecovery({ required: true, ready: payload.recovery.ready, proof_digest: payload.recovery.proof_digest, proof: payload.recovery }, plan)
+    : normalizeRecovery(payload.recovery, plan);
   if (subject.subject_name !== `hostinger-storage-plan:${plan.plan_id}`) {
     throw fail(409, 'STORAGE_ATTESTATION_SUBJECT_NAME_INVALID', 'Attestation subject name does not match the bound plan.');
   }
-  if (payload.recovery?.required === true) normalizeRecovery({ required: true, ready: payload.recovery.ready, proof_digest: payload.recovery.proof_digest, proof: payload.recovery }, plan);
-  return { plan, authorization };
+  return { plan, authorization, recovery, toolchain };
 }
 
 export function verifyHostingerStorageAttestationEvidence({ subject, verification, policy, now } = {}) {
@@ -252,6 +281,12 @@ export function verifyHostingerStorageAttestationEvidence({ subject, verificatio
     approval_set_hash: identity.authorization.approval_set_hash,
     capability_envelope_id: identity.authorization.capability_envelope_id,
     execution_lease_id: identity.authorization.execution_lease_id,
+    recovery_required: identity.recovery.required,
+    recovery_proof_digest: identity.recovery.proof_digest,
+    recovery_requirement_binding_digest: identity.recovery.requirement_binding_digest,
+    toolchain_resolution_fingerprint: identity.toolchain.resolution_fingerprint,
+    toolchain_policy_fingerprint: identity.toolchain.policy_fingerprint,
+    toolchain_selected_tools_digest: identity.toolchain.selected_tools_digest,
     signer_identity: signerIdentity || null,
     issuer: issuer || null,
     bundle_ref: bundleRef,

@@ -73,6 +73,11 @@ const validEvidence = {
   plan_hash: plan.plan_hash,
   candidate_set_hash: plan.candidate_set_hash,
   repository_check_passed: true,
+  checkpoint_tool: {
+    tool_id: 'restic',
+    tool_version: '0.17.3',
+    tool_binary_sha256: resticBinaryHash,
+  },
   snapshot_tags: checkpoint.checkpoint_contract.required_tags,
   backup_completed_at: '2026-08-01T08:05:00.000Z',
   restore_sample: {
@@ -101,8 +106,28 @@ assert.equal(proof.proof.operation_id, plan.operation_id);
 assert.equal(proof.proof.plan_id, plan.plan_id);
 assert.equal(proof.proof.target_id, plan.target_id);
 assert.equal(proof.proof.snapshot_tags_digest.length, 64);
+assert.equal(proof.proof.checkpoint_tool_id, 'restic');
+assert.equal(proof.proof.checkpoint_tool_version, '0.17.3');
+assert.equal(proof.proof.checkpoint_tool_binary_sha256, resticBinaryHash);
 assert.equal(proof.proof.replica_tool_id, 'rclone');
 assert.equal(proof.automatic_retry_allowed, false);
+
+for (const [field, value, blocker] of [
+  ['tool_id', 'rclone', 'STORAGE_RECOVERY_CHECKPOINT_TOOL_MISMATCH'],
+  ['tool_version', '0.16.0', 'STORAGE_RECOVERY_CHECKPOINT_VERSION_MISMATCH'],
+  ['tool_binary_sha256', '0'.repeat(64), 'STORAGE_RECOVERY_CHECKPOINT_BINARY_MISMATCH'],
+]) {
+  const mismatchedCheckpointTool = verifyHostingerStorageRecoveryEvidence({
+    checkpoint,
+    verified_at: '2026-08-01T08:15:00.000Z',
+    evidence: {
+      ...validEvidence,
+      checkpoint_tool: { ...validEvidence.checkpoint_tool, [field]: value },
+    },
+  });
+  assert.equal(mismatchedCheckpointTool.ready, false);
+  assert(mismatchedCheckpointTool.blockers.includes(blocker));
+}
 
 const missingTags = verifyHostingerStorageRecoveryEvidence({
   checkpoint,
@@ -233,6 +258,7 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_recovery',
   checkpoint_requirement_bound: true,
+  checkpoint_producer_bound: true,
   replica_capability_bound: true,
   snapshot_tags_bound: true,
   evidence_time_ordered: true,

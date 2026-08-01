@@ -280,6 +280,10 @@ export function verifyHostingerStorageRecoveryEvidence({ checkpoint, evidence, v
   if (text(evidence?.candidate_set_hash, 64).toLowerCase() !== contract.plan_binding.candidate_set_hash) blockers.push('STORAGE_RECOVERY_CANDIDATE_SET_MISMATCH');
   if (evidence?.repository_check_passed !== true) blockers.push('STORAGE_RECOVERY_REPOSITORY_CHECK_REQUIRED');
 
+  if (text(evidence?.checkpoint_tool?.tool_id, 191) !== contract.checkpoint_tool?.tool_id) blockers.push('STORAGE_RECOVERY_CHECKPOINT_TOOL_MISMATCH');
+  if (text(evidence?.checkpoint_tool?.tool_version, 191) !== contract.checkpoint_tool?.version) blockers.push('STORAGE_RECOVERY_CHECKPOINT_VERSION_MISMATCH');
+  if (text(evidence?.checkpoint_tool?.tool_binary_sha256, 64).toLowerCase() !== contract.checkpoint_tool?.binary_sha256) blockers.push('STORAGE_RECOVERY_CHECKPOINT_BINARY_MISMATCH');
+
   const observedTags = normalizeObservedTags(evidence?.snapshot_tags);
   if (!contract.required_tags.every((tag) => observedTags.includes(tag))) blockers.push('STORAGE_RECOVERY_SNAPSHOT_TAGS_MISMATCH');
 
@@ -324,6 +328,9 @@ export function verifyHostingerStorageRecoveryEvidence({ checkpoint, evidence, v
     snapshot_id: snapshotId || null,
     snapshot_tags: observedTags,
     snapshot_tags_digest: digest(observedTags),
+    checkpoint_tool_id: contract.checkpoint_tool?.tool_id || null,
+    checkpoint_tool_version: contract.checkpoint_tool?.version || null,
+    checkpoint_tool_binary_sha256: contract.checkpoint_tool?.binary_sha256 || null,
     backup_completed_at: Number.isFinite(backupCompletedAt) ? new Date(backupCompletedAt).toISOString() : null,
     repository_check_passed: evidence?.repository_check_passed === true,
     restore_sample_verified: evidence?.restore_sample?.verified === true,

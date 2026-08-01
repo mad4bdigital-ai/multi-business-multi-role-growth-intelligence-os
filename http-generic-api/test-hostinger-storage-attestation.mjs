@@ -20,6 +20,7 @@ const approvalHash = 'd'.repeat(64);
 const resolutionHash = 'e'.repeat(64);
 const policyHash = 'f'.repeat(64);
 const resticBinaryHash = '1'.repeat(64);
+const cosignBinaryHash = '2'.repeat(64);
 
 const plan = {
   plan_id: 'plan-1',
@@ -30,6 +31,7 @@ const plan = {
   authority_context_hash: authorityHash,
   ownership_revision: 'ownership-r1',
   policy_revision: 'policy-r1',
+  items: [{ item_id: 'item-1', path_ref: 'paths/item-1' }],
 };
 
 const toolchainResolution = {
@@ -40,13 +42,21 @@ const toolchainResolution = {
       capability: 'checkpoint',
       satisfied: true,
       selected_tool_id: 'restic',
-      selected: { observed_version: '0.17.3', binary_sha256: resticBinaryHash },
+      selected: {
+        observed_version: '0.17.3',
+        binary_sha256: resticBinaryHash,
+        executable_path: '/usr/bin/restic',
+      },
     },
     {
       capability: 'attestation',
       satisfied: true,
       selected_tool_id: 'cosign',
-      selected: { observed_version: '2.4.1', binary_sha256: '2'.repeat(64) },
+      selected: {
+        observed_version: '2.4.1',
+        binary_sha256: cosignBinaryHash,
+        executable_path: '/usr/local/bin/cosign',
+      },
     },
   ],
 };
@@ -75,6 +85,11 @@ const recoveryProof = verifyHostingerStorageRecoveryEvidence({
     plan_hash: planHash,
     candidate_set_hash: candidateHash,
     repository_check_passed: true,
+    checkpoint_tool: {
+      tool_id: 'restic',
+      tool_version: '0.17.3',
+      tool_binary_sha256: resticBinaryHash,
+    },
     snapshot_tags: checkpoint.checkpoint_contract.required_tags,
     backup_completed_at: '2026-08-01T08:05:00.000Z',
     restore_sample: {
@@ -91,6 +106,7 @@ assert.equal(recoveryProof.proof.plan_id, plan.plan_id);
 assert.equal(recoveryProof.proof.target_id, plan.target_id);
 assert.equal(recoveryProof.proof.plan_hash, plan.plan_hash);
 assert.equal(recoveryProof.proof.candidate_set_hash, plan.candidate_set_hash);
+assert.equal(recoveryProof.proof.checkpoint_tool_id, 'restic');
 
 const authorization = {
   authority_context_hash: authorityHash,
@@ -103,11 +119,12 @@ const buildSubject = ({
   planInput = plan,
   authorizationInput = authorization,
   recoveryInput = recoveryProof,
+  toolchainInput = toolchainResolution,
   createdAt = '2026-08-01T08:16:00.000Z',
 } = {}) => buildHostingerStorageAttestationSubject({
   plan: planInput,
   authorization: authorizationInput,
-  toolchain_resolution: toolchainResolution,
+  toolchain_resolution: toolchainInput,
   recovery_proof: recoveryInput,
   created_at: createdAt,
 });
@@ -126,6 +143,11 @@ assert.equal(subject.payload.recovery.plan_id, plan.plan_id);
 assert.equal(subject.payload.recovery.target_id, plan.target_id);
 assert.equal(subject.payload.recovery.plan_hash, planHash);
 assert.equal(subject.payload.recovery.candidate_set_hash, candidateHash);
+assert.equal(subject.payload.recovery.proof_digest, recoveryProof.proof_digest);
+assert.equal(subject.payload.recovery.requirement_binding_digest, recoveryProof.proof.requirement_binding_digest);
+assert.equal(subject.payload.toolchain.resolution_fingerprint, resolutionHash);
+assert.equal(subject.payload.toolchain.policy_fingerprint, policyHash);
+assert.equal(subject.payload.toolchain.selected_tools.checkpoint.tool_id, 'restic');
 assert.equal(subject.payload.toolchain.selected_tools.attestation.tool_id, 'cosign');
 assert.match(subject.subject_digest, /^[0-9a-f]{64}$/);
 assert.equal(subject.signing_allowed, false);
@@ -137,12 +159,13 @@ for (const forbidden of [
   ['authorization_header', 'Bearer forbidden'],
   ['raw_authorization', 'Bearer forbidden'],
   ['api_key', 'forbidden-key'],
+  ['bearer', 'forbidden-bearer'],
 ]) {
   const [field, value] = forbidden;
   assert.throws(
     () => buildSubject({ authorizationInput: { ...authorization, [field]: value } }),
     (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
-      && error.details?.reason === 'sensitive_key'
+      && error.details?.reason === 'authorization_envelope_unknown_field'
       && error.details?.path === `attestation_subject.authorization.${field}`,
   );
 }
@@ -157,6 +180,27 @@ assert.throws(
 assert.throws(
   () => buildSubject({ authorizationInput: { ...authorization, authority_context_hash: '9'.repeat(64) } }),
   (error) => error.code === 'STORAGE_ATTESTATION_AUTHORITY_CONTEXT_MISMATCH',
+);
+
+assert.throws(
+  () => buildSubject({ planInput: { ...plan, items: [{ item_id: 'item-1', path_ref: '/home/private' }] } }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'opaque_reference_invalid'
+    && error.details?.path === 'attestation_subject.plan.items[0].path_ref',
+);
+
+assert.throws(
+  () => buildSubject({
+    toolchainInput: {
+      ...toolchainResolution,
+      selections: toolchainResolution.selections.map((entry, index) => index === 0
+        ? { ...entry, selected: { ...entry.selected, executable_path: '/home/private/restic' } }
+        : entry),
+    },
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'opaque_reference_invalid'
+    && error.details?.path === 'attestation_subject.toolchain_resolution.selections[0].selected.executable_path',
 );
 
 const recoveryForAnotherPlan = structuredClone(recoveryProof);
@@ -176,7 +220,7 @@ assert.throws(
 );
 
 const cyclicAuthorization = { ...authorization };
-cyclicAuthorization.self = cyclicAuthorization;
+cyclicAuthorization.authority_context_hash = cyclicAuthorization;
 assert.throws(
   () => buildSubject({ authorizationInput: cyclicAuthorization }),
   (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
@@ -222,6 +266,12 @@ assert.equal(verified.evidence.policy_revision, plan.policy_revision);
 assert.equal(verified.evidence.approval_set_hash, authorization.approval_set_hash);
 assert.equal(verified.evidence.capability_envelope_id, authorization.capability_envelope_id);
 assert.equal(verified.evidence.execution_lease_id, authorization.execution_lease_id);
+assert.equal(verified.evidence.recovery_required, true);
+assert.equal(verified.evidence.recovery_proof_digest, recoveryProof.proof_digest);
+assert.equal(verified.evidence.recovery_requirement_binding_digest, recoveryProof.proof.requirement_binding_digest);
+assert.equal(verified.evidence.toolchain_resolution_fingerprint, resolutionHash);
+assert.equal(verified.evidence.toolchain_policy_fingerprint, policyHash);
+assert.match(verified.evidence.toolchain_selected_tools_digest, /^[0-9a-f]{64}$/);
 assert.equal(verified.authority_granted, false);
 assert.equal(verified.dispatch_allowed, false);
 
@@ -251,6 +301,22 @@ assert.throws(
   (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
     && error.details?.reason === 'secret_declaration_must_be_false'
     && error.details?.path === 'attestation_verification.subject.payload.secrets_included',
+);
+
+const extraAuthorizationSubject = structuredClone(subject);
+extraAuthorizationSubject.payload.extra = {
+  authorization: { authority_context_hash: authorityHash },
+};
+assert.throws(
+  () => verifyHostingerStorageAttestationEvidence({
+    subject: extraAuthorizationSubject,
+    verification: validVerification,
+    policy: verificationPolicy,
+    now: '2026-08-01T08:25:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_ATTESTATION_SECRET_FIELD_REJECTED'
+    && error.details?.reason === 'authorization_envelope_not_allowed'
+    && error.details?.path === 'attestation_verification.subject.payload.extra.authorization',
 );
 
 const futureVerification = verifyHostingerStorageAttestationEvidence({
@@ -376,9 +442,12 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_attestation',
   recovery_plan_binding: true,
+  recovery_and_toolchain_evidence_bound: true,
   authority_context_binding: true,
   verified_plan_identity_preserved: true,
   signed_subject_secret_free_validated: true,
+  authorization_exception_path_bound: true,
+  opaque_path_references_schema_bound: true,
   subject_identity_validation: true,
   future_timestamp_rejected: true,
   sensitive_authorization_fields_rejected: true,
