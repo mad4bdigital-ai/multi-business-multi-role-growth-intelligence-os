@@ -102,6 +102,7 @@ function normalizeToolchain(value = {}) {
   return {
     resolution_fingerprint: hash(value.resolution_fingerprint, 'toolchain.resolution_fingerprint'),
     policy_fingerprint: hash(value.policy_fingerprint, 'toolchain.policy_fingerprint'),
+    provenance_digest: hash(value.provenance_digest, 'toolchain.provenance_digest'),
     selected_tools: selected,
     selected_tools_digest: digest(selected),
   };
@@ -176,10 +177,11 @@ export function buildHostingerStorageAttestationSubject({
   plan,
   authorization,
   toolchain_resolution,
+  toolchain_provenance_digest,
   recovery_proof = null,
   created_at,
 } = {}) {
-  assertSecretFree({ plan, authorization, toolchain_resolution, recovery_proof }, 'attestation_subject');
+  assertSecretFree({ plan, authorization, toolchain_resolution, toolchain_provenance_digest, recovery_proof }, 'attestation_subject');
   const normalizedPlan = normalizePlan(plan);
   const normalizedAuthorization = normalizeAuthorization(authorization, normalizedPlan);
   const tools = selectedTools(toolchain_resolution);
@@ -193,6 +195,7 @@ export function buildHostingerStorageAttestationSubject({
     toolchain: {
       resolution_fingerprint: hash(toolchain_resolution?.resolution_fingerprint, 'resolution_fingerprint'),
       policy_fingerprint: hash(toolchain_resolution?.policy_fingerprint, 'policy_fingerprint'),
+      provenance_digest: hash(toolchain_provenance_digest, 'toolchain_provenance_digest'),
       selected_tools: tools,
     },
     recovery: normalizeRecovery(recovery_proof, normalizedPlan),
@@ -286,6 +289,7 @@ export function verifyHostingerStorageAttestationEvidence({ subject, verificatio
     recovery_requirement_binding_digest: identity.recovery.requirement_binding_digest,
     toolchain_resolution_fingerprint: identity.toolchain.resolution_fingerprint,
     toolchain_policy_fingerprint: identity.toolchain.policy_fingerprint,
+    toolchain_provenance_digest: identity.toolchain.provenance_digest,
     toolchain_selected_tools_digest: identity.toolchain.selected_tools_digest,
     signer_identity: signerIdentity || null,
     issuer: issuer || null,
