@@ -49,7 +49,8 @@ for (const invoke of [
 ]) {
   assert.throws(
     invoke,
-    (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_PROVENANCE_INVALID',
+    (error) => error.code === 'STORAGE_SYNTHETIC_EXECUTOR_ADAPTER_INVALID'
+      && error.details?.adapter_provenance === 'factory_owned_required',
   );
 }
 
@@ -61,6 +62,7 @@ console.log(JSON.stringify({
   malicious_method_copy_rejected: true,
   executor_dispatch_rejects_unbranded_adapter: true,
   reconciliation_rejects_unbranded_adapter: true,
+  stable_error_taxonomy: true,
   production_ready: false,
   secrets_included: false,
 }));
