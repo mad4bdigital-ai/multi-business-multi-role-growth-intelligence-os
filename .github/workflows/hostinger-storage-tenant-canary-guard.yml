@@ -33,6 +33,7 @@ jobs:
           node --check http-generic-api/hostingerStorageTenantCanaryPolicy.js
           node --check http-generic-api/hostingerStorageTenantCanary.js
           node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -57,6 +58,8 @@ jobs:
           grep -q "STORAGE_TENANT_CANARY_APPROVAL_CURRENT_STATE_INVALID" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_EXECUTOR_PLAN_INVALID" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_EXECUTOR_LEASE_INVALID" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_REVISION_NOT_ADVANCED" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "STORAGE_TENANT_CANARY_APPROVAL_EVIDENCE_NOT_ADVANCED" http-generic-api/hostingerStorageTenantCanary.js
       - name: Enforce validation before one-shot consumption
         run: |
           node --input-type=module <<'NODE'
@@ -71,4 +74,6 @@ jobs:
           NODE
       - name: Validate Tenant canary
         working-directory: http-generic-api
-        run: node test-hostinger-storage-tenant-canary.mjs
+        run: |
+          node test-hostinger-storage-tenant-canary.mjs
+          node test-hostinger-storage-tenant-canary-authority-cas.mjs
