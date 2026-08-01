@@ -36,9 +36,10 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation and PR reviewer",
-          "entrypoint": "PR Generated Artifact Refresh on an internal governed pull request",
+          "entrypoint": "PR Generated Artifact Refresh on an internal governed pull request after the trusted workflow definition is present on the default branch",
           "terminal_outcome": "The pull-request workflow reports exact-head pass, drift, or first failure without repository mutation, and the trusted workflow_run publisher updates the authoritative PR comment without Job-log reconstruction.",
           "steps": [
+            "Treat the workflow definition on the default branch as the active pull-request automation authority until this change is merged.",
             "Checkout the exact source PR head with read-only contents permission and without persisted credentials.",
             "Generate and verify the bounded artifact set only inside the ephemeral runner workspace.",
             "Return generated_artifact_drift_detected when reviewed generated files differ.",
@@ -52,6 +53,7 @@
             "The report declares secrets_included=false and bounded redacted diagnostics.",
             "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
             "The tests remain discoverable through the canonical repository test manifest.",
+            "Pre-merge behavior of a pull_request workflow is not used as proof of its replacement definition; operational proof begins after the trusted definition reaches the default branch.",
             "Job logs remain diagnostic-only and never override the canonical report."
           ],
           "tests": [
@@ -128,7 +130,7 @@
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe canonical read-only evaluation and governed apply reports on representative generated-artifact PRs before branch-protection enforcement."
+      "objective": "Observe canonical read-only evaluation and governed apply reports on representative generated-artifact PRs after the workflow definition reaches the default branch."
     },
     {
       "id": "production",
