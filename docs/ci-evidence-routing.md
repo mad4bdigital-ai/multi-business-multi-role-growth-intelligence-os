@@ -55,7 +55,18 @@ For workstream failures, `e2e-parallel-test-runner.mjs` captures bounded redacte
 
 ## Branch Test Diagnostic Shards
 
-`Branch Test Diagnostic Shards` already publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. Use that summary before shard or sequential logs. Exact rerun coordinates from the report should be used for isolation instead of manually reading every shard.
+`Branch Test Diagnostic Shards` publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. Use that summary before shard or sequential logs. Exact rerun coordinates from the report should be used for isolation instead of manually reading every shard.
+
+## Context Kernel Hardcoding Report
+
+`Context Kernel Hardcoding Report` scans the exact changed-file scope for the candidate head and publishes:
+
+- structured scanner source: `context-kernel-hardcoding-source.json`;
+- canonical decision: `mad4b.context-kernel-hardcoding-summary.v1`;
+- artifact: `context-kernel-hardcoding-summary-<run_id>`;
+- GitHub Step Summary containing the first runtime finding, path, line, bounded evidence, and remediation.
+
+The canonical report is uploaded before enforcement. Therefore a blocked guard remains diagnosable without reading the failed Job log. The aggregate full-repository baseline is not a substitute for the exact changed-file report and must not be used to attribute a PR failure.
 
 ## Agent response rule
 
