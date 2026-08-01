@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "08bdd49d104c24def52ff4cfccf50078e602ce86954456fcd261b4dde093262b",
+    "source_digest": "1c1f23695007832b4ff8bf638d03219648f338e0836c642e663ac0afe224073f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -931,7 +931,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "aaa119c47cbc0920c36dc0c731d1fbc7fc2680a068c1b22942704341165816fc",
+        "sha256": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
         "present": true
       },
       {
@@ -1036,35 +1036,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 173,
+    "mounted_family_count": 172,
     "mounted_route_file_count": 138,
-    "mixed_scope_route_file_count": 27,
-    "operation_count": 1035,
-    "openapi_documented_count": 1019,
-    "openapi_canonical_documented_count": 630,
+    "mixed_scope_route_file_count": 26,
+    "operation_count": 1034,
+    "openapi_documented_count": 1018,
+    "openapi_canonical_documented_count": 629,
     "openapi_generated_index_count": 389,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 389,
     "auth_parity_counts": {
       "equivalent": 1018,
-      "exempt": 16,
-      "unknown": 1
+      "exempt": 16
     },
-    "auth_contract_gap_count": 1,
+    "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 628,
     "unresolved_operation_class_count": 568,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 158,
+    "unresolved_surface_decision_count": 157,
     "test_owned_family_count": 0,
-    "untested_family_count": 173,
+    "untested_family_count": 172,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1032,
+    "untested_operation_count": 1031,
     "ready_task_count": 0,
-    "blocked_task_count": 173,
+    "blocked_task_count": 172,
     "coverage_complete": false
   },
   "waves": [
@@ -1533,13 +1532,13 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "tenant-gpt-oauth-metadata.public",
-      "label": "tenant gpt oauth metadata (public)",
+      "family_key": "tenant-gpt-oauth-metadata",
+      "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "aaa119c47cbc0920c36dc0c731d1fbc7fc2680a068c1b22942704341165816fc",
+      "source_digest": "fabeb8fb5e628b6d0d0589504696d632d4bb04dc48b541abfd69ed5fc45d9421",
       "mount_prefix": "/",
       "mount_order": 11977,
-      "split_from_mixed_scope_file": true,
+      "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "authentication",
@@ -1684,115 +1683,6 @@
         "class": "medium"
       },
       "wave": "F1-tenant-shell"
-    },
-    {
-      "family_key": "tenant-gpt-oauth-metadata.unresolved",
-      "label": "tenant gpt oauth metadata (unresolved)",
-      "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "aaa119c47cbc0920c36dc0c731d1fbc7fc2680a068c1b22942704341165816fc",
-      "mount_prefix": "/",
-      "mount_order": 11977,
-      "split_from_mixed_scope_file": true,
-      "split_from_surface_policy": false,
-      "surface_policy_partition": "default",
-      "group": "authentication",
-      "scope": "unresolved",
-      "operations": [
-        {
-          "method": "GET",
-          "path": "/.well-known/oauth-authorization-server/auth/mcp",
-          "signature": "GET /.well-known/oauth-authorization-server/auth/mcp",
-          "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-          "scope": "unresolved",
-          "runtime_auth": {
-            "state": "unresolved",
-            "profile": "no_explicit_auth_evidence",
-            "alternatives": null,
-            "principal": null,
-            "guard_chain": [],
-            "evidence": [],
-            "configuration_dependencies": []
-          },
-          "openapi_auth": {
-            "source_file": "openapi/remote-mcp-oauth21.yaml",
-            "security_declared": true,
-            "security_alternatives": [],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "unknown",
-            "reasons": [
-              "no_explicit_auth_evidence"
-            ]
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        }
-      ],
-      "openapi_gaps": [],
-      "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
-      "auth_contract_gaps": [
-        {
-          "signature": "GET /.well-known/oauth-authorization-server/auth/mcp",
-          "state": "unknown",
-          "reasons": [
-            "no_explicit_auth_evidence"
-          ]
-        }
-      ],
-      "evidence_routes": [],
-      "tests": [],
-      "untested_operations": [
-        "GET /.well-known/oauth-authorization-server/auth/mcp"
-      ],
-      "resources": [],
-      "embedded_ui": false,
-      "embedded_ui_operations": [],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/remote-mcp-oauth21.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/tenantGptOAuthMetadataRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
-      },
-      "operation_blockers": [],
-      "risk": {
-        "score": 11,
-        "class": "critical"
-      },
-      "wave": "F0-authority-resolution"
     },
     {
       "family_key": "deployment-info",
@@ -85530,47 +85420,6 @@
       ]
     },
     {
-      "task_key": "frontend.tenant-gpt-oauth-metadata.unresolved",
-      "title": "Resolve and deliver tenant gpt oauth metadata (unresolved)",
-      "wave": "F0-authority-resolution",
-      "state": "blocked",
-      "blockers": [
-        "scope_unresolved",
-        "auth_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required"
-      ],
-      "dependencies": [
-        "F0-source-baseline"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/remote-mcp-oauth21.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/tenantGptOAuthMetadataRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
       "task_key": "frontend.activation-awareness.tenant",
       "title": "Resolve and deliver activation awareness (tenant)",
       "wave": "F1-tenant-shell",
@@ -87050,8 +86899,8 @@
       ]
     },
     {
-      "task_key": "frontend.tenant-gpt-oauth-metadata.public",
-      "title": "Resolve and deliver tenant gpt oauth metadata (public)",
+      "task_key": "frontend.tenant-gpt-oauth-metadata",
+      "title": "Resolve and deliver tenant gpt oauth metadata",
       "wave": "F1-tenant-shell",
       "state": "blocked",
       "blockers": [
