@@ -80,6 +80,7 @@ function authorize(fixture, overrides = {}, now = 1100) {
     operation: inputs.operation,
     protocol,
     protocol_digest: protocolDigest,
+    immutable_plan: fixture.plan,
     allowlist_entry: inputs.allowlist,
     workspace_owner_approval: inputs.approval,
     manual_enablement: inputs.enablement,
@@ -105,13 +106,13 @@ function registerAuthority(store, authorization) {
   store.registerApproval(authorization.authorization.workspace_owner_approval);
 }
 
-function executeCanary({ fixture, authorization, registry, authorityStore, fault = null, now = 1100 }) {
+function executeCanary({ fixture, authorization, registry, authorityStore, fault = null, now = 1100, protocol = null, protocolDigest = null, adapter = null }) {
   return executeHostingerStorageTenantCanary({
     canary_authorization: authorization,
-    protocol: fixture.protocol.protocol,
-    protocol_digest: fixture.protocol.protocol_digest,
+    protocol: protocol || fixture.protocol.protocol,
+    protocol_digest: protocolDigest || fixture.protocol.protocol_digest,
     repository: fixture.repository,
-    adapter: fixture.adapter,
+    adapter: adapter || fixture.adapter,
     authority_store: authorityStore,
     enablement_registry: registry,
     fault,
@@ -120,14 +121,12 @@ function executeCanary({ fixture, authorization, registry, authorityStore, fault
 }
 
 const fixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-1',
-  operation_id: 'tenant-canary-operation-1',
-  plan_id: 'tenant-canary-plan-1',
-  target_id: 'tenant-canary-target-1',
+  run_id: 'tenant-canary-run-1', operation_id: 'tenant-canary-operation-1', plan_id: 'tenant-canary-plan-1', target_id: 'tenant-canary-target-1',
 });
 const ready = authorize(fixture);
 assert.equal(ready.authorization.canary_ready, true);
 assert.deepEqual(ready.authorization.blockers, []);
+assert.equal(ready.authorization.authorization.protocol.item_set_digest, ready.authorization.authorization.immutable_plan.item_set_digest);
 assert.equal(ready.authorization.dispatch_allowed, false);
 assert.equal(ready.authorization.live_provider_allowed, false);
 assert.equal(ready.authorization.production_ready, false);
@@ -155,15 +154,11 @@ assert.equal(registry.exportState()[0].consumed, true);
 assert.equal(registry.exportState()[0].generation, 2);
 assert.throws(
   () => executeCanary({ fixture, authorization: ready.authorization, registry, authorityStore, now: 1110 }),
-  (error) => error.code === 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_MISMATCH'
-    || error.code === 'STORAGE_TENANT_CANARY_ENABLEMENT_ALREADY_CONSUMED',
+  (error) => ['STORAGE_TENANT_CANARY_EXECUTOR_OPERATION_STATE_INVALID', 'STORAGE_TENANT_CANARY_ENABLEMENT_GENERATION_MISMATCH', 'STORAGE_TENANT_CANARY_ENABLEMENT_ALREADY_CONSUMED'].includes(error.code),
 );
 
 const interruptedFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-interrupted',
-  operation_id: 'tenant-canary-operation-interrupted',
-  plan_id: 'tenant-canary-plan-interrupted',
-  target_id: 'tenant-canary-target-interrupted',
+  run_id: 'tenant-canary-run-interrupted', operation_id: 'tenant-canary-operation-interrupted', plan_id: 'tenant-canary-plan-interrupted', target_id: 'tenant-canary-target-interrupted',
 });
 const interruptedAuthorization = authorize(interruptedFixture).authorization;
 const interruptedRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
@@ -197,16 +192,9 @@ revokedAllowlistAuthority.updateAllowlist({
   record: { ...signedAllowlist, revision: 'allowlist-r2', status: 'disabled', evidence_digest: h('d') },
 });
 assert.throws(
-  () => executeCanary({
-    fixture: revokedAllowlistFixture,
-    authorization: revokedAllowlistAuthorization,
-    registry: revokedAllowlistRegistry,
-    authorityStore: revokedAllowlistAuthority,
-  }),
+  () => executeCanary({ fixture: revokedAllowlistFixture, authorization: revokedAllowlistAuthorization, registry: revokedAllowlistRegistry, authorityStore: revokedAllowlistAuthority }),
   (error) => error.code === 'STORAGE_TENANT_CANARY_ALLOWLIST_CURRENT_STATE_INVALID'
-    && error.details?.mismatches?.includes('revision')
-    && error.details?.mismatches?.includes('status')
-    && error.details?.mismatches?.includes('evidence_digest'),
+    && error.details?.mismatches?.includes('revision') && error.details?.mismatches?.includes('status') && error.details?.mismatches?.includes('evidence_digest'),
 );
 assert.equal(revokedAllowlistRegistry.exportState()[0].consumed, false);
 assert.equal(revokedAllowlistFixture.adapter.exportState().items[0].exists, true);
@@ -226,72 +214,50 @@ revokedApprovalAuthority.updateApproval({
   record: { ...signedApproval, status: 'revoked', evidence_digest: h('e') },
 });
 assert.throws(
-  () => executeCanary({
-    fixture: revokedApprovalFixture,
-    authorization: revokedApprovalAuthorization,
-    registry: revokedApprovalRegistry,
-    authorityStore: revokedApprovalAuthority,
-  }),
+  () => executeCanary({ fixture: revokedApprovalFixture, authorization: revokedApprovalAuthorization, registry: revokedApprovalRegistry, authorityStore: revokedApprovalAuthority }),
   (error) => error.code === 'STORAGE_TENANT_CANARY_APPROVAL_CURRENT_STATE_INVALID'
-    && error.details?.mismatches?.includes('status')
-    && error.details?.mismatches?.includes('evidence_digest'),
+    && error.details?.mismatches?.includes('status') && error.details?.mismatches?.includes('evidence_digest'),
 );
 assert.equal(revokedApprovalRegistry.exportState()[0].consumed, false);
 assert.equal(revokedApprovalFixture.adapter.exportState().items[0].exists, true);
 
-const crossTenantFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-cross', operation_id: 'tenant-canary-operation-cross', plan_id: 'tenant-canary-plan-cross', target_id: 'tenant-canary-target-cross',
-});
+const crossTenantFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-cross', operation_id: 'tenant-canary-operation-cross', plan_id: 'tenant-canary-plan-cross', target_id: 'tenant-canary-target-cross' });
 const crossTenant = authorize(crossTenantFixture, { allowlist: { tenant_id: 'tenant-other' } }).authorization;
 assert.equal(crossTenant.canary_ready, false);
 assert(crossTenant.blockers.includes('STORAGE_TENANT_CANARY_ALLOWLIST_TENANT_ID_MISMATCH'));
 
-const sharedFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-shared', operation_id: 'tenant-canary-operation-shared', plan_id: 'tenant-canary-plan-shared', target_id: 'tenant-canary-target-shared',
-});
+const sharedFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-shared', operation_id: 'tenant-canary-operation-shared', plan_id: 'tenant-canary-plan-shared', target_id: 'tenant-canary-target-shared' });
 const shared = authorize(sharedFixture, { allowlist: { target_scope: 'shared', shared_target: true } }).authorization;
 assert.equal(shared.canary_ready, false);
 assert(shared.blockers.includes('STORAGE_TENANT_CANARY_TENANT_EXCLUSIVE_TARGET_REQUIRED'));
 
-const expiredFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-expired', operation_id: 'tenant-canary-operation-expired', plan_id: 'tenant-canary-plan-expired', target_id: 'tenant-canary-target-expired',
-});
+const expiredFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-expired', operation_id: 'tenant-canary-operation-expired', plan_id: 'tenant-canary-plan-expired', target_id: 'tenant-canary-target-expired' });
 const expired = authorize(expiredFixture, { allowlist: { expires_at_epoch: 1099 }, enablement: { expires_at_epoch: 1099 } }).authorization;
 assert.equal(expired.canary_ready, false);
 assert(expired.blockers.includes('STORAGE_TENANT_CANARY_ALLOWLIST_EXPIRED'));
 assert(expired.blockers.includes('STORAGE_TENANT_CANARY_ENABLEMENT_EXPIRED'));
 
-const wrongApproverFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-approver', operation_id: 'tenant-canary-operation-approver', plan_id: 'tenant-canary-plan-approver', target_id: 'tenant-canary-target-approver',
-});
+const wrongApproverFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-approver', operation_id: 'tenant-canary-operation-approver', plan_id: 'tenant-canary-plan-approver', target_id: 'tenant-canary-target-approver' });
 const wrongApprover = authorize(wrongApproverFixture, { approval: { approver_role: 'workspace_editor' } }).authorization;
 assert.equal(wrongApprover.canary_ready, false);
 assert(wrongApprover.blockers.includes('STORAGE_TENANT_CANARY_WORKSPACE_OWNER_APPROVAL_REQUIRED'));
 
-const overLimitFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-limit', operation_id: 'tenant-canary-operation-limit', plan_id: 'tenant-canary-plan-limit', target_id: 'tenant-canary-target-limit',
-});
+const overLimitFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-limit', operation_id: 'tenant-canary-operation-limit', plan_id: 'tenant-canary-plan-limit', target_id: 'tenant-canary-target-limit' });
 const overLimit = authorize(overLimitFixture, { allowlist: { max_bytes: 100 } }).authorization;
 assert.equal(overLimit.canary_ready, false);
 assert(overLimit.blockers.includes('STORAGE_TENANT_CANARY_BYTE_LIMIT_EXCEEDED'));
 
-const pathBoundaryFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-path-boundary', operation_id: 'tenant-canary-operation-path-boundary', plan_id: 'tenant-canary-plan-path-boundary', target_id: 'tenant-canary-target-path-boundary',
-});
+const pathBoundaryFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-path-boundary', operation_id: 'tenant-canary-operation-path-boundary', plan_id: 'tenant-canary-plan-path-boundary', target_id: 'tenant-canary-target-path-boundary' });
 const pathBoundary = authorize(pathBoundaryFixture, { allowlist: { path_ref_prefix: 'paths' } }).authorization;
 assert.equal(pathBoundary.canary_ready, false);
 assert(pathBoundary.blockers.includes('STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED'));
 
-const pathMismatchFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-path', operation_id: 'tenant-canary-operation-path', plan_id: 'tenant-canary-plan-path', target_id: 'tenant-canary-target-path',
-});
+const pathMismatchFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-path', operation_id: 'tenant-canary-operation-path', plan_id: 'tenant-canary-plan-path', target_id: 'tenant-canary-target-path' });
 const pathMismatch = authorize(pathMismatchFixture, { allowlist: { path_ref_prefix: 'tenant-root/' } }).authorization;
 assert.equal(pathMismatch.canary_ready, false);
 assert(pathMismatch.blockers.includes('STORAGE_TENANT_CANARY_PATH_PREFIX_MISMATCH'));
 
-const versionFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-version', operation_id: 'tenant-canary-operation-version', plan_id: 'tenant-canary-plan-version', target_id: 'tenant-canary-target-version',
-});
+const versionFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-version', operation_id: 'tenant-canary-operation-version', plan_id: 'tenant-canary-plan-version', target_id: 'tenant-canary-target-version' });
 const inventedProtocol = structuredClone(versionFixture.protocol.protocol);
 inventedProtocol.protocol_version = 'invented-synthetic-v9';
 const inventedProtocolDigest = digest(inventedProtocol);
@@ -299,19 +265,89 @@ const wrongVersion = authorize(versionFixture, { protocol: inventedProtocol, pro
 assert.equal(wrongVersion.canary_ready, false);
 assert(wrongVersion.blockers.includes('STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID'));
 
-const emptyFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-empty', operation_id: 'tenant-canary-operation-empty', plan_id: 'tenant-canary-plan-empty', target_id: 'tenant-canary-target-empty',
-});
+const emptyFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-empty', operation_id: 'tenant-canary-operation-empty', plan_id: 'tenant-canary-plan-empty', target_id: 'tenant-canary-target-empty' });
 const emptyProtocol = structuredClone(emptyFixture.protocol.protocol);
 emptyProtocol.items = [];
 const emptyProtocolDigest = digest(emptyProtocol);
 const emptyCanary = authorize(emptyFixture, { protocol: emptyProtocol, protocol_digest: emptyProtocolDigest }).authorization;
 assert.equal(emptyCanary.canary_ready, false);
 assert(emptyCanary.blockers.includes('STORAGE_TENANT_CANARY_ITEMS_REQUIRED'));
+assert(emptyCanary.blockers.includes('STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH'));
 
-const unsafeRegistryFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-registry', operation_id: 'tenant-canary-operation-registry', plan_id: 'tenant-canary-plan-registry', target_id: 'tenant-canary-target-registry',
+const substitutedFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-substituted', operation_id: 'tenant-canary-operation-substituted', plan_id: 'tenant-canary-plan-substituted', target_id: 'tenant-canary-target-substituted' });
+const substitutedProtocol = structuredClone(substitutedFixture.protocol.protocol);
+substitutedProtocol.items[0].path_ref = 'paths/substituted-item';
+substitutedProtocol.items[0].expected.inode = 999;
+const substitutedProtocolDigest = digest(substitutedProtocol);
+const substitutedCanary = authorize(substitutedFixture, { protocol: substitutedProtocol, protocol_digest: substitutedProtocolDigest }).authorization;
+assert.equal(substitutedCanary.canary_ready, false);
+assert(substitutedCanary.blockers.includes('STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH'));
+
+const tamperedExecutionFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-tampered', operation_id: 'tenant-canary-operation-tampered', plan_id: 'tenant-canary-plan-tampered', target_id: 'tenant-canary-target-tampered' });
+const tamperedExecutionAuthorization = authorize(tamperedExecutionFixture).authorization;
+const tamperedExecutionRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
+const tamperedExecutionAuthority = createMemoryHostingerStorageTenantCanaryAuthorityStore();
+registerEnablement(tamperedExecutionRegistry, tamperedExecutionFixture, tamperedExecutionAuthorization);
+registerAuthority(tamperedExecutionAuthority, tamperedExecutionAuthorization);
+const tamperedAtExecution = structuredClone(tamperedExecutionFixture.protocol.protocol);
+tamperedAtExecution.items[0].expected.inode = 1001;
+assert.throws(
+  () => executeCanary({
+    fixture: tamperedExecutionFixture,
+    authorization: tamperedExecutionAuthorization,
+    registry: tamperedExecutionRegistry,
+    authorityStore: tamperedExecutionAuthority,
+    protocol: tamperedAtExecution,
+    protocolDigest: tamperedExecutionFixture.protocol.protocol_digest,
+  }),
+  (error) => error.code === 'STORAGE_EXECUTOR_PROTOCOL_TAMPERED',
+);
+assert.equal(tamperedExecutionRegistry.exportState()[0].consumed, false);
+assert.equal(tamperedExecutionFixture.adapter.exportState().items[0].exists, true);
+
+const staleLeaseFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-stale-lease', operation_id: 'tenant-canary-operation-stale-lease', plan_id: 'tenant-canary-plan-stale-lease', target_id: 'tenant-canary-target-stale-lease' });
+const staleLeaseAuthorization = authorize(staleLeaseFixture).authorization;
+const staleLeaseRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
+const staleLeaseAuthority = createMemoryHostingerStorageTenantCanaryAuthorityStore();
+registerEnablement(staleLeaseRegistry, staleLeaseFixture, staleLeaseAuthorization);
+registerAuthority(staleLeaseAuthority, staleLeaseAuthorization);
+staleLeaseFixture.repository.renewLease({
+  target_id: staleLeaseFixture.target_id,
+  lease_id: staleLeaseFixture.lease.lease_id,
+  operation_id: staleLeaseFixture.operation_id,
+  holder_ref: staleLeaseFixture.lease.holder_ref,
+  expected_generation: staleLeaseFixture.lease.generation,
+  expires_at_epoch: 1700,
+  evidence_digest: h('f'),
+  now_epoch: 1050,
 });
+assert.throws(
+  () => executeCanary({ fixture: staleLeaseFixture, authorization: staleLeaseAuthorization, registry: staleLeaseRegistry, authorityStore: staleLeaseAuthority }),
+  (error) => error.code === 'STORAGE_TENANT_CANARY_EXECUTOR_LEASE_INVALID' && error.details?.mismatches?.includes('generation'),
+);
+assert.equal(staleLeaseRegistry.exportState()[0].consumed, false);
+assert.equal(staleLeaseFixture.adapter.exportState().items[0].exists, true);
+
+const invalidAdapterFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-invalid-adapter', operation_id: 'tenant-canary-operation-invalid-adapter', plan_id: 'tenant-canary-plan-invalid-adapter', target_id: 'tenant-canary-target-invalid-adapter' });
+const invalidAdapterAuthorization = authorize(invalidAdapterFixture).authorization;
+const invalidAdapterRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
+const invalidAdapterAuthority = createMemoryHostingerStorageTenantCanaryAuthorityStore();
+registerEnablement(invalidAdapterRegistry, invalidAdapterFixture, invalidAdapterAuthorization);
+registerAuthority(invalidAdapterAuthority, invalidAdapterAuthorization);
+assert.throws(
+  () => executeCanary({
+    fixture: invalidAdapterFixture,
+    authorization: invalidAdapterAuthorization,
+    registry: invalidAdapterRegistry,
+    authorityStore: invalidAdapterAuthority,
+    adapter: { synthetic_only: false, production_ready: true, live_provider: true },
+  }),
+  (error) => error.code === 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID',
+);
+assert.equal(invalidAdapterRegistry.exportState()[0].consumed, false);
+assert.equal(invalidAdapterFixture.adapter.exportState().items[0].exists, true);
+
+const unsafeRegistryFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-registry', operation_id: 'tenant-canary-operation-registry', plan_id: 'tenant-canary-plan-registry', target_id: 'tenant-canary-target-registry' });
 const unsafeRegistryAuthorization = authorize(unsafeRegistryFixture).authorization;
 const unsafeRegistryAuthority = createMemoryHostingerStorageTenantCanaryAuthorityStore();
 registerAuthority(unsafeRegistryAuthority, unsafeRegistryAuthorization);
@@ -329,9 +365,7 @@ assert.throws(
   (error) => error.code === 'STORAGE_TENANT_CANARY_ENABLEMENT_REGISTRY_INVALID',
 );
 
-const unsafeAuthorityFixture = createSyntheticExecutorFixture({
-  run_id: 'tenant-canary-run-authority', operation_id: 'tenant-canary-operation-authority', plan_id: 'tenant-canary-plan-authority', target_id: 'tenant-canary-target-authority',
-});
+const unsafeAuthorityFixture = createSyntheticExecutorFixture({ run_id: 'tenant-canary-run-authority', operation_id: 'tenant-canary-operation-authority', plan_id: 'tenant-canary-plan-authority', target_id: 'tenant-canary-target-authority' });
 const unsafeAuthorityAuthorization = authorize(unsafeAuthorityFixture).authorization;
 const unsafeAuthorityRegistry = createMemoryHostingerStorageTenantCanaryEnablementRegistry();
 registerEnablement(unsafeAuthorityRegistry, unsafeAuthorityFixture, unsafeAuthorityAuthorization);
@@ -353,8 +387,10 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_tenant_canary',
   tenant_exclusive_allowlist: true,
+  immutable_plan_candidate_items_bound: true,
+  executor_preflight_before_enablement_consumption: true,
   current_allowlist_and_approval_revalidated: true,
-  revoked_authority_does_not_consume_enablement: true,
+  revoked_or_stale_inputs_do_not_consume_enablement: true,
   workspace_owner_approval_required: true,
   manual_one_shot_enablement_consumed: true,
   unknown_outcome_consumes_enablement: true,
