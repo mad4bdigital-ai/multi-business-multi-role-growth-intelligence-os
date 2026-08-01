@@ -1,13 +1,14 @@
 {
   "$schema": "contracts/draft-spec-portfolio.schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-  "observed_at": "2026-08-01T15:22:00Z",
+  "observed_at": "2026-08-01T15:48:00Z",
   "main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
   "portfolio_owner": "015-tenant-operating-system-studio",
   "identity_policy": {
     "canonical_identity": "feature_key_plus_canonical_role",
     "numeric_spec_number_is_unique_authority": false,
+    "open_draft_classification": "primary_spec_or_related_delivery",
     "merge_rule": "reconstruct_against_current_main_and_existing_authorities"
   },
   "draft_specs": [
@@ -23,29 +24,11 @@
       "scope_mode": "specification_only",
       "canonical_role": "architectural_doctrine_source",
       "portfolio_tier": "foundation",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 504,
-        "behind_by": 3248,
-        "mergeable": false
-      },
-      "dependencies": [
-        "dynamic_container_authority",
-        "shared_canonical_asset_registries",
-        "existing_capability_policy_connection_and_evidence_authorities"
-      ],
-      "overlaps": [
-        "006-adaptive-authorization-execution-governance",
-        "006-platform-dynamic-workflow-runtime",
-        "011-dynamic-multi-tenant-growth-control-plane",
-        "015-tenant-operating-system-studio"
-      ],
-      "portfolio_disposition": "Extract reviewed architecture decisions and invariants into current-main authorities; do not merge the 504-commit umbrella branch as a competing platform parent.",
-      "truthfulness_findings": [
-        "completion CI head does not match the live PR head",
-        "completion reports behind_by zero while the live branch is 3248 commits behind main",
-        "several declared design domains have since gained independent canonical implementations"
-      ]
+      "live_compare": { "status": "diverged", "ahead_by": 504, "behind_by": 3248, "mergeable": false },
+      "dependencies": ["dynamic_container_authority", "shared_canonical_asset_registries", "current_capability_policy_connection_and_evidence_authorities"],
+      "overlaps": ["006-adaptive-authorization-execution-governance", "006-platform-dynamic-workflow-runtime", "011-dynamic-multi-tenant-growth-control-plane", "015-tenant-operating-system-studio"],
+      "portfolio_disposition": "Extract reviewed architectural decisions and invariants into current-main authorities; do not merge the umbrella branch as a competing platform parent.",
+      "truthfulness_findings": ["completion CI head does not match the live PR head", "completion reports zero divergence while the live branch is 3248 commits behind main", "multiple declared domains now have dedicated current authorities"]
     },
     {
       "pull_request": 1935,
@@ -59,28 +42,11 @@
       "scope_mode": "specification_only",
       "canonical_role": "authority_kernel_candidate",
       "portfolio_tier": "kernel",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 3,
-        "behind_by": 5297,
-        "mergeable": false
-      },
-      "dependencies": [
-        "relationship_graph_revision_evidence",
-        "capability_and_resource_authority",
-        "approval_and_readback_authorities"
-      ],
-      "overlaps": [
-        "012-unified-admin-tenant-context-kernel",
-        "011-tenant-gpt-effective-capability-envelope",
-        "014-governed-hostinger-storage-orchestration"
-      ],
-      "portfolio_disposition": "Reconcile policy-decision, scoped-grant, PEP, certified-adapter, approval, and readback concepts into current authorization and context authorities before any implementation extraction.",
-      "truthfulness_findings": [
-        "branch is 5297 commits behind current main",
-        "completion has no implementation or current exact-head CI evidence",
-        "logical model may duplicate authorities created after the branch diverged"
-      ]
+      "live_compare": { "status": "diverged", "ahead_by": 3, "behind_by": 5297, "mergeable": false },
+      "dependencies": ["relationship_graph_revision_evidence", "capability_and_resource_authority", "approval_and_readback_authorities"],
+      "overlaps": ["012-unified-admin-tenant-context-kernel", "011-tenant-gpt-effective-capability-envelope", "014-governed-hostinger-storage-orchestration"],
+      "portfolio_disposition": "Reconcile policy decisions, scoped grants, enforcement points, adapters, approvals, and readback into current authorization and context authorities before extracting implementation.",
+      "truthfulness_findings": ["branch is 5297 commits behind main", "completion has no current exact-head implementation evidence", "logical entities may duplicate authorities added after divergence"]
     },
     {
       "pull_request": 2284,
@@ -94,28 +60,11 @@
       "scope_mode": "specification_only",
       "canonical_role": "repository_delivery_subsystem",
       "portfolio_tier": "platform_service",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 2,
-        "behind_by": 4256,
-        "mergeable": false
-      },
-      "dependencies": [
-        "repository_automation_control_plane",
-        "capability_envelopes",
-        "migration_and_release_readiness",
-        "canonical_ci_evidence"
-      ],
-      "overlaps": [
-        "014-gemini-evidence-intake-automation.generic_development_assurance",
-        "011-database-driven-operation-fabric.managed_git_and_ci_diagnosis"
-      ],
-      "portfolio_disposition": "Consolidate useful drift-aware delivery, receipts, candidate CI, retries, and closeout rules with the current repository automation and the generic assurance template extracted from PR 4432.",
-      "truthfulness_findings": [
-        "branch is 4256 commits behind main",
-        "completion records no latest CI, release readiness, migration ledger, or production parity evidence",
-        "multiple intended capabilities now exist in newer repository workflows and require a reuse matrix"
-      ]
+      "live_compare": { "status": "diverged", "ahead_by": 2, "behind_by": 4256, "mergeable": false },
+      "dependencies": ["repository_automation_control_plane", "capability_envelopes", "migration_and_release_readiness", "canonical_ci_evidence"],
+      "overlaps": ["014-gemini-evidence-intake-automation.generic_development_assurance", "011-database-driven-operation-fabric.managed_git_and_ci_diagnosis", "repository-readiness-repair"],
+      "portfolio_disposition": "Consolidate drift-aware delivery, receipts, candidate CI, retries, and closeout with current repository automation and generic assurance extracted from PR 4432.",
+      "truthfulness_findings": ["branch is 4256 commits behind main", "completion lacks current CI and release-readiness evidence", "many proposed capabilities now exist in newer repository workflows"]
     },
     {
       "pull_request": 2385,
@@ -129,29 +78,12 @@
       "scope_mode": "specification_only",
       "canonical_role": "infrastructure_recovery_subsystem",
       "portfolio_tier": "platform_service",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 5,
-        "behind_by": 3877,
-        "mergeable": false
-      },
-      "dependencies": [
-        "006-adaptive-authorization-execution-governance",
-        "resource_api_coverage",
-        "dynamic_capability_governance",
-        "local_connector_route_lifecycle"
-      ],
-      "overlaps": [
-        "014-governed-hostinger-storage-orchestration",
-        "011-tenant-gpt-effective-capability-envelope.device_readiness"
-      ],
-      "portfolio_disposition": "Reconstruct as a bounded Local Connector Recovery platform service and optional Solution Package component; reuse current device, connection, capability, approval, probe, and same-cycle readback authorities.",
+      "live_compare": { "status": "diverged", "ahead_by": 5, "behind_by": 3877, "mergeable": false },
+      "dependencies": ["006-adaptive-authorization-execution-governance", "resource_api_coverage", "dynamic_capability_governance", "local_connector_route_lifecycle"],
+      "overlaps": ["014-governed-hostinger-storage-orchestration", "011-tenant-gpt-effective-capability-envelope.device_readiness"],
+      "portfolio_disposition": "Reconstruct as a bounded Local Connector Recovery platform service and optional package while reusing current device, connection, capability, approval, probe, and readback authorities.",
       "target_package_key": "platform.reference.local_connector_recovery",
-      "truthfulness_findings": [
-        "branch is 3877 commits behind main",
-        "all nine runtime lanes remain pending",
-        "completion has no exact-head CI evidence and requires a current-main contract and data-model review"
-      ]
+      "truthfulness_findings": ["branch is 3877 commits behind main", "all nine implementation lanes remain pending", "completion has no current exact-head runtime evidence"]
     },
     {
       "pull_request": 2949,
@@ -165,29 +97,11 @@
       "scope_mode": "specification_only",
       "canonical_role": "operation_fabric_subsystem",
       "portfolio_tier": "kernel",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 15,
-        "behind_by": 1873,
-        "mergeable": false
-      },
-      "dependencies": [
-        "006-platform-dynamic-workflow-runtime",
-        "011-dynamic-multi-tenant-growth-control-plane",
-        "capability_dispatch_resource_credential_approval_and_readback_authorities"
-      ],
-      "overlaps": [
-        "008-governed-pr-delivery-orchestration",
-        "015-tenant-operating-system-studio.installation_compiler",
-        "014-gemini-evidence-intake-automation.development_assurance"
-      ],
-      "portfolio_disposition": "Treat as an operation-registry and compiled-binding subsystem beneath existing workflow and control-plane authorities; reconcile the full stacked implementation train onto current main rather than merging the stale parent branch.",
-      "truthfulness_findings": [
-        "the Spec root has no manifest.json",
-        "completion says implementation not started and implementation_prs empty despite thirteen open stacked implementation PRs",
-        "specification PR number remains null",
-        "branch is 1873 commits behind main"
-      ]
+      "live_compare": { "status": "diverged", "ahead_by": 15, "behind_by": 1873, "mergeable": false },
+      "dependencies": ["006-platform-dynamic-workflow-runtime", "011-dynamic-multi-tenant-growth-control-plane", "capability_dispatch_resource_credential_approval_and_readback_authorities"],
+      "overlaps": ["008-governed-pr-delivery-orchestration", "013-system-tool-catalog-v2", "015-tenant-operating-system-studio.installation_compiler", "014-gemini-evidence-intake-automation.development_assurance"],
+      "portfolio_disposition": "Treat as an operation registry and compiled-binding subsystem beneath current workflow and control-plane authorities; reconcile its complete stacked implementation train onto current main.",
+      "truthfulness_findings": ["Spec root has no manifest.json", "completion says implementation not started despite thirteen stacked implementation PRs", "specification PR number is null", "branch is 1873 commits behind main"]
     },
     {
       "pull_request": 2950,
@@ -201,30 +115,29 @@
       "scope_mode": "mixed_spec_and_implementation",
       "canonical_role": "tenant_application_component",
       "portfolio_tier": "tenant_product",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 13,
-        "behind_by": 1901,
-        "mergeable": false
-      },
-      "dependencies": [
-        "006-adaptive-authorization-execution-governance",
-        "006-platform-dynamic-workflow-runtime",
-        "007-dynamic-capability-governance",
-        "009-platform-request-execution-hardening",
-        "012-unified-admin-tenant-context-kernel"
-      ],
-      "overlaps": [
-        "015-tenant-operating-system-studio.generated_assistant_surfaces",
-        "014-gemini-evidence-intake-automation.questionnaires_and_evidence",
-        "009-local-connector-reachability-recovery.device_readiness"
-      ],
-      "portfolio_disposition": "Reconstruct the capability envelope, resource-connection binding, questionnaire, and conversation orchestration as tenant-safe Studio assistant components; do not treat this as a second Spec 011 platform kernel.",
-      "truthfulness_findings": [
-        "PR changes runtime modules and tests while completion says implementation not started",
-        "manifest says specification implementation started but initial_runtime_effect none",
-        "branch is 1901 commits behind main and needs current context-kernel reconciliation"
-      ]
+      "live_compare": { "status": "diverged", "ahead_by": 13, "behind_by": 1901, "mergeable": false },
+      "dependencies": ["006-adaptive-authorization-execution-governance", "006-platform-dynamic-workflow-runtime", "007-dynamic-capability-governance", "012-unified-admin-tenant-context-kernel"],
+      "overlaps": ["015-tenant-operating-system-studio.generated_assistant_surfaces", "014-gemini-evidence-intake-automation.questionnaires", "016-chatgpt-plugin-mcp-integration"],
+      "portfolio_disposition": "Reconstruct capability discovery, exact connection binding, questionnaires, and preview orchestration as tenant-safe Studio assistant components rather than a second platform Spec 011 kernel.",
+      "truthfulness_findings": ["PR changes runtime modules and tests while completion says implementation not started", "branch is 1901 commits behind main", "current Context Kernel reconciliation is missing"]
+    },
+    {
+      "pull_request": 3159,
+      "feature_key": "013-system-tool-catalog-v2",
+      "title": "System Tool Catalog v2",
+      "spec_root": "specs/013-system-tool-catalog-v2",
+      "branch": "gpt/013-system-tool-catalog-v2-resolution-1443d090",
+      "observed_head_sha": "22aed35f6ca272515dd5dd111b9cf64a320a2b6a",
+      "state": "open",
+      "draft": true,
+      "scope_mode": "mixed_spec_and_implementation",
+      "canonical_role": "system_tool_catalog_subsystem",
+      "portfolio_tier": "platform_service",
+      "live_compare": { "status": "diverged", "ahead_by": 2, "behind_by": 1570, "mergeable": false },
+      "dependencies": ["system_layer_routes", "openapi_tool_contracts", "test_manifest", "current_capability_and_operation_projection_authorities"],
+      "overlaps": ["011-database-driven-operation-fabric.tool_projection", "016-chatgpt-plugin-mcp-integration.tool_catalog", "011-tenant-gpt-effective-capability-envelope"],
+      "portfolio_disposition": "Choose one current-main System Tool Catalog v2 reconstruction, preserve the pure catalog and fallback contracts, and supersede duplicate reconciliation/helper branches after exact-head validation.",
+      "truthfulness_findings": ["completion names a different current branch than the live PR branch", "completion lists no implementation PRs although the same PR changes runtime and OpenAPI files", "two additional open reconciliation/helper PRs target the same feature", "branch is 1570 commits behind main"]
     },
     {
       "pull_request": 3922,
@@ -238,29 +151,12 @@
       "scope_mode": "specification_only",
       "canonical_role": "reference_solution_package_source",
       "portfolio_tier": "reference_package",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 95,
-        "behind_by": 278,
-        "mergeable": true
-      },
-      "dependencies": [
-        "dynamic_container_authority",
-        "011-dynamic-multi-tenant-growth-control-plane",
-        "012-unified-admin-tenant-context-kernel",
-        "015-tenant-operating-system-studio"
-      ],
-      "overlaps": [
-        "004-tenant-asset-federation.business_type_inheritance",
-        "015-tenant-operating-system-studio.package_and_installation_model"
-      ],
-      "portfolio_disposition": "Extract generic Business Operating Profile, activity, inheritance, pack, and Blueprint substrate; reconstruct the Commerce-specific remainder as the Retail Commerce reference Solution Package.",
+      "live_compare": { "status": "diverged", "ahead_by": 95, "behind_by": 278, "mergeable": true },
+      "dependencies": ["dynamic_container_authority", "011-dynamic-multi-tenant-growth-control-plane", "012-unified-admin-tenant-context-kernel", "015-tenant-operating-system-studio"],
+      "overlaps": ["004-tenant-asset-federation.business_type_inheritance", "015-tenant-operating-system-studio.package_model"],
+      "portfolio_disposition": "Extract generic Business Operating Profile, activity, inheritance, pack, and Blueprint substrate; reconstruct Commerce-specific content as the Retail Commerce reference package.",
       "target_package_key": "platform.reference.retail_commerce_operations",
-      "truthfulness_findings": [
-        "PR body describes an older zero-behind validation state while the live branch is 278 commits behind main",
-        "duplicate Spec 014 identity remains unresolved",
-        "clarification blockers remain open and runtime implementation has not started"
-      ]
+      "truthfulness_findings": ["PR body records an older zero-behind state while the live branch is 278 commits behind main", "duplicate Spec 014 identity remains unresolved", "runtime implementation has not started"]
     },
     {
       "pull_request": 4386,
@@ -274,30 +170,12 @@
       "scope_mode": "integration_rollup",
       "canonical_role": "integration_rollup",
       "portfolio_tier": "platform_service",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 256,
-        "behind_by": 2,
-        "mergeable": true
-      },
-      "dependencies": [
-        "012-unified-admin-tenant-context-kernel",
-        "capability_approval_execution_lease_and_readback_authorities",
-        "managed_worker_and_resource_connection_authority"
-      ],
-      "overlaps": [
-        "009-local-connector-reachability-recovery",
-        "011-database-driven-operation-fabric",
-        "015-tenant-operating-system-studio.operational_solution_packages"
-      ],
-      "portfolio_disposition": "Retain as a bounded Hostinger Storage platform service and reference operational Solution Package; resolve the third Spec 014 identity and keep provider dispatch disabled until durable authority, canary, migration, and production gates close.",
+      "live_compare": { "status": "diverged", "ahead_by": 256, "behind_by": 2, "mergeable": true },
+      "dependencies": ["012-unified-admin-tenant-context-kernel", "capability_approval_execution_lease_and_readback_authorities", "managed_worker_and_resource_connection_authority"],
+      "overlaps": ["009-local-connector-reachability-recovery", "011-database-driven-operation-fabric", "015-tenant-operating-system-studio.operational_packages"],
+      "portfolio_disposition": "Retain as a bounded Hostinger Storage platform service and operational package while provider dispatch remains disabled until authority, canary, migration, and production gates close.",
       "target_package_key": "platform.reference.hostinger_storage_operations",
-      "truthfulness_findings": [
-        "this is a mixed Spec and implementation integration rollup rather than a specification-only PR",
-        "completion was written before later workstream integrations and requires live reconciliation",
-        "durable routes, worker dispatch, migration, and production readback remain incomplete",
-        "branch is currently two commits behind main"
-      ]
+      "truthfulness_findings": ["PR is an integration rollup rather than specification-only", "completion predates later workstream integrations", "durable routes, live worker dispatch, migration, and production readback remain incomplete", "branch is two commits behind main"]
     },
     {
       "pull_request": 4432,
@@ -311,30 +189,12 @@
       "scope_mode": "specification_only",
       "canonical_role": "reference_solution_package_source",
       "portfolio_tier": "reference_package",
-      "live_compare": {
-        "status": "diverged",
-        "ahead_by": 43,
-        "behind_by": 1,
-        "mergeable": true
-      },
-      "dependencies": [
-        "011-dynamic-multi-tenant-growth-control-plane",
-        "012-unified-admin-tenant-context-kernel",
-        "repository_ci_and_work_map_governance",
-        "015-tenant-operating-system-studio"
-      ],
-      "overlaps": [
-        "008-governed-pr-delivery-orchestration",
-        "011-tenant-gpt-effective-capability-envelope.questionnaires",
-        "015-tenant-operating-system-studio.forms_files_ai_and_package_assurance"
-      ],
-      "portfolio_disposition": "Extract generic development and CI assurance contracts; reconstruct Evidence, Forms, Files, Gemini, Review, and Research/Audit content as the Evidence Intelligence reference Solution Package.",
+      "live_compare": { "status": "diverged", "ahead_by": 43, "behind_by": 1, "mergeable": true },
+      "dependencies": ["011-dynamic-multi-tenant-growth-control-plane", "012-unified-admin-tenant-context-kernel", "repository_ci_and_work_map_governance", "015-tenant-operating-system-studio"],
+      "overlaps": ["008-governed-pr-delivery-orchestration", "011-tenant-gpt-effective-capability-envelope.questionnaires", "015-tenant-operating-system-studio.forms_files_ai"],
+      "portfolio_disposition": "Extract generic development and CI assurance contracts; reconstruct Evidence, Forms, Files, Gemini, Review, and Research/Audit content as the Evidence Intelligence reference package.",
       "target_package_key": "platform.reference.evidence_intelligence_operations",
-      "truthfulness_findings": [
-        "completion still reports pending exact-head CI despite successful canonical E2E evidence",
-        "duplicate Spec 014 identity remains unresolved",
-        "ten open design decisions continue to block runtime implementation"
-      ]
+      "truthfulness_findings": ["completion still reports pending exact-head CI despite successful canonical E2E evidence", "duplicate Spec 014 identity remains unresolved", "ten design decisions block runtime implementation"]
     },
     {
       "pull_request": 4456,
@@ -342,123 +202,93 @@
       "title": "Tenant-Authored Operating Systems, Solution Packages, and Lifecycle Studio",
       "spec_root": "specs/015-tenant-operating-system-studio",
       "branch": "gpt/spec-015-tenant-operating-system-studio-20260801",
-      "observed_head_sha": "f25bf0baed89c6f96d0dedb0840f890c9f1355c5",
+      "observed_head_sha": "adf08ad971d47a34d7dbe2e9e2091b6306aed3fb",
       "state": "open",
       "draft": true,
       "scope_mode": "specification_only",
       "canonical_role": "portfolio_convergence_parent",
       "portfolio_tier": "convergence",
-      "live_compare": {
-        "status": "ahead",
-        "ahead_by": 32,
-        "behind_by": 0,
-        "mergeable": true
-      },
-      "dependencies": [
-        "006-platform-dynamic-workflow-runtime",
-        "010-unified-platform-frontend",
-        "011-dynamic-multi-tenant-growth-control-plane",
-        "012-unified-admin-tenant-context-kernel",
-        "dynamic_container_authority"
-      ],
-      "overlaps": [
-        "all_open_draft_specs_as_portfolio_awareness_only"
-      ],
-      "portfolio_disposition": "Use as the portfolio convergence and tenant product composition parent; it does not replace authority kernels and grants no implementation or runtime mutation authority.",
-      "truthfulness_findings": [
-        "portfolio review and canonical identity decisions remain pending",
-        "runtime implementation, migrations, provider calls, deployment, and production activation have not started"
-      ]
+      "live_compare": { "status": "ahead", "ahead_by": 43, "behind_by": 0, "mergeable": true },
+      "dependencies": ["006-platform-dynamic-workflow-runtime", "010-unified-platform-frontend", "011-dynamic-multi-tenant-growth-control-plane", "012-unified-admin-tenant-context-kernel", "dynamic_container_authority"],
+      "overlaps": ["all_open_draft_specs_as_portfolio_awareness_only"],
+      "portfolio_disposition": "Use as portfolio convergence and tenant product composition parent; it does not replace authority kernels and grants no implementation or runtime mutation authority.",
+      "truthfulness_findings": ["portfolio decisions and canonical path approvals remain pending", "runtime, migrations, provider calls, deployment, and production activation have not started"]
+    },
+    {
+      "pull_request": 4460,
+      "feature_key": "016-chatgpt-plugin-mcp-integration",
+      "title": "ChatGPT Plugin and Standards-Compliant MCP Integration",
+      "spec_root": "specs/016-chatgpt-plugin-mcp-integration",
+      "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
+      "observed_head_sha": "63a6056170b470ece018d46ac2bbb2643095c7b9",
+      "state": "open",
+      "draft": true,
+      "scope_mode": "specification_only",
+      "canonical_role": "external_integration_surface",
+      "portfolio_tier": "external_surface",
+      "live_compare": { "status": "ahead", "ahead_by": 26, "behind_by": 0, "mergeable": true },
+      "dependencies": ["005-dynamic-mcp-schema-surfaces", "006-platform-dynamic-workflow-runtime", "007-dynamic-capability-governance", "011-dynamic-multi-tenant-growth-control-plane", "012-unified-admin-tenant-context-kernel"],
+      "overlaps": ["011-tenant-gpt-effective-capability-envelope", "013-system-tool-catalog-v2", "011-database-driven-operation-fabric.tool_projection", "015-tenant-operating-system-studio.package_and_tool_surfaces"],
+      "portfolio_disposition": "Treat as the canonical ChatGPT/Codex external integration surface that exposes focused tools while all context, authorization, operation, package, and readback authority remains in existing platform kernels.",
+      "truthfulness_findings": ["completion correctly records implementation started through PR 4462", "specification and implementation CI remain pending", "OAuth conformance, public endpoint, approved tool catalog, developer-mode acceptance, submission, and production evidence remain blocked"]
     }
+  ],
+  "related_open_drafts": [
+    { "pull_request": 2030, "title": "Harden dynamic admin control authority", "classification": "security_hardening", "parent_feature_key": "006-adaptive-authorization-execution-governance", "branch": "gpt/fix/pr-1980-authority-hardening-fresh-20260701", "observed_head_sha": "9ee3eec490857a2edfeb1af5b6fcb03e3879c5fc", "state": "open", "draft": true, "portfolio_status": "blocked", "disposition": "Preserve as security evidence but rebuild or revalidate on current main; release readiness and governed migration gates remain failed or stale." },
+    { "pull_request": 3005, "title": "Operation registry foundation", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-registry-foundation-20260722", "observed_head_sha": "3434d8d3e9c413b3bd71543a51b6e132f08b7ee3", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Review only as the first commit set in the complete Operation Fabric stack." },
+    { "pull_request": 3021, "title": "Operation registry repository contracts", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-registry-repository-20260723", "observed_head_sha": "3630b6a95851f912935b81fc995b481de7f8c84f", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Preserve repository and validation contracts within the ordered stack; do not merge independently." },
+    { "pull_request": 3026, "title": "Deterministic operation binding compiler", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-binding-compiler-20260723", "observed_head_sha": "5a7aa354a0a5089cd39a7c3559e97197c5cad43c", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Reconcile compiler logic only after current binding and authority reuse analysis." },
+    { "pull_request": 3044, "title": "Immutable operation manifest persistence", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-manifest-persistence-20260723", "observed_head_sha": "de8d86e8de056ec74847774706c6d59c68f51960", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Retain immutable manifest and current-pointer semantics as a dependent stack layer." },
+    { "pull_request": 3054, "title": "Read-only operation runtime verifier", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-runtime-verifier-20260723", "observed_head_sha": "e5e930bac2a5834705e90c4717c374984dfedeb7", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Reuse fail-closed verification concepts after current-main registry and certification mapping." },
+    { "pull_request": 3070, "title": "Plan-only operation authority preflight", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-authority-preflight-20260724", "observed_head_sha": "2b502d80a4d7ad5ead9eadf4abf0391aab2a9e8f", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Keep preflight non-authoritative and integrate only through current capability and legacy parity authorities." },
+    { "pull_request": 3083, "title": "SQL runtime contract loader cache", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-runtime-contract-loader-20260724", "observed_head_sha": "7c61ef415cb76f57d2943e62b1eefb3a63f14256", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Reconcile SQL-first loading and revision invalidation as a dependent stack layer." },
+    { "pull_request": 3089, "title": "Guarded operation contract code fallback", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-contract-code-fallback-20260724", "observed_head_sha": "931dddff73f81aa389f5c9102d67cf4e646653c6", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Retain fallback as temporary migration support only and keep SQL as primary authority." },
+    { "pull_request": 3097, "title": "Immutable run revision pinning", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-run-revision-pinning-20260724", "observed_head_sha": "8d21a78aaf2f82da270e021b1f67483bc3e2b26c", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Preserve immutable revision bundle and no-secret snapshot semantics within the stack." },
+    { "pull_request": 3109, "title": "Operation capability lifecycle binding", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-capability-lifecycle-binding-20260725", "observed_head_sha": "98577c75c2c70eb23e22f98c6d2982717fe76d83", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Reuse current capability lifecycle as sole authority; operation context remains a constraint, not a grant." },
+    { "pull_request": 3119, "title": "Governed chunk detail collection", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-chunk-detail-collection-20260725", "observed_head_sha": "8e6e2d6655121471b5db2a0346e341c0cc774865", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Consolidate chunk integrity and bounded-detail handling with current repository and tool-response collectors." },
+    { "pull_request": 3130, "title": "Durable operation lifecycle state", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-durable-lifecycle-20260725", "observed_head_sha": "4ac2b9dc9195206abb1de23830177a69ea92dd8f", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Map lifecycle state and events to current workflow/runtime authority before reconstruction." },
+    { "pull_request": 3134, "title": "Operation write receipts", "classification": "stacked_implementation", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-operation-write-receipts-20260726", "observed_head_sha": "f43856e438d8ca5c6b9098a5662333f4a2220815", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Preserve idempotency and unknown-outcome receipt semantics as the final layer of the ordered stack." },
+    { "pull_request": 3139, "title": "Reconcile System Tool Catalog v2 onto latest main", "classification": "reconciliation_candidate", "parent_feature_key": "013-system-tool-catalog-v2", "branch": "gpt/013-system-tool-catalog-v2-resolution-f810e592", "observed_head_sha": "8c0ee7717a8ea8e9704331076aa6db326a780d83", "state": "open", "draft": true, "portfolio_status": "duplicate_candidate", "disposition": "Compare with PR 3159 and select one clean current-main reconstruction; do not retain two canonical resolution branches." },
+    { "pull_request": 3143, "title": "Repository readiness repair contract fix", "classification": "readiness_repair", "parent_feature_key": "008-governed-pr-delivery-orchestration", "branch": "gpt/repository-readiness-repair-contract-fix-20260725", "observed_head_sha": "cc84f7e848ee3d15c8f488bce7fb4191b57aff52", "state": "open", "draft": true, "portfolio_status": "stale", "disposition": "Reconcile with current repository readiness contracts and close if already superseded by main." },
+    { "pull_request": 3144, "title": "Auth email ledger zero-risk migration", "classification": "migration_candidate", "parent_feature_key": "platform-auth-email-ledger", "branch": "gpt/auth-email-ledger-zero-risk-migration-20260725", "observed_head_sha": "96d4d2401b2f5ab17f0fb6a8977b98f58c274d20", "state": "open", "draft": true, "portfolio_status": "stale", "disposition": "Re-audit migration need and checksum against current main before any governed dry run or apply decision." },
+    { "pull_request": 3145, "title": "System Tool Catalog v2 test-manifest helper", "classification": "manifest_or_test_helper", "parent_feature_key": "013-system-tool-catalog-v2", "branch": "gpt/013-system-tool-catalog-v2-reconcile-helper-3", "observed_head_sha": "16a52a84cef0437ffe6da0f556202b1c1fe73719", "state": "open", "draft": true, "portfolio_status": "duplicate_candidate", "disposition": "Fold the two-line test-manifest change into the selected System Tool Catalog reconstruction and retire the helper branch." },
+    { "pull_request": 3160, "title": "Binding eligibility hard constraints", "classification": "implementation_child", "parent_feature_key": "011-database-driven-operation-fabric", "branch": "gpt/impl/011-binding-eligibility-hard-constraints-20260726", "observed_head_sha": "353212903812e34d3fe8dec2b4fbccb4eb396e24", "state": "open", "draft": true, "portfolio_status": "requires_reconstruction", "disposition": "Treat as a broad later implementation candidate requiring exact overlap analysis with the thirteen-PR stack and current main." },
+    { "pull_request": 3181, "title": "Support-ticket contract coverage and OpenAPI docs", "classification": "contract_and_docs", "parent_feature_key": "tenant-support-ticket-lifecycle", "branch": "gpt/support-ticket-contract-tests-20260727", "observed_head_sha": "17ec084ff34f71b24462352f20c34c2c01e4d3d3", "state": "open", "draft": true, "portfolio_status": "stale", "disposition": "Verify whether tests and OpenAPI coverage are already on main; reconstruct only the remaining contract gap." },
+    { "pull_request": 4002, "title": "Close remaining Surface callability queue", "classification": "closure_workflow", "parent_feature_key": "010-unified-platform-frontend", "branch": "gpt/surface-callability-full-closure-20260731", "observed_head_sha": "482709e1840b9c30108a684fb571d357f6849bc1", "state": "open", "draft": true, "portfolio_status": "blocked", "disposition": "Do not run stale temporary patchers blindly; recalculate the live queue and reuse only still-missing callability contracts on current main." },
+    { "pull_request": 4462, "title": "Feature-flagged ChatGPT read-only MCP adapter", "classification": "implementation_child", "parent_feature_key": "016-chatgpt-plugin-mcp-integration", "branch": "gpt/016-chatgpt-mcp-readonly-adapter-20260801", "observed_head_sha": "264e49e5ba358993eaeb0b83b355a54b34bdeabb", "state": "open", "draft": true, "portfolio_status": "pending_ci", "disposition": "Keep feature flags disabled and limit the first wave to focused read-only tools until OAuth, Context Kernel, public endpoint, and live ChatGPT acceptance gates pass." }
   ],
   "duplicate_numeric_identities": [
-    {
-      "number": 11,
-      "pull_requests": [2949, 2950],
-      "resolution_status": "partially_classified",
-      "resolution": "Treat PR 2949 as an operation-fabric subsystem and PR 2950 as a tenant application component; neither replaces the current canonical multi-tenant control plane."
-    },
-    {
-      "number": 14,
-      "pull_requests": [3922, 4386, 4432],
-      "resolution_status": "partially_classified",
-      "resolution": "Reconstruct Retail Commerce, Hostinger Storage, and Evidence Intelligence under semantic feature keys and bounded package or service roles; numeric Spec 014 is not a shared canonical identity."
-    }
+    { "number": 11, "pull_requests": [2949, 2950], "resolution_status": "partially_classified", "resolution": "Treat PR 2949 as an operation-fabric subsystem and PR 2950 as a tenant application component; neither replaces the current canonical multi-tenant control plane." },
+    { "number": 14, "pull_requests": [3922, 4386, 4432], "resolution_status": "partially_classified", "resolution": "Reconstruct Retail Commerce, Hostinger Storage, and Evidence Intelligence under semantic feature keys and bounded package or service roles; numeric Spec 014 is not a shared canonical identity." }
+  ],
+  "duplicate_feature_clusters": [
+    { "feature_key": "013-system-tool-catalog-v2", "primary_pull_request": 3159, "related_pull_requests": [3139, 3145], "resolution_status": "open", "resolution": "Select one current-main reconstruction, absorb the test-manifest helper, validate exact-head CI, then supersede duplicate reconciliation branches." }
   ],
   "relationship_edges": [
-    {
-      "from": "004-tenant-asset-federation",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "extracts_generic_substrate_from",
-      "rationale": "Shared canonical assets, typed inheritance, policy composition, portability, and provenance are architectural inputs to package composition."
-    },
-    {
-      "from": "006-adaptive-authorization-execution-governance",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "must_not_replace",
-      "rationale": "Studio definitions may request capabilities but cannot replace the platform authorization, approval, enforcement, and readback kernels."
-    },
-    {
-      "from": "008-governed-pr-delivery-orchestration",
-      "to": "014-gemini-evidence-intake-automation",
-      "relationship": "overlaps",
-      "rationale": "Both define exact-candidate CI evidence, receipts, retries, phased delivery, and closeout; generic assurance should have one canonical home."
-    },
-    {
-      "from": "009-local-connector-reachability-recovery",
-      "to": "014-governed-hostinger-storage-orchestration",
-      "relationship": "overlaps",
-      "rationale": "Both need exact resource identity, fresh authorization, health evidence, bounded plans, probes, same-cycle readback, and unknown-outcome reconciliation."
-    },
-    {
-      "from": "011-database-driven-operation-fabric",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "extends",
-      "rationale": "Package installations compile high-level components into governed operations, but execution remains within existing workflow and operation authorities."
-    },
-    {
-      "from": "011-tenant-gpt-effective-capability-envelope",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "converges_under",
-      "rationale": "Capability discovery, questionnaires, and preview-only orchestration become tenant-safe Studio assistant and generated-surface components."
-    },
-    {
-      "from": "014-retail-commerce-operations-growth-os",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "reconstructs_as_child_package",
-      "rationale": "Commerce-specific operations are a bounded reference Solution Package while profile, activity, and Blueprint concepts are generic substrate."
-    },
-    {
-      "from": "014-gemini-evidence-intake-automation",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "reconstructs_as_child_package",
-      "rationale": "Evidence, Forms, Files, Gemini, and Review are a reference Solution Package; development assurance is extracted separately."
-    },
-    {
-      "from": "014-governed-hostinger-storage-orchestration",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "reconstructs_as_child_package",
-      "rationale": "Hostinger storage operations are a bounded infrastructure service and optional operational package, not a universal Tenant kernel."
-    },
-    {
-      "from": "009-local-connector-reachability-recovery",
-      "to": "015-tenant-operating-system-studio",
-      "relationship": "reconstructs_as_child_package",
-      "rationale": "Connector recovery can be packaged for eligible Tenants while platform break-glass and device authority remain kernel-owned."
-    }
+    { "from": "004-tenant-asset-federation", "to": "015-tenant-operating-system-studio", "relationship": "extracts_generic_substrate_from", "rationale": "Shared assets, inheritance, policy composition, provenance, and portability are architectural inputs to package composition." },
+    { "from": "006-adaptive-authorization-execution-governance", "to": "015-tenant-operating-system-studio", "relationship": "must_not_replace", "rationale": "Studio definitions request capabilities but cannot replace authorization, approval, enforcement, and readback kernels." },
+    { "from": "008-governed-pr-delivery-orchestration", "to": "014-gemini-evidence-intake-automation", "relationship": "overlaps", "rationale": "Both define exact-candidate evidence, retries, phased delivery, and closeout; generic assurance needs one canonical home." },
+    { "from": "009-local-connector-reachability-recovery", "to": "014-governed-hostinger-storage-orchestration", "relationship": "overlaps", "rationale": "Both need resource identity, fresh authorization, probes, plans, readback, and unknown-outcome reconciliation." },
+    { "from": "011-database-driven-operation-fabric", "to": "015-tenant-operating-system-studio", "relationship": "extends", "rationale": "Package installations compile components into governed operations while execution remains within existing authorities." },
+    { "from": "011-tenant-gpt-effective-capability-envelope", "to": "015-tenant-operating-system-studio", "relationship": "converges_under", "rationale": "Capability discovery and questionnaires become tenant-safe Studio assistant components." },
+    { "from": "013-system-tool-catalog-v2", "to": "011-database-driven-operation-fabric", "relationship": "overlaps", "rationale": "System tool catalog generation and operation tool projection require a single source-of-truth boundary." },
+    { "from": "013-system-tool-catalog-v2", "to": "016-chatgpt-plugin-mcp-integration", "relationship": "consumes", "rationale": "The public MCP catalog should project reviewed focused tools from canonical tool and capability metadata rather than duplicate them." },
+    { "from": "014-retail-commerce-operations-growth-os", "to": "015-tenant-operating-system-studio", "relationship": "reconstructs_as_child_package", "rationale": "Commerce-specific operations are a bounded reference package while profile and Blueprint concepts are generic substrate." },
+    { "from": "014-gemini-evidence-intake-automation", "to": "015-tenant-operating-system-studio", "relationship": "reconstructs_as_child_package", "rationale": "Evidence, Forms, Files, Gemini, and Review are a reference package while development assurance is extracted separately." },
+    { "from": "014-governed-hostinger-storage-orchestration", "to": "015-tenant-operating-system-studio", "relationship": "reconstructs_as_child_package", "rationale": "Hostinger storage operations are a bounded infrastructure service and optional operational package." },
+    { "from": "009-local-connector-reachability-recovery", "to": "015-tenant-operating-system-studio", "relationship": "reconstructs_as_child_package", "rationale": "Connector recovery can be packaged while break-glass and device authority remain kernel-owned." },
+    { "from": "015-tenant-operating-system-studio", "to": "016-chatgpt-plugin-mcp-integration", "relationship": "exposes_through", "rationale": "Published package and focused operation surfaces may be exposed through MCP only after existing authority and tool-catalog resolution." },
+    { "from": "011-tenant-gpt-effective-capability-envelope", "to": "016-chatgpt-plugin-mcp-integration", "relationship": "overlaps", "rationale": "Both present Tenant-facing conversational capability discovery, but Spec 016 is an external transport surface and Tenant GPT remains an application component." },
+    { "from": "4462", "to": "016-chatgpt-plugin-mcp-integration", "relationship": "implements", "rationale": "PR 4462 is the first feature-flagged read-only runtime wave under the canonical Spec 016 contract." }
   ],
   "implementation_trains": [
     {
       "train_key": "operation-fabric-stack",
       "parent_pr": 2949,
       "delivery_shape": "strict_stack",
-      "pull_requests": [3005, 3021, 3026, 3044, 3054, 3070, 3083, 3089, 3097, 3109, 3119, 3130, 3134],
+      "pull_requests": [3005, 3021, 3026, 3044, 3054, 3070, 3083, 3089, 3097, 3109, 3119, 3130, 3134, 3160],
       "portfolio_status": "requires_reconstruction",
-      "notes": [
-        "The train implements registry, repository, compiler, manifest, verifier, authority preflight, SQL loader, fallback, revision pinning, capability lifecycle, chunk collection, durable lifecycle, and write receipts.",
-        "The parent completion ledger incorrectly records implementation as not started.",
-        "Treat the chain as one ordered delivery train and rebuild or cherry-pick bounded concepts on current main after a field-level reuse audit."
-      ]
+      "notes": ["The first thirteen PRs form the original ordered stack; PR 3160 is a broad later constraints candidate.", "The parent completion ledger incorrectly reports implementation as not started.", "Reconstruct on current main after a field-level reuse and overlap audit."]
     },
     {
       "train_key": "hostinger-storage-workstreams",
@@ -466,50 +296,35 @@
       "delivery_shape": "parallel_workstreams",
       "pull_requests": [4390, 4455, 4458, 4459],
       "portfolio_status": "partially_integrated",
-      "notes": [
-        "PR 4390 contracts and PRs 4458 and 4459 synthetic-adapter hardening were merged into the integration branch.",
-        "PR 4455 remains an open tenant-canary hardening child PR against the integration branch.",
-        "The integration branch remains non-production and two commits behind main at the observed snapshot."
-      ]
+      "notes": ["Contracts and synthetic adapter provenance corrections were integrated into the rollup.", "Tenant Canary hardening remains an open child PR at the observed snapshot.", "Live provider dispatch and Production remain blocked."]
+    },
+    {
+      "train_key": "system-tool-catalog-v2-reconciliation",
+      "parent_pr": 3159,
+      "delivery_shape": "mixed",
+      "pull_requests": [3139, 3145, 3159],
+      "portfolio_status": "requires_reconstruction",
+      "notes": ["PRs 3139 and 3159 carry near-identical Spec/runtime changes from different stale bases.", "PR 3145 contains only a test-manifest helper change.", "Select one current-main reconstruction and supersede duplicates after exact-head validation."]
+    },
+    {
+      "train_key": "chatgpt-mcp-integration",
+      "parent_pr": 4460,
+      "delivery_shape": "single_child",
+      "pull_requests": [4462],
+      "portfolio_status": "active",
+      "notes": ["PR 4462 implements the first feature-flagged read-only MCP adapter wave.", "OAuth 2.1 conformance, public endpoint, approved tool catalog, Developer mode acceptance, plugin packaging, and Production remain blocked."]
     }
   ],
   "portfolio_decisions": [
-    {
-      "decision_id": "DS-001",
-      "status": "approved",
-      "decision": "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are display labels and cannot establish uniqueness or authority.",
-      "affected_pull_requests": [2949, 2950, 3922, 4386, 4432]
-    },
-    {
-      "decision_id": "DS-002",
-      "status": "approved",
-      "decision": "No diverged Draft Spec branch may be blindly merged; reusable content must be reconciled against current main and current canonical authorities.",
-      "affected_pull_requests": [1898, 1935, 2284, 2385, 2949, 2950, 3922, 4386, 4432]
-    },
-    {
-      "decision_id": "DS-003",
-      "status": "approved",
-      "decision": "Specification-only, mixed implementation, and integration-rollup PRs must be reported separately; documentation completeness never implies runtime completion.",
-      "affected_pull_requests": [2950, 4386, 4456]
-    },
-    {
-      "decision_id": "DS-004",
-      "status": "proposed",
-      "decision": "Consolidate generic repository delivery and CI assurance from PRs 2284, 2949, and 4432 into one current-main repository assurance subsystem.",
-      "affected_pull_requests": [2284, 2949, 4432]
-    },
-    {
-      "decision_id": "DS-005",
-      "status": "proposed",
-      "decision": "Reconstruct Retail Commerce, Evidence Intelligence, Hostinger Storage, and Local Connector Recovery as bounded packages or platform services under Spec 015 contracts.",
-      "affected_pull_requests": [2385, 3922, 4386, 4432, 4456]
-    },
-    {
-      "decision_id": "DS-006",
-      "status": "blocked",
-      "decision": "Final canonical paths and close, supersede, or reconstruction actions require field-level current-main reuse matrices and architecture review.",
-      "affected_pull_requests": [1898, 1935, 2284, 2385, 2949, 2950, 3922, 4386, 4432, 4456]
-    }
+    { "decision_id": "DS-001", "status": "approved", "decision": "Feature key plus canonical role is the primary portfolio identity; numeric Spec numbers are display labels and cannot establish uniqueness or authority.", "affected_pull_requests": [2949, 2950, 3922, 4386, 4432] },
+    { "decision_id": "DS-002", "status": "approved", "decision": "No diverged Draft Spec branch may be blindly merged; reusable content must be reconciled against current main and current canonical authorities.", "affected_pull_requests": [1898, 1935, 2284, 2385, 2949, 2950, 3159, 3922, 4386, 4432] },
+    { "decision_id": "DS-003", "status": "approved", "decision": "Specification-only, mixed implementation, integration-rollup, and related delivery PRs must be reported separately; documentation completeness never implies runtime completion.", "affected_pull_requests": [2950, 3159, 4386, 4456, 4460, 4462] },
+    { "decision_id": "DS-004", "status": "proposed", "decision": "Consolidate generic repository delivery and CI assurance from PRs 2284, 2949, and 4432 into one current-main repository assurance subsystem.", "affected_pull_requests": [2284, 2949, 4432] },
+    { "decision_id": "DS-005", "status": "proposed", "decision": "Reconstruct Retail Commerce, Evidence Intelligence, Hostinger Storage, and Local Connector Recovery as bounded packages or platform services under Spec 015 contracts.", "affected_pull_requests": [2385, 3922, 4386, 4432, 4456] },
+    { "decision_id": "DS-006", "status": "blocked", "decision": "Final canonical paths and close, supersede, or reconstruction actions require field-level current-main reuse matrices and architecture review.", "affected_pull_requests": [1898, 1935, 2284, 2385, 2949, 2950, 3159, 3922, 4386, 4432, 4456, 4460] },
+    { "decision_id": "DS-007", "status": "approved", "decision": "Spec 016 is an external integration and transport surface; it consumes existing tool, context, capability, operation, package, and readback authorities and creates no independent execution authority.", "affected_pull_requests": [2950, 3159, 4456, 4460, 4462] },
+    { "decision_id": "DS-008", "status": "approved", "decision": "Every open Draft PR in the observed scope must be classified as either a primary Spec or a related delivery, repair, migration, security, documentation, or closure PR.", "affected_pull_requests": [2030, 1898, 1935, 2284, 2385, 2949, 2950, 3005, 3021, 3026, 3044, 3054, 3070, 3083, 3089, 3097, 3109, 3119, 3130, 3134, 3139, 3143, 3144, 3145, 3159, 3160, 3181, 3922, 4002, 4386, 4432, 4456, 4460, 4462] },
+    { "decision_id": "DS-009", "status": "proposed", "decision": "Select one current-main System Tool Catalog v2 implementation and use it as a reviewed projection source for Tenant GPT, Operation Fabric, and ChatGPT MCP catalogs.", "affected_pull_requests": [3139, 3145, 3159, 2949, 2950, 4460] }
   ],
   "secrets_included": false
 }
