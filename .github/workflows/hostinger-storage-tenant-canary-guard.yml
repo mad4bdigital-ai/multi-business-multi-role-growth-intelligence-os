@@ -53,6 +53,10 @@ jobs:
           grep -q "STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+      - name: Enforce governed Base imports
+        run: |
+          test "$(grep -R -l "hostingerStorageTenantCanaryBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageTenantCanary.js"
+          test "$(grep -R -l "hostingerStorageTenantCanaryPolicyBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageTenantCanaryPolicy.js"
       - name: Enforce post-merge hardening contracts
         run: |
           grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
