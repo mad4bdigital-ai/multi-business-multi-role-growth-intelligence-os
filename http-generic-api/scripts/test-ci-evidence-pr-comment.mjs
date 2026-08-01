@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   COMMENT_MARKER,
   assertCurrentPullRequestIdentity,
@@ -233,9 +234,18 @@ assert.doesNotMatch(sanitized, /<b>/u);
 assert.match(sanitized, /＠octocat/u);
 assert.match(sanitized, /&lt;b&gt;unsafe&lt;\/b&gt;/u);
 
+const publisherWorkflow = fs.readFileSync(
+  new URL("../../.github/workflows/ci-evidence-pr-publisher.yml", import.meta.url),
+  "utf8"
+);
+assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
+assert.match(publisherWorkflow, /^\s*pull-requests:\s*write\s*$/mu);
+assert.match(publisherWorkflow, /^\s*persist-credentials:\s*false\s*$/mu);
+assert.doesNotMatch(publisherWorkflow, /^\s*pull-requests:\s*read\s*$/mu);
+
 console.log(JSON.stringify({
   ok: true,
-  tests: 28,
-  gate: "ci_evidence_optional_head_branch_and_commit_pr_resolution",
+  tests: 32,
+  gate: "ci_evidence_optional_head_branch_commit_pr_resolution_and_comment_permission",
   secrets_included: false
 }));
