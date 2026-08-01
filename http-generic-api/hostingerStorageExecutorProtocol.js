@@ -37,6 +37,13 @@ function hash(value, field) {
   return normalized;
 }
 
+function booleanBinding(value, field) {
+  if (typeof value !== 'boolean') {
+    throw fail(400, 'STORAGE_EXECUTOR_BOOLEAN_BINDING_INVALID', 'An explicit boolean binding is required.', { field });
+  }
+  return value;
+}
+
 function positiveInteger(value, field) {
   const normalized = Number(value);
   if (!Number.isSafeInteger(normalized) || normalized < 1) {
@@ -89,6 +96,11 @@ function normalizeCurrentBindings(current = {}) {
     toolchain_provenance_digest: hash(current.toolchain_provenance_digest, 'current.toolchain_provenance_digest'),
     governance_decision_digest: hash(current.governance_decision_digest, 'current.governance_decision_digest'),
     attestation_evidence_digest: hash(current.attestation_evidence_digest, 'current.attestation_evidence_digest'),
+    recovery_required: booleanBinding(current.recovery_required, 'current.recovery_required'),
+    recovery_proof_digest: hash(current.recovery_proof_digest, 'current.recovery_proof_digest'),
+    recovery_requirement_binding_digest: hash(current.recovery_requirement_binding_digest, 'current.recovery_requirement_binding_digest'),
+    attestation_toolchain_provenance_digest: hash(current.attestation_toolchain_provenance_digest, 'current.attestation_toolchain_provenance_digest'),
+    attestation_toolchain_selected_tools_digest: hash(current.attestation_toolchain_selected_tools_digest, 'current.attestation_toolchain_selected_tools_digest'),
     lease_generation: Number(current.lease_generation),
     host_key_revision: safeId(current.host_key_revision, 'current.host_key_revision'),
     secrets_included: false,
