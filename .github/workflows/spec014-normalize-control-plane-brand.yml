@@ -1,0 +1,79 @@
+name: Normalize Spec 014 control-plane brand
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/control-plane-repository-brand-20260801
+    paths:
+      - .github/workflows/spec014-normalize-control-plane-brand.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/control-plane-repository-brand-20260801
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Normalize workstream contract and remove registrar
+        env:
+          FUNCTIONAL_HEAD_SHA: ${{ github.event.before }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const path = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const parallel = contract.parallel_work;
+          const functionalHead = process.env.FUNCTIONAL_HEAD_SHA;
+          if (!/^[0-9a-f]{40}$/.test(functionalHead)) throw new Error('Functional head SHA is invalid');
+
+          const durable = parallel.workstreams.find((row) => row.id === 'durable-control-plane');
+          if (!durable) throw new Error('durable-control-plane workstream not found');
+          durable.status = 'ready_for_integration';
+          durable.scope.include = [...new Set(durable.scope.include.map((entry) => {
+            if (entry === 'http-generic-api/hostingerStorageControlPlaneRepository.js') return 'http-generic-api/hostingerStorageControlPlaneRepository*.js';
+            if (entry === 'http-generic-api/test-hostinger-storage-control-plane-repository.mjs') return 'http-generic-api/test-hostinger-storage-control-plane-repository*.mjs';
+            return entry;
+          }))];
+          const deliverable = 'Factory-owned provenance brands for the memory persistence adapter and governed Control Plane repository';
+          if (!durable.deliverables.includes(deliverable)) durable.deliverables.push(deliverable);
+          const brandTest = {
+            id: 'hostinger-storage-control-plane-repository-brand',
+            runner: 'node',
+            working_directory: 'http-generic-api',
+            path: 'test-hostinger-storage-control-plane-repository-brand.mjs',
+            args: [],
+          };
+          if (!durable.required_tests.some((row) => row.id === brandTest.id)) durable.required_tests.push(brandTest);
+          durable.commit_evidence = { head_sha: functionalHead, commits: [functionalHead] };
+
+          parallel.workstreams = parallel.workstreams.filter((row) => row.id !== 'control-plane-repository-brand');
+          parallel.declared_overlaps = (parallel.declared_overlaps || []).filter((row) => row.id !== 'control-plane-repository-provenance-hardening');
+          if (Array.isArray(parallel.integration?.required_workstreams)) {
+            parallel.integration.required_workstreams = parallel.integration.required_workstreams.filter((id) => id !== 'control-plane-repository-brand');
+          }
+
+          const mvp = contract.phases.find((row) => row.id === 'mvp');
+          if (mvp) {
+            mvp.blockers = mvp.blockers.filter((entry) => entry !== 'The governed Control Plane repository provenance brand is ready for integration.');
+            const blocker = 'The durable Control Plane repository provenance correction is ready for integration; persistence remains non-production and memory-backed.';
+            if (!mvp.blockers.includes(blocker)) mvp.blockers.splice(1, 0, blocker);
+          }
+
+          fs.writeFileSync(path, `${JSON.stringify(contract)}\n`);
+          fs.rmSync('.github/workflows/spec014-normalize-control-plane-brand.yml');
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(spec-014): bind repository brand to durable control plane'
+          git push origin HEAD:gpt/014-hostinger/control-plane-repository-brand-20260801
