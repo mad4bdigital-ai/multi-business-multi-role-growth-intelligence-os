@@ -73,6 +73,7 @@ import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
+import { buildHostingerStorageTenantRoutes } from "./hostingerStorageTenantRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildBrandSkillRoutes } from "./brandSkillRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
@@ -214,6 +215,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildHostingerStorageTenantRoutes(deps));
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));
