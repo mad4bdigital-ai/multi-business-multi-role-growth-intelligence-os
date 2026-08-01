@@ -1,6 +1,7 @@
 name: Patch Spec 014 Tenant Base runtime hardening
 
 on:
+  pull_request:
   push:
     branches:
       - gpt/014-hostinger/tenant-canary-postmerge-hardening-20260801
