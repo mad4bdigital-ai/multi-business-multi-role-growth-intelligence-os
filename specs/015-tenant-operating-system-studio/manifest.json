@@ -27,7 +27,7 @@
       "merge_posture": "reconstruct_on_current_main"
     }
   ],
-  "file_count": 25,
+  "file_count": 27,
   "files": [
     "README.md",
     "spec.md",
@@ -44,6 +44,7 @@
     "testing-strategy.md",
     "candidate-convergence.json",
     "work-map-integration.json",
+    "e2e-phases.json",
     "manifest.json",
     "completion.json",
     "checklists/requirements.md",
@@ -53,7 +54,8 @@
     "contracts/package-installation.schema.json",
     "contracts/lifecycle-definition.schema.json",
     "contracts/candidate-convergence.schema.json",
-    "contracts/tenant-operating-system-studio.openapi.yaml"
+    "contracts/tenant-operating-system-studio.openapi.yaml",
+    "tools/validate-spec.mjs"
   ],
   "requirements": {
     "functional": 74,
@@ -67,7 +69,9 @@
     "risks": 25,
     "tasks": 73,
     "work_maps": 19,
-    "schema_domains": 16
+    "schema_domains": 16,
+    "e2e_phases": 5,
+    "implemented_spec_e2e_journeys": 1
   },
   "reference_package_targets": [
     "platform.reference.evidence_intelligence_operations",
