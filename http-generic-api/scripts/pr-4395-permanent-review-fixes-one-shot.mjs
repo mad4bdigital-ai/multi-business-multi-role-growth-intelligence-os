@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const TARGET_BRANCH = "gpt/tenant-request-inbox-chunk-store-hardening-20260801";
-const TRIGGER_SUBJECT = "fix(ci): arm permanent review fixes with client budgets";
+const TRIGGER_SUBJECT = "fix(ci): make permanent review one-shot checkout-safe";
 const HELPER = "scripts/pr-4395-permanent-review-fixes-one-shot.mjs";
 const TRANSFORM = "scripts/pr-4395-permanent-review-fixes.py";
 const PACKAGE = "package.json";
@@ -21,7 +21,11 @@ function run(command, args = [], options = {}) {
   }
 }
 
-const branch = spawnSync("git", ["branch", "--show-current"], { encoding: "utf8" }).stdout.trim();
+const branch = String(
+  process.env.GITHUB_HEAD_REF
+  || spawnSync("git", ["branch", "--show-current"], { encoding: "utf8" }).stdout
+  || "",
+).trim();
 const subject = spawnSync("git", ["log", "-1", "--format=%s"], { encoding: "utf8" }).stdout.trim();
 if (branch !== TARGET_BRANCH) throw new Error(`unexpected branch: ${branch}`);
 if (subject !== TRIGGER_SUBJECT) throw new Error(`unexpected trigger commit: ${subject}`);
