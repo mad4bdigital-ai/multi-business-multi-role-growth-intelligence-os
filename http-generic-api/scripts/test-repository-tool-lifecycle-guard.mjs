@@ -70,10 +70,10 @@ jobs:
   apply:
     steps:
       - run: |
-          test "$(git rev-parse HEAD)" = "${{ inputs.expected_head_sha }}"
-          case "${{ inputs.target_branch }}" in main|Production) exit 1;; esac
+          test "$(git rev-parse HEAD)" = "\${{ inputs.expected_head_sha }}"
+          case "\${{ inputs.target_branch }}" in main|Production) exit 1;; esac
           rm .github/workflows/governed-maintenance.yml
-          git push origin HEAD:"${{ inputs.target_branch }}"
+          git push origin HEAD:"\${{ inputs.target_branch }}"
 `,
   },
 );
@@ -103,9 +103,9 @@ jobs:
   apply:
     steps:
       - run: |
-          test "$(git rev-parse HEAD)" = "${{ inputs.expected_head_sha }}"
-          case "${{ inputs.target_branch }}" in main|Production) echo reject; exit 1;; esac
-          git push origin HEAD:"${{ inputs.target_branch }}"
+          test "$(git rev-parse HEAD)" = "\${{ inputs.expected_head_sha }}"
+          case "\${{ inputs.target_branch }}" in main|Production) echo reject; exit 1;; esac
+          git push origin HEAD:"\${{ inputs.target_branch }}"
 `,
   },
 );
