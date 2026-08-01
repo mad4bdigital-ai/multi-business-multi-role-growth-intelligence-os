@@ -1,0 +1,122 @@
+name: Spec 014 SQL Lease Identity Builder
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/spec014-sql-lease-identity-builder.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-sql-lease-identity-builder-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout builder candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Build clean lease identity correction
+        shell: bash
+        env:
+          INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+          FINAL_BRANCH: gpt/014-hostinger/sql-lease-identity-alignment-20260802
+        run: |
+          set -euo pipefail
+          git fetch origin "${INTEGRATION_BRANCH}"
+          git checkout -B "${FINAL_BRANCH}" "origin/${INTEGRATION_BRANCH}"
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          adapter_path = Path('http-generic-api/hostingerStorageSqlPersistenceAdapter.js')
+          adapter = adapter_path.read_text()
+          old_load = "['leases', `/* spec014:load:leases */ SELECT target_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.leases}${suffix}`],"
+          new_load = "['leases', `/* spec014:load:leases */ SELECT id, target_id, record_digest, record_json, row_version FROM ${SAFE_TABLES.leases}${suffix}`],"
+          assert adapter.count(old_load) == 1
+          adapter = adapter.replace(old_load, new_load)
+
+          old_insert = "return execute(connection, `/* spec014:insert:leases */ INSERT INTO ${SAFE_TABLES.leases} (target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.target_id, record.lease_id, record.operation_id, record.generation, record.status, record.expires_at_epoch, ...common]);"
+          new_insert = "return execute(connection, `/* spec014:insert:leases */ INSERT INTO ${SAFE_TABLES.leases} (id, target_id, lease_id, operation_id, generation, status, expires_at_epoch, record_digest, record_json, row_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), 1)`, [record.lease_id, record.target_id, record.lease_id, record.operation_id, record.generation, record.status, record.expires_at_epoch, ...common]);"
+          assert adapter.count(old_insert) == 1
+          adapter = adapter.replace(old_insert, new_insert)
+          adapter_path.write_text(adapter)
+
+          contract_path = Path('.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json')
+          contract = json.loads(contract_path.read_text())
+          lease = next(row for row in contract['tables'] if row['logical_key'] == 'leases')
+          lease['primary_key'] = ['id']
+          lease['required_columns'] = ['id', *[column for column in lease['required_columns'] if column != 'id']]
+          lease['required_unique_keys'] = [['id'], *[key for key in lease['required_unique_keys'] if key != ['id']]]
+          lease['identity_binding'] = 'id_equals_lease_id_and_target_id_remains_unique_cas_record_key'
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+
+          validator_path = Path('.github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs')
+          validator = validator_path.read_text()
+          anchor = "for (const token of [\n"
+          insertion = """const leaseTable = runtime.tables.find((entry) => entry.logical_key === 'leases');
+          assert.deepEqual(leaseTable.primary_key, ['id']);
+          assert.equal(leaseTable.record_key, 'target_id');
+          assert.ok(leaseTable.required_columns.includes('lease_id'));
+          assert.ok(leaseTable.required_unique_keys.some((key) => JSON.stringify(key) === JSON.stringify(['id'])));
+          assert.equal(leaseTable.identity_binding, 'id_equals_lease_id_and_target_id_remains_unique_cas_record_key');
+          assert.match(adapterSource, /INSERT INTO \\${SAFE_TABLES\\.leases} \\(id, target_id, lease_id,/);
+          assert.match(adapterSource, /SELECT id, target_id, record_digest, record_json, row_version FROM \\${SAFE_TABLES\\.leases}/);
+
+          """
+          assert validator.count(anchor) == 1
+          validator = validator.replace(anchor, insertion + anchor)
+          validator_path.write_text(validator)
+
+          test_path = Path('http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs')
+          test = test_path.read_text()
+          old_id = """id: ['operations', 'plans', 'approvals', 'journals', 'reconciliations'].includes(table)
+                ? recordKey(table, record)
+                : undefined,"""
+          new_id = """id: table === 'leases'
+                ? record.lease_id
+                : ['operations', 'plans', 'approvals', 'journals', 'reconciliations'].includes(table)
+                  ? recordKey(table, record)
+                  : undefined,"""
+          assert test.count(old_id) == 1
+          test = test.replace(old_id, new_id)
+          acquire_anchor = """}, { expected_generation: 0, now_epoch: 1200 })).generation, 1);
+
+          for (const event of ["""
+          acquire_replacement = """}, { expected_generation: 0, now_epoch: 1200 })).generation, 1);
+          assert.equal(database.tables.leases.get(operation.target_id).id, 'sql-lease-1');
+
+          for (const event of ["""
+          assert test.count(acquire_anchor) == 1
+          test = test.replace(acquire_anchor, acquire_replacement)
+          test_path.write_text(test)
+          PY
+
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs
+          node http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs
+
+          test "$(git diff --name-only | wc -l | tr -d ' ')" = "4"
+          git diff --name-only | sort > /tmp/changed-files.txt
+          printf '%s\n' \
+            '.github/contracts/spec014/hostinger-storage-sql-runtime-contract.json' \
+            '.github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs' \
+            'http-generic-api/hostingerStorageSqlPersistenceAdapter.js' \
+            'http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs' \
+            | sort > /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/changed-files.txt
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'fix(spec-014): align SQL lease identity with canonical schema'
+          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
