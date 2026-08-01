@@ -16,6 +16,9 @@ const REQUIRED_INTEGRITY_COLUMNS = Object.freeze([
   "first_response_at",
   "triaged_at",
 ]);
+const REQUIRED_INTEGRITY_TABLES = Object.freeze([
+  "support_ticket_dedupe_claims",
+]);
 
 function parseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
@@ -29,7 +32,7 @@ function parseJsonObject(value, fallback = {}) {
 }
 
 async function readIntegritySchema(connection) {
-  const [rows] = await connection.query(
+  const [columnRows] = await connection.query(
     `SELECT COLUMN_NAME
        FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE()
@@ -37,12 +40,23 @@ async function readIntegritySchema(connection) {
         AND COLUMN_NAME IN (?)`,
     [REQUIRED_INTEGRITY_COLUMNS],
   );
-  const available = new Set(rows.map((row) => row.COLUMN_NAME || row.column_name));
-  const missing = REQUIRED_INTEGRITY_COLUMNS.filter((column) => !available.has(column));
+  const [tableRows] = await connection.query(
+    `SELECT TABLE_NAME
+       FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME IN (?)`,
+    [REQUIRED_INTEGRITY_TABLES],
+  );
+  const availableColumns = new Set(columnRows.map((row) => row.COLUMN_NAME || row.column_name));
+  const availableTables = new Set(tableRows.map((row) => row.TABLE_NAME || row.table_name));
+  const missingColumns = REQUIRED_INTEGRITY_COLUMNS.filter((column) => !availableColumns.has(column));
+  const missingTables = REQUIRED_INTEGRITY_TABLES.filter((table) => !availableTables.has(table));
   return {
-    ready: missing.length === 0,
-    available_columns: [...available].sort(),
-    missing_columns: missing,
+    ready: missingColumns.length === 0 && missingTables.length === 0,
+    available_columns: [...availableColumns].sort(),
+    missing_columns: missingColumns,
+    available_tables: [...availableTables].sort(),
+    missing_tables: missingTables,
     secrets_included: false,
   };
 }
@@ -53,6 +67,42 @@ function schemaNotReadyError(schema) {
   error.code = "support_ticket_integrity_schema_not_ready";
   error.schema = schema;
   return error;
+}
+
+function externalTransactionRequiredError() {
+  const error = new Error("An externally supplied connection must already own the dedupe-claim transaction.");
+  error.status = 409;
+  error.code = "support_ticket_dedupe_external_transaction_required";
+  return error;
+}
+
+async function acquireDedupeClaim(connection, tenantId, dedupeKey) {
+  await connection.query(
+    `INSERT INTO support_ticket_dedupe_claims
+       (tenant_id, dedupe_key, claim_token, claimed_at, updated_at)
+     VALUES (?, ?, UUID(), NOW(), NOW())
+     ON DUPLICATE KEY UPDATE claim_token = claim_token`,
+    [tenantId, dedupeKey],
+  );
+  const [rows] = await connection.query(
+    `SELECT tenant_id, dedupe_key
+       FROM support_ticket_dedupe_claims
+      WHERE tenant_id = ? AND dedupe_key = ?
+      FOR UPDATE`,
+    [tenantId, dedupeKey],
+  );
+  if (rows.length !== 1) {
+    const error = new Error("Canonical support-ticket dedupe claim could not be acquired.");
+    error.status = 409;
+    error.code = "support_ticket_dedupe_claim_unavailable";
+    throw error;
+  }
+  return {
+    tenant_id: tenantId,
+    dedupe_key: dedupeKey,
+    mode: "transaction_row_claim",
+    secrets_included: false,
+  };
 }
 
 async function persistIntegrityFields(connection, ticketId, integrity) {
@@ -110,17 +160,31 @@ export async function createOrAppendSupportTicketWithIntegrityAtomic(envelope = 
   const connection = options.connection || await pool.getConnection();
   const ownsConnection = !options.connection;
   const createTicket = options.createOrAppendSupportTicketFn || createOrAppendSupportTicket;
-  const { createOrAppendSupportTicketFn: _injectedCreateTicket, ...baseOptions } = options;
+  const {
+    createOrAppendSupportTicketFn: _injectedCreateTicket,
+    externalTransactionActive: _externalTransactionActive,
+    ...baseOptions
+  } = options;
   let transactionStarted = false;
+  let dedupeClaim = null;
 
   try {
     const schema = await readIntegritySchema(connection);
     if (!schema.ready) throw schemaNotReadyError(schema);
+    if (!ownsConnection && options.externalTransactionActive !== true) {
+      throw externalTransactionRequiredError();
+    }
 
     if (ownsConnection) {
       await connection.beginTransaction();
       transactionStarted = true;
     }
+
+    dedupeClaim = await acquireDedupeClaim(
+      connection,
+      normalizedEnvelope.tenant_id,
+      normalizedEnvelope.dedupe_key,
+    );
 
     const result = await createTicket(normalizedEnvelope, {
       ...baseOptions,
@@ -139,8 +203,11 @@ export async function createOrAppendSupportTicketWithIntegrityAtomic(envelope = 
       integrity: {
         ...integrity,
         dedupe_key: normalizedEnvelope.dedupe_key,
+        dedupe_serialized: true,
+        dedupe_coordination: dedupeClaim,
         schema_ready: true,
         schema_missing_columns: [],
+        schema_missing_tables: [],
         persisted: true,
         secrets_included: false,
       },
@@ -157,5 +224,8 @@ export async function createOrAppendSupportTicketWithIntegrityAtomic(envelope = 
 }
 
 export function _testingSupportTicketLifecycleIntegrityCreation() {
-  return { REQUIRED_INTEGRITY_COLUMNS };
+  return {
+    REQUIRED_INTEGRITY_COLUMNS,
+    REQUIRED_INTEGRITY_TABLES,
+  };
 }
