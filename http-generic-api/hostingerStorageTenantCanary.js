@@ -4,6 +4,7 @@ import {
   createMemoryHostingerStorageTenantCanaryEnablementRegistry,
   executeHostingerStorageTenantCanary as executeBaseTenantCanary,
 } from './hostingerStorageTenantCanaryBase.js';
+import { createHostingerStorageSyntheticAdapter } from './hostingerStorageSyntheticAdapter.js';
 
 export {
   HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
@@ -19,6 +20,7 @@ const REQUIRED_REPOSITORY_METHODS = Object.freeze([
 ]);
 const CANONICAL_ADAPTER_KEY = 'hostinger_storage_synthetic_memory_adapter_v1';
 const CANONICAL_ADAPTER_VERSION = 'spec014-hostinger-storage-synthetic-adapter-v1';
+const tenantCanaryAdapters = new WeakSet();
 
 function fail(status, code, message, details = {}) {
   const error = new Error(message);
@@ -34,6 +36,12 @@ function boundedIdToken(value) {
 
 function boundedHashToken(value) {
   return String(value ?? '').trim().slice(0, 64).toLowerCase();
+}
+
+export function createHostingerStorageTenantCanarySyntheticAdapter(options = {}) {
+  const adapter = createHostingerStorageSyntheticAdapter(options);
+  tenantCanaryAdapters.add(adapter);
+  return adapter;
 }
 
 export function createMemoryHostingerStorageTenantCanaryAuthorityStore() {
@@ -117,6 +125,7 @@ function requireCompleteRepository(repository) {
 
 function requireCanonicalAdapter(adapter) {
   if (!adapter
+    || !tenantCanaryAdapters.has(adapter)
     || !Object.isFrozen(adapter)
     || adapter.adapter_key !== CANONICAL_ADAPTER_KEY
     || adapter.adapter_version !== CANONICAL_ADAPTER_VERSION
@@ -128,7 +137,7 @@ function requireCanonicalAdapter(adapter) {
     || typeof adapter.mutateExact !== 'function'
     || typeof adapter.readbackItem !== 'function'
     || typeof adapter.readMutationReceipt !== 'function') {
-    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires the canonical frozen in-memory synthetic adapter identity and contract.', {
+    throw fail(409, 'STORAGE_TENANT_CANARY_EXECUTOR_ADAPTER_INVALID', 'Tenant canary requires an adapter created by the Tenant-owned synthetic adapter factory.', {
       expected_adapter_key: CANONICAL_ADAPTER_KEY,
       expected_adapter_version: CANONICAL_ADAPTER_VERSION,
     });
