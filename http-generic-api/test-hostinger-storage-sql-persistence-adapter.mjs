@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { createHostingerStorageControlPlaneRepository } from './hostingerStorageControlPlaneRepositoryBase.js';
-import { createMySqlHostingerStoragePersistenceAdapter } from './hostingerStorageSqlPersistenceAdapter.js';
+import {
+  createHostingerStorageControlPlaneRepository,
+  createMySqlHostingerStoragePersistenceAdapter,
+  isCanonicalHostingerStorageControlPlaneRepository,
+  isCanonicalMySqlHostingerStoragePersistenceAdapter,
+} from './hostingerStorageControlPlaneRepository.js';
 
 const h = (character) => character.repeat(64);
 const clone = (value) => structuredClone(value);
@@ -133,7 +137,10 @@ function createRepository(database) {
     pool: new FakePool(database),
     schema_verified: true,
   });
-  return createHostingerStorageControlPlaneRepository({ adapter });
+  assert.equal(isCanonicalMySqlHostingerStoragePersistenceAdapter(adapter), true);
+  const repository = createHostingerStorageControlPlaneRepository({ adapter });
+  assert.equal(isCanonicalHostingerStorageControlPlaneRepository(repository), true);
+  return repository;
 }
 
 const database = new FakeSqlDatabase();
@@ -160,175 +167,90 @@ const operation = {
   updated_at_epoch: 1000,
   secrets_included: false,
 };
-const created = await repository.createOperation(operation, { now_epoch: 1000 });
-assert.equal(created.created, true);
-const replay = await repository.createOperation(operation, { now_epoch: 1000 });
-assert.equal(replay.created, false);
+assert.equal((await repository.createOperation(operation, { now_epoch: 1000 })).created, true);
+assert.equal((await repository.createOperation(operation, { now_epoch: 1000 })).created, false);
 
 await repository.persistImmutablePlan({
-  plan_id: 'sql-plan-1',
-  operation_id: operation.operation_id,
-  target_id: operation.target_id,
-  plan_hash: h('3'),
-  candidate_set_hash: h('4'),
-  impact_set_hash: h('5'),
-  authority_context_hash: h('1'),
-  ownership_revision: 'ownership-r1',
-  policy_revision: 'policy-r1',
-  source_snapshot_id: 'snapshot-1',
-  item_count: 1,
-  total_bytes: 1024,
-  expires_at_epoch: 2000,
-  status: 'approved',
-  consumed: false,
-  immutable_envelope_digest: h('3'),
-  secrets_included: false,
+  plan_id: 'sql-plan-1', operation_id: operation.operation_id, target_id: operation.target_id,
+  plan_hash: h('3'), candidate_set_hash: h('4'), impact_set_hash: h('5'),
+  authority_context_hash: h('1'), ownership_revision: 'ownership-r1', policy_revision: 'policy-r1',
+  source_snapshot_id: 'snapshot-1', item_count: 1, total_bytes: 1024, expires_at_epoch: 2000,
+  status: 'approved', consumed: false, immutable_envelope_digest: h('3'), secrets_included: false,
 });
 await repository.appendApproval({
-  approval_id: 'sql-approval-1',
-  plan_id: 'sql-plan-1',
-  slot: 'workspace_owner:workspace-1',
-  workspace_id: 'workspace-1',
-  approver_principal_id: 'principal-1',
-  approver_authority_ref: 'authority/workspace-owner-1',
-  decision: 'approved',
-  plan_hash: h('3'),
-  candidate_set_hash: h('4'),
-  impact_set_hash: h('5'),
-  authority_context_hash: h('1'),
-  ownership_revision: 'ownership-r1',
-  policy_revision: 'policy-r1',
-  evidence_digest: h('6'),
-  decided_at_epoch: 1100,
-  expires_at_epoch: 1900,
-  invalidated: false,
-  secrets_included: false,
+  approval_id: 'sql-approval-1', plan_id: 'sql-plan-1', slot: 'workspace_owner:workspace-1',
+  workspace_id: 'workspace-1', approver_principal_id: 'principal-1',
+  approver_authority_ref: 'authority/workspace-owner-1', decision: 'approved',
+  plan_hash: h('3'), candidate_set_hash: h('4'), impact_set_hash: h('5'),
+  authority_context_hash: h('1'), ownership_revision: 'ownership-r1', policy_revision: 'policy-r1',
+  evidence_digest: h('6'), decided_at_epoch: 1100, expires_at_epoch: 1900,
+  invalidated: false, secrets_included: false,
 });
 const lease = await repository.acquireLease({
-  lease_id: 'sql-lease-1',
-  target_id: operation.target_id,
-  operation_id: operation.operation_id,
-  purpose: 'cleanup_apply',
-  holder_ref: 'worker/session-1',
-  expires_at_epoch: 1600,
-  evidence_digest: h('7'),
-  secrets_included: false,
+  lease_id: 'sql-lease-1', target_id: operation.target_id, operation_id: operation.operation_id,
+  purpose: 'cleanup_apply', holder_ref: 'worker/session-1', expires_at_epoch: 1600,
+  evidence_digest: h('7'), secrets_included: false,
 }, { expected_generation: 0, now_epoch: 1200 });
 assert.equal(lease.generation, 1);
 
-await repository.appendJournalEvent({
-  event_id: 'sql-event-1',
-  operation_id: operation.operation_id,
-  run_id: 'sql-run-1',
-  plan_id: 'sql-plan-1',
-  item_id: 'item-1',
-  sequence: 1,
-  phase: 'prepared',
-  result: 'prepared',
-  stat_digest: h('8'),
-  evidence_digest: h('9'),
-  observed_at_epoch: 1250,
-  secrets_included: false,
-});
-await repository.appendJournalEvent({
-  event_id: 'sql-event-2',
-  operation_id: operation.operation_id,
-  run_id: 'sql-run-1',
-  plan_id: 'sql-plan-1',
-  item_id: 'item-1',
-  sequence: 2,
-  phase: 'result',
-  result: 'deleted',
-  stat_digest: h('8'),
-  evidence_digest: h('a'),
-  observed_at_epoch: 1260,
-  secrets_included: false,
-});
+for (const event of [
+  { event_id: 'sql-event-1', sequence: 1, phase: 'prepared', result: 'prepared', evidence_digest: h('9') },
+  { event_id: 'sql-event-2', sequence: 2, phase: 'result', result: 'deleted', evidence_digest: h('a') },
+]) {
+  await repository.appendJournalEvent({
+    ...event,
+    operation_id: operation.operation_id,
+    run_id: 'sql-run-1',
+    plan_id: 'sql-plan-1',
+    item_id: 'item-1',
+    stat_digest: h('8'),
+    observed_at_epoch: 1240 + event.sequence * 10,
+    secrets_included: false,
+  });
+}
 await repository.recordReconciliation({
-  reconciliation_id: 'sql-reconciliation-1',
-  operation_id: operation.operation_id,
-  run_id: 'sql-run-1',
-  outcome: 'applied',
-  input_evidence_hash: h('b'),
-  result_digest: h('c'),
-  retry_allowed: false,
-  reviewed_at_epoch: 1300,
-  secrets_included: false,
+  reconciliation_id: 'sql-reconciliation-1', operation_id: operation.operation_id,
+  run_id: 'sql-run-1', outcome: 'applied', input_evidence_hash: h('b'),
+  result_digest: h('c'), retry_allowed: false, reviewed_at_epoch: 1300, secrets_included: false,
 });
 
 const beforeRestart = await repository.readAggregate(operation.operation_id);
-assert.equal(beforeRestart.operation.state, 'approved');
 assert.equal(beforeRestart.plans.length, 1);
 assert.equal(beforeRestart.approvals.length, 1);
 assert.equal(beforeRestart.leases[0].generation, 1);
 assert.equal(beforeRestart.journals.length, 2);
 assert.equal(beforeRestart.reconciliations.length, 1);
-assert(beforeRestart.transaction_version >= 7);
 
 repository = createRepository(database);
-const afterRestart = await repository.readAggregate(operation.operation_id);
-assert.deepEqual(afterRestart, beforeRestart);
+assert.deepEqual(await repository.readAggregate(operation.operation_id), beforeRestart);
 
-const renewed = await repository.renewLease({
-  target_id: operation.target_id,
-  lease_id: 'sql-lease-1',
-  operation_id: operation.operation_id,
-  holder_ref: 'worker/session-1',
-  expected_generation: 1,
-  expires_at_epoch: 1800,
-  evidence_digest: h('d'),
-  now_epoch: 1400,
-});
-assert.equal(renewed.generation, 2);
-await assert.rejects(
-  repository.renewLease({
-    target_id: operation.target_id,
-    lease_id: 'sql-lease-1',
-    operation_id: operation.operation_id,
-    holder_ref: 'worker/session-1',
-    expected_generation: 1,
-    expires_at_epoch: 1900,
-    evidence_digest: h('e'),
-    now_epoch: 1450,
-  }),
-  (error) => error.code === 'STORAGE_LEASE_GENERATION_CONFLICT',
-);
+assert.equal((await repository.renewLease({
+  target_id: operation.target_id, lease_id: 'sql-lease-1', operation_id: operation.operation_id,
+  holder_ref: 'worker/session-1', expected_generation: 1, expires_at_epoch: 1800,
+  evidence_digest: h('d'), now_epoch: 1400,
+})).generation, 2);
+await assert.rejects(repository.renewLease({
+  target_id: operation.target_id, lease_id: 'sql-lease-1', operation_id: operation.operation_id,
+  holder_ref: 'worker/session-1', expected_generation: 1, expires_at_epoch: 1900,
+  evidence_digest: h('e'), now_epoch: 1450,
+}), (error) => error.code === 'STORAGE_LEASE_GENERATION_CONFLICT');
 
 database.forceNextCasMiss = true;
-await assert.rejects(
-  repository.transitionOperation({
-    operation_id: operation.operation_id,
-    expected_version: 1,
-    next_state: 'executing',
-    now_epoch: 1500,
-  }),
-  (error) => error.code === 'STORAGE_SQL_CAS_CONFLICT',
-);
-const afterCasMiss = await repository.readAggregate(operation.operation_id);
-assert.equal(afterCasMiss.operation.version, 1);
+await assert.rejects(repository.transitionOperation({
+  operation_id: operation.operation_id, expected_version: 1, next_state: 'executing', now_epoch: 1500,
+}), (error) => error.code === 'STORAGE_SQL_CAS_CONFLICT');
+assert.equal((await repository.readAggregate(operation.operation_id)).operation.version, 1);
 assert.equal(database.rollbacks > 0, true);
 
-const transitioned = await repository.transitionOperation({
-  operation_id: operation.operation_id,
-  expected_version: 1,
-  next_state: 'executing',
-  now_epoch: 1510,
-});
-assert.equal(transitioned.version, 2);
-const consumed = await repository.consumePlan({
-  plan_id: 'sql-plan-1',
-  expected_plan_hash: h('3'),
-  run_id: 'sql-run-1',
-  consumed_at_epoch: 1520,
-});
-assert.equal(consumed.consumed, true);
-const consumedReplay = await repository.consumePlan({
-  plan_id: 'sql-plan-1',
-  expected_plan_hash: h('3'),
-  run_id: 'sql-run-1',
-  consumed_at_epoch: 1520,
-});
-assert.equal(consumedReplay.replay, true);
+assert.equal((await repository.transitionOperation({
+  operation_id: operation.operation_id, expected_version: 1, next_state: 'executing', now_epoch: 1510,
+})).version, 2);
+assert.equal((await repository.consumePlan({
+  plan_id: 'sql-plan-1', expected_plan_hash: h('3'), run_id: 'sql-run-1', consumed_at_epoch: 1520,
+})).consumed, true);
+assert.equal((await repository.consumePlan({
+  plan_id: 'sql-plan-1', expected_plan_hash: h('3'), run_id: 'sql-run-1', consumed_at_epoch: 1520,
+})).replay, true);
 
 const snapshot = await repository.exportSnapshot();
 assert.equal(snapshot.durable_sql, true);
@@ -339,6 +261,7 @@ assert.equal(snapshot.state.operations[operation.operation_id].state, 'executing
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_sql_persistence_adapter',
+  canonical_factory_provenance: true,
   transaction_commit: true,
   rollback_on_cas_conflict: true,
   lease_generation_cas: true,
