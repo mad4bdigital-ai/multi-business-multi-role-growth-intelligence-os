@@ -6,9 +6,7 @@
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
-    "include": [
-      "specs/015-tenant-operating-system-studio/**"
-    ]
+    "include": ["specs/015-tenant-operating-system-studio/**"]
   },
   "merge_contract": {
     "minimum_phase": "mvp"
@@ -17,7 +15,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, open-Draft-Spec portfolio, Work Map, candidate-PR classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
+      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, complete open-Draft portfolio, Work Map, candidate classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "spec015-contract-integrity",
@@ -25,19 +23,24 @@
           "level": "synthetic_runtime",
           "actor": "Repository specification maintainer",
           "entrypoint": "Run the Spec-local deterministic validator from the exact candidate tree",
-          "terminal_outcome": "The declared file inventory, JSON/OpenAPI contracts, ten-entry Draft Spec portfolio, duplicate identity map, implementation trains, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
+          "terminal_outcome": "The file inventory, JSON/OpenAPI contracts, 12 primary Draft Specs, 22 related Draft PRs, duplicate identity and feature clusters, four delivery trains, candidate convergence, Work Map classification, completion state, and no-secret boundaries pass as one structured report.",
           "steps": [
             "Validate the exact manifest inventory and specification-only boundaries.",
-            "Validate the package, installation, lifecycle, candidate-convergence, Draft Spec portfolio, and draft OpenAPI contract structure.",
-            "Validate all ten observed open Draft Specs, duplicate numeric identities 011 and 014, portfolio roles, package keys, relationship edges, and implementation trains.",
-            "Validate PR #3922 and PR #4432 detailed classification into generic substrate and bounded reference packages.",
-            "Validate all 19 Work Maps and 16 schema domains have explicit decisions while runtime implementation remains blocked.",
+            "Validate package, installation, lifecycle, candidate-convergence, Draft portfolio, and OpenAPI contract structure.",
+            "Validate all 34 observed open Draft PRs are classified exactly once as a primary Spec or related delivery.",
+            "Validate duplicate numeric identities 011 and 014 plus the duplicate 013 System Tool Catalog feature cluster.",
+            "Validate Operation Fabric, Hostinger, System Tool Catalog, and ChatGPT/MCP delivery trains.",
+            "Validate PR #3922 and PR #4432 detailed extraction into generic substrate and bounded reference packages.",
+            "Validate Spec 016 is an external integration surface and PR #4462 is its read-only implementation child without independent authority.",
+            "Validate all 19 Work Maps and 16 schema domains have explicit decisions while Spec 015 runtime implementation remains blocked.",
             "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns."
           ],
           "assertions": [
-            "The report declares ok=true, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
+            "The report declares ok=true, primary_draft_specs=12, related_open_drafts=22, total_open_drafts_classified=34, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
             "Numeric Spec numbers are not accepted as unique portfolio authority identities.",
+            "PRs #3139, #3145, and #3159 are one unresolved System Tool Catalog feature cluster rather than independent canonical features.",
             "PRs #3922, #4386, and #4432 remain bounded package or service sources, while PRs #2949 and #2950 retain distinct subsystem and application roles.",
+            "PR #4460 consumes existing tool, context, capability, operation, package, and readback authorities; PR #4462 stays feature-flagged and read-only.",
             "Diverged Draft branches remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
             "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion."
           ],
@@ -66,86 +69,89 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Implement package/component registries, deterministic installation compilation, custom entities, lifecycles, forms, file policies, AI definitions, and generated tenant-safe surfaces through bounded child PRs.",
+      "objective": "Implement package/component registries, deterministic installation compilation, custom entities, lifecycles, forms, file policies, AI definitions, generated tenant-safe surfaces, and reviewed external projections through bounded child PRs.",
       "blockers": [
         "The field-level current-main reuse matrix is not complete.",
         "The package registry mapping and custom entity persistence decisions remain open.",
-        "Duplicate numeric Spec 011 and 014 identities and candidate extraction paths require review.",
-        "Stale completion ledgers and mixed Spec/implementation branches require reconciliation."
+        "Duplicate numeric Spec 011 and 014 identities require review.",
+        "The duplicate System Tool Catalog v2 feature cluster has no selected canonical reconstruction.",
+        "Stale completion ledgers, mixed Spec/implementation branches, and related Draft dispositions require reconciliation.",
+        "Spec 016 OAuth, tool-catalog, Context Kernel, public endpoint, and Developer mode gates remain open."
       ],
       "planned_e2e_journey": {
         "id": "spec015-operational-package-installation",
         "required_level": "synthetic_runtime",
         "actor": "Tenant system designer and package reviewer",
         "entrypoint": "Create and compile a private tenant package with entities, forms, lifecycle, workflow, file, UI, and acceptance components",
-        "terminal_outcome": "The package validates, installs for an exact Brand in sandbox, produces a deterministic installation revision, and exposes tenant-safe generated surfaces without creating implicit authority.",
+        "terminal_outcome": "The package validates, installs for an exact Brand in sandbox, produces a deterministic installation revision, and exposes tenant-safe generated or reviewed external surfaces without implicit authority.",
         "steps": [
           "Create immutable package and component versions through existing platform authorities.",
           "Compile the exact target installation with lineage, conflicts, revision vector, and deterministic hash.",
-          "Run sandbox acceptance and prove UI/form/resource authority remains server-enforced."
+          "Run sandbox acceptance and prove UI, form, MCP, resource, and operation authority remains server-enforced."
         ]
       }
     },
     {
       "id": "resilient",
       "status": "blocked",
-      "objective": "Prove upgrades, rollback, provider/manual fallback, backup/restore, drift reconciliation, delegation revocation, export, and handover continuity.",
+      "objective": "Prove upgrades, rollback, provider/manual fallback, backup/restore, drift reconciliation, delegation revocation, export, handover continuity, and external integration disable/revocation.",
       "blockers": [
         "Operational package and installation runtime is not implemented.",
-        "Reference packages, infrastructure services, and agency/client delegation journeys are not reconstructed."
+        "Reference packages, infrastructure services, agency/client delegation, and external integration journeys are not reconstructed."
       ],
       "planned_e2e_journey": {
         "id": "spec015-resilient-upgrade-handover",
         "required_level": "live_non_production",
-        "actor": "Agency operator, client owner, and release reviewer",
-        "entrypoint": "Upgrade one client installation with local overrides, simulate dependency degradation, and execute a client handover",
-        "terminal_outcome": "Three-way conflicts are explicit, rollback is verified, agency delegation is revoked, and the client-owned system continues under client principals.",
+        "actor": "Agency operator, client owner, integration operator, and release reviewer",
+        "entrypoint": "Upgrade one client installation with local overrides, simulate dependency degradation, revoke an external connection, and execute a client handover",
+        "terminal_outcome": "Conflicts are explicit, rollback is verified, external and agency delegation is revoked, and the client-owned system continues under client principals.",
         "steps": [
           "Run three-way package upgrade and block ambiguous local customization conflicts.",
           "Exercise manual/provider fallback, backup/restore, and prior-revision rollback.",
-          "Transfer or recreate client-owned dependencies, revoke delegation, and verify continuity plus former-agency denial."
+          "Revoke external and agency access, transfer dependencies, and verify continuity plus former-operator denial."
         ]
       }
     },
     {
       "id": "canary",
       "status": "blocked",
-      "objective": "Run bounded pilots for a freelancer, an agency with two client Brands, a client-owned Tenant with agency delegation, and the Evidence Intelligence, Retail Commerce, Hostinger Storage, and Local Connector Recovery package/service targets.",
+      "objective": "Run bounded pilots for a freelancer, an agency with two client Brands, a client-owned Tenant, four reference package/service targets, and a read-only ChatGPT/MCP external integration cohort.",
       "blockers": [
         "Operational and resilient acceptance suites are incomplete.",
-        "Pilot Tenants, Brands, packages, services, allowed effect classes, budgets, and stop rules are not approved."
+        "Pilot Tenants, Brands, packages, services, external connections, effects, budgets, and stop rules are not approved."
       ],
       "planned_e2e_journey": {
         "id": "spec015-canary-tenant-studio",
         "required_level": "live_non_production",
-        "actor": "Authorized pilot tenants, client reviewers, and platform operators",
-        "entrypoint": "Author, install, activate, and operate bounded package installations in approved pilot cohorts",
-        "terminal_outcome": "The intended tenant models operate with strict isolation, usable generated surfaces, measurable health/cost, manual fallback, rollback, and handover readiness.",
+        "actor": "Authorized pilot tenants, client reviewers, ChatGPT Developer mode testers, and platform operators",
+        "entrypoint": "Author, install, activate, and operate bounded package installations and approved read-only external tools",
+        "terminal_outcome": "Tenant models and external reads operate with isolation, usable surfaces, health/cost evidence, fallback, rollback, revocation, and handover readiness.",
         "steps": [
           "Pilot one freelancer-created system and one agency package installed for two isolated client Brands.",
           "Pilot a client-owned Tenant with delegated agency access and tested revocation.",
-          "Run Evidence Intelligence, Retail Commerce, Hostinger Storage, and Local Connector Recovery under package-specific acceptance gates."
+          "Run the four reference targets under package-specific gates.",
+          "Connect the approved read-only MCP surface in Developer mode and verify scoped discovery, denial, bounded output, disable, and revocation."
         ]
       }
     },
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Verify governed migrations, Production runtime and generated-surface parity, health, isolation, backup/restore, rollback, support, handover, and truthful closeout.",
+      "objective": "Verify governed migrations, Production runtime, package/generated/external-surface parity, health, isolation, backup/restore, rollback, support, handover, and truthful closeout.",
       "blockers": [
         "Canary acceptance and Production release authority do not exist.",
-        "No package runtime migration, deployment, Production canary, or post-merge audit has been executed."
+        "No package runtime migration, deployment, public plugin review, Production canary, or post-merge audit has been executed."
       ],
       "planned_e2e_journey": {
         "id": "spec015-production-readback",
         "required_level": "production_readback",
         "actor": "Authorized release operator and tenant pilot owners",
-        "entrypoint": "Promote an exact verified release candidate through the governed deployment and migration path",
-        "terminal_outcome": "Production runs the intended package and installation revisions with current contracts, healthy runtime/surfaces, strict tenant/client isolation, fallback, rollback, handover continuity, and complete closeout evidence.",
+        "entrypoint": "Promote an exact verified release candidate through governed deployment, migration, and external-integration release paths",
+        "terminal_outcome": "Production runs intended package, installation, and reviewed external surface revisions with healthy runtime, isolation, fallback, rollback, revocation, handover continuity, and complete closeout evidence.",
         "steps": [
-          "Verify exact-head CI, applied migration evidence, main/Production parity, and active feature/package configuration.",
-          "Run bounded Production health, generated-surface, isolation, provider/manual fallback, and rollback readback.",
-          "Complete post-merge audit and classify all remaining work explicitly."
+          "Verify exact-head CI, migration evidence, main/Production parity, active package configuration, and reviewed external metadata.",
+          "Run bounded Production health, generated/external surface, isolation, fallback, revocation, and rollback readback.",
+          "Complete post-merge audit and explicitly classify all remaining work."
         ]
       }
     }
