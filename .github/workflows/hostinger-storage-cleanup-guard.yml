@@ -6,9 +6,12 @@ on:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
       - "http-generic-api/hostingerStorageOrchestrationPolicy.js"
+      - "http-generic-api/hostingerStorageOrchestrator.js"
       - "http-generic-api/test-hostinger-storage-orchestration-policy.mjs"
+      - "http-generic-api/test-hostinger-storage-orchestrator.mjs"
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
+      - "specs/014-governed-hostinger-storage-orchestration/**"
       - "docs/hostinger-storage-cleanup.md"
       - "docs/hostinger-storage-control-plane.md"
       - "docs/hostinger-storage-admin-tenant-orchestration.md"
@@ -19,9 +22,12 @@ on:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
       - "http-generic-api/hostingerStorageOrchestrationPolicy.js"
+      - "http-generic-api/hostingerStorageOrchestrator.js"
       - "http-generic-api/test-hostinger-storage-orchestration-policy.mjs"
+      - "http-generic-api/test-hostinger-storage-orchestrator.mjs"
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
       - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
+      - "specs/014-governed-hostinger-storage-orchestration/**"
       - "docs/hostinger-storage-cleanup.md"
       - "docs/hostinger-storage-control-plane.md"
       - "docs/hostinger-storage-admin-tenant-orchestration.md"
@@ -48,13 +54,42 @@ jobs:
       - name: Validate shell syntax
         run: bash -n http-generic-api/scripts/hostinger-storage-cleanup.sh
 
-      - name: Validate machine-readable policies
+      - name: Validate machine-readable policies and Spec Kit JSON
         run: |
           node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-cleanup-policy.json','utf8'))"
           node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-orchestration-policy.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/manifest.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/work-map-integration.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/completion.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/contracts/storage-operation.schema.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/contracts/storage-plan.schema.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('specs/014-governed-hostinger-storage-orchestration/contracts/storage-evidence.schema.json','utf8'))"
+          grep -q '^openapi: 3.1.0$' specs/014-governed-hostinger-storage-orchestration/contracts/openapi.yaml
+
+      - name: Validate Spec Kit artifact completeness
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = 'specs/014-governed-hostinger-storage-orchestration';
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+          const missing = manifest.artifacts.filter((file) => !fs.existsSync(path.join(root, file)));
+          if (missing.length) {
+            console.error(JSON.stringify({ ok: false, missing }, null, 2));
+            process.exit(1);
+          }
+          if (manifest.production_mutation !== false || manifest.provider_write !== false || manifest.secrets_included !== false) process.exit(1);
+          console.log(JSON.stringify({ ok: true, artifacts: manifest.artifacts.length, secrets_included: false }));
+          NODE
 
       - name: Execute filesystem safety regression
         run: node http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs
 
       - name: Execute Admin Tenant authority regression
         run: node http-generic-api/test-hostinger-storage-orchestration-policy.mjs
+
+      - name: Execute orchestration envelope and reconciliation regression
+        run: node http-generic-api/test-hostinger-storage-orchestrator.mjs
+
+      - name: Validate Spec Kit Work Map integration
+        run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
