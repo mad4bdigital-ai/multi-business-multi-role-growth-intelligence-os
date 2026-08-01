@@ -184,12 +184,17 @@ const checks = [
   ["delivery-support-map.md", /output_artifacts/, /tickets/],
   ["migration-lifecycle-map.md", /data_migration_inventory/],
   ["activation-access-map.md", /agent_skill_grants/, /v_activation_agent_skill_grants/],
-  ["repository-automation-map.md", /Docs Agent/, /CI/],
+  ["repository-automation-map.md", /Docs Agent preview/, /Work Map integration check/, /Sole governed Work Map writer/, /CI/],
 ];
 for (const [file, ...patterns] of checks) {
   const content = read(`docs/work-maps/${file}`);
   for (const pattern of patterns) assert.match(content, pattern);
 }
+
+const automationMap = read("docs/work-maps/repository-automation-map.md");
+assert.doesNotMatch(automationMap, /Docs --> Maps\[Regenerate text work maps\]/);
+assert.match(automationMap, /Integration --> Repair\[Exact-head repair artifact when stale\]/);
+assert.match(automationMap, /Authorize --> Autofix\[Sole governed Work Map writer\]/);
 
 const coverage = read("docs/work-maps/work-map-coverage-matrix.md");
 assert.match(coverage, /Work Map Coverage Matrix/);
@@ -201,6 +206,10 @@ const index = read("docs/work-maps/README.md");
 for (const name of expected.filter((name) => name !== "README.md")) {
   assert.match(index, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
+assert.match(index, /Docs Agent provides preview artifacts only/);
+assert.match(index, /Spec Kit Work Map Autofix workflow is the sole remote writer/);
+assert.match(index, /After explicit one-time authorization/);
+assert.doesNotMatch(index, /Docs Agent commits the generated diff/);
 
 const clean = syncWorkMaps({ repoRoot, mode: "check" });
 assert.equal(clean.ok, true);
@@ -233,6 +242,7 @@ const workflow = fs.readFileSync(new URL("../.github/workflows/docs-agent.yml", 
 const maintenance = fs.readFileSync(new URL("./scripts/repo-maintenance-sync.mjs", import.meta.url), "utf8");
 assert.match(workflow, /platform-work-map-generator\.mjs --write/);
 assert.match(workflow, /docs\/work-maps/);
+assert.match(workflow, /preview-only/);
 assert.match(maintenance, /platform-work-map-generator\.mjs/);
 
 console.log("deep dynamic text platform work map generator test passed");
