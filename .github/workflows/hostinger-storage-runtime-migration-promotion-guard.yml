@@ -31,6 +31,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
       - name: Check validator syntax
         run: node --check http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
       - name: Validate governed migration promotion
