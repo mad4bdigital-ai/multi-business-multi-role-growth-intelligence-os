@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-plugin-mcp-integration",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "oauth_conformance": true,
+    "developer_mode_acceptance": true,
+    "public_review_readiness": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": "current",
+      "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
+      "role": "canonical_integration_specification",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "release_prs": [],
+    "closeout_pr": null
+  },
+  "specification": {
+    "complete": true,
+    "review_state": "draft",
+    "file_count_expected": 22,
+    "file_count_recorded": 22,
+    "functional_requirements": 32,
+    "non_functional_requirements": 12,
+    "success_criteria": 10,
+    "user_scenarios": 7,
+    "operation_paths": 10,
+    "risks": 20,
+    "tasks": 42,
+    "work_maps": 19,
+    "schema_domains": 16,
+    "e2e_phases": 5
+  },
+  "verification": {
+    "json_parse": "pending_ci",
+    "yaml_parse": "pending_ci",
+    "openapi_validation": "pending_ci",
+    "json_schema_validation": "pending_ci",
+    "manifest_inventory": "pending_ci",
+    "reference_integrity": "pending_ci",
+    "work_map_review": "pending_canonical_scaffold_and_pr_review",
+    "architecture_review": "pending_pr_review",
+    "identity_review": "pending_pr_review",
+    "security_review": "pending_pr_review",
+    "privacy_review": "pending_pr_review",
+    "product_tool_catalog_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": false,
+    "legacy_consumer_inventory_complete": false,
+    "public_mcp_endpoint_verified": false,
+    "streamable_http_adapter_implemented": false,
+    "oauth_protected_resource_metadata_implemented": false,
+    "oauth_authorization_server_conformance_verified": false,
+    "resource_bound_token_validation_implemented": false,
+    "phase_1_tool_catalog_approved": false,
+    "phase_1_read_tools_implemented": false,
+    "tenant_isolation_verified": false,
+    "plugin_package_implemented": false,
+    "chatgpt_developer_connection_created": false,
+    "write_tools_implemented": false,
+    "optional_ui_implemented": false,
+    "public_submission_created": false,
+    "review_approved": false,
+    "published": false,
+    "migrations_applied": false,
+    "production_deployed": false
+  },
+  "required_closeout_evidence": [
+    "legacy_mcp_consumer_inventory",
+    "identity_and_oauth_conformance",
+    "public_endpoint_dns_tls_and_routing",
+    "streamable_http_protocol_acceptance",
+    "phase_1_tool_catalog_and_annotation_parity",
+    "context_kernel_and_capability_binding",
+    "tenant_workspace_brand_isolation_matrix",
+    "bounded_result_and_secret_redaction",
+    "developer_mode_connection_and_prompt_evaluation",
+    "plugin_package_and_connection_binding_safety",
+    "write_tool_confirmation_idempotency_and_readback",
+    "unknown_outcome_reconciliation",
+    "revocation_and_disable_drills",
+    "privacy_terms_and_submission_dossier",
+    "reviewed_metadata_snapshot",
+    "production_source_package_review_parity",
+    "rollback_rehearsal",
+    "post_merge_audit"
+  ],
+  "blocking_reasons": [
+    "canonical_work_map_scaffold_not_run",
+    "oauth_identity_conformance_not_verified",
+    "legacy_mcp_consumer_inventory_missing",
+    "mcp_mad4b_com_public_endpoint_not_verified",
+    "phase_1_tool_catalog_not_approved",
+    "field_level_schema_reuse_matrix_missing",
+    "implementation_not_started"
+  ],
+  "notes": [
+    "The current repository MCP surface is a verified baseline, not proof of ChatGPT compatibility.",
+    "The specification requires a new Streamable HTTP adapter and OAuth 2.1 resource-server contract while retaining existing platform authorities.",
+    "The first implementation phase is read-only and works without custom UI.",
+    "Generic internal dispatch tools are not approved as the public plugin user experience.",
+    "This specification does not authorize runtime mutation, migration, OAuth registration, credentials, external calls, plugin submission, publication, or Production deployment."
+  ],
+  "secrets_included": false
+}
