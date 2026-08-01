@@ -1,12 +1,13 @@
 {
   "spec_key": "016-chatgpt-plugin-mcp-integration",
-  "title": "ChatGPT Plugin and Standards-Compliant MCP Integration",
+  "title": "Multi-Client AI Connector and Standards-Compliant MCP Integration",
   "branch": "gpt/spec-016-chatgpt-plugin-mcp-integration-20260801",
   "status": "specification_draft_review_pending",
   "specification_only": true,
   "created_at": "2026-08-01T14:37:00Z",
   "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
   "delivery_mode": "multi_pr",
+  "scope_extension": "multi_client_remote_mcp",
   "dependencies": [
     "specs/005-dynamic-mcp-schema-surfaces",
     "specs/006-platform-dynamic-workflow-runtime",
@@ -28,13 +29,19 @@
     "https://developers.openai.com/plugins/deploy/connect-chatgpt",
     "https://developers.openai.com/plugins/deploy/submission",
     "https://developers.openai.com/plugins/guides/security-privacy",
-    "https://developers.openai.com/plugins/deploy/app-review"
+    "https://developers.openai.com/plugins/deploy/app-review",
+    "https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp",
+    "https://support.anthropic.com/en/articles/11503834-building-custom-integrations-via-remote-mcp-servers",
+    "https://docs.anthropic.com/en/docs/mcp",
+    "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
+    "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports"
   ],
-  "file_count": 24,
+  "file_count": 25,
   "files": [
     "README.md",
     "manifest.json",
     "spec.md",
+    "multi-client-connector-extension.md",
     "research.md",
     "concerns.md",
     "operation-paths.md",
@@ -69,15 +76,23 @@
     "tasks": 42,
     "work_maps": 19,
     "schema_domains": 16,
-    "e2e_phases": 5
+    "e2e_phases": 5,
+    "client_profiles": 3
   },
   "target_surface": {
-    "plugin_type": "skills_plus_mcp_capable",
-    "phase_1_shape": "mcp_only_no_custom_ui",
+    "integration_type": "multi_client_remote_mcp_with_optional_distribution_packages",
+    "phase_1_shape": "shared_mcp_tools_only_no_custom_ui",
     "proposed_mcp_url": "https://mcp.mad4b.com/mcp",
     "public_url_verified": false,
     "authentication": "oauth_2_1_required_for_private_data_and_writes",
-    "transport": "mcp_streamable_http"
+    "transport": "mcp_streamable_http",
+    "supported_client_profiles": [
+      "openai_chatgpt_codex",
+      "anthropic_claude",
+      "generic_approved_mcp_client"
+    ],
+    "shared_tool_catalog": true,
+    "client_profile_is_authority": false
   },
   "boundaries": {
     "runtime_changes": false,
@@ -86,6 +101,8 @@
     "provider_calls": false,
     "external_writes": false,
     "plugin_submission": false,
+    "connector_submission": false,
+    "directory_listing": false,
     "production_activation": false,
     "force_push": false,
     "secrets_included": false
