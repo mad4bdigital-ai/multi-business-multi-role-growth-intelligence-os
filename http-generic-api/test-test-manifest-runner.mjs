@@ -54,7 +54,13 @@ for (const requiredCommand of [
 }
 
 assert.match(runnerSource, /spawnSync/);
-assert.match(runnerSource, /stdio:\s*"inherit"/);
+assert.doesNotMatch(runnerSource, /stdio:\s*"inherit"/, "manifest runner must retain bounded failure output for durable diagnostics");
+assert.match(runnerSource, /encoding:\s*"utf8"/);
+assert.match(runnerSource, /maxBuffer:\s*MAX_CAPTURE_BUFFER_BYTES/);
+assert.match(runnerSource, /process\.stdout\.write\(result\.stdout\)/, "captured stdout must remain visible in the live CI log");
+assert.match(runnerSource, /process\.stderr\.write\(result\.stderr\)/, "captured stderr must remain visible in the live CI log");
+assert.match(runnerSource, /buildDiagnosticStream/);
+assert.match(runnerSource, /redactDiagnosticOutput/);
 assert.match(runnerSource, /shell:\s*false/);
 
 assert.match(suiteSource, /spawnSync/);

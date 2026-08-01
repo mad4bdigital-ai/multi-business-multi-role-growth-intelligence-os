@@ -1,0 +1,372 @@
+name: Spec Kit Work Map Autofix
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Existing same-repository pull-request branch to update
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact branch head SHA authorized for regeneration
+        required: true
+        type: string
+  pull_request:
+    branches: [main]
+    types: [reopened]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->') && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Regenerate Work Maps
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'reopened' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'github-actions[bot]' &&
+        contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')
+      )
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event.pull_request.head.ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      DIAGNOSTIC_ROOT: ${{ runner.temp }}/work-map-autofix-diagnostics
+    steps:
+      - name: Bootstrap Work Map diagnostic envelope
+        id: bootstrap_diagnostics
+        run: |
+          set -euo pipefail
+          mkdir -p "${DIAGNOSTIC_ROOT}"
+          cat > "${DIAGNOSTIC_ROOT}/report.md" <<EOF
+          # Work Map Autofix Diagnostic Report
+
+          **Status:** ⏳ bootstrap
+
+          | Field | Value |
+          |---|---|
+          | Repository | \`${GITHUB_REPOSITORY}\` |
+          | Workflow | \`${GITHUB_WORKFLOW}\` |
+          | Run | \`${GITHUB_RUN_ID}\` (attempt ${GITHUB_RUN_ATTEMPT}) |
+          | Event | \`${GITHUB_EVENT_NAME}\` |
+          | Target branch | \`${TARGET_BRANCH}\` |
+          | Expected head | \`${EXPECTED_HEAD_SHA}\` |
+          | Runner | \`${RUNNER_OS}\` / \`${RUNNER_NAME}\` |
+
+          The governed recorder has not initialized yet. If checkout or Node setup fails, the workflow step ledger below identifies the blocked phase.
+          EOF
+
+      - name: Validate authorized target
+        id: validate_authorized_target
+        run: |
+          set -euo pipefail
+          git check-ref-format --branch "${TARGET_BRANCH}"
+          if [[ "${TARGET_BRANCH}" == "main" ]]; then
+            echo "Direct autofix writes to main are forbidden; use a pull-request branch."
+            exit 1
+          fi
+          if [[ ! "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_head_sha must be a full lowercase 40-character commit SHA."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        id: checkout
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - uses: actions/setup-node@v6
+        id: setup_node
+        with:
+          node-version: "22"
+
+      - name: Initialize Work Map diagnostic report
+        id: initialize_diagnostics
+        run: node http-generic-api/scripts/work-map-autofix-diagnostics.mjs init --root "${DIAGNOSTIC_ROOT}"
+
+      - name: Pin authorized branch head
+        id: pin_authorized_head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          diagnostic_script="$(cat <<'BASH'
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${actual_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Checked-out head mismatch. Expected ${EXPECTED_HEAD_SHA}, found ${actual_head_sha}."
+            exit 1
+          fi
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            target_pr_file="${RUNNER_TEMP}/work-map-autofix-target-pr.json"
+            gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls" \
+              -f state=open \
+              -f base=main \
+              -f head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}" \
+              -f per_page=2 > "${target_pr_file}"
+            target_pr_count="$(node -e "const fs=require('node:fs');const rows=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(rows.length));" "${target_pr_file}")"
+            if [[ "${target_pr_count}" != "1" ]]; then
+              echo "workflow_dispatch requires exactly one open same-repository PR targeting main for ${TARGET_BRANCH}; found ${target_pr_count}."
+              exit 1
+            fi
+            target_pr_head_sha="$(node -e "const fs=require('node:fs');const rows=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(rows[0]?.head?.sha || ''));" "${target_pr_file}")"
+            if [[ "${target_pr_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+              echo "workflow_dispatch PR head mismatch. Expected ${EXPECTED_HEAD_SHA}, found ${target_pr_head_sha}."
+              exit 1
+            fi
+          fi
+          BASH
+          )"
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id pin-authorized-head -- bash -lc "${diagnostic_script}"
+
+      - name: Consume one-time pull-request authorization
+        id: consume_authorization
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          diagnostic_script="$(cat <<'BASH'
+          set -euo pipefail
+          authorization_marker='<!-- work-map-autofix:authorized -->'
+          pr_file="${RUNNER_TEMP}/work-map-autofix-authorized-pr.json"
+          payload_file="${RUNNER_TEMP}/work-map-autofix-consume-authorization.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "${pr_file}"
+          node - "${pr_file}" "${payload_file}" "${authorization_marker}" <<'NODE'
+          const fs = require("node:fs");
+          const [prFile, payloadFile, marker] = process.argv.slice(2);
+          const pullRequest = JSON.parse(fs.readFileSync(prFile, "utf8"));
+          const body = String(pullRequest.body || "");
+          if (!body.includes(marker)) {
+            console.error("One-time Work Map authorization marker is missing before consumption.");
+            process.exit(1);
+          }
+          const nextBody = body.replace(marker, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+          fs.writeFileSync(payloadFile, JSON.stringify({ body: nextBody }));
+          NODE
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --input "${payload_file}" >/dev/null
+          if gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""' | grep -Fq "${authorization_marker}"; then
+            echo "Authorization marker removal readback failed for PR #${PR_NUMBER}."
+            exit 1
+          fi
+          echo "Consumed one-time Work Map authorization on PR #${PR_NUMBER}."
+          BASH
+          )"
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id consume-one-time-authorization -- bash -lc "${diagnostic_script}"
+
+      - name: Validate generator, classification, and pipeline contracts
+        id: validate_contracts
+        run: |
+          set -euo pipefail
+          echo "WORK_MAP_DIAGNOSTIC_HEAD=$(git rev-parse HEAD)"
+          echo "WORK_MAP_DIAGNOSTIC_NODE=$(command -v node)"
+          node --version
+          env | sort | grep -E '^(NODE|PATH|RUNNER|GITHUB_WORKSPACE)=' || true
+          echo "WORK_MAP_DIAGNOSTIC_MATCHING_PATHS"
+          git ls-files | grep -iE 'work-map-schema-classification(-contract)?\.mjs$' || true
+          echo "WORK_MAP_DIAGNOSTIC_CONTRACT_HASH"
+          sha256sum http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          echo "WORK_MAP_DIAGNOSTIC_SOURCE_TERMS"
+          grep -RInE 'primaryFamilies|SCHEMA_CLASSIFICATION_CONTRACT|UNKNOWN_DOMAIN' .specify http-generic-api --exclude-dir=node_modules || true
+
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-platform-work-map-schema-intelligence -- node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-schema-classification -- node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-schema-classification-contract -- node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-pipeline-connectivity -- node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-work-map-autofix-diagnostics -- node --check http-generic-api/scripts/work-map-autofix-diagnostics.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-schema-classification -- node --check http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-schema-classification-contract -- node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-pipeline-connectivity -- node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id syntax-test-work-map-autofix-diagnostics -- node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
+
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id pipeline-connectivity -- node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id pipeline-connectivity-regression -- node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id diagnostic-report-regression -- node http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-contract -- node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification -- node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-regression -- node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id schema-classification-contract-regression -- node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and verify idempotency
+        id: regenerate_and_verify
+        run: |
+          set -euo pipefail
+          diagnostic_script="$(cat <<'BASH'
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Generator modified files outside docs/work-maps:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          if [[ "${first_diff_hash}" != "${second_diff_hash}" ]]; then
+            echo "Refusing to commit non-idempotent Work Map generation."
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          BASH
+          )"
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id regenerate-and-verify-idempotency -- bash -lc "${diagnostic_script}"
+
+      - name: Commit generated artifacts
+        id: commit_generated_artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          diagnostic_script="$(cat <<'BASH'
+          set -euo pipefail
+          if git diff --quiet -- docs/work-maps; then
+            echo "Generated Work Maps are already current; no commit created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps
+          git commit -m "docs(work-maps): regenerate governed platform maps"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "Refusing stale autofix push. Branch moved from ${EXPECTED_HEAD_SHA} to ${remote_head_sha}."
+            exit 1
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${remote_head_sha}" != "${pushed_head_sha}" ]]; then
+            echo "Autofix push readback mismatch. Expected ${pushed_head_sha}, found ${remote_head_sha}."
+            exit 1
+          fi
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+          BASH
+          )"
+          node http-generic-api/scripts/work-map-autofix-diagnostics.mjs exec --root "${DIAGNOSTIC_ROOT}" --id commit-push-and-dispatch -- bash -lc "${diagnostic_script}"
+
+      - name: Finalize Work Map diagnostic report
+        id: finalize_diagnostics
+        if: always()
+        continue-on-error: true
+        env:
+          WORK_MAP_JOB_STATUS: ${{ job.status }}
+          WORK_MAP_STEP_OUTCOMES: >-
+            {"bootstrap_diagnostics":"${{ steps.bootstrap_diagnostics.outcome }}","validate_authorized_target":"${{ steps.validate_authorized_target.outcome }}","checkout":"${{ steps.checkout.outcome }}","setup_node":"${{ steps.setup_node.outcome }}","initialize_diagnostics":"${{ steps.initialize_diagnostics.outcome }}","pin_authorized_head":"${{ steps.pin_authorized_head.outcome }}","consume_authorization":"${{ steps.consume_authorization.outcome }}","validate_contracts":"${{ steps.validate_contracts.outcome }}","regenerate_and_verify":"${{ steps.regenerate_and_verify.outcome }}","commit_generated_artifacts":"${{ steps.commit_generated_artifacts.outcome }}"}
+        run: |
+          set +e
+          if [[ -f "http-generic-api/scripts/work-map-autofix-diagnostics.mjs" && -f "${DIAGNOSTIC_ROOT}/report.json" ]]; then
+            node http-generic-api/scripts/work-map-autofix-diagnostics.mjs finalize --root "${DIAGNOSTIC_ROOT}" --conclusion "${WORK_MAP_JOB_STATUS}"
+            finalize_status=$?
+          else
+            finalize_status=0
+            cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
+
+          ## Recorder initialization
+
+          The repository diagnostic recorder was unavailable. This normally indicates checkout or Node setup failure.
+          EOF
+          fi
+
+          export WORK_MAP_STEP_OUTCOMES
+          node - "${DIAGNOSTIC_ROOT}" <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const root = process.argv[2];
+          const steps = JSON.parse(process.env.WORK_MAP_STEP_OUTCOMES || "{}");
+          const jsonFile = path.join(root, "report.json");
+          if (fs.existsSync(jsonFile)) {
+            const report = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
+            report.workflowSteps = steps;
+            fs.writeFileSync(jsonFile, `${JSON.stringify(report, null, 2)}\n`);
+          }
+          const markdownFile = path.join(root, "report.md");
+          const rows = Object.entries(steps).map(([step, outcome]) => `| \`${step}\` | ${outcome || "not-run"} |`);
+          fs.appendFileSync(markdownFile, `\n## Workflow step outcomes\n\n| Step | Outcome |\n|---|---|\n${rows.join("\n")}\n`);
+          NODE
+
+          if [[ -f "${DIAGNOSTIC_ROOT}/report.md" ]]; then
+            cat "${DIAGNOSTIC_ROOT}/report.md" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          exit "${finalize_status}"
+
+      - name: Upload Work Map diagnostic report
+        id: upload_diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-autofix-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-autofix-diagnostics
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish sticky Work Map diagnostic report
+        id: publish_diagnostic_comment
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          report_file="${DIAGNOSTIC_ROOT}/report.md"
+          if [[ ! -f "${report_file}" ]]; then
+            echo "Diagnostic report file is unavailable; skipping PR publication."
+            exit 0
+          fi
+
+          pr_number="${EVENT_PR_NUMBER}"
+          if [[ -z "${pr_number}" ]]; then
+            pr_number="$(gh pr list --head "${TARGET_BRANCH}" --base main --state open --json number --jq '.[0].number // empty')"
+          fi
+          if [[ -z "${pr_number}" ]]; then
+            echo "No open pull request found for ${TARGET_BRANCH}; artifact and step summary remain available."
+            exit 0
+          fi
+
+          marker='<!-- work-map-autofix-diagnostic-report -->'
+          comment_file="${RUNNER_TEMP}/work-map-autofix-diagnostic-comment.md"
+          payload_file="${RUNNER_TEMP}/work-map-autofix-diagnostic-comment.json"
+          {
+            printf '%s\n\n' "${marker}"
+            cat "${report_file}"
+            printf '\n[Open workflow run](%s)\n' "${RUN_URL}"
+          } > "${comment_file}"
+
+          node - "${comment_file}" "${payload_file}" <<'NODE'
+          const fs = require("node:fs");
+          const body = fs.readFileSync(process.argv[2], "utf8");
+          fs.writeFileSync(process.argv[3], JSON.stringify({ body }));
+          NODE
+
+          comment_id="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/comments" --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | tail -n 1)"
+          if [[ -n "${comment_id}" ]]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --input "${payload_file}" >/dev/null
+            echo "Updated Work Map diagnostic comment ${comment_id} on PR #${pr_number}."
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/comments" --input "${payload_file}" >/dev/null
+            echo "Created Work Map diagnostic comment on PR #${pr_number}."
+          fi

@@ -86,67 +86,67 @@ flowchart TD
 
 ## Discovered object inventory
 
-| Object | Type | Domain | Source migrations | Columns | References |
-|---|---|---|---:|---:|---|
-| `activation_acknowledgements` | table | Activation & onboarding | 1 | - | `activation_deliveries`, `activation_operation_projections` |
-| `activation_attention_rule_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_auth_source_router` | table | Activation & onboarding | 1 | - | - |
-| `activation_authorized_surface_registry` | table | Activation & onboarding | 1 | 20 | - |
-| `activation_callback_registry` | table | Activation & onboarding | 1 | - | `activation_operational_tile_registry` |
-| `activation_connector_pack_component_registry` | table | Activation & onboarding | 1 | - | `activation_connector_pack_registry` |
-| `activation_connector_pack_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_container_relationship_type_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_container_relationships` | table | Activation & onboarding | 1 | - | - |
-| `activation_deliveries` | table | Activation & onboarding | 1 | - | `activation_operation_projections` |
-| `activation_delivery_policy_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_dynamic_tab_discovery_rule_registry` | table | Activation & onboarding | 1 | - | `activation_dynamic_tab_registry` |
-| `activation_dynamic_tab_registry` | table | Activation & onboarding | 2 | - | - |
-| `activation_dynamic_tab_section_registry` | table | Activation & onboarding | 3 | - | `activation_dynamic_tab_registry` |
-| `activation_evidence_items` | table | Activation & onboarding | 1 | - | `activation_operation_projections`, `activation_stage_attempts` |
-| `activation_freshness_ledger` | table | Activation & onboarding | 1 | - | - |
-| `activation_freshness_policy_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_guidance_invocation_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_operation_projections` | table | Activation & onboarding | 1 | - | `activation_runs` |
-| `activation_operational_tile_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_reconciliation_attempts` | table | Activation & onboarding | 1 | - | `activation_operation_projections` |
-| `activation_response_profile_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_runs` | table | Activation & onboarding | 1 | - | - |
-| `activation_section_action_registry` | table | Activation & onboarding | 2 | - | - |
-| `activation_signal_inbox` | table | Activation & onboarding | 1 | - | - |
-| `activation_signal_processing_log` | table | Activation & onboarding | 1 | - | - |
-| `activation_signal_subscription_registry` | table | Activation & onboarding | 1 | - | - |
-| `activation_snapshot_ledger` | table | Activation & onboarding | 1 | - | - |
-| `activation_stage_attempts` | table | Activation & onboarding | 1 | - | `activation_operation_projections` |
-| `activation_user_dashboard_preferences` | table | Activation & onboarding | 1 | - | - |
-| `ads_provider_profile_onboarding_requests` | table | Activation & onboarding | 1 | - | - |
-| `onboarding_escalations` | table | Activation & onboarding | 1 | 15 | `tenants`, `tickets`, `users` |
-| `onboarding_states` | table | Activation & onboarding | 1 | 11 | `tenants` |
-| `v_activation_agent_bindings_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_agent_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_agent_skill_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_agent_skill_grant_requests` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_agent_skill_grants` | view | Activation & onboarding | 2 | - | - |
-| `v_activation_agent_tool_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_app_action_grants` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_app_binding_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_app_integration_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_authorized_surface_registry_readiness` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_awareness_latest_runs` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_catalog_authorized_surface_readiness` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_connected_app_connections` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_expanded_authorized_surface_readiness` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_local_gateway_tool_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_logic_pack_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_pending_tasks` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_platform_plugin_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_plugin_contributions` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_skill_manifest_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_skill_package_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_task_route_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_tenant_integration_policies` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_tenant_tools` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_workflow_catalog` | view | Activation & onboarding | 1 | - | - |
-| `v_activation_workflow_runtime_bindings` | view | Activation & onboarding | 1 | - | - |
+| Object | Type | Domain | Classification | Existing map refs | Source migrations | Columns | References |
+|---|---|---|---|---|---:|---:|---|
+| `activation_acknowledgements` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_deliveries`, `activation_operation_projections` |
+| `activation_attention_rule_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_auth_source_router` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_authorized_surface_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | 20 | - |
+| `activation_callback_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_operational_tile_registry` |
+| `activation_connector_pack_component_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_connector_pack_registry` |
+| `activation_connector_pack_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_container_relationship_type_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_container_relationships` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_deliveries` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_operation_projections` |
+| `activation_delivery_policy_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_dynamic_tab_discovery_rule_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_dynamic_tab_registry` |
+| `activation_dynamic_tab_registry` | table | Activation & onboarding | generated_domain_rule | - | 2 | - | - |
+| `activation_dynamic_tab_section_registry` | table | Activation & onboarding | generated_domain_rule | - | 3 | - | `activation_dynamic_tab_registry` |
+| `activation_evidence_items` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_operation_projections`, `activation_stage_attempts` |
+| `activation_freshness_ledger` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_freshness_policy_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_guidance_invocation_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_operation_projections` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_runs` |
+| `activation_operational_tile_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_reconciliation_attempts` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_operation_projections` |
+| `activation_response_profile_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_runs` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_section_action_registry` | table | Activation & onboarding | generated_domain_rule | - | 2 | - | - |
+| `activation_signal_inbox` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_signal_processing_log` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_signal_subscription_registry` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_snapshot_ledger` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `activation_stage_attempts` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | `activation_operation_projections` |
+| `activation_user_dashboard_preferences` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `ads_provider_profile_onboarding_requests` | table | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `onboarding_escalations` | table | Activation & onboarding | generated_domain_rule | - | 1 | 15 | `tenants`, `tickets`, `users` |
+| `onboarding_states` | table | Activation & onboarding | generated_domain_rule | - | 1 | 11 | `tenants` |
+| `v_activation_agent_bindings_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_agent_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_agent_skill_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_agent_skill_grant_requests` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_agent_skill_grants` | view | Activation & onboarding | generated_domain_rule | - | 2 | - | - |
+| `v_activation_agent_tool_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_app_action_grants` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_app_binding_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_app_integration_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_authorized_surface_registry_readiness` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_awareness_latest_runs` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_catalog_authorized_surface_readiness` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_connected_app_connections` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_expanded_authorized_surface_readiness` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_local_gateway_tool_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_logic_pack_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_pending_tasks` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_platform_plugin_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_plugin_contributions` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_skill_manifest_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_skill_package_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_task_route_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_tenant_integration_policies` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_tenant_tools` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_workflow_catalog` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
+| `v_activation_workflow_runtime_bindings` | view | Activation & onboarding | generated_domain_rule | - | 1 | - | - |
 
 ## Coverage counters
 

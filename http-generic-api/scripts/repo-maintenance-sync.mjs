@@ -9,6 +9,7 @@ const REPO_ROOT = path.resolve(API_ROOT, "..");
 const write = process.argv.includes("--write");
 const check = process.argv.includes("--check");
 const skipOpenapiAutofill = process.argv.includes("--skip-openapi-autofill");
+const skipWorkMaps = process.argv.includes("--skip-work-maps");
 const writeSplitSchemas = process.argv.includes("--write-split-schemas");
 const reportFileIndex = process.argv.indexOf("--report-file");
 const reportFile = reportFileIndex >= 0 ? process.argv[reportFileIndex + 1] : "";
@@ -39,7 +40,9 @@ function fileExists(relPath) {
 
 function main() {
   if (!write && !check) {
-    console.error("Usage: node scripts/repo-maintenance-sync.mjs --write|--check [--skip-openapi-autofill]");
+    console.error(
+      "Usage: node scripts/repo-maintenance-sync.mjs --write|--check [--skip-openapi-autofill] [--skip-work-maps] [--write-split-schemas] [--report-file FILE]",
+    );
     process.exit(2);
   }
 
@@ -67,8 +70,12 @@ function main() {
   steps.push("update-repo-planning-docs");
 
   if (fileExists("http-generic-api/scripts/platform-work-map-generator.mjs")) {
-    run("node", ["scripts/platform-work-map-generator.mjs", write ? "--write" : "--check"].filter(Boolean));
-    steps.push("platform-work-map-generator");
+    if (skipWorkMaps) {
+      steps.push("platform-work-map-generator-skipped-explicit-scope");
+    } else {
+      run("node", ["scripts/platform-work-map-generator.mjs", write ? "--write" : "--check"].filter(Boolean));
+      steps.push("platform-work-map-generator");
+    }
   }
 
   if (fileExists("http-generic-api/scripts/surface-contract-discovery.mjs")) {
@@ -85,6 +92,11 @@ function main() {
   const report = attachRepoMaintenanceCoordination({
     ok: true,
     mode: write ? "write" : "check",
+    scope: {
+      openapi_autofill: !skipOpenapiAutofill,
+      work_maps: !skipWorkMaps,
+      split_schemas_write: writeSplitSchemas,
+    },
     steps,
     changed_files: after,
     changed_count: after.length,
