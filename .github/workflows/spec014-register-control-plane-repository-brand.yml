@@ -6,12 +6,19 @@ on:
       - gpt/014-hostinger/control-plane-repository-brand-20260801
     paths:
       - .github/workflows/spec014-register-control-plane-repository-brand.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-register-control-plane-repository-brand.yml
 
 permissions:
   contents: write
 
 jobs:
   register:
+    if: github.event_name == 'push' || github.head_ref == 'gpt/014-hostinger/control-plane-repository-brand-20260801'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -24,7 +31,7 @@ jobs:
           node-version: '22'
       - name: Register governed repository provenance correction
         env:
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
