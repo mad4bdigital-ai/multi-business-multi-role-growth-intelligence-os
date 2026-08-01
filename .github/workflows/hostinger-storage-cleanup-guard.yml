@@ -1,22 +1,30 @@
-name: Hostinger Storage Cleanup Guard
+name: Hostinger Storage Orchestration Guard
 
 on:
   pull_request:
     paths:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "http-generic-api/hostingerStorageOrchestrationPolicy.js"
+      - "http-generic-api/test-hostinger-storage-orchestration-policy.mjs"
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
+      - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
       - "docs/hostinger-storage-cleanup.md"
       - "docs/hostinger-storage-control-plane.md"
+      - "docs/hostinger-storage-admin-tenant-orchestration.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   push:
     branches: [main]
     paths:
       - "http-generic-api/scripts/hostinger-storage-cleanup.sh"
       - "http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs"
+      - "http-generic-api/hostingerStorageOrchestrationPolicy.js"
+      - "http-generic-api/test-hostinger-storage-orchestration-policy.mjs"
       - "http-generic-api/config/hostinger-storage-cleanup-policy.json"
+      - "http-generic-api/config/hostinger-storage-orchestration-policy.json"
       - "docs/hostinger-storage-cleanup.md"
       - "docs/hostinger-storage-control-plane.md"
+      - "docs/hostinger-storage-admin-tenant-orchestration.md"
       - ".github/workflows/hostinger-storage-cleanup-guard.yml"
   workflow_dispatch:
 
@@ -25,7 +33,7 @@ permissions:
 
 jobs:
   safety-contract:
-    name: Validate conservative cleanup contract
+    name: Validate governed storage orchestration contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,8 +48,13 @@ jobs:
       - name: Validate shell syntax
         run: bash -n http-generic-api/scripts/hostinger-storage-cleanup.sh
 
-      - name: Validate machine-readable policy
-        run: node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-cleanup-policy.json','utf8'))"
+      - name: Validate machine-readable policies
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-cleanup-policy.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-orchestration-policy.json','utf8'))"
 
       - name: Execute filesystem safety regression
         run: node http-generic-api/scripts/test-hostinger-storage-cleanup-script.mjs
+
+      - name: Execute Admin Tenant authority regression
+        run: node http-generic-api/test-hostinger-storage-orchestration-policy.mjs
