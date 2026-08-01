@@ -10,116 +10,142 @@ on:
       - '**/*.tsx'
       - '**/*.mts'
       - '**/*.cts'
-      - '.github/tests/spec014/**'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
-      - '.changes/e2e/spec014-tenant-canary-canonical-evidence.json'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
   contents: read
 
-concurrency:
-  group: hostinger-storage-tenant-canary-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   tenant-canary:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      REPORT_DIR: ${{ runner.temp }}/hostinger-storage-tenant-canary-evidence
+    timeout-minutes: 10
     steps:
-      - name: Validate exact candidate identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "${CI_SOURCE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${TARGET_REF}" =~ ^[A-Za-z0-9._/-]+$ ]]
-
-      - name: Checkout exact PR head
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.CI_SOURCE_HEAD_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify local and remote exact-head identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          local_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          [[ "$local_sha" == "$CI_SOURCE_HEAD_SHA" ]]
-          [[ "$remote_sha" == "$CI_SOURCE_HEAD_SHA" ]]
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Execute canonical Tenant Canary guard
-        id: guard
-        continue-on-error: true
-        run: node http-generic-api/scripts/hostinger-tenant-canary-ci.mjs --report-dir "${REPORT_DIR}"
-
-      - name: Upload canonical Tenant Canary evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hostinger-storage-tenant-canary-${{ github.run_id }}-summary
-          path: |
-            ${{ env.REPORT_DIR }}/hostinger-storage-tenant-canary-summary.json
-            ${{ env.REPORT_DIR }}/hostinger-storage-tenant-canary-summary.md
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Enforce canonical Tenant Canary decision
-        if: always()
-        shell: bash
-        env:
-          GUARD_STEP_OUTCOME: ${{ steps.guard.outcome }}
+      - name: Install deterministic import parser
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check syntax
         run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const reportPath = path.join(process.env.REPORT_DIR, 'hostinger-storage-tenant-canary-summary.json');
-          const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-          const fullSha = /^[0-9a-f]{40}$/u;
-          if (report.contract !== 'mad4b.hostinger-guard-summary.v1') throw new Error('Tenant Canary canonical contract mismatch.');
-          if (report.workflow !== 'Hostinger Storage Tenant Canary Guard') throw new Error('Tenant Canary workflow identity mismatch.');
-          if (report.guard_key !== 'hostinger-storage-tenant-canary') throw new Error('Tenant Canary guard identity mismatch.');
-          if (report.identity?.candidate_kind !== 'head') throw new Error('Tenant Canary candidate kind mismatch.');
-          if (!fullSha.test(report.identity?.candidate_sha || '')) throw new Error('Tenant Canary candidate SHA is invalid.');
-          if (report.identity.candidate_sha !== process.env.CI_SOURCE_HEAD_SHA) throw new Error('Tenant Canary report is stale or substituted.');
-          if (report.secrets_included !== false) throw new Error('Tenant Canary report must declare secrets_included=false.');
-          if (report.job_logs_consulted !== false) throw new Error('Tenant Canary canonical decision must not consult Job logs.');
-          if (report.repository_mutation_performed !== false || report.provider_dispatch_performed !== false || report.credential_access_performed !== false) {
-            throw new Error('Tenant Canary report crossed its read-only safety boundary.');
+          node --check http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          node --check http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          node --check http-generic-api/hostingerStorageTenantCanaryBase.js
+          node --check http-generic-api/hostingerStorageTenantCanary.js
+          node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          node --check .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
+      - name: Enforce synthetic Tenant boundary
+        run: |
+          ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
+            http-generic-api/hostingerStorageTenantCanaryPolicyBase.js \
+            http-generic-api/hostingerStorageTenantCanaryPolicy.js \
+            http-generic-api/hostingerStorageTenantCanaryBase.js \
+            http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "synthetic_only: true" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "dispatch_allowed: false" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "production_ready: false" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "manual_one_shot" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "tenant_exclusive" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "immutable_plan" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+          grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
+      - name: Parse static and dynamic Base imports
+        run: node http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
+      - name: Enforce Base runtime provenance
+        run: |
+          grep -q "const tenantCanaryAdapters = new WeakSet()" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "const tenantCanaryRepositories = new WeakSet()" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "const tenantCanaryAuthorityStores = new WeakSet()" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "const tenantCanaryEnablementRegistries = new WeakSet()" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryAdapters.add(adapter)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryAdapters.has(adapter)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryRepositories.add(repository)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryRepositories.has(repository)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryAuthorityStores.add(store)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryAuthorityStores.has(store)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryEnablementRegistries.add(registry)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenantCanaryEnablementRegistries.has(registry)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "isCanonicalHostingerStorageSyntheticAdapter(adapter)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "isCanonicalHostingerStorageControlPlaneRepository(repository)" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenant_and_synthetic_factory_owned_required" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "tenant_and_control_plane_factory_owned_required" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "authority_store_provenance" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "enablement_registry_provenance" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "Object.getOwnPropertyDescriptors" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "STORAGE_TENANT_CANARY_AUTHORITY_TOKEN_INPUT_INVALID" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "authority_context_hash" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "ownership_revision" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "policy_revision" http-generic-api/hostingerStorageTenantCanaryBase.js
+          grep -q "from './hostingerStorageTenantCanaryBase.js';" http-generic-api/hostingerStorageTenantCanary.js
+          ! grep -q "executeBaseTenantCanary" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "authority_store_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          grep -q "enablement_registry_factory_brand_required: true" http-generic-api/test-hostinger-storage-tenant-canary-store-provenance.mjs
+          grep -q "direct_control_plane_repository_rejected: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "missing_adapter_is_explicit_null: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "existing_ast_and_store_provenance_tests_preserved: true" .github/tests/spec014/tenant-canary-repository-provenance.mjs
+          grep -q "typescript_ast" http-generic-api/test-hostinger-storage-tenant-canary-base-import-boundary.mjs
+      - name: Enforce policy not-before contracts
+        run: |
+          grep -q "STORAGE_TENANT_CANARY_EVALUATION_NOT_STARTED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_NOT_STARTED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_APPROVAL_NOT_STARTED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "STORAGE_TENANT_CANARY_ENABLEMENT_NOT_STARTED" http-generic-api/hostingerStorageTenantCanaryPolicy.js
+          grep -q "Object.isFrozen(verified.blockers)" http-generic-api/test-hostinger-storage-tenant-canary.mjs
+      - name: Enforce validation before one-shot consumption
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = fs.readFileSync('http-generic-api/hostingerStorageTenantCanaryBase.js', 'utf8');
+          const executeStart = source.indexOf('export function executeHostingerStorageTenantCanary({');
+          const body = source.slice(executeStart);
+          const authorityStore = body.indexOf('requireAuthorityStore(authority_store);');
+          const registry = body.indexOf('requireRegistry(enablement_registry);');
+          const repository = body.indexOf('requireControlPlaneRepository(repository);');
+          const currentAuthority = body.indexOf('revalidateCurrentAuthority({ authorization, authorityStore: authority_store, now });');
+          const preflight = body.indexOf('preflightSyntheticExecutorInputs({ protocol, protocolDigest: protocol_digest, repository, adapter, now });');
+          const consume = body.indexOf('enablement_registry.consume({');
+          if (!(authorityStore >= 0
+            && registry > authorityStore
+            && repository > registry
+            && currentAuthority > repository
+            && preflight > currentAuthority
+            && consume > preflight)) {
+            throw new Error('All Tenant provenance and authority checks must complete before one-shot consumption.');
           }
-          const selected = report.checks?.selected_count;
-          const passed = report.checks?.passed_count;
-          const failed = report.checks?.failed_count;
-          if (![selected, passed, failed].every((value) => Number.isInteger(value) && value >= 0)) throw new Error('Tenant Canary report counts are invalid.');
-          if (!Array.isArray(report.results) || selected !== report.results.length || passed + failed !== selected) throw new Error('Tenant Canary report counts are inconsistent.');
-          if (!Array.isArray(report.integrity_findings)) throw new Error('Tenant Canary integrity findings are invalid.');
-          if (report.outcome === 'passed') {
-            if (failed !== 0 || passed !== selected || report.integrity_findings.length !== 0 || report.first_failure !== null) {
-              throw new Error('Passed Tenant Canary report contains a blocker.');
-            }
-            if (process.env.GUARD_STEP_OUTCOME !== 'success') throw new Error('Runner step failed despite a passed report.');
-            process.exit(0);
+          const preflightStart = source.indexOf('function preflightSyntheticExecutorInputs({');
+          const preflightBody = source.slice(preflightStart, executeStart);
+          const adapterBrand = preflightBody.indexOf('tenantCanaryAdapters.has(adapter)');
+          const adapterCanonical = preflightBody.indexOf('isCanonicalHostingerStorageSyntheticAdapter(adapter)');
+          const aggregateRead = preflightBody.indexOf('repository.readAggregate(protocol.operation_id)');
+          const authorityContext = preflightBody.indexOf("plan.authority_context_hash !== aggregate.operation.authority_context_hash");
+          const ownershipRevision = preflightBody.indexOf("plan.ownership_revision !== aggregate.operation.ownership_revision");
+          const policyRevision = preflightBody.indexOf("plan.policy_revision !== aggregate.operation.policy_revision");
+          if (!(adapterBrand >= 0
+            && adapterCanonical > adapterBrand
+            && aggregateRead > adapterCanonical
+            && authorityContext > aggregateRead
+            && ownershipRevision > authorityContext
+            && policyRevision > ownershipRevision)) {
+            throw new Error('Adapter provenance and plan authority parity must be enforced before execution dispatch.');
           }
-          if (report.outcome !== 'failed') throw new Error('Tenant Canary report outcome is invalid.');
-          const failure = report.first_failure || report.integrity_findings[0] || {};
-          const title = `Tenant Canary ${failure.code || 'blocked'}`
-            .replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
-          const message = `${failure.check_id || 'integrity'}: ${failure.stderr_tail || failure.stdout_tail || failure.detail || 'Canonical report blocked.'}`
-            .replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
-          console.log(`::error title=${title}::${message.slice(0, 1000)}`);
-          process.exit(1);
           NODE
+      - name: Validate Tenant canary
+        working-directory: http-generic-api
+        run: |
+          node test-hostinger-storage-tenant-canary.mjs
+          node test-hostinger-storage-tenant-canary-authority-cas.mjs
+          node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          node test-hostinger-storage-tenant-canary-token-normalization.mjs
+          node test-hostinger-storage-tenant-canary-token-delegation.mjs
+          node test-hostinger-storage-tenant-canary-store-provenance.mjs
+          node ../.github/tests/spec014/tenant-canary-repository-provenance.mjs
