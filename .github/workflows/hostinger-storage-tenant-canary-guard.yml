@@ -3,17 +3,17 @@ name: Hostinger Storage Tenant Canary Guard
 on:
   pull_request:
     paths:
+      - '**/*.js'
+      - '**/*.mjs'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
-      - 'http-generic-api/hostingerStorageTenantCanary*.js'
-      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
   push:
     branches:
       - 'gpt/014-hostinger/tenant-canary-*'
     paths:
+      - '**/*.js'
+      - '**/*.mjs'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
-      - 'http-generic-api/hostingerStorageTenantCanary*.js'
-      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
@@ -37,6 +37,7 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-tenant-canary.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-authority-cas.mjs
           node --check http-generic-api/test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          node --check http-generic-api/test-hostinger-storage-tenant-canary-token-normalization.mjs
       - name: Enforce synthetic Tenant boundary
         run: |
           ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls)['\"]|require\(['\"](child_process|fs|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
@@ -53,15 +54,27 @@ jobs:
           grep -q "STORAGE_TENANT_CANARY_CANDIDATE_ITEMS_MISMATCH" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PATH_PREFIX_BOUNDARY_REQUIRED" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
           grep -q "STORAGE_TENANT_CANARY_PROTOCOL_VERSION_INVALID" http-generic-api/hostingerStorageTenantCanaryPolicyBase.js
-      - name: Enforce governed Base imports
+      - name: Enforce governed Base imports repository-wide
         run: |
-          test "$(grep -R -l "hostingerStorageTenantCanaryBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageTenantCanary.js"
-          test "$(grep -R -l "hostingerStorageTenantCanaryPolicyBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageTenantCanaryPolicy.js"
+          tenant_imports="$(grep -R -l "hostingerStorageTenantCanaryBase.js" . \
+            --include='*.js' --include='*.mjs' \
+            --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
+            | sed 's#^./##' | sort)"
+          policy_imports="$(grep -R -l "hostingerStorageTenantCanaryPolicyBase.js" . \
+            --include='*.js' --include='*.mjs' \
+            --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=coverage --exclude-dir=dist --exclude-dir=build \
+            | sed 's#^./##' | sort)"
+          test "$tenant_imports" = "http-generic-api/hostingerStorageTenantCanary.js"
+          test "$policy_imports" = "http-generic-api/hostingerStorageTenantCanaryPolicy.js"
       - name: Enforce post-merge hardening contracts
         run: |
           grep -q "Object.isFrozen(adapter)" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "hostinger_storage_synthetic_memory_adapter_v1" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "spec014-hostinger-storage-synthetic-adapter-v1" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "boundedIdToken" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "slice(0, 256)" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "boundedHashToken" http-generic-api/hostingerStorageTenantCanary.js
+          grep -q "slice(0, 64).toLowerCase()" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_ALLOWLIST_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "STORAGE_TENANT_CANARY_APPROVAL_TOKEN_REUSED" http-generic-api/hostingerStorageTenantCanary.js
           grep -q "transitionOperation" http-generic-api/hostingerStorageTenantCanary.js
@@ -101,3 +114,4 @@ jobs:
           node test-hostinger-storage-tenant-canary.mjs
           node test-hostinger-storage-tenant-canary-authority-cas.mjs
           node test-hostinger-storage-tenant-canary-postmerge-hardening.mjs
+          node test-hostinger-storage-tenant-canary-token-normalization.mjs
