@@ -1,0 +1,72 @@
+name: Apply tenant request inbox runtime hardening v2
+
+on:
+  push:
+    branches:
+      - gpt/tenant-request-inbox-chunk-store-hardening-20260801
+    paths:
+      - ".github/scripts/apply-tenant-request-inbox-runtime-hardening.py"
+      - ".github/workflows/apply-tenant-request-inbox-runtime-hardening-v2.yml"
+      - "http-generic-api/supportTicketResolutionService.js"
+      - "http-generic-api/routes/supportTicketRoutes.js"
+      - "http-generic-api/governedToolResponseChunkStore.js"
+      - "http-generic-api/routes/gptToolsRoutes.js"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tenant-request-inbox-runtime-hardening-v2
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact work branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/tenant-request-inbox-chunk-store-hardening-20260801
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply idempotent runtime patch
+        run: python .github/scripts/apply-tenant-request-inbox-runtime-hardening.py
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run focused syntax and regression validation
+        run: |
+          node --check http-generic-api/supportTicketResolutionService.js
+          node --check http-generic-api/routes/supportTicketRoutes.js
+          node --check http-generic-api/governedToolResponseChunkStore.js
+          node --check http-generic-api/routes/gptToolsRoutes.js
+          node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+          node http-generic-api/test-governed-tool-response-chunk-store.mjs
+          node http-generic-api/test-gpt-tools-response-chunking.mjs
+
+      - name: Commit runtime files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            http-generic-api/supportTicketResolutionService.js \
+            http-generic-api/routes/supportTicketRoutes.js \
+            http-generic-api/governedToolResponseChunkStore.js \
+            http-generic-api/routes/gptToolsRoutes.js
+          if git diff --cached --quiet; then
+            echo "Runtime hardening is already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(tenant-requests): wire inbox and harden chunk fallback"
+          git push origin HEAD:gpt/tenant-request-inbox-chunk-store-hardening-20260801
