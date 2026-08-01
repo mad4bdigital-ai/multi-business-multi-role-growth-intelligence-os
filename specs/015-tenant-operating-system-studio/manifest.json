@@ -1,0 +1,87 @@
+{
+  "spec_key": "015-tenant-operating-system-studio",
+  "title": "Tenant-Authored Operating Systems, Solution Packages, and Lifecycle Studio",
+  "branch": "gpt/spec-015-tenant-operating-system-studio-20260801",
+  "status": "specification_draft_convergence_review_pending",
+  "specification_only": true,
+  "created_at": "2026-08-01T14:03:00Z",
+  "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+  "dependencies": [
+    "specs/006-platform-dynamic-workflow-runtime",
+    "specs/010-unified-platform-frontend",
+    "specs/011-dynamic-multi-tenant-growth-control-plane",
+    "specs/012-unified-admin-tenant-context-kernel",
+    "docs/specs/001-dynamic-container-authority",
+    "docs/work-maps",
+    ".specify/memory/constitution.md"
+  ],
+  "candidate_sources": [
+    {
+      "pull_request": 3922,
+      "role": "generic_business_profile_and_blueprint_source_plus_retail_commerce_child_pack",
+      "merge_posture": "reconstruct_on_current_main"
+    },
+    {
+      "pull_request": 4432,
+      "role": "generic_package_assurance_template_plus_evidence_intelligence_child_pack",
+      "merge_posture": "reconstruct_on_current_main"
+    }
+  ],
+  "file_count": 25,
+  "files": [
+    "README.md",
+    "spec.md",
+    "architecture.md",
+    "data-model.md",
+    "lifecycle-contracts.md",
+    "agency-client-ownership.md",
+    "operation-paths.md",
+    "plan.md",
+    "tasks.md",
+    "acceptance-matrix.md",
+    "concerns.md",
+    "traceability.md",
+    "testing-strategy.md",
+    "candidate-convergence.json",
+    "work-map-integration.json",
+    "manifest.json",
+    "completion.json",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/release-readiness.md",
+    "contracts/solution-package.schema.json",
+    "contracts/package-installation.schema.json",
+    "contracts/lifecycle-definition.schema.json",
+    "contracts/candidate-convergence.schema.json",
+    "contracts/tenant-operating-system-studio.openapi.yaml"
+  ],
+  "requirements": {
+    "functional": 74,
+    "non_functional": 15,
+    "success_criteria": 12
+  },
+  "coverage": {
+    "user_scenarios": 8,
+    "operation_paths": 16,
+    "acceptance_cases": 50,
+    "risks": 25,
+    "tasks": 73,
+    "work_maps": 19,
+    "schema_domains": 16
+  },
+  "reference_package_targets": [
+    "platform.reference.evidence_intelligence_operations",
+    "platform.reference.retail_commerce_operations"
+  ],
+  "boundaries": {
+    "runtime_changes": false,
+    "database_migrations": false,
+    "provider_calls": false,
+    "external_writes": false,
+    "permission_changes": false,
+    "production_activation": false,
+    "candidate_pr_merge": false,
+    "force_push": false,
+    "secrets_included": false
+  }
+}
