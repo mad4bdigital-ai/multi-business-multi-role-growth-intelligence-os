@@ -3,6 +3,31 @@
 - What changed:
 - Affected boundary: root canonicals / `src` execution resolver / `http-generic-api` runtime / local connector / docs only
 
+## Phase and E2E Contract
+
+- Contract path: `specs/<feature-key>/e2e-phases.json` or `.changes/e2e/<feature-key>.json`
+- Current phase: `mvp` / `operational` / `resilient` / `canary` / `production`
+- PR mode: standard feature / parallel workstream / integration rollup
+- Workstream ID, when applicable:
+- Integration branch, when applicable:
+- [ ] Every changed runtime file is covered by the contract scope
+- [ ] The declared E2E journey starts at a real entrypoint and ends with observable readback
+- [ ] Component or policy tests are not being presented as E2E evidence
+
+## Parallel Work Evidence
+
+Complete this section for a workstream or integration PR.
+
+- Dependencies:
+- Deliverables:
+- Integration points:
+- Work commit SHAs:
+- [ ] Workstream branch matches its declared pattern
+- [ ] Workstream PR targets the declared integration branch, not `main`
+- [ ] Shared files are covered by an explicit `declared_overlaps` entry
+- [ ] Required workstream or convergence tests are declared and executable
+- [ ] Integration rollup contains the recorded work commits
+
 ## Tests Run
 
 - [ ] Root typecheck: `npm run typecheck`
