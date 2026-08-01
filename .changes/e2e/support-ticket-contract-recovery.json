@@ -12,6 +12,7 @@
       "http-generic-api/openapi-route-contracts.yaml",
       "http-generic-api/openapi/support-tickets.yaml",
       "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/supportTicketRoutingNotificationService.js",
       "http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs",
       ".changes/e2e/support-ticket-contract-recovery.json"
     ]
@@ -23,7 +24,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Recover the missing tenant support-ticket API contracts and deterministic routing evidence without changing the already-merged runtime or granting repair authority.",
+      "objective": "Recover the missing tenant support-ticket API contracts, deterministic routing evidence, and the bounded dependency-injection correction required to test routing without database credentials or repair authority.",
       "e2e_journeys": [
         {
           "id": "tenant-support-ticket-contract-and-routing-boundary",
@@ -31,10 +32,11 @@
           "level": "synthetic_runtime",
           "actor": "authenticated tenant user and support contract reviewer",
           "entrypoint": "Tenant support-ticket create, list, detail, and event contracts plus the routing-resolution test harness",
-          "terminal_outcome": "The four tenant routes are precisely documented, resolution output remains sanitized and role-gated, same-tenant delivery is limited to owners and admins, and platform escalation remains separately classified.",
+          "terminal_outcome": "The four tenant routes are precisely documented, resolution output remains sanitized and role-gated, same-tenant delivery is limited to owners and admins, platform escalation remains separately classified, and an injected connection is honored without initializing the default database pool.",
           "steps": [
             "Load the canonical split support-ticket contract and precise route registry entries.",
             "Validate create-or-dedupe, tenant-scoped list, role-gated detail, and customer-visible event contracts.",
+            "Inject a bounded in-memory connection into the routing service without database environment variables.",
             "Resolve routing recipients for a tenant member through the runtime service test harness.",
             "Verify same-tenant queries restrict recipients to owner and admin roles.",
             "Verify platform-admin escalation is retained as a separate route class.",
@@ -45,6 +47,7 @@
             "GET /me/support/tickets/{ticket_id} exposes resolution details only under the documented tenant admin or owner boundary.",
             "POST /me/support/tickets/{ticket_id}/events appends customer-visible evidence without provider dispatch or external delivery.",
             "Resolution summaries are sanitized evidence and never authorize or apply a repair.",
+            "An explicitly injected connection is used before any default getPool initialization, so the synthetic routing regression requires no DB credentials.",
             "Same-tenant routing recipients are restricted to owner and admin roles.",
             "Platform-admin escalation remains separately classified from same-tenant delivery.",
             "The support resolution test is discoverable through the canonical composed test manifest.",
@@ -85,6 +88,7 @@
             "http-generic-api/openapi-route-contracts.yaml",
             "http-generic-api/openapi/support-tickets.yaml",
             "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/supportTicketRoutingNotificationService.js",
             "http-generic-api/test-support-ticket-dynamic-routing-notifications.mjs",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json"
@@ -100,7 +104,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise malformed ticket identifiers, stale resolution evidence, missing tenant membership, and unavailable routing metadata through bounded fail-closed responses."
+      "objective": "Exercise malformed ticket identifiers, stale resolution evidence, missing tenant membership, unavailable routing metadata, and invalid injected connection contracts through bounded fail-closed responses."
     },
     {
       "id": "canary",
