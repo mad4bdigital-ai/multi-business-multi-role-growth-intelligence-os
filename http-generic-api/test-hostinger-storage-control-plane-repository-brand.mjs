@@ -48,6 +48,20 @@ const repositoryFromForgedPersistence = createHostingerStorageControlPlaneReposi
 assert.equal(Object.isFrozen(repositoryFromForgedPersistence), true);
 assert.equal(isCanonicalHostingerStorageControlPlaneRepository(repositoryFromForgedPersistence), false);
 
+let accessorReads = 0;
+const substitutingOptions = Object.defineProperty({}, 'adapter', {
+  enumerable: true,
+  configurable: false,
+  get() {
+    accessorReads += 1;
+    return accessorReads === 1 ? forgedPersistenceAdapter : adapter;
+  },
+});
+const repositoryFromSubstitutingAccessor = createHostingerStorageControlPlaneRepository(substitutingOptions);
+assert.equal(accessorReads, 1);
+assert.equal(Object.isFrozen(repositoryFromSubstitutingAccessor), true);
+assert.equal(isCanonicalHostingerStorageControlPlaneRepository(repositoryFromSubstitutingAccessor), false);
+
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_control_plane_repository_brand',
@@ -57,6 +71,8 @@ console.log(JSON.stringify({
   frozen_repository_copy_rejected: true,
   malicious_repository_rejected: true,
   repository_from_forged_persistence_rejected: true,
+  adapter_accessor_read_once: true,
+  adapter_accessor_substitution_rejected: true,
   production_ready: false,
   secrets_included: false,
 }));
