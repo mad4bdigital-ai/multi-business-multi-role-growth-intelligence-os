@@ -87,7 +87,7 @@ const connection = {
     if (sql.includes("m.role IN ('platform_owner','owner','admin')")) {
       return [[{
         user_id: "platform_admin",
-        tenant_id: "11111111-1111-4111-8111-111111111111",
+        tenant_id: "platform_scope_fixture",
         role: "admin",
         email: "platform-admin@example.com",
         display_name: "Platform Admin",
