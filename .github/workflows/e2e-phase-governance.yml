@@ -34,25 +34,38 @@ jobs:
         run: |
           node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
           node http-generic-api/scripts/e2e-phase-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
 
       - name: Evaluate changed feature phases
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json")
-          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
-          if [[ -n "${HEAD_SHA:-}" ]]; then args+=(--head "$HEAD_SHA"); fi
-          node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
+          phase_args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json")
+          parallel_args=(check --report-file "${RUNNER_TEMP}/e2e-parallel-work-evaluation.json" --head-ref "${HEAD_REF}")
+          if [[ -n "${BASE_SHA:-}" ]]; then
+            phase_args+=(--base "$BASE_SHA")
+            parallel_args+=(--base "$BASE_SHA")
+          fi
+          if [[ -n "${HEAD_SHA:-}" ]]; then
+            phase_args+=(--head "$HEAD_SHA")
+            parallel_args+=(--head "$HEAD_SHA")
+          fi
+          node http-generic-api/scripts/e2e-phase-governance.mjs "${phase_args[@]}"
+          node http-generic-api/scripts/e2e-parallel-work-governance.mjs "${parallel_args[@]}"
 
       - name: Upload phase evaluation
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-phase-evaluation-${{ github.run_id }}
-          path: ${{ runner.temp }}/e2e-phase-evaluation.json
+          path: |
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-parallel-work-evaluation.json
           if-no-files-found: warn
           retention-days: 30
 
