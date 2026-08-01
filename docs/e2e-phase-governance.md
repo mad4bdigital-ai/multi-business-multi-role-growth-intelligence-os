@@ -122,6 +122,19 @@ The integration branch collects the tested work commits. The final integration P
 
 When the current phase becomes `implemented`, every required workstream must be `integrated`, its commit evidence must be present in the integration head, and convergence tests must be executable.
 
+### Stacked PR head isolation
+
+Do not reuse the exact same head commit as the source of multiple open pull requests with different base branches. GitHub associates check runs with the head SHA, while this governance evaluates each pull request against its event-specific base. A valid integration result can therefore coexist with an intentionally failing workstream or synchronization result on the same commit and make the final evidence ambiguous.
+
+Before the integration PR is marked ready or merged:
+
+- close or merge temporary synchronization PRs that use its head branch;
+- create a final meaningful integration commit after the last stacked synchronization;
+- confirm that the final head SHA belongs only to the integration PR under review;
+- accept only E2E artifacts whose `base_ref`, `head_ref`, and changed-file set match that PR.
+
+A successful run against another base branch does not satisfy the integration gate, and a failure from another stacked PR must not be silently dismissed without producing a unique final head and a fresh exact-head run.
+
 ### File ownership and overlap
 
 Scopes are exclusive by default. A changed runtime file must belong to the active workstream. Two workstreams may share a file only through `declared_overlaps`, which must name:
