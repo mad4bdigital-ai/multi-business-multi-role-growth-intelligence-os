@@ -60,7 +60,8 @@
       "mode": "write",
       "required_permissions": {
         "actions": "write",
-        "contents": "write"
+        "contents": "write",
+        "pull-requests": "write"
       },
       "required_triggers": [
         "workflow_dispatch",
@@ -76,7 +77,11 @@
         "test-pipeline-connectivity-check.mjs",
         "work-map-autofix-diagnostics.mjs",
         "test-work-map-autofix-diagnostics.mjs",
+        "Bootstrap Work Map diagnostic envelope",
         "Finalize Work Map diagnostic report",
+        "Publish sticky Work Map diagnostic report",
+        "work-map-autofix-diagnostic-report",
+        "WORK_MAP_STEP_OUTCOMES",
         "actions/upload-artifact@v4",
         "GITHUB_STEP_SUMMARY",
         "if: always()",
@@ -87,6 +92,8 @@
         "git rev-parse HEAD",
         "gh workflow run ci.yml",
         "gh workflow run spec-kit-work-map-integration.yml",
+        "gh api --method PATCH",
+        "gh api --method POST",
         "Direct autofix writes to main are forbidden",
         "github.event.action == 'reopened'",
         "github.event.pull_request.head.repo.full_name == github.repository",
