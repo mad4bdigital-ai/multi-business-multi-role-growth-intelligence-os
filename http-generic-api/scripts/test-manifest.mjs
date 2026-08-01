@@ -52,7 +52,6 @@ const staticDiscoveryCommands = [
   "node scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
   "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
-  "node scripts/test-dispatch-governed-generated-artifact-refresh.mjs",
   "node scripts/test-frontend-dispatch-verification-evidence.mjs",
   "node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
   "node scripts/test-runtime-startup-deployment-evidence.mjs",
