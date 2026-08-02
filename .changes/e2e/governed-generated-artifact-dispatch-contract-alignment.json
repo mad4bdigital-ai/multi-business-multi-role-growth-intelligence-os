@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-dispatch-contract-alignment",
+  "title": "Trusted generated-artifact dispatcher workflow contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+      "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+      ".changes/e2e/governed-generated-artifact-dispatch-contract-alignment.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the repository regression contract aligned with the trusted default-branch generated-artifact command workflow after removal of work-branch push execution and adoption of direct canonical decision publication.",
+      "e2e_journeys": [
+        {
+          "id": "trusted-generated-artifact-dispatch-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository operator and repository automation",
+          "entrypoint": "A newly created trusted pull-request comment or explicit workflow_dispatch command on the default-branch workflow definition",
+          "terminal_outcome": "The dispatcher validates the exact PR head, delegates only to the registered writer, uploads and directly publishes its structured decision, and retains no branch-push or direct contents-write authority.",
+          "steps": [
+            "Accept only issue_comment created events or explicit workflow_dispatch inputs.",
+            "Reject work-branch push and pull-request workflow entrypoints.",
+            "Require a trusted author association, same-repository PR, governed work branch, exact lowercase SHA, and explicit refresh label.",
+            "Checkout publisher code from main with persisted credentials disabled.",
+            "Dispatch the registered exact-head writer with typed confirmation.",
+            "Upload mad4b.governed-generated-artifact-refresh-dispatch.v1.",
+            "Publish the exact decision to the associated PR before enforcing the outcome."
+          ],
+          "assertions": [
+            "The workflow has no push trigger.",
+            "The workflow has actions:write, contents:read, issues:write, and pull-requests:read, with no contents:write.",
+            "Publisher code is loaded from main with persist-credentials=false.",
+            "The dispatcher performs no git push or direct repository contents mutation.",
+            "Protected branches, malformed candidates, untrusted authors, ambiguous PRs, and stale heads fail closed.",
+            "The structured report declares consult_job_logs=false and secrets_included=false.",
+            "The canonical decision is published directly before enforcement."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-artifact-refresh-dispatch-workflow",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+            "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Prove one live trusted comment command publishes a canonical dispatcher decision and delegates the exact-head writer."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale-head, missing-label, ambiguous-PR, dispatch rejection, and publisher failure paths without Job-log authority."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one non-production generated-artifact refresh through the trusted command path."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The dispatcher rejects protected branches and grants no deployment or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
