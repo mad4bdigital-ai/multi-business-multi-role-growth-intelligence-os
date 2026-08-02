@@ -19,25 +19,36 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a label-gated, exact-head, read-only dispatcher that delegates bounded generated-artifact mutation to the already registered workflow without direct repository writes.",
+      "objective": "Provide an exact-head, read-only dispatcher with a trusted issue-comment command that delegates bounded generated-artifact mutation to the already registered workflow without becoming a pull-request write workflow, checking out candidate code, or writing repository contents directly.",
       "e2e_journeys": [
         {
           "id": "dispatch-governed-generated-artifact-refresh",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository automation and pull-request reviewer",
-          "entrypoint": "A push to a governed non-protected work branch or an explicit workflow dispatch",
-          "terminal_outcome": "The dispatcher resolves exactly one same-repository pull request, requires the generated-artifact-refresh label and exact current head, delegates to governed-generated-artifact-refresh.yml with typed confirmation, and publishes a structured decision without writing repository contents directly.",
+          "actor": "trusted repository collaborator and repository automation",
+          "entrypoint": "A trusted PR comment in the exact form /refresh-generated-artifacts <40-character SHA>, a governed work-branch push, or an explicit workflow dispatch",
+          "terminal_outcome": "The dispatcher verifies a trusted comment author, exact typed SHA, same-repository pull request, required generated-artifact-refresh label, and current head; then delegates to governed-generated-artifact-refresh.yml with typed confirmation and publishes structured evidence without checking out candidate code or writing repository contents directly.",
           "steps": [
-            "Validate the governed target branch and exact 40-character head SHA.",
+            "Accept newly created issue comments only when they belong to a pull-request conversation.",
+            "Require OWNER, MEMBER, or COLLABORATOR author association.",
+            "Parse exactly /refresh-generated-artifacts followed by one lowercase 40-character SHA.",
+            "Read the pull request from the GitHub API without checking out candidate code.",
+            "Reject cross-repository heads and reject a typed SHA that differs from the current PR head.",
+            "Validate the governed target branch and exact current head SHA.",
             "Resolve exactly one open same-repository pull request for the target branch.",
             "Require the generated-artifact-refresh label and matching pull-request head.",
             "Dispatch the registered mutating workflow on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
             "Publish JSON and Markdown evidence before enforcing the structured decision."
           ],
           "assertions": [
-            "The dispatcher has actions: write but contents: read and pull-requests: read only.",
+            "The write-capable dispatcher is not triggered by pull_request or pull_request_target.",
+            "The dispatcher never checks out pull-request candidate code.",
+            "The comment command is accepted only from OWNER, MEMBER, or COLLABORATOR.",
+            "The comment command binds the exact current PR head SHA.",
+            "The dispatcher rejects fork or cross-repository heads through API readback.",
+            "The dispatcher has actions: write but contents: read, issues: read, and pull-requests: read only.",
             "The dispatcher contains no git push and performs no direct repository mutation.",
+            "The generated-artifact-refresh label remains mandatory.",
             "main and Production are rejected before API dispatch.",
             "Bot-authored generated commits do not recursively dispatch.",
             "The evidence contract is mad4b.governed-generated-artifact-refresh-dispatch.v1.",
@@ -68,17 +79,17 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale-head, API rejection, ambiguous PR, and artifact upload failures."
+      "objective": "Exercise stale typed SHA, untrusted author association, API rejection, ambiguous PR, cross-repository, and artifact upload failures."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe the first non-production label-gated exact-head dispatch."
+      "objective": "Observe the first non-production exact-head dispatch from the trusted PR comment command."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Keep protected branches outside direct mutation authority."
+      "objective": "Keep protected branches and untrusted candidate code outside direct mutation authority."
     }
   ]
 }
