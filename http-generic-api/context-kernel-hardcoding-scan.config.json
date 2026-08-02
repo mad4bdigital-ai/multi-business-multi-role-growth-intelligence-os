@@ -36,6 +36,24 @@
       "rule_id": "zero_scope_fallback",
       "line": 445,
       "reason": "Temporary platform-scope approval-hold compatibility sentinel; remove when approval_holds stores explicit nullable platform scope."
+    },
+    {
+      "path": "http-generic-api/managedExecutionRecoveryService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 107,
+      "reason": "findStep rejects both zero and multiple candidates immediately before returning the sole exact step_run_id match."
+    },
+    {
+      "path": "http-generic-api/managedExecutionRecoveryService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 170,
+      "reason": "assertActiveAssignee rejects multiple membership rows and then validates the sole tenant/user membership is active."
+    },
+    {
+      "path": "http-generic-api/managedExecutionProjectionService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 40,
+      "reason": "oneOrNull returns a row only when the candidate count is exactly one; zero and multiple candidates return null and are surfaced as explicit structural contradictions."
     }
   ]
 }

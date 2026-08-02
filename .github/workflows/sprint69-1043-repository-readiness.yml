@@ -1,0 +1,77 @@
+name: Sprint 69 Migration 1043 Repository Readiness
+
+on:
+  pull_request:
+    paths:
+      - '.github/ops/sprint69-1043-repository-readiness.mjs'
+      - '.github/workflows/sprint69-1043-repository-readiness.yml'
+      - '.changes/e2e/sprint69-1043-repository-readiness.json'
+      - 'http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql'
+      - 'http-generic-api/test-sprint69-1043-repository-readiness.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/ops/sprint69-1043-repository-readiness.mjs'
+      - '.github/workflows/sprint69-1043-repository-readiness.yml'
+      - '.changes/e2e/sprint69-1043-repository-readiness.json'
+      - 'http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql'
+      - 'http-generic-api/test-sprint69-1043-repository-readiness.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  repository-readiness:
+    name: Inspect Migration 1043 without runtime or database access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: sprint69-migration-1043-repository-readiness-${{ github.ref }}
+      cancel-in-progress: true
+    env:
+      EVIDENCE_DIR: .artifacts/sprint69-1043-repository-readiness
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate focused repository contract
+        working-directory: http-generic-api
+        run: node test-sprint69-1043-repository-readiness.mjs
+
+      - name: Generate no-secret repository readiness evidence
+        if: always()
+        run: node .github/ops/sprint69-1043-repository-readiness.mjs
+
+      - name: Upload repository readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint69-1043-repository-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish repository readiness summary
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
+          const fs = require('node:fs');
+          const dir = process.env.EVIDENCE_DIR;
+          const summaryPath = `${dir}/summary.json`;
+          const failurePath = `${dir}/failure.json`;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            process.stdout.write(`## Migration 1043 repository readiness: pass\n\n- Checksum: \`${s.migration_checksum_sha256}\`\n- Git blob: \`${s.migration_blob_sha}\`\n- Statements: ${s.statement_count}\n- Runtime contacted: ${s.runtime_contacted}\n- Apply authorized: ${s.apply_authorized}\n- Apply sent: ${s.apply_sent}\n- Database mutation: ${s.database_mutation_executed}\n- Secrets included: ${s.secrets_included}\n`);
+          } else {
+            const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
+            process.stdout.write(`## Migration 1043 repository readiness: fail\n\n- Error code: ${f.error?.code || 'workflow_failed'}\n- Runtime contacted: ${f.runtime_contacted ?? false}\n- Apply sent: ${f.apply_sent ?? false}\n- Database mutation: ${f.database_mutation_executed ?? false}\n`);
+          }
+          NODE
