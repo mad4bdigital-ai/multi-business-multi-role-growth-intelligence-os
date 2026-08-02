@@ -9,7 +9,6 @@
     "include": [
       ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
       "http-generic-api/scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
-      "http-generic-api/scripts/test-manifest.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-dispatch.json"
     ]
   },
@@ -56,8 +55,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
-            "http-generic-api/scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
-            "http-generic-api/scripts/test-manifest.mjs"
+            "http-generic-api/scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
           ]
         }
       ]
