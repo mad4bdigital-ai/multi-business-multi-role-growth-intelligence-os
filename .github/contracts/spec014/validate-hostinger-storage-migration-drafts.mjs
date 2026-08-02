@@ -9,10 +9,15 @@ const ROOT = path.resolve(HERE, '..', '..', '..');
 const manifestPath = path.join(HERE, 'hostinger-storage-migration-drafts.json');
 const classificationPath = path.join(HERE, 'hostinger-storage-schema-classification.json');
 const runtimePath = path.join(HERE, 'hostinger-storage-sql-runtime-contract.json');
+const wave4RefreshPath = path.join(
+  HERE,
+  'hostinger-storage-wave4-signed-schema-verification-refresh.json',
+);
 const adapterPath = path.join(ROOT, 'http-generic-api', 'hostingerStorageSqlPersistenceAdapter.js');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const classification = JSON.parse(fs.readFileSync(classificationPath, 'utf8'));
 const runtime = JSON.parse(fs.readFileSync(runtimePath, 'utf8'));
+const wave4Refresh = JSON.parse(fs.readFileSync(wave4RefreshPath, 'utf8'));
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const normalize = (value) => value.replace(/\s+/gu, ' ').trim();
@@ -41,6 +46,47 @@ assert.equal(manifest.compatibility.runtime_table_count, 6);
 assert.equal(manifest.compatibility.adapter_insert_compatible, true);
 assert.equal(runtime.contract, 'spec014.hostinger-storage-sql-runtime.v1');
 assert.equal(runtime.feature_key, manifest.feature_key);
+
+assert.equal(
+  wave4Refresh.contract,
+  'spec014.hostinger-storage-wave4-signed-schema-verification-refresh.v1',
+);
+assert.equal(wave4Refresh.runtime_sequence.wave_count, 4);
+assert.equal(
+  wave4Refresh.runtime_sequence.wave_4_migration,
+  '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql',
+);
+assert.equal(
+  wave4Refresh.runtime_sequence.wave_4_checksum_sha256,
+  'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981',
+);
+assert.equal(wave4Refresh.runtime_sequence.wave_4_statement_count, 2);
+assert.equal(wave4Refresh.readback_v4.contract_key, 'spec014_hostinger_storage_migration_readback_v4');
+assert.equal(wave4Refresh.readback_v4.compatible_table_count, 17);
+assert.equal(wave4Refresh.readback_v4.present_view_count, 3);
+assert.equal(wave4Refresh.readback_v4.compatible_runtime_column_count, 71);
+assert.equal(wave4Refresh.readback_v4.compatible_runtime_index_column_count, 31);
+assert.equal(wave4Refresh.readback_v4.authorized_injection_state_constraint_count, 13);
+assert.equal(wave4Refresh.readback_v4.observed_tool_count, 3);
+assert.equal(wave4Refresh.readback_v4.disabled_tool_count, 3);
+assert.equal(wave4Refresh.readback_v4.enabled_tool_count, 0);
+assert.deepEqual(wave4Refresh.authorized_injection_state_schema.tables, [
+  'storage_authorized_injection_states',
+  'storage_authorized_injection_rollbacks',
+]);
+assert.equal(
+  wave4Refresh.authorized_injection_state_schema.contract_digest,
+  '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a',
+);
+assert.equal(
+  wave4Refresh.terminal_boundary.signed_schema_verification_contract_refreshed,
+  true,
+);
+assert.equal(wave4Refresh.terminal_boundary.live_database_access_performed, false);
+assert.equal(wave4Refresh.terminal_boundary.signature_created, false);
+assert.equal(wave4Refresh.terminal_boundary.schema_verified, false);
+assert.equal(wave4Refresh.terminal_boundary.production_ready, false);
+assert.equal(wave4Refresh.secrets_included, false);
 
 const draftPrefix = `${manifest.location_policy.draft_directory}/`;
 const expectedByWave = new Map([
@@ -212,10 +258,17 @@ assert.ok(preflight.includes("'admin_platform_endpoint_tools'"));
 assert.ok(preflight.includes('blocked_existing_tool_key_requires_reconciliation'));
 
 const readback = read(manifest.verification.readback_file);
-assert.ok(readback.includes('= 15'));
-assert.ok(readback.includes('= 3'));
+assert.ok(readback.includes('17 AS expected_table_count'));
+assert.ok(readback.includes('3 AS expected_view_count'));
+assert.ok(readback.includes('spec014_hostinger_storage_migration_readback_v4'));
+assert.ok(readback.includes("'candidate_only_unsigned_v2' AS schema_verification_status"));
 assert.ok(readback.includes('signed_schema_verification_required=true'));
-assert.ok(readback.includes("'candidate_only_unsigned' AS schema_verification_status"));
+assert.ok(readback.includes('storage_authorized_injection_states'));
+assert.ok(readback.includes('storage_authorized_injection_rollbacks'));
+assert.ok(readback.includes('expected_runtime_column_count'));
+assert.ok(readback.includes('expected_runtime_index_column_count'));
+assert.ok(readback.includes('expected_authorized_injection_state_constraint_count'));
+assert.ok(readback.includes('652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a'));
 for (const tool of wave3.default_off_tools) assert.ok(readback.includes(`'${tool}'`));
 
 const rollback = read(manifest.verification.rollback_file);
@@ -248,10 +301,19 @@ console.log(JSON.stringify({
   runtime_required_column_count: runtime.tables.reduce((sum, table) => sum + table.required_columns.length, 0),
   view_count: views.length,
   default_off_tool_count: wave3.default_off_tools.length,
+  readback_extension_contract: wave4Refresh.contract,
+  readback_contract_key: wave4Refresh.readback_v4.contract_key,
+  readback_table_count: wave4Refresh.readback_v4.compatible_table_count,
+  readback_runtime_column_count: wave4Refresh.readback_v4.compatible_runtime_column_count,
+  readback_runtime_index_column_count: wave4Refresh.readback_v4.compatible_runtime_index_column_count,
+  authorized_injection_state_constraint_count:
+    wave4Refresh.readback_v4.authorized_injection_state_constraint_count,
   contract_local_only: true,
   covered_by_full_spec_phase_contract: false,
   adapter_insert_compatible: true,
   discoverable_by_governed_migration_runner: false,
+  live_database_access_performed: false,
+  signature_created: false,
   schema_verified: false,
   production_ready: false,
   migration_apply_authorized: false,
