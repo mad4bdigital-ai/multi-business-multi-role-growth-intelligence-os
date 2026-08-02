@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-promotion-cumulative-contract-repair",
+  "title": "Cumulative Production promotion contract repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-promotion-cumulative-contract-repair.json",
+      ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove two cumulative-diff blockers exposed only when current main is compared with the older Production baseline, without weakening OpenAPI conflict detection or restoring a retired evidence publisher.",
+      "e2e_journeys": [
+        {
+          "id": "repair-cumulative-promotion-contracts-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Protected Production promotion Artifact refresher and E2E phase evaluator",
+          "entrypoint": "Precise OpenAPI registry sync and Hostinger Tenant Canary evidence contract",
+          "terminal_outcome": "The known completion-certification legacy inline operation is replaced by its exact registered static path-item reference, malformed or unrelated inline contracts remain blocked, and the Tenant Canary contract references the current generic evidence publisher rather than a deleted specialized workflow.",
+          "steps": [
+            "Load a registered Support Ticket completion-certification path whose root OpenAPI operation predates runtime metadata fields.",
+            "Require the exact allowlisted signature, operationId, admin security profile, consequential flag, response contract, and absence of incompatible source/completeness metadata.",
+            "Replace the entire inline path item with the precise registry `$ref` only when every exact condition passes.",
+            "Reject wrong operationId, wrong security, conflicting source metadata, and unrelated paths with the existing precise-contract conflict code.",
+            "Verify the Hostinger Tenant Canary context contract uses the generic CI evidence publisher and routing registry.",
+            "Preserve all runtime, provider, migration, deployment, Production, and credential boundaries."
+          ],
+          "assertions": [
+            "Only `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification` is eligible for the legacy registered-path transition.",
+            "The operationId must equal `supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification`.",
+            "Security must remain the exact admin bearer or backend API key profile and the operation must remain consequential.",
+            "Any malformed metadata or unrelated path remains `registered_path_inline_contract_not_replaceable`.",
+            "A successful write produces the exact static `$ref` and zero remaining registry/runtime conflicts.",
+            "The retired `.github/workflows/hostinger-ci-evidence-pr-publisher.yml` is absent from the repaired evidence paths.",
+            "The current `.github/workflows/ci-evidence-pr-publisher.yml` and `.github/ci-evidence-routing.json` remain required evidence.",
+            "No SQL, migration authorization or Apply, activation registry synchronization, provider call, credential access, deployment, restart, Production ref mutation, or external send occurs."
+          ],
+          "tests": [
+            {
+              "id": "openapi-precise-legacy-registry-transition-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-legacy-registry-transition.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Run Protected Promotion Generated Artifact Refresh against a non-merge Production comparison PR and record the generated precise OpenAPI replacement."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep registered inline conflicts fail-closed while preventing future references to retired evidence publisher workflows."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Rebuild and validate a fresh source-pinned Production candidate after the repair is merged to main."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote only an explicitly authorized exact candidate after all cumulative generated-artifact and E2E checks pass."
+    }
+  ]
+}
