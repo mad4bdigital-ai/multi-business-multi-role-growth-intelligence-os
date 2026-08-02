@@ -1,0 +1,82 @@
+name: Hostinger Storage Parent-Aware Async Execution Engine Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-parent-aware-async-execution-engine.json'
+      - '.github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json'
+      - '.github/workflows/hostinger-storage-parent-aware-async-execution-engine-guard.yml'
+      - 'http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js'
+      - 'http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js'
+      - 'http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs'
+      - 'http-generic-api/hostingerStorageExecutorProtocol.js'
+      - 'http-generic-api/hostingerStorageSyntheticAdapter.js'
+      - 'http-generic-api/hostingerStorageOrchestrationPolicy.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-parent-aware-async-execution-engine-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parent-aware-async-execution-engine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check engine and facade syntax
+        run: |
+          node --check http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          node --check http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          node --check http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs
+          node --check http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs
+
+      - name: Validate governed facade state advancement
+        run: node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs
+
+      - name: Validate parent-aware async execution lifecycle
+        run: node http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs
+
+      - name: Preserve unmounted non-provider boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js \
+            http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs \
+            http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs
+          ! grep -E '\b(getConnection|providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          ! grep -E "hostingerStorage(?:SyntheticAdapterBase|SyntheticExecutorBase|TenantCanaryBase|TenantRuntime)" \
+            http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'advanceExecutionState' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'transitionHostingerStorageOperation' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'verifyHostingerStorageSyntheticExecutionProtocol' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'appendJournalEvent' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'appendReconciliation' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js
+          grep -q '"live_provider": false' .github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json
+          grep -q '"route_mounted": false' .github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json
+          grep -q '"migration_apply_authorized": false' .github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json
