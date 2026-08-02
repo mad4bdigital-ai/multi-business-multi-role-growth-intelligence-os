@@ -1,2 +1,0 @@
-Exact-head verification marker for Spec 014 authorized route resolution.
-This file is intentionally removed in the next commit so the final tree remains unchanged.
