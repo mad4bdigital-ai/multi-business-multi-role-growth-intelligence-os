@@ -63,6 +63,13 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Enforce trusted workflow dispatch ref
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+
       - name: Validate production runtime parity reporter
         working-directory: http-generic-api
         run: node scripts/test-production-runtime-parity-evidence.mjs
@@ -77,7 +84,7 @@ jobs:
       - name: Checkout trusted main tooling
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -152,10 +159,17 @@ jobs:
             }
             const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
             const effects = report.side_effects || {};
+            const endpoints = Array.isArray(report.endpoints) ? report.endpoints : [];
+            const requiredNames = new Set(endpoints.filter((endpoint) => endpoint.required === true).map((endpoint) => endpoint.name));
             const valid =
               report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
               report.identity?.expected_sha === process.env.EXPECTED_SHA &&
               report.identity?.expected_branch === "Production" &&
+              report.identity?.tooling_sha === process.env.GITHUB_SHA &&
+              requiredNames.has("auth") &&
+              requiredNames.has("connector") &&
+              endpoints.filter((endpoint) => endpoint.required === true).every((endpoint) => endpoint.status === "passed") &&
+              report.first_failure === null &&
               report.secrets_included === false &&
               report.routing?.consult_job_logs === false &&
               effects.repository_mutation_performed === false &&
