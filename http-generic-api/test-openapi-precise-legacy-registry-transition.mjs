@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,8 +12,8 @@ const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SYNC_SCRIPT = path.join(API_DIR, "scripts", "openapi-precise-contract-registry-sync.mjs");
 const SIGNATURE = "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
 const ROUTE_PATH = "/admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
-const PATH_REF = "./openapi/support-ticket-runtime-completion.yaml#/paths/~1admin~1support~1tickets~1{ticket_id}~1external-delivery~1completion-certification";
-const OPERATION_ID = "supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification";
+const PATH_REF = "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion";
+const OPERATION_ID = "issueSupportTicketExternalDeliveryCompletionCertification";
 
 function legacyOperation(overrides = {}) {
   return {
@@ -45,7 +45,7 @@ async function createFixture({ operation = legacyOperation(), signature = SIGNAT
           route_file: "routes/supportTicketRoutes.js",
           path_item_ref: signature === SIGNATURE
             ? PATH_REF
-            : "./openapi/unrelated.yaml#/paths/~1admin~1support~1tickets~1{ticket_id}~1unrelated-operation",
+            : "./openapi/unrelated.yaml#/unrelatedOperation",
         },
       },
     }),
@@ -63,13 +63,24 @@ async function createFixture({ operation = legacyOperation(), signature = SIGNAT
   return root;
 }
 
-async function runSync(root) {
+async function createActualRootFixture() {
+  const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-actual-root-"));
+  await mkdir(path.join(root, "routes"), { recursive: true });
+  await Promise.all([
+    copyFile(path.join(API_DIR, "openapi.yaml"), path.join(root, "openapi.yaml")),
+    copyFile(path.join(API_DIR, "openapi-route-contracts.yaml"), path.join(root, "openapi-route-contracts.yaml")),
+    copyFile(path.join(API_DIR, "routes", "supportTicketRoutes.js"), path.join(root, "routes", "supportTicketRoutes.js")),
+  ]);
+  return root;
+}
+
+async function runSync(root, args = ["--write"]) {
   try {
-    const result = await execFileAsync(process.execPath, [SYNC_SCRIPT, "--write"], {
+    const result = await execFileAsync(process.execPath, [SYNC_SCRIPT, ...args], {
       cwd: root,
       env: { ...process.env },
       timeout: 30000,
-      maxBuffer: 1024 * 1024,
+      maxBuffer: 16 * 1024 * 1024,
     });
     return { ok: true, stdout: result.stdout, stderr: result.stderr };
   } catch (error) {
@@ -133,11 +144,60 @@ try {
   await rm(unrelatedRoot, { recursive: true, force: true });
 }
 
+const wrongRefRoot = await createFixture();
+try {
+  const registry = YAML.parse(await readFile(path.join(wrongRefRoot, "openapi-route-contracts.yaml"), "utf8"));
+  registry.contracts[SIGNATURE].path_item_ref = "./openapi/support-ticket-runtime-completion.yaml#/differentOperation";
+  await writeFile(path.join(wrongRefRoot, "openapi-route-contracts.yaml"), YAML.stringify(registry), "utf8");
+  const result = await runSync(wrongRefRoot);
+  assert.equal(result.ok, false, "The legacy transition must require the exact reviewed path-item reference.");
+  assert.match(result.stderr, /registered_path_inline_contract_not_replaceable/);
+} finally {
+  await rm(wrongRefRoot, { recursive: true, force: true });
+}
+
+const actualRoot = await createActualRootFixture();
+try {
+  const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+  const legacy = before.paths?.[ROUTE_PATH]?.post;
+  assert.equal(legacy?.operationId, OPERATION_ID, "The regression must exercise the actual historical root operation.");
+  assert.equal(legacy?.["x-runtime-contract-source"], undefined);
+  assert.equal(legacy?.["x-runtime-auth-profile"], undefined);
+  assert.ok(legacy?.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
+  assert.ok(legacy?.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+
+  const result = await runSync(actualRoot);
+  assert.equal(result.ok, true, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.equal(summary.conflict_count, 0);
+  assert.ok(summary.applied_registered_path_replacements.some((entry) =>
+    entry.path === ROUTE_PATH
+    && entry.path_item_ref === PATH_REF
+    && entry.signatures.includes(SIGNATURE)));
+
+  const written = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+  assert.deepEqual(written.paths[ROUTE_PATH], { $ref: PATH_REF });
+
+  const check = await runSync(actualRoot, ["--check"]);
+  assert.equal(check.ok, true, check.stderr || check.stdout);
+  const checkSummary = JSON.parse(check.stdout);
+  assert.equal(checkSummary.ok, true);
+  assert.equal(checkSummary.changed, false);
+  assert.equal(checkSummary.conflict_count, 0);
+} finally {
+  await rm(actualRoot, { recursive: true, force: true });
+}
+
 console.log(JSON.stringify({
   ok: true,
-  contract: "openapi_precise_legacy_registered_path_transition.v1",
+  contract: "openapi_precise_legacy_registered_path_transition.v2",
   exact_signature: SIGNATURE,
+  exact_operation_id: OPERATION_ID,
+  exact_path_item_ref: PATH_REF,
   malformed_variants_blocked: 3,
+  wrong_path_item_ref_blocked: true,
   unrelated_path_blocked: true,
+  actual_root_regression_passed: true,
   secrets_included: false,
 }, null, 2));
