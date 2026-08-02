@@ -1,0 +1,152 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-reconciled-main-readback",
+  "title": "Spec 014 Reconciled Main Readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-reconciled-main-readback.json",
+      "http-generic-api/test-spec014-reconciled-main-readback.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the ancestry-preserving Spec 014 reconciliation retains canonical main governance, regenerated Frontend/OpenAPI parity, and the latest governed storage runtime contracts without temporary reconciliation workflows.",
+      "e2e_journeys": [
+        {
+          "id": "reconciled-main-tree-to-governed-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository integration reviewer",
+          "entrypoint": "Reconciled Spec 014 candidate tree",
+          "terminal_outcome": "The candidate proves canonical main evidence-routing and Support Ticket JWT parity, regenerated Frontend/OpenAPI determinism, current Crash-safe and Dedicated Worker contracts, and absence of temporary reconciliation launchers.",
+          "steps": [
+            "Read back the reconciled repository tree and require canonical evidence-publisher and generated-refresh workflows.",
+            "Reject superseded Hostinger publisher and temporary reconciliation workflows.",
+            "Validate generated Frontend evidence as parseable and free from merge markers.",
+            "Verify structured Frontend generator evidence and Support Ticket user JWT parity survived reconciliation.",
+            "Run Frontend generator, auth parity, OpenAPI coverage, Crash-safe Restart Reconciliation, Dedicated Worker Certification, Verified SQL Composition, and Tenant-safe Projection contracts."
+          ],
+          "assertions": [
+            "The readback performs no provider, credential, migration, deployment, main, or Production mutation.",
+            "The temporary reconciliation launcher is absent from the final tree.",
+            "The superseded dedicated Hostinger evidence publisher is absent and the canonical shared publisher is present.",
+            "Frontend and OpenAPI generated evidence is deterministic and contains no unresolved merge markers.",
+            "Crash-safe and Dedicated Worker contracts remain executable after main reconciliation.",
+            "No Job logs or secrets are required as decision authority."
+          ],
+          "tests": [
+            {
+              "id": "spec014-reconciled-main-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-reconciled-main-readback.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-dispatch-workflow-baseline",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-operation-governance-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-dispatch",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-route-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-route-coverage.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-auth-sync-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/openapi-runtime-auth-sync.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "crash-safe-restart-reconciliation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+              "args": []
+            },
+            {
+              "id": "dedicated-worker-certification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-dedicated-worker-certification.mjs",
+              "args": []
+            },
+            {
+              "id": "verified-sql-runtime-composition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-verified-sql-runtime-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-safe-durable-projection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-tenant-safe-durable-projection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-reconciled-main-readback.json",
+            "http-generic-api/test-spec014-reconciled-main-readback.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish exact-head reconciliation ancestry and readback into the shared canonical PR evidence surface."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Automate re-reconciliation when canonical main advances after a verified reconciliation snapshot."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository reconciliation performs no live provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no deployment or Production authority."
+    }
+  ]
+}
