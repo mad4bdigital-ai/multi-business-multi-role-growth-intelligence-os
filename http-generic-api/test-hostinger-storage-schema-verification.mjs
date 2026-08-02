@@ -13,13 +13,13 @@ import {
 
 const contract = JSON.parse(fs.readFileSync(new URL('../.github/contracts/spec014/hostinger-storage-schema-verification.json', import.meta.url), 'utf8'));
 const attestationSchema = JSON.parse(fs.readFileSync(new URL('../.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json', import.meta.url), 'utf8'));
-const readbackContract = fs.readFileSync(new URL('../.github/contracts/spec014/migrations/readback.sql', import.meta.url), 'utf8');
+const readbackContract = fs.readFileSync(new URL('../.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql', import.meta.url), 'utf8');
 
 assert.equal(contract.status, 'verification_contract_ready_unsigned');
 assert.equal(contract.signature_algorithm, 'Ed25519');
 assert.equal(contract.private_key_material_forbidden, true);
 assert.equal(contract.expected_readback_contract_key, 'spec014_hostinger_storage_migration_readback_v4');
-assert.equal(contract.readback_contract_path, '.github/contracts/spec014/migrations/readback.sql');
+assert.equal(contract.readback_contract_path, '.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql');
 assert.equal(contract.live_database_access_performed, false);
 assert.equal(contract.signature_created, false);
 assert.equal(contract.schema_verified, false);
