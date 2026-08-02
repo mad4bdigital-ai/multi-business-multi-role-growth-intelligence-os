@@ -164,6 +164,12 @@ assert.match(publisherWorkflow, /^\s*persist-credentials:\s*false\s*$/mu);
 assert.match(publisherWorkflow, /hostinger-storage-tenant-canary-\$\{\{ github\.event\.workflow_run\.id \}\}-summary/u);
 assert.match(publisherWorkflow, /hostinger-ci-evidence-pr-comment\.mjs/u);
 assert.match(publisherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+assert.match(publisherWorkflow, /Discover exact-head Hostinger Tenant Canary run/u);
+assert.match(publisherWorkflow, /hostinger-storage-tenant-canary-canonical-guard\.yml/u);
+assert.match(publisherWorkflow, /url\.searchParams\.set\('head_sha', headSha\)/u);
+assert.match(publisherWorkflow, /item\?\.head_sha === headSha/u);
+assert.match(publisherWorkflow, /steps\.hostinger_discovery\.outputs\.found == 'true'/u);
+assert.match(publisherWorkflow, /hostinger-canonical\/hostinger-storage-tenant-canary-summary\.json/u);
 assert.doesNotMatch(publisherWorkflow, /^\s*pull_request:\s*$/mu);
 
 const routing = JSON.parse(fs.readFileSync(
@@ -184,8 +190,9 @@ assert.equal(routing.secrets_included, false);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 36,
+  tests: 42,
   gate: "hostinger_tenant_canary_canonical_evidence_publisher",
   publisher_workflow: PUBLISHER_WORKFLOW,
+  exact_head_fallback: true,
   secrets_included: false
 }));
