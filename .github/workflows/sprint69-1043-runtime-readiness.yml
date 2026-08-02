@@ -1,0 +1,70 @@
+name: Sprint 69 Migration 1043 Runtime Readiness
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-readiness:
+    name: Verify Production parity and authorize Migration 1043 dry-run only
+    if: >-
+      github.event.issue.number == 4449 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: sprint69-migration-1043-runtime-readiness
+      cancel-in-progress: false
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4449'
+      EVIDENCE_DIR: .artifacts/sprint69-1043-runtime-readiness
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Execute checksum-bound runtime readiness
+        run: node .github/ops/sprint69-1043-runtime-readiness.mjs
+
+      - name: Upload no-secret runtime readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint69-1043-runtime-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish runtime readiness summary
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
+          const fs = require('node:fs');
+          const dir = process.env.EVIDENCE_DIR;
+          const summaryPath = `${dir}/summary.json`;
+          const failurePath = `${dir}/failure.json`;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            process.stdout.write(`## Migration 1043 runtime readiness: pass\n\n- Result: ${s.result}\n- Main SHA: \`${s.main_sha}\`\n- Production SHA: \`${s.production_sha}\`\n- Migration blob: \`${s.migration_blob_sha}\`\n- Checksum: \`${s.migration_checksum_sha256}\`\n- Statements: ${s.statement_count}\n- Runtime parity: ${s.runtime_parity}\n- Authorization bootstrap: ${s.authorization_bootstrap}\n- Dry run: ${s.dry_run}\n- Apply authorized: ${s.apply_authorized}\n- Apply sent: ${s.apply_sent}\n- Migration Apply executed: ${s.migration_apply_executed}\n- Secrets included: ${s.secrets_included}\n`);
+          } else {
+            const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
+            process.stdout.write(`## Migration 1043 runtime readiness: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Main SHA: \`${f.main_sha || 'unverified'}\`\n- Production SHA: \`${f.production_sha || 'unverified'}\`\n- Error code: ${f.error?.code || 'workflow_failed'}\n- Authorization created: ${f.authorization_created ?? false}\n- Apply authorized: ${f.apply_authorized ?? false}\n- Apply sent: ${f.apply_sent ?? false}\n- Migration Apply executed: ${f.migration_apply_executed ?? false}\n- Secrets included: ${f.secrets_included ?? false}\n`);
+          }
+          NODE
