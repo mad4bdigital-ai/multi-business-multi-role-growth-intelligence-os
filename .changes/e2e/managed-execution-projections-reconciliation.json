@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/managed-execution-projections-reconciliation.json",
+      "http-generic-api/context-kernel-hardcoding-scan.config.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/managedExecutionLifecycleService.js",
       "http-generic-api/managedExecutionProjectionService.js",
@@ -60,6 +61,7 @@
             "A stale or incorrect confirmation cannot Apply.",
             "Apply changes only workflow run status, binding lifecycle/customer/hold link, and task status/lifecycle/customer fields.",
             "Apply writes one managed_execution_reconciled event containing plan and action digests, then requires zero-contradiction readback.",
+            "The oneOrNull Context Kernel suppression is limited to a function that returns a row only when candidate count equals one; zero and multiple candidates become explicit structural contradictions.",
             "No approval decision, step status, relationship, tenant, authority, resource grant, provider, credential, external system, deployment, migration, registry, or Production mutation occurs."
           ],
           "tests": [
@@ -72,6 +74,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/context-kernel-hardcoding-scan.config.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/managedExecutionLifecycleService.js",
             "http-generic-api/managedExecutionProjectionService.js",
