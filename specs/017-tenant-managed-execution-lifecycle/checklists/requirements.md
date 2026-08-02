@@ -18,7 +18,12 @@
 - [x] Escalation creates or safely reuses an explicit supervisor approval hold.
 - [x] Cancellation synchronizes active steps, open holds, run, binding, ticket, and event state atomically.
 - [x] Rollback requires an idempotent managed compensation step and explicit completed-step finalization.
+- [x] Tenant projection excludes execution context, authority snapshots, raw payloads, raw idempotency keys, and unfiltered evidence.
+- [x] Admin projection exposes safe linked-state, authority, hold, step, intervention, contradiction, and reconciliation summaries.
+- [x] Structural and ambiguous contradictions block automatic reconciliation.
+- [x] Repairable status drift produces deterministic SHA-256-bound actions.
+- [x] Reconciliation Apply requires platform-admin authority and exact plan confirmation.
+- [x] Reconciliation is transactional, evidence-bearing, and fails closed on non-empty post-write contradiction readback.
 - [ ] Migration ledger and readiness evidence recorded.
 - [ ] Production exact-SHA and protected-user-path verification recorded.
-- [ ] Complete tenant/admin read projections and contradiction reconciliation actions.
 - [ ] Final tenant-safe report and post-merge audit completed.
