@@ -1,0 +1,88 @@
+name: Spec 014 Current Main Sync Reconciliation Builder
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/spec014-main-sync-reconciliation-builder-current.sh'
+      - '.github/workflows/spec014-main-sync-reconciliation-builder-current.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-current-main-sync-reconciliation-builder-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      INTEGRATION_SHA: 6ef2c0debb75ad336acfde5ac12cace4e8a78c92
+      MAIN_SHA: 4d79643cafa77b28fbaee437a7960c9fbf5eb754
+      FINAL_BRANCH: gpt/014-hostinger/main-sync-reconciliation-20260802
+      REPORT_DIR: /tmp/spec014-current-main-sync-reconciliation-builder
+    steps:
+      - name: Checkout exact builder head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate builder syntax
+        run: bash -n .github/scripts/spec014-main-sync-reconciliation-builder-current.sh
+
+      - name: Build generated-artifact reconciliation merge
+        id: builder
+        continue-on-error: true
+        run: bash .github/scripts/spec014-main-sync-reconciliation-builder-current.sh
+
+      - name: Publish builder summary
+        if: always()
+        run: cat /tmp/spec014-current-main-sync-reconciliation-builder/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload canonical builder evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-current-main-sync-reconciliation-builder-${{ github.run_id }}
+          path: /tmp/spec014-current-main-sync-reconciliation-builder
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce successful builder result
+        if: always()
+        shell: bash
+        env:
+          BUILDER_OUTCOME: ${{ steps.builder.outcome }}
+        run: |
+          set -euo pipefail
+          test "$BUILDER_OUTCOME" = 'success'
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/spec014-current-main-sync-reconciliation-builder/summary.json').read_text())
+          assert report['contract'] == 'spec014.current-main-sync-reconciliation-builder.v1'
+          assert report['outcome'] == 'passed'
+          assert report['integration_sha'] == '6ef2c0debb75ad336acfde5ac12cace4e8a78c92'
+          assert report['main_sha'] == '4d79643cafa77b28fbaee437a7960c9fbf5eb754'
+          assert report['first_parent'] == report['integration_sha']
+          assert report['second_parent'] == report['main_sha']
+          assert report['conflict_paths'] == ['http-generic-api/frontend-surface-dispatch.generated.json']
+          assert report['conflict_set_sha256'] == report['expected_conflict_set_sha256']
+          assert set(report['generator_changed_files']).issubset({
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml',
+          })
+          assert report['force_push_performed'] is False
+          assert report['main_mutated'] is False
+          assert report['production_mutated'] is False
+          assert report['migration_apply_performed'] is False
+          assert report['live_database_access_performed'] is False
+          assert report['provider_dispatch_performed'] is False
+          assert report['job_logs_consulted'] is False
+          assert report['secrets_included'] is False
+          print(json.dumps(report))
+          PY
