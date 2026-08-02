@@ -244,6 +244,7 @@ CREATE TABLE IF NOT EXISTS storage_cleanup_approvals (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS storage_execution_leases (
+  id CHAR(36) NOT NULL,
   target_id CHAR(36) NOT NULL,
   root_ref_digest CHAR(64)
     GENERATED ALWAYS AS (LOWER(SHA2(target_id, 256))) STORED,
@@ -266,7 +267,7 @@ CREATE TABLE IF NOT EXISTS storage_execution_leases (
   row_version BIGINT UNSIGNED NOT NULL DEFAULT 1,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (target_id),
+  PRIMARY KEY (id),
   UNIQUE KEY uq_storage_execution_leases_active
     (target_id, root_ref_digest, active_slot),
   UNIQUE KEY uq_storage_execution_leases_lease_id (lease_id),

@@ -504,7 +504,15 @@ async function loadRun(connection, runId, { forUpdate = true } = {}) {
       before_snapshot_id, after_snapshot_id, provider_response_classification,
       unknown_outcome, readback_status, result_digest
     FROM storage_cleanup_runs WHERE id=?${forUpdate ? ' FOR UPDATE' : ''}`, [runId]);
-  return rows?.[0] ? normalizeStoredRun(rows[0]) : null;
+  const candidates = Array.isArray(rows) ? rows : [];
+if (candidates.length > 1) {
+  throw fail(409, 'STORAGE_SQL_PARENT_RUN_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', {
+    run_id: runId,
+    candidate_count: candidates.length,
+  });
+}
+const [candidate] = candidates;
+return candidate ? normalizeStoredRun(candidate) : null;
 }
 
 async function insertRun(connection, run) {

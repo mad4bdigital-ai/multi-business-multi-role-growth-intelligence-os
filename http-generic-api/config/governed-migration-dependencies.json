@@ -14,7 +14,7 @@
       ]
     },
     "20260802_02_spec014_hostinger_storage_control_plane.sql": {
-      "checksum_sha256": "091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f",
+      "checksum_sha256": "80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33",
       "statement_count": 6,
       "dependencies": [
         {
@@ -31,7 +31,7 @@
       "dependencies": [
         {
           "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
-          "checksum_sha256": "091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f",
+          "checksum_sha256": "80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33",
           "statement_count": 6,
           "required_ledger_mode": "apply"
         }
