@@ -52,6 +52,16 @@ requireIncludes(workflow, 'persist-credentials: false', 'Tenant Canary checkout 
 requireIncludes(workflow, 'git ls-remote origin "refs/heads/${TARGET_REF}"', 'Tenant Canary remote identity verification');
 requireIncludes(
   workflow,
+  'REPORT_DIR: .ci-evidence/hostinger-storage-tenant-canary',
+  'Tenant Canary report directory',
+);
+requireExcludes(
+  workflow,
+  '${{ runner.temp }}',
+  'Tenant Canary job-level context availability',
+);
+requireIncludes(
+  workflow,
   'node http-generic-api/scripts/hostinger-tenant-canary-ci.mjs --report-dir "${REPORT_DIR}"',
   'Tenant Canary canonical runner',
 );
@@ -106,6 +116,7 @@ console.log(JSON.stringify({
   workflow: 'Hostinger Storage Tenant Canary Guard',
   publisher: 'Hostinger CI Evidence PR Publisher',
   candidate_kind: 'head',
+  report_directory_context_valid: true,
   repository_mutation_performed: false,
   provider_dispatch_performed: false,
   credential_access_performed: false,
