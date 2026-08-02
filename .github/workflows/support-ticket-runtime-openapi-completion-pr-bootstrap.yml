@@ -36,8 +36,27 @@ jobs:
           exec(compile(source, '<support-ticket-runtime-openapi-bootstrap>', 'exec'), {})
           PY
       - name: Run precise completeness regression
-        working-directory: http-generic-api
-        run: node test-support-ticket-runtime-openapi-completion.mjs
+        shell: bash
+        run: |
+          set +e
+          cd http-generic-api
+          node test-support-ticket-runtime-openapi-completion.mjs > ../support-ticket-runtime-openapi-regression.log 2>&1
+          status=$?
+          cat ../support-ticket-runtime-openapi-regression.log
+          exit "$status"
+      - name: Upload bounded diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-ticket-runtime-openapi-completion-diagnostic
+          path: |
+            support-ticket-runtime-openapi-regression.log
+            .changes/e2e/support-ticket-runtime-openapi-completion.json
+            http-generic-api/openapi-route-contracts.yaml
+            http-generic-api/openapi/support-ticket-runtime-completion.yaml
+            http-generic-api/test-support-ticket-runtime-openapi-completion.mjs
+          if-no-files-found: error
+          retention-days: 3
       - name: Commit bounded completion and remove both bootstraps
         shell: bash
         run: |
