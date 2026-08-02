@@ -38,6 +38,7 @@
             "Prove the route accepts only operation_id and expected_sha and rejects unowned or extra request fields.",
             "Prove the route requires an immutable synthetic-only runtime with provider dispatch and Production readiness disabled.",
             "Register the exact POST signature in a deterministic feature registry fragment.",
+            "Request generated output through the read-only exact-head refresh bridge and the registered sole writer; do not edit the root OpenAPI manually.",
             "Compose the registered path into the root OpenAPI through the precise contract sync writer.",
             "Verify the root path is one external path-item ref to the Hostinger tenant runtime fragment.",
             "Verify the OpenAPI operation uses userJwtAuth, is consequential, and exposes bounded secret-free request and response schemas.",
@@ -49,6 +50,7 @@
             "The runtime source is routes/hostingerStorageTenantRoutes.js and the auth profile is user_jwt.",
             "Only the mounted route is documented; specification-only Hostinger design surfaces remain absent.",
             "Registry fragments are loaded deterministically and duplicate signatures fail closed.",
+            "The generated root update is produced by the governed sole writer from an exact-head read-only request and not by a manual root-file edit.",
             "No provider call, runtime mount, live database access, migration, deployment, main merge, or Production mutation occurs."
           ],
           "tests": [
