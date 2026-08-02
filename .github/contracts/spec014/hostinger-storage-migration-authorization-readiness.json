@@ -7,6 +7,7 @@
   "promotion_pull_request": 4564,
   "promotion_merge_sha": "7a96920eff2579321707d193a1d030e6454891b1",
   "governed_inspector": "http-generic-api/governedMigrationAuthorizationBootstrap.js#inspectGovernedMigrationAuthorizationCandidate",
+  "evidence_contract": "spec014.hostinger-storage-migration-authorization-readiness-test.v1",
   "evidence_artifact_pattern": "spec014-migration-authorization-readiness-${run_id}",
   "next_authorizable_wave": 1,
   "waves": [
