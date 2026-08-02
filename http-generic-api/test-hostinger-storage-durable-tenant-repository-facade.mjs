@@ -84,6 +84,10 @@ function makeComposition({ operationState = 'lease_acquired', consumed = false, 
       trace.push('readRun');
       return { found: true, run: { run_id: input.run_id, secrets_included: false }, secrets_included: false };
     },
+    async readPlanItems(input) {
+      trace.push('readPlanItems');
+      return { found: true, plan_id: input.plan_id, items: [], item_count: 0, secrets_included: false };
+    },
   });
 
   const childEvidence = Object.freeze({
