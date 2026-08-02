@@ -135,15 +135,129 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/surface-contract-discovery.mjs --write
 
-      - name: Rebuild surface gap triage reports
+      - name: Rebuild initial surface gap triage reports
         working-directory: http-generic-api
         run: node scripts/surface-contract-gap-triage.mjs --write
 
-      - name: Upload surface gap diagnostic evidence
+      - name: Upload initial surface gap diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec014-surface-gap-triage-${{ github.run_id }}
+          name: spec014-surface-gap-triage-initial-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            docs/surface-contract-gap-queue.json
+            docs/surface-contract-discovery-status.json
+            docs/surface-contract-gap-triage.json
+            docs/surface-contract-gap-triage.md
+            docs/surface-contract-gap-baseline.json
+            docs/surface-contract-governance-dashboard.json
+            docs/surface-contract-governance-compact.json
+            docs/surface-contract-gap-trends.json
+
+      - name: Reconcile exact parent-existing gap baseline
+        working-directory: http-generic-api
+        env:
+          INTEGRATION_PARENT_SHA: 06daaf7aeb270af435910a5ea07a2385cdbb4fbf
+          MAIN_PARENT_SHA: 79cbbc634e690bf30ab2827144cb49c88b14f9a5
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const repoRoot = path.resolve('..');
+          const triagePath = path.join(repoRoot, 'docs', 'surface-contract-gap-triage.json');
+          const baselinePath = path.join(repoRoot, 'docs', 'surface-contract-gap-baseline.json');
+          const triage = JSON.parse(fs.readFileSync(triagePath, 'utf8'));
+          const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+          const expectedAddedFiles = [
+            '1020_sprint69_multi_surface_tenant_agent_runtime.sql',
+            '1029_sprint69_minimal_dynamic_brand_resolution.sql',
+            '1030_sprint69_generic_platform_resource_context.sql',
+            '1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql',
+            '1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql',
+            '1043_sprint69_tenant_managed_execution_lifecycle.sql',
+            '189_sprint66_tenant_gpt_operating_guide_tools.sql',
+            '191_sprint66_tenant_credential_intake_connection_status.sql',
+            '196_sprint66_tenant_database_schema_read_tool.sql',
+            '197_sprint66_tenant_database_query_readonly_tool.sql',
+            '198_sprint66_tenant_ssh_probe_tool.sql',
+            '199_sprint66_tenant_ssh_cli_dry_run_tool.sql',
+            '200_sprint66_tenant_ssh_cli_approval_request_tool.sql',
+            '201_sprint66_tenant_ssh_cli_approval_decision_tools.sql',
+            '20260728_governed_response_chunk_ownership.sql',
+            '20260730_hostinger_production_resync_policy.sql',
+            '20260802_03_spec014_hostinger_storage_execution_evidence.sql',
+            '202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql',
+            '204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql',
+            '205_sprint66_tenant_ssh_password_and_intake_wait.sql',
+          ].sort();
+
+          const baselineSet = new Set(baseline.baseline_files || []);
+          const actualAddedItems = (triage.items || []).filter((item) => !baselineSet.has(item.migration_file));
+          const actualAddedFiles = actualAddedItems.map((item) => item.migration_file).sort();
+          assert.deepEqual(actualAddedFiles, expectedAddedFiles, 'Parent-baseline reconciliation set drifted from the reviewed diagnostic artifact.');
+
+          const parentShas = [process.env.INTEGRATION_PARENT_SHA, process.env.MAIN_PARENT_SHA];
+          const parentPresence = {};
+          for (const file of expectedAddedFiles) {
+            const repoPath = `http-generic-api/migrations/${file}`;
+            const presentIn = [];
+            for (const sha of parentShas) {
+              try {
+                execFileSync('git', ['cat-file', '-e', `${sha}:${repoPath}`], { cwd: repoRoot, stdio: 'ignore' });
+                presentIn.push(sha);
+              } catch {}
+            }
+            assert.ok(presentIn.length > 0, `Unreviewed merge-only gap cannot be baselined: ${file}`);
+            parentPresence[file] = presentIn;
+          }
+
+          const classCounts = { ...(baseline.baseline_class_counts || {}) };
+          for (const item of actualAddedItems) {
+            classCounts[item.triage_class] = (classCounts[item.triage_class] || 0) + 1;
+          }
+          const mergedFiles = [...new Set([...(baseline.baseline_files || []), ...expectedAddedFiles])].sort();
+          baseline.baseline_policy = 'future gates fail for any unbaselined new-gap candidate; low, medium, high, and critical new queue items must be remediated before promotion';
+          baseline.future_only_lock = true;
+          baseline.baseline_item_count = mergedFiles.length;
+          baseline.baseline_files = mergedFiles;
+          baseline.baseline_class_counts = classCounts;
+          baseline.parent_reconciliation = {
+            schema_version: 'surface-contract-parent-baseline-reconciliation-v1',
+            integration_parent_sha: process.env.INTEGRATION_PARENT_SHA,
+            main_parent_sha: process.env.MAIN_PARENT_SHA,
+            rule: 'Only migration files already present in at least one immutable parent may enter the reconciled future-only baseline; merge-only files remain blocking.',
+            reviewed_initial_artifact_run_id: process.env.GITHUB_RUN_ID,
+            added_item_count: expectedAddedFiles.length,
+            added_files: expectedAddedFiles,
+            parent_presence: parentPresence,
+            blocking_merge_only_item_count: 0,
+            safety: {
+              executes_provider_calls: false,
+              reads_credentials: false,
+              mutates_runtime: false,
+              writes_database: false,
+              external_sends: false,
+              deploys: false,
+              secrets_included: false,
+            },
+          };
+          fs.writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
+          NODE
+
+      - name: Rebuild reconciled surface gap reports
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-gap-triage.mjs --write
+
+      - name: Upload reconciled surface gap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-surface-gap-triage-reconciled-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 30
           path: |
