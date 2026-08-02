@@ -112,7 +112,7 @@ assert.throws(() => assertGeneratedArtifactPrIdentity(
 ), /current PR head/iu);
 
 const workBranchReadOnlyWorkflow = readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
-const protectedPromotionReadOnlyWorkflow = readFileSync("../.github/workflows/protected-promotion-generated-artifact-refresh.yml", "utf8");
+const protectedPromotionReadOnlyWorkflow = readFileSync("../.github/workflows/production-promotion-generated-artifact-evidence.yml", "utf8");
 const evidencePublisherWorkflow = readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
 const evidenceRoutingPolicy = JSON.parse(readFileSync("../.github/ci-evidence-routing.json", "utf8"));
 const governedWriterWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
@@ -130,6 +130,16 @@ assert.match(workBranchReadOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
 assert.match(workBranchReadOnlyWorkflow, /persist-credentials: false/u);
 assert.doesNotMatch(workBranchReadOnlyWorkflow, /contents: write/u);
 assert.doesNotMatch(workBranchReadOnlyWorkflow, /git push/u);
+assert.match(
+  workBranchReadOnlyWorkflow,
+  /\.github\/workflows\/production-promotion-generated-artifact-evidence\.yml/u,
+  "the work-branch evaluator must track the uniquely pathed Production evaluator",
+);
+assert.doesNotMatch(
+  workBranchReadOnlyWorkflow,
+  /\.github\/workflows\/protected-promotion-generated-artifact-refresh\.yml/u,
+  "the retired workflow path must not remain in the governed trigger set",
+);
 
 assert.match(
   protectedPromotionReadOnlyWorkflow,
@@ -196,10 +206,11 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 
 console.log(JSON.stringify({
   ok: true,
-  contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 38,
+  contract: "mad4b.pr-generated-artifact-publisher-test.v1",
+  cases: 40,
   work_branch_evaluator_excludes_production: true,
   protected_promotion_unique_workflow_name: true,
+  protected_promotion_unique_workflow_path: true,
   protected_promotion_read_only: true,
   publisher_alias_routing: true,
   protected_writer_mutation: false,
