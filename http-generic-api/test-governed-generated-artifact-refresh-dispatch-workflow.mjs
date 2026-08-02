@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
+const retiredWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch.yml";
+assert.equal(fs.existsSync(retiredWorkflowPath), false, "retired dispatcher path must remain absent");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch$/mu);
@@ -53,7 +55,7 @@ assert.match(workflow, /workflow_conclusion="success"/u, "passed or skipped evid
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 45,
+  tests: 46,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
   trusted_comment_command: true,
@@ -61,6 +63,7 @@ console.log(JSON.stringify({
   direct_canonical_publication: true,
   delegated_run_observation: true,
   http_204_is_not_sufficient: true,
+  stale_workflow_path_retired: true,
   push_trigger: false,
   pull_request_write_workflow: false,
   direct_contents_write: false,
