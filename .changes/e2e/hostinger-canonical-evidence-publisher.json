@@ -9,7 +9,7 @@
     "include": [
       ".changes/e2e/hostinger-canonical-evidence-publisher.json",
       ".github/ci-evidence-routing.json",
-      ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+      ".github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml",
       "http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs",
       "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
     ]
@@ -62,7 +62,7 @@
           ],
           "evidence_paths": [
             ".github/ci-evidence-routing.json",
-            ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+            ".github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml",
             "http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs",
             "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
           ]
@@ -71,8 +71,12 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Observe the first real Tenant Canary canonical artifact after the producer child PR is integrated and verify trusted comment publication on the exact head."
+      "status": "blocked",
+      "objective": "Re-register the specialized workflow at its canonical path, then consume a real run-bound Tenant Canary artifact and update the exact-head authoritative PR comment.",
+      "blockers": [
+        "The previous publisher workflow path did not produce a workflow_run publication after two successful Tenant Canary runs, while the general E2E publisher updated the same comment.",
+        "A post-merge Tenant Canary run must prove the re-registered publisher adds the Hostinger section for the same exact head."
+      ]
     },
     {
       "id": "resilient",
