@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   readiness:
@@ -58,16 +57,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node .github/ops/validate-sprint69-1006-readiness-trigger.mjs
 
-      - name: Record readiness start
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4122/comments' \
-            -f body="GOVERNED_MIGRATION_1006_READINESS status=started run_id=${GITHUB_RUN_ID} trusted_ref=main trigger=${GITHUB_EVENT_NAME}"
-
       - name: Execute integrated readiness wave
         id: rollout
         run: node .github/ops/sprint69-1006-governed-rollout.mjs
@@ -81,31 +70,22 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record readiness outcome
+      - name: Publish readiness summary
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
+        shell: bash
         run: |
-          node <<'NODE' >"${RUNNER_TEMP}/readiness-comment.txt"
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
           const fs = require('node:fs');
-          const path = `${process.env.EVIDENCE_DIR}/summary.json`;
+          const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
           const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
-          let body;
-          if (fs.existsSync(path)) {
-            const s = JSON.parse(fs.readFileSync(path, 'utf8'));
-            body = `GOVERNED_MIGRATION_1006_READINESS result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} checksum=${s.checksum} statement_count=${s.statement_count} authorization=${s.authorization || 'already_applied'} dry_run=${s.dry_run || 'already_applied'} artifact=sprint69-1006-readiness-${process.env.GITHUB_RUN_ID}`;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            process.stdout.write(`## Migration 1006 readiness: pass\n\n- Production SHA: \`${s.production_sha}\`\n- Checksum: \`${s.checksum}\`\n- Statements: ${s.statement_count}\n- Authorization: ${s.authorization || 'already_applied'}\n- Dry run: ${s.dry_run || 'already_applied'}\n`);
           } else {
             const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
-            body = `GOVERNED_MIGRATION_1006_READINESS result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} error_code=${f.error?.code || 'workflow_failed'} artifact=sprint69-1006-readiness-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Migration 1006 readiness: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Error code: ${f.error?.code || 'workflow_failed'}\n`);
           }
-          process.stdout.write(body);
           NODE
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4122/comments' \
-            -f body="$(cat "${RUNNER_TEMP}/readiness-comment.txt")"
 
   apply:
     name: Apply and certify Migration 1006
@@ -140,16 +120,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Record apply start
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4122/comments' \
-            -f body="GOVERNED_MIGRATION_1006_APPLY status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
-
       - name: Execute integrated apply and certification wave
         id: rollout
         run: node .github/ops/sprint69-1006-governed-rollout.mjs
@@ -163,28 +133,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record apply outcome
+      - name: Publish apply summary
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
+        shell: bash
         run: |
-          node <<'NODE' >"${RUNNER_TEMP}/apply-comment.txt"
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
           const fs = require('node:fs');
-          const path = `${process.env.EVIDENCE_DIR}/summary.json`;
+          const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
           const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
-          let body;
-          if (fs.existsSync(path)) {
-            const s = JSON.parse(fs.readFileSync(path, 'utf8'));
-            body = `GOVERNED_MIGRATION_1006_APPLY result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} checksum=${s.checksum} statement_count=${s.statement_count} apply_sent=${s.apply_sent_by_this_run} apply_retried=false ledger=pass objects=5 views=2 dependency_gate_1007=pass artifact=sprint69-1006-apply-${process.env.GITHUB_RUN_ID}`;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            process.stdout.write(`## Migration 1006 apply: pass\n\n- Production SHA: \`${s.production_sha}\`\n- Checksum: \`${s.checksum}\`\n- Statements: ${s.statement_count}\n- Apply sent by this run: ${s.apply_sent_by_this_run}\n- Apply retried: false\n- Ledger: pass\n- Dependency gate 1007: pass\n`);
           } else {
             const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
-            body = `GOVERNED_MIGRATION_1006_APPLY result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} apply_sent=${f.apply_sent || false} error_code=${f.error?.code || 'workflow_failed'} artifact=sprint69-1006-apply-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Migration 1006 apply: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Apply sent: ${f.apply_sent || false}\n- Error code: ${f.error?.code || 'workflow_failed'}\n`);
           }
-          process.stdout.write(body);
           NODE
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4122/comments' \
-            -f body="$(cat "${RUNNER_TEMP}/apply-comment.txt")"
