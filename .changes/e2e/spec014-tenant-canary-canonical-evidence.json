@@ -8,7 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
-      ".github/workflows/hostinger-storage-tenant-canary-guard.yml",
+      ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
       "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
       "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
     ]
@@ -20,35 +20,35 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Upgrade the existing Tenant Canary Guard to publish one exact-head, secret-free canonical JSON/Markdown artifact while retaining and pre-integration testing all synthetic, provenance, not-before, ordering, and regression coverage.",
+      "objective": "Publish one exact-head, secret-free canonical JSON/Markdown Tenant Canary artifact while retaining all synthetic, provenance, not-before, ordering, and regression coverage under the canonical GitHub Actions workflow path.",
       "e2e_journeys": [
         {
           "id": "tenant-canary-guard-to-canonical-artifact",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Spec 014 reviewer and repository evidence publisher",
-          "entrypoint": "The fixed-command Tenant Canary canonical runner and the upgraded Hostinger Storage Tenant Canary Guard",
-          "terminal_outcome": "The exact PR head executes all eight guard checks under E2E governance now, and after Integration activation the same runner writes a run-bound canonical report with bounded diagnostics and an enforceable pass/fail decision without reconstructing status from Job logs.",
+          "entrypoint": "The fixed-command Tenant Canary canonical runner and the canonical-path Hostinger Storage Tenant Canary Guard",
+          "terminal_outcome": "The exact PR head executes all eight guard checks, writes a run-bound canonical report with bounded diagnostics, and returns an enforceable pass/fail decision without reconstructing status from Job logs.",
           "steps": [
             "Validate the producer/report contract and workflow safety boundary.",
             "Execute the canonical Tenant Canary runner directly under E2E governance on the exact PR head.",
-            "Run deterministic dependency installation, syntax, synthetic boundary, Base import, runtime provenance, policy not-before, pre-consumption ordering, and the complete Tenant canary regression suite.",
+            "Run deterministic dependency installation, syntax, synthetic boundary, Base import, runtime provenance, policy not-before, pre-consumption ordering, and the complete Tenant Canary regression suite.",
             "Redact and bound stdout/stderr tails before storing structured results.",
             "Write mad4b.hostinger-guard-summary.v1 JSON and Markdown before returning the guard result.",
-            "After this workflow definition reaches Integration, upload both files with if:always under a run-bound artifact name.",
+            "Upload both files with if:always under a run-bound Artifact name when the canonical-path workflow is scheduled.",
             "Validate exact SHA, counts, results, first failure, integrity findings, no-secret declaration, no-log decision, and no-mutation/provider/credential declarations before enforcing the outcome."
           ],
           "assertions": [
-            "The workflow remains named Hostinger Storage Tenant Canary Guard.",
+            "The workflow remains named Hostinger Storage Tenant Canary Guard and is stored at the canonical workflow path.",
             "The report workflow and guard_key identify Hostinger Storage Tenant Canary Guard and hostinger-storage-tenant-canary.",
             "The candidate kind is head and candidate SHA equals the exact pull-request head.",
-            "All eight fixed checks execute successfully under the current E2E journey before Integration activation.",
+            "All eight fixed checks execute successfully under the current E2E journey.",
             "A passed report has eight passes, zero failures, zero integrity findings, and first_failure=null.",
             "A failed report identifies the first failed check and includes only bounded redacted diagnostics.",
-            "The workflow retains contents:read and receives no issue, pull-request, or repository write authority.",
+            "The workflow retains contents:read and receives no issue, pull-request, action, or repository write authority.",
             "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
             "repository_mutation_performed, provider_dispatch_performed, credential_access_performed, job_logs_consulted, and secrets_included remain false.",
-            "Automatic Artifact publication requires this upgraded workflow to reach the Integration base, and trusted PR-comment publication additionally requires Parent PR #4540 to reach main."
+            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based Hostinger CI Evidence PR Publisher for the same exact head."
           ],
           "tests": [
             {
@@ -70,7 +70,7 @@
             }
           ],
           "evidence_paths": [
-            ".github/workflows/hostinger-storage-tenant-canary-guard.yml",
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
             "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
             "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
           ]
@@ -82,14 +82,14 @@
       "status": "blocked",
       "objective": "Publish and consume the first run-bound Tenant Canary canonical Artifact through the trusted main-based publisher.",
       "blockers": [
-        "The upgraded Tenant Canary Guard must first reach the Spec 014 Integration base so subsequent pull requests execute the new Artifact-producing definition.",
-        "Parent PR #4540 must reach main before the trusted workflow_run publisher can consume the Artifact and update the authoritative PR comment."
+        "A qualifying post-alignment pull-request event must schedule the canonical-path Hostinger Storage Tenant Canary Guard on the exact Integration head.",
+        "The trusted publisher must consume the same run-bound Artifact and update the shared authoritative PR comment before operational publication is claimed."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, and publisher retry behavior while preserving canonical-first diagnosis."
+      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, duplicate workflow identity, and publisher retry behavior while preserving canonical-first diagnosis."
     },
     {
       "id": "canary",
