@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   assertGeneratedArtifactPrIdentity,
+  assertGovernedGeneratedArtifactPrIdentity,
   normalizeGeneratedArtifactEvidence,
+  normalizeGovernedGeneratedArtifactEvidence,
 } from "./generated-artifact-refresh-pr-publisher.mjs";
 
 const sourceHeadSha = "1".repeat(40);
 const otherSha = "2".repeat(40);
+const generatedCommitSha = "3".repeat(40);
 
 function report({
   candidateSha = sourceHeadSha,
@@ -32,6 +35,42 @@ function report({
       commit_sha: commitSha,
       changed_files: outcome === "passed" ? [] : ["http-generic-api/frontend-surface-dispatch.generated.json"],
       repository_mutation_performed: repositoryMutationPerformed,
+    },
+    secrets_included: false,
+  };
+}
+
+function governedReport({
+  outcome = "passed",
+  targetRef = "gpt/example",
+  expectedHeadSha = sourceHeadSha,
+  commitSha = generatedCommitSha,
+  changedFiles = [
+    "http-generic-api/frontend-operation-governance.generated.json",
+    "http-generic-api/frontend-surface-dispatch.generated.json",
+  ],
+  firstFailure = null,
+} = {}) {
+  return {
+    contract: "mad4b.governed-generated-artifact-refresh.v1",
+    generated_at: "2026-08-02T02:00:00.000Z",
+    outcome,
+    target_ref: targetRef,
+    expected_head_sha: expectedHeadSha,
+    commit_sha: commitSha,
+    changed_files: changedFiles,
+    first_failure: firstFailure,
+    mutation: {
+      mode: "mutating",
+      expected_head_verified: true,
+      protected_branches_rejected: true,
+      force_push: false,
+      allowed_changed_paths_only: true,
+    },
+    routing: {
+      source_of_truth: "canonical_report",
+      job_logs_role: "diagnostic_only",
+      consult_job_logs: false,
     },
     secrets_included: false,
   };
@@ -111,6 +150,90 @@ assert.throws(() => assertGeneratedArtifactPrIdentity(
   "gpt/example",
 ), /current PR head/iu);
 
+const governedEvidence = normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport(),
+  workflowConclusion: "success",
+  workflowRunId: 20,
+});
+assert.equal(governedEvidence.candidateSha, generatedCommitSha);
+assert.equal(governedEvidence.sourceHeadSha, sourceHeadSha);
+assert.equal(governedEvidence.targetRef, "gpt/example");
+assert.equal(governedEvidence.detail, `generated commit ${generatedCommitSha}`);
+assert.equal(
+  assertGovernedGeneratedArtifactPrIdentity(
+    { state: "open", head: { ref: "gpt/example", sha: generatedCommitSha } },
+    governedEvidence,
+  ),
+  true,
+);
+
+const governedBlockedEvidence = normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({
+    outcome: "blocked",
+    commitSha: null,
+    changedFiles: [],
+    firstFailure: { code: "generated_artifact_write_set_violation" },
+  }),
+  workflowConclusion: "failure",
+  workflowRunId: 21,
+});
+assert.equal(governedBlockedEvidence.candidateSha, sourceHeadSha);
+assert.equal(governedBlockedEvidence.detail, "generated_artifact_write_set_violation");
+assert.equal(
+  assertGovernedGeneratedArtifactPrIdentity(
+    { state: "open", head: { ref: "gpt/example", sha: sourceHeadSha } },
+    governedBlockedEvidence,
+  ),
+  true,
+);
+
+const governedNoChangeEvidence = normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ commitSha: null, changedFiles: [] }),
+  workflowConclusion: "success",
+  workflowRunId: 22,
+});
+assert.equal(governedNoChangeEvidence.candidateSha, sourceHeadSha);
+assert.equal(governedNoChangeEvidence.detail, "generated artifacts already current");
+
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ targetRef: "main" }),
+  workflowConclusion: "success",
+  workflowRunId: 23,
+}), /permitted work branch/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ expectedHeadSha: "short" }),
+  workflowConclusion: "success",
+  workflowRunId: 24,
+}), /expected_head_sha/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ changedFiles: ["package.json"] }),
+  workflowConclusion: "success",
+  workflowRunId: 25,
+}), /allowlist/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ outcome: "blocked", commitSha: null, changedFiles: [] }),
+  workflowConclusion: "success",
+  workflowRunId: 26,
+}), /Successful workflow/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ commitSha: null }),
+  workflowConclusion: "success",
+  workflowRunId: 27,
+}), /requires a resulting commit_sha/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ commitSha: generatedCommitSha, changedFiles: [] }),
+  workflowConclusion: "success",
+  workflowRunId: 28,
+}), /No-change governed apply/u);
+assert.throws(() => assertGovernedGeneratedArtifactPrIdentity(
+  { state: "open", head: { ref: "gpt/other", sha: generatedCommitSha } },
+  governedEvidence,
+), /branch mismatch/u);
+assert.throws(() => assertGovernedGeneratedArtifactPrIdentity(
+  { state: "open", head: { ref: "gpt/example", sha: otherSha } },
+  governedEvidence,
+), /result candidate/u);
+
 const workBranchReadOnlyWorkflow = readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
 const protectedPromotionReadOnlyWorkflow = readFileSync("../.github/workflows/production-promotion-generated-artifact-evidence.yml", "utf8");
 const evidencePublisherWorkflow = readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
@@ -171,13 +294,22 @@ assert.match(
 
 assert.match(evidencePublisherWorkflow, /- PR Generated Artifact Refresh/u);
 assert.match(evidencePublisherWorkflow, /- Protected Promotion Generated Artifact Refresh/u);
+assert.match(evidencePublisherWorkflow, /- Governed Generated Artifact Refresh/u);
 assert.match(
   evidencePublisherWorkflow,
-  /github\.event\.workflow_run\.name == 'PR Generated Artifact Refresh' \|\|[\s\S]*github\.event\.workflow_run\.name == 'Protected Promotion Generated Artifact Refresh'/u,
+  /github\.event\.workflow_run\.name == 'PR Generated Artifact Refresh' \|\|[\s\S]*github\.event\.workflow_run\.name == 'Governed Generated Artifact Refresh'/u,
 );
 assert.match(
   evidencePublisherWorkflow,
-  /"PR Generated Artifact Refresh"\|"Protected Promotion Generated Artifact Refresh"\)/u,
+  /governed-generated-artifact-refresh-\$\{\{ github\.event\.workflow_run\.id \}\}/u,
+);
+assert.match(
+  evidencePublisherWorkflow,
+  /"Governed Generated Artifact Refresh"\) report="\$\{RUNNER_TEMP\}\/canonical\/generated-artifact-refresh-report\.json"/u,
+);
+assert.match(
+  evidencePublisherWorkflow,
+  /"PR Generated Artifact Refresh" \|\| "\$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" \|\| "\$WORKFLOW_NAME" == "Governed Generated Artifact Refresh"/u,
 );
 
 assert.deepEqual(
@@ -190,6 +322,14 @@ for (const workflow of evidenceRoutingPolicy.pr_evidence_publisher.generated_art
   assert.equal(route.canonical_contract, "mad4b.pr-generated-artifact-refresh-summary.v1");
   assert.equal(route.candidate_kind, "head");
 }
+assert.equal(
+  evidenceRoutingPolicy.pr_evidence_publisher.governed_generated_artifact_workflow,
+  "Governed Generated Artifact Refresh",
+);
+const governedRoute = evidenceRoutingPolicy.routes.find((entry) => entry.workflow === "Governed Generated Artifact Refresh");
+assert.ok(governedRoute, "missing governed generated-artifact apply evidence route");
+assert.equal(governedRoute.canonical_contract, "mad4b.governed-generated-artifact-refresh.v1");
+assert.equal(governedRoute.source_head_may_precede_candidate, true);
 
 assert.match(governedWriterWorkflow, /on:\s*\n\s*workflow_dispatch:/u);
 assert.doesNotMatch(governedWriterWorkflow, /pull_request:/u);
@@ -207,12 +347,14 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 40,
+  cases: 58,
   work_branch_evaluator_excludes_production: true,
   protected_promotion_unique_workflow_name: true,
   protected_promotion_unique_workflow_path: true,
   protected_promotion_read_only: true,
   publisher_alias_routing: true,
+  governed_apply_report_published: true,
+  governed_apply_exact_candidate_bound: true,
   protected_writer_mutation: false,
   secrets_included: false,
 }));
