@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-latest-main-reconciliation-evidence",
+  "title": "Exact Spec 014 Integration and main reconciliation evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-latest-main-reconciliation-evidence.json",
+      ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/support-tickets.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Record and revalidate the exact ancestry-preserving reconciliation of canonical main into the current Spec 014 Integration branch without widening runtime, provider, migration, deployment, or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "reconcile-current-main-into-spec014-integration",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed repository automation and reviewer",
+          "entrypoint": "Structured reconciliation Artifact from GitHub Actions Run 30735805235",
+          "terminal_outcome": "The combined tree preserves current Integration ancestry, includes canonical main, regenerates the sole conflicting Frontend evidence file, passes bounded authority and runtime regressions, and remains non-production.",
+          "steps": [
+            "Capture Integration 1c036a183e5464166c401fb9726992b4d4c591f6 and main 3535db5a438c29fc074bb41c303aa9c5663a36df at Runner start.",
+            "Merge canonical main with a two-parent reconciliation commit and no force push.",
+            "Allow only http-generic-api/frontend-surface-dispatch.generated.json as a merge conflict.",
+            "Regenerate Frontend and OpenAPI evidence from the combined tree against the exact main baseline.",
+            "Validate Frontend dispatch, operation governance, user JWT and OpenAPI parity, route coverage, crash-safe restart, dedicated worker certification, verified SQL composition, Tenant-safe durable projection, and Tenant Canary bootstrap.",
+            "Remove the temporary launcher before the reconciliation commit and publish a run-bound structured summary Artifact."
+          ],
+          "assertions": [
+            "The reconciliation summary contract is mad4b.spec014-latest-main-reconciliation-summary.v3.",
+            "The reconciliation Artifact digest is sha256:1c57d47c7adb39d9ddd4a3e30e88307e6b86f2b32110c6ef8499dc224cacac32.",
+            "The reconciliation commit is 801cf266858cb7ec165084ba87a221b11b6541ae.",
+            "The exact observed Integration parent is 1c036a183e5464166c401fb9726992b4d4c591f6.",
+            "The exact observed canonical main parent is 3535db5a438c29fc074bb41c303aa9c5663a36df.",
+            "Exactly one generated conflict is resolved through combined-tree regeneration.",
+            "The temporary reconciliation launcher is absent from the final tree.",
+            "Support-ticket OpenAPI operations retain userJwtAuth parity.",
+            "Provider dispatch, credential access, migration apply, deployment, force push, main mutation, Production mutation, Job-log authority, and secrets remain false."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-current-publisher-bootstrap",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-safe-durable-projection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-tenant-safe-durable-projection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-latest-main-reconciliation-evidence.json",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/support-tickets.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "The reconciliation is repository-only and performs no live Hostinger or database operation."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Artifact-first failure reporting records exact stage, command, line, conflict paths, staged paths, and unstaged paths without consulting Job logs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No provider or live-environment canary is authorized by this repository reconciliation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No deployment, migration, Production promotion, or runtime authority is introduced."
+    }
+  ],
+  "secrets_included": false
+}
