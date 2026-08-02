@@ -6,6 +6,12 @@ on:
       - gpt/016-remote-mcp-oauth21-main-recovery-20260802
     paths:
       - .github/workflows/support-ticket-openapi-gap-scan-temp.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/support-ticket-openapi-gap-scan-temp.yml
 
 permissions:
   contents: read
