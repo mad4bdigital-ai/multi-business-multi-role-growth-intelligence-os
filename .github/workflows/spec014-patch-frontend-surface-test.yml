@@ -1,0 +1,222 @@
+name: Spec014 Patch Frontend Surface Contract
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-patch-frontend-surface-test.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-patch-frontend-surface-test
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/014-fix-post-reconciliation-repository-governance-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_BRANCH: gpt/014-fix-post-reconciliation-repository-governance-20260802
+      EXPECTED_HEAD_SHA: 22caafb3faf60765aff09242e5aa86fba4a8c9b3
+      TARGET_FILE: http-generic-api/test-frontend-surface-dispatch.mjs
+      LAUNCHER_FILE: .github/workflows/spec014-patch-frontend-surface-test.yml
+      EVIDENCE_DIR: .ci-evidence/spec014-patch-frontend-surface-test
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch exact legacy assertion block
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          current_stage='verify_identity'
+          on_error() {
+            local status=$?
+            trap - ERR
+            STATUS="${status}" STAGE="${current_stage}" COMMAND="${BASH_COMMAND:-unknown}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = {
+            'contract': 'mad4b.spec014-frontend-surface-contract-patch.v1',
+            'outcome': 'blocked',
+            'expected_head_sha': os.environ['EXPECTED_HEAD_SHA'],
+            'target_branch': os.environ['TARGET_BRANCH'],
+            'target_file': os.environ['TARGET_FILE'],
+            'failure': {
+              'stage': os.environ['STAGE'],
+              'exit_status': int(os.environ['STATUS']),
+              'command': os.environ['COMMAND'],
+            },
+            'repository_push_performed': False,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          path = Path(os.environ['EVIDENCE_DIR']) / 'summary.json'
+          path.write_text(json.dumps(report, indent=2) + '\n')
+          PY
+            exit "${status}"
+          }
+          trap on_error ERR
+
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          local_sha="$(git rev-parse HEAD)"
+          [[ "${remote_sha}" == "${EXPECTED_HEAD_SHA}" ]]
+          [[ "${local_sha}" != "${EXPECTED_HEAD_SHA}" ]]
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_HEAD_SHA}" ]]
+          unexpected_launcher_paths="$(git diff --name-only "${EXPECTED_HEAD_SHA}" HEAD | grep -vxF "${LAUNCHER_FILE}" || true)"
+          [[ -z "${unexpected_launcher_paths}" ]]
+
+          current_stage='replace_legacy_contract'
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path(os.environ['TARGET_FILE'])
+          source = path.read_text()
+          old = '''const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
+          assert.match(frontendDispatchWorkflow, /github\\.event\\.pull_request\\.base\\.ref/);
+          assert.doesNotMatch(frontendDispatchWorkflow, /github\\.event\\.pull_request\\.base\\.sha/);
+          const boundedEvidenceFilter = frontendDispatchWorkflow.split("\\n").find((line) => line.includes("UNEXPECTED=")) || "";
+          assert.ok(
+            boundedEvidenceFilter.includes("(http-generic-api/)?"),
+            "bounded evidence filter must accept repository-root relative paths",
+          );
+          assert.ok(
+            boundedEvidenceFilter.includes("frontend-operation-governance\\\\.generated\\\\.json"),
+            "bounded evidence filter must include the generated operation-governance file",
+          );
+          assert.ok(
+            boundedEvidenceFilter.includes("frontend-surface-dispatch\\\\.generated\\\\.json"),
+            "bounded evidence filter must include the dispatch evidence file",
+          );
+          assert.ok(
+            boundedEvidenceFilter.includes("openapi/frontend-runtime-routes\\\\.generated\\\\.yaml"),
+            "bounded evidence filter must include the generated OpenAPI index",
+          );
+          assert.ok(
+            boundedEvidenceFilter.includes("yaml)" + "$" + "' || true)"),
+            "manual evidence refresh must use a closed and end-anchored bounded-file filter",
+          );
+          if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
+            assert.match(frontendDispatchWorkflow, /permissions:\\s*\\n\\s*contents:\\s*read/);
+            assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
+            assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
+          }
+          '''
+          new = '''const frontendDispatchWorkflow = fs.readFileSync(
+            new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url),
+            "utf8",
+          );
+          const governedRefreshWorkflow = fs.readFileSync(
+            new URL("../.github/workflows/governed-generated-artifact-refresh.yml", import.meta.url),
+            "utf8",
+          );
+          const governedRefreshTool = fs.readFileSync(
+            new URL("./scripts/maintenance-tools/generated-artifact-refresh.mjs", import.meta.url),
+            "utf8",
+          );
+
+          assert.match(frontendDispatchWorkflow, /github\\.event\\.pull_request\\.base\\.ref/);
+          assert.doesNotMatch(frontendDispatchWorkflow, /github\\.event\\.pull_request\\.base\\.sha/);
+          assert.match(frontendDispatchWorkflow, /permissions:\\s*\\n\\s*contents:\\s*read/);
+          assert.match(frontendDispatchWorkflow, /persist-credentials:\\s*false/);
+          assert.doesNotMatch(frontendDispatchWorkflow, /contents:\\s*write/);
+          assert.doesNotMatch(frontendDispatchWorkflow, /refresh-generated:/);
+          assert.doesNotMatch(frontendDispatchWorkflow, /git commit /);
+          assert.doesNotMatch(frontendDispatchWorkflow, /git push /);
+
+          assert.match(governedRefreshWorkflow, /workflow_dispatch:/);
+          assert.match(governedRefreshWorkflow, /expected_head_sha:/);
+          assert.match(governedRefreshWorkflow, /APPLY_GENERATED_ARTIFACT_REFRESH/);
+          assert.match(governedRefreshWorkflow, /generated-artifact-refresh\\.mjs/);
+          assert.match(governedRefreshTool, /ALLOWED_CHANGED_FILES = new Set/);
+          for (const generatedPath of [
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+          ]) {
+            assert.ok(
+              governedRefreshTool.includes(`"${generatedPath}"`),
+              `governed refresh allowlist must include ${generatedPath}`,
+            );
+          }
+          assert.match(governedRefreshTool, /--baseline-ref=main/);
+          assert.match(governedRefreshTool, /preflight_expected_head/);
+          assert.match(governedRefreshTool, /prepush_expected_head/);
+          assert.match(governedRefreshTool, /PROTECTED_BRANCHES = new Set\\(\\["main", "Production"\\]\\)/);
+          '''
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'legacy block occurrence count must be 1, got {count}')
+          path.write_text(source.replace(old, new))
+          PY
+
+          current_stage='validate_contracts'
+          node .github/tests/spec014/frontend-surface-dispatch-read-only.mjs
+          (
+            cd http-generic-api
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-surface-dispatch.mjs
+          )
+
+          current_stage='commit_patch'
+          git rm "${LAUNCHER_FILE}"
+          git add -- "${TARGET_FILE}" "${LAUNCHER_FILE}"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test(ci): align surface dispatch contract with delegated refresh'
+          result_sha="$(git rev-parse HEAD)"
+
+          current_stage='write_success_evidence'
+          RESULT_SHA="${result_sha}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = {
+            'contract': 'mad4b.spec014-frontend-surface-contract-patch.v1',
+            'outcome': 'passed',
+            'expected_head_sha': os.environ['EXPECTED_HEAD_SHA'],
+            'result_sha': os.environ['RESULT_SHA'],
+            'target_branch': os.environ['TARGET_BRANCH'],
+            'target_file': os.environ['TARGET_FILE'],
+            'launcher_removed': True,
+            'legacy_block_replaced_once': True,
+            'focused_contracts_passed': True,
+            'repository_push_performed': True,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          path = Path(os.environ['EVIDENCE_DIR']) / 'summary.json'
+          path.write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+          current_stage='push_patch'
+          git push origin "HEAD:${TARGET_BRANCH}"
+          trap - ERR
+
+      - name: Upload structured patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-frontend-surface-contract-patch-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/summary.json
+          if-no-files-found: error
+          retention-days: 14
