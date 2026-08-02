@@ -1,0 +1,130 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-crash-safe-restart-reconciliation",
+  "title": "Spec 014 Crash-safe Restart Reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-crash-safe-restart-reconciliation.json",
+      ".github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json",
+      ".github/workflows/hostinger-storage-crash-safe-restart-reconciliation-guard.yml",
+      "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
+      "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+      "http-generic-api/hostingerStorageSqlRunReader.js",
+      "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+      "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
+      "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "resilient"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Read exact durable Tenant operation, plan, run, plan-item parent, journal, and reconciliation evidence from one verified SQL composition without replaying execution."
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Mount restart discovery and scheduling only after dedicated worker, dispatch, migration, and runtime authorization exist.",
+      "blockers": [
+        "The reconciler is intentionally unmounted.",
+        "Authority and enablement DDL remain contract-local and unapplied.",
+        "No dedicated worker or fixed provider dispatch certification exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Converge interrupted durable executions from stored evidence or fail closed to unknown_outcome without provider calls, mutation replay, or automatic retry.",
+      "e2e_journeys": [
+        {
+          "id": "restart-from-complete-durable-child-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 restart reconciler",
+          "entrypoint": "Hostinger Storage Crash-safe Restart Reconciliation Guard",
+          "terminal_outcome": "Complete parent-bound prepared, result, and readback evidence reconstructs deterministic item accounting, appends one durable reconciliation, and converges Run and Operation through CAS to completed or conflict terminals without repeating mutation.",
+          "steps": [
+            "Read the exact Tenant operation aggregate, durable Run parent, and ordered plan-item parents from one verified SQL composition.",
+            "Verify operation, plan consumption, Run, plan-item count, ordinal, item-hash, and database-fingerprint bindings.",
+            "Group durable journal rows by deterministic plan-item parent and require one prepared, result, and readback phase in order.",
+            "Reconstruct deleted, skipped, missing, conflict, and deleted-byte accounting from stored evidence only.",
+            "Advance lagging Run and Operation states through checkpoint and version CAS to reconciling.",
+            "Append deterministic reconciliation evidence with retry permission false.",
+            "Complete non-conflict evidence as Run completed and Operation completed; complete conflict evidence as Run failed and Operation blocked."
+          ],
+          "assertions": [
+            "No adapter, provider, filesystem, shell, Route, Server, or worker call is available.",
+            "Mutation replay and automatic retry remain false.",
+            "Run checkpoint CAS and Operation version CAS protect every state change.",
+            "Terminal replay performs no new mutation and requires existing durable reconciliation evidence.",
+            "Provider dispatch and Production readiness remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-crash-safe-restart-reconciler",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
+            "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+            ".github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json"
+          ]
+        },
+        {
+          "id": "restart-with-incomplete-or-ambiguous-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 restart reconciler",
+          "entrypoint": "Hostinger Storage Crash-safe Restart Reconciliation Guard",
+          "terminal_outcome": "Missing phases, journal gaps, or incomplete item accounting converge active Run and Operation to unknown_outcome with still_unknown reconciliation, no retry permission, and mandatory fresh read before any later action.",
+          "steps": [
+            "Read the same durable parent and child evidence without consulting worker memory or the original execution request.",
+            "Detect missing prepared, result, or readback phases and sequence gaps.",
+            "Do not infer success and do not repeat adapter mutation.",
+            "Use allowed CAS transitions to move interrupted states to unknown_outcome.",
+            "Append deterministic still_unknown reconciliation with retry permission false."
+          ],
+          "assertions": [
+            "Incomplete evidence never becomes completed, applied, or automatically retried.",
+            "read_before_retry_required is true.",
+            "Provider calls and mutation replay remain false.",
+            "A terminal Run with incomplete evidence fails closed instead of rewriting history."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-crash-safe-restart-reconciler-incomplete",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
+            "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This code-only recovery slice performs no live database, provider, or Hostinger canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production mounting, worker scheduling, provider dispatch, migrations, and deployment remain separately governed."
+    }
+  ]
+}
