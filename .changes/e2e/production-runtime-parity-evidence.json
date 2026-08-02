@@ -35,7 +35,7 @@
             "Prove trusted exact main-event checkout, full branch-ref availability, exact Production-ref equality, and required auth plus connector enforcement.",
             "Exercise exact auth and connector parity with an explicitly optional additional endpoint.",
             "Exercise required endpoint deployed-SHA drift and untrusted identity fields while proving raw or malformed identity values are not persisted.",
-            "Reject loopback, private, link-local, documentation, multicast, and invalid DNS before TLS or HTTP execution.",
+            "Reject loopback, private, link-local, documentation, multicast, invalid, and over-cardinality DNS results before TLS or HTTP execution.",
             "Inspect bounded DNS and full-response HTTP timeout enforcement, exercise TLS failure, and verify secret redaction.",
             "Emit a bounded secret-free component result without performing a live request in pull-request context."
           ],
@@ -46,7 +46,7 @@
             "The workflow uses contents: read and checkout persist-credentials=false.",
             "The live job checks out exact github.sha from a main-ref dispatch with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
             "Only the fixed auth, connector, and dev endpoint names are accepted, each bound to its matching mad4b.com host on HTTPS port 443 and path /version without credentials, queries, or fragments.",
-            "DNS fails closed on loopback, private, link-local, multicast, documentation, or invalid addresses, and accepted public addresses are hashed before persistence.",
+            "DNS fails closed on loopback, private, link-local, multicast, documentation, invalid, or more than 16 returned addresses, and accepted public addresses are hashed before persistence.",
             "The checked implementation applies bounded timeout enforcement to DNS, TLS, and the complete HTTP response body.",
             "HTTP redirects are not followed, application/json is required, and response bodies are bounded before parsing.",
             "The raw response body, unknown JSON fields, malformed identity values, and error details are never written to the artifact.",
