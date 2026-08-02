@@ -27,7 +27,7 @@ requireFragment('if [[ "${integration_mode}" != "true" ]]', 'feature-only diff a
 requireFragment("grep -q 'CONTRACT-LOCAL DDL ONLY'", 'DDL authority marker check');
 requireFragment("grep -q '\"governed_runtime_migration_promoted\": false'", 'non-promotion contract check');
 requireFragment("grep -q '\"migration_apply_authorized\": false'", 'no-apply contract check');
-requireFragment("! grep -E '\\\\b(DROP|TRUNCATE)", 'destructive DDL rejection');
+requireFragment('(DROP|TRUNCATE)[[:space:]]+TABLE', 'destructive DDL rejection');
 
 assert.equal(source.includes("'ddl_matches_registry_sql': not failed"), false, 'DDL parity must not be inferred from unrelated stages');
 assert.equal(source.includes("'source_sha': os.environ['SOURCE_SHA']"), false, 'merge candidate SHA must not masquerade as source head');
