@@ -5,6 +5,14 @@ const workflow = fs.readFileSync(
   new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url),
   "utf8",
 );
+const governedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/governed-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
+const governedRefreshTool = fs.readFileSync(
+  new URL("./scripts/maintenance-tools/generated-artifact-refresh.mjs", import.meta.url),
+  "utf8",
+);
 
 const generationBlock = workflow.match(
   /- name: Generate source-pinned dispatch plan[\s\S]*?- name: Verify generator contract/,
@@ -31,11 +39,23 @@ assert.doesNotMatch(
   /--baseline-ref=.*TARGET_REF/,
   "promotion targets such as Production must not rewrite committed canonical evidence",
 );
-assert.match(
-  workflow,
-  /BASE_REF="main"[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
-  "manual refresh and PR validation must share the same canonical baseline semantics",
-);
+
+assert.match(workflow, /permissions:\s*\n\s*contents:\s*read/, "PR verification must remain read-only");
+assert.match(workflow, /persist-credentials:\s*false/, "PR checkout must not persist credentials");
+for (const forbidden of ["contents: write", "refresh-generated:", "git commit ", "git push "]) {
+  assert.doesNotMatch(workflow, new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `PR verification must exclude ${forbidden}`);
+}
+
+assert.match(governedRefreshWorkflow, /workflow_dispatch:/, "generated mutation must require explicit dispatch");
+assert.match(governedRefreshWorkflow, /expected_head_sha:/, "generated mutation must bind an exact expected head");
+assert.match(governedRefreshWorkflow, /confirmation:[\s\S]*APPLY_GENERATED_ARTIFACT_REFRESH/, "generated mutation must require typed confirmation");
+assert.match(governedRefreshWorkflow, /contents:\s*write/, "only the governed dispatched workflow may hold contents write");
+assert.match(governedRefreshWorkflow, /TARGET_REF" == "main"[\s\S]*TARGET_REF" == "Production"/, "the governed writer must reject protected branches");
+assert.match(governedRefreshWorkflow, /generated-artifact-refresh\.mjs/, "the dispatch must invoke the registered maintenance tool");
+assert.match(governedRefreshTool, /--baseline-ref=main/, "the delegated tool must retain canonical main baseline semantics");
+assert.match(governedRefreshTool, /preflight_expected_head/, "the delegated tool must verify expected head before mutation");
+assert.match(governedRefreshTool, /prepush_expected_head/, "the delegated tool must verify expected head before push");
+assert.match(governedRefreshTool, /PROTECTED_BRANCHES = new Set\(\["main", "Production"\]\)/, "the delegated tool must reject protected branches");
 
 const structuredChecks = [
   ["Verify generator contract", "workflow_baseline", "node test-frontend-dispatch-workflow-baseline.mjs"],
@@ -87,4 +107,4 @@ assert.match(
   "one final gate must enforce all independently captured outcomes",
 );
 
-console.log("frontend dispatch workflow baseline and structured evidence contract: ok");
+console.log("frontend dispatch workflow baseline, delegated refresh, and structured evidence contract: ok");
