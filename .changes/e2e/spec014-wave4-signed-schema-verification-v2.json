@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-wave4-signed-schema-verification-v2",
+  "title": "Refresh same-cycle readback and signed schema verification for the four-wave storage sequence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-wave4-signed-schema-verification-v2.json",
+      ".github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
+      ".github/contracts/spec014/migrations/readback.sql",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+      ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+      ".github/workflows/hostinger-storage-schema-verification-guard.yml",
+      "http-generic-api/hostingerStorageSchemaVerification.js",
+      "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+      "http-generic-api/test-hostinger-storage-schema-verification.mjs",
+      "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind signed schema verification v2 to all four migration waves and exact live readback expectations for the Durable Authorized Injection State schema without creating a live signature or executing SQL.",
+      "e2e_journeys": [
+        {
+          "id": "verify-four-wave-schema-subject-v2",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 signed schema verifier",
+          "entrypoint": "A synthetic same-cycle readback v4 and four exact successful migration-ledger records",
+          "terminal_outcome": "A synthetic Ed25519 signature validates only the v2 four-wave subject, emits the exact Durable Injection schema contract in evidence, and grants no migration, provider, deployment, or Production authority.",
+          "steps": [
+            "Require exact Wave 1 through Wave 4 migration identities and successful apply-ledger evidence.",
+            "Require readback v4 counts for 17 tables, 71 runtime columns, 31 runtime index columns, 13 Durable Injection constraints, three views, and three disabled tools.",
+            "Bind the exact Durable Authorized Injection schema key, digest, table set, and ready status.",
+            "Build a v2 subject and reject v1 attestation replay.",
+            "Verify one synthetic Ed25519 signature through public-key-only verification.",
+            "Propagate the exact authorized injection schema contract into verified evidence.",
+            "Keep live signature, live database access, authorization, dry-run, Apply, Provider dispatch, and Production false."
+          ],
+          "assertions": [
+            "The v2 subject contains exactly four migration rows.",
+            "The readback contract key is spec014_hostinger_storage_migration_readback_v4.",
+            "The verified evidence contains the exact two-table Durable Injection schema contract and digest.",
+            "Any missing table, column, index, constraint, wrong digest, old attestation version, or migration drift fails closed.",
+            "No live signature or external mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "wave4-signed-schema-verification-v2",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-schema-verification.mjs",
+              "args": []
+            },
+            {
+              "id": "wave4-readiness-refresh-complete",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+            ".github/contracts/spec014/migrations/readback.sql",
+            "http-generic-api/hostingerStorageSchemaVerification.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Perform separately authorized live readback and external signing only after governed migration Apply evidence exists.",
+      "blockers": [
+        "WAVE_3_APPLY_LEDGER_REQUIRED",
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+        "SAME_CYCLE_DRY_RUN_REQUIRED",
+        "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED",
+        "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject stale, replayed, mismatched, or expired live signatures across restart reconciliation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify one separately authorized non-production signed Wave 4 schema canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This contract refresh grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
