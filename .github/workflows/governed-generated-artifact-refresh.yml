@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      OUTPUT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh
+      OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh
     steps:
       - name: Validate dispatch identity
         shell: bash
