@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-post-reconciliation-repository-governance-fix",
+  "title": "Post-reconciliation read-only Frontend workflow governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-post-reconciliation-repository-governance-fix.json",
+      ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+      ".github/workflows/frontend-surface-dispatch.yml",
+      ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the exact repository-governance findings exposed after canonical main reconciliation by keeping pull-request Frontend verification read-only and binding Tenant Canary evidence to the active shared publisher.",
+      "e2e_journeys": [
+        {
+          "id": "verify-read-only-frontend-pr-workflow-after-main-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository governance reviewer",
+          "entrypoint": "Repository Tool Lifecycle and E2E canonical Artifacts on Integration head 376fccf948c8c41fbe1fe24bdd67bedda59d7bb7",
+          "terminal_outcome": "Frontend surface dispatch remains a read-only producer on pull_request and workflow_dispatch, generated mutation remains delegated to separately governed automation, and all Tenant Canary journey evidence paths resolve in the candidate tree.",
+          "steps": [
+            "Read the canonical Repository Tool Lifecycle Artifact from Run 30735927472.",
+            "Remove the pull-request-triggered refresh-generated job and its contents-write, commit, and push behavior.",
+            "Keep the dispatch-plan producer with contents:read, persist-credentials:false, deterministic output checks, structured evidence upload, and structured enforcement.",
+            "Retain generated mutation only in the separately dispatched Governed Generated Artifact Refresh automation.",
+            "Replace the retired specialized Hostinger publisher evidence path with the active shared CI Evidence PR Publisher path.",
+            "Execute repository lifecycle, Frontend, Tenant Canary bootstrap, and focused read-only regressions on the exact head."
+          ],
+          "assertions": [
+            "The Frontend surface dispatch workflow contains no contents:write permission.",
+            "The Frontend surface dispatch workflow contains no git commit, git push, or refresh-generated job.",
+            "The pull-request checkout uses persist-credentials:false.",
+            "The structured Frontend report declares repository_mutation=false, consult_job_logs=false, and secrets_included=false.",
+            "Expected-head and protected-branch mutation guards are not required because the workflow is non-mutating.",
+            "Tenant Canary context availability evidence references .github/workflows/ci-evidence-pr-publisher.yml.",
+            "The retired .github/workflows/hostinger-ci-evidence-pr-publisher.yml remains absent from journey evidence.",
+            "No provider access, credential access, SQL, migration apply, deployment, main mutation, force push, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "frontend-surface-dispatch-read-only-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-canary-shared-publisher-bootstrap",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/frontend-surface-dispatch.yml",
+            ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+            ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This is a repository verification and governance correction with no live runtime operation."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Repository Tool Lifecycle and explicit regression tests fail closed if pull-request mutation authority or retired evidence paths return."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No provider or live-environment canary is authorized."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No deployment, migration, Production promotion, or runtime authority is introduced."
+    }
+  ],
+  "secrets_included": false
+}
