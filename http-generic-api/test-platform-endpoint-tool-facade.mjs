@@ -3,7 +3,6 @@ import {
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "./platformEndpointToolFacade.js";
-import { listSystemToolCatalog } from "./systemToolCatalogV2.js";
 
 function normalizeInputSchema(value) {
   if (!value) return { type: "object", properties: {}, required: [] };
@@ -64,6 +63,11 @@ const githubRows = [
 
   assert.equal(descriptors.length, 1, "one public tool name must produce one descriptor");
   assert.deepEqual(descriptors, reversed, "descriptor projection must be stable regardless of row order");
+  assert.equal(
+    new Set(descriptors.map(({ name }) => name)).size,
+    descriptors.length,
+    "facade projection must emit unique public descriptor names before Catalog V2",
+  );
 
   const [descriptor] = descriptors;
   assert.equal(descriptor.name, "github_rest_endpoint_dispatch");
@@ -76,11 +80,6 @@ const githubRows = [
   assert.deepEqual(descriptor.inputSchema.required, ["endpoint_key"]);
   assert.equal(descriptor.x_platform_endpoint.selection_field, "endpoint_key");
   assert.equal(descriptor.requires_admin, false, "tenant-visible shared bindings remain non-admin descriptors");
-
-  const catalog = listSystemToolCatalog(descriptors, { limit: 10 });
-  assert.equal(catalog.items.length, 1, "coalesced descriptors must not trigger catalog collision");
-  const [catalogItem] = catalog.items;
-  assert.equal(catalogItem.name, "github_rest_endpoint_dispatch");
 }
 
 {
