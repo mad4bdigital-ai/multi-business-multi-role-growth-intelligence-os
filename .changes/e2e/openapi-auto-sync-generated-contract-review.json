@@ -18,6 +18,7 @@
       "http-generic-api/openapi/support-ticket-admin-remaining.yaml",
       "http-generic-api/openapi/support-ticket-runtime-completion.yaml",
       "http-generic-api/routes/supportTicketRoutes.js",
+      "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs",
       "docs/repo-maintenance-status.md",
       "docs/surface-contract-*.json",
       "docs/surface-contract-*.md"
@@ -124,7 +125,8 @@
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
-            "http-generic-api/routes/supportTicketRoutes.js"
+            "http-generic-api/routes/supportTicketRoutes.js",
+            "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs"
           ]
         }
       ]
