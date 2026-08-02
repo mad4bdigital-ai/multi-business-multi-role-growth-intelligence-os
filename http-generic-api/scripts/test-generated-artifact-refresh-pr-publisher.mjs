@@ -206,7 +206,7 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 
 console.log(JSON.stringify({
   ok: true,
-  contract: "mad4b.pr-generated-artifact-publisher-test.v1",
+  contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
   cases: 40,
   work_branch_evaluator_excludes_production: true,
   protected_promotion_unique_workflow_name: true,
