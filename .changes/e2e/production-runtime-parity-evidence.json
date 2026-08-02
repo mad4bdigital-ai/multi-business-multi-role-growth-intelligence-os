@@ -23,38 +23,35 @@
       "objective": "Provide a workflow-dispatch-only live verifier that binds Production DNS, TLS, HTTP, service identity, branch identity, and deployed commit identity to one exact reviewed SHA without credentials or runtime mutation.",
       "e2e_journeys": [
         {
-          "id": "verify-live-production-runtime-parity",
+          "id": "validate-production-runtime-parity-verifier",
           "end_to_end": true,
-          "level": "production_readback",
-          "actor": "authorized repository operator",
-          "entrypoint": "Production Runtime Parity Evidence workflow_dispatch with an exact expected Production SHA",
-          "terminal_outcome": "A structured JSON and Markdown artifact proves every required mad4b.com /version endpoint resolved DNS, completed an authorized TLS handshake, returned HTTP 200, identified http_generic_api_connector, reported branch Production, and exposed the exact expected deployed commit SHA; otherwise the workflow fails closed with the first bounded secret-free mismatch.",
+          "level": "component",
+          "actor": "repository automation and pull-request reviewer",
+          "entrypoint": "Production Runtime Parity Evidence pull-request contract job",
+          "terminal_outcome": "Offline regressions and workflow-contract assertions prove the verifier rejects unsafe endpoints and mismatched runtime identity, persists only bounded secret-free evidence, and reserves live network probing for an explicit workflow_dispatch after the tooling is merged to trusted main.",
           "steps": [
-            "Run repository-only reporter regressions before any live request.",
-            "Checkout trusted main tooling with persisted credentials disabled.",
-            "Require an exact lowercase 40-character expected SHA and exact Production branch identity.",
-            "Accept only credential-free HTTPS mad4b.com URLs targeting exactly /version.",
-            "Resolve DNS, reject loopback/private/link-local addresses, and store only SHA-256 hashes of public addresses.",
-            "Complete an authorized TLS handshake and record bounded certificate metadata.",
-            "Fetch each endpoint with redirects disabled, a fixed timeout, and a 64 KiB response limit.",
-            "Persist only HTTP metadata, a response SHA-256 digest, and the three reviewed runtime identity fields.",
-            "Fail every required endpoint on DNS, TLS, HTTP, JSON, service, branch, or deployed-SHA mismatch while allowing explicitly optional endpoints to report warnings.",
-            "Upload JSON and Markdown under if: always() before enforcing the structured decision.",
-            "Reject any report that claims repository mutation, provider dispatch, credential access, SQL execution, migration Apply, or external send."
+            "Load the reporter and validate exact Production SHA, branch, endpoint, timeout, and host constraints.",
+            "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only.",
+            "Prove trusted main checkout, full branch-ref availability, and exact Production-ref equality enforcement.",
+            "Exercise exact auth and connector parity with an explicitly optional additional endpoint.",
+            "Exercise required endpoint deployed-SHA drift and verify the raw response body is not persisted.",
+            "Reject loopback/private DNS before TLS or HTTP execution.",
+            "Exercise TLS failure and secret redaction.",
+            "Emit a bounded secret-free component result without performing a live request in pull-request context."
           ],
           "assertions": [
-            "The report contract is mad4b.production-runtime-parity-evidence.v1.",
+            "The component report contract is mad4b.production-runtime-parity-evidence.v1.",
             "The workflow has no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
             "Live probing runs only for workflow_dispatch and never for pull_request.",
             "The workflow uses contents: read and checkout persist-credentials=false.",
-            "Endpoint URLs cannot include credentials, query strings, fragments, non-HTTPS schemes, non-443 ports, non-mad4b.com hosts, or paths other than /version.",
-            "DNS fails closed on loopback, private, link-local, multicast, or invalid addresses, and accepted public addresses are hashed before persistence.",
+            "The live job checks out trusted main with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
+            "Only auth.mad4b.com, connector.mad4b.com, and dev.mad4b.com are accepted, on HTTPS port 443 and path /version without credentials, queries, or fragments.",
+            "DNS fails closed on loopback, private, link-local, multicast, documentation, or invalid addresses, and accepted public addresses are hashed before persistence.",
             "TLS verification uses rejectUnauthorized=true and fails closed on handshake, authorization, or timeout errors.",
-            "HTTP redirects are not followed and response bodies are bounded before parsing.",
+            "HTTP redirects are not followed, application/json is required, and response bodies are bounded before parsing.",
             "The raw response body and unknown JSON fields are never written to the artifact.",
             "Required endpoints pass only when service equals http_generic_api_connector, deployed_commit_sha equals the exact requested SHA, and deployment branch equals Production.",
-            "The report declares secrets_included=false and all mutation/effect flags false.",
-            "Job logs remain diagnostic-only and are never required to reconstruct the canonical decision."
+            "The report declares secrets_included=false and all mutation/effect flags false."
           ],
           "tests": [
             {
@@ -76,7 +73,19 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Dispatch the verifier for Production c0f9d9fa84bfbf9edf4967a11a94758cb1491ad3, attach the run-bound artifact to issue 4948, and reconcile any host topology exception explicitly."
+      "objective": "Execute the first trusted-main live Production readback for c0f9d9fa84bfbf9edf4967a11a94758cb1491ad3, attach the run-bound artifact to issue 4948, and reconcile any host-topology exception explicitly.",
+      "planned_e2e_journey": {
+        "id": "verify-live-production-runtime-parity",
+        "required_level": "production_readback",
+        "actor": "authorized repository operator",
+        "entrypoint": "Production Runtime Parity Evidence workflow_dispatch with expected_sha equal to the current Production ref",
+        "terminal_outcome": "A run-bound structured artifact proves every required approved /version endpoint resolves only public DNS, completes authorized TLS, returns HTTP 200 application/json, identifies http_generic_api_connector, reports branch Production, and exposes the exact current Production commit; otherwise the dispatch fails closed.",
+        "steps": [
+          "Dispatch the trusted-main workflow for the exact current Production SHA and approved host topology.",
+          "Upload and enforce the structured JSON and Markdown artifact before consulting diagnostic logs.",
+          "Attach the run identity and bounded outcome to issue 4948 without secrets."
+        ]
+      }
     },
     {
       "id": "resilient",
