@@ -24,6 +24,7 @@ class FakeParentDatabase {
     this.lockAcquisitions = 0;
     this.lockReleases = 0;
     this.forceNextCheckpointMiss = false;
+    this.duplicateRunReadback = false;
   }
 }
 
@@ -105,7 +106,11 @@ class FakeParentConnection {
     }
     if (sql.includes('spec014:parent:load-run')) {
       const row = this.table('runs').get(params[0]);
-      return [row ? [clone(row)] : [], []];
+      if (!row) return [[], []];
+      const candidates = this.database.duplicateRunReadback
+        ? [clone(row), clone(row)]
+        : [clone(row)];
+      return [candidates, []];
     }
     if (sql.includes('spec014:parent:insert-run')) {
       const row = {
@@ -370,6 +375,18 @@ const runReplay = await writer.startRun({ run });
 assert.equal(runReplay.created, false);
 assert.equal(runReplay.replay, true);
 assert.equal(runReplay.run_digest, started.run_digest);
+
+database.duplicateRunReadback = true;
+try {
+  await assert.rejects(
+    writer.startRun({ run }),
+    (error) => error.code === 'STORAGE_SQL_PARENT_RUN_AMBIGUOUS'
+      && error.details?.candidate_count === 2
+      && error.details?.secrets_included === false,
+  );
+} finally {
+  database.duplicateRunReadback = false;
+}
 
 await assert.rejects(
   writer.startRun({ run: { ...run, adapter_version: '2.0.0' } }),
