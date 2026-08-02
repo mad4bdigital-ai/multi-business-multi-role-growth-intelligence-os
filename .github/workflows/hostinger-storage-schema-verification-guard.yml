@@ -4,11 +4,17 @@ on:
   pull_request:
     paths:
       - '.changes/e2e/spec014-signed-schema-verification.json'
+      - '.changes/e2e/spec014-wave4-signed-schema-verification-v2.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json'
+      - '.github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json'
+      - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/contracts/spec014/migrations/readback.sql'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql'
       - '.github/workflows/hostinger-storage-schema-verification-guard.yml'
       - 'http-generic-api/hostingerStorageSchemaVerification.js'
       - 'http-generic-api/test-hostinger-storage-schema-verification.mjs'
+      - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
 
 permissions:
   contents: read
@@ -32,7 +38,7 @@ jobs:
         run: |
           node --check http-generic-api/hostingerStorageSchemaVerification.js
           node --check http-generic-api/test-hostinger-storage-schema-verification.mjs
-      - name: Validate signed schema verification contract
+      - name: Validate signed schema verification v2 contract
         shell: bash
         run: |
           set -o pipefail
@@ -50,7 +56,18 @@ jobs:
           ! grep -E '\b(getPool|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'spec014-hostinger-storage-schema-verification-v2' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'spec014_hostinger_storage_migration_readback_v4' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'table_count: 17' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'runtime_column_count: 71' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'runtime_index_column_count: 31' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'authorized_injection_state_constraint_count: 13' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'STORAGE_SCHEMA_VERIFICATION_ATTESTATION_VERSION_INVALID' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a' http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q '"v1_signature_replay_allowed": false' .github/contracts/spec014/hostinger-storage-schema-verification.json
+          grep -q '"signed_schema_verification_contract_refreshed": true' .github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json
           grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'signature_created_in_live_environment: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'private_key_committed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
@@ -61,5 +78,5 @@ jobs:
         with:
           name: hostinger-storage-schema-verification-${{ github.run_id }}
           path: .artifacts/hostinger-storage-schema-verification.log
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
