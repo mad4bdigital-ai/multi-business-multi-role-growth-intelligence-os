@@ -124,7 +124,7 @@ function buildOperation(operation) {
   return result;
 }
 
-function isPreciseRuntimeContract(current, operation) {
+export function isPreciseRuntimeContract(current, operation) {
   return current
     && current.operationId === operationIdFor(operation)
     && typeof current.summary === "string"
@@ -136,6 +136,24 @@ function isPreciseRuntimeContract(current, operation) {
     && current["x-runtime-contract-source"] === SUPPORT_TICKET_ROUTE_FILE
     && current["x-runtime-auth-profile"] === operation.auth_profile
     && current["x-contract-completeness"] !== "operation-index-only";
+}
+
+export function isReplaceablePreciseRuntimePathItem(pathItem, operations) {
+  if (!pathItem || typeof pathItem !== "object" || Array.isArray(pathItem)) return false;
+  const expectedByMethod = new Map();
+  for (const operation of operations) {
+    const method = operation.method.toLowerCase();
+    if (expectedByMethod.has(method)) return false;
+    expectedByMethod.set(method, operation);
+  }
+  const keys = Object.keys(pathItem);
+  if (keys.length !== expectedByMethod.size) return false;
+  return keys.every((key) => {
+    const operation = expectedByMethod.get(key);
+    return HTTP_METHOD_KEYS.has(key)
+      && operation
+      && isPreciseRuntimeContract(pathItem[key], operation);
+  });
 }
 
 function isReplaceableRuntimeIndex(current, operation) {
