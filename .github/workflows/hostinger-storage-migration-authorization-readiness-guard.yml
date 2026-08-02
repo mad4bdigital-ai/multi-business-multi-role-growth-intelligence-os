@@ -25,6 +25,8 @@ jobs:
   readiness:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      SPEC014_MIGRATION_READINESS_REPORT: ${{ runner.temp }}/spec014-migration-authorization-readiness.json
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
@@ -58,3 +60,12 @@ jobs:
 
       - name: Execute readiness contract regression
         run: node http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs
+
+      - name: Upload structured readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-migration-authorization-readiness-${{ github.run_id }}
+          path: ${{ env.SPEC014_MIGRATION_READINESS_REPORT }}
+          if-no-files-found: error
+          retention-days: 30
