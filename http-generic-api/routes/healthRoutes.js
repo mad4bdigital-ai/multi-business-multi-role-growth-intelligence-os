@@ -1,6 +1,52 @@
 import { Router } from "express";
 import { buildVersionPayload, readDeploymentManifest } from "../deploymentManifest.js";
 
+const DEFAULT_HEALTH_DEPENDENCY_TIMEOUT_MS = 1500;
+const MIN_HEALTH_DEPENDENCY_TIMEOUT_MS = 250;
+const MAX_HEALTH_DEPENDENCY_TIMEOUT_MS = 5000;
+
+function boundedHealthTimeoutMs(env = process.env) {
+  const parsed = Number(env.HEALTH_DEPENDENCY_TIMEOUT_MS);
+  if (!Number.isFinite(parsed)) return DEFAULT_HEALTH_DEPENDENCY_TIMEOUT_MS;
+  return Math.min(
+    MAX_HEALTH_DEPENDENCY_TIMEOUT_MS,
+    Math.max(MIN_HEALTH_DEPENDENCY_TIMEOUT_MS, Math.floor(parsed)),
+  );
+}
+
+async function runBoundedHealthProbe(probe, { timeoutMs, timeoutCode }) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(probe),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error(`Health dependency probe timed out after ${timeoutMs}ms.`);
+          error.code = timeoutCode;
+          reject(error);
+        }, timeoutMs);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function safeRedisStatus(getRedisRuntimeStatus) {
+  try {
+    return typeof getRedisRuntimeStatus === "function"
+      ? getRedisRuntimeStatus()
+      : { status: "unavailable", connected: false };
+  } catch (error) {
+    return {
+      status: "error",
+      connected: false,
+      error: { code: error?.code || "redis_status_failed" },
+    };
+  }
+}
+
 export function buildHealthRoutes(deps) {
   const {
     jobRepository,
@@ -31,13 +77,24 @@ export function buildHealthRoutes(deps) {
       }
     }
 
-    const queueHealth = await getWaitingCountSafe();
-    const redisHealth = getRedisRuntimeStatus();
+    const dependencyTimeoutMs = boundedHealthTimeoutMs();
+    const queueHealth = await runBoundedHealthProbe(
+      () => getWaitingCountSafe(),
+      { timeoutMs: dependencyTimeoutMs, timeoutCode: "queue_health_timeout" },
+    ).catch((error) => ({
+      ok: false,
+      count: 0,
+      error: { code: error?.code || "queue_health_failed" },
+    }));
+    const redisHealth = safeRedisStatus(getRedisRuntimeStatus);
     const sqlCacheHealth = typeof getSqlCacheRuntimeStatus === "function"
       ? getSqlCacheRuntimeStatus()
       : { enabled: false, available: false, skipped: true };
     const dbHealth = testDbConnection
-      ? await testDbConnection()
+      ? await runBoundedHealthProbe(
+        () => testDbConnection(),
+        { timeoutMs: dependencyTimeoutMs, timeoutCode: "db_health_timeout" },
+      )
         .then(() => ({ connected: true }))
         .catch((err) => ({
           connected: false,
@@ -52,11 +109,12 @@ export function buildHealthRoutes(deps) {
       ? "healthy"
       : "degraded";
 
-    res.json({
+    res.status(200).json({
       ok: true,
       service: "http_generic_api_connector",
       status: dependencyStatus,
       version: SERVICE_VERSION,
+      health_probe_timeout_ms: dependencyTimeoutMs,
       jobs: {
         total: jobRepository.size(),
         queued_buffer_size: queueHealth.count,
@@ -98,3 +156,8 @@ export function buildHealthRoutes(deps) {
 
   return router;
 }
+
+export const _testingHealthRoutes = {
+  boundedHealthTimeoutMs,
+  runBoundedHealthProbe,
+};
