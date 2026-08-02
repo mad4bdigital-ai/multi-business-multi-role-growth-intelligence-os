@@ -1,0 +1,74 @@
+name: Hostinger Storage Durable Tenant Authority Store Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-tenant-authority-store.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql'
+      - '.github/workflows/hostinger-storage-durable-tenant-authority-store-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableTenantAuthorityStore.js'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-tenant-authority-store-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-tenant-authority-store:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check authority-store syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          node --check http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs
+
+      - name: Validate durable authority lifecycle
+        run: node http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs
+
+      - name: Validate contract-local schema boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CONTRACT-LOCAL DDL ONLY' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql
+          grep -q 'storage_tenant_authority_allowlists' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql
+          grep -q 'storage_tenant_authority_approvals' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql
+          grep -q 'storage_tenant_authority_token_history' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql
+          grep -q '"promoted_into_wave_sequence": false' .github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json
+          grep -q '"migration_apply_performed": false' .github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json
+          grep -q '"runtime_migration_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json
+
+      - name: Preserve unmounted non-provider boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableTenantAuthorityStore.js \
+            http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'legacy_tenant_canary_compatible: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'migration_apply_authorized: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDurableTenantAuthorityStore.js
