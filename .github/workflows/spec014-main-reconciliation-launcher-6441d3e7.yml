@@ -109,16 +109,20 @@ jobs:
           npm --prefix http-generic-api ci
           git branch -f main "$main_sha"
 
-          current_step=regenerate_registered_artifacts
-          (
-            cd http-generic-api
-            node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
-            node scripts/openapi-precise-contract-registry-sync.mjs --write
-            node scripts/openapi-autofill-missing-routes.mjs --write
-            node scripts/openapi-runtime-auth-sync.mjs --write
-            npm run frontend:dispatch:generate -- --baseline-ref=main
-            node scripts/generate-custom-gpt-schemas.mjs --write
-          )
+          pushd http-generic-api >/dev/null
+          current_step=verify_exact_operation_auth_repair
+          node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+          current_step=sync_precise_registry
+          node scripts/openapi-precise-contract-registry-sync.mjs --write
+          current_step=autofill_openapi_routes
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          current_step=sync_openapi_runtime_auth
+          node scripts/openapi-runtime-auth-sync.mjs --write
+          current_step=generate_frontend_dispatch
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          current_step=generate_custom_gpt_schemas
+          node scripts/generate-custom-gpt-schemas.mjs --write
+          popd >/dev/null
 
           current_step=enforce_generated_write_set
           git diff --name-only | sort -u > "${REPORT_DIR}/generated-unstaged.txt"
@@ -129,22 +133,32 @@ jobs:
           if [[ "${#generated_paths[@]}" -gt 0 ]]; then git add -- "${generated_paths[@]}"; fi
           [[ -z "$(git diff --name-only)" ]]
 
-          current_step=verify_merged_tree
-          (
-            cd http-generic-api
-            node test-openapi-autofill-missing-routes.mjs
-            node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
-            node test-frontend-operation-governance-generator.mjs
-            node test-frontend-surface-dispatch.mjs
-            node test-frontend-auth-openapi-parity.mjs
-            node test-openapi-route-coverage.mjs
-            npm run openapi:auth:check
-            npm run schemas:guard
-            node test-hostinger-storage-authorized-mount-executor.mjs
-            node test-hostinger-storage-authorized-dependency-injection.mjs
-            node test-hostinger-storage-durable-authorized-injection-state.mjs
-            node test-hostinger-storage-authorized-route-resolution.mjs
-          )
+          pushd http-generic-api >/dev/null
+          current_step=verify_openapi_autofill
+          node test-openapi-autofill-missing-routes.mjs
+          current_step=verify_openapi_auth_operation_insertion
+          node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+          current_step=verify_frontend_governance
+          node test-frontend-operation-governance-generator.mjs
+          current_step=verify_frontend_dispatch
+          node test-frontend-surface-dispatch.mjs
+          current_step=verify_auth_parity
+          node test-frontend-auth-openapi-parity.mjs
+          current_step=verify_openapi_route_coverage
+          node test-openapi-route-coverage.mjs
+          current_step=verify_openapi_auth
+          npm run openapi:auth:check
+          current_step=verify_schema_guard
+          npm run schemas:guard
+          current_step=verify_authorized_mount_executor
+          node test-hostinger-storage-authorized-mount-executor.mjs
+          current_step=verify_authorized_dependency_injection
+          node test-hostinger-storage-authorized-dependency-injection.mjs
+          current_step=verify_durable_authorized_injection_state
+          node test-hostinger-storage-durable-authorized-injection-state.mjs
+          current_step=verify_authorized_route_resolution
+          node test-hostinger-storage-authorized-route-resolution.mjs
+          popd >/dev/null
 
           current_step=commit_reconciliation
           git commit -m 'chore: reconcile current main into Spec 014 Integration'
