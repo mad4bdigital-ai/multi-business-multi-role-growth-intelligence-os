@@ -29,7 +29,7 @@
         {
           "id": "mounted-tenant-storage-route-to-root-openapi",
           "end_to_end": true,
-          "level": "repository_runtime_contract",
+          "level": "synthetic_runtime",
           "actor": "Tenant user with a signed user JWT",
           "entrypoint": "POST /tenant/storage-operations/apply-plan",
           "terminal_outcome": "The exact mounted fail-closed route is represented once in the root OpenAPI through a precise fragment reference, while specification-only admin and tenant design routes remain unmounted and absent from the root runtime contract.",
