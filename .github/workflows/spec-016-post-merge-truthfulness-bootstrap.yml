@@ -1,0 +1,147 @@
+name: Bootstrap Spec 016 Post-Merge Truthfulness Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/spec-016-post-merge-truthfulness-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/016-post-merge-truthfulness-audit-20260802
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Reconcile completion truth with merged evidence
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('specs/016-chatgpt-plugin-mcp-integration/completion.json')
+          completion = json.loads(path.read_text(encoding='utf-8'))
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text(encoding='utf-8'))
+          audit_pr = event['pull_request']['number']
+
+          implementation_pr = next(
+              entry for entry in completion['delivery']['implementation_prs']
+              if entry['number'] == 4531
+          )
+          implementation_pr.update({
+              'status': 'merged',
+              'merge_sha': '86a141b648481d177baa35fa7ac4839daef60d13',
+              'merged_head_sha': '010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+          })
+          completion['delivery']['post_merge_audit_pr'] = audit_pr
+
+          completion['verification'].update({
+              'operational_e2e_contract': 'passed_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b_run_30738523549',
+              'generated_dispatch_evidence': 'generated_source_9c345b5bd71a95de7225f32176adda89eee83c62_result_ebe9cc1c2e1dc3a996a57100b1aaf38718be7f00_bounded_three_file_write_set_frontend_run_30738233889_passed',
+              'oauth21_profile_tests': 'passed_in_full_ci_run_30738233885_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+              'oauth21_route_flow_tests': 'passed_in_full_ci_run_30738233885_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+              'resource_scope_revocation_tests': 'passed_in_full_ci_run_30738233885_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+              'context_kernel_hardcoding_report': 'passed_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b_run_30738233865',
+              'branch_diagnostic_summary': 'passed_791_of_791_zero_failed_on_merge_candidate_ab96d077592293d4be5631105f6be4d1b3567596_run_30738233866',
+              'runtime_startup_evidence': 'passed_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b_run_30738233868',
+              'frontend_generated_parity': 'passed_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b_run_30738233889',
+              'work_map_review': 'repository_merge_boundary_review_completed_on_pr_4531; canonical_spec_closeout_remains_pending',
+              'architecture_review': 'passed_full_ci_run_30738233885_and_final_contract_review_on_pr_4531',
+              'identity_review': 'completed_in_final_contract_review_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+              'security_review': 'completed_in_final_contract_review_on_pr_4531_exact_head_010d6513ffd15b0249cc708a22bb7f6dea7c586b',
+              'privacy_review': 'repository_no_secret_and_bounded_exposure_review_completed; formal_distribution_privacy_closeout_pending',
+              'product_tool_catalog_review': 'pending_formal_phase_1_tool_catalog_approval',
+              'post_merge_audit': f'performed_by_pr_{audit_pr}_against_main_a6d9573e7b6499175d841d7c4acf187d8ed5bcef',
+          })
+
+          implementation_updates = {
+              'oauth_protected_resource_metadata_implemented': 'merged_pr_4462_plus_merged_pr_4531',
+              'oauth_authorization_server_metadata_implemented': 'merged_pr_4531_dcr_discovery_requires_usable_redirect_policy_synthetic_ci_passed',
+              'dynamic_client_registration_implemented': 'merged_pr_4531_exact_redirect_origin_allowlist_synthetic_ci_passed',
+              'authorization_code_pkce_s256_implemented': 'merged_pr_4531_signed_five_minute_request_plus_explicit_consent_synthetic_ci_passed',
+              'resource_bound_token_validation_implemented': 'merged_pr_4531_dedicated_key_and_exact_azp_client_subject_user_tenant_scope_jti_grant_synthetic_ci_passed',
+              'refresh_rotation_implemented': 'merged_pr_4531_live_subject_revalidation_and_replay_denial_synthetic_ci_passed',
+              'grant_revocation_implemented': 'merged_pr_4531_synthetic_ci_passed',
+              'exact_tenant_membership_binding_implemented': 'merged_pr_4531_authorize_exchange_refresh_and_tool_call_revalidation_synthetic_ci_passed',
+          }
+          completion['implementation'].update(implementation_updates)
+
+          resolved = {
+              'pr_4531_generated_artifact_parity_refresh_in_progress',
+              'pr_4531_branch_diagnostic_canonical_summary_pending_for_latest_candidate',
+              'operational_architecture_identity_security_privacy_review_pending',
+          }
+          blockers = [item for item in completion['blocking_reasons'] if item not in resolved]
+          if 'formal_phase_1_tool_catalog_privacy_and_product_closeout_pending' not in blockers:
+              blockers.append('formal_phase_1_tool_catalog_privacy_and_product_closeout_pending')
+          completion['blocking_reasons'] = blockers
+
+          completion['notes'] = [
+              'PR #4460 merged the canonical multi-client specification at 734b73660ba468415080aaa4dc4b4864534dea27.',
+              'PR #4462 merged the disabled-by-default read-only multi-client MCP adapter at c970187b5d7f835ff5050c8c8b3bfcdef0ca3d94.',
+              'PR #4531 merged the operational OAuth 2.1 authorization, grant, refresh, revocation, exact-tenant, OpenAPI, migration-source, generated-evidence, and runbook wave at 86a141b648481d177baa35fa7ac4839daef60d13 from reviewed head 010d6513ffd15b0249cc708a22bb7f6dea7c586b.',
+              'Exact-head evidence for PR #4531 includes Context Kernel, E2E, runtime startup, Frontend generated parity, full CI, and Branch Diagnostic 791/791 with zero failures.',
+              'The bounded generated refresh wrote only frontend-operation-governance.generated.json, frontend-surface-dispatch.generated.json, and openapi/frontend-runtime-routes.generated.yaml; the final exact-head refresh was a no-op.',
+              'PR #4820 merged at a6d9573e7b6499175d841d7c4acf187d8ed5bcef and completed all 81 Support Ticket runtime precise OpenAPI registrations, removing the prerequisite registry drift that blocked earlier governed refresh attempts.',
+              'The repository implementation remains disabled by default and the Spec remains in_progress because resilient, canary, live client acceptance, migration, deployment, rollback, and Production gates are not complete.',
+              'The operational candidate requires a dedicated OAuth signing secret distinct from JWT_SECRET and fails closed when it is unavailable.',
+              'DCR is advertised and usable only with a configured exact redirect-Origin allowlist or separately enabled loopback policy.',
+              'No migration, signing-key provisioning, redirect allowlist activation, DNS change, deployment, live client registration, ChatGPT or Claude connection, public submission, publication, or Production activation occurred in the implementation or this audit.',
+          ]
+
+          path.write_text(json.dumps(completion, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'contract': 'mad4b.spec-016-post-merge-truthfulness-audit.v1',
+              'audit_pr': audit_pr,
+              'implementation_pr_4531_status': implementation_pr['status'],
+              'implementation_pr_4531_merge_sha': implementation_pr['merge_sha'],
+              'status': completion['status'],
+              'production_deployed': completion['implementation']['production_deployed'],
+              'migrations_applied': completion['implementation']['migrations_applied'],
+              'remaining_blockers': len(completion['blocking_reasons']),
+              'secrets_included': completion['secrets_included'],
+          }, indent=2))
+          PY
+      - name: Validate canonical Spec 016 contract
+        working-directory: specs/016-chatgpt-plugin-mcp-integration
+        run: node tools/validate-spec.mjs
+      - name: Assert post-merge truthfulness boundaries
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+          completion = json.loads(Path('specs/016-chatgpt-plugin-mcp-integration/completion.json').read_text())
+          pr = next(item for item in completion['delivery']['implementation_prs'] if item['number'] == 4531)
+          assert pr['status'] == 'merged'
+          assert pr['merge_sha'] == '86a141b648481d177baa35fa7ac4839daef60d13'
+          assert completion['status'] == 'in_progress'
+          assert completion['implementation']['migrations_applied'] is False
+          assert completion['implementation']['production_deployed'] is False
+          assert completion['implementation']['published'] is False
+          assert completion['implementation']['oauth_authorization_server_conformance_verified'] is False
+          assert completion['implementation']['cross_client_acceptance_completed'] if 'cross_client_acceptance_completed' in completion['implementation'] else True
+          assert completion['secrets_included'] is False
+          assert not any('pr_4531_generated_artifact_parity_refresh_in_progress' == item for item in completion['blocking_reasons'])
+          assert any('governed_migration_not_applied' == item for item in completion['blocking_reasons'])
+          print(json.dumps({'ok': True, 'contract': 'mad4b.spec-016-post-merge-truthfulness-boundary.v1'}))
+          PY
+      - name: Commit truthfulness audit and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- .github/workflows/spec-016-post-merge-truthfulness-bootstrap.yml
+          git add specs/016-chatgpt-plugin-mcp-integration/completion.json
+          git commit -m "docs(spec-016): reconcile post-merge completion truth"
+          git push origin HEAD:gpt/016-post-merge-truthfulness-audit-20260802
