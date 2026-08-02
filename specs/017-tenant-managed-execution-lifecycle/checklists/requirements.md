@@ -2,18 +2,23 @@
 
 - [x] Every managed run has explicit tenant, user, parent ticket, capability, resource, effect, and idempotency scope.
 - [x] Authenticated non-admin tenant/user identity cannot be overridden by request-body identifiers.
-- [x] Managed reads, steps, and status changes enforce the authenticated tenant/requester scope.
+- [x] Managed reads, steps, status changes, and recovery operations enforce the authenticated tenant/requester scope.
 - [x] Capability and resource grants are resolved from existing runtime authorities.
 - [x] Authority snapshots are immutable and fingerprinted.
 - [x] Approval policy is derived from effect/access policy.
 - [x] Approval decisions require platform admin authority or active same-tenant membership with the required role, an explicitly higher role, or tenant owner/admin authority.
-- [x] Revoked or drifted authority blocks step creation.
-- [x] Repeated step requests reuse one step.
+- [x] Revoked or drifted authority blocks step creation and executable recovery work.
+- [x] Repeated step and recovery requests reuse existing evidence or compensation work.
 - [x] Generic orchestration routes cannot bypass managed enforcement.
 - [x] Preserved legacy workflow routes remain discoverable through an explicit non-runtime source bridge in the directly mounted builder.
 - [x] Secret-bearing payload fields and recognizable secret values are rejected.
-- [x] Migration is additive and remains unapplied in this PR.
+- [x] Migration is additive and remains unapplied in implementation PRs.
+- [x] Failed-step retries are bounded to three total attempts and require no conflicting active work.
+- [x] Reassignment requires active same-tenant membership.
+- [x] Escalation creates or safely reuses an explicit supervisor approval hold.
+- [x] Cancellation synchronizes active steps, open holds, run, binding, ticket, and event state atomically.
+- [x] Rollback requires an idempotent managed compensation step and explicit completed-step finalization.
 - [ ] Migration ledger and readiness evidence recorded.
 - [ ] Production exact-SHA and protected-user-path verification recorded.
-- [ ] Cancellation, rollback, reassignment, and bounded retry completed.
+- [ ] Complete tenant/admin read projections and contradiction reconciliation actions.
 - [ ] Final tenant-safe report and post-merge audit completed.
