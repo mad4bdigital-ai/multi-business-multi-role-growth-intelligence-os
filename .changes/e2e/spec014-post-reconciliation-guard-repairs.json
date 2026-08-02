@@ -13,6 +13,7 @@
       "http-generic-api/config/governed-migration-dependencies.json",
       "http-generic-api/hostingerStorageSqlParentWriter.js",
       "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+      "http-generic-api/hostingerStorageSchemaVerification.js",
       "http-generic-api/test-hostinger-storage*.mjs"
     ]
   },
@@ -73,6 +74,7 @@
             ".github/contracts/spec014/migrations/wave-2-control-plane.sql",
             ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
             "http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql",
+            "http-generic-api/hostingerStorageSchemaVerification.js",
             "http-generic-api/hostingerStorageSqlParentWriter.js",
             "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs"
           ]
