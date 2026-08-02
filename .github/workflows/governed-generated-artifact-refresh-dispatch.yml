@@ -1,15 +1,6 @@
 name: Governed Generated Artifact Refresh Dispatch
 
 on:
-  push:
-    branches:
-      - "gpt/**"
-      - "cert/**"
-      - "fix/**"
-      - "feat/**"
-      - "chore/**"
-      - "docs/**"
-      - "release/**"
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -26,11 +17,11 @@ on:
 permissions:
   actions: write
   contents: read
-  issues: read
+  issues: write
   pull-requests: read
 
 concurrency:
-  group: governed-generated-artifact-refresh-dispatch-${{ github.event.issue.number || inputs.target_ref || github.ref_name }}
+  group: governed-generated-artifact-refresh-dispatch-${{ github.event.issue.number || inputs.target_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -44,10 +35,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event_name == 'push' && github.ref_name || 'UNRESOLVED' }}
-      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event_name == 'push' && github.sha || 'UNRESOLVED' }}
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || 'UNRESOLVED' }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || 'UNRESOLVED' }}
       REPORT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh-dispatch
     steps:
+      - name: Checkout trusted default branch publisher
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
       - name: Resolve trusted issue-comment candidate
         if: github.event_name == 'issue_comment'
         shell: bash
@@ -245,6 +248,38 @@ jobs:
           path: ${{ env.REPORT_DIR }}/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish canonical dispatch evidence directly
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          report="${REPORT_DIR}/dispatch.json"
+          test -f "${report}"
+          pr_number="$(jq -r '.pr_number // empty' "${report}")"
+          target_ref="$(jq -r '.target_ref // empty' "${report}")"
+          expected_head_sha="$(jq -r '.expected_head_sha // empty' "${report}")"
+          outcome="$(jq -r '.outcome // empty' "${report}")"
+          if [[ ! "${pr_number}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::notice::dispatcher report has no resolved PR; canonical artifact remains authoritative"
+            exit 0
+          fi
+          [[ "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "${outcome}" == "blocked" ]]; then
+            workflow_conclusion="failure"
+          else
+            workflow_conclusion="success"
+          fi
+          node http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs \
+            --repository "${GITHUB_REPOSITORY}" \
+            --pr-number "${pr_number}" \
+            --workflow-conclusion "${workflow_conclusion}" \
+            --report "${report}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" \
+            --source-head-sha "${expected_head_sha}"
 
       - name: Enforce dispatch decision
         if: always()

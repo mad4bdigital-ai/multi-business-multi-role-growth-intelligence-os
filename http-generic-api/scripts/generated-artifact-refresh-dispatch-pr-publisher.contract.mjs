@@ -87,18 +87,41 @@ assert.throws(() => assertGeneratedArtifactDispatchPrIdentity({ state: "open", h
 assert.throws(() => assertGeneratedArtifactDispatchPrIdentity({ state: "open", head: { repo: { full_name: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" }, ref: "gpt/other", sha: headSha } }, passed, "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"), /branch mismatch/u);
 assert.throws(() => assertGeneratedArtifactDispatchPrIdentity({ state: "open", head: { repo: { full_name: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" }, ref: "gpt/example", sha: "b".repeat(40) } }, passed, "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"), /expected_head_sha/u);
 
-const workflow = readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
-assert.match(workflow, /- Governed Generated Artifact Refresh Dispatch/u);
-assert.match(workflow, /workflow_run\.event == 'push' \|\| github\.event\.workflow_run\.event == 'issue_comment'/u);
-assert.match(workflow, /governed-generated-artifact-refresh-dispatch-\$\{\{ github\.event\.workflow_run\.id \}\}/u);
-assert.match(workflow, /canonical\/dispatch\.json/u);
-assert.match(workflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+const fallbackPublisherWorkflow = readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
+assert.match(fallbackPublisherWorkflow, /- Governed Generated Artifact Refresh Dispatch/u);
+assert.match(fallbackPublisherWorkflow, /governed-generated-artifact-refresh-dispatch-\$\{\{ github\.event\.workflow_run\.id \}\}/u);
+assert.match(fallbackPublisherWorkflow, /canonical\/dispatch\.json/u);
+assert.match(fallbackPublisherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+
+const dispatcherWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh-dispatch.yml", "utf8");
+assert.match(dispatcherWorkflow, /^name: Governed Generated Artifact Refresh Dispatch$/mu);
+assert.match(dispatcherWorkflow, /^\s*issue_comment:\s*$/mu);
+assert.match(dispatcherWorkflow, /^\s*workflow_dispatch:\s*$/mu);
+assert.doesNotMatch(dispatcherWorkflow, /^\s*push:\s*$/mu);
+assert.match(dispatcherWorkflow, /actions:\s*write/u);
+assert.match(dispatcherWorkflow, /contents:\s*read/u);
+assert.match(dispatcherWorkflow, /issues:\s*write/u);
+assert.match(dispatcherWorkflow, /pull-requests:\s*read/u);
+assert.doesNotMatch(dispatcherWorkflow, /contents:\s*write/u);
+assert.match(dispatcherWorkflow, /Checkout trusted default branch publisher/u);
+assert.match(dispatcherWorkflow, /ref:\s*main/u);
+assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
+assert.match(dispatcherWorkflow, /governed-generated-artifact-refresh-dispatch-\$\{\{ github\.run_id \}\}/u);
+assert.match(dispatcherWorkflow, /Publish canonical dispatch evidence directly/u);
+assert.match(dispatcherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+assert.match(dispatcherWorkflow, /--source-head-sha "\$\{expected_head_sha\}"/u);
+assert.match(dispatcherWorkflow, /workflow_conclusion="failure"/u);
+assert.match(dispatcherWorkflow, /workflow_conclusion="success"/u);
+assert.doesNotMatch(dispatcherWorkflow, /github\.ref_name/u);
+assert.doesNotMatch(dispatcherWorkflow, /\bgit\s+push\b/u);
 
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.generated-artifact-refresh-dispatch-pr-publisher-contract.v1",
-  cases: 20,
+  cases: 36,
   exact_head_bound: true,
+  trusted_direct_publication: true,
+  push_trigger_removed: true,
   job_logs_authoritative: false,
   protected_branch_mutation: false,
   secrets_included: false,
