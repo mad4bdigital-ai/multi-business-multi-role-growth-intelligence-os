@@ -1,0 +1,227 @@
+name: Spec014 Run Durable Injection Record Digest Hardening V2
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/durable-injection-record-digest-hardening-v2-20260802
+    paths:
+      - '.github/workflows/spec014-run-durable-injection-record-digest-hardening-v2.yml'
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-run-durable-injection-record-digest-hardening-v2.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-run-durable-injection-record-digest-hardening-v2
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'gpt/014-hostinger/durable-injection-record-digest-hardening-v2-20260802')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: gpt/014-hostinger/durable-injection-record-digest-hardening-v2-20260802
+      EXPECTED_PARENT_SHA: 468fb59c4e835c6961db3d8c0e7a84cc62db742c
+      IMPLEMENTATION_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+      TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
+      LAUNCHER_FILE: .github/workflows/spec014-run-durable-injection-record-digest-hardening-v2.yml
+      EVIDENCE_DIR: .ci-evidence/spec014-durable-injection-record-digest-hardening-v2
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Patch and validate stored-record digest recomputation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          current_stage='verify_identity'
+          on_error() {
+            local status=$?
+            trap - ERR
+            STATUS="${status}" STAGE="${current_stage}" COMMAND="${BASH_COMMAND:-unknown}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path(os.environ['EVIDENCE_DIR'], 'summary.json').write_text(json.dumps({
+            'contract': 'mad4b.spec014-durable-injection-record-digest-hardening-v2.v1',
+            'outcome': 'blocked',
+            'expected_parent_sha': os.environ['EXPECTED_PARENT_SHA'],
+            'target_branch': os.environ['TARGET_BRANCH'],
+            'failure': {
+              'stage': os.environ['STAGE'],
+              'exit_status': int(os.environ['STATUS']),
+              'command': os.environ['COMMAND'],
+            },
+            'repository_push_performed': False,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }, indent=2) + '\n')
+          PY
+            exit "${status}"
+          }
+          trap on_error ERR
+
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          local_sha="$(git rev-parse HEAD)"
+          [[ "${remote_sha}" == "${local_sha}" ]]
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_PARENT_SHA}" ]]
+          unexpected="$(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD | grep -vxF "${LAUNCHER_FILE}" || true)"
+          [[ -z "${unexpected}" ]]
+
+          current_stage='patch_record_digest_verification'
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          implementation = Path(os.environ['IMPLEMENTATION_FILE'])
+          source = implementation.read_text(encoding='utf-8')
+          old = """  assertDataOnly(value, `${kind}.record_json`);
+          if (!value || value.record_digest !== row?.record_digest) {
+            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
+          }
+          return deepFreeze(clone(value));
+          """
+          new = """  assertDataOnly(value, `${kind}.record_json`);
+          if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
+          }
+          const embeddedDigest = text(value.record_digest, 64).toLowerCase();
+          const columnDigest = text(row?.record_digest, 64).toLowerCase();
+          const core = clone(value);
+          delete core.record_digest;
+          if (!SHA256_RE.test(embeddedDigest)
+            || !SHA256_RE.test(columnDigest)
+            || embeddedDigest !== columnDigest
+            || digest(core) !== columnDigest) {
+            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
+          }
+          return deepFreeze(clone(value));
+          """
+          if source.count(old) != 1:
+              raise SystemExit(f'parseStored block occurrence count must be 1, got {source.count(old)}')
+          implementation.write_text(source.replace(old, new), encoding='utf-8')
+
+          test_path = Path(os.environ['TEST_FILE'])
+          test = test_path.read_text(encoding='utf-8')
+          anchor = """assert.equal(persisted.active, true);
+          assert.equal(containsRuntimeMaterial(persisted), false);
+
+          const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+          """
+          regression = """assert.equal(persisted.active, true);
+          assert.equal(containsRuntimeMaterial(persisted), false);
+
+          const originalStateRow = clone(database.tables.states.get(INJECTION_ID));
+          const rewrittenStateRecord = JSON.parse(originalStateRow.record_json);
+          rewrittenStateRecord.source_commit = h('f');
+          rewrittenStateRecord.record_digest = h('a');
+          database.tables.states.set(INJECTION_ID, {
+            ...originalStateRow,
+            record_digest: h('a'),
+            record_json: JSON.stringify(rewrittenStateRecord),
+          });
+          await assert.rejects(
+            restartedRegistry.readVerifiedInjection(INJECTION_ID),
+            (error) => error.code === 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH'
+              && error.details.kind === 'state',
+          );
+          database.tables.states.set(INJECTION_ID, originalStateRow);
+
+          const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+          """
+          if test.count(anchor) != 1:
+              raise SystemExit(f'test regression anchor occurrence count must be 1, got {test.count(anchor)}')
+          test = test.replace(anchor, regression)
+
+          output_anchor = """  restart_registry_readback: true,
+            restart_coordinator_reconstruction: true,
+          """
+          output_replacement = """  restart_registry_readback: true,
+            stored_record_content_digest_recomputed: true,
+            matching_fake_digest_fields_rejected: true,
+            restart_coordinator_reconstruction: true,
+          """
+          if test.count(output_anchor) != 1:
+              raise SystemExit(f'output anchor occurrence count must be 1, got {test.count(output_anchor)}')
+          test_path.write_text(test.replace(output_anchor, output_replacement), encoding='utf-8')
+          PY
+
+          current_stage='validate_focused_contract'
+          node --check "${IMPLEMENTATION_FILE}"
+          node --check "${TEST_FILE}"
+          node "${TEST_FILE}" > "${EVIDENCE_DIR}/focused-test.stdout" 2> "${EVIDENCE_DIR}/focused-test.stderr"
+
+          current_stage='commit_patch'
+          git rm "${LAUNCHER_FILE}"
+          git add -- "${IMPLEMENTATION_FILE}" "${TEST_FILE}"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(spec-014): recompute durable injection record digests'
+          result_sha="$(git rev-parse HEAD)"
+
+          current_stage='write_success_evidence'
+          RESULT_SHA="${result_sha}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path(os.environ['EVIDENCE_DIR'], 'summary.json').write_text(json.dumps({
+            'contract': 'mad4b.spec014-durable-injection-record-digest-hardening-v2.v1',
+            'outcome': 'passed',
+            'expected_parent_sha': os.environ['EXPECTED_PARENT_SHA'],
+            'result_sha': os.environ['RESULT_SHA'],
+            'target_branch': os.environ['TARGET_BRANCH'],
+            'stored_record_sha256_recomputed': True,
+            'matching_fake_digest_fields_rejected': True,
+            'valid_lifecycle_regression_passed': True,
+            'launcher_removed': True,
+            'repository_push_performed': True,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }, indent=2) + '\n')
+          PY
+
+          current_stage='push_patch'
+          git push origin "HEAD:${TARGET_BRANCH}"
+          trap - ERR
+
+      - name: Upload structured patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-injection-record-digest-hardening-v2-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_DIR }}/summary.json
+            ${{ env.EVIDENCE_DIR }}/focused-test.stdout
+            ${{ env.EVIDENCE_DIR }}/focused-test.stderr
+          if-no-files-found: error
+          retention-days: 14
