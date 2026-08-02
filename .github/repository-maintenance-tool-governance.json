@@ -33,6 +33,23 @@
       "mode": "read_only",
       "allowed_changed_path_patterns": [],
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
+    },
+    "generated-artifact-refresh": {
+      "description": "Regenerate the bounded OpenAPI and frontend contract artifacts on an exact governed work-branch head after typed confirmation.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "mode": "mutating",
+      "allowed_changed_path_patterns": [
+        "^http-generic-api/openapi\\.yaml$",
+        "^http-generic-api/frontend-operation-governance\\.generated\\.json$",
+        "^http-generic-api/frontend-surface-dispatch\\.generated\\.json$",
+        "^http-generic-api/openapi/frontend-runtime-routes\\.generated\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.auth-dispatcher\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.yaml$",
+        "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.yaml$",
+        "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$"
+      ],
+      "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     }
   }
 }

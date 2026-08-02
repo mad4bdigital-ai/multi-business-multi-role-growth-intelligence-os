@@ -1,10 +1,22 @@
-# Trigger bounded generated-artifact reconciliation for Brand Skills.
+# Evaluate bounded generated artifacts on governed non-Production work branches.
 name: PR Generated Artifact Refresh
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches-ignore:
+      - Production
     paths:
+      - ".changes/e2e/ci-generated-artifact-evidence-routing.json"
+      - ".github/ci-evidence-routing.json"
+      - ".github/repository-maintenance-tool-governance.json"
+      - ".github/workflows/ci-evidence-pr-publisher.yml"
+      - ".github/workflows/governed-generated-artifact-refresh.yml"
+      - ".github/workflows/pr-generated-artifact-refresh.yml"
+      - ".github/workflows/production-promotion-generated-artifact-evidence.yml"
+      - ".github/workflows/frontend-surface-dispatch.yml"
+      - ".github/workflows/custom-gpt-contract-guard.yml"
+      - "docs/**"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi*.yaml"
       - "http-generic-api/openapi/**/*.yaml"
@@ -13,6 +25,11 @@ on:
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
       - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs"
+      - "http-generic-api/scripts/generated-artifact-refresh-runner.mjs"
+      - "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"
+      - "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+      - "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
       - "http-generic-api/scripts/openapi-autofill-missing-routes.mjs"
       - "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
@@ -21,35 +38,70 @@ on:
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "canonicals/openapi/**/*.yaml"
-      - ".github/workflows/frontend-surface-dispatch.yml"
-      - ".github/workflows/custom-gpt-contract-guard.yml"
-      - ".github/workflows/pr-generated-artifact-refresh.yml"
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Exact governed work branch to evaluate
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character branch head SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-generated-artifact-refresh-${{ github.event.pull_request.number || github.ref }}
+  group: pr-generated-artifact-refresh-${{ github.event.pull_request.number || inputs.target_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   refresh:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
-       startsWith(github.event.pull_request.head.ref, 'cert/')) &&
-      github.actor != 'github-actions[bot]'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'github-actions[bot]' &&
+       (startsWith(github.event.pull_request.head.ref, 'gpt/') ||
+        startsWith(github.event.pull_request.head.ref, 'cert/')))
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      CI_SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
+      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
+      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
     steps:
-      - name: Checkout governed PR head
+      - name: Validate exact candidate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${CI_SOURCE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            [[ "${TARGET_REF}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+            [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
+          else
+            [[ "${TARGET_REF}" =~ ^(gpt|cert)/[A-Za-z0-9._/-]+$ ]]
+          fi
+
+      - name: Checkout exact governed PR head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ env.CI_SOURCE_HEAD_SHA }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
+
+      - name: Verify local and remote exact-head identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          [[ "$local_sha" == "$CI_SOURCE_HEAD_SHA" ]]
+          [[ "$remote_sha" == "$CI_SOURCE_HEAD_SHA" ]]
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -58,77 +110,49 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Install dependencies
+      - name: Test canonical evidence publisher
         working-directory: http-generic-api
-        run: npm ci
+        run: node scripts/test-generated-artifact-refresh-pr-publisher.mjs
 
-      - name: Generate bounded artifacts
+      - name: Test governed mutation safety
         working-directory: http-generic-api
-        run: |
-          git fetch origin main --depth=1
-          node scripts/openapi-precise-contract-registry-sync.mjs --write
-          node scripts/openapi-autofill-missing-routes.mjs --write
-          npm run frontend:dispatch:generate -- --baseline-ref=main
-          node scripts/generate-custom-gpt-schemas.mjs --write
+        run: node scripts/test-generated-artifact-refresh-maintenance-tool.mjs
 
-      - name: Verify generated contracts before commit
+      - name: Evaluate generated artifacts without repository mutation
         working-directory: http-generic-api
-        run: |
-          node test-openapi-autofill-missing-routes.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          npm run schemas:guard
+        run: node scripts/generated-artifact-refresh-runner.mjs
 
-      - name: Enforce bounded write set
+      - name: Upload canonical generated-artifact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-generated-artifact-refresh-${{ github.run_id }}-summary
+          path: |
+            ${{ env.REPORT_PATH }}
+            ${{ env.REPORT_MARKDOWN_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce canonical report decision
+        if: always()
         shell: bash
         run: |
-          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
-          if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "Generated artifacts are already current."
-            exit 0
-          fi
-
-          UNEXPECTED=""
-          for file in "${CHANGED[@]}"; do
-            case "$file" in
-              http-generic-api/openapi.yaml|\
-              http-generic-api/frontend-operation-governance.generated.json|\
-              http-generic-api/frontend-surface-dispatch.generated.json|\
-              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|\
-              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|\
-              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|\
-              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|\
-              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|\
-              http-generic-api/openapi.gpt-action.local-connector.yaml)
-                ;;
-              *)
-                UNEXPECTED+="$file"$'\n'
-                ;;
-            esac
-          done
-
-          if [[ -n "$UNEXPECTED" ]]; then
-            echo "::error::Generator changed files outside the bounded artifact set"
-            printf '%s' "$UNEXPECTED"
-            exit 1
-          fi
-
-      - name: Commit generated artifacts
-        shell: bash
-        env:
-          TARGET_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          mapfile -t CHANGED < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
-          if [[ ${#CHANGED[@]} -eq 0 ]]; then
-            echo "No generated artifact commit is required."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${CHANGED[@]}"
-          git commit -m "chore(ci): refresh generated contract artifacts"
-          git push origin "HEAD:${TARGET_REF}"
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+          if (report.contract !== 'mad4b.pr-generated-artifact-refresh-summary.v1') {
+            throw new Error('Generated-artifact canonical report contract mismatch.');
+          }
+          if (report.secrets_included !== false) {
+            throw new Error('Generated-artifact canonical report must declare secrets_included=false.');
+          }
+          if (report.outcome === 'passed') process.exit(0);
+          const failure = report.first_failure || {};
+          const title = `Generated artifact refresh ${failure.code || 'blocked'}`
+            .replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          const message = `${failure.step || 'unknown'}: ${failure.stderr_tail || failure.stdout_tail || 'Canonical report blocked.'}`
+            .replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          console.log(`::error title=${title}::${message.slice(0, 1000)}`);
+          process.exit(1);
+          NODE

@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 534
-- Operations: 567
+- Paths: 613
+- Operations: 643
 - Top-level tags: 36
 
 ## Virtual Admin Tool Contract Notes
@@ -20,6 +20,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
+- `admin`: 78
 - `platform-plugins`: 53
 - `connected-systems`: 51
 - `platform-intelligence`: 36
@@ -30,16 +31,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `security`: 22
 - `connector-proxy`: 18
 - `identity`: 18
+- `tenants`: 17
 - `observability`: 16
 - `growth-dashboard`: 15
 - `platform-agent-governance`: 15
-- `tenants`: 15
 - `local-manager`: 14
 - `planner`: 14
 - `logic`: 12
 - `platform-evolution`: 12
 - `admin-internal`: 11
-- `developer-api`: 11
 
 ## Generated / Scoped OpenAPI Schemas
 
@@ -68,6 +68,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/e2e-phase-governance.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/governed-generated-artifact-refresh.yml`
 - `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
 - `.github/workflows/governed-local-connector-production-closure-push.yml`
 - `.github/workflows/governed-local-connector-production-closure.yml`
@@ -87,6 +88,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate-contract.yml`
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
+- `.github/workflows/protected-promotion-generated-artifact-refresh.yml`
+- `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
