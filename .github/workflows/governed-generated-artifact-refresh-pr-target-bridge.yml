@@ -1,5 +1,5 @@
-name: Governed Generated Artifact Refresh PR Target Bridge
-run-name: Governed Generated Artifact Refresh PR Target Bridge · PR #${{ github.event.pull_request.number || inputs.pr_number }}
+name: Governed Generated Artifact Refresh PR Target Request
+run-name: Governed Generated Artifact Refresh PR Target Request · PR #${{ github.event.pull_request.number || inputs.pr_number }}
 
 on:
   pull_request_target:
@@ -16,42 +16,24 @@ on:
         type: string
 
 permissions:
-  actions: write
   contents: read
-  issues: write
   pull-requests: read
 
 concurrency:
-  group: governed-generated-artifact-refresh-pr-target-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  group: governed-generated-artifact-refresh-request-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
-  dispatch:
-    if: >-
-      github.actor != 'github-actions[bot]' &&
-      (github.event_name == 'workflow_dispatch' ||
-       contains(github.event.pull_request.labels.*.name, 'generated-artifact-refresh'))
+  request:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     env:
       PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
       EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
-      REPORT_DIR: .ci-evidence/governed-generated-artifact-refresh-pr-target-bridge
+      REPORT_DIR: .ci-evidence/governed-generated-artifact-refresh-request
     steps:
-      - name: Checkout trusted default branch publisher
-        uses: actions/checkout@v5
-        with:
-          ref: main
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Resolve exact same-repository candidate
-        id: candidate
+      - name: Evaluate exact same-repository refresh request
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,236 +50,93 @@ jobs:
           state="$(jq -r '.state' <<<"${pr}")"
           draft="$(jq -r '.draft' <<<"${pr}")"
           head_repo="$(jq -r '.head.repo.full_name' <<<"${pr}")"
-          head_ref="$(jq -r '.head.ref' <<<"${pr}")"
-          head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+          current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
           base_ref="$(jq -r '.base.ref' <<<"${pr}")"
           labels="$(jq -c '[.labels[].name]' <<<"${pr}")"
 
-          failure_code=""
-          failure_detail=""
+          outcome="eligible"
+          reason=""
           if [[ "${state}" != "open" ]]; then
-            failure_code="pull_request_not_open"
-            failure_detail="The governed bridge accepts open pull requests only."
+            outcome="blocked"
+            reason="pull_request_not_open"
           elif [[ "${draft}" == "true" ]]; then
-            failure_code="pull_request_is_draft"
-            failure_detail="The governed bridge requires a ready-for-review pull request."
+            outcome="blocked"
+            reason="pull_request_is_draft"
           elif [[ "${head_repo}" != "${GITHUB_REPOSITORY}" ]]; then
-            failure_code="cross_repository_pull_request_forbidden"
-            failure_detail="The governed bridge accepts same-repository pull requests only."
+            outcome="blocked"
+            reason="cross_repository_pull_request_forbidden"
           elif [[ "${base_ref}" != "main" ]]; then
-            failure_code="unexpected_base_branch"
-            failure_detail="The governed bridge requires main as the pull-request base."
-          elif [[ ! "${head_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
-            failure_code="invalid_governed_work_branch"
-            failure_detail="The PR head is not an approved governed work branch."
-          elif [[ "${head_ref}" == "main" || "${head_ref}" == "Production" ]]; then
-            failure_code="protected_branch_mutation_forbidden"
-            failure_detail="Protected branches cannot be writer targets."
-          elif [[ "${head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
-            failure_code="pull_request_head_mismatch"
-            failure_detail="The current PR head differs from the exact event or manual input SHA."
+            outcome="blocked"
+            reason="unexpected_base_branch"
+          elif [[ ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+            outcome="blocked"
+            reason="invalid_governed_work_branch"
+          elif [[ "${target_ref}" == "main" || "${target_ref}" == "Production" ]]; then
+            outcome="blocked"
+            reason="protected_branch_mutation_forbidden"
+          elif [[ "${current_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            outcome="blocked"
+            reason="pull_request_head_mismatch"
           elif ! jq -e 'index("generated-artifact-refresh") != null' <<<"${labels}" >/dev/null; then
-            failure_code="generated_artifact_refresh_label_absent"
-            failure_detail="The generated-artifact-refresh authorization label is required."
-          fi
-
-          if [[ -n "${failure_code}" ]]; then
-            jq -n \
-              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-              --arg target_ref "${head_ref}" \
-              --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
-              --argjson pr_number "${PR_NUMBER}" \
-              --arg code "${failure_code}" \
-              --arg detail "${failure_detail}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,first_failure:{code:$code,diagnostic_tail:$detail},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-              > "${REPORT_DIR}/dispatch.json"
-            exit 0
-          fi
-
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "target_ref=${head_ref}" >> "$GITHUB_OUTPUT"
-          echo "head_sha=${head_sha}" >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch and observe exact-head governed writer
-        if: steps.candidate.outputs.eligible == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ steps.candidate.outputs.target_ref }}
-          HEAD_SHA: ${{ steps.candidate.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          workflow_state="$(gh api \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml" \
-            --jq '.state')"
-          if [[ "${workflow_state}" != "active" ]]; then
-            gh api --method PUT \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/enable"
-            workflow_state="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml" \
-              --jq '.state')"
-          fi
-          if [[ "${workflow_state}" != "active" ]]; then
-            jq -n \
-              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-              --arg target_ref "${TARGET_REF}" \
-              --arg expected_head_sha "${HEAD_SHA}" \
-              --argjson pr_number "${PR_NUMBER}" \
-              --arg workflow_state "${workflow_state}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,workflow_state:$workflow_state,first_failure:{code:"delegated_workflow_not_active",diagnostic_tail:"The governed writer workflow could not be activated."},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-              > "${REPORT_DIR}/dispatch.json"
-            exit 0
-          fi
-
-          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
-          expected_title="Governed Generated Artifact Refresh · ${TARGET_REF} · ${HEAD_SHA}"
-          payload="$(jq -cn \
-            --arg ref "main" \
-            --arg target_ref "${TARGET_REF}" \
-            --arg expected_head_sha "${HEAD_SHA}" \
-            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH"}}')"
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
-            --input - <<<"${payload}"
-
-          delegated_run_id=""
-          delegated_run_url=""
-          delegated_run_status=""
-          delegated_run_conclusion=""
-          for attempt in $(seq 1 20); do
-            runs="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/runs?event=workflow_dispatch&branch=main&per_page=50")"
-            delegated_run_id="$(jq -r --arg started "${dispatch_started_at}" --arg title "${expected_title}" \
-              '[.workflow_runs[] | select(.created_at >= $started and .display_title == $title)] | sort_by(.created_at) | last | .id // empty' <<<"${runs}")"
-            if [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]; then
-              delegated_run_url="$(jq -r --argjson run_id "${delegated_run_id}" '.workflow_runs[] | select(.id == $run_id) | .html_url' <<<"${runs}")"
-              delegated_run_status="$(jq -r --argjson run_id "${delegated_run_id}" '.workflow_runs[] | select(.id == $run_id) | .status' <<<"${runs}")"
-              delegated_run_conclusion="$(jq -r --argjson run_id "${delegated_run_id}" '.workflow_runs[] | select(.id == $run_id) | .conclusion // empty' <<<"${runs}")"
-              break
-            fi
-            sleep 5
-          done
-
-          if [[ ! "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]; then
-            jq -n \
-              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-              --arg target_ref "${TARGET_REF}" \
-              --arg expected_head_sha "${HEAD_SHA}" \
-              --argjson pr_number "${PR_NUMBER}" \
-              --arg dispatch_started_at "${dispatch_started_at}" \
-              --arg expected_title "${expected_title}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,dispatch_requested:true,delegated_run_observed:false,dispatch_started_at:$dispatch_started_at,expected_run_title:$expected_title,first_failure:{code:"delegated_workflow_run_not_observed",diagnostic_tail:"The exact writer run did not appear within the bounded observation window."},source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-              > "${REPORT_DIR}/dispatch.json"
-            exit 0
+            outcome="skipped"
+            reason="generated_artifact_refresh_label_absent"
           fi
 
           jq -n \
-            --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-            --arg target_ref "${TARGET_REF}" \
-            --arg expected_head_sha "${HEAD_SHA}" \
+            --arg contract "mad4b.governed-generated-artifact-refresh-request.v1" \
+            --arg outcome "${outcome}" \
+            --arg reason "${reason}" \
+            --arg target_ref "${target_ref}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg current_head_sha "${current_head_sha}" \
+            --arg head_repository "${head_repo}" \
+            --arg base_ref "${base_ref}" \
+            --arg source_event "${GITHUB_EVENT_NAME}" \
             --argjson pr_number "${PR_NUMBER}" \
-            --argjson delegated_run_id "${delegated_run_id}" \
-            --arg delegated_run_url "${delegated_run_url}" \
-            --arg delegated_run_status "${delegated_run_status}" \
-            --arg delegated_run_conclusion "${delegated_run_conclusion}" \
-            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,dispatch_requested:true,delegated_workflow:"governed-generated-artifact-refresh.yml",delegated_run_observed:true,delegated_run_id:$delegated_run_id,delegated_run_url:$delegated_run_url,delegated_run_status:$delegated_run_status,delegated_run_conclusion:($delegated_run_conclusion|select(length>0)),typed_confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-            > "${REPORT_DIR}/dispatch.json"
+            --argjson source_run_id "${GITHUB_RUN_ID}" \
+            '{contract:$contract,outcome:$outcome,reason:($reason|select(length>0)),target_ref:$target_ref,expected_head_sha:$expected_head_sha,current_head_sha:$current_head_sha,head_repository:$head_repository,base_ref:$base_ref,pr_number:$pr_number,source_run_id:$source_run_id,source_event:$source_event,candidate_code_checkout:false,repository_mutation_performed:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+            > "${REPORT_DIR}/request.json"
 
-      - name: Render canonical bridge evidence
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! -f "${REPORT_DIR}/dispatch.json" ]]; then
-            mkdir -p "${REPORT_DIR}"
-            jq -n \
-              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
-              --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
-              --argjson pr_number "${PR_NUMBER}" \
-              '{contract:$contract,outcome:"blocked",target_ref:"unresolved",expected_head_sha:$expected_head_sha,pr_number:$pr_number,first_failure:{code:"bridge_report_missing",diagnostic_tail:"The PR-target bridge did not emit a structured decision."},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-              > "${REPORT_DIR}/dispatch.json"
-          fi
           node <<'NODE'
           const fs = require('node:fs');
-          const path = require('node:path');
-          const dir = process.env.REPORT_DIR;
-          const report = JSON.parse(fs.readFileSync(path.join(dir, 'dispatch.json'), 'utf8'));
+          const request = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/request.json`, 'utf8'));
           const lines = [
-            '# Governed generated-artifact PR-target bridge',
+            '# Governed generated-artifact refresh request',
             '',
-            `- Contract: \`${report.contract}\``,
-            `- Outcome: **${report.outcome}**`,
-            `- Target ref: \`${report.target_ref}\``,
-            `- Expected head SHA: \`${report.expected_head_sha}\``,
-            `- Pull request: \`${report.pr_number}\``,
-            `- Dispatch requested: **${report.dispatch_requested === true ? 'yes' : 'no'}**`,
-            `- Delegated run observed: **${report.delegated_run_observed === true ? 'yes' : 'no'}**`,
-            `- Delegated run ID: \`${report.delegated_run_id ?? 'none'}\``,
+            `- Contract: \`${request.contract}\``,
+            `- Outcome: **${request.outcome}**`,
+            `- Pull request: \`${request.pr_number}\``,
+            `- Target ref: \`${request.target_ref}\``,
+            `- Expected head SHA: \`${request.expected_head_sha}\``,
+            `- Current head SHA: \`${request.current_head_sha}\``,
+            `- Reason: \`${request.reason ?? 'none'}\``,
             '- Candidate code checkout: **no**',
-            '- Direct repository mutation: **no**',
+            '- Repository mutation: **no**',
             '- Job logs: **diagnostic-only**',
             '- Secrets included: **no**',
           ];
-          if (report.first_failure) {
-            lines.push('', '## First blocking finding', '', `- Code: \`${report.first_failure.code}\``, `- Diagnostic: \`${String(report.first_failure.diagnostic_tail || '').replace(/`/g, "'")}\``);
-          }
-          fs.writeFileSync(path.join(dir, 'dispatch.md'), `${lines.join('\n')}\n`);
+          fs.writeFileSync(`${process.env.REPORT_DIR}/request.md`, `${lines.join('\n')}\n`);
           NODE
 
-      - name: Upload canonical bridge evidence
-        if: always()
+      - name: Upload exact-head refresh request
         uses: actions/upload-artifact@v4
         with:
-          name: governed-generated-artifact-refresh-pr-target-bridge-${{ github.run_id }}
+          name: governed-generated-artifact-refresh-request-${{ github.run_id }}
           path: ${{ env.REPORT_DIR }}/
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish canonical decision directly
-        if: always()
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          report="${REPORT_DIR}/dispatch.json"
-          test -f "${report}"
-          outcome="$(jq -r '.outcome' "${report}")"
-          if [[ "${outcome}" == "blocked" ]]; then
-            workflow_conclusion="failure"
-          else
-            workflow_conclusion="success"
-          fi
-          node http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs \
-            --repository "${GITHUB_REPOSITORY}" \
-            --pr-number "${PR_NUMBER}" \
-            --workflow-conclusion "${workflow_conclusion}" \
-            --report "${report}" \
-            --workflow-run-id "${GITHUB_RUN_ID}" \
-            --source-head-sha "${EXPECTED_HEAD_SHA}"
-
-      - name: Enforce bridge decision
-        if: always()
+      - name: Enforce read-only request contract
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs = require('node:fs');
-          const report = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/dispatch.json`, 'utf8'));
-          if (report.contract !== 'mad4b.governed-generated-artifact-refresh-dispatch.v1') process.exit(1);
-          if (report.secrets_included !== false || report.consult_job_logs !== false) process.exit(1);
-          if (report.direct_repository_mutation !== false || report.protected_branch_mutation !== false || report.force_push !== false) process.exit(1);
-          if (report.outcome === 'blocked') process.exit(1);
-          if (report.outcome === 'passed' && (!report.delegated_run_observed || !Number.isInteger(report.delegated_run_id))) process.exit(1);
-          process.exit(0);
+          const request = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/request.json`, 'utf8'));
+          if (request.contract !== 'mad4b.governed-generated-artifact-refresh-request.v1') process.exit(1);
+          if (!['eligible', 'skipped', 'blocked'].includes(request.outcome)) process.exit(1);
+          if (request.candidate_code_checkout !== false || request.repository_mutation_performed !== false) process.exit(1);
+          if (request.protected_branch_mutation !== false || request.force_push !== false) process.exit(1);
+          if (request.consult_job_logs !== false || request.secrets_included !== false) process.exit(1);
           NODE
