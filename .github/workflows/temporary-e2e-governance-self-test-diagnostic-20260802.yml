@@ -1,0 +1,143 @@
+name: Temporary E2E Governance Self-Test Diagnostic 20260802
+
+on:
+  pull_request:
+    branches:
+      - gpt/e2e-governance-self-test-diagnostic-base-20260802
+    paths:
+      - '.github/workflows/temporary-e2e-governance-self-test-diagnostic-20260802.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temporary-e2e-governance-self-test-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: structured-self-test-diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Execute bounded structured diagnostic
+        id: diagnostic
+        continue-on-error: true
+        env:
+          REPORT_PATH: ${{ runner.temp }}/e2e-governance-self-test-diagnostic.json
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+
+          const tests = [
+            'http-generic-api/scripts/e2e-phase-governance-self-test.mjs',
+            'http-generic-api/scripts/e2e-phase-init-self-test.mjs',
+            'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs',
+            'http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs',
+            'http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs',
+            'http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs',
+            'http-generic-api/scripts/test-ci-evidence-source-stamp.mjs',
+            'http-generic-api/scripts/test-ci-evidence-router.mjs',
+            'http-generic-api/scripts/test-ci-evidence-pr-comment.mjs'
+          ];
+
+          const bounded = value => String(value || '')
+            .replace(/\r/g, '')
+            .slice(-6000);
+
+          const results = [];
+          for (const test of tests) {
+            const started = Date.now();
+            const child = spawnSync(process.execPath, [test], {
+              cwd: process.cwd(),
+              encoding: 'utf8',
+              maxBuffer: 1024 * 1024,
+              env: { ...process.env, CI: 'true' }
+            });
+            results.push({
+              test,
+              exit_code: Number.isInteger(child.status) ? child.status : null,
+              signal: child.signal || null,
+              duration_ms: Date.now() - started,
+              stdout_tail: bounded(child.stdout),
+              stderr_tail: bounded(child.stderr),
+              passed: child.status === 0
+            });
+          }
+
+          const firstFailure = results.find(result => !result.passed) || null;
+          const report = {
+            contract: 'mad4b.e2e-governance-self-test-diagnostic.v1',
+            generated_at: new Date().toISOString(),
+            exact_head_sha: process.env.GITHUB_SHA,
+            outcome: firstFailure ? 'failed' : 'passed',
+            first_failure: firstFailure ? {
+              test: firstFailure.test,
+              exit_code: firstFailure.exit_code,
+              signal: firstFailure.signal,
+              stdout_tail: firstFailure.stdout_tail,
+              stderr_tail: firstFailure.stderr_tail
+            } : null,
+            results,
+            routing: { source_of_truth: 'structured_report', consult_job_logs: false },
+            side_effects: {
+              repository_mutation_performed: false,
+              provider_dispatch_performed: false,
+              credential_access_performed: false,
+              sql_execution_performed: false,
+              migration_apply_performed: false,
+              external_send_performed: false
+            },
+            secrets_included: false
+          };
+
+          fs.writeFileSync(process.env.REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify({
+            outcome: report.outcome,
+            first_failure: report.first_failure?.test || null,
+            tests: results.length,
+            passed: results.filter(result => result.passed).length,
+            consult_job_logs: false,
+            secrets_included: false
+          }));
+          process.exit(firstFailure ? 1 : 0);
+          NODE
+
+      - name: Upload structured diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-governance-self-test-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/e2e-governance-self-test-diagnostic.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce diagnostic completion
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/e2e-governance-self-test-diagnostic.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            if (!fs.existsSync(process.env.REPORT_PATH)) process.exit(1);
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            const safe = report.contract === "mad4b.e2e-governance-self-test-diagnostic.v1" &&
+              report.routing?.consult_job_logs === false &&
+              report.secrets_included === false &&
+              Object.values(report.side_effects || {}).every(value => value === false);
+            if (!safe) process.exit(1);
+            if (report.outcome !== "passed") process.exit(1);
+          '
