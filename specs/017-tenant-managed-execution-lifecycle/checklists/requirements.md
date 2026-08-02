@@ -6,7 +6,7 @@
 - [x] Capability and resource grants are resolved from existing runtime authorities.
 - [x] Authority snapshots are immutable and fingerprinted.
 - [x] Approval policy is derived from effect/access policy.
-- [x] Approval decisions require platform admin authority or active same-tenant membership with the required role or tenant owner/admin authority.
+- [x] Approval decisions require platform admin authority or active same-tenant membership with the required role, an explicitly higher role, or tenant owner/admin authority.
 - [x] Revoked or drifted authority blocks step creation.
 - [x] Repeated step requests reuse one step.
 - [x] Generic orchestration routes cannot bypass managed enforcement.

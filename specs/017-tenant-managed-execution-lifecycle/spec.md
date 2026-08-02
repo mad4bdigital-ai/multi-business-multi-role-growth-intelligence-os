@@ -32,7 +32,7 @@ The first implementation slice establishes code and schema contracts only. It do
 - FR-008: Capability and resource-grant evidence is stored in an immutable SHA-256 fingerprinted snapshot.
 - FR-009: A managed task ticket is created or related atomically to the parent ticket.
 - FR-010: Approval holds are derived from effect class and access policy, not a caller-selected boolean.
-- FR-011: A non-admin approval decision requires active membership in the hold tenant and the hold's required role, or tenant owner/admin authority.
+- FR-011: A non-admin approval decision requires active membership in the hold tenant and the hold's required role, an explicitly higher role, or tenant owner/admin authority.
 - FR-012: Approval expiry, rejection, escalation, and approval synchronize hold, run, binding, task ticket, and evidence states.
 - FR-013: Step creation rechecks live capability and resource authority; revoked or changed authority fails closed.
 - FR-014: Managed step requests require an idempotency key and reuse the existing step when repeated.
@@ -52,7 +52,7 @@ The first implementation slice establishes code and schema contracts only. It do
 
 - Service and routes fail closed for missing capability/resource authority.
 - User JWT callers cannot override tenant/requester scope or access another user's managed run.
-- Approval decisions require platform-admin authority or active same-tenant membership with the required role or tenant owner/admin authority.
+- Approval decisions require platform-admin authority or active same-tenant membership with the required role, an explicitly higher role, or tenant owner/admin authority.
 - Grant revocation or authority drift prevents new steps.
 - Approval-gated execution cannot create a step before an approved hold.
 - Step and run retries are idempotent at their request boundaries.

@@ -3,6 +3,11 @@ import { managedError } from "./managedExecutionCore.js";
 import { appendManagedEvent, withManagedTransaction } from "./managedExecutionPersistence.js";
 
 const TENANT_APPROVAL_ADMIN_ROLES = new Set(["owner", "admin"]);
+const APPROVAL_ROLE_GRANTS = Object.freeze({
+  supervisor: new Set(["supervisor", "certified_reviewer", "managed_operator"]),
+  certified_reviewer: new Set(["certified_reviewer"]),
+  managed_operator: new Set(["managed_operator"]),
+});
 const PLATFORM_ADMIN_ACTORS = new Set(["backend_api_key"]);
 
 function normalized(value) {
@@ -69,10 +74,11 @@ export async function assertManagedExecutionApprovalAuthority({
   }
 
   const membershipRole = normalized(membership.role);
+  const grantedRoles = APPROVAL_ROLE_GRANTS[membershipRole] || new Set([membershipRole]);
   const matchedRole = TENANT_APPROVAL_ADMIN_ROLES.has(membershipRole)
     ? membershipRole
-    : membershipRole === requiredRole
-      ? requiredRole
+    : grantedRoles.has(requiredRole)
+      ? membershipRole
       : null;
   if (!matchedRole) {
     throw managedError(

@@ -16,7 +16,7 @@
 2. Bind non-admin tenant/requester scope to the authenticated principal before service dispatch.
 3. Add atomic managed run creation and managed task linkage.
 4. Add effect-derived approval and immutable authority snapshots.
-5. Require active same-tenant membership and the hold's required role, or tenant owner/admin authority, for non-admin approval decisions.
+5. Require active same-tenant membership and the hold's required role, an explicitly higher role, or tenant owner/admin authority, for non-admin approval decisions.
 6. Add idempotent managed step requests and live grant revalidation.
 7. Harden generic workflow routes against managed lifecycle bypass while preserving legacy route discovery.
 8. Add Migration 1043 tables and readiness view without applying it.

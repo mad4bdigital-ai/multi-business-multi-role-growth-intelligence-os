@@ -16,6 +16,7 @@
       "http-generic-api/managedExecutionApprovalAuthorization.js",
       "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
       "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+      "http-generic-api/test-managed-execution-approval-role-hierarchy.mjs",
       "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
       "http-generic-api/routes/managedExecutionRouteAuthorization.js",
       "http-generic-api/routes/managedExecutionRoutes.js",
@@ -56,7 +57,7 @@
             "Missing or inactive capability authority fails closed.",
             "Insufficient, revoked, expired, or changed resource authority fails closed.",
             "Approval-required runs cannot create steps without approved evidence.",
-            "Approval decisions reject inactive, cross-tenant, ambiguous, or under-privileged decision makers.",
+            "Approval decisions reject inactive, cross-tenant, ambiguous, or under-privileged decision makers while allowing explicitly higher roles.",
             "Authority fingerprints detect payload tampering.",
             "Repeated run and step request boundaries are idempotent.",
             "Legacy workflow endpoints remain discoverable from the directly mounted builder without executing duplicate handlers.",
@@ -77,6 +78,13 @@
               "working_directory": "http-generic-api",
               "path": "test-workflow-orchestration-route-discovery-bridge.mjs",
               "args": []
+            },
+            {
+              "id": "managed-execution-approval-role-hierarchy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-managed-execution-approval-role-hierarchy.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -89,6 +97,7 @@
             "http-generic-api/managedExecutionApprovalAuthorization.js",
             "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
             "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+            "http-generic-api/test-managed-execution-approval-role-hierarchy.mjs",
             "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
             "http-generic-api/routes/managedExecutionRouteAuthorization.js",
             "http-generic-api/routes/managedExecutionRoutes.js",
