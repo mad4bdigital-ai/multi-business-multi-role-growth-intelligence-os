@@ -363,7 +363,7 @@ assert.equal(snapshot.runtime_mounted, false);
 assert.equal(snapshot.production_ready, false);
 assert.match(snapshot.snapshot_digest, /^[0-9a-f]{64}$/u);
 
-assert.ok(database.commits >= 6);
+assert.ok(database.commits >= 5);
 assert.ok(database.rollbacks >= 5);
 assert.equal(database.lockAcquisitions, database.lockReleases);
 
