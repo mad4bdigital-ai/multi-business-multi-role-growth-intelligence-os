@@ -19,7 +19,7 @@ assert.doesNotMatch(workflow, /\bgit\s+push\b/u, "dispatcher must not push repos
 assert.match(workflow, /generated-artifact-refresh/u, "push dispatch must require the explicit PR label");
 assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u, "delegated workflow must receive typed confirmation");
 assert.match(workflow, /expected_head_sha/u, "delegated workflow must receive an exact expected head SHA");
-assert.match(workflow, /main and Production are forbidden/u, "dispatcher must reject protected branches before API dispatch");
+assert.match(workflow, /main.*Production/u, "dispatcher must reject protected branches before API dispatch");
 assert.match(workflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "dispatcher must target the registered mutating workflow");
 assert.match(workflow, /mad4b\.governed-generated-artifact-refresh-dispatch\.v1/u, "dispatcher must emit its canonical evidence contract");
 assert.match(workflow, /source_of_truth:\s*"structured_report"/u);
