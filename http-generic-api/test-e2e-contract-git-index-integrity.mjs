@@ -57,7 +57,6 @@ try {
 
   write(outside, "outside.json", "{}\n");
   fs.symlinkSync(outside, path.join(root, "evidence/linked-directory"), "dir");
-  runGit(root, ["add", "evidence/linked-directory"]);
   const parentSymlink = enforceGitIndexIntegrity({
     root,
     report: baseReport(".changes/e2e/valid.json", "evidence/linked-directory/outside.json"),
