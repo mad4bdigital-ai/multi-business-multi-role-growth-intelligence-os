@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-migration-authorization-readiness.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "repository_inspection_complete_live_authorization_blocked",
+  "source_contract": ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+  "promotion_pull_request": 4564,
+  "promotion_merge_sha": "7a96920eff2579321707d193a1d030e6454891b1",
+  "governed_inspector": "http-generic-api/governedMigrationAuthorizationBootstrap.js#inspectGovernedMigrationAuthorizationCandidate",
+  "dependency_install": "http-generic-api/npm_ci",
+  "evidence_contract": "spec014.hostinger-storage-migration-authorization-readiness-test.v1",
+  "evidence_artifact_pattern": "spec014-migration-authorization-readiness-${run_id}",
+  "next_authorizable_wave": 1,
+  "waves": [
+    {
+      "wave": 1,
+      "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
+      "checksum_sha256": "9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053",
+      "statement_count": 4,
+      "repository_candidate_inspection": "pass",
+      "readiness_state": "candidate_inspection_ready_authorization_not_created",
+      "blockers": [
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "AUTHORIZATION_REGISTRY_WRITE_NOT_PERFORMED",
+        "SAME_CYCLE_DRY_RUN_NOT_PERFORMED",
+        "LIVE_SCHEMA_READBACK_NOT_PERFORMED"
+      ]
+    },
+    {
+      "wave": 2,
+      "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "checksum_sha256": "091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f",
+      "statement_count": 6,
+      "repository_candidate_inspection": "pass",
+      "readiness_state": "candidate_inspection_ready_dependency_apply_ledger_required",
+      "blockers": [
+        "DEPENDENCY_APPLY_LEDGER_REQUIRED:20260802_01_spec014_hostinger_storage_foundation.sql",
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "AUTHORIZATION_REGISTRY_WRITE_NOT_PERFORMED",
+        "SAME_CYCLE_DRY_RUN_NOT_PERFORMED",
+        "LIVE_SCHEMA_READBACK_NOT_PERFORMED"
+      ]
+    },
+    {
+      "wave": 3,
+      "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "statement_count": 9,
+      "repository_candidate_inspection": "blocked_by_canonical_zero_risk_preflight",
+      "readiness_state": "candidate_inspection_blocked_live_absence_readback_required",
+      "blockers": [
+        "DEPENDENCY_APPLY_LEDGER_REQUIRED:20260802_02_spec014_hostinger_storage_control_plane.sql",
+        "LIVE_VIEW_ABSENCE_READBACK_REQUIRED",
+        "LIVE_TOOL_KEY_ABSENCE_READBACK_REQUIRED",
+        "governed_migration_authorization_preflight_failed"
+      ]
+    }
+  ],
+  "safety_boundary": {
+    "authorization_created": false,
+    "authorization_registry_mutated": false,
+    "capability_envelope_resolved": false,
+    "dry_run_performed": false,
+    "migration_sql_executed": false,
+    "live_database_access_performed": false,
+    "schema_verified": false,
+    "production_ready": false,
+    "provider_dispatch_allowed": false,
+    "secrets_included": false
+  }
+}

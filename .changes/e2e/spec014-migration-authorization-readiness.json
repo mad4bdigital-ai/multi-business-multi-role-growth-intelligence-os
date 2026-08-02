@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-migration-authorization-readiness",
+  "title": "Spec 014 Migration Authorization Readiness Packet",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-migration-authorization-readiness.json",
+      ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+      ".github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml",
+      "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+      "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Produce a repository-only, checksum-bound readiness packet for the three promoted Spec 014 migrations using the canonical governed authorization inspector while proving that no capability envelope, authorization registry write, dry-run, migration execution, or live database readback occurs.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-migration-contract-to-fail-closed-readiness-packet",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 migration release reviewer",
+          "entrypoint": "Hostinger Storage Migration Authorization Readiness Guard",
+          "terminal_outcome": "Wave 1 and Wave 2 pass repository candidate inspection, Wave 2 remains dependency-ledger blocked, and Wave 3 remains blocked by the canonical zero-risk preflight until live view/tool absence readback exists; no authorization or migration action is performed.",
+          "steps": [
+            "Load the exact promoted runtime migration contract and bind PR #4564 plus its merge SHA.",
+            "Validate the exact three migration filenames, checksums, statement counts, ordering, and dependencies.",
+            "Run the canonical repository-only governed migration authorization candidate inspector for each wave.",
+            "Require Wave 1 and Wave 2 to pass checksum, statement-count, additive SQL, and zero-risk repository preflight.",
+            "Require Wave 2 to retain its Wave 1 successful apply-ledger dependency.",
+            "Require Wave 3 to fail closed on the canonical zero-risk preflight and retain live view/tool-key absence requirements.",
+            "Return an immutable readiness packet declaring no capability envelope, authorization registry mutation, dry-run, SQL execution, live database access, schema verification, production readiness, or provider dispatch."
+          ],
+          "assertions": [
+            "The packet is bound to PR #4564 and merge SHA 7a96920eff2579321707d193a1d030e6454891b1.",
+            "Wave 1 is the only next authorization candidate and authorization is not created by this slice.",
+            "Wave 2 cannot become apply-eligible without exact successful apply-ledger evidence for Wave 1.",
+            "Wave 3 cannot pass authorization candidate inspection until all three views and three tool keys are proven absent through a separately governed live readback.",
+            "No database client, capability-envelope resolution, authorization write, dry-run, migration execution, Hostinger access, provider dispatch, or secret is used."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-migration-authorization-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+            "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+            "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Create a fresh Wave 1 authorization only through the governed capability-envelope and authorization-registry path after explicit live-stage authority.",
+      "blockers": [
+        "Explicit live-stage authority has not been granted.",
+        "A fresh capability resolution envelope has not been resolved.",
+        "The governed migration authorization registry has not been written.",
+        "Same-cycle dry-run and live schema readback have not been performed."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove authorization replay, checksum drift, stale dependency ledger, cancelled dry-run, and live readback mismatch handling."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-only packet performs no live migration or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production remains blocked until authorized ordered apply, same-cycle readback, signed schema verification, runtime mounting, and separate release authority."
+    }
+  ]
+}
