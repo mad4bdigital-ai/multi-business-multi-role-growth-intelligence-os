@@ -24,7 +24,7 @@
         {
           "id": "publish-exact-rollup-ddl-evidence",
           "end_to_end": true,
-          "level": "repository_governance",
+          "level": "synthetic_runtime",
           "actor": "Spec 014 durable authorized injection schema DDL guard",
           "entrypoint": "Hostinger Storage Durable Authorized Injection Schema DDL Guard",
           "terminal_outcome": "The guard publishes a passing structured report for valid Rollup content, keeps the source SHA bound to the exact head, records the merge-candidate SHA separately, and continues to reject unsafe DDL or feature-scope expansion.",
