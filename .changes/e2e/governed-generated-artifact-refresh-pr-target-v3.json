@@ -2,12 +2,13 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "governed-generated-artifact-refresh-pr-target-v3",
-  "title": "Restore generated-artifact refresh dispatch through a trusted pull-request-target bridge",
+  "title": "Restore generated-artifact refresh through a read-only V3 request and trusted workflow-run dispatcher",
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml",
+      ".github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json"
     ]
@@ -19,26 +20,35 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Use a default-branch pull_request_target bridge to dispatch the registered V2 decision workflow for an exact same-repository, non-draft, main-target pull request carrying the explicit generated-artifact-refresh label.",
+      "objective": "Restore an observable exact-head path to the registered V2 generated-artifact decision workflow through a strictly read-only pull-request request artifact and a separately trusted workflow-run dispatcher.",
       "e2e_journeys": [
         {
-          "id": "trusted-pr-target-to-v2-dispatch",
+          "id": "read-only-v3-request-to-trusted-v2-dispatch",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "trusted generated-artifact refresh control plane",
-          "entrypoint": "A same-repository pull request targeting main is labeled, synchronized, reopened, or marked ready while carrying generated-artifact-refresh.",
-          "terminal_outcome": "The bridge validates immutable PR metadata, dispatches the registered V2 workflow on main with the exact head ref and SHA, and observes a delegated V2 run without checking out candidate code or writing repository contents.",
+          "actor": "trusted default-branch V3 request workflow and trusted workflow-run V3 dispatcher",
+          "entrypoint": "A same-repository pull request targeting main is labeled, synchronized, reopened, or marked ready while carrying generated-artifact-refresh, or an explicit exact-head manual request is submitted.",
+          "terminal_outcome": "The pull-request stage emits a read-only exact-head request artifact; the independent workflow-run dispatcher downloads that exact artifact, revalidates the current pull request, dispatches V2 on main, and observes a new V2 run without candidate checkout or repository mutation.",
           "steps": [
-            "Read pull-request metadata directly from the pull_request_target event.",
-            "Require same repository, base main, non-draft state, explicit refresh label, allowed branch prefix, and a 40-character lowercase SHA.",
+            "Run the V3 request workflow from protected default-branch workflow code.",
+            "Require an open non-draft same-repository PR targeting main, governed branch syntax, exact current head SHA, and generated-artifact-refresh label.",
+            "Upload mad4b.governed-generated-artifact-refresh-request.v1 with V3 identity and explicit no-write assertions.",
+            "Trigger the V3 dispatcher only from the completed named request workflow or explicit workflow_dispatch.",
+            "Download the exact source-run artifact and reject source-run substitution.",
+            "Re-read and revalidate PR state, repository identity, base, branch, label, and exact head SHA.",
             "Dispatch governed-generated-artifact-refresh-dispatch-v2.yml on main with target_ref and expected_head_sha.",
-            "Observe a new workflow_dispatch run within a bounded window and fail closed otherwise."
+            "Observe a concrete new V2 workflow_dispatch run within a bounded window and fail closed otherwise."
           ],
           "assertions": [
-            "The bridge has actions:write only for delegation and keeps contents and pull requests read-only.",
-            "The bridge does not request issue write authority, checkout candidate code, push commits, or invoke the generated-artifact writer directly.",
-            "Cross-repository, draft, non-main-target, unlabeled, stale-SHA, protected-ref, and unsupported-prefix candidates do not dispatch.",
-            "V2 remains the canonical decision publisher and the only workflow that may delegate to the governed writer."
+            "The pull-request request workflow grants contents:read and pull-requests:read only, performs no checkout, workflow dispatch, comment publication, repository mutation, push, or secret access.",
+            "The write-capable V3 dispatcher has workflow_run and workflow_dispatch entrypoints but no pull_request, pull_request_target, issue_comment, or push trigger.",
+            "The dispatcher has actions:write only for V2 delegation and keeps contents and pull requests read-only without issue-write authority.",
+            "The dispatcher validates an exact run-bound V3 request artifact and current PR identity before API mutation.",
+            "Forks, drafts, stale heads, substituted artifacts, missing labels, invalid branches, main, and Production fail closed.",
+            "The dispatcher never checks out candidate or trusted code, never writes repository contents, and never invokes the generated-artifact writer directly.",
+            "V2 remains the canonical decision publisher and the only workflow allowed to delegate to the governed writer.",
+            "Passed V3 evidence requires v2_run_observed=true and a numeric v2_run_id.",
+            "Job logs remain diagnostic-only and secrets_included=false."
           ],
           "tests": [
             {
@@ -51,6 +61,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml",
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs"
           ]
         }
@@ -59,22 +70,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Retire older unobserved issue-comment bootstrap paths after V3 produces stable run-bound evidence."
+      "objective": "Observe one eligible PR event produce a V3 request artifact, a V3 dispatcher run, a V2 canonical decision, and a bounded generated writer commit."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Detect duplicate or stale control-plane triggers without broadening writer authority."
+      "objective": "Exercise fork, draft, stale head, source-run substitution, missing label, invalid branch, inactive V2, rejected dispatch, and unobserved V2 run without candidate checkout or repository mutation."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "The bridge changes repository automation only and has no external canary target."
+      "objective": "This repository-control bridge performs no external provider or deployment canary."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "Production deployment and runtime verification remain outside this control-plane repair."
+      "objective": "The bridge rejects protected branches and grants no migration, deployment, runtime, provider, credential, or Production authority."
     }
   ],
   "secrets_included": false
