@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "prestart": "node scripts/generate-deployment-manifest.mjs",
-    "start": "node server.js",
+    "start": "node ../server.js",
     "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "test:context-kernel:provider-consent": "node test-context-kernel-provider-consent-core.mjs",
