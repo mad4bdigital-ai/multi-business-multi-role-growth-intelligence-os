@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 
-const workflowPath = '.github/workflows/hostinger-storage-tenant-canary-guard.yml';
+const workflowPath = '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml';
 const publisherPath = '.github/workflows/hostinger-ci-evidence-pr-publisher.yml';
 const routingPath = '.github/ci-evidence-routing.json';
 
@@ -28,7 +28,7 @@ for (const eventType of ['opened', 'reopened', 'synchronize', 'ready_for_review'
 }
 
 for (const governedPath of [
-  ".github/workflows/hostinger-storage-tenant-canary-guard.yml",
+  ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
   ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
   "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
   "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs",
