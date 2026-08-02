@@ -206,3 +206,15 @@ Source implementation and synthetic tests do not establish production readiness.
 - Claude Custom Connector acceptance;
 - neutral-client acceptance;
 - Production promotion and rollback rehearsal.
+
+## Repository generated-evidence checkpoint
+
+The final reviewed source before generation was `9c345b5bd71a95de7225f32176adda89eee83c62`. The repository-owned frontend generator produced result head `ebe9cc1c2e1dc3a996a57100b1aaf38718be7f00`.
+
+The generated write-set was limited to:
+
+- `http-generic-api/frontend-operation-governance.generated.json`;
+- `http-generic-api/frontend-surface-dispatch.generated.json`;
+- `http-generic-api/openapi/frontend-runtime-routes.generated.yaml`.
+
+The generated result adds the Remote MCP OAuth OpenAPI contract and current route/source fingerprints to bounded frontend evidence. It changes no OAuth runtime handler, migration, workflow, credential, provider, deployment, DNS, protected branch, feature flag, or Production state. Exact-head verification must run on a subsequent human-reviewed head containing this result.
