@@ -1,0 +1,132 @@
+name: Temporary PR 4804 OpenAPI Recovery
+
+on:
+  push:
+    branches:
+      - chore/repo-contract-auto-sync-30737521950
+    paths:
+      - .github/workflows/pr-4804-openapi-recovery-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr-4804-openapi-recovery-once
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: chore/repo-contract-auto-sync-30737521950
+          fetch-depth: 1
+
+      - name: Apply reviewed OpenAPI refs only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'http-generic-api/openapi.yaml';
+          const anchor = '  /me/support/tickets/{ticket_id}/events:\n    $ref: ./openapi/support-tickets.yaml#/mySupportTicketEvents\n';
+          const block = [
+            '  /admin/activation/ticket-inbox:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminActivationTicketInbox',
+            '  /admin/support/tickets:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTickets',
+            '  /admin/support/tickets/{ticket_id}:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketById',
+            '  /admin/support/tickets/{ticket_id}/admin-feedback:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketFeedback',
+            '  /admin/support/tickets/{ticket_id}/approval-hold:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHold',
+            '  /admin/support/tickets/{ticket_id}/approval-hold/decision:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHoldDecision',
+            '  /admin/support/tickets/{ticket_id}/assign:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketAssign',
+            '  /admin/support/tickets/{ticket_id}/auto-resolve/propose:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolvePropose',
+            '  /admin/support/tickets/{ticket_id}/brand-mapping-remediation:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationApply',
+            '  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/complete:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandMappingRemediationComplete',
+            '  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/finalize:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationFinalize',
+            '  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/verified-apply:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationVerifiedApply',
+            '  /admin/support/tickets/{ticket_id}/brand-ref-resolution:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefResolution',
+            '  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApprove',
+            '  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApproveAndComplete',
+            '  /admin/support/tickets/{ticket_id}/brand-ref-selection/request:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandRefSelectionRequest',
+            '  /admin/support/tickets/{ticket_id}/diagnostic-chain:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketDiagnosticChain',
+            '  /admin/support/tickets/{ticket_id}/events:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketEvents',
+            '  /admin/support/tickets/{ticket_id}/execution-plan:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketExecutionPlan',
+            '  /admin/support/tickets/{ticket_id}/link-workflow:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketWorkflowLink',
+            '  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/approve:',
+            '    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketNewBrandRefApprovalApprove',
+            '  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/request:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNewBrandRefApprovalRequest',
+            '  /admin/support/tickets/{ticket_id}/notification-ack:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNotificationAck',
+            '  /admin/support/tickets/{ticket_id}/runtime-sync:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketRuntimeSync',
+            '  /admin/support/tickets/{ticket_id}/step-run:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunUpdate',
+            '  /admin/support/tickets/{ticket_id}/step-run/execute:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunExecute',
+            '  /admin/support/tickets/{ticket_id}/step-runs:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketStepRuns',
+            '  /admin/support/tickets/{ticket_id}/transition:',
+            '    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketTransition',
+            '  /admin/support/tickets/{ticket_id}/workflow-run:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketWorkflowRun',
+            '  /admin/support/tickets/auto-resolve/candidates:',
+            '    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolveCandidates',
+          ].join('\n') + '\n';
+
+          if (block.trimEnd().split('\n').length !== 60) throw new Error('reviewed block must remain exactly 60 lines');
+          const source = fs.readFileSync(file, 'utf8');
+          if (source.includes('  /admin/activation/ticket-inbox:\n')) {
+            console.log('Reviewed Support Ticket refs already present; no mutation required.');
+            process.exit(0);
+          }
+          if (!source.endsWith(anchor)) throw new Error('canonical OpenAPI tail anchor changed; refusing insertion');
+          fs.writeFileSync(file, source + block);
+          const result = fs.readFileSync(file, 'utf8');
+          for (const line of block.split('\n').filter(Boolean)) {
+            if (!result.includes(`${line}\n`) && !result.endsWith(line)) throw new Error(`missing reviewed line: ${line}`);
+          }
+          NODE
+
+          changed="$(git diff --name-only)"
+          if [[ -z "${changed}" ]]; then
+            echo 'No OpenAPI change required.'
+            exit 0
+          fi
+          [[ "${changed}" == 'http-generic-api/openapi.yaml' ]]
+          git diff --check
+
+      - name: Commit bounded OpenAPI recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- http-generic-api/openapi.yaml; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add http-generic-api/openapi.yaml
+          git commit -m 'chore(openapi): bind generated paths to precise contract refs'
+          git push origin HEAD:chore/repo-contract-auto-sync-30737521950
