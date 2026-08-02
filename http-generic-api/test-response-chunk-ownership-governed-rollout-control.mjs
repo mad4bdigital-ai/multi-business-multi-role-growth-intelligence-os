@@ -18,6 +18,10 @@ assert.match(workflow, /ref: main/g);
 assert.match(workflow, /response-chunk-ownership-readiness-/);
 assert.match(workflow, /response-chunk-ownership-apply-/);
 assert.match(workflow, /response-chunk-ownership-runtime-closure-/);
+assert.doesNotMatch(workflow, /EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/);
+assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-readiness/);
+assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-apply/);
+assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-runtime-closure/);
 
 assert.match(runner, /MIGRATION_BLOB_SHA = '930b29dbf9f3d360ef6f76b52427585c31fa37a0'/);
 assert.match(runner, /SOURCE_MERGE_SHA = 'd21c26fbb94a857b4727b583df74e2aab54303cc'/);
