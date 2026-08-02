@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-openapi-user-jwt-parity",
+  "title": "Tenant support-ticket runtime and OpenAPI authentication parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/support-ticket-openapi-user-jwt-parity.json",
+      "http-generic-api/openapi/support-tickets.yaml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make every canonical tenant Support Ticket operation declare the same user JWT requirement enforced by runtime and refresh the bounded deterministic frontend evidence.",
+      "e2e_journeys": [
+        {
+          "id": "enforce-user-jwt-on-tenant-support-ticket-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated tenant member and frontend contract dispatcher",
+          "entrypoint": "The canonical OpenAPI registry composes the split Support Ticket operations under /me/support/tickets.",
+          "terminal_outcome": "All four canonical operations resolve userJwtAuth, all six mounted runtime operations remain authentication-equivalent, and the generated runtime-route index no longer duplicates those canonical paths.",
+          "steps": [
+            "Compose the Support Ticket split contract into the root OpenAPI document.",
+            "Resolve runtime guards for both mounted POST and GET ticket-list operations and the ticket detail and event operations.",
+            "Compare runtime requireUserJwt with canonical userJwtAuth for every mounted operation.",
+            "Regenerate the bounded frontend dispatch and runtime-route evidence.",
+            "Remove operation-index-only Support Ticket entries now covered by the reviewed canonical contract."
+          ],
+          "assertions": [
+            "POST /me/support/tickets declares userJwtAuth.",
+            "GET /me/support/tickets declares userJwtAuth.",
+            "GET /me/support/tickets/{ticket_id} declares userJwtAuth.",
+            "POST /me/support/tickets/{ticket_id}/events declares userJwtAuth.",
+            "Runtime and canonical authentication mismatch count is zero.",
+            "OpenAPI auth synchronization drift count is zero.",
+            "Only the two bounded generated evidence files change in addition to the reviewed split contract and this E2E contract.",
+            "No runtime authorization, database, migration, deployment, provider, credential, external-send, or protected-branch behavior changes."
+          ],
+          "tests": [
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openapi/support-tickets.yaml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe a signed-in tenant member create, list, read, and append an event to a support ticket while unauthenticated requests remain rejected."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise missing, expired, and cross-tenant user JWTs without leaking ticket or resolution details."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This contract-only repair performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No runtime, database, migration, deployment, provider, credential, or direct Production mutation authority is granted."
+    }
+  ],
+  "secrets_included": false
+}

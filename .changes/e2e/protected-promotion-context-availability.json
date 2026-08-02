@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "protected-promotion-context-availability",
+  "title": "Valid GitHub Actions context and bounded bootstrap for protected Production promotion evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/protected-promotion-context-availability.json",
+      ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+      "http-generic-api/test-protected-promotion-generated-artifact-context.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow GitHub to register and plan the Production-target generated-artifact evidence workflow, permit only its exact three-file read-only contract bootstrap, and preserve full generated-artifact evaluation for every wider promotion.",
+      "e2e_journeys": [
+        {
+          "id": "register-protected-promotion-generated-artifact-evidence-with-valid-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "release operator and GitHub Actions workflow planner",
+          "entrypoint": "A same-repository pull request is opened, synchronized, or reopened with base Production",
+          "terminal_outcome": "GitHub schedules Protected Promotion Generated Artifact Refresh on the exact PR head and selects either the exact three-file contract-bootstrap path or the full generated-artifact evaluation without repository mutation.",
+          "steps": [
+            "Reject jobs-level use of runner.temp before a runner exists.",
+            "Bind exact source head, source branch, Production base ref, and Production base SHA from the pull-request event.",
+            "Checkout the exact same-repository head without persisted credentials.",
+            "Diff the exact base SHA against HEAD and compare the sorted changed-file set with the fixed three-file bootstrap allowlist.",
+            "When and only when the sets match exactly, execute the focused context regression and publish canonical outcome=passed with mode=contract_bootstrap.",
+            "For every wider or different change set, run the full generated-artifact evaluator from repository root.",
+            "Upload the canonical JSON and Markdown reports from stable repository-relative paths and enforce mad4b.pr-generated-artifact-refresh-summary.v1."
+          ],
+          "assertions": [
+            "jobs.refresh.env contains no runner.temp expression.",
+            "REPORT_PATH and REPORT_MARKDOWN_PATH are stable repository-relative paths.",
+            "PR_BASE_SHA is sourced from github.event.pull_request.base.sha and validated as a commit.",
+            "Bootstrap mode requires exact file-set equality and exact cardinality for the workflow, focused regression, and this E2E contract.",
+            "Bootstrap mode does not depend on branch names, labels, actor names, or free-form inputs.",
+            "The bounded bootstrap canonical report declares mode=contract_bootstrap, outcome=passed, repository_mutation_performed=false, and secrets_included=false.",
+            "Every non-bootstrap change runs the full generated-artifact evaluator from repository root.",
+            "The workflow remains pull_request-only for base Production and rejects a Production head.",
+            "Permissions remain contents:read with persist-credentials:false and no contents:write.",
+            "Exact local and remote source-head identity remains enforced.",
+            "Job logs remain diagnostic-only.",
+            "No migration, deployment, Production mutation, provider call, credential access, external publication, direct contents write, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "protected-promotion-generated-artifact-context-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-protected-promotion-generated-artifact-context.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+            "http-generic-api/test-protected-promotion-generated-artifact-context.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe an exact three-file Production bootstrap publish passed mode=contract_bootstrap evidence, then observe a wider exact-head release candidate execute and pass the full generated-artifact evaluation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise one missing allowlisted file, one extra file, a renamed branch, stale source or base SHA, cross-repository heads, blocked generated drift, missing reports, and publisher failure without consulting Job logs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository automation repair performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The workflow grants no migration, runtime, provider, credential, deployment, or direct Production mutation authority."
+    }
+  ],
+  "secrets_included": false
+}

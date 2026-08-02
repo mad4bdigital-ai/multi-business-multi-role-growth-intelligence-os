@@ -92,6 +92,8 @@ mySupportTickets:
     summary: Create or append a tenant support ticket
     description: Creates a ticket for the signed-in tenant member or appends after an exact dedupe match. Resolution output is advisory evidence only; no repair or external send occurs.
     tags: [support-tickets]
+    security:
+      - userJwtAuth: []
     x-openai-isConsequential: true
     requestBody:
       required: true
@@ -117,6 +119,8 @@ mySupportTickets:
     operationId: listMySupportTickets
     summary: List customer-visible support tickets for the signed-in tenant member
     tags: [support-tickets]
+    security:
+      - userJwtAuth: []
     x-openai-isConsequential: false
     parameters:
       - name: status
@@ -142,6 +146,8 @@ mySupportTicketById:
     summary: Get one customer-visible support ticket and its events
     description: Role-gated resolution details are returned only to a tenant admin or owner.
     tags: [support-tickets]
+    security:
+      - userJwtAuth: []
     x-openai-isConsequential: false
     parameters:
       - name: ticket_id
@@ -163,6 +169,8 @@ mySupportTicketEvents:
     operationId: appendMySupportTicketEvent
     summary: Append a customer-visible event to a support ticket
     tags: [support-tickets]
+    security:
+      - userJwtAuth: []
     x-openai-isConsequential: true
     parameters:
       - name: ticket_id

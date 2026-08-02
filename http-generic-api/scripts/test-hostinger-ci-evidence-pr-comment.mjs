@@ -6,6 +6,7 @@ import { normalizeHostingerEvidence } from "./hostinger-ci-evidence-pr-comment.m
 
 const HEAD = "a".repeat(40);
 const WORKFLOW = "Hostinger Storage Tenant Canary Guard";
+const PUBLISHER_WORKFLOW = "CI Evidence PR Publisher";
 
 function passingReport(overrides = {}) {
   return {
@@ -150,10 +151,10 @@ assert.throws(() => normalizeHostingerEvidence({
 }), /Successful workflow_run cannot publish a non-passed Hostinger outcome/u);
 
 const publisherWorkflow = fs.readFileSync(
-  new URL("../../.github/workflows/hostinger-ci-evidence-pr-publisher.yml", import.meta.url),
+  new URL("../../.github/workflows/ci-evidence-pr-publisher.yml", import.meta.url),
   "utf8"
 );
-assert.match(publisherWorkflow, /^name: Hostinger CI Evidence PR Publisher$/mu);
+assert.match(publisherWorkflow, /^name: CI Evidence PR Publisher$/mu);
 assert.match(publisherWorkflow, /^\s+- Hostinger Storage Tenant Canary Guard\s*$/mu);
 assert.match(publisherWorkflow, /^\s*actions:\s*read\s*$/mu);
 assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
@@ -161,6 +162,14 @@ assert.match(publisherWorkflow, /^\s*pull-requests:\s*write\s*$/mu);
 assert.match(publisherWorkflow, /^\s*ref:\s*main\s*$/mu);
 assert.match(publisherWorkflow, /^\s*persist-credentials:\s*false\s*$/mu);
 assert.match(publisherWorkflow, /hostinger-storage-tenant-canary-\$\{\{ github\.event\.workflow_run\.id \}\}-summary/u);
+assert.match(publisherWorkflow, /hostinger-ci-evidence-pr-comment\.mjs/u);
+assert.match(publisherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+assert.match(publisherWorkflow, /Discover exact-head Hostinger Tenant Canary run/u);
+assert.match(publisherWorkflow, /hostinger-storage-tenant-canary-canonical-guard\.yml/u);
+assert.match(publisherWorkflow, /url\.searchParams\.set\('head_sha', headSha\)/u);
+assert.match(publisherWorkflow, /item\?\.head_sha === headSha/u);
+assert.match(publisherWorkflow, /steps\.hostinger_discovery\.outputs\.found == 'true'/u);
+assert.match(publisherWorkflow, /hostinger-canonical\/hostinger-storage-tenant-canary-summary\.json/u);
 assert.doesNotMatch(publisherWorkflow, /^\s*pull_request:\s*$/mu);
 
 const routing = JSON.parse(fs.readFileSync(
@@ -172,12 +181,18 @@ assert.ok(route, "Hostinger Tenant Canary evidence route must exist.");
 assert.equal(route.candidate_kind, "head");
 assert.equal(route.canonical_contract, "mad4b.hostinger-guard-summary.v1");
 assert.equal(route.canonical_artifact, "hostinger-storage-tenant-canary-${run_id}-summary");
-assert.equal(route.publisher_workflow, "Hostinger CI Evidence PR Publisher");
+assert.equal(route.publisher_workflow, PUBLISHER_WORKFLOW);
+assert.equal(routing.pr_evidence_publisher.workflow, PUBLISHER_WORKFLOW);
+assert.equal(routing.pr_evidence_publisher.hostinger_tenant_canary_workflow, WORKFLOW);
+assert.equal(routing.pr_evidence_publisher.governed_generated_artifact_dispatch_workflow, "Governed Generated Artifact Refresh Dispatch");
+assert.deepEqual(routing.specialized_publishers, []);
 assert.equal(routing.secrets_included, false);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 31,
+  tests: 42,
   gate: "hostinger_tenant_canary_canonical_evidence_publisher",
+  publisher_workflow: PUBLISHER_WORKFLOW,
+  exact_head_fallback: true,
   secrets_included: false
 }));
