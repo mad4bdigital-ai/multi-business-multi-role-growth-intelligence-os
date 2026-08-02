@@ -16,6 +16,7 @@ const EXPECTED_TABLES = Object.freeze([
   'managed_execution_events',
 ]);
 const EXPECTED_VIEW = 'v_managed_execution_lifecycle_readiness';
+const FORBIDDEN_STATEMENT_START = /^(?:DROP|TRUNCATE|DELETE|UPDATE|INSERT|ALTER|GRANT|REVOKE|CALL)\b/i;
 
 function gitBlobSha(content) {
   const body = Buffer.from(content, 'utf8');
@@ -55,6 +56,14 @@ function assertRepositoryReadiness(sql, statements) {
     'Migration 1043 must contain exactly one idempotent CREATE OR REPLACE VIEW statement.',
   );
 
+  for (const statement of statements) {
+    assert.doesNotMatch(
+      statement,
+      FORBIDDEN_STATEMENT_START,
+      'Repository readiness rejects destructive, data-mutating, privilege-changing, or procedure-call statements.',
+    );
+  }
+
   for (const table of EXPECTED_TABLES) {
     assert.match(
       sql,
@@ -66,12 +75,6 @@ function assertRepositoryReadiness(sql, statements) {
     sql,
     new RegExp(`CREATE\\s+OR\\s+REPLACE\\s+VIEW\\s+${EXPECTED_VIEW}\\b`, 'i'),
     `Migration 1043 is missing readiness view ${EXPECTED_VIEW}.`,
-  );
-
-  assert.doesNotMatch(
-    sql,
-    /\b(?:DROP|TRUNCATE|DELETE|UPDATE|INSERT|ALTER|GRANT|REVOKE|CALL)\b/i,
-    'Repository readiness rejects destructive, data-mutating, privilege-changing, or procedure-call statements.',
   );
   assert.doesNotMatch(
     sql,
