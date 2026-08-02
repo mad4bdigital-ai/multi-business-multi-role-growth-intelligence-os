@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-storage-activation-surface-exclusions",
+  "title": "Spec 014 storage authority activation-surface exclusions",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-storage-activation-surface-exclusions.json",
+      "http-generic-api/activation-surfaces/exclusions/storage_provider_accounts.json",
+      "http-generic-api/activation-surfaces/exclusions/storage_target_bindings.json",
+      "http-generic-api/test-activation-surface-coverage-gate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify the two Wave 1 storage authority tables as internal governed records rather than activation choices and protect that decision with an executable regression.",
+      "e2e_journeys": [
+        {
+          "id": "storage-authority-tables-remain-outside-activation-projection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform governance reviewer",
+          "entrypoint": "The activation-surface coverage gate evaluates the Spec 014 Wave 1 storage migration and repository-managed exclusions.",
+          "terminal_outcome": "Both internal storage authority tables are explicitly excluded with owned, reviewable rationales, and the regression passes without creating an activation surface or exposing raw rows.",
+          "steps": [
+            "Load the Wave 1 storage foundation migration.",
+            "Prove storage_provider_accounts and storage_target_bindings are created by that migration.",
+            "Load the two repository-managed activation-surface exclusions.",
+            "Validate exact surface and source-table identities, platform-governance ownership, review dates, and specific non-activation rationales.",
+            "Reject sensitive-looking text in either exclusion.",
+            "Run the activation-surface coverage gate regression."
+          ],
+          "assertions": [
+            "storage_provider_accounts is classified as an internal ownership and provider-account registry, not an activation choice.",
+            "storage_target_bindings is classified as an internal revisioned authority-binding and evidence ledger, not an activation response.",
+            "Both exclusions are owned by platform-governance and have an explicit review_after date.",
+            "No activation surface manifest is created for either raw table.",
+            "No SQL, runtime, provider, deployment, migration apply, Production, or repository mutation authority is added.",
+            "The regression contains no sensitive-looking text and requires no Job-log authority."
+          ],
+          "tests": [
+            {
+              "id": "storage-activation-surface-exclusion-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-surface-coverage-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql",
+            "http-generic-api/activation-surfaces/exclusions/storage_provider_accounts.json",
+            "http-generic-api/activation-surfaces/exclusions/storage_target_bindings.json",
+            "http-generic-api/test-activation-surface-coverage-gate.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This change classifies repository metadata and does not expose or execute an operational activation surface."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Extend the regression when future storage authority tables or governed projections are introduced."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live provider or runtime canary is executed by this classification change."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No deployment, migration apply, provider dispatch, or Production mutation is authorized."
+    }
+  ]
+}
