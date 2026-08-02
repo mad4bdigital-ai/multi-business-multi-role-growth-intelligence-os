@@ -1,8 +1,9 @@
 name: Repair Governed Rollout Workflow Contexts Once
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - gpt/fix-governed-rollout-workflow-contexts-20260802
     paths:
       - ".github/workflows/repair-governed-rollout-contexts-once.yml"
 
@@ -11,14 +12,14 @@ permissions:
 
 jobs:
   repair:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/fix-governed-rollout-workflow-contexts-20260802'
+    if: github.ref == 'refs/heads/gpt/fix-governed-rollout-workflow-contexts-20260802'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out exact PR head
+      - name: Check out exact repair branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: gpt/fix-governed-rollout-workflow-contexts-20260802
           fetch-depth: 0
 
       - name: Set up Node.js 22
@@ -52,7 +53,7 @@ jobs:
             ['.github/workflows/response-chunk-ownership-governed-rollout.yml', 'response-chunk-ownership-'],
           ]) {
             const original = fs.readFileSync(path, 'utf8');
-            const needle = `EVIDENCE_DIR: \${{ runner.temp }}/${prefix}`;
+            const needle = 'EVIDENCE_DIR: $' + '{{ runner.temp }}/' + prefix;
             const replacement = `EVIDENCE_DIR: .artifacts/${prefix}`;
             const count = original.split(needle).length - 1;
             if (count < 2) throw new Error(`${path}: expected at least two job-level runner.temp bindings, found ${count}`);
@@ -106,4 +107,4 @@ jobs:
                   .github/workflows/repair-governed-rollout-contexts-once.yml
           git diff --cached --check
           git commit -m "fix(ci): repair governed rollout workflow contexts"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin HEAD:gpt/fix-governed-rollout-workflow-contexts-20260802
