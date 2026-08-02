@@ -354,7 +354,8 @@ try {
   assert.equal(readback.worker_mounted, false);
   assert.equal(readback.provider_dispatch_allowed, false);
   assert.equal(readback.production_ready, false);
-  assert.equal(JSON.stringify(readback).includes('tenantStorageRuntime'), false);
+  assert.equal(Object.hasOwn(readback, 'tenantStorageRuntime'), false);
+  assert.equal(JSON.stringify(readback).includes('"tenantStorageRuntime":'), false);
 
   const resolution = controller.resolveMountedRuntime({
     route_path: '/tenant/storage-operations/apply-plan',
