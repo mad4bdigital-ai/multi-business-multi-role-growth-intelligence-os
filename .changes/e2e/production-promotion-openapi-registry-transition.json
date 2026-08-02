@@ -9,7 +9,11 @@
     "include": [
       ".changes/e2e/production-promotion-openapi-registry-transition.json",
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
-      "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs"
+      "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi-route-contracts.yaml",
+      "http-generic-api/openapi/support-ticket-runtime-completion.yaml",
+      "http-generic-api/routes/supportTicketRoutes.js"
     ]
   },
   "merge_contract": {
@@ -19,29 +23,30 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Allow one known legacy completion-certification operation to transition from an inline root contract to its registered precise static path-item reference, without weakening conflict detection for malformed or unrelated operations.",
+      "objective": "Allow the exact historical completion-certification root operation to transition from inline OpenAPI to its reviewed registered path-item reference, while keeping malformed identities, security profiles, source metadata, unrelated paths, and alternate references fail-closed.",
       "e2e_journeys": [
         {
-          "id": "replace-exact-legacy-completion-contract-with-registered-ref",
+          "id": "replace-actual-root-completion-contract-with-registered-ref",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Protected Production promotion generated-artifact refresher",
-          "entrypoint": "openapi-precise-contract-registry-sync.mjs --write",
-          "terminal_outcome": "The exact known completion-certification inline operation is replaced by its registry `$ref`; wrong identity, security, source metadata, or path remains blocked with the existing conflict code.",
+          "entrypoint": "openapi-precise-contract-registry-sync.mjs --write against a temporary copy of the repository root OpenAPI, registry, and Support Ticket route source",
+          "terminal_outcome": "The exact historical inline operation is replaced by `./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion`, check mode is idempotent, and all non-exact variants remain blocked without mutation.",
           "steps": [
-            "Load the registered completion-certification path and its existing inline root operation.",
-            "Require the exact allowlisted signature and operationId.",
-            "Require the exact admin bearer/backend API key security profile and consequential mutation flag.",
-            "Require a non-empty summary and response contract with no conflicting runtime source or completeness metadata.",
-            "Replace the whole path item with the exact registered static `$ref` only when every condition passes.",
-            "Reject malformed operationId, reduced security, conflicting source metadata, and unrelated paths without writing the OpenAPI document."
+            "Copy the current repository root OpenAPI document, precise route registry, and Support Ticket runtime route source into an isolated temporary repository.",
+            "Read back the historical operation and require operationId `issueSupportTicketExternalDeliveryCompletionCertification`, its detailed request body, success response, admin security alternatives, and consequential classification.",
+            "Require the exact registered signature and exact reviewed path-item reference.",
+            "Run the real precise registry synchronizer in write mode and require the root path to become the exact registered `$ref`.",
+            "Run check mode against the written copy and require zero conflicts and zero further generated drift.",
+            "Run malformed identity, reduced security, conflicting source metadata, alternate `$ref`, and unrelated-path cases and require fail-closed rejection without rewriting the root document."
           ],
           "assertions": [
             "Only `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification` is allowlisted.",
-            "The exact operationId is `supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification`.",
-            "The operation remains consequential and uses the exact admin security alternatives.",
-            "Successful composition produces the precise registry `$ref` and zero remaining conflicts.",
-            "Malformed or unrelated inline operations remain `registered_path_inline_contract_not_replaceable`.",
+            "The historical root operationId is exactly `issueSupportTicketExternalDeliveryCompletionCertification`.",
+            "The registered destination is exactly `./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion`.",
+            "The operation remains consequential and requires the exact admin bearer/backend API key security alternatives before transition.",
+            "Successful composition produces the exact registered `$ref`, zero conflicts, and an idempotent follow-up check.",
+            "Wrong operation identity, reduced security, conflicting source metadata, alternate path-item reference, and unrelated paths remain `registered_path_inline_contract_not_replaceable`.",
             "No SQL, migration authorization or Apply, registry activation sync, provider call, credential access, deployment, restart, Production ref mutation, or external send occurs."
           ],
           "tests": [
@@ -55,7 +60,11 @@
           ],
           "evidence_paths": [
             "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
-            "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs"
+            "http-generic-api/test-openapi-precise-legacy-registry-transition.mjs",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi-route-contracts.yaml",
+            "http-generic-api/openapi/support-ticket-runtime-completion.yaml",
+            "http-generic-api/routes/supportTicketRoutes.js"
           ]
         }
       ]
@@ -63,12 +72,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Run Protected Promotion Generated Artifact Refresh on a non-merge Production comparison and commit the generated root OpenAPI `$ref` to the repair branch."
+      "objective": "Run Protected Promotion Generated Artifact Refresh on a non-merge Production comparison and commit the exact generated root OpenAPI reference through the governed generated-artifact path."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Keep all non-allowlisted registered inline contracts fail-closed."
+      "objective": "Keep all non-allowlisted registered inline contracts and alternate registered references fail-closed."
     },
     {
       "id": "canary",
