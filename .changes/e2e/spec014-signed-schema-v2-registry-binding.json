@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-signed-schema-v2-registry-binding",
+  "title": "Bind signed schema verification v2 to the Durable Authorized Injection Registry",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-signed-schema-v2-registry-binding.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
+      ".github/workflows/hostinger-storage-schema-verification-guard.yml",
+      "http-generic-api/hostingerStorageSchemaVerification.js",
+      "http-generic-api/test-hostinger-storage-schema-verification.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Upgrade the existing four-wave readback verifier to attestation v2, reject v1 replay, and emit the exact schema evidence required by the Durable Authorized Injection Registry.",
+      "e2e_journeys": [
+        {
+          "id": "verify-v2-subject-and-registry-schema-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 signed schema verifier",
+          "entrypoint": "The canonical four-wave readback v4 plus synthetic successful migration ledger evidence",
+          "terminal_outcome": "A synthetic Ed25519 v2 signature verifies, v1 replay fails closed, and verified evidence includes the exact Durable Injection schema key, digest, tables, count, constraints, and status expected by the registry.",
+          "steps": [
+            "Retain the canonical dedicated readback v4 file and its 17-table, 68-column, 31-index-column expectations.",
+            "Add exact readback of 13 Durable Authorized Injection constraints and the canonical schema digest.",
+            "Upgrade the subject, predicate, attestation schema, and evidence identities from v1 to v2.",
+            "Reject any v1 attestation before signature verification.",
+            "Verify one synthetic Ed25519 signature using public-key material only.",
+            "Emit evidence.authorized_injection_state_schema with exact registry-compatible fields.",
+            "Reject schema digest, table, constraint, ledger, signature, parity, timing, and secret drift."
+          ],
+          "assertions": [
+            "Only spec014-hostinger-storage-schema-verification-v2 attestations are accepted.",
+            "The verifier retains exactly four migration waves and readback v4.",
+            "The authorized injection schema digest equals 652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a.",
+            "The verified schema evidence contains both exact Durable Injection tables and 13 constraints.",
+            "No private key, live database access, live signature, migration Apply, provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "signed-schema-v2-registry-binding",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-schema-verification.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
+            "http-generic-api/hostingerStorageSchemaVerification.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Perform live readback and external signing only after separately governed four-wave Apply evidence exists.",
+      "blockers": [
+        "GOVERNED_MIGRATION_APPLY_LEDGER_REQUIRED",
+        "SAME_CYCLE_LIVE_READBACK_REQUIRED",
+        "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject stale, replayed, mismatched, or expired live signatures across restart reconciliation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify one separately authorized non-production v2 signed schema canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only verifier hardening grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

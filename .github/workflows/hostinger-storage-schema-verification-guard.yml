@@ -4,9 +4,11 @@ on:
   pull_request:
     paths:
       - '.changes/e2e/spec014-signed-schema-verification.json'
+      - '.changes/e2e/spec014-signed-schema-v2-registry-binding.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
+      - '.github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json'
       - '.github/workflows/hostinger-storage-schema-verification-guard.yml'
       - 'http-generic-api/hostingerStorageSchemaVerification.js'
       - 'http-generic-api/test-hostinger-storage-schema-verification.mjs'
@@ -33,31 +35,42 @@ jobs:
         run: |
           node --check http-generic-api/hostingerStorageSchemaVerification.js
           node --check http-generic-api/test-hostinger-storage-schema-verification.mjs
-      - name: Validate signed schema verification contract
+      - name: Validate signed schema verification v2 registry binding
         shell: bash
         run: |
           set -o pipefail
           mkdir -p .artifacts
           node http-generic-api/test-hostinger-storage-schema-verification.mjs 2>&1 \
             | tee .artifacts/hostinger-storage-schema-verification.log
-      - name: Require exact Wave 4 readback bindings
+      - name: Require exact v2 and registry bindings
         shell: bash
         run: |
           set -euo pipefail
           readback='.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
-          grep -q 'spec014_hostinger_storage_migration_readback_v4' \
+          grep -q 'spec014-hostinger-storage-schema-verification-v2' \
             .github/contracts/spec014/hostinger-storage-schema-verification.json \
-            "$readback" \
+            .github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
-          grep -q '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql' \
+          grep -q 'STORAGE_SCHEMA_VERIFICATION_ATTESTATION_VERSION_INVALID' \
+            http-generic-api/hostingerStorageSchemaVerification.js \
+            http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'hostinger_storage_durable_authorized_injection_state_schema_v1' \
             .github/contracts/spec014/hostinger-storage-schema-verification.json \
+            "$readback" \
             http-generic-api/hostingerStorageSchemaVerification.js
-          grep -q 'storage_authorized_injection_states' "$readback"
-          grep -q 'storage_authorized_injection_rollbacks' "$readback"
+          grep -q '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a' \
+            .github/contracts/spec014/hostinger-storage-schema-verification.json \
+            "$readback" \
+            http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'expected_authorized_injection_state_constraint_count' "$readback"
+          grep -q 'authorized_injection_state_schema:' http-generic-api/hostingerStorageSchemaVerification.js
           grep -q '17 AS expected_table_count' "$readback"
           grep -q 'compatible_runtime_column_count: 68' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'compatible_runtime_index_column_count: 31' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'authorized_injection_state_constraint_count: 13' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'v1_signature_replay_rejected: true' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'durable_registry_binding_ready: true' http-generic-api/test-hostinger-storage-schema-verification.mjs
       - name: Preserve public-key-only non-live boundary
         run: |
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
@@ -70,6 +83,7 @@ jobs:
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'signature_created_in_live_environment: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'private_key_committed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
@@ -80,5 +94,5 @@ jobs:
         with:
           name: hostinger-storage-schema-verification-${{ github.run_id }}
           path: .artifacts/hostinger-storage-schema-verification.log
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
