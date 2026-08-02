@@ -28,7 +28,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4191'
-      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-readiness
+      EVIDENCE_DIR: .artifacts/response-chunk-ownership-readiness
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5
@@ -107,7 +107,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4191'
-      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-apply
+      EVIDENCE_DIR: .artifacts/response-chunk-ownership-apply
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5
@@ -182,7 +182,7 @@ jobs:
     env:
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
-      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-runtime-closure
+      EVIDENCE_DIR: .artifacts/response-chunk-ownership-runtime-closure
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5

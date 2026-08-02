@@ -38,7 +38,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4122'
-      EVIDENCE_DIR: ${{ runner.temp }}/sprint69-1006-readiness
+      EVIDENCE_DIR: .artifacts/sprint69-1006-readiness
       READINESS_TRIGGER_PATH: .github/ops/triggers/sprint69-1006-readiness-trigger.json
     steps:
       - name: Checkout trusted default branch
@@ -127,7 +127,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4122'
-      EVIDENCE_DIR: ${{ runner.temp }}/sprint69-1006-apply
+      EVIDENCE_DIR: .artifacts/sprint69-1006-apply
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5

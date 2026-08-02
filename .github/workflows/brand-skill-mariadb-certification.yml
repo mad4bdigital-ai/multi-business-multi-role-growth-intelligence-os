@@ -108,6 +108,7 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Validate typed binding inputs
+        working-directory: .
         shell: bash
         env:
           EXPECTED_COMMIT_SHA: ${{ inputs.expected_commit_sha }}
