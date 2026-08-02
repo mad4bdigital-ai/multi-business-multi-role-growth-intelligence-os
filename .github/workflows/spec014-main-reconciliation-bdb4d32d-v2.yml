@@ -59,7 +59,7 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Scope whitespace validation to reconciliation outputs
+      - name: Apply runner-only reconciliation script corrections
         shell: bash
         run: |
           python3 - <<'PY'
@@ -67,23 +67,36 @@ jobs:
           import os
           path = Path(os.environ['RECONCILIATION_SCRIPT'])
           text = path.read_text(encoding='utf-8')
-          old = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
+
+          old_check = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
             git add -- "${generated_paths[@]}"
           fi
           [[ -z "$(git diff --name-only)" ]]
           git diff --cached --check
           '''
-          new = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
+          new_check = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
             git add -- "${generated_paths[@]}"
             git diff --cached --check -- "${generated_paths[@]}"
           fi
-          [[ -z "$(git diff --name-only)" ]]
+          remaining_unstaged="$(git diff --name-only | grep -vxF "${RECONCILIATION_SCRIPT}" || true)"
+          [[ -z "${remaining_unstaged}" ]]
           '''
-          if text.count(old) != 1:
-              raise SystemExit(f'generated write-set block count must be 1, got {text.count(old)}')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          if text.count(old_check) != 1:
+              raise SystemExit(f'generated write-set block count must be 1, got {text.count(old_check)}')
+          text = text.replace(old_check, new_check)
+
+          old_listing = 'git diff --name-only | sort -u > "${REPORT_DIR}/generated-unstaged.txt"'
+          new_listing = 'git diff --name-only | grep -vxF "${RECONCILIATION_SCRIPT}" | sort -u > "${REPORT_DIR}/generated-unstaged.txt"'
+          if text.count(old_listing) != 1:
+              raise SystemExit(f'generated listing count must be 1, got {text.count(old_listing)}')
+          text = text.replace(old_listing, new_listing)
+
+          old_remove = 'git rm -- "${LAUNCHER_PATH}" "${RECONCILIATION_SCRIPT}"'
+          new_remove = 'git rm -f -- "${LAUNCHER_PATH}" "${RECONCILIATION_SCRIPT}"'
+          if text.count(old_remove) != 1:
+              raise SystemExit(f'launcher removal count must be 1, got {text.count(old_remove)}')
+          path.write_text(text.replace(old_remove, new_remove), encoding='utf-8')
           PY
-          git add -- "${RECONCILIATION_SCRIPT}"
 
       - name: Build, validate, and push bounded reconciliation
         shell: bash
