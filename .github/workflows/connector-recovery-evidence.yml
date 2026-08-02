@@ -1,0 +1,151 @@
+name: Connector Recovery Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/connector-recovery-evidence.json'
+      - '.github/workflows/connector-recovery-evidence.yml'
+      - 'http-generic-api/scripts/connector-recovery-evidence.mjs'
+      - 'http-generic-api/scripts/test-connector-recovery-evidence.mjs'
+      - 'local-connector/server.mjs'
+      - 'canonicals/openapi/local-connector.openapi.yaml'
+      - 'http-generic-api/config/deployment-branch-policy.json'
+  workflow_dispatch:
+    inputs:
+      connector_url:
+        description: Public read-only local connector health endpoint
+        required: true
+        default: https://connector.mad4b.com/health
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: connector-recovery-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Structured Connector Evidence Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Enforce trusted workflow dispatch ref
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+
+      - name: Validate connector recovery evidence reporter
+        working-directory: http-generic-api
+        run: node scripts/test-connector-recovery-evidence.mjs
+
+  live:
+    name: Live Connector Recovery Evidence
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Generate structured connector recovery evidence
+        id: evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          CONNECTOR_URL: ${{ inputs.connector_url }}
+          CONNECTOR_RECOVERY_EVIDENCE_DIR: ${{ runner.temp }}/connector-recovery-evidence
+        run: |
+          node scripts/connector-recovery-evidence.mjs \
+            --connector-url "${CONNECTOR_URL}" \
+            --output-dir "${CONNECTOR_RECOVERY_EVIDENCE_DIR}"
+
+      - name: Upload structured connector recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connector-recovery-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/connector-recovery-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured connector recovery decision
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/connector-recovery-evidence/connector-recovery-evidence.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) process.exit(1);
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const effects = report.side_effects || {};
+            const endpoint = report.endpoint || {};
+            const runtime = endpoint.runtime || {};
+            const valid =
+              report.contract === "mad4b.connector-recovery-evidence.v1" &&
+              report.identity?.tooling_sha === process.env.GITHUB_SHA &&
+              report.outcome === "passed" &&
+              report.first_failure === null &&
+              endpoint.name === "connector" &&
+              endpoint.url === "https://connector.mad4b.com/health" &&
+              endpoint.status === "passed" &&
+              runtime.ok === true &&
+              runtime.service === "local-connector" &&
+              runtime.platform === "win32" &&
+              runtime.hostname_present === true &&
+              typeof runtime.hostname_sha256 === "string" &&
+              runtime.hostname_sha256.length === 64 &&
+              Number.isFinite(runtime.uptime_seconds) &&
+              runtime.uptime_seconds >= 0 &&
+              report.secrets_included === false &&
+              report.routing?.consult_job_logs === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.credential_access_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.external_send_performed === false;
+            if (!valid) {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                first_failure: report.first_failure || { code: "invalid_structured_report" },
+                consult_job_logs: false,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              outcome: "passed",
+              service: runtime.service,
+              platform: runtime.platform,
+              hostname_hash_present: true,
+              secrets_included: false
+            }));
+          '
