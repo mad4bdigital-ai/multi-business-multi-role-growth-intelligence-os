@@ -56,6 +56,7 @@ function makeComposition({ state = 'executing', version = 8 } = {}) {
       async startRun() {},
       async finalizeRun() {},
       async readRun() {},
+      async readPlanItems() {},
     }),
     child_evidence: Object.freeze({
       async appendJournalEvent() {},
