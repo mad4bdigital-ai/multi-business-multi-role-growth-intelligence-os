@@ -35,6 +35,94 @@ jobs:
           source = textwrap.dedent(workflow[start:end])
           exec(compile(source, '<support-ticket-runtime-openapi-bootstrap>', 'exec'), {})
           PY
+      - name: Expand every path item from the reviewed regression contract
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          base = Path('http-generic-api')
+          test_source = (base / 'test-support-ticket-runtime-openapi-completion.mjs').read_text(encoding='utf-8')
+          start = test_source.index('const contracts = [') + len('const contracts = ')
+          candidate = test_source[start:]
+          depth = 0
+          in_string = False
+          escaped = False
+          end = None
+          for index, character in enumerate(candidate):
+              if in_string:
+                  if escaped:
+                      escaped = False
+                  elif character == '\\':
+                      escaped = True
+                  elif character == '"':
+                      in_string = False
+              else:
+                  if character == '"':
+                      in_string = True
+                  elif character == '[':
+                      depth += 1
+                  elif character == ']':
+                      depth -= 1
+                      if depth == 0:
+                          end = index + 1
+                          break
+          contracts = json.loads(candidate[:end])
+          if len(contracts) != 47:
+              raise SystemExit(f'expected 47 reviewed contracts, got {len(contracts)}')
+
+          responses = [
+              ('200', 'Success'),
+              ('400', 'BadRequest'),
+              ('401', 'Unauthorized'),
+              ('403', 'Forbidden'),
+              ('404', 'NotFound'),
+              ('409', 'Conflict'),
+              ('422', 'Unprocessable'),
+              ('500', 'InternalError'),
+          ]
+          lines = [
+              '# Source-bound path items completing Support Ticket runtime OpenAPI coverage.',
+              '# Runtime validation, authorization, approvals, confirmations, provider gates, credential gates, and readback remain authoritative.',
+              '',
+          ]
+          for entry in contracts:
+              lines.append(f"{entry['pathItem']}:")
+              lines.append(f"  {entry['method']}:")
+              lines.append(f"    operationId: {entry['operationId']}")
+              if entry['exposure'] == 'tenant_user':
+                  lines.append('    security: [{ userJwtAuth: [] }]')
+              else:
+                  lines.append('    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]')
+              lines.append(f"    x-registry-exposure: {entry['exposure']}")
+              lines.append(f"    x-openai-isConsequential: {'true' if entry['consequential'] else 'false'}")
+              parameters = re.findall(r':([A-Za-z0-9_]+)', entry['expressPath'])
+              if parameters:
+                  lines.append('    parameters:')
+                  for parameter in parameters:
+                      lines.extend([
+                          f'      - name: {parameter}',
+                          '        in: path',
+                          '        required: true',
+                          '        schema: { type: string, minLength: 1 }',
+                      ])
+              lines.append('    responses:')
+              for status, response in responses:
+                  lines.append(f"      '{status}': {{ $ref: './support-ticket-admin-common.yaml#/responses/{response}' }}")
+              lines.append('')
+
+          target = base / 'openapi/support-ticket-runtime-completion.yaml'
+          target.write_text('\n'.join(lines), encoding='utf-8')
+          print(json.dumps({
+              'contract': 'mad4b.support-ticket-runtime-path-item-expansion.v1',
+              'path_items': len(contracts),
+              'admin_operations': sum(entry['exposure'] == 'admin_tool' for entry in contracts),
+              'tenant_operations': sum(entry['exposure'] == 'tenant_user' for entry in contracts),
+              'consequential_operations': sum(entry['consequential'] for entry in contracts),
+          }, indent=2))
+          PY
       - name: Run precise completeness regression
         shell: bash
         run: |
