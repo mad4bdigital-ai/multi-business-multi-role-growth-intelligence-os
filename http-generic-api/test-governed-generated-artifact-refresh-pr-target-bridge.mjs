@@ -2,61 +2,105 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
-const workflow = fs.readFileSync(workflowPath, "utf8");
+const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
+const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";
+const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
+const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
 
-assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh PR Target Bridge$/mu);
-assert.match(workflow, /^\s*pull_request_target:\s*$/mu, "bridge must execute from trusted default-branch workflow code");
-assert.match(workflow, /types:\s*\[synchronize\]/u, "automatic bridge must be limited to PR head synchronization");
-assert.match(workflow, /^\s*workflow_dispatch:\s*$/mu, "bridge must retain an explicit manual exact-head entrypoint");
-assert.doesNotMatch(workflow, /^\s*push:\s*$/mu, "bridge must not run from arbitrary branch pushes");
-assert.doesNotMatch(workflow, /^\s*issue_comment:\s*$/mu, "bridge must not depend on suppressed issue-comment delivery");
-assert.match(workflow, /actions:\s*write/u, "bridge needs Actions dispatch authority");
-assert.match(workflow, /contents:\s*read/u, "bridge repository contents must remain read-only");
-assert.match(workflow, /issues:\s*write/u, "bridge publishes canonical evidence to the PR");
-assert.match(workflow, /pull-requests:\s*read/u, "bridge resolves the current PR identity");
-assert.doesNotMatch(workflow, /contents:\s*write/u, "bridge must not mutate repository contents directly");
-assert.match(workflow, /Checkout trusted default branch publisher/u);
-assert.match(workflow, /ref:\s*main/u, "only trusted main code may be checked out");
-assert.match(workflow, /persist-credentials:\s*false/u, "trusted checkout must not retain push credentials");
-assert.doesNotMatch(workflow, /ref:\s*\$\{\{\s*github\.event\.pull_request\.head/u, "candidate head must never be checked out");
-assert.doesNotMatch(workflow, /github\.event\.pull_request\.head\.sha[\s\S]{0,120}uses:\s*actions\/checkout/u, "candidate SHA must not feed checkout");
-assert.match(workflow, /github\.actor != 'github-actions\[bot\]'/u, "writer-generated synchronization must not recurse");
-assert.match(workflow, /generated-artifact-refresh/u, "explicit refresh authorization label must remain mandatory");
-assert.match(workflow, /head\.repo\.full_name/u, "same-repository identity must be read from the API");
-assert.match(workflow, /cross_repository_pull_request_forbidden/u, "forked PRs must fail closed");
-assert.match(workflow, /base_ref.*main|unexpected_base_branch/u, "bridge must require main as base");
-assert.match(workflow, /\^\(gpt\|cert\|fix\|feat\|chore\|docs\|release\)\//u, "only governed work branches may be writer targets");
-assert.match(workflow, /protected_branch_mutation_forbidden/u, "protected targets must fail closed");
-assert.match(workflow, /pull_request_head_mismatch/u, "stale exact-head events must fail closed");
-assert.match(workflow, /pull_request_is_draft/u, "draft PRs must not dispatch the writer");
-assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u, "writer dispatch requires typed confirmation");
-assert.match(workflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "bridge must delegate only to the registered writer");
-assert.match(workflow, /governed-generated-artifact-refresh\.yml\/enable/u, "bridge may reactivate the registered writer before dispatch");
-assert.match(workflow, /display_title == \$title/u, "run observation must bind the exact writer run title");
-assert.match(workflow, /for attempt in \$\(seq 1 20\)/u, "writer observation must remain bounded");
-assert.match(workflow, /delegated_workflow_run_not_observed/u, "unobserved dispatch must block");
-assert.match(workflow, /delegated_run_observed:true/u, "passed evidence must prove an observed writer run");
-assert.match(workflow, /delegated_run_id:\$delegated_run_id/u, "passed evidence must publish the writer run ID");
-assert.match(workflow, /mad4b\.governed-generated-artifact-refresh-dispatch\.v1/u, "bridge must reuse the canonical dispatch evidence contract");
-assert.match(workflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u, "trusted main publisher must publish the decision directly");
-assert.match(workflow, /source_of_truth:\s*"structured_report"/u);
-assert.match(workflow, /job_logs_role:\s*"diagnostic_only"/u);
-assert.match(workflow, /consult_job_logs:\s*false/u);
-assert.match(workflow, /direct_repository_mutation:\s*false/u);
-assert.match(workflow, /protected_branch_mutation:\s*false/u);
-assert.match(workflow, /force_push:\s*false/u);
-assert.match(workflow, /secrets_included:\s*false/u);
-assert.doesNotMatch(workflow, /\bgit\s+push\b/u, "bridge must never push directly");
-assert.doesNotMatch(workflow, /secrets\./u, "bridge must not consume repository secrets");
-assert.match(workflow, /cancel-in-progress:\s*false/u, "a second synchronization must not cancel an already delegated writer");
+assert.match(requestWorkflow, /^name:\s*Governed Generated Artifact Refresh PR Target Request$/mu);
+assert.match(requestWorkflow, /^\s*pull_request_target:\s*$/mu, "request evaluator must execute from trusted default-branch workflow code");
+assert.match(requestWorkflow, /types:\s*\[synchronize\]/u, "automatic request evaluation must be limited to PR head synchronization");
+assert.match(requestWorkflow, /^\s*workflow_dispatch:\s*$/mu, "request evaluator must retain an explicit exact-head input surface");
+assert.doesNotMatch(requestWorkflow, /^\s*push:\s*$/mu, "request evaluator must not run from arbitrary branch pushes");
+assert.doesNotMatch(requestWorkflow, /^\s*issue_comment:\s*$/mu, "request evaluator must not depend on connector-authored comments");
+assert.match(requestWorkflow, /contents:\s*read/u);
+assert.match(requestWorkflow, /pull-requests:\s*read/u);
+assert.doesNotMatch(requestWorkflow, /actions:\s*write/u, "pull-request request evaluator must not dispatch workflows");
+assert.doesNotMatch(requestWorkflow, /issues:\s*write/u, "pull-request request evaluator must not publish comments");
+assert.doesNotMatch(requestWorkflow, /contents:\s*write/u, "pull-request request evaluator must not write repository contents");
+assert.doesNotMatch(requestWorkflow, /permissions:\s*write-all/u);
+assert.doesNotMatch(requestWorkflow, /uses:\s*actions\/checkout/u, "request evaluator must not checkout candidate or repository code");
+assert.doesNotMatch(requestWorkflow, /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)/u, "request evaluator must perform no API mutation");
+assert.doesNotMatch(requestWorkflow, /\bgit\s+push\b/u);
+assert.doesNotMatch(requestWorkflow, /secrets\./u);
+assert.match(requestWorkflow, /github\.actor != 'github-actions\[bot\]'/u, "writer-generated synchronizations must not recurse");
+assert.match(requestWorkflow, /head\.repo\.full_name/u, "same-repository identity must be read from the API");
+assert.match(requestWorkflow, /generated-artifact-refresh/u, "explicit refresh label must remain mandatory");
+assert.match(requestWorkflow, /current_head_sha/u, "request must record the current API head");
+assert.match(requestWorkflow, /EXPECTED_HEAD_SHA/u, "request must bind the exact event or manual SHA");
+assert.match(requestWorkflow, /protected_branch_mutation_forbidden/u);
+assert.match(requestWorkflow, /cross_repository_pull_request_forbidden/u);
+assert.match(requestWorkflow, /pull_request_is_draft/u);
+assert.match(requestWorkflow, /mad4b\.governed-generated-artifact-refresh-request\.v1/u);
+assert.match(requestWorkflow, /candidate_code_checkout:false/u);
+assert.match(requestWorkflow, /repository_mutation_performed:false/u);
+assert.match(requestWorkflow, /source_of_truth:\s*"structured_report"/u);
+assert.match(requestWorkflow, /job_logs_role:\s*"diagnostic_only"/u);
+assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
+assert.match(requestWorkflow, /secrets_included:\s*false/u);
+assert.match(requestWorkflow, /Upload exact-head refresh request/u);
+
+assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
+assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
+assert.match(dispatcherWorkflow, /Governed Generated Artifact Refresh PR Target Request/u);
+assert.match(dispatcherWorkflow, /^\s*workflow_dispatch:\s*$/mu, "mutating API dispatch must remain explicitly invokable");
+assert.doesNotMatch(dispatcherWorkflow, /^\s*pull_request(?:_target)?:\s*$/mu, "write-capable dispatcher must not be a pull-request workflow");
+assert.doesNotMatch(dispatcherWorkflow, /^\s*push:\s*$/mu);
+assert.doesNotMatch(dispatcherWorkflow, /^\s*issue_comment:\s*$/mu);
+assert.match(dispatcherWorkflow, /actions:\s*write/u);
+assert.match(dispatcherWorkflow, /contents:\s*read/u);
+assert.match(dispatcherWorkflow, /issues:\s*write/u);
+assert.match(dispatcherWorkflow, /pull-requests:\s*read/u);
+assert.doesNotMatch(dispatcherWorkflow, /contents:\s*write/u, "dispatcher delegates mutation but never writes repository contents directly");
+assert.match(dispatcherWorkflow, /Resolve and revalidate exact-head request before checkout or dispatch/u);
+assert.match(dispatcherWorkflow, /gh run download/u, "workflow-run path must consume the exact run-bound request artifact");
+assert.match(dispatcherWorkflow, /request_source_run_mismatch/u, "artifact source run substitution must fail closed");
+assert.match(dispatcherWorkflow, /target_branch="\$\{target_ref\}"/u);
+assert.match(dispatcherWorkflow, /target_branch.*main.*Production/su, "protected branches must be rejected before API mutation");
+assert.match(dispatcherWorkflow, /current_head_sha/u);
+assert.match(dispatcherWorkflow, /expected_head_sha/u);
+assert.match(dispatcherWorkflow, /current_head_sha.*!=.*expected_head_sha/su, "current PR head must equal the explicit expected head before dispatch");
+assert.match(dispatcherWorkflow, /cross_repository_pull_request_forbidden/u);
+assert.match(dispatcherWorkflow, /pull_request_branch_mismatch/u);
+assert.match(dispatcherWorkflow, /generated_artifact_refresh_label_absent/u);
+assert.match(dispatcherWorkflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u);
+assert.match(dispatcherWorkflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "dispatcher must delegate only to the registered writer");
+assert.match(dispatcherWorkflow, /display_title == \$title/u, "run observation must bind the exact writer run title");
+assert.match(dispatcherWorkflow, /for attempt in \$\(seq 1 20\)/u, "writer observation must remain bounded");
+assert.match(dispatcherWorkflow, /delegated_workflow_run_not_observed/u);
+assert.match(dispatcherWorkflow, /delegated_run_observed:true/u);
+assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
+assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@v5/u);
+assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
+assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
+assert.doesNotMatch(dispatcherWorkflow, /github\.event\.pull_request\.head/u, "dispatcher must not checkout or trust pull-request event code");
+assert.doesNotMatch(dispatcherWorkflow, /\bgit\s+push\b/u);
+assert.doesNotMatch(dispatcherWorkflow, /secrets\./u);
+assert.match(dispatcherWorkflow, /mad4b\.governed-generated-artifact-refresh-dispatch\.v1/u);
+assert.match(dispatcherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
+assert.match(dispatcherWorkflow, /source_of_truth:\s*"structured_report"/u);
+assert.match(dispatcherWorkflow, /job_logs_role:\s*"diagnostic_only"/u);
+assert.match(dispatcherWorkflow, /consult_job_logs:\s*false/u);
+assert.match(dispatcherWorkflow, /direct_repository_mutation:\s*false/u);
+assert.match(dispatcherWorkflow, /protected_branch_mutation:\s*false/u);
+assert.match(dispatcherWorkflow, /force_push:\s*false/u);
+assert.match(dispatcherWorkflow, /secrets_included:\s*false/u);
+assert.match(dispatcherWorkflow, /cancel-in-progress:\s*false/u);
+
+const validationIndex = dispatcherWorkflow.indexOf("Resolve and revalidate exact-head request before checkout or dispatch");
+const dispatchIndex = dispatcherWorkflow.indexOf("Dispatch and observe exact-head governed writer");
+const checkoutIndex = dispatcherWorkflow.indexOf("Checkout trusted default branch publisher");
+assert.ok(validationIndex >= 0 && validationIndex < dispatchIndex, "exact-head validation must precede writer dispatch");
+assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head and protected-branch validation must precede checkout");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 46,
+  tests: 80,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
-  contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
-  trusted_default_branch_code: true,
+  request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
+  dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
+  pull_request_stage_read_only: true,
+  trusted_workflow_run_dispatcher: true,
   candidate_checkout: false,
   same_repository_only: true,
   exact_head_bound: true,
