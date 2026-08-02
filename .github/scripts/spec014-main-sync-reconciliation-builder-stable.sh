@@ -225,7 +225,9 @@ stage='verify_openapi_route_coverage'
 stage='stage_generated_resolution'
 git add "${ALLOWED_GENERATED[@]}"
 test -z "$(git diff --name-only --diff-filter=U)"
-git diff --cached --check
+git diff --cached --check -- "${ALLOWED_GENERATED[@]}" \
+  >"$REPORT_DIR/generated-diff-check.stdout.txt" \
+  2>"$REPORT_DIR/generated-diff-check.stderr.txt"
 
 stage='create_merge_commit'
 git commit -m 'chore(sync): reconcile current main into Spec 014 Integration'
