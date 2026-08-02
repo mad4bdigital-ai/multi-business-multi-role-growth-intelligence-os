@@ -94,7 +94,7 @@ assert.throws(() => validateTenantCanaryReport({ ...passed, checks: { ...passed.
 assert.throws(() => validateTenantCanaryReport({ ...passed, outcome: "unknown" }), /outcome is invalid/u);
 
 const workflow = fs.readFileSync(
-  new URL("../../.github/workflows/hostinger-storage-tenant-canary-guard.yml", import.meta.url),
+  new URL("../../.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml", import.meta.url),
   "utf8"
 );
 assert.match(workflow, /^name: Hostinger Storage Tenant Canary Guard$/mu);
