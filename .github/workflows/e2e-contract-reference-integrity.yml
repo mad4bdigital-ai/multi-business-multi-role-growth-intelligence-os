@@ -36,8 +36,11 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run integrity regression tests
+      - name: Run reference integrity regression tests
         run: node http-generic-api/test-e2e-contract-reference-integrity.mjs
+
+      - name: Run path-chain and Git-index regression tests
+        run: node http-generic-api/test-e2e-contract-git-index-integrity.mjs
 
       - name: Evaluate contract references
         shell: bash
@@ -56,6 +59,11 @@ jobs:
             args+=(--all)
           fi
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs "${args[@]}"
+
+      - name: Verify path chain and tracked Git object modes
+        run: >-
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs
+          --report-file artifacts/e2e-contract-reference-integrity.json
 
       - name: Upload canonical integrity report
         if: always()
