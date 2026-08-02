@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-run-observation",
+  "title": "Governed generated-artifact writer activation and run observation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-generated-artifact-refresh-run-observation.json",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the trusted dispatcher fail closed unless the registered governed writer is active and a concrete workflow_dispatch run is observed after GitHub accepts the request.",
+      "e2e_journeys": [
+        {
+          "id": "activate-dispatch-and-observe-governed-writer-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted pull-request operator and GitHub Actions dispatcher",
+          "entrypoint": "A trusted /refresh-generated-artifacts command or explicit dispatcher workflow input bound to an exact work-branch SHA",
+          "terminal_outcome": "The dispatcher either records an observed governed writer run ID or publishes a blocking structured finding instead of treating HTTP 204 alone as execution evidence.",
+          "steps": [
+            "Validate trusted actor, same-repository pull request, exact source head, governed branch, explicit refresh label, and typed confirmation.",
+            "Read the registered governed writer workflow state through the Actions API.",
+            "Reactivate the registered workflow when it is disabled and fail closed when activation cannot be confirmed.",
+            "Submit the exact-head workflow_dispatch request.",
+            "Poll only the registered writer workflow for a bounded window and only for runs created after the request.",
+            "Publish delegated_run_id and delegated_run_observed=true only when a concrete run appears.",
+            "Publish delegated_workflow_run_not_observed when GitHub returns HTTP 204 but no writer run appears.",
+            "Upload and publish the structured decision before enforcing it."
+          ],
+          "assertions": [
+            "HTTP 204 is transport acceptance and is not sufficient evidence that the writer executed.",
+            "A disabled writer is explicitly reactivated before dispatch.",
+            "A writer that remains inactive blocks the dispatcher.",
+            "Run observation uses the workflow-scoped Actions endpoint, event=workflow_dispatch, branch=main, and a request-time lower bound.",
+            "The observation loop is bounded and cannot wait indefinitely.",
+            "Passed evidence contains a numeric delegated_run_id.",
+            "Missing delegated execution produces a blocking canonical finding.",
+            "The dispatcher remains contents-read-only and performs no direct repository mutation or force push.",
+            "Job logs remain diagnostic-only and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-artifact-refresh-dispatch-run-observation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one trusted command publish the exact delegated writer run ID and the subsequent canonical apply report."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise disabled workflow, activation refusal, HTTP rejection, HTTP 204 without run creation, stale head, and absent label paths without repository mutation."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-control repair performs no external provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no migration, deployment, Production, provider, credential, or external publication authority."
+    }
+  ],
+  "secrets_included": false
+}
