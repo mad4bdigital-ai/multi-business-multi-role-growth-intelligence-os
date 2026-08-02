@@ -1,0 +1,342 @@
+name: Spec 014 Post-Reconciliation Guard Repair Builder
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/spec014-post-reconciliation-guard-repair-builder.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_BASE_SHA: 69134e6bec7b4b761fa69beb4330306b07d3277c
+      INTEGRATION_REF: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      FINAL_BRANCH: gpt/014-hostinger/post-reconciliation-guard-repairs-20260802
+      REPORT_FILE: /tmp/spec014-post-reconciliation-guard-repair-builder.json
+      OLD_WAVE2_SHA: 091c48fbfdf823f503ee7c0478ea3e5d32c702196b0a65ac8ca5c0b965d0e49f
+    steps:
+      - name: Checkout builder source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Build bounded repair branch
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$REPORT_FILE" <<'JSON'
+          {
+            "contract": "spec014.post-reconciliation-guard-repair-builder.v1",
+            "outcome": "failed",
+            "candidate_branch_created": false,
+            "migration_apply_authorized": false,
+            "live_database_access_performed": false,
+            "provider_dispatch_performed": false,
+            "force_push_performed": false,
+            "secrets_included": false
+          }
+          JSON
+
+          git config user.name 'mad4b-spec014-builder'
+          git config user.email 'spec014-builder@users.noreply.github.com'
+
+          live_base="$(git ls-remote origin "refs/heads/${INTEGRATION_REF}" | awk '{print $1}')"
+          test "$live_base" = "$EXPECTED_BASE_SHA"
+          if git ls-remote --exit-code origin "refs/heads/${FINAL_BRANCH}" >/dev/null 2>&1; then
+            echo "Final branch already exists" >&2
+            exit 1
+          fi
+
+          git checkout --detach "$EXPECTED_BASE_SHA"
+
+          python <<'PY'
+          from pathlib import Path
+          import json
+
+          contract_sql = Path('.github/contracts/spec014/migrations/wave-2-control-plane.sql')
+          runtime_sql = Path('http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql')
+
+          def patch_lease_schema(path: Path):
+              text = path.read_text()
+              marker = 'CREATE TABLE IF NOT EXISTS storage_execution_leases (\n'
+              if marker not in text:
+                  raise SystemExit(f'{path}: lease table marker missing')
+              before, after = text.split(marker, 1)
+              block, tail = after.split('\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;', 1)
+              if '  id CHAR(36) NOT NULL,\n' not in block:
+                  block = '  id CHAR(36) NOT NULL,\n' + block
+              if '  PRIMARY KEY (target_id),' not in block:
+                  raise SystemExit(f'{path}: legacy target primary key missing')
+              block = block.replace('  PRIMARY KEY (target_id),', '  PRIMARY KEY (id),', 1)
+              if 'UNIQUE KEY uq_storage_execution_leases_active' not in block:
+                  raise SystemExit(f'{path}: target CAS uniqueness key missing')
+              path.write_text(before + marker + block + '\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;' + tail)
+
+          patch_lease_schema(contract_sql)
+          patch_lease_schema(runtime_sql)
+
+          writer = Path('http-generic-api/hostingerStorageSqlParentWriter.js')
+          text = writer.read_text()
+          old = "  return rows?.[0] ? normalizeStoredRun(rows[0]) : null;"
+          new = """  const candidates = Array.isArray(rows) ? rows : [];
+          if (candidates.length > 1) {
+            throw fail(409, 'STORAGE_SQL_PARENT_RUN_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', {
+              run_id: runId,
+              candidate_count: candidates.length,
+            });
+          }
+          const [candidate] = candidates;
+          return candidate ? normalizeStoredRun(candidate) : null;"""
+          if text.count(old) != 1:
+              raise SystemExit('parent writer direct-first selection marker drifted')
+          writer.write_text(text.replace(old, new, 1))
+
+          test_file = Path('http-generic-api/test-hostinger-storage-sql-parent-writer.mjs')
+          text = test_file.read_text()
+          constructor_marker = '    this.forceNextCheckpointMiss = false;\n'
+          if text.count(constructor_marker) != 1:
+              raise SystemExit('parent writer fake database constructor marker drifted')
+          text = text.replace(constructor_marker, constructor_marker + '    this.duplicateRunReadback = false;\n', 1)
+
+          load_marker = """    if (sql.includes('spec014:parent:load-run')) {
+                const row = this.table('runs').get(params[0]);
+                return [row ? [clone(row)] : [], []];
+              }"""
+          load_replacement = """    if (sql.includes('spec014:parent:load-run')) {
+                const row = this.table('runs').get(params[0]);
+                if (!row) return [[], []];
+                const candidates = this.database.duplicateRunReadback
+                  ? [clone(row), clone(row)]
+                  : [clone(row)];
+                return [candidates, []];
+              }"""
+          if text.count(load_marker) != 1:
+              raise SystemExit('parent writer fake load-run marker drifted')
+          text = text.replace(load_marker, load_replacement, 1)
+
+          replay_marker = """assert.equal(runReplay.created, false);
+          assert.equal(runReplay.replay, true);
+          assert.equal(runReplay.run_digest, started.run_digest);
+          """
+          ambiguity_test = """assert.equal(runReplay.created, false);
+          assert.equal(runReplay.replay, true);
+          assert.equal(runReplay.run_digest, started.run_digest);
+
+          database.duplicateRunReadback = true;
+          try {
+            await assert.rejects(
+              writer.startRun({ run }),
+              (error) => error.code === 'STORAGE_SQL_PARENT_RUN_AMBIGUOUS'
+                && error.details?.candidate_count === 2
+                && error.details?.secrets_included === false,
+            );
+          } finally {
+            database.duplicateRunReadback = false;
+          }
+          """
+          if text.count(replay_marker) != 1:
+              raise SystemExit('parent writer replay assertion marker drifted')
+          test_file.write_text(text.replace(replay_marker, ambiguity_test, 1))
+
+          e2e = {
+            '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+            'schema_version': 1,
+            'feature_key': 'spec014-post-reconciliation-guard-repairs',
+            'title': 'Repair Spec 014 lease identity and durable run uniqueness guards',
+            'delivery_mode': 'single_pr',
+            'current_phase': 'mvp',
+            'scope': {'include': [
+              '.changes/e2e/spec014-post-reconciliation-guard-repairs.json',
+              '.github/contracts/spec014/**',
+              'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql',
+              'http-generic-api/config/governed-migration-dependencies.json',
+              'http-generic-api/hostingerStorageSqlParentWriter.js',
+              'http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js',
+              'http-generic-api/test-hostinger-storage*.mjs'
+            ]},
+            'merge_contract': {'minimum_phase': 'mvp'},
+            'phases': [
+              {
+                'id': 'mvp', 'status': 'implemented',
+                'objective': 'Restore exact lease DDL/runtime identity parity and reject ambiguous durable run reads without granting migration or runtime authority.',
+                'e2e_journeys': [{
+                  'id': 'lease-identity-and-run-uniqueness-repair',
+                  'end_to_end': True,
+                  'level': 'synthetic_runtime',
+                  'actor': 'repository reviewer and Spec 014 guard suite',
+                  'entrypoint': 'The reviewed Wave 2 DDL, promoted runtime migration, SQL parent writer, and checksum-bound contracts',
+                  'terminal_outcome': 'Contract-local and runtime migrations expose id as the lease primary key, target_id remains the unique CAS record key, all checksum evidence is refreshed, and duplicate run rows fail closed.',
+                  'steps': [
+                    'Patch both reviewed and promoted Wave 2 lease tables with id as the primary key.',
+                    'Refresh every exact old Wave 2 checksum reference after recomputing the promoted migration digest.',
+                    'Validate draft/runtime/adapter parity and governed promotion invariants.',
+                    'Reject more than one durable run row before selecting a normalized candidate.',
+                    'Exercise the ambiguity regression and changed-line Context Kernel scanner.'
+                  ],
+                  'assertions': [
+                    'No migration authorization, dry-run, apply, live database, provider, credential, deployment, main, or Production action occurs.',
+                    'The lease required columns include id, target_id, and lease_id; id is the primary key and target_id remains bound by the active-slot unique key.',
+                    'The old promoted Wave 2 checksum is absent from the candidate tree.',
+                    'Ambiguous run identity returns STORAGE_SQL_PARENT_RUN_AMBIGUOUS with bounded secret-free details.',
+                    'Context Kernel changed-line scanning reports zero runtime blockers.'
+                  ],
+                  'tests': [
+                    {'id': 'migration-drafts-parity', 'runner': 'node', 'working_directory': '.', 'path': '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs', 'args': []},
+                    {'id': 'runtime-migration-promotion', 'runner': 'node', 'working_directory': '.', 'path': 'http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs', 'args': []},
+                    {'id': 'sql-parent-writer-ambiguity', 'runner': 'node', 'working_directory': '.', 'path': 'http-generic-api/test-hostinger-storage-sql-parent-writer.mjs', 'args': []}
+                  ],
+                  'evidence_paths': [
+                    '.github/contracts/spec014/migrations/wave-2-control-plane.sql',
+                    '.github/contracts/spec014/hostinger-storage-runtime-migrations.json',
+                    'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql',
+                    'http-generic-api/hostingerStorageSqlParentWriter.js',
+                    'http-generic-api/test-hostinger-storage-sql-parent-writer.mjs'
+                  ]
+                }]
+              },
+              {
+                'id': 'operational', 'status': 'blocked',
+                'objective': 'Observe the repaired guards on the Integration rollup without applying migrations.',
+                'blockers': ['The repair must merge into Integration and produce fresh exact-head guard evidence.']
+              },
+              {'id': 'resilient', 'status': 'planned', 'objective': 'Retain fail-closed behavior under checksum drift, duplicate rows, stale heads, and cancelled evidence publication.'},
+              {'id': 'canary', 'status': 'planned', 'objective': 'Record green Migration Drafts and Context Kernel evidence on the Rollup exact head.'},
+              {'id': 'production', 'status': 'not_applicable', 'objective': 'This repository-only repair grants no migration, runtime, provider, deployment, or Production authority.'}
+            ]
+          }
+          Path('.changes/e2e/spec014-post-reconciliation-guard-repairs.json').write_text(json.dumps(e2e, indent=2) + '\n')
+          PY
+
+          new_wave2_sha="$(sha256sum http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql | awk '{print $1}')"
+          export NEW_WAVE2_SHA="$new_wave2_sha"
+
+          python <<'PY'
+          from pathlib import Path
+          import os
+          import subprocess
+
+          old = os.environ['OLD_WAVE2_SHA']
+          new = os.environ['NEW_WAVE2_SHA']
+          result = subprocess.run(['git', 'grep', '-Il', old], text=True, capture_output=True)
+          paths = [Path(line) for line in result.stdout.splitlines() if line.strip()]
+          if not paths:
+              raise SystemExit('old Wave 2 checksum was not found')
+          allowed = ('.github/', '.changes/', 'http-generic-api/', 'specs/')
+          outside = [str(path) for path in paths if not str(path).startswith(allowed)]
+          if outside:
+              raise SystemExit(f'checksum reference outside allowlist: {outside}')
+          for path in paths:
+              text = path.read_text()
+              path.write_text(text.replace(old, new))
+          print('\n'.join(str(path) for path in paths))
+          PY
+
+          ! git grep -q "$OLD_WAVE2_SHA"
+          grep -q 'PRIMARY KEY (id)' .github/contracts/spec014/migrations/wave-2-control-plane.sql
+          grep -q 'PRIMARY KEY (id)' http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql
+          grep -q 'id CHAR(36) NOT NULL' .github/contracts/spec014/migrations/wave-2-control-plane.sql
+          grep -q 'id CHAR(36) NOT NULL' http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql
+          grep -q 'STORAGE_SQL_PARENT_RUN_AMBIGUOUS' http-generic-api/hostingerStorageSqlParentWriter.js
+          ! grep -q 'rows?.\[0\].*normalizeStoredRun' http-generic-api/hostingerStorageSqlParentWriter.js
+
+          node --check http-generic-api/hostingerStorageSqlParentWriter.js
+          node --check http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs
+          node http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+          node http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+
+          printf '%s\n' 'http-generic-api/hostingerStorageSqlParentWriter.js' > /tmp/spec014-context-kernel-changed-files.txt
+          (
+            cd http-generic-api
+            node scripts/context-kernel-hardcoding-scan.mjs \
+              --report-only \
+              --changed-files-from=/tmp/spec014-context-kernel-changed-files.txt \
+              --output=/tmp/spec014-context-kernel-report.json
+          )
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/spec014-context-kernel-report.json', 'utf8'));
+          if (Number(report.summary?.runtime_finding_count || 0) !== 0) {
+            throw new Error(`Context Kernel runtime findings remain: ${report.summary?.runtime_finding_count}`);
+          }
+          NODE
+
+          git diff --check
+          changed_files="$(git status --short | sed -E 's/^.. //')"
+          test -n "$changed_files"
+          git add .
+          git commit -m 'fix(spec-014): align lease identity and fail closed on run ambiguity'
+
+          live_base_after="$(git ls-remote origin "refs/heads/${INTEGRATION_REF}" | awk '{print $1}')"
+          test "$live_base_after" = "$EXPECTED_BASE_SHA"
+          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
+
+          export CANDIDATE_SHA="$(git rev-parse HEAD)"
+          export CHANGED_FILES="$changed_files"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = {
+            contract: 'spec014.post-reconciliation-guard-repair-builder.v1',
+            outcome: 'passed',
+            expected_base_sha: process.env.EXPECTED_BASE_SHA,
+            candidate_sha: process.env.CANDIDATE_SHA,
+            final_branch: process.env.FINAL_BRANCH,
+            new_wave2_checksum_sha256: process.env.NEW_WAVE2_SHA,
+            changed_files: process.env.CHANGED_FILES.split('\n').filter(Boolean),
+            candidate_branch_created: true,
+            migration_apply_authorized: false,
+            live_database_access_performed: false,
+            provider_dispatch_performed: false,
+            force_push_performed: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(process.env.REPORT_FILE, JSON.stringify(report, null, 2) + '\n');
+          NODE
+
+      - name: Upload canonical builder report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-post-reconciliation-guard-repair-builder-${{ github.run_id }}
+          path: ${{ env.REPORT_FILE }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce builder outcome
+        if: always()
+        shell: bash
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, 'utf8'));
+          if (process.env.BUILD_OUTCOME !== 'success' || report.outcome !== 'passed' || report.candidate_branch_created !== true) {
+            throw new Error(`Builder failed closed: ${process.env.BUILD_OUTCOME}/${report.outcome}`);
+          }
+          if (report.migration_apply_authorized !== false || report.live_database_access_performed !== false
+            || report.provider_dispatch_performed !== false || report.force_push_performed !== false
+            || report.secrets_included !== false) {
+            throw new Error('Builder safety boundary invalid.');
+          }
+          NODE
