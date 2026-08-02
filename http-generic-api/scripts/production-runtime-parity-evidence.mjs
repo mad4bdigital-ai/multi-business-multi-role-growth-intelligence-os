@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { promises as dns } from "node:dns";
 import fs from "node:fs";
 import path from "node:path";
+import { isIP } from "node:net";
 import tls from "node:tls";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +32,31 @@ function clean(value) {
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu, "[REDACTED_JWT]")
     .replace(/\b(authorization|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|password|cookie|secret)\b(\s*[:=]\s*)([^\s,;]+)/giu, "$1$2[REDACTED]")
     .slice(0, 2_000);
+}
+
+function isPublicAddress(value) {
+  const address = String(value || "").toLowerCase();
+  const family = isIP(address);
+  if (family === 4) {
+    const parts = address.split(".").map(Number);
+    const [a, b] = parts;
+    if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && (b === 0 || b === 168)) return false;
+    if (a === 198 && (b === 18 || b === 19)) return false;
+    return true;
+  }
+  if (family === 6) {
+    if (address === "::" || address === "::1") return false;
+    if (address.startsWith("::ffff:")) return isPublicAddress(address.slice(7));
+    if (address.startsWith("fc") || address.startsWith("fd")) return false;
+    if (/^fe[89ab]/u.test(address)) return false;
+    if (address.startsWith("ff") || address.startsWith("2001:db8:")) return false;
+    return true;
+  }
+  return false;
 }
 
 function parseEndpoint(value, required) {
@@ -107,6 +133,7 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
     if (parsed.username || parsed.password) throw new EvidenceError("endpoint_credentials_forbidden", `Endpoint ${endpoint.name} must not contain credentials.`);
     if (parsed.search || parsed.hash) throw new EvidenceError("endpoint_query_forbidden", `Endpoint ${endpoint.name} must not contain query or fragment data.`);
     if (parsed.pathname !== "/version") throw new EvidenceError("endpoint_path_invalid", `Endpoint ${endpoint.name} must target exactly /version.`);
+    if (parsed.port && parsed.port !== "443") throw new EvidenceError("endpoint_port_forbidden", `Endpoint ${endpoint.name} must use port 443.`);
     if (!ALLOWED_HOST_PATTERN.test(parsed.hostname)) throw new EvidenceError("endpoint_host_forbidden", `Endpoint ${endpoint.name} must use a mad4b.com host.`);
     return {
       name: endpoint.name,
@@ -210,6 +237,10 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     if (!Array.isArray(addresses) || addresses.length < 1) {
       throw new EvidenceError("dns_resolution_empty", `DNS returned no addresses for ${endpoint.name}.`);
     }
+    const forbiddenAddress = addresses.find((entry) => !isPublicAddress(entry?.address));
+    if (forbiddenAddress) {
+      throw new EvidenceError("dns_address_forbidden", `DNS returned a non-public address for ${endpoint.name}.`);
+    }
     result.dns = {
       resolved: true,
       address_count: addresses.length,
@@ -250,6 +281,9 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     };
     if (response.status !== 200) {
       throw new EvidenceError("http_status_mismatch", `Endpoint ${endpoint.name} returned HTTP ${response.status}.`);
+    }
+    if (!String(result.http.content_type || "").toLowerCase().includes("application/json")) {
+      throw new EvidenceError("response_content_type_invalid", `Endpoint ${endpoint.name} did not return application/json.`);
     }
 
     let payload;
