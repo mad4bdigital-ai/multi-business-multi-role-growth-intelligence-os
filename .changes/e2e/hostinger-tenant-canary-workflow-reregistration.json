@@ -20,30 +20,27 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Move the already-reviewed read-only Tenant Canary pull-request workflow to a new canonical Actions path so GitHub registers a fresh workflow identity without changing its name, runner, evidence contract, publisher route, or authority boundary.",
+      "objective": "Keep one canonical Tenant Canary workflow identity while preserving its runner, evidence contract, routing, and binding to the current generic CI Evidence PR Publisher.",
       "e2e_journeys": [
         {
           "id": "reregister-tenant-canary-workflow-identity",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository reviewer and GitHub Actions control plane",
-          "entrypoint": "The canonical Tenant Canary workflow file and bootstrap contract test",
-          "terminal_outcome": "The workflow is present at one canonical path, retains the exact trusted workflow name and read-only contract, and remains bound to the existing publisher and routing registry.",
+          "actor": "repository reviewer and trusted CI evidence publisher",
+          "entrypoint": "The canonical Tenant Canary workflow file, bootstrap test, routing registry, and generic CI evidence publisher",
+          "terminal_outcome": "The workflow remains present at one canonical path, keeps the exact trusted name and read-only authority boundary, and publishes through the current generic publisher.",
           "steps": [
-            "Remove the prior workflow path from the candidate tree.",
-            "Register the same workflow name at the canonical workflow path.",
-            "Update the bootstrap contract to read and require the canonical path.",
-            "Validate explicit pull-request event types, narrow paths, exact-head checkout, artifact identity, canonical enforcement, and trusted publisher binding."
+            "Require one canonical workflow path and remove obsolete workflow identities.",
+            "Verify exact-head checkout, artifact identity, routing, bootstrap regression, and generic publisher binding."
           ],
           "assertions": [
-            "Only the workflow path changes; the report contract, runner command, artifact name, and trusted publisher identity remain unchanged.",
-            "The PR-head workflow retains contents:read only and persist-credentials:false.",
-            "No duplicate prior workflow file remains in the resulting tree.",
-            "No runtime module, provider call, credential access, SQL, migration, deployment, Production action, or force push occurs."
+            "No duplicate legacy workflow remains.",
+            "The generic publisher consumes the same workflow name and artifact contract.",
+            "No runtime/provider/migration/deployment/Production authority is introduced."
           ],
           "tests": [
             {
-              "id": "hostinger-tenant-canary-reregistered-bootstrap-contract",
+              "id": "reregister-tenant-canary-workflow-identity-contract",
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
@@ -53,7 +50,7 @@
           "evidence_paths": [
             ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
             ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
-            ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/ci-evidence-routing.json"
           ]
         }
@@ -62,22 +59,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the first pull-request-triggered canonical Tenant Canary run and trusted publication after the canonical path reaches main."
+      "objective": "Observe the first qualifying exact-head Tenant Canary run and trusted publication through the canonical generic publisher."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove stale-head, missing-artifact, malformed-report, and duplicate-workflow-path handling remain fail closed."
+      "objective": "Reject stale heads, unavailable contexts, missing artifacts, malformed reports, and publisher-route drift while remaining fail closed."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Record the first exact-head Hostinger Tenant Canary section on the shared canonical pull-request comment."
+      "objective": "Record exact-head canonical Tenant Canary evidence through the trusted publisher."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This workflow registration change grants no runtime, provider, migration, deployment, or Production authority."
+      "objective": "This repository governance contract grants no provider, deployment, migration, SQL, or Production mutation authority."
     }
   ]
 }
