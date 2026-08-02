@@ -1,3 +1,0 @@
-temporary marker used to create a distinct source-pinned validation commit; this file is deleted in the next commit.
-main=12ca805bd1182de3bf047f6a7d79be820b2bbfd5
-production=6e51d3558ac9075dbe2e57769b87cd3ab8819248
