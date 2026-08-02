@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/014-hostinger/durable-injection-record-digest-hardening-v2-20260802
-      EXPECTED_PARENT_SHA: 468fb59c4e835c6961db3d8c0e7a84cc62db742c
+      EXPECTED_PARENT_SHA: 45f9586c1f4e8e8f3f035e95fa0eae98469ceaea
       IMPLEMENTATION_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
       TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
       LAUNCHER_FILE: .github/workflows/spec014-run-durable-injection-record-digest-hardening-v2.yml
@@ -104,72 +104,78 @@ jobs:
 
           implementation = Path(os.environ['IMPLEMENTATION_FILE'])
           source = implementation.read_text(encoding='utf-8')
-          old = """  assertDataOnly(value, `${kind}.record_json`);
-          if (!value || value.record_digest !== row?.record_digest) {
-            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
-          }
-          return deepFreeze(clone(value));
-          """
-          new = """  assertDataOnly(value, `${kind}.record_json`);
-          if (!value || typeof value !== 'object' || Array.isArray(value)) {
-            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
-          }
-          const embeddedDigest = text(value.record_digest, 64).toLowerCase();
-          const columnDigest = text(row?.record_digest, 64).toLowerCase();
-          const core = clone(value);
-          delete core.record_digest;
-          if (!SHA256_RE.test(embeddedDigest)
-            || !SHA256_RE.test(columnDigest)
-            || embeddedDigest !== columnDigest
-            || digest(core) !== columnDigest) {
-            throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
-          }
-          return deepFreeze(clone(value));
-          """
+          old = '\n'.join([
+              "  assertDataOnly(value, `${kind}.record_json`);",
+              "  if (!value || value.record_digest !== row?.record_digest) {",
+              "    throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });",
+              "  }",
+              "  return deepFreeze(clone(value));",
+          ])
+          new = '\n'.join([
+              "  assertDataOnly(value, `${kind}.record_json`);",
+              "  if (!value || typeof value !== 'object' || Array.isArray(value)) {",
+              "    throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });",
+              "  }",
+              "  const embeddedDigest = text(value.record_digest, 64).toLowerCase();",
+              "  const columnDigest = text(row?.record_digest, 64).toLowerCase();",
+              "  const core = clone(value);",
+              "  delete core.record_digest;",
+              "  if (!SHA256_RE.test(embeddedDigest)",
+              "    || !SHA256_RE.test(columnDigest)",
+              "    || embeddedDigest !== columnDigest",
+              "    || digest(core) !== columnDigest) {",
+              "    throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });",
+              "  }",
+              "  return deepFreeze(clone(value));",
+          ])
           if source.count(old) != 1:
               raise SystemExit(f'parseStored block occurrence count must be 1, got {source.count(old)}')
           implementation.write_text(source.replace(old, new), encoding='utf-8')
 
           test_path = Path(os.environ['TEST_FILE'])
           test = test_path.read_text(encoding='utf-8')
-          anchor = """assert.equal(persisted.active, true);
-          assert.equal(containsRuntimeMaterial(persisted), false);
-
-          const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
-          """
-          regression = """assert.equal(persisted.active, true);
-          assert.equal(containsRuntimeMaterial(persisted), false);
-
-          const originalStateRow = clone(database.tables.states.get(INJECTION_ID));
-          const rewrittenStateRecord = JSON.parse(originalStateRow.record_json);
-          rewrittenStateRecord.source_commit = h('f');
-          rewrittenStateRecord.record_digest = h('a');
-          database.tables.states.set(INJECTION_ID, {
-            ...originalStateRow,
-            record_digest: h('a'),
-            record_json: JSON.stringify(rewrittenStateRecord),
-          });
-          await assert.rejects(
-            restartedRegistry.readVerifiedInjection(INJECTION_ID),
-            (error) => error.code === 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH'
-              && error.details.kind === 'state',
-          );
-          database.tables.states.set(INJECTION_ID, originalStateRow);
-
-          const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
-          """
+          anchor = '\n'.join([
+              "assert.equal(persisted.active, true);",
+              "assert.equal(containsRuntimeMaterial(persisted), false);",
+              "",
+              "const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();",
+          ])
+          regression = '\n'.join([
+              "assert.equal(persisted.active, true);",
+              "assert.equal(containsRuntimeMaterial(persisted), false);",
+              "",
+              "const originalStateRow = clone(database.tables.states.get(INJECTION_ID));",
+              "const rewrittenStateRecord = JSON.parse(originalStateRow.record_json);",
+              "rewrittenStateRecord.source_commit = h('f');",
+              "rewrittenStateRecord.record_digest = h('a');",
+              "database.tables.states.set(INJECTION_ID, {",
+              "  ...originalStateRow,",
+              "  record_digest: h('a'),",
+              "  record_json: JSON.stringify(rewrittenStateRecord),",
+              "});",
+              "await assert.rejects(",
+              "  restartedRegistry.readVerifiedInjection(INJECTION_ID),",
+              "  (error) => error.code === 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH'",
+              "    && error.details.kind === 'state',",
+              ");",
+              "database.tables.states.set(INJECTION_ID, originalStateRow);",
+              "",
+              "const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();",
+          ])
           if test.count(anchor) != 1:
               raise SystemExit(f'test regression anchor occurrence count must be 1, got {test.count(anchor)}')
           test = test.replace(anchor, regression)
 
-          output_anchor = """  restart_registry_readback: true,
-            restart_coordinator_reconstruction: true,
-          """
-          output_replacement = """  restart_registry_readback: true,
-            stored_record_content_digest_recomputed: true,
-            matching_fake_digest_fields_rejected: true,
-            restart_coordinator_reconstruction: true,
-          """
+          output_anchor = '\n'.join([
+              "  restart_registry_readback: true,",
+              "  restart_coordinator_reconstruction: true,",
+          ])
+          output_replacement = '\n'.join([
+              "  restart_registry_readback: true,",
+              "  stored_record_content_digest_recomputed: true,",
+              "  matching_fake_digest_fields_rejected: true,",
+              "  restart_coordinator_reconstruction: true,",
+          ])
           if test.count(output_anchor) != 1:
               raise SystemExit(f'output anchor occurrence count must be 1, got {test.count(output_anchor)}')
           test_path.write_text(test.replace(output_anchor, output_replacement), encoding='utf-8')
