@@ -23,44 +23,16 @@ export const HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA =
 export const HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR = 4879;
 export const HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA =
   '4ca8d8691baa66210b679da51c5d92909c88c14c';
+export const HOSTINGER_STORAGE_READBACK_CONTRACT_KEY =
+  'spec014_hostinger_storage_migration_readback_v4';
+export const HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION =
+  'spec014-hostinger-storage-schema-verification-v2';
 
 const EXPECTED_WAVES = Object.freeze([
-  Object.freeze({
-    wave: 1,
-    migration: '20260802_01_spec014_hostinger_storage_foundation.sql',
-    checksum_sha256: '9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053',
-    statement_count: 4,
-    dependency: null,
-    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
-    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
-  }),
-  Object.freeze({
-    wave: 2,
-    migration: '20260802_02_spec014_hostinger_storage_control_plane.sql',
-    checksum_sha256: '80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33',
-    statement_count: 6,
-    dependency: '20260802_01_spec014_hostinger_storage_foundation.sql',
-    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
-    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
-  }),
-  Object.freeze({
-    wave: 3,
-    migration: '20260802_03_spec014_hostinger_storage_execution_evidence.sql',
-    checksum_sha256: 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096',
-    statement_count: 9,
-    dependency: '20260802_02_spec014_hostinger_storage_control_plane.sql',
-    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
-    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
-  }),
-  Object.freeze({
-    wave: 4,
-    migration: '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql',
-    checksum_sha256: 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981',
-    statement_count: 2,
-    dependency: '20260802_03_spec014_hostinger_storage_execution_evidence.sql',
-    promotion_pull_request: HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR,
-    promotion_merge_sha: HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
-  }),
+  Object.freeze({ wave: 1, migration: '20260802_01_spec014_hostinger_storage_foundation.sql', checksum_sha256: '9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053', statement_count: 4, dependency: null, promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR, promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA }),
+  Object.freeze({ wave: 2, migration: '20260802_02_spec014_hostinger_storage_control_plane.sql', checksum_sha256: '80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33', statement_count: 6, dependency: '20260802_01_spec014_hostinger_storage_foundation.sql', promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR, promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA }),
+  Object.freeze({ wave: 3, migration: '20260802_03_spec014_hostinger_storage_execution_evidence.sql', checksum_sha256: 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096', statement_count: 9, dependency: '20260802_02_spec014_hostinger_storage_control_plane.sql', promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR, promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA }),
+  Object.freeze({ wave: 4, migration: '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql', checksum_sha256: 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981', statement_count: 2, dependency: '20260802_03_spec014_hostinger_storage_execution_evidence.sql', promotion_pull_request: HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR, promotion_merge_sha: HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA }),
 ]);
 
 function readinessError(code, message, details = {}) {
@@ -71,47 +43,34 @@ function readinessError(code, message, details = {}) {
 }
 
 function exactWave(actual = {}, expected = {}) {
-  return (
-    Number(actual.wave) === expected.wave &&
-    actual.migration === expected.migration &&
-    actual.checksum_sha256 === expected.checksum_sha256 &&
-    Number(actual.statement_count) === expected.statement_count &&
-    (actual.dependency || null) === expected.dependency
-  );
+  return Number(actual.wave) === expected.wave
+    && actual.migration === expected.migration
+    && actual.checksum_sha256 === expected.checksum_sha256
+    && Number(actual.statement_count) === expected.statement_count
+    && (actual.dependency || null) === expected.dependency;
 }
 
 function assertRuntimeContract(contract = {}) {
   if (contract.contract !== 'spec014.hostinger-storage-runtime-migrations.v1') {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_CONTRACT_INVALID',
-      'Unexpected Spec 014 runtime migration contract.',
-    );
+    throw readinessError('STORAGE_MIGRATION_READINESS_CONTRACT_INVALID', 'Unexpected Spec 014 runtime migration contract.');
   }
-  if (
-    contract.migration_apply_authorized !== false ||
-    contract.live_database_access_performed !== false ||
-    contract.schema_verified !== false ||
-    contract.production_ready !== false ||
-    contract.secrets_included !== false
-  ) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_SAFETY_BOUNDARY_INVALID',
-      'Runtime migration contract must remain unapplied, unverified, and secret-free.',
-    );
+  if (contract.migration_apply_authorized !== false
+    || contract.live_database_access_performed !== false
+    || contract.schema_verified !== false
+    || contract.production_ready !== false
+    || contract.secrets_included !== false) {
+    throw readinessError('STORAGE_MIGRATION_READINESS_SAFETY_BOUNDARY_INVALID', 'Runtime migration contract must remain unapplied, unverified, and secret-free.');
+  }
+  if (contract.readback_contract_key !== HOSTINGER_STORAGE_READBACK_CONTRACT_KEY
+    || contract.schema_verification_attestation_version !== HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION) {
+    throw readinessError('STORAGE_MIGRATION_READINESS_VERIFICATION_CONTRACT_DRIFT', 'Runtime sequence is not bound to readback v4 and schema-verification v2.');
   }
   if (!Array.isArray(contract.waves) || contract.waves.length !== EXPECTED_WAVES.length) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_WAVE_SEQUENCE_INVALID',
-      'Exactly four governed migration waves are required.',
-    );
+    throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_SEQUENCE_INVALID', 'Exactly four governed migration waves are required.');
   }
   for (let index = 0; index < EXPECTED_WAVES.length; index += 1) {
     if (!exactWave(contract.waves[index], EXPECTED_WAVES[index])) {
-      throw readinessError(
-        'STORAGE_MIGRATION_READINESS_WAVE_DRIFT',
-        'Governed migration identity, checksum, statement count, or dependency drifted.',
-        { wave: EXPECTED_WAVES[index].wave },
-      );
+      throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_DRIFT', 'Governed migration identity, checksum, statement count, or dependency drifted.', { wave: EXPECTED_WAVES[index].wave });
     }
   }
 }
@@ -131,199 +90,111 @@ function uniqueSorted(values = []) {
 
 function resolvePromotionSource(input, expected) {
   const wave4 = expected.wave === 4;
-  const pullRequest = Number(
-    wave4
-      ? input.wave_4_pull_request ?? expected.promotion_pull_request
-      : input.pull_request ?? expected.promotion_pull_request,
-  );
-  const mergeSha = String(
-    wave4
-      ? input.wave_4_merge_sha ?? expected.promotion_merge_sha
-      : input.merge_sha ?? expected.promotion_merge_sha,
-  ).trim().toLowerCase();
-
+  const pullRequest = Number(wave4
+    ? input.wave_4_pull_request ?? expected.promotion_pull_request
+    : input.pull_request ?? expected.promotion_pull_request);
+  const mergeSha = String(wave4
+    ? input.wave_4_merge_sha ?? expected.promotion_merge_sha
+    : input.merge_sha ?? expected.promotion_merge_sha).trim().toLowerCase();
   if (pullRequest !== expected.promotion_pull_request) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_PROMOTION_PR_MISMATCH',
-      'Readiness is bound to the exact reviewed promotion PR for each wave.',
-      {
-        wave: expected.wave,
-        expected: expected.promotion_pull_request,
-        actual: pullRequest,
-      },
-    );
+    throw readinessError('STORAGE_MIGRATION_READINESS_PROMOTION_PR_MISMATCH', 'Readiness is bound to the exact reviewed promotion PR for each wave.', { wave: expected.wave, expected: expected.promotion_pull_request, actual: pullRequest });
   }
   if (mergeSha !== expected.promotion_merge_sha) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH',
-      'Readiness is bound to the exact reviewed promotion merge SHA for each wave.',
-      {
-        wave: expected.wave,
-        expected: expected.promotion_merge_sha,
-        actual: mergeSha,
-      },
-    );
+    throw readinessError('STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH', 'Readiness is bound to the exact reviewed promotion merge SHA for each wave.', { wave: expected.wave, expected: expected.promotion_merge_sha, actual: mergeSha });
   }
-
-  return Object.freeze({
-    pull_request: pullRequest,
-    merge_sha: mergeSha,
-    secrets_included: false,
-  });
+  return Object.freeze({ pull_request: pullRequest, merge_sha: mergeSha, secrets_included: false });
 }
 
-export async function buildHostingerStorageMigrationAuthorizationReadiness(
-  input = {},
-  deps = {},
-) {
+export async function buildHostingerStorageMigrationAuthorizationReadiness(input = {}, deps = {}) {
   const readFile = deps.readFile || fs.readFile.bind(fs);
-  const runtimeContractPath =
-    deps.runtimeContractPath || input.runtime_contract_path || DEFAULT_RUNTIME_CONTRACT_PATH;
+  const runtimeContractPath = deps.runtimeContractPath || input.runtime_contract_path || DEFAULT_RUNTIME_CONTRACT_PATH;
   const migrationsDir = deps.migrationsDir || DEFAULT_MIGRATIONS_DIR;
-  const inspectCandidate =
-    deps.inspectCandidate || inspectGovernedMigrationAuthorizationCandidate;
-
+  const inspectCandidate = deps.inspectCandidate || inspectGovernedMigrationAuthorizationCandidate;
   const contract = input.runtime_contract
     ? structuredClone(input.runtime_contract)
     : JSON.parse(await readFile(runtimeContractPath, 'utf8'));
   assertRuntimeContract(contract);
 
-  const promotionSources = EXPECTED_WAVES.map((expected) => Object.freeze({
-    wave: expected.wave,
-    ...resolvePromotionSource(input, expected),
-  }));
-  const promotionSourceByWave = new Map(
-    promotionSources.map((source) => [source.wave, source]),
-  );
-
+  const promotionSources = EXPECTED_WAVES.map((expected) => Object.freeze({ wave: expected.wave, ...resolvePromotionSource(input, expected) }));
+  const promotionSourceByWave = new Map(promotionSources.map((source) => [source.wave, source]));
   const waves = [];
+
   for (const wave of contract.waves) {
     const expected = EXPECTED_WAVES.find((entry) => entry.wave === wave.wave);
     const source = promotionSourceByWave.get(wave.wave);
     const confirmation = governedMigrationAuthorizationConfirmation(wave.migration);
     let candidate = null;
     let inspectionError = null;
-
     try {
-      candidate = await inspectCandidate(
-        {
-          migration: wave.migration,
-          expected_checksum_sha256: wave.checksum_sha256,
-          expected_statement_count: wave.statement_count,
-          pull_request: source.pull_request,
-          merge_sha: source.merge_sha,
-          confirm: confirmation,
-        },
-        { readFile, migrationsDir },
-      );
+      candidate = await inspectCandidate({
+        migration: wave.migration,
+        expected_checksum_sha256: wave.checksum_sha256,
+        expected_statement_count: wave.statement_count,
+        pull_request: source.pull_request,
+        merge_sha: source.merge_sha,
+        confirm: confirmation,
+      }, { readFile, migrationsDir });
     } catch (error) {
       inspectionError = {
         code: String(error?.code || 'STORAGE_MIGRATION_READINESS_INSPECTION_FAILED'),
         status: Number(error?.status || 500),
-        message: String(error?.message || 'Migration authorization inspection failed.').slice(
-          0,
-          500,
-        ),
+        message: String(error?.message || 'Migration authorization inspection failed.').slice(0, 500),
         secrets_included: false,
       };
     }
 
     const blockers = commonBlockers();
-    if (wave.dependency) {
-      blockers.push(`DEPENDENCY_APPLY_LEDGER_REQUIRED:${wave.dependency}`);
-    }
-    if (wave.wave === 3) {
-      blockers.push(
-        'LIVE_VIEW_ABSENCE_READBACK_REQUIRED',
-        'LIVE_TOOL_KEY_ABSENCE_READBACK_REQUIRED',
-      );
-    }
-    if (wave.wave === 4) {
-      blockers.push(
-        'LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED',
-        'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED',
-      );
-    }
+    if (wave.dependency) blockers.push(`DEPENDENCY_APPLY_LEDGER_REQUIRED:${wave.dependency}`);
+    if (wave.wave === 3) blockers.push('LIVE_VIEW_ABSENCE_READBACK_REQUIRED', 'LIVE_TOOL_KEY_ABSENCE_READBACK_REQUIRED');
+    if (wave.wave === 4) blockers.push(
+      'LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED',
+      'AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED',
+      'SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED',
+    );
     if (inspectionError) blockers.push(inspectionError.code);
 
     let readinessState = 'candidate_inspection_ready_authorization_not_created';
-    if (wave.wave === 2) {
-      readinessState = 'candidate_inspection_ready_dependency_apply_ledger_required';
-    }
-    if (wave.wave === 3) {
-      readinessState = 'candidate_inspection_blocked_live_absence_readback_required';
-    }
-    if (wave.wave === 4) {
-      readinessState =
-        'candidate_inspection_ready_dependency_and_live_schema_readback_required';
-    }
+    if (wave.wave === 2) readinessState = 'candidate_inspection_ready_dependency_apply_ledger_required';
+    if (wave.wave === 3) readinessState = 'candidate_inspection_blocked_live_absence_readback_required';
+    if (wave.wave === 4) readinessState = 'candidate_inspection_ready_dependency_live_readback_and_signature_required';
 
-    waves.push(
-      Object.freeze({
-        wave: wave.wave,
-        migration: wave.migration,
-        checksum_sha256: wave.checksum_sha256,
-        statement_count: wave.statement_count,
-        dependency: wave.dependency || null,
-        promotion_pull_request: source.pull_request,
-        promotion_merge_sha: source.merge_sha,
-        required_confirmation: confirmation,
-        repository_preflight_status: wave.preflight_status,
-        repository_preflight_risk_count: Number(wave.preflight_risk_count || 0),
-        candidate_inspection_passed: Boolean(candidate),
-        candidate_inspection_error: inspectionError,
-        readiness_state: readinessState,
-        blockers: Object.freeze(uniqueSorted(blockers)),
-        authorization_created: false,
-        authorization_updated: false,
-        dry_run_performed: false,
-        migration_sql_executed: false,
-        live_database_access_performed: false,
-        secrets_included: false,
-      }),
-    );
-
+    waves.push(Object.freeze({
+      wave: wave.wave,
+      migration: wave.migration,
+      checksum_sha256: wave.checksum_sha256,
+      statement_count: wave.statement_count,
+      dependency: wave.dependency || null,
+      promotion_pull_request: source.pull_request,
+      promotion_merge_sha: source.merge_sha,
+      required_confirmation: confirmation,
+      repository_preflight_status: wave.preflight_status,
+      repository_preflight_risk_count: Number(wave.preflight_risk_count || 0),
+      candidate_inspection_passed: Boolean(candidate),
+      candidate_inspection_error: inspectionError,
+      signed_schema_verification_contract_refreshed: true,
+      readback_contract_key: HOSTINGER_STORAGE_READBACK_CONTRACT_KEY,
+      schema_verification_attestation_version: HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION,
+      readiness_state: readinessState,
+      blockers: Object.freeze(uniqueSorted(blockers)),
+      authorization_created: false,
+      authorization_updated: false,
+      dry_run_performed: false,
+      migration_sql_executed: false,
+      live_database_access_performed: false,
+      secrets_included: false,
+    }));
     if (!expected || expected.migration !== wave.migration) {
-      throw readinessError(
-        'STORAGE_MIGRATION_READINESS_EXPECTED_WAVE_MISSING',
-        'Expected wave metadata was not available during readiness construction.',
-        { wave: wave.wave },
-      );
+      throw readinessError('STORAGE_MIGRATION_READINESS_EXPECTED_WAVE_MISSING', 'Expected wave metadata was not available during readiness construction.', { wave: wave.wave });
     }
   }
 
   const byWave = new Map(waves.map((wave) => [wave.wave, wave]));
-  if (!byWave.get(1)?.candidate_inspection_passed) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_WAVE_1_INSPECTION_FAILED',
-      'Wave 1 must pass repository-only authorization candidate inspection.',
-      { inspection_error: byWave.get(1)?.candidate_inspection_error || null },
-    );
+  if (!byWave.get(1)?.candidate_inspection_passed) throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_1_INSPECTION_FAILED', 'Wave 1 must pass repository-only authorization candidate inspection.', { inspection_error: byWave.get(1)?.candidate_inspection_error || null });
+  if (!byWave.get(2)?.candidate_inspection_passed) throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_2_INSPECTION_FAILED', 'Wave 2 must pass repository-only authorization candidate inspection.', { inspection_error: byWave.get(2)?.candidate_inspection_error || null });
+  if (byWave.get(3)?.candidate_inspection_error?.code !== 'governed_migration_authorization_preflight_failed') {
+    throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_3_FAIL_CLOSED_EVIDENCE_MISSING', 'Wave 3 must remain blocked by the canonical zero-risk authorization preflight.', { inspection_error: byWave.get(3)?.candidate_inspection_error || null });
   }
-  if (!byWave.get(2)?.candidate_inspection_passed) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_WAVE_2_INSPECTION_FAILED',
-      'Wave 2 must pass repository-only authorization candidate inspection.',
-      { inspection_error: byWave.get(2)?.candidate_inspection_error || null },
-    );
-  }
-  if (
-    byWave.get(3)?.candidate_inspection_error?.code !==
-    'governed_migration_authorization_preflight_failed'
-  ) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_WAVE_3_FAIL_CLOSED_EVIDENCE_MISSING',
-      'Wave 3 must remain blocked by the canonical zero-risk authorization preflight.',
-      { inspection_error: byWave.get(3)?.candidate_inspection_error || null },
-    );
-  }
-  if (!byWave.get(4)?.candidate_inspection_passed) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_WAVE_4_INSPECTION_FAILED',
-      'Wave 4 must pass repository-only authorization candidate inspection.',
-      { inspection_error: byWave.get(4)?.candidate_inspection_error || null },
-    );
-  }
+  if (!byWave.get(4)?.candidate_inspection_passed) throw readinessError('STORAGE_MIGRATION_READINESS_WAVE_4_INSPECTION_FAILED', 'Wave 4 must pass repository-only authorization candidate inspection.', { inspection_error: byWave.get(4)?.candidate_inspection_error || null });
 
   return Object.freeze({
     ok: true,
@@ -337,6 +208,9 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
     promotion_sources: Object.freeze(promotionSources),
     wave_count: waves.length,
     next_authorizable_wave: 1,
+    readback_contract_key: HOSTINGER_STORAGE_READBACK_CONTRACT_KEY,
+    schema_verification_attestation_version: HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION,
+    signed_schema_verification_contract_refreshed: true,
     waves: Object.freeze(waves),
     authorization_created: false,
     authorization_registry_mutated: false,
