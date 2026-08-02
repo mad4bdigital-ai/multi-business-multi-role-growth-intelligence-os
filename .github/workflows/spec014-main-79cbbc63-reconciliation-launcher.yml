@@ -135,9 +135,30 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/surface-contract-discovery.mjs --write
 
-      - name: Rebuild and enforce surface gap triage
+      - name: Rebuild surface gap triage reports
         working-directory: http-generic-api
-        run: node scripts/surface-contract-gap-triage.mjs --write --enforce-new-gaps
+        run: node scripts/surface-contract-gap-triage.mjs --write
+
+      - name: Upload surface gap diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-surface-gap-triage-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            docs/surface-contract-gap-queue.json
+            docs/surface-contract-discovery-status.json
+            docs/surface-contract-gap-triage.json
+            docs/surface-contract-gap-triage.md
+            docs/surface-contract-gap-baseline.json
+            docs/surface-contract-governance-dashboard.json
+            docs/surface-contract-governance-compact.json
+            docs/surface-contract-gap-trends.json
+
+      - name: Enforce zero unbaselined surface gaps
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-gap-triage.mjs --check --enforce-new-gaps
 
       - name: Rebuild frontend operation governance
         working-directory: http-generic-api
