@@ -27,7 +27,7 @@ on:
       - "http-generic-api/scripts/brand-skill-mariadb-disposable-certification.mjs"
       - "http-generic-api/scripts/brand-skill-staging-preflight-evidence.mjs"
       - "http-generic-api/test-brand-skill-*.mjs"
-      - "docs/runbooks/brand-skill-migration.md"
+      - "docs/**/brand-skill-migration.md"
       - ".github/workflows/brand-skill-mariadb-certification.yml"
 
 permissions:
