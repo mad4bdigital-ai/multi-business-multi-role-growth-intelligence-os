@@ -26,6 +26,7 @@ jobs:
       REPORT_DIR: .ci-evidence/spec014-durable-authorized-injection-schema-ddl
       DDL_FILE: .github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql
       CONTRACT_FILE: .github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json
+      PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
       MODULE_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
       TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
       WORKFLOW_TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
@@ -41,6 +42,33 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+
+      - name: Classify governed candidate mode
+        id: candidate_mode
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+
+          const raw = readFileSync(process.env.PHASE_CONTRACT, 'utf8');
+          const contract = JSON.parse(raw);
+          const isGovernedRollup = process.env.BASE_REF === 'main'
+            && contract.feature_key === '014-governed-hostinger-storage-orchestration'
+            && contract.delivery_mode === 'multi_pr'
+            && contract.parallel_work?.enabled === true
+            && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
+            && contract.parallel_work?.no_partial_feature_merge === true;
+          const mode = isGovernedRollup ? 'integration' : 'feature';
+          const digest = createHash('sha256').update(raw).digest('hex');
+          appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `phase_contract_digest=${digest}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `feature_key=${String(contract.feature_key || '')}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `delivery_mode=${String(contract.delivery_mode || '')}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `merge_policy=${String(contract.parallel_work?.merge_policy || '')}\n`);
+          NODE
 
       - name: Check DDL parity and workflow regression syntax
         id: syntax
@@ -75,18 +103,15 @@ jobs:
         id: boundary
         continue-on-error: true
         env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}
         shell: bash
         run: |
           set -euo pipefail
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
           allowed='^(\.changes/e2e/spec014-durable-authorized-injection-schema-ddl(-rollup-boundary)?\.json|\.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state\.json|\.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state\.sql|\.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard\.yml|http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl(-workflow)?\.mjs)$'
-          integration_mode=false
-          if [[ "${BASE_REF}" == "main" && "${HEAD_REF}" == "gpt/hostinger-safe-storage-cleanup-ssh-20260801" ]]; then
-            integration_mode=true
-          fi
-          if [[ "${integration_mode}" != "true" ]]; then
+          candidate_mode="${CANDIDATE_MODE:-feature}"
+          [[ "${candidate_mode}" == "feature" || "${candidate_mode}" == "integration" ]]
+          if [[ "${candidate_mode}" != "integration" ]]; then
             unexpected="$(printf '%s\n' "${changed_files}" | grep -Ev "${allowed}" || true)"
             [[ -z "${unexpected}" ]]
             ! printf '%s\n' "${changed_files}" | grep -E '(^|/)(migrations?|deploy|production|provider)(/|$)'
@@ -105,6 +130,12 @@ jobs:
         if: always()
         shell: bash
         env:
+          MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}
+          CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}
+          PHASE_CONTRACT_DIGEST: ${{ steps.candidate_mode.outputs.phase_contract_digest }}
+          CONTRACT_FEATURE_KEY: ${{ steps.candidate_mode.outputs.feature_key }}
+          CONTRACT_DELIVERY_MODE: ${{ steps.candidate_mode.outputs.delivery_mode }}
+          CONTRACT_MERGE_POLICY: ${{ steps.candidate_mode.outputs.merge_policy }}
           SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
           TEST_OUTCOME: ${{ steps.focused_test.outcome }}
           WORKFLOW_CONTRACT_OUTCOME: ${{ steps.workflow_contract.outcome }}
@@ -120,6 +151,7 @@ jobs:
           from pathlib import Path
 
           stages = {
+            'candidate_mode_classification': os.environ['MODE_OUTCOME'],
             'syntax': os.environ['SYNTAX_OUTCOME'],
             'module_ddl_parity': os.environ['TEST_OUTCOME'],
             'workflow_contract': os.environ['WORKFLOW_CONTRACT_OUTCOME'],
@@ -132,12 +164,9 @@ jobs:
             focused = json.loads(focused_path.read_text()) if focused_path.exists() else {}
           except Exception:
             focused = {}
-          candidate_mode = (
-            'integration'
-            if os.environ['BASE_REF'] == 'main'
-            and os.environ['HEAD_REF'] == 'gpt/hostinger-safe-storage-cleanup-ssh-20260801'
-            else 'feature'
-          )
+          candidate_mode = os.environ.get('CANDIDATE_MODE') or 'unknown'
+          if candidate_mode not in ('feature', 'integration'):
+            failed.insert(0, 'candidate_mode_invalid')
           ddl_matches_registry_sql = (
             stages['module_ddl_parity'] == 'success'
             and focused.get('ddl_matches_registry_sql') is True
@@ -153,6 +182,12 @@ jobs:
             'outcome': 'passed' if not failed else 'failed',
             'candidate_kind': 'head',
             'candidate_mode': candidate_mode,
+            'candidate_mode_source': 'governed_phase_contract',
+            'governed_phase_contract': os.environ['PHASE_CONTRACT'],
+            'governed_phase_contract_digest': os.environ.get('PHASE_CONTRACT_DIGEST') or None,
+            'contract_feature_key': os.environ.get('CONTRACT_FEATURE_KEY') or None,
+            'contract_delivery_mode': os.environ.get('CONTRACT_DELIVERY_MODE') or None,
+            'contract_merge_policy': os.environ.get('CONTRACT_MERGE_POLICY') or None,
             'exact_candidate_sha': os.environ['CANDIDATE_SHA'],
             'source_sha': os.environ['CANDIDATE_SHA'],
             'merge_candidate_sha': os.environ['MERGE_CANDIDATE_SHA'],
