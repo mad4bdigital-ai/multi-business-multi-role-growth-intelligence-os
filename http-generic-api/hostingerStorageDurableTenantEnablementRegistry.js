@@ -282,18 +282,24 @@ async function withConnection(pool, work) {
 
 async function loadRecord(connection, enablementId, { forUpdate = false } = {}) {
   const [rows] = await execute(connection, `/* spec014:enablement:load-record */ SELECT record_digest, record_json, row_version FROM storage_tenant_enablement_records WHERE id=?${forUpdate ? ' FOR UPDATE' : ''}`, [enablementId]);
-  if ((rows || []).length > 1) {
+  const boundedRows = Array.isArray(rows) ? rows : [];
+  if (boundedRows.length > 1) {
     throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_ROW_AMBIGUOUS', 'Enablement identity resolved to multiple durable rows.', { enablement_id: enablementId });
   }
-  return rows?.[0] ? { record: normalizeStoredRecord(rows[0]), row_version: Number(rows[0].row_version) } : null;
+  if (boundedRows.length === 0) return null;
+  const [row] = boundedRows;
+  return { record: normalizeStoredRecord(row), row_version: Number(row.row_version) };
 }
 
 async function loadConsumption(connection, enablementId, { forUpdate = false } = {}) {
   const [rows] = await execute(connection, `/* spec014:enablement:load-consumption */ SELECT record_digest, record_json FROM storage_tenant_enablement_consumptions WHERE enablement_id=?${forUpdate ? ' FOR UPDATE' : ''}`, [enablementId]);
-  if ((rows || []).length > 1) {
+  const boundedConsumptionRows = Array.isArray(rows) ? rows : [];
+  if (boundedConsumptionRows.length > 1) {
     throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_CONSUMPTION_AMBIGUOUS', 'Enablement resolved to multiple consumption receipts.', { enablement_id: enablementId });
   }
-  return rows?.[0] ? normalizeStoredConsumption(rows[0]) : null;
+  if (boundedConsumptionRows.length === 0) return null;
+  const [row] = boundedConsumptionRows;
+  return normalizeStoredConsumption(row);
 }
 
 async function insertRecord(connection, record) {
