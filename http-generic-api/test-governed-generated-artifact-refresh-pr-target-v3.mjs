@@ -50,6 +50,8 @@ assert.doesNotMatch(dispatcher, /git\s+push/);
 assert.match(dispatcher, /request_source_run_mismatch/);
 assert.match(dispatcher, /pull_request_head_mismatch/);
 assert.match(dispatcher, /generated_artifact_refresh_label_absent/);
+assert.match(dispatcher, /target_branch="\$\{target_ref\}"/);
+assert.match(dispatcher, /"\$\{target_branch\}" == "main" \|\| "\$\{target_branch\}" == "Production"/);
 assert.match(dispatcher, /protected_branch_mutation_forbidden/);
 assert.match(
   dispatcher,
