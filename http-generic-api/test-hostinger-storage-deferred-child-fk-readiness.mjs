@@ -15,14 +15,16 @@ const candidatePath = new URL('../.github/contracts/spec014/deferred-schema/defe
 const readbackPath = new URL('../.github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql', import.meta.url);
 const candidateSql = await readFile(candidatePath, 'utf8');
 const readbackSql = await readFile(readbackPath, 'utf8');
+const executableCandidateSql = candidateSql.replace(/^--.*$/gmu, '');
+const executableReadbackSql = readbackSql.replace(/^--.*$/gmu, '');
 
 assert.equal(sha256(candidateSql), HOSTINGER_STORAGE_DEFERRED_CHILD_FK_CANDIDATE.checksum_sha256);
 assert.equal(sha256(readbackSql), HOSTINGER_STORAGE_DEFERRED_CHILD_FK_READBACK.checksum_sha256);
-assert.equal((candidateSql.match(/\bALTER\s+TABLE\b/giu) || []).length, 3);
-assert.equal((candidateSql.match(/\bADD\s+CONSTRAINT\b/giu) || []).length, 3);
-assert.equal(/\b(DROP|DELETE|TRUNCATE|UPDATE|INSERT|REPLACE|CASCADE)\b/iu.test(candidateSql), false);
-assert.equal(/\b(INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE)\b/iu.test(readbackSql.replace(/^--.*$/gmu, '')), false);
-const normalizedCandidateSql = candidateSql.replace(/\s+/gu, ' ').trim();
+assert.equal((executableCandidateSql.match(/\bALTER\s+TABLE\b/giu) || []).length, 3);
+assert.equal((executableCandidateSql.match(/\bADD\s+CONSTRAINT\b/giu) || []).length, 3);
+assert.equal(/\b(DROP|DELETE|TRUNCATE|UPDATE|INSERT|REPLACE|CASCADE)\b/iu.test(executableCandidateSql), false);
+assert.equal(/\b(INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE)\b/iu.test(executableReadbackSql), false);
+const normalizedCandidateSql = executableCandidateSql.replace(/\s+/gu, ' ').trim();
 for (const constraint of HOSTINGER_STORAGE_DEFERRED_CHILD_FK_CANDIDATE.constraints) {
   assert.equal(normalizedCandidateSql.includes(`ADD CONSTRAINT ${constraint.name}`), true);
   assert.equal(normalizedCandidateSql.includes(`FOREIGN KEY (${constraint.child_column}) REFERENCES ${constraint.parent_table}(${constraint.parent_column})`), true);
