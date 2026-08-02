@@ -1,0 +1,58 @@
+name: Spec 014 Authorized Mount Fingerprint Diagnostic Patch
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/authorized-mount-executor-20260802
+    paths:
+      - .github/workflows/spec014-authorized-mount-fingerprint-diagnostic-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt/014-hostinger/authorized-mount-executor-20260802
+          fetch-depth: 0
+
+      - name: Apply bounded diagnostic
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('http-generic-api/hostingerStorageAuthorizedMountExecutor.js')
+          workflow = Path('.github/workflows/spec014-authorized-mount-fingerprint-diagnostic-patch.yml')
+          text = source.read_text(encoding='utf-8')
+          old = "    throw fail(409, 'STORAGE_AUTHORIZED_MOUNT_DATABASE_FINGERPRINT_MISMATCH', 'Registry and runtime composition must bind the same database fingerprint.');"
+          new = """    throw fail(409, 'STORAGE_AUTHORIZED_MOUNT_DATABASE_FINGERPRINT_MISMATCH', 'Registry and runtime composition must bind the same database fingerprint.', {
+      registry_fingerprint: registry.database_fingerprint,
+      registry_fingerprint_source: 'authorization_registry.database_fingerprint',
+      registry_fingerprint_present: registry.database_fingerprint !== undefined && registry.database_fingerprint !== null,
+      registry_fingerprint_type: typeof registry.database_fingerprint,
+      registry_fingerprint_length: typeof registry.database_fingerprint === 'string' ? registry.database_fingerprint.length : null,
+      runtime_composition_fingerprint: composition.schema_provenance.database_fingerprint,
+      runtime_composition_fingerprint_source: 'runtime_composition.schema_provenance.database_fingerprint',
+      runtime_composition_fingerprint_present: composition.schema_provenance.database_fingerprint !== undefined && composition.schema_provenance.database_fingerprint !== null,
+      runtime_composition_fingerprint_type: typeof composition.schema_provenance.database_fingerprint,
+      runtime_composition_fingerprint_length: typeof composition.schema_provenance.database_fingerprint === 'string' ? composition.schema_provenance.database_fingerprint.length : null,
+    });"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one diagnostic target, found {text.count(old)}')
+          source.write_text(text.replace(old, new), encoding='utf-8')
+          workflow.unlink()
+          PY
+          node --check http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+
+      - name: Commit bounded diagnostic
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add http-generic-api/hostingerStorageAuthorizedMountExecutor.js .github/workflows/spec014-authorized-mount-fingerprint-diagnostic-patch.yml
+          git commit -m "test(spec-014): add bounded mount fingerprint diagnostic"
+          git push origin HEAD:gpt/014-hostinger/authorized-mount-executor-20260802
