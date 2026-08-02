@@ -1,0 +1,204 @@
+name: Spec014 Latest Main Reconciliation v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-latest-main-reconciliation-v2.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-latest-main-reconciliation-v2
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/reconcile-spec014-latest-main-20260802-v2'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      ORIGINAL_INTEGRATION_SHA: e64316978042c25fece8abcd021888c654785eed
+      INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      RECONCILIATION_BRANCH: gpt/reconcile-spec014-latest-main-20260802-v2
+      LAUNCHER_PATH: .github/workflows/spec014-latest-main-reconciliation-v2.yml
+    steps:
+      - name: Checkout reconciliation branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RECONCILIATION_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Capture latest parents and build bounded merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          launcher_head="$(git rev-parse HEAD)"
+          launcher_parent="$(git rev-parse HEAD^)"
+          [[ "${launcher_parent}" == "${ORIGINAL_INTEGRATION_SHA}" ]]
+
+          unexpected_launcher_paths="$(git diff --name-only "${ORIGINAL_INTEGRATION_SHA}" "${launcher_head}" | grep -vxF "${LAUNCHER_PATH}" || true)"
+          [[ -z "${unexpected_launcher_paths}" ]]
+
+          git fetch --no-tags origin main "${INTEGRATION_BRANCH}"
+          latest_main_sha="$(git rev-parse origin/main)"
+          latest_integration_sha="$(git rev-parse "origin/${INTEGRATION_BRANCH}")"
+          git merge-base --is-ancestor "${ORIGINAL_INTEGRATION_SHA}" "${latest_integration_sha}"
+
+          if [[ "${latest_integration_sha}" != "${launcher_parent}" ]]; then
+            git merge --no-ff --no-edit "${latest_integration_sha}"
+          fi
+
+          reconciliation_first_parent="$(git rev-parse HEAD)"
+          git update-ref refs/heads/main "${latest_main_sha}"
+
+          set +e
+          git merge --no-commit --no-ff "${latest_main_sha}"
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort -u)
+          if [[ ${merge_status} -ne 0 ]]; then
+            [[ ${#conflicts[@]} -eq 1 ]]
+            [[ "${conflicts[0]}" == 'http-generic-api/frontend-surface-dispatch.generated.json' ]]
+            git show "${latest_integration_sha}:http-generic-api/frontend-surface-dispatch.generated.json" \
+              > http-generic-api/frontend-surface-dispatch.generated.json
+            git add -- http-generic-api/frontend-surface-dispatch.generated.json
+          else
+            [[ ${#conflicts[@]} -eq 0 ]]
+          fi
+
+          [[ -z "$(git diff --name-only --diff-filter=U)" ]]
+
+          {
+            echo "LATEST_MAIN_SHA=${latest_main_sha}"
+            echo "LATEST_INTEGRATION_SHA=${latest_integration_sha}"
+            echo "RECONCILIATION_FIRST_PARENT=${reconciliation_first_parent}"
+            echo "MERGE_STATUS=${merge_status}"
+            echo "CONFLICT_COUNT=${#conflicts[@]}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Regenerate combined frontend and OpenAPI evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+
+          mapfile -t unstaged < <(git diff --name-only)
+          for path in "${unstaged[@]}"; do
+            case "${path}" in
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                ;;
+              *)
+                echo "Unexpected generator mutation: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Validate combined contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            node test-hostinger-storage-crash-safe-restart-reconciler.mjs
+            node test-hostinger-storage-dedicated-worker-certification.mjs
+            node test-hostinger-storage-verified-sql-runtime-composition.mjs
+            node test-hostinger-storage-tenant-safe-durable-projection.mjs
+          )
+          node .github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs
+          grep -Fq 'userJwtAuth' http-generic-api/openapi/support-tickets.yaml
+
+      - name: Commit and push ancestry-preserving reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/spec014-latest-main-reconciliation"
+          mkdir -p "${evidence_dir}"
+
+          git rm "${LAUNCHER_PATH}"
+          git add -A
+          git diff --cached --check
+          git commit -m 'chore: reconcile latest main into Spec 014 Integration'
+
+          reconciliation_commit="$(git rev-parse HEAD)"
+          second_parent="$(git rev-parse HEAD^2)"
+          [[ "${second_parent}" == "${LATEST_MAIN_SHA}" ]]
+
+          EVIDENCE_DIR="${evidence_dir}" \
+          RECONCILIATION_COMMIT="${reconciliation_commit}" \
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          conflict_count = int(os.environ['CONFLICT_COUNT'])
+          report = {
+              'contract': 'mad4b.spec014-latest-main-reconciliation-summary.v2',
+              'reconciliation_commit_sha': os.environ['RECONCILIATION_COMMIT'],
+              'first_parent_sha': os.environ['RECONCILIATION_FIRST_PARENT'],
+              'latest_integration_sha': os.environ['LATEST_INTEGRATION_SHA'],
+              'latest_main_sha': os.environ['LATEST_MAIN_SHA'],
+              'merge_status': int(os.environ['MERGE_STATUS']),
+              'conflict_count': conflict_count,
+              'conflict_paths': [] if conflict_count == 0 else ['http-generic-api/frontend-surface-dispatch.generated.json'],
+              'conflict_resolution': 'combined_tree_regeneration' if conflict_count else 'clean_merge',
+              'frontend_contracts_passed': True,
+              'openapi_contracts_passed': True,
+              'crash_safe_contracts_passed': True,
+              'dedicated_worker_contracts_passed': True,
+              'verified_sql_contracts_passed': True,
+              'tenant_projection_contracts_passed': True,
+              'repository_push_target': os.environ['RECONCILIATION_BRANCH'],
+              'force_push': False,
+              'provider_dispatch': False,
+              'credential_access': False,
+              'migration_apply': False,
+              'deployment': False,
+              'job_logs_consulted': False,
+              'secrets_included': False,
+          }
+          Path(os.environ['EVIDENCE_DIR'], 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+          git push origin "HEAD:${RECONCILIATION_BRANCH}"
+
+      - name: Upload reconciliation summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-latest-main-reconciliation-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-latest-main-reconciliation/summary.json
+          if-no-files-found: warn
+          retention-days: 14
