@@ -25,11 +25,13 @@ const specOnlyOpenApiSource = fs.readFileSync(
   new URL('../specs/014-governed-hostinger-storage-orchestration/contracts/openapi.yaml', import.meta.url),
   'utf8',
 );
+const specOnlyOpenApi = YAML.parse(specOnlyOpenApiSource) || {};
 
 const signature = 'POST /tenant/storage-operations/apply-plan';
 const routePath = '/tenant/storage-operations/apply-plan';
 const expectedRef = './openapi/hostinger-storage-tenant-runtime.yaml#/hostingerStorageTenantApplyPlanPath';
 const routeFile = 'routes/hostingerStorageTenantRoutes.js';
+const httpMethodKeys = new Set(['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace']);
 
 assert.equal(registry.version, 1);
 assert.deepEqual(Object.keys(registry.contracts || {}), [signature]);
@@ -37,10 +39,27 @@ assert.equal(registry.contracts[signature].path_item_ref, expectedRef);
 assert.equal(registry.contracts[signature].route_file, routeFile);
 
 assert.deepEqual(rootOpenApi.paths?.[routePath], { $ref: expectedRef });
-assert.equal(rootOpenApi.paths?.['/admin/hosting/storage'], undefined);
-assert.equal(rootOpenApi.paths?.['/me/hosting/storage'], undefined);
-assert.doesNotMatch(rootOpenApiSource, /^  \/admin\/hosting\/storage(?:\/|:)/mu);
-assert.doesNotMatch(rootOpenApiSource, /^  \/me\/hosting\/storage(?:\/|:)/mu);
+
+const specOnlyPaths = Object.keys(specOnlyOpenApi.paths || {});
+const specOnlyOperationCount = specOnlyPaths.reduce(
+  (count, pathName) => count + Object.keys(specOnlyOpenApi.paths?.[pathName] || {})
+    .filter((key) => httpMethodKeys.has(key))
+    .length,
+  0,
+);
+assert.equal(specOnlyPaths.length, 17);
+assert.equal(specOnlyOperationCount, 18);
+assert(specOnlyPaths.every((pathName) => (
+  pathName.startsWith('/admin/hosting/storage/')
+  || pathName.startsWith('/tenant/workspaces/')
+)));
+for (const designPath of specOnlyPaths) {
+  assert.equal(
+    rootOpenApi.paths?.[designPath],
+    undefined,
+    `Specification-only Hostinger design path entered the root runtime OpenAPI: ${designPath}`,
+  );
+}
 
 const operation = fragment.hostingerStorageTenantApplyPlanPath?.post;
 assert(operation && typeof operation === 'object');
@@ -72,9 +91,8 @@ assert.match(routeSource, /secrets_included: false/u);
 assert.match(routeIndexSource, /import \{ buildHostingerStorageTenantRoutes \} from "\.\/hostingerStorageTenantRoutes\.js";/u);
 assert.match(routeIndexSource, /app\.use\(buildHostingerStorageTenantRoutes\(deps\)\);/u);
 
-assert.match(specOnlyOpenApiSource, /^  \/admin\/hosting\/storage:/mu);
-assert.match(specOnlyOpenApiSource, /^  \/me\/hosting\/storage:/mu);
-assert.match(specOnlyOpenApiSource, /Specification-only contract; not runtime-mounted by this change/u);
+assert.match(specOnlyOpenApiSource, /Specification-only Admin and Tenant surfaces/u);
+assert.match(specOnlyOpenApiSource, /not runtime-mounted by this specification package/u);
 
 const sync = spawnSync(
   process.execPath,
@@ -100,6 +118,8 @@ console.log(JSON.stringify({
   signature,
   path_item_ref: expectedRef,
   mounted_runtime_route_count: 1,
+  specification_only_design_path_count: specOnlyPaths.length,
+  specification_only_design_operation_count: specOnlyOperationCount,
   spec_only_design_routes_mounted: false,
   user_jwt_required: true,
   consequential: true,
