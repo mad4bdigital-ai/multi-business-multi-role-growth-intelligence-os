@@ -37,4 +37,54 @@ assert.match(
   "manual refresh and PR validation must share the same canonical baseline semantics",
 );
 
-console.log("frontend dispatch workflow baseline contract: ok");
+const structuredChecks = [
+  ["Verify generator contract", "workflow_baseline", "node test-frontend-dispatch-workflow-baseline.mjs"],
+  ["Verify operation governance generator", "operation_generator", "node test-frontend-operation-governance-generator.mjs"],
+  ["Verify frontend surface dispatch", "surface_dispatch", "node test-frontend-surface-dispatch.mjs"],
+  ["Verify frontend auth OpenAPI parity", "auth_openapi", "node test-frontend-auth-openapi-parity.mjs"],
+  ["Verify OpenAPI route coverage", "route_coverage", "node test-openapi-route-coverage.mjs"],
+  ["Verify OpenAPI auth synchronization", "openapi_auth", "npm run openapi:auth:check"],
+];
+
+for (const [name, id, command] of structuredChecks) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedCommand = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert.match(
+    workflow,
+    new RegExp(`- name: ${escapedName}\\s+id: ${id}\\s+continue-on-error: true\\s+run: ${escapedCommand}`),
+    `${id} must remain an independently reported non-short-circuiting contract check`,
+  );
+}
+
+assert.match(
+  workflow,
+  /- name: Check committed deterministic output\s+id: deterministic_output\s+continue-on-error: true/,
+  "deterministic output parity must be included in the structured check matrix",
+);
+assert.match(
+  workflow,
+  /contract: 'mad4b\.frontend-generator-contract-summary\.v1'/,
+  "the workflow must emit the canonical structured generator-contract summary",
+);
+assert.match(
+  workflow,
+  /failed_check_ids: failed\.map\(\(check\) => check\.id\)/,
+  "the structured summary must identify failed checks without relying on Job logs",
+);
+assert.match(
+  workflow,
+  /consult_job_logs: false[\s\S]*?repository_mutation: false[\s\S]*?secrets_included: false/,
+  "the structured summary must remain no-log, read-only, and secret-free",
+);
+assert.match(
+  workflow,
+  /name: frontend-generator-contract-\$\{\{ github\.run_id \}\}/,
+  "the structured summary Artifact must be run-bound",
+);
+assert.match(
+  workflow,
+  /- name: Enforce structured generator-contract decision[\s\S]*?\[\[ "\$\{outcome\}" == "success" \]\] \|\| exit 1/,
+  "one final gate must enforce all independently captured outcomes",
+);
+
+console.log("frontend dispatch workflow baseline and structured evidence contract: ok");
