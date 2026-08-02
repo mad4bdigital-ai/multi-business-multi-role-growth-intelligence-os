@@ -1,0 +1,91 @@
+name: Spec 014 Final Work Map Refresh Launcher
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/final-work-map-exact-head-readback-20260802
+    paths:
+      - ".github/workflows/spec014-final-work-map-refresh-launcher.yml"
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_PARENT: af7908b5bf22bd2f4a4c59aafbbacae176485a56
+  TARGET_BRANCH: gpt/014-hostinger/final-work-map-exact-head-readback-20260802
+  LAUNCHER_PATH: .github/workflows/spec014-final-work-map-refresh-launcher.yml
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout launcher commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+
+      - name: Verify bounded launcher identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$TARGET_BRANCH"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
+          mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$LAUNCHER_PATH"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Refresh bounded Work Map binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/spec014-final-work-map-refresh"
+          mkdir -p "$report_dir"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            | tee "$report_dir/refresh.json"
+          REPORT_PATH="${report_dir}/readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "$report_dir/readback.stdout.json"
+
+      - name: Remove one-shot launcher and verify exact write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm "$LAUNCHER_PATH"
+          mapfile -t changed < <(git status --short | sed -E 's/^.. //' | sort)
+          expected=(
+            "$LAUNCHER_PATH"
+            "specs/014-governed-hostinger-storage-orchestration/tasks.md"
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#changed[@]}" -eq "${#expected_sorted[@]}"
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+
+      - name: Commit and push deterministic refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            "$LAUNCHER_PATH" \
+            specs/014-governed-hostinger-storage-orchestration/tasks.md \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          git commit -m "chore(spec-014): refresh final Work Map binding"
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Upload refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-refresh-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-final-work-map-refresh
+          if-no-files-found: error
+          retention-days: 30
