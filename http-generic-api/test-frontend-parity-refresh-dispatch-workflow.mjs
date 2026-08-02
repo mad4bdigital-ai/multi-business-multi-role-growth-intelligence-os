@@ -18,8 +18,15 @@ assert.doesNotMatch(workflow, /\bgit\s+push\b/u);
 assert.match(workflow, /frontend-dispatch-verification-evidence-\$\{\{ github\.event\.workflow_run\.id \}\}/u);
 assert.match(workflow, /mad4b\.frontend-dispatch-verification-evidence\.v1/u);
 assert.match(workflow, /committed_generated_parity/u);
+assert.match(workflow, /EVENT_SOURCE_HEAD_SHA:\s*\$\{\{ github\.event\.workflow_run\.head_sha \}\}/u);
 assert.match(workflow, /identity\?\.candidate_sha/u);
+assert.match(workflow, /identity\?\.candidate_kind/u);
 assert.match(workflow, /identity\?\.source_head_sha/u);
+assert.match(workflow, /sourceHeadSha === process\.env\.EVENT_SOURCE_HEAD_SHA/u);
+assert.match(workflow, /candidateKind === 'head' \|\| candidateKind === 'merge_candidate'/u);
+assert.match(workflow, /candidateKind === 'head'[\s\S]*candidateSha === sourceHeadSha[\s\S]*pr\.merge_commit_sha === candidateSha/u);
+assert.match(workflow, /pull_request_candidate_mismatch/u);
+assert.doesNotMatch(workflow, /candidate_sha === process\.env\.EVENT_/u);
 assert.match(workflow, /generated-artifact-refresh/u);
 assert.match(workflow, /governed-generated-artifact-refresh\.yml\/dispatches/u);
 assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u);
@@ -36,7 +43,7 @@ console.log(JSON.stringify({
   ok: true,
   gate: "frontend_parity_refresh_dispatch_workflow",
   contract: "mad4b.frontend-parity-refresh-dispatch.v1",
-  cases: 26,
+  cases: 32,
   source_of_truth: "structured_report",
   job_logs_authoritative: false,
   direct_repository_mutation: false,
