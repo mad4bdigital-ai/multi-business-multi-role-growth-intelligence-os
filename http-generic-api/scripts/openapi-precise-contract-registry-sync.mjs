@@ -17,7 +17,7 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
     {
-      operation_id: "issueSupportTicketExternalDeliveryCompletionCertification",
+      operation_id: "supportTicketExternalDeliveryCompletionCertify",
       auth_profile: "admin_backend",
       path_item_ref: "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion",
     },
