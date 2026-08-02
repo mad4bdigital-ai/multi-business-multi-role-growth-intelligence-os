@@ -80,10 +80,9 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Observe and publish the first real run-bound Tenant Canary canonical Artifact now that the canonical workflow path is registered on both main and the Spec 014 Integration branch.",
+      "objective": "Run 30727534285 produced the first real run-bound Tenant Canary Artifact for head 1208763c050a7a762ea9c5f77b2b4fcd90ab7ace: contract mad4b.hostinger-guard-summary.v1, eight selected, eight passed, zero failed, zero integrity findings, first_failure=null, and all mutation/provider/credential/log/secret declarations false. Complete the operational phase by proving trusted comment publication on the exact current head.",
       "blockers": [
-        "No exact-head pull-request-triggered Hostinger Storage Tenant Canary Guard Artifact has yet been observed after canonical-path registration on both governing branches.",
-        "The trusted Hostinger CI Evidence PR Publisher has not yet consumed that same run-bound Artifact and written the Hostinger section into the shared authoritative PR comment."
+        "The trusted Hostinger CI Evidence PR Publisher has not yet written the Hostinger section for the exact current Probe head into the shared authoritative PR comment."
       ]
     },
     {
