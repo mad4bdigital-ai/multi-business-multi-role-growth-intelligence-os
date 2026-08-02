@@ -25,10 +25,10 @@
         {
           "id": "validate-production-runtime-parity-verifier",
           "end_to_end": true,
-          "level": "component",
+          "level": "synthetic_runtime",
           "actor": "repository automation and pull-request reviewer",
           "entrypoint": "Production Runtime Parity Evidence pull-request contract job",
-          "terminal_outcome": "Offline regressions and workflow-contract assertions prove the verifier rejects unsafe endpoints and mismatched runtime identity, persists only bounded secret-free evidence, and reserves live network probing for an explicit workflow_dispatch after the tooling is merged to trusted main.",
+          "terminal_outcome": "Synthetic DNS, TLS, HTTP, and runtime-identity regressions plus workflow-contract assertions prove the verifier rejects unsafe endpoints and mismatched runtime identity, persists only bounded secret-free evidence, and reserves real network probing for an explicit workflow_dispatch after the tooling is merged to trusted main.",
           "steps": [
             "Load the reporter and validate exact Production SHA, branch, endpoint, timeout, and host constraints.",
             "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only.",
@@ -40,7 +40,7 @@
             "Emit a bounded secret-free component result without performing a live request in pull-request context."
           ],
           "assertions": [
-            "The component report contract is mad4b.production-runtime-parity-evidence.v1.",
+            "The synthetic runtime report contract is mad4b.production-runtime-parity-evidence.v1.",
             "The workflow has no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
             "Live probing runs only for workflow_dispatch and never for pull_request.",
             "The workflow uses contents: read and checkout persist-credentials=false.",
