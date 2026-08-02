@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization; the first governed refresh of this candidate produced bot commit df5335d190da46eff3bbce7b11d233058105e0c5 without direct dispatcher contents mutation.",
+      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization; preserve the merge-candidate SHA as separate evidence while binding workflow_run.head_sha to the source-head SHA.",
       "e2e_journeys": [
         {
           "id": "dispatch-exact-head-refresh-from-structured-frontend-parity-evidence",
@@ -28,12 +28,12 @@
           "level": "synthetic_runtime",
           "actor": "trusted repository automation and pull-request reviewer",
           "entrypoint": "A completed failed Frontend surface dispatch workflow with its exact structured evidence artifact",
-          "terminal_outcome": "The trusted dispatcher either skips unrelated failures, fails closed on malformed or stale evidence, or delegates the registered generated-artifact refresh for the exact labeled pull-request head without reading Job logs or mutating repository contents directly.",
+          "terminal_outcome": "The trusted dispatcher either skips unrelated failures, fails closed on malformed or stale evidence, or delegates the registered generated-artifact refresh for the exact labeled pull-request source head without reading Job logs or mutating repository contents directly.",
           "steps": [
             "Receive only completed Frontend surface dispatch workflow_run events.",
             "Run from the trusted default-branch workflow definition with actions write, contents read, and pull-requests read permissions.",
             "Download the run-bound frontend-dispatch-verification-evidence artifact.",
-            "Validate the canonical contract, workflow identity, merge-candidate SHA, source-head SHA, main base, no-secret declaration, and consult_job_logs=false.",
+            "Validate the canonical contract, workflow identity, exact merge-candidate SHA, source-head SHA equal to workflow_run.head_sha, main base, no-secret declaration, and consult_job_logs=false.",
             "Require outcome=failed and first_failure.stage_id=committed_generated_parity; skip every other result without mutation.",
             "Resolve exactly one open same-repository pull request for the evidence head ref.",
             "Require exact source-head parity and the generated-artifact-refresh label.",
@@ -43,7 +43,8 @@
           "assertions": [
             "The source evidence contract is mad4b.frontend-dispatch-verification-evidence.v1.",
             "The dispatch evidence contract is mad4b.frontend-parity-refresh-dispatch.v1.",
-            "The source candidate SHA equals workflow_run.head_sha and the pull-request head equals source_head_sha.",
+            "workflow_run.head_sha equals source_head_sha, while the separately recorded candidate_kind is merge_candidate and candidate_sha remains an exact 40-character merge-candidate SHA.",
+            "The open pull-request head equals source_head_sha before delegated mutation.",
             "Only committed_generated_parity is eligible for delegated refresh.",
             "Missing artifacts, malformed identity, ambiguous PR resolution, stale heads, and rejected dispatches fail closed with bounded structured diagnostics.",
             "Absent refresh authorization or unrelated failures are skipped without repository mutation.",
