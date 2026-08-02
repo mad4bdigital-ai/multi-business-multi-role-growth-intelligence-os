@@ -2,50 +2,55 @@
 import { createHash } from "node:crypto";
 import { promises as dns } from "node:dns";
 import fs from "node:fs";
-import path from "node:path";
 import { isIP } from "node:net";
+import path from "node:path";
 import tls from "node:tls";
 import { fileURLToPath } from "node:url";
 
 export const PRODUCTION_RUNTIME_PARITY_CONTRACT = "mad4b.production-runtime-parity-evidence.v1";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const ENDPOINT_NAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/u;
-const ALLOWED_HOSTS = new Set(["auth.mad4b.com", "connector.mad4b.com", "dev.mad4b.com"]);
+const NAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/u;
+const APPROVED_ENDPOINT_HOSTS = new Map([
+  ["auth", "auth.mad4b.com"],
+  ["connector", "connector.mad4b.com"],
+  ["dev", "dev.mad4b.com"]
+]);
 const DEFAULT_OUTPUT_DIR = path.join("artifacts", "production-runtime-parity-evidence");
 const DEFAULT_TIMEOUT_MS = 12_000;
 const MAX_BODY_BYTES = 64 * 1024;
+const MAX_DNS_ADDRESSES = 16;
 const EXPECTED_SERVICE = "http_generic_api_connector";
 
 class EvidenceError extends Error {
-  constructor(code, message, details = null) {
+  constructor(code, message) {
     super(message);
     this.name = "EvidenceError";
     this.code = code;
-    this.details = details;
   }
 }
 
-function clean(value) {
-  return String(value || "")
+function clean(value, maxLength = 2_000) {
+  return String(value ?? "")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "")
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/giu, "Bearer [REDACTED]")
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu, "[REDACTED_JWT]")
     .replace(/\b(authorization|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|password|cookie|secret)\b(\s*[:=]\s*)([^\s,;]+)/giu, "$1$2[REDACTED]")
-    .slice(0, 2_000);
+    .slice(0, maxLength);
 }
 
 function isPublicAddress(value) {
-  const address = String(value || "").toLowerCase();
+  const address = String(value ?? "").toLowerCase();
   const family = isIP(address);
   if (family === 4) {
-    const parts = address.split(".").map(Number);
-    const [a, b] = parts;
+    const [a, b, c] = address.split(".").map(Number);
     if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
     if (a === 100 && b >= 64 && b <= 127) return false;
     if (a === 169 && b === 254) return false;
     if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && (b === 0 || b === 168)) return false;
-    if (a === 198 && (b === 18 || b === 19)) return false;
+    if (a === 192 && (b === 0 || b === 2 || b === 168)) return false;
+    if (a === 192 && b === 88 && c === 99) return false;
+    if (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) return false;
+    if (a === 203 && b === 0 && c === 113) return false;
     return true;
   }
   if (family === 6) {
@@ -53,10 +58,27 @@ function isPublicAddress(value) {
     if (address.startsWith("::ffff:")) return isPublicAddress(address.slice(7));
     if (address.startsWith("fc") || address.startsWith("fd")) return false;
     if (/^fe[89ab]/u.test(address)) return false;
-    if (address.startsWith("ff") || address.startsWith("2001:db8:")) return false;
+    if (address.startsWith("100:") || address.startsWith("64:ff9b:1:")) return false;
+    if (address.startsWith("2001:2:") || address.startsWith("2001:db8:")) return false;
+    if (/^2001:(?:1[0-9a-f]|2[0-9a-f]):/u.test(address)) return false;
+    if (address.startsWith("ff")) return false;
     return true;
   }
   return false;
+}
+
+async function withTimeout(promise, timeoutMs, code, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new EvidenceError(code, message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function parseEndpoint(value, required) {
@@ -64,7 +86,7 @@ function parseEndpoint(value, required) {
   if (separator < 1) throw new EvidenceError("endpoint_format_invalid", "Endpoint must use name=https://host/version.");
   const name = value.slice(0, separator).trim();
   const url = value.slice(separator + 1).trim();
-  if (!ENDPOINT_NAME_PATTERN.test(name)) throw new EvidenceError("endpoint_name_invalid", `Invalid endpoint name: ${clean(name)}`);
+  if (!NAME_PATTERN.test(name)) throw new EvidenceError("endpoint_name_invalid", `Invalid endpoint name: ${clean(name)}`);
   return { name, url, required };
 }
 
@@ -102,10 +124,10 @@ export function parseArgs(argv) {
 }
 
 export function validateConfiguration({ expectedSha, expectedBranch, endpoints, timeoutMs = DEFAULT_TIMEOUT_MS }) {
-  if (!SHA_PATTERN.test(String(expectedSha || ""))) {
+  if (!SHA_PATTERN.test(String(expectedSha ?? ""))) {
     throw new EvidenceError("expected_sha_invalid", "Expected deployment SHA must be a full lowercase 40-character Git SHA.");
   }
-  if (String(expectedBranch || "").trim() !== "Production") {
+  if (String(expectedBranch ?? "").trim() !== "Production") {
     throw new EvidenceError("expected_branch_invalid", "Expected branch must be exactly Production.");
   }
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 60_000) {
@@ -114,45 +136,43 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
   if (!Array.isArray(endpoints) || endpoints.length < 1) {
     throw new EvidenceError("endpoint_missing", "At least one required endpoint is needed.");
   }
+
   const names = new Set();
   let requiredCount = 0;
   const normalized = endpoints.map((endpoint) => {
-    if (!ENDPOINT_NAME_PATTERN.test(String(endpoint?.name || ""))) {
-      throw new EvidenceError("endpoint_name_invalid", `Invalid endpoint name: ${clean(endpoint?.name)}`);
-    }
-    if (names.has(endpoint.name)) throw new EvidenceError("endpoint_name_duplicate", `Duplicate endpoint name: ${endpoint.name}`);
-    names.add(endpoint.name);
-    if (endpoint.required) requiredCount += 1;
+    const name = String(endpoint?.name ?? "");
+    if (!NAME_PATTERN.test(name)) throw new EvidenceError("endpoint_name_invalid", `Invalid endpoint name: ${clean(name)}`);
+    if (names.has(name)) throw new EvidenceError("endpoint_name_duplicate", `Duplicate endpoint name: ${name}`);
+    const approvedHost = APPROVED_ENDPOINT_HOSTS.get(name);
+    if (!approvedHost) throw new EvidenceError("endpoint_name_forbidden", `Endpoint ${name} is not an approved Production endpoint.`);
+    names.add(name);
+    if (endpoint.required === true) requiredCount += 1;
+
     let parsed;
     try {
       parsed = new URL(endpoint.url);
     } catch {
-      throw new EvidenceError("endpoint_url_invalid", `Endpoint ${endpoint.name} has an invalid URL.`);
+      throw new EvidenceError("endpoint_url_invalid", `Endpoint ${name} has an invalid URL.`);
     }
-    if (parsed.protocol !== "https:") throw new EvidenceError("endpoint_https_required", `Endpoint ${endpoint.name} must use HTTPS.`);
-    if (parsed.username || parsed.password) throw new EvidenceError("endpoint_credentials_forbidden", `Endpoint ${endpoint.name} must not contain credentials.`);
-    if (parsed.search || parsed.hash) throw new EvidenceError("endpoint_query_forbidden", `Endpoint ${endpoint.name} must not contain query or fragment data.`);
-    if (parsed.pathname !== "/version") throw new EvidenceError("endpoint_path_invalid", `Endpoint ${endpoint.name} must target exactly /version.`);
-    if (parsed.port && parsed.port !== "443") throw new EvidenceError("endpoint_port_forbidden", `Endpoint ${endpoint.name} must use port 443.`);
-    if (!ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) throw new EvidenceError("endpoint_host_forbidden", `Endpoint ${endpoint.name} must use an approved Production host.`);
+    if (parsed.protocol !== "https:") throw new EvidenceError("endpoint_https_required", `Endpoint ${name} must use HTTPS.`);
+    if (parsed.username || parsed.password) throw new EvidenceError("endpoint_credentials_forbidden", `Endpoint ${name} must not contain credentials.`);
+    if (parsed.search || parsed.hash) throw new EvidenceError("endpoint_query_forbidden", `Endpoint ${name} must not contain query or fragment data.`);
+    if (parsed.pathname !== "/version") throw new EvidenceError("endpoint_path_invalid", `Endpoint ${name} must target exactly /version.`);
+    if (parsed.port && parsed.port !== "443") throw new EvidenceError("endpoint_port_forbidden", `Endpoint ${name} must use port 443.`);
+    if (parsed.hostname.toLowerCase() !== approvedHost) throw new EvidenceError("endpoint_host_mismatch", `Endpoint ${name} must use ${approvedHost}.`);
     return {
-      name: endpoint.name,
+      name,
       url: parsed.toString(),
-      host: parsed.hostname,
-      port: Number(parsed.port || 443),
-      required: Boolean(endpoint.required)
+      host: approvedHost,
+      port: 443,
+      required: endpoint.required === true
     };
   });
   if (requiredCount < 1) throw new EvidenceError("required_endpoint_missing", "At least one endpoint must be required.");
-  return {
-    expectedSha,
-    expectedBranch: "Production",
-    timeoutMs,
-    endpoints: normalized
-  };
+  return { expectedSha, expectedBranch: "Production", timeoutMs, endpoints: normalized };
 }
 
-async function readBoundedBody(response, maxBytes = MAX_BODY_BYTES) {
+async function readBoundedBody(response) {
   if (!response.body) return Buffer.alloc(0);
   const reader = response.body.getReader();
   const chunks = [];
@@ -162,7 +182,7 @@ async function readBoundedBody(response, maxBytes = MAX_BODY_BYTES) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > maxBytes) throw new EvidenceError("response_too_large", `Response exceeded ${maxBytes} bytes.`);
+      if (total > MAX_BODY_BYTES) throw new EvidenceError("response_too_large", `Response exceeded ${MAX_BODY_BYTES} bytes.`);
       chunks.push(Buffer.from(value));
     }
   } finally {
@@ -192,28 +212,25 @@ export async function defaultTlsProbe(endpoint, timeoutMs) {
       const certificate = socket.getPeerCertificate();
       const result = {
         authorized: socket.authorized === true,
-        protocol: socket.getProtocol() || null,
-        valid_from: certificate?.valid_from || null,
-        valid_to: certificate?.valid_to || null,
-        fingerprint256: certificate?.fingerprint256 || null,
-        subject_cn: certificate?.subject?.CN || null,
-        issuer_cn: certificate?.issuer?.CN || null
+        protocol: clean(socket.getProtocol(), 32) || null,
+        valid_from: clean(certificate?.valid_from, 128) || null,
+        valid_to: clean(certificate?.valid_to, 128) || null,
+        fingerprint256: clean(certificate?.fingerprint256, 128) || null,
+        subject_cn: clean(certificate?.subject?.CN, 256) || null,
+        issuer_cn: clean(certificate?.issuer?.CN, 256) || null
       };
       socket.end();
-      if (!result.authorized) {
-        reject(new EvidenceError("tls_unauthorized", `TLS certificate was not authorized for ${endpoint.name}.`));
-        return;
-      }
-      resolve(result);
+      if (!result.authorized) reject(new EvidenceError("tls_unauthorized", `TLS certificate was not authorized for ${endpoint.name}.`));
+      else resolve(result);
     });
   });
 }
 
 function safeFailure(error, fallbackCode) {
+  const candidateCode = String(error?.code ?? "");
   return {
-    code: error?.code || fallbackCode,
-    message: clean(error?.message || String(error)),
-    ...(error?.details ? { details: error.details } : {})
+    code: /^[a-z][a-z0-9_]{1,63}$/u.test(candidateCode) ? candidateCode : fallbackCode,
+    message: clean(error?.message ?? String(error))
   };
 }
 
@@ -233,14 +250,15 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     duration_ms: 0
   };
   try {
-    const addresses = await dependencies.lookup(endpoint.host, { all: true, verbatim: true });
-    if (!Array.isArray(addresses) || addresses.length < 1) {
-      throw new EvidenceError("dns_resolution_empty", `DNS returned no addresses for ${endpoint.name}.`);
-    }
-    const forbiddenAddress = addresses.find((entry) => !isPublicAddress(entry?.address));
-    if (forbiddenAddress) {
-      throw new EvidenceError("dns_address_forbidden", `DNS returned a non-public address for ${endpoint.name}.`);
-    }
+    const addresses = await withTimeout(
+      Promise.resolve().then(() => dependencies.lookup(endpoint.host, { all: true, verbatim: true })),
+      configuration.timeoutMs,
+      "dns_timeout",
+      `DNS resolution timed out for ${endpoint.name}.`
+    );
+    if (!Array.isArray(addresses) || addresses.length < 1) throw new EvidenceError("dns_resolution_empty", `DNS returned no addresses for ${endpoint.name}.`);
+    if (addresses.length > MAX_DNS_ADDRESSES) throw new EvidenceError("dns_address_count_exceeded", `DNS returned too many addresses for ${endpoint.name}.`);
+    if (addresses.some((entry) => !isPublicAddress(entry?.address))) throw new EvidenceError("dns_address_forbidden", `DNS returned a non-public address for ${endpoint.name}.`);
     result.dns = {
       resolved: true,
       address_count: addresses.length,
@@ -253,38 +271,34 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), configuration.timeoutMs);
     let response;
+    let body;
     try {
       response = await dependencies.fetchImpl(endpoint.url, {
         method: "GET",
         redirect: "manual",
-        headers: {
-          accept: "application/json",
-          "user-agent": "mad4b-production-runtime-parity-evidence/1"
-        },
+        headers: { accept: "application/json", "user-agent": "mad4b-production-runtime-parity-evidence/1" },
         signal: controller.signal
       });
+      body = await readBoundedBody(response);
     } catch (error) {
+      if (error instanceof EvidenceError) throw error;
+      if (controller.signal.aborted) throw new EvidenceError("http_timeout", `HTTP response timed out for ${endpoint.name}.`);
       throw new EvidenceError("http_request_failed", `HTTP request failed for ${endpoint.name}: ${clean(error.message)}`);
     } finally {
       clearTimeout(timer);
     }
 
-    const body = await readBoundedBody(response);
-    const bodyDigest = createHash("sha256").update(body).digest("hex");
+    const contentType = clean(response.headers.get("content-type"), 256) || null;
     result.http = {
       status: response.status,
-      content_type: response.headers.get("content-type"),
+      content_type: contentType,
       body_bytes: body.byteLength,
-      body_sha256: bodyDigest,
+      body_sha256: createHash("sha256").update(body).digest("hex"),
       redirected: response.status >= 300 && response.status < 400,
       location_present: Boolean(response.headers.get("location"))
     };
-    if (response.status !== 200) {
-      throw new EvidenceError("http_status_mismatch", `Endpoint ${endpoint.name} returned HTTP ${response.status}.`);
-    }
-    if (!String(result.http.content_type || "").toLowerCase().includes("application/json")) {
-      throw new EvidenceError("response_content_type_invalid", `Endpoint ${endpoint.name} did not return application/json.`);
-    }
+    if (response.status !== 200) throw new EvidenceError("http_status_mismatch", `Endpoint ${endpoint.name} returned HTTP ${response.status}.`);
+    if (!String(contentType ?? "").toLowerCase().includes("application/json")) throw new EvidenceError("response_content_type_invalid", `Endpoint ${endpoint.name} did not return application/json.`);
 
     let payload;
     try {
@@ -292,24 +306,17 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     } catch {
       throw new EvidenceError("response_json_invalid", `Endpoint ${endpoint.name} did not return valid JSON.`);
     }
-    const service = payload?.service || null;
-    const deployedCommitSha = payload?.deployment?.deployed_commit_sha || null;
-    const deploymentBranch = payload?.deployment?.manifest?.branch || null;
+    const rawService = payload?.service;
+    const rawSha = payload?.deployment?.deployed_commit_sha;
+    const rawBranch = payload?.deployment?.manifest?.branch;
     result.runtime = {
-      service,
-      deployed_commit_sha: deployedCommitSha,
-      deployment_branch: deploymentBranch
+      service: rawService === EXPECTED_SERVICE ? EXPECTED_SERVICE : null,
+      deployed_commit_sha: SHA_PATTERN.test(String(rawSha ?? "")) ? String(rawSha) : null,
+      deployment_branch: rawBranch === "Production" ? "Production" : null
     };
-    if (service !== EXPECTED_SERVICE) {
-      throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
-    }
-    if (deployedCommitSha !== configuration.expectedSha) {
-      throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
-    }
-    if (deploymentBranch !== configuration.expectedBranch) {
-      throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
-    }
-
+    if (rawService !== EXPECTED_SERVICE) throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
+    if (rawSha !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
+    if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
     result.status = "passed";
   } catch (error) {
     result.failure = safeFailure(error, "endpoint_probe_failed");
@@ -335,14 +342,11 @@ function renderMarkdown(report) {
     ""
   ];
   for (const endpoint of report.endpoints) {
-    lines.push(
-      `- ${endpoint.status === "passed" ? "PASS" : endpoint.status === "optional_failed" ? "WARN" : "FAIL"} \`${endpoint.name}\` (${endpoint.required ? "required" : "optional"}): HTTP ${endpoint.http?.status ?? "n/a"}, SHA \`${endpoint.runtime?.deployed_commit_sha || "unavailable"}\`, branch \`${endpoint.runtime?.deployment_branch || "unavailable"}\``
-    );
+    const marker = endpoint.status === "passed" ? "PASS" : endpoint.status === "optional_failed" ? "WARN" : "FAIL";
+    lines.push(`- ${marker} \`${endpoint.name}\` (${endpoint.required ? "required" : "optional"}): HTTP ${endpoint.http?.status ?? "n/a"}, SHA \`${endpoint.runtime?.deployed_commit_sha || "unavailable"}\`, branch \`${endpoint.runtime?.deployment_branch || "unavailable"}\``);
     if (endpoint.failure) lines.push(`  - ${endpoint.failure.code}: ${endpoint.failure.message}`);
   }
-  if (report.first_failure) {
-    lines.push("", "## First blocking failure", "", `- Endpoint: \`${report.first_failure.endpoint}\``, `- Code: \`${report.first_failure.code}\``, `- Message: ${report.first_failure.message}`);
-  }
+  if (report.first_failure) lines.push("", "## First blocking failure", "", `- Endpoint: \`${report.first_failure.endpoint}\``, `- Code: \`${report.first_failure.code}\``, `- Message: ${report.first_failure.message}`);
   return `${lines.join("\n")}\n`;
 }
 
@@ -371,21 +375,19 @@ export async function runProductionRuntimeParityEvidence({
   const configuration = validateConfiguration({ expectedSha, expectedBranch, endpoints, timeoutMs });
   const dependencies = { lookup, tlsProbe, fetchImpl, now };
   const results = [];
-  for (const endpoint of configuration.endpoints) {
-    results.push(await probeEndpoint(endpoint, configuration, dependencies));
-  }
+  for (const endpoint of configuration.endpoints) results.push(await probeEndpoint(endpoint, configuration, dependencies));
   const blocking = results.filter((entry) => entry.required && entry.status !== "passed");
   const first = blocking[0];
   const report = {
     contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
     generated_at: new Date().toISOString(),
     identity: {
-      repository: env.GITHUB_REPOSITORY || "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+      repository: clean(env.GITHUB_REPOSITORY || "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", 256),
       expected_sha: configuration.expectedSha,
       expected_branch: configuration.expectedBranch,
       tooling_sha: SHA_PATTERN.test(env.GITHUB_SHA || "") ? env.GITHUB_SHA : null,
-      workflow: env.GITHUB_WORKFLOW || "Production Runtime Parity Evidence",
-      run_id: env.GITHUB_RUN_ID || null
+      workflow: clean(env.GITHUB_WORKFLOW || "Production Runtime Parity Evidence", 256),
+      run_id: /^\d+$/u.test(String(env.GITHUB_RUN_ID ?? "")) ? String(env.GITHUB_RUN_ID) : null
     },
     outcome: blocking.length === 0 ? "passed" : "failed",
     endpoints: results,
@@ -394,11 +396,7 @@ export async function runProductionRuntimeParityEvidence({
       code: first.failure?.code || "endpoint_probe_failed",
       message: first.failure?.message || "Endpoint probe failed."
     } : null,
-    routing: {
-      source_of_truth: "structured_report",
-      job_logs_role: "diagnostic_only",
-      consult_job_logs: false
-    },
+    routing: { source_of_truth: "structured_report", job_logs_role: "diagnostic_only", consult_job_logs: false },
     side_effects: {
       repository_mutation_performed: false,
       provider_dispatch_performed: false,
@@ -413,8 +411,7 @@ export async function runProductionRuntimeParityEvidence({
 }
 
 export async function runCli(argv = process.argv.slice(2)) {
-  const options = parseArgs(argv);
-  const result = await runProductionRuntimeParityEvidence(options);
+  const result = await runProductionRuntimeParityEvidence(parseArgs(argv));
   const summary = {
     ok: result.report.outcome === "passed",
     contract: result.report.contract,
@@ -424,27 +421,22 @@ export async function runCli(argv = process.argv.slice(2)) {
     report_file: result.jsonPath,
     secrets_included: false
   };
-  const output = `${JSON.stringify(summary)}\n`;
-  if (summary.ok) process.stdout.write(output);
-  else process.stderr.write(output);
+  (summary.ok ? process.stdout : process.stderr).write(`${JSON.stringify(summary)}\n`);
   return summary.ok ? 0 : 1;
 }
 
 function isDirectExecution(importMetaUrl, argvPath) {
-  if (!argvPath) return false;
-  return path.resolve(fileURLToPath(importMetaUrl)) === path.resolve(argvPath);
+  return Boolean(argvPath) && path.resolve(fileURLToPath(importMetaUrl)) === path.resolve(argvPath);
 }
 
 if (isDirectExecution(import.meta.url, process.argv[1])) {
   runCli()
-    .then((code) => {
-      process.exitCode = code;
-    })
+    .then((code) => { process.exitCode = code; })
     .catch((error) => {
       console.error(JSON.stringify({
         ok: false,
-        error: clean(error?.message || String(error)),
-        code: error?.code || "production_runtime_parity_error",
+        error: clean(error?.message ?? String(error)),
+        code: /^[a-z][a-z0-9_]{1,63}$/u.test(String(error?.code ?? "")) ? error.code : "production_runtime_parity_error",
         secrets_included: false
       }));
       process.exitCode = 1;
