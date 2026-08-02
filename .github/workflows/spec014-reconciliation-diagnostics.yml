@@ -91,10 +91,12 @@ jobs:
           git update-ref refs/heads/main "${MAIN_SHA}"
           integration_parent="$(git rev-parse HEAD)"
 
+          trap - ERR
           set +e
           git merge --no-commit --no-ff "${MAIN_SHA}"
           merge_status=$?
           set -e
+          trap on_error ERR
 
           mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
           echo "merge_status=${merge_status}"
@@ -103,46 +105,31 @@ jobs:
           echo "conflict_count=${#conflicts[@]}"
           printf 'conflict_path=%s\n' "${conflicts[@]:-}"
 
-          allowed_conflicts=(
-            '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'
-            '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'
-            'http-generic-api/frontend-operation-governance.generated.json'
-            'http-generic-api/frontend-surface-dispatch.generated.json'
-            'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
-          )
-
           if [[ ${merge_status} -ne 0 && ${#conflicts[@]} -eq 0 ]]; then
             echo 'Merge failed without resolvable content conflicts.' >&2
             false
           fi
 
           for conflict in "${conflicts[@]}"; do
-            allowed=false
-            for candidate in "${allowed_conflicts[@]}"; do
-              if [[ "${conflict}" == "${candidate}" ]]; then
-                allowed=true
-                break
-              fi
-            done
-            if [[ "${allowed}" != true ]]; then
-              echo "Unexpected reconciliation conflict: ${conflict}" >&2
-              false
-            fi
+            case "${conflict}" in
+              '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'|\
+              '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'|\
+              'http-generic-api/frontend-operation-governance.generated.json'|\
+              'http-generic-api/frontend-surface-dispatch.generated.json'|\
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml')
+                ;;
+              *)
+                echo "Unexpected reconciliation conflict: ${conflict}" >&2
+                false
+                ;;
+            esac
           done
-
-          restore_integration_blob() {
-            local path="$1"
-            git show "${integration_parent}:${path}" > "${path}"
-            git add -- "${path}"
-          }
 
           has_conflict() {
             local expected_path="$1"
             local conflict_path
             for conflict_path in "${conflicts[@]}"; do
-              if [[ "${conflict_path}" == "${expected_path}" ]]; then
-                return 0
-              fi
+              [[ "${conflict_path}" == "${expected_path}" ]] && return 0
             done
             return 1
           }
@@ -172,7 +159,8 @@ jobs:
             'http-generic-api/frontend-surface-dispatch.generated.json' \
             'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
             if has_conflict "${generated_path}"; then
-              restore_integration_blob "${generated_path}"
+              git show "${integration_parent}:${generated_path}" > "${generated_path}"
+              git add -- "${generated_path}"
             fi
           done
 
