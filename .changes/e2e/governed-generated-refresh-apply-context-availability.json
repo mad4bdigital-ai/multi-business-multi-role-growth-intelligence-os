@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-refresh-apply-context-availability",
+  "title": "Valid GitHub Actions context for governed generated refresh apply",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-generated-refresh-apply-context-availability.json",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow GitHub to parse and dispatch the registered generated-artifact writer by removing the unavailable jobs-level runner.temp expression while preserving exact-head mutation controls and canonical evidence.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-governed-generated-refresh-with-valid-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted generated-artifact dispatcher and registered maintenance writer",
+          "entrypoint": "workflow_dispatch with a governed work branch, exact current SHA, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation",
+          "terminal_outcome": "GitHub accepts the registered writer dispatch, the writer uses one stable evidence directory, rejects protected or stale targets, commits only allowlisted generated files by normal fast-forward, uploads canonical evidence, and requests exact-head read-only verification.",
+          "steps": [
+            "Reject jobs-level use of the runner context before a runner exists.",
+            "Use one stable repository-relative output directory across apply, verification dispatch, artifact upload, and summary rendering.",
+            "Validate target_ref, expected_head_sha, typed confirmation, and protected-branch rejection before checkout.",
+            "Checkout the exact expected head and run the registered generated-artifact refresh tool.",
+            "Verify the resulting remote head and dispatch read-only PR Generated Artifact Refresh on that exact result.",
+            "Upload the governed apply report and bounded verification-dispatch evidence."
+          ],
+          "assertions": [
+            "jobs.apply.env contains no runner.temp expression.",
+            "OUTPUT_DIR is stable and repository-relative.",
+            "The workflow remains workflow_dispatch-only with actions:write and contents:write.",
+            "main and Production are rejected before checkout or mutation.",
+            "The exact SHA and typed confirmation remain mandatory.",
+            "The registered maintenance tool allowlist, normal fast-forward push, canonical report, and read-only verification dispatch remain unchanged.",
+            "No force push, provider call, credential disclosure, migration, deployment, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-maintenance-tool-and-workflow-context",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one exact-head writer dispatch accepted from the trusted dispatcher and followed by canonical apply and read-only verification evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise malformed inputs, stale heads, protected targets, concurrent branch movement, no-op generation, write-set violations, dispatch rejection, and verification failure without Job-log authority."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository maintenance repair performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The writer rejects protected branches and grants no deployment, migration, provider, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
