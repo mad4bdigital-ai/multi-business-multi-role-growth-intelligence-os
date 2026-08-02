@@ -70,6 +70,7 @@ function normalizeExpected(value = {}) {
     bridge_readiness_digest: hash(value.bridge_readiness_digest, 'expected.bridge_readiness_digest'),
     fixed_dispatch_certification_digest: hash(value.fixed_dispatch_certification_digest, 'expected.fixed_dispatch_certification_digest'),
     worker_certification_digest: hash(value.worker_certification_digest, 'expected.worker_certification_digest'),
+    authorization_bundle_hash: hash(value.authorization_bundle_hash, 'expected.authorization_bundle_hash'),
     target_id: id(value.target_id, 'expected.target_id'),
     operation_id: id(value.operation_id, 'expected.operation_id'),
     plan_id: id(value.plan_id, 'expected.plan_id'),
@@ -114,6 +115,7 @@ function normalizeEvidence(value = {}, now) {
       bridge_readiness_digest: hash(a.bridge_readiness_digest, 'authorization.bridge_readiness_digest'),
       fixed_dispatch_certification_digest: hash(a.fixed_dispatch_certification_digest, 'authorization.fixed_dispatch_certification_digest'),
       worker_certification_digest: hash(a.worker_certification_digest, 'authorization.worker_certification_digest'),
+      authorization_bundle_hash: hash(a.authorization_bundle_hash, 'authorization.authorization_bundle_hash'),
       target_id: id(a.target_id, 'authorization.target_id'),
       operation_id: id(a.operation_id, 'authorization.operation_id'),
       plan_id: id(a.plan_id, 'authorization.plan_id'),
@@ -152,6 +154,13 @@ function normalizeEvidence(value = {}, now) {
   });
 }
 
+function evidenceWindow(packet, field) {
+  const observed = instant(packet?.evidence?.observed_at, `${field}.observed_at`);
+  const expires = instant(packet?.evidence?.expires_at, `${field}.expires_at`);
+  if (expires.epoch <= observed.epoch) throw failure(409, 'STORAGE_MOUNT_AUTH_PREREQUISITE_WINDOW_INVALID', 'A prerequisite evidence window is invalid.', { field });
+  return { observed: observed.epoch, expires: expires.epoch };
+}
+
 function verifyBridge(packet) {
   try { return verifyHostingerStorageDurableTenantRuntimeBridgeReadiness({ packet, expected_digest: packet?.readiness_digest }); }
   catch (error) { throw failure(409, 'STORAGE_MOUNT_AUTH_BRIDGE_READINESS_TAMPERED', 'Durable bridge readiness is invalid.', { cause_code: error?.code || 'unknown' }); }
@@ -161,22 +170,30 @@ function verifyDispatch(packet) {
   catch (error) { throw failure(409, 'STORAGE_MOUNT_AUTH_FIXED_DISPATCH_TAMPERED', 'Fixed dispatch certification is invalid.', { cause_code: error?.code || 'unknown' }); }
 }
 
-function deriveBlockers(e, x, bridgePacket, bridgeVerification, dispatchPacket, dispatchVerification) {
+function deriveBlockers(e, x, bridgePacket, bridgeVerification, dispatchPacket, dispatchVerification, nowEpoch) {
   const out = [];
+  const bridgeWindow = evidenceWindow(bridgePacket, 'bridge_readiness.evidence');
+  const dispatchWindow = evidenceWindow(dispatchPacket, 'fixed_dispatch_certification.evidence');
+  const workerWindow = evidenceWindow(dispatchPacket?.worker_certification, 'worker_certification.evidence');
+  const authorizationObserved = Date.parse(e.observed_at);
+  const authorizationExpires = Date.parse(e.expires_at);
   const add = (condition, code) => { if (condition) out.push(code); };
   add(bridgeVerification.valid !== true || bridgeVerification.ready_for_separate_mount_authorization !== true, 'STORAGE_MOUNT_AUTH_BRIDGE_NOT_READY');
   add(dispatchVerification.valid !== true || dispatchVerification.ready_for_separate_mount_authorization !== true, 'STORAGE_MOUNT_AUTH_FIXED_DISPATCH_NOT_READY');
   add(bridgePacket.readiness_digest !== x.bridge_readiness_digest, 'STORAGE_MOUNT_AUTH_BRIDGE_DIGEST_MISMATCH');
   add(dispatchPacket.certification_digest !== x.fixed_dispatch_certification_digest, 'STORAGE_MOUNT_AUTH_DISPATCH_DIGEST_MISMATCH');
   add(dispatchPacket.worker_certification?.certification_digest !== x.worker_certification_digest, 'STORAGE_MOUNT_AUTH_WORKER_DIGEST_MISMATCH');
+  add(bridgeWindow.expires <= nowEpoch || dispatchWindow.expires <= nowEpoch || workerWindow.expires <= nowEpoch, 'STORAGE_MOUNT_AUTH_PREREQUISITE_EXPIRED');
+  add(authorizationExpires > bridgeWindow.expires || authorizationExpires > dispatchWindow.expires || authorizationExpires > workerWindow.expires, 'STORAGE_MOUNT_AUTH_OUTLIVES_PREREQUISITE');
+  add(authorizationObserved < bridgeWindow.observed || authorizationObserved < dispatchWindow.observed || authorizationObserved < workerWindow.observed, 'STORAGE_MOUNT_AUTH_PREREQUISITE_OBSERVATION_ORDER_INVALID');
   const a = e.authorization;
-  for (const key of ['authorization_id','authorization_revision','mount_generation','issuer_principal_id','source_commit','deployed_runtime_sha','database_fingerprint','schema_verification_digest','readback_cycle_id','bridge_readiness_digest','fixed_dispatch_certification_digest','worker_certification_digest','target_id','operation_id','plan_id','plan_hash','execution_lease_id','lease_generation','approval_set_hash','capability_envelope_digest','mount_policy_fingerprint','rollback_plan_digest']) add(a[key] !== x[key], `STORAGE_MOUNT_AUTH_${key.toUpperCase()}_MISMATCH`);
+  for (const key of ['authorization_id','authorization_revision','mount_generation','issuer_principal_id','source_commit','deployed_runtime_sha','database_fingerprint','schema_verification_digest','readback_cycle_id','bridge_readiness_digest','fixed_dispatch_certification_digest','worker_certification_digest','authorization_bundle_hash','target_id','operation_id','plan_id','plan_hash','execution_lease_id','lease_generation','approval_set_hash','capability_envelope_digest','mount_policy_fingerprint','rollback_plan_digest']) add(a[key] !== x[key], `STORAGE_MOUNT_AUTH_${key.toUpperCase()}_MISMATCH`);
   add(a.status !== 'approved' || a.mode !== 'single_use_mount' || !a.one_shot || a.consumed || !a.default_off, 'STORAGE_MOUNT_AUTH_POLICY_INVALID');
   add(a.source_commit !== a.deployed_runtime_sha, 'STORAGE_MOUNT_AUTH_RUNTIME_PARITY_REQUIRED');
   add(e.route.path !== ROUTE_PATH || e.route.dependency_key !== DEPENDENCY_KEY || e.route.fail_closed_status !== 503 || !e.route.currently_unmounted || !e.route.tenant_user_jwt_required, 'STORAGE_MOUNT_AUTH_ROUTE_BOUNDARY_INVALID');
   add(bridgePacket.composition?.source_commit !== x.source_commit || bridgePacket.composition?.deployed_runtime_sha !== x.deployed_runtime_sha || bridgePacket.composition?.database_fingerprint !== x.database_fingerprint || bridgePacket.composition?.schema_verification_digest !== x.schema_verification_digest || bridgePacket.composition?.readback_cycle_id !== x.readback_cycle_id, 'STORAGE_MOUNT_AUTH_BRIDGE_PROVENANCE_MISMATCH');
   const dx = dispatchPacket.expected || {};
-  add(dx.source_commit !== x.source_commit || dx.target_id !== x.target_id || dx.operation_id !== x.operation_id || dx.plan_id !== x.plan_id || dx.plan_hash !== x.plan_hash || dx.execution_lease_id !== x.execution_lease_id || dx.lease_generation !== x.lease_generation, 'STORAGE_MOUNT_AUTH_DISPATCH_BINDING_MISMATCH');
+  add(dx.source_commit !== x.source_commit || dx.authorization_bundle_hash !== x.authorization_bundle_hash || dx.target_id !== x.target_id || dx.operation_id !== x.operation_id || dx.plan_id !== x.plan_id || dx.plan_hash !== x.plan_hash || dx.execution_lease_id !== x.execution_lease_id || dx.lease_generation !== x.lease_generation, 'STORAGE_MOUNT_AUTH_DISPATCH_BINDING_MISMATCH');
   const b = e.boundary;
   add(!b.repository_only || b.authorization_persisted || b.mount_performed || b.dependency_injected || b.runtime_mounted || b.route_mounted || b.worker_mounted || b.dispatch_job_enqueued || b.credential_resolutions !== 0 || b.database_writes !== 0 || b.provider_calls !== 0, 'STORAGE_MOUNT_AUTH_REPOSITORY_ONLY_BOUNDARY_INVALID');
   return [...new Set(out)].sort();
@@ -191,7 +208,7 @@ export function buildHostingerStorageSeparateMountAuthorization({ bridge_readine
   const dispatchVerification = verifyDispatch(fixed_dispatch_certification);
   const normalizedExpected = normalizeExpected(expected);
   const normalizedEvidence = normalizeEvidence(evidence, nowEpoch);
-  const blockers = deriveBlockers(normalizedEvidence, normalizedExpected, bridge_readiness, bridgeVerification, fixed_dispatch_certification, dispatchVerification);
+  const blockers = deriveBlockers(normalizedEvidence, normalizedExpected, bridge_readiness, bridgeVerification, fixed_dispatch_certification, dispatchVerification, nowEpoch);
   const core = {
     contract: PACKET_CONTRACT,
     version: HOSTINGER_STORAGE_SEPARATE_MOUNT_AUTHORIZATION_VERSION,
@@ -219,7 +236,9 @@ export function buildHostingerStorageSeparateMountAuthorization({ bridge_readine
   return freeze({ ...core, authorization_digest: digest(core) });
 }
 
-export function verifyHostingerStorageSeparateMountAuthorization({ packet, expected_digest } = {}) {
+export function verifyHostingerStorageSeparateMountAuthorization({ packet, expected_digest, now = Date.now() } = {}) {
+  const nowEpoch = Number(now);
+  if (!Number.isFinite(nowEpoch)) throw failure(400, 'STORAGE_MOUNT_AUTH_NOW_INVALID', 'A valid verification time is required.');
   secretFree(packet, 'packet');
   if (packet?.contract !== PACKET_CONTRACT || packet?.version !== HOSTINGER_STORAGE_SEPARATE_MOUNT_AUTHORIZATION_VERSION
     || packet.authorization_packet_created !== true || packet.authorization_persisted !== false || packet.mount_performed !== false
@@ -228,7 +247,7 @@ export function verifyHostingerStorageSeparateMountAuthorization({ packet, expec
     || packet.provider_dispatch_allowed !== false || packet.production_ready !== false || packet.secrets_included !== false) throw failure(409, 'STORAGE_MOUNT_AUTH_PACKET_BOUNDARY_INVALID', 'Unexpected mount-authorization packet boundary.');
   const bridgeVerification = verifyBridge(packet.bridge_readiness);
   const dispatchVerification = verifyDispatch(packet.fixed_dispatch_certification);
-  const blockers = deriveBlockers(packet.evidence, packet.expected, packet.bridge_readiness, bridgeVerification, packet.fixed_dispatch_certification, dispatchVerification);
+  const blockers = deriveBlockers(packet.evidence, packet.expected, packet.bridge_readiness, bridgeVerification, packet.fixed_dispatch_certification, dispatchVerification, nowEpoch);
   if (!Array.isArray(packet.blockers) || JSON.stringify(blockers) !== JSON.stringify([...new Set(packet.blockers.map(String))].sort()) || packet.ready_for_authorized_mount_execution !== (blockers.length === 0)) throw failure(409, 'STORAGE_MOUNT_AUTH_PACKET_TAMPERED', 'Mount authorization evidence, blockers, and decision are inconsistent.');
   const { authorization_digest, ...core } = packet;
   const observed = digest(core);
