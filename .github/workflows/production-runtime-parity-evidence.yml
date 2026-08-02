@@ -8,6 +8,7 @@ on:
       - '.github/workflows/production-runtime-parity-evidence.yml'
       - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
       - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
+      - 'http-generic-api/config/deployment-branch-policy.json'
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -20,25 +21,10 @@ on:
         default: Production
         type: string
       auth_url:
-        description: Auth runtime /version endpoint
+        description: Hostinger Production auth runtime /version endpoint
         required: true
         default: https://auth.mad4b.com/version
         type: string
-      connector_url:
-        description: Connector runtime /version endpoint
-        required: true
-        default: https://connector.mad4b.com/version
-        type: string
-      dev_url:
-        description: Optional development or additional runtime /version endpoint
-        required: true
-        default: https://dev.mad4b.com/version
-        type: string
-      require_dev:
-        description: Fail when the dev/additional endpoint does not pass
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -105,7 +91,7 @@ jobs:
           production_sha="$(git rev-parse refs/remotes/origin/Production)"
           [[ "${production_sha}" == "${EXPECTED_SHA}" ]]
 
-      - name: Generate structured live parity evidence
+      - name: Generate structured Hostinger Production parity evidence
         id: parity
         continue-on-error: true
         shell: bash
@@ -114,25 +100,14 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           EXPECTED_BRANCH: ${{ inputs.expected_branch }}
           AUTH_URL: ${{ inputs.auth_url }}
-          CONNECTOR_URL: ${{ inputs.connector_url }}
-          DEV_URL: ${{ inputs.dev_url }}
-          REQUIRE_DEV: ${{ inputs.require_dev }}
           PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
         run: |
           set -euo pipefail
-          args=(
-            --expected-sha "${EXPECTED_SHA}"
-            --expected-branch "${EXPECTED_BRANCH}"
-            --endpoint "auth=${AUTH_URL}"
-            --endpoint "connector=${CONNECTOR_URL}"
+          node scripts/production-runtime-parity-evidence.mjs \
+            --expected-sha "${EXPECTED_SHA}" \
+            --expected-branch "${EXPECTED_BRANCH}" \
+            --endpoint "auth=${AUTH_URL}" \
             --output-dir "${PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR}"
-          )
-          if [[ "${REQUIRE_DEV}" == "true" ]]; then
-            args+=(--endpoint "dev=${DEV_URL}")
-          else
-            args+=(--optional-endpoint "dev=${DEV_URL}")
-          fi
-          node scripts/production-runtime-parity-evidence.mjs "${args[@]}"
 
       - name: Upload structured live parity evidence
         if: always()
@@ -143,7 +118,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Enforce structured live parity decision
+      - name: Enforce structured Hostinger Production parity decision
         if: always()
         working-directory: http-generic-api
         env:
@@ -160,15 +135,15 @@ jobs:
             const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
             const effects = report.side_effects || {};
             const endpoints = Array.isArray(report.endpoints) ? report.endpoints : [];
-            const requiredNames = new Set(endpoints.filter((endpoint) => endpoint.required === true).map((endpoint) => endpoint.name));
+            const auth = endpoints.find((endpoint) => endpoint.name === "auth");
             const valid =
               report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
               report.identity?.expected_sha === process.env.EXPECTED_SHA &&
               report.identity?.expected_branch === "Production" &&
               report.identity?.tooling_sha === process.env.GITHUB_SHA &&
-              requiredNames.has("auth") &&
-              requiredNames.has("connector") &&
-              endpoints.filter((endpoint) => endpoint.required === true).every((endpoint) => endpoint.status === "passed") &&
+              endpoints.length === 1 &&
+              auth?.required === true &&
+              auth?.status === "passed" &&
               report.first_failure === null &&
               report.secrets_included === false &&
               report.routing?.consult_job_logs === false &&
@@ -192,7 +167,7 @@ jobs:
               ok: true,
               outcome: report.outcome,
               expected_sha: report.identity.expected_sha,
-              passed_endpoints: report.endpoints.filter((endpoint) => endpoint.status === "passed").map((endpoint) => endpoint.name),
+              passed_endpoint: "auth",
               secrets_included: false
             }));
           '
