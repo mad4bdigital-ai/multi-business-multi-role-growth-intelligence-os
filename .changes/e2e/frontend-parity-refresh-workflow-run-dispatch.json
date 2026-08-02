@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "frontend-parity-refresh-workflow-run-dispatch",
+  "title": "Trusted structured Frontend parity refresh dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/frontend-parity-refresh-workflow-run-dispatch.json",
+      ".github/workflows/frontend-parity-refresh-dispatch.yml",
+      "http-generic-api/test-frontend-parity-refresh-dispatch-workflow.mjs",
+      "http-generic-api/scripts/test-manifest.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-exact-head-refresh-from-structured-frontend-parity-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository automation and pull-request reviewer",
+          "entrypoint": "A completed failed Frontend surface dispatch workflow with its exact structured evidence artifact",
+          "terminal_outcome": "The trusted dispatcher either skips unrelated failures, fails closed on malformed or stale evidence, or delegates the registered generated-artifact refresh for the exact labeled pull-request head without reading Job logs or mutating repository contents directly.",
+          "steps": [
+            "Receive only completed Frontend surface dispatch workflow_run events.",
+            "Run from the trusted default-branch workflow definition with actions write, contents read, and pull-requests read permissions.",
+            "Download the run-bound frontend-dispatch-verification-evidence artifact.",
+            "Validate the canonical contract, workflow identity, merge-candidate SHA, source-head SHA, main base, no-secret declaration, and consult_job_logs=false.",
+            "Require outcome=failed and first_failure.stage_id=committed_generated_parity; skip every other result without mutation.",
+            "Resolve exactly one open same-repository pull request for the evidence head ref.",
+            "Require exact source-head parity and the generated-artifact-refresh label.",
+            "Dispatch governed-generated-artifact-refresh.yml on main with the exact target ref, source-head SHA, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation.",
+            "Upload mad4b.frontend-parity-refresh-dispatch.v1 before enforcing the decision."
+          ],
+          "assertions": [
+            "The source evidence contract is mad4b.frontend-dispatch-verification-evidence.v1.",
+            "The dispatch evidence contract is mad4b.frontend-parity-refresh-dispatch.v1.",
+            "The source candidate SHA equals workflow_run.head_sha and the pull-request head equals source_head_sha.",
+            "Only committed_generated_parity is eligible for delegated refresh.",
+            "Missing artifacts, malformed identity, ambiguous PR resolution, stale heads, and rejected dispatches fail closed with bounded structured diagnostics.",
+            "Absent refresh authorization or unrelated failures are skipped without repository mutation.",
+            "Job logs are diagnostic-only and are never consulted by the dispatcher.",
+            "The dispatcher has no contents-write permission and performs no direct git push.",
+            "The delegated writer remains the registered workflow_dispatch-only generated-artifact refresh workflow.",
+            "Protected-branch mutation and force push remain false.",
+            "Every emitted report declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "frontend-parity-refresh-dispatch-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-parity-refresh-dispatch-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/frontend-parity-refresh-dispatch.yml",
+            "http-generic-api/test-frontend-parity-refresh-dispatch-workflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish the dispatcher report into the shared canonical pull-request evidence surface after the first successful exact-head delegation is observed."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise missing artifacts, malformed reports, cancelled source runs, stale PR heads, ambiguous PRs, label removal races, dispatch API rejection, and repeated workflow_run delivery."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one labeled non-production pull request move from committed parity failure to an exact-head generated refresh commit and passing verification without manual Job-log reconstruction."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository dispatcher grants no deployment, migration, runtime, provider, credential, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
