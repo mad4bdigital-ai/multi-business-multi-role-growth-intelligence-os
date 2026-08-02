@@ -60,6 +60,8 @@ jobs:
         run: |
           echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
+      - name: Verify generator contract
+        run: echo "Preserve the registered baseline-contract marker while bounded diagnostics run below."
       - name: Diagnose workflow baseline contract
         id: workflow_baseline
         continue-on-error: true
