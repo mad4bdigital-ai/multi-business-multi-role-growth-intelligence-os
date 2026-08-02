@@ -31,7 +31,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with exact-candidate structured reports, produce and apply a bounded exact-operation OpenAPI auth repair through the registered generated-artifact maintenance tool without widening document defaults, keep pull-request verification read-only for repository contents, and delegate mutation through the reviewed exact-head push dispatcher.",
+      "objective": "Replace manual reconstruction of Frontend surface dispatch failures with exact-candidate structured reports, produce and apply a bounded exact-operation OpenAPI auth repair through the registered generated-artifact maintenance tool without widening document defaults, keep pull-request verification read-only for repository contents, and delegate mutation through the reviewed exact-head push dispatcher merged on main at 4c5a8a97cff4ce418860d5e91e2234587045ba2b.",
       "e2e_journeys": [
         {
           "id": "frontend-dispatch-structured-verification",
