@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-evidence-publisher-workflow-reregistration",
+  "title": "Hostinger evidence publisher convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-evidence-publisher-workflow-reregistration.json",
+      ".changes/e2e/hostinger-canonical-evidence-publisher.json",
+      ".github/ci-evidence-routing.json",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Converge Hostinger Tenant Canary publication onto the registered CI Evidence PR Publisher and remove the unregistered specialized workflow while preserving permissions, artifact identity, exact PR resolution, comment authority, and runtime safety boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "hostinger-publisher-canonical-convergence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository workflow maintainer",
+          "entrypoint": "CI Evidence PR Publisher, routing contract, and Hostinger publisher regression",
+          "terminal_outcome": "Exactly one trusted workflow_run publisher consumes Hostinger Tenant Canary artifacts and writes the Hostinger section into the shared authoritative comment.",
+          "steps": [
+            "Add Hostinger Storage Tenant Canary Guard to CI Evidence PR Publisher workflow_run sources.",
+            "Download the run-bound Hostinger artifact and select its canonical JSON report.",
+            "Dispatch Hostinger evidence through hostinger-ci-evidence-pr-comment.mjs.",
+            "Remove the standalone specialized workflow and specialized routing registry entry.",
+            "Run the Hostinger normalization, routing, workflow, and comment-upsert regression suite."
+          ],
+          "assertions": [
+            "The sole trusted workflow identity is CI Evidence PR Publisher.",
+            "The trigger includes completed workflow_run events for Hostinger Storage Tenant Canary Guard.",
+            "Permissions remain actions:read, contents:read, issues:write, and pull-requests:write.",
+            "The publisher checks out trusted main with persist-credentials:false.",
+            "The downloaded artifact name remains hostinger-storage-tenant-canary-${run_id}-summary.",
+            "Routing points the Tenant Canary route to CI Evidence PR Publisher and specialized_publishers is empty.",
+            "The existing Governed Generated Artifact Refresh Dispatch route and dispatcher remain registered.",
+            "No PR-head code receives comment-write authority.",
+            "No provider, credential, SQL, migration, deployment, Production, protected-branch, or force-push action occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-publisher-canonical-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-ci-evidence-pr-comment.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".changes/e2e/hostinger-canonical-evidence-publisher.json",
+            "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "After merge, complete a new exact-head Tenant Canary run and prove CI Evidence PR Publisher writes the Hostinger section to the shared authoritative PR comment.",
+      "blockers": [
+        "The canonical publisher convergence has not reached main yet.",
+        "No post-convergence workflow_run publication has been observed."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove idempotent publisher retries and rejection of stale, ambiguous, malformed, missing-artifact, and mismatched-workflow evidence."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This change routes repository evidence and does not execute a live Hostinger canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The publisher grants no runtime, deployment, migration, provider, or Production authority."
+    }
+  ]
+}
