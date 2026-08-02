@@ -10,7 +10,7 @@
       ".github/ci-evidence-routing.json",
       ".github/workflows/ci-evidence-pr-publisher.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
-      ".github/workflows/protected-promotion-generated-artifact-refresh.yml",
+      ".github/workflows/production-promotion-generated-artifact-evidence.yml",
       "docs/ci-evidence-routing.md",
       "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
       ".changes/e2e/protected-promotion-generated-artifact-workflow-registration.json"
@@ -23,7 +23,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Register a uniquely named pull-request workflow for exact same-repository promotions targeting Production while retaining the existing read-only work-branch evaluator, one canonical evidence contract, and the separately governed writer.",
+      "objective": "Register a uniquely named and uniquely pathed pull-request workflow for exact same-repository promotions targeting Production while retaining the existing read-only work-branch evaluator, one canonical evidence contract, and the separately governed writer.",
       "e2e_journeys": [
         {
           "id": "schedule-protected-promotion-generated-artifact-evidence",
@@ -31,10 +31,10 @@
           "level": "synthetic_runtime",
           "actor": "repository release automation and reviewer",
           "entrypoint": "A same-repository pull request is opened, synchronized, or reopened with base Production",
-          "terminal_outcome": "GitHub schedules the uniquely named Protected Promotion Generated Artifact Refresh workflow, which evaluates the exact source head, publishes the canonical generated-artifact report, and performs no repository mutation.",
+          "terminal_outcome": "GitHub schedules the uniquely named and newly registered Protected Promotion Generated Artifact Refresh workflow, which evaluates the exact source head, publishes the canonical generated-artifact report, and performs no repository mutation.",
           "steps": [
             "Exclude Production-target pull requests from the existing work-branch generated-artifact workflow.",
-            "Register a distinct workflow file and unique display name whose pull_request branch filter targets Production without path filtering.",
+            "Register a distinct workflow file path and unique display name whose pull_request branch filter targets Production without path filtering.",
             "Require a same-repository head and reject bot recursion.",
             "Validate the exact source SHA, target ref, and Production base before checkout.",
             "Checkout the exact source head without persisted credentials.",
@@ -45,7 +45,7 @@
           ],
           "assertions": [
             "The work-branch evaluator declares branches-ignore for Production and retains the name PR Generated Artifact Refresh.",
-            "The protected-promotion evaluator declares the unique name Protected Promotion Generated Artifact Refresh, branches Production, and no workflow_dispatch trigger.",
+            "The protected-promotion evaluator is stored at .github/workflows/production-promotion-generated-artifact-evidence.yml, declares the unique name Protected Promotion Generated Artifact Refresh, branches Production, and has no workflow_dispatch trigger.",
             "Both evaluators retain contents read permission, persist-credentials false, and no git push.",
             "The protected-promotion evaluator uploads pr-generated-artifact-refresh-${run_id}-summary.",
             "CI Evidence PR Publisher listens to both names and downloads the same canonical artifact shape.",
@@ -74,7 +74,7 @@
             ".github/ci-evidence-routing.json",
             ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/workflows/pr-generated-artifact-refresh.yml",
-            ".github/workflows/protected-promotion-generated-artifact-refresh.yml",
+            ".github/workflows/production-promotion-generated-artifact-evidence.yml",
             "docs/ci-evidence-routing.md",
             "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
           ]
@@ -84,7 +84,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe canonical evidence publication on an exact main-to-Production promotion after the uniquely named workflow reaches both governed branches."
+      "objective": "Observe canonical evidence publication on an exact main-to-Production promotion after the uniquely named and pathed workflow reaches both governed branches."
     },
     {
       "id": "resilient",
