@@ -1,0 +1,60 @@
+name: Hostinger Storage Migration Authorization Readiness Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-migration-authorization-readiness.json'
+      - '.github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json'
+      - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml'
+      - 'http-generic-api/governedMigrationAuthorizationBootstrap.js'
+      - 'http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js'
+      - 'http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs'
+      - 'http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql'
+      - 'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql'
+      - 'http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-migration-authorization-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          node --check http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs
+
+      - name: Enforce repository-only safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|require\(['\"](?:mysql2|child_process|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "authorization_registry_mutated: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q '"authorization_created": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"migration_sql_executed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"live_database_access_performed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+
+      - name: Execute readiness contract regression
+        run: node http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs
