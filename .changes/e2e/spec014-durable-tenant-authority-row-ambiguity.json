@@ -9,7 +9,8 @@
     "include": [
       ".changes/e2e/spec014-durable-tenant-authority-row-ambiguity.json",
       "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
-      "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity.mjs"
+      "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity-scanner.mjs"
     ]
   },
   "merge_contract": {
@@ -27,19 +28,21 @@
           "level": "synthetic_runtime",
           "actor": "Spec 014 durable authority reviewer",
           "entrypoint": "The public durable Tenant authority read methods backed by loadCurrent",
-          "terminal_outcome": "Zero rows return null, one row is parsed, and multiple allowlist or approval rows return STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS without selecting a first candidate.",
+          "terminal_outcome": "Zero rows return null, one row is parsed, multiple rows fail closed, and the Context Kernel scanner reports zero active runtime first-candidate findings.",
           "steps": [
             "Create the unmounted durable Tenant authority store with exact signed-schema contract evidence.",
             "Inject two durable rows for one allowlist identity and call readAllowlist.",
             "Require a fail-closed HTTP 409 ambiguity result with bounded authority type and ID details.",
             "Inject two durable rows for one approval identity and call readApproval.",
             "Require the same fail-closed ambiguity result and prove every database connection is released.",
+            "Scan the complete modified runtime file with the repository Context Kernel scanner and require zero active runtime findings.",
             "Run the complete durable authority store regression suite to preserve registration, replay, CAS, immutable token history, rollback, and export behavior."
           ],
           "assertions": [
             "The runtime does not use rows[0] or any equivalent first-candidate selection after cardinality validation.",
             "More than one row fails with STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS and status 409.",
             "The error identifies only authority_type and authority_id and contains no secret or raw record payload.",
+            "The Context Kernel scanner reports runtime_finding_count=0 for the modified authority-store file.",
             "The existing durable authority store regression remains green.",
             "The store remains unmounted and performs no migration apply, provider dispatch, Hostinger access, deployment, main merge, or Production mutation."
           ],
@@ -49,6 +52,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity.mjs",
+              "args": []
+            },
+            {
+              "id": "durable-tenant-authority-row-ambiguity-scanner",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity-scanner.mjs",
               "args": []
             },
             {
@@ -63,6 +73,7 @@
             ".changes/e2e/spec014-durable-tenant-authority-row-ambiguity.json",
             "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
             "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity.mjs",
+            "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-ambiguity-scanner.mjs",
             "http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs"
           ]
         }
