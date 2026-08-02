@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ebc4a85a062e797a65e36014820e982d0fd39a4ec84ff8ff36cedaa42822671c",
+    "source_digest": "413357db9ae81e52b9c573faf14d670dc6386bfa456a8c460a44b82114d65512",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "3a67e69cbed7a4f523cafe0c4d3e8e0a67e57e273202dff27d2f9c40ba959d94",
+        "sha256": "96aad3bc7b445973a81f381781cc6d320e2518c4eb4a4921682903071ad1d340",
         "present": true
       },
       {
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "15eadc101f3e7d8c924c94531b4d871f2d7eafac7c265e8053c48660d0f68cfc",
+        "sha256": "86a1d8f707157d6711c3b85a973acac82fc76e3c7ea79cbbeb674fab9b4d010b",
         "present": true
       },
       {
@@ -192,6 +192,11 @@
       {
         "file": "openapi/tenant-growth-control-plane.openapi.yaml",
         "sha256": "650373293bb2609d5e392de6907edb0703724b9586023617ab4de9147ffdc665",
+        "present": true
+      },
+      {
+        "file": "openapi/tenant-requests.openapi.yaml",
+        "sha256": "441bd169e6cf4f8ff48e06941dd989c3355c2b62303d5969e07a73f446190d77",
         "present": true
       },
       {
@@ -546,7 +551,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+        "sha256": "bbcec703937de1939086983698fbe324d9f62ac5e4d31559e33b533e98e4406d",
         "present": true
       },
       {
@@ -571,7 +576,7 @@
       },
       {
         "file": "routes/index.js",
-        "sha256": "f877bbd10dd7d253c8005b7b7026cc4a382fc7f6313b3674b09ecd735dc02ee6",
+        "sha256": "a677b7a9c9e903b7d989d62aef6315daffbb32324ad3928b394b2c978dfffe90",
         "present": true
       },
       {
@@ -621,7 +626,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+        "sha256": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
         "present": true
       },
       {
@@ -900,13 +905,18 @@
         "present": true
       },
       {
+        "file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+        "sha256": "de186fe76455320858ae6a29e340cc7eccc39c7e63f6f152e569cc0e1e48eda0",
+        "present": true
+      },
+      {
         "file": "routes/supportTicketRoutes.js",
-        "sha256": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+        "sha256": "d26c4e24af56ce8fea0651cbf54d16d68ad86ecb2131642771eb0d13d8e016df",
         "present": true
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+        "sha256": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
         "present": true
       },
       {
@@ -931,7 +941,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "447aaf81f828a3e25f244f1d03b2d1b627022822be7d5c346c68ab653a13c0cd",
+        "sha256": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
         "present": true
       },
       {
@@ -991,7 +1001,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c3f99169d147cec6a6e0fede6697ede94c4b70e419c0c1559d14f40bbbe725b8",
+        "sha256": "5dba107bdb42743112921fac4588e7d34ebba0acc8d143c8333354f3665bdc3a",
         "present": true
       },
       {
@@ -1036,34 +1046,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 173,
-    "mounted_route_file_count": 139,
-    "mixed_scope_route_file_count": 26,
-    "operation_count": 1035,
-    "openapi_documented_count": 1019,
-    "openapi_canonical_documented_count": 629,
-    "openapi_generated_index_count": 390,
+    "mounted_family_count": 175,
+    "mounted_route_file_count": 140,
+    "mixed_scope_route_file_count": 27,
+    "operation_count": 1044,
+    "openapi_documented_count": 1028,
+    "openapi_canonical_documented_count": 633,
+    "openapi_generated_index_count": 395,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 390,
+    "openapi_detail_gap_count": 395,
     "auth_parity_counts": {
-      "equivalent": 1019,
+      "equivalent": 1028,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 629,
-    "unresolved_operation_class_count": 569,
+    "non_get_candidate_count": 632,
+    "unresolved_operation_class_count": 572,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 158,
+    "unresolved_surface_decision_count": 160,
     "test_owned_family_count": 0,
-    "untested_family_count": 173,
+    "untested_family_count": 175,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1032,
+    "untested_operation_count": 1041,
     "ready_task_count": 0,
-    "blocked_task_count": 173,
+    "blocked_task_count": 175,
     "coverage_complete": false
   },
   "waves": [
@@ -1132,7 +1142,7 @@
       "source_file": "routes/sqlEndpointRegistryRoutes.js",
       "source_digest": "26769efe9d967b49a4c49d2a03e5c0f4e7de400a70947bebd63e4bfee41bad9f",
       "mount_prefix": "/",
-      "mount_order": 11658,
+      "mount_order": 11763,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -1535,9 +1545,9 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "447aaf81f828a3e25f244f1d03b2d1b627022822be7d5c346c68ab653a13c0cd",
+      "source_digest": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
       "mount_prefix": "/",
-      "mount_order": 12064,
+      "mount_order": 12169,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -1690,7 +1700,7 @@
       "source_file": "routes/deploymentInfoRoutes.js",
       "source_digest": "cdc521d505a952b6423ba773259ad5ec27c6400643e1531c3c6effac79638c62",
       "mount_prefix": "/",
-      "mount_order": 12159,
+      "mount_order": 12264,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -1793,7 +1803,7 @@
       "source_file": "routes/backupArtifactRoutes.js",
       "source_digest": "3eb979cbff1a3044fe96e83e5529e2e1f3bb8d8f48f85652251042e0240caf1f",
       "mount_prefix": "/",
-      "mount_order": 12199,
+      "mount_order": 12304,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -1904,7 +1914,7 @@
       "source_file": "routes/devDbRestoreRoutes.js",
       "source_digest": "432cfc22a347e760b888daf93f6933ab1056816692ad5cc028d1caecfedd9c01",
       "mount_prefix": "/",
-      "mount_order": 12243,
+      "mount_order": 12348,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -2108,7 +2118,7 @@
       "source_file": "routes/adminOnboardingRoutes.js",
       "source_digest": "da6c375e42ba57f3fbdac752343731f79548b56f5b5c27f0e96cb41087cb1680",
       "mount_prefix": "/",
-      "mount_order": 12315,
+      "mount_order": 12420,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -2614,7 +2624,7 @@
       "source_file": "routes/connectorAgentRoutes.js",
       "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
-      "mount_order": 12390,
+      "mount_order": 12495,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -2727,7 +2737,7 @@
       "source_file": "routes/connectorAgentRoutes.js",
       "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
-      "mount_order": 12390,
+      "mount_order": 12495,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -2928,7 +2938,7 @@
       "source_file": "routes/connectorAgentRoutes.js",
       "source_digest": "463d9f6a1a8be0a5a867dc4770ccc977f3f2583439fbd9fdfed2090f4d42b3fd",
       "mount_prefix": "/",
-      "mount_order": 12390,
+      "mount_order": 12495,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -3094,7 +3104,7 @@
       "source_file": "routes/localManagerBetaRoutes.js",
       "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
-      "mount_order": 12602,
+      "mount_order": 12707,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
@@ -3222,7 +3232,7 @@
       "source_file": "routes/localManagerBetaRoutes.js",
       "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
-      "mount_order": 12602,
+      "mount_order": 12707,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
@@ -3597,7 +3607,7 @@
       "source_file": "routes/localManagerBetaRoutes.js",
       "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
-      "mount_order": 12602,
+      "mount_order": 12707,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": true,
       "surface_policy_partition": "default",
@@ -4242,7 +4252,7 @@
       "source_file": "routes/localManagerBetaRoutes.js",
       "source_digest": "a7acb8fd9cf9f8e31e5694fd16c49b3bdfc686e29097f597e2fe5fe6c2e66163",
       "mount_prefix": "/",
-      "mount_order": 12602,
+      "mount_order": 12707,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": true,
       "surface_policy_partition": "/local-manager",
@@ -4468,7 +4478,7 @@
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "source_digest": "f72df7b49481823cf0e3ed87058878d8b154bff5641fd69751ffe9f3c010e66f",
       "mount_prefix": "/",
-      "mount_order": 12678,
+      "mount_order": 12783,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
@@ -4676,7 +4686,7 @@
       "source_file": "routes/localManagerDesktopCommandRoutes.js",
       "source_digest": "f72df7b49481823cf0e3ed87058878d8b154bff5641fd69751ffe9f3c010e66f",
       "mount_prefix": "/",
-      "mount_order": 12678,
+      "mount_order": 12783,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
@@ -4864,7 +4874,7 @@
       "source_file": "routes/localConnectorInstallRoutes.js",
       "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
-      "mount_order": 12764,
+      "mount_order": 12869,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -5219,7 +5229,7 @@
       "source_file": "routes/localConnectorInstallRoutes.js",
       "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
-      "mount_order": 12764,
+      "mount_order": 12869,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -5333,7 +5343,7 @@
       "source_file": "routes/localConnectorInstallRoutes.js",
       "source_digest": "01d90e50e4307096190ed71f4b096fc47b016c9ada12c17b3d7071b8e3fb797b",
       "mount_prefix": "/",
-      "mount_order": 12764,
+      "mount_order": 12869,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -5455,7 +5465,7 @@
       "source_file": "routes/credentialIntakeRoutes.js",
       "source_digest": "0c32f0a633095279883871072d5a8fd4b30d8c4052c6a463a3e2e9e064c4c583",
       "mount_prefix": "/",
-      "mount_order": 13039,
+      "mount_order": 13144,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -5583,7 +5593,7 @@
       "source_file": "routes/credentialIntakeRoutes.js",
       "source_digest": "0c32f0a633095279883871072d5a8fd4b30d8c4052c6a463a3e2e9e064c4c583",
       "mount_prefix": "/",
-      "mount_order": 13039,
+      "mount_order": 13144,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -5815,7 +5825,7 @@
       "source_file": "routes/memberGoogleOAuthRoutes.js",
       "source_digest": "86b8b87fc364f75f1af01780baa30c449631c21c5719fe521234871ba5dc93ab",
       "mount_prefix": "/",
-      "mount_order": 13237,
+      "mount_order": 13342,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -6025,7 +6035,7 @@
       "source_file": "routes/memberGoogleOAuthRoutes.js",
       "source_digest": "86b8b87fc364f75f1af01780baa30c449631c21c5719fe521234871ba5dc93ab",
       "mount_prefix": "/",
-      "mount_order": 13237,
+      "mount_order": 13342,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -6122,7 +6132,7 @@
       "source_file": "routes/legalRoutes.js",
       "source_digest": "e2e1c1c09376b1fa23b4984cd94b8b924517f38dd07b9bc4cbefd74f6ca50b92",
       "mount_prefix": "/",
-      "mount_order": 13314,
+      "mount_order": 13419,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -6534,7 +6544,7 @@
       "source_file": "routes/rootDiscoveryRoutes.js",
       "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
-      "mount_order": 13349,
+      "mount_order": 13454,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -6721,7 +6731,7 @@
       "source_file": "routes/rootDiscoveryRoutes.js",
       "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
-      "mount_order": 13349,
+      "mount_order": 13454,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -7062,7 +7072,7 @@
       "source_file": "routes/rootDiscoveryRoutes.js",
       "source_digest": "b06883b56cac4fd5e640e1a55b05757e8ac5a93c73e2b36da0f5af36aee59435",
       "mount_prefix": "/",
-      "mount_order": 13349,
+      "mount_order": 13454,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -7159,7 +7169,7 @@
       "source_file": "routes/connectRoutes.js",
       "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
-      "mount_order": 13388,
+      "mount_order": 13493,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": true,
       "surface_policy_partition": "/connect/assets",
@@ -7267,7 +7277,7 @@
       "source_file": "routes/connectRoutes.js",
       "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
-      "mount_order": 13388,
+      "mount_order": 13493,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": true,
       "surface_policy_partition": "default",
@@ -7436,7 +7446,7 @@
       "source_file": "routes/connectRoutes.js",
       "source_digest": "3454cfb5826a3d0c7af6c0ef6034072c110d157b2450802f2d0068569c6489c6",
       "mount_prefix": "/",
-      "mount_order": 13388,
+      "mount_order": 13493,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -8371,7 +8381,7 @@
       "source_file": "routes/platformFrontendRoutes.js",
       "source_digest": "95c86af9e6a53e355868621eca5d53d72d25311653ae9cfd2727982b59cd9962",
       "mount_prefix": "/",
-      "mount_order": 13425,
+      "mount_order": 13530,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -8594,7 +8604,7 @@
       "source_file": "routes/connectApiRoutes.js",
       "source_digest": "63d7583f8068cb144a20c5b5cb856b935445c9dd9fecc2522068ee498231a07b",
       "mount_prefix": "/",
-      "mount_order": 13625,
+      "mount_order": 13730,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -9302,9 +9312,9 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
       "mount_prefix": "/",
-      "mount_order": 13665,
+      "mount_order": 13770,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -10068,9 +10078,9 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "53cb0f6507dc6f90a8e1a1fdb08f47d91bb7cb93465d945137e3ec7f58bf748e",
+      "source_digest": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
       "mount_prefix": "/",
-      "mount_order": 13665,
+      "mount_order": 13770,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -10546,7 +10556,7 @@
       "source_file": "routes/authRoutes.js",
       "source_digest": "f0a0c6ed1ee93b36f75ee5d82bbc726878768b63a86f437d1ebdc16e65600c62",
       "mount_prefix": "/auth",
-      "mount_order": 13706,
+      "mount_order": 13811,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -10675,7 +10685,7 @@
       "source_file": "routes/authRoutes.js",
       "source_digest": "f0a0c6ed1ee93b36f75ee5d82bbc726878768b63a86f437d1ebdc16e65600c62",
       "mount_prefix": "/auth",
-      "mount_order": 13706,
+      "mount_order": 13811,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -11190,7 +11200,7 @@
       "source_file": "routes/authRoutes.js",
       "source_digest": "f0a0c6ed1ee93b36f75ee5d82bbc726878768b63a86f437d1ebdc16e65600c62",
       "mount_prefix": "/auth",
-      "mount_order": 13706,
+      "mount_order": 13811,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -11296,7 +11306,7 @@
       "source_file": "routes/statusRoutes.js",
       "source_digest": "a06c5fb467b9d8a024c8d6cc1786debce5c990ce3e77ab8d6830d64ae37366b3",
       "mount_prefix": "/",
-      "mount_order": 13789,
+      "mount_order": 13894,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": true,
       "surface_policy_partition": "default",
@@ -11473,7 +11483,7 @@
       "source_file": "routes/statusRoutes.js",
       "source_digest": "a06c5fb467b9d8a024c8d6cc1786debce5c990ce3e77ab8d6830d64ae37366b3",
       "mount_prefix": "/",
-      "mount_order": 13789,
+      "mount_order": 13894,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": true,
       "surface_policy_partition": "/status",
@@ -11632,7 +11642,7 @@
       "source_file": "routes/activationHardRunRoutes.js",
       "source_digest": "9843a55b29a8a079fffc657c75199824414b79a52ebfe0339e3908ad22d8e691",
       "mount_prefix": "/",
-      "mount_order": 13825,
+      "mount_order": 13930,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -11760,7 +11770,7 @@
       "source_file": "routes/tenantGrowthDashboardRoutes.js",
       "source_digest": "bbaa84dd9eefe5b512ba0fbb6046609bce2ddcccdf777d3e3da30bc4c55cae4e",
       "mount_prefix": "/",
-      "mount_order": 13928,
+      "mount_order": 14033,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -12783,7 +12793,7 @@
       "source_file": "routes/tenantActivationOverlayRoutes.js",
       "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
-      "mount_order": 14035,
+      "mount_order": 14140,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -12968,7 +12978,7 @@
       "source_file": "routes/tenantActivationOverlayRoutes.js",
       "source_digest": "ba7b9df89ade2d8babc741118f1e0b11e07c12152bd380d9eccd51320b210cb1",
       "mount_prefix": "/",
-      "mount_order": 14035,
+      "mount_order": 14140,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -13093,7 +13103,7 @@
       "source_file": "routes/activationAwarenessRoutes.js",
       "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
-      "mount_order": 14144,
+      "mount_order": 14249,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -14118,7 +14128,7 @@
       "source_file": "routes/activationAwarenessRoutes.js",
       "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
       "mount_prefix": "/",
-      "mount_order": 14144,
+      "mount_order": 14249,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -14746,7 +14756,7 @@
       "source_file": "routes/activationRoutes.js",
       "source_digest": "603198f2c4b44f35e85cc45a0462fc69599482af3b18f899481a7eac635f4344",
       "mount_prefix": "/",
-      "mount_order": 14249,
+      "mount_order": 14354,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -15218,7 +15228,7 @@
       "source_file": "routes/activationGuidanceRoutes.js",
       "source_digest": "9e5e9e2976fd55b3d2a9b9af1d9f2b029f4dbd9642d26f7ba37e27f0302c7bf4",
       "mount_prefix": "/",
-      "mount_order": 14289,
+      "mount_order": 14394,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -15338,7 +15348,7 @@
       "source_file": "routes/activationGuidanceRoutes.js",
       "source_digest": "9e5e9e2976fd55b3d2a9b9af1d9f2b029f4dbd9642d26f7ba37e27f0302c7bf4",
       "mount_prefix": "/",
-      "mount_order": 14289,
+      "mount_order": 14394,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -15450,7 +15460,7 @@
       "source_file": "routes/runtimeVerificationRoutes.js",
       "source_digest": "50730c1d8bf5ea6b65f2d1f38351f5c0a04e3b07ecf4569a88a14b56598919b0",
       "mount_prefix": "/",
-      "mount_order": 14367,
+      "mount_order": 14472,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -15928,7 +15938,7 @@
       "source_file": "routes/releaseOperationRoutes.js",
       "source_digest": "da08d80c910617352b0a6963dc5527dc9f123f82ca19b40ed2998d6e300c9e0f",
       "mount_prefix": "/",
-      "mount_order": 14446,
+      "mount_order": 14551,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -16506,7 +16516,7 @@
       "source_file": "routes/releaseGateManagerRoutes.js",
       "source_digest": "02abf9425b930fad2ddee96169866c30e662aeb38103e23254d4d2a97990ebc3",
       "mount_prefix": "/",
-      "mount_order": 14522,
+      "mount_order": 14627,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -17082,7 +17092,7 @@
       "source_file": "routes/asyncReleaseDeployRoutes.js",
       "source_digest": "5b8e14ae1964b9da5dbd8ac1a8fa3a8e0534d52e539decd200f8d28aace73379",
       "mount_prefix": "/",
-      "mount_order": 14600,
+      "mount_order": 14705,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -17360,7 +17370,7 @@
       "source_file": "routes/capabilityEnvelopeTemplateRoutes.js",
       "source_digest": "6825c631779b3f65c136d0701ec3e1b53501462b915a37caba8b24ba8389e82e",
       "mount_prefix": "/",
-      "mount_order": 14678,
+      "mount_order": 14783,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -17705,7 +17715,7 @@
       "source_file": "routes/selfHealingReleaseAdvisorRoutes.js",
       "source_digest": "6fc61ca55fb2075c5538db40359e0f0816e27ae95a0dea53eb58dd11295de9ef",
       "mount_prefix": "/",
-      "mount_order": 14764,
+      "mount_order": 14869,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -17904,7 +17914,7 @@
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
       "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
-      "mount_order": 14849,
+      "mount_order": 14954,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -18103,7 +18113,7 @@
       "source_file": "routes/repositoryMainMovedTriggerRoutes.js",
       "source_digest": "4c2611c23179a10a6eea5798585da0f8a6420ee2063bc088bf05dd5d93cbc7ac",
       "mount_prefix": "/",
-      "mount_order": 14849,
+      "mount_order": 14954,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -18229,7 +18239,7 @@
       "source_file": "routes/operationalConsoleRoutes.js",
       "source_digest": "4b4e5efd3b544e2899acb33aba5d995fd75dde5202d785e5e0c7e8c5a32d1905",
       "mount_prefix": "/",
-      "mount_order": 14935,
+      "mount_order": 15040,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -18420,7 +18430,7 @@
       "source_file": "routes/healthRoutes.js",
       "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
       "mount_prefix": "/",
-      "mount_order": 15013,
+      "mount_order": 15118,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": true,
       "surface_policy_partition": "default",
@@ -18574,7 +18584,7 @@
       "source_file": "routes/healthRoutes.js",
       "source_digest": "30a7fcc1d198fd03d39df1ed3eb016bad3c5cb963d7a1d9e66ea2f6916f87c3c",
       "mount_prefix": "/",
-      "mount_order": 15013,
+      "mount_order": 15118,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": true,
       "surface_policy_partition": "/health",
@@ -18682,9 +18692,9 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "db21d8e0908ab42c0caac836297fb31957cd376545e8857a25f0ea65ee2ff9b1",
+      "source_digest": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
       "mount_prefix": "/",
-      "mount_order": 15049,
+      "mount_order": 15154,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -18940,7 +18950,7 @@
       "source_file": "routes/governanceRoutes.js",
       "source_digest": "a089f38f71681449c5203068770536496732610e881a47ba4e591616b330c602",
       "mount_prefix": "/",
-      "mount_order": 15082,
+      "mount_order": 15187,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -19576,7 +19586,7 @@
       "source_file": "routes/registryDataManagementRoutes.js",
       "source_digest": "ca2059cd6b39948d40330484fa484ace229e2f33d46594715cab75932762b5f6",
       "mount_prefix": "/",
-      "mount_order": 15296,
+      "mount_order": 15401,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -20074,7 +20084,7 @@
       "source_file": "routes/registryDataManagementRoutes.js",
       "source_digest": "ca2059cd6b39948d40330484fa484ace229e2f33d46594715cab75932762b5f6",
       "mount_prefix": "/",
-      "mount_order": 15296,
+      "mount_order": 15401,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -20536,7 +20546,7 @@
       "source_file": "routes/tenantPlatformPluginRoutes.js",
       "source_digest": "4c4fef83927205da716193cb3a5895e85e9b4864bd2da38814ca578c129a1020",
       "mount_prefix": "/",
-      "mount_order": 15612,
+      "mount_order": 15717,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -20856,7 +20866,7 @@
       "source_file": "routes/tenantDocsRoutes.js",
       "source_digest": "14a3eb55190fcca12bea748eaa373ec15069cd61681c8d88bcdf359084df9550",
       "mount_prefix": "/",
-      "mount_order": 15658,
+      "mount_order": 15763,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -21029,7 +21039,7 @@
       "source_file": "routes/tenantLifecycleRoutes.js",
       "source_digest": "bbdb2538c426485203d77ce23651213a488c87dd6c5557f1d337a2632b571c74",
       "mount_prefix": "/",
-      "mount_order": 15694,
+      "mount_order": 15799,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -22257,7 +22267,7 @@
       "source_file": "routes/hostingerStorageTenantRoutes.js",
       "source_digest": "7a4fb832d20bc7383d040aa1260d20170fd370c8cf8cb0bb10f7f92cd72bf145",
       "mount_prefix": "/",
-      "mount_order": 15735,
+      "mount_order": 15840,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -22381,7 +22391,7 @@
       "source_file": "routes/dynamicContainerTeamRoutes.js",
       "source_digest": "1be9e1113fa529402b71f2600cc758356801b9f1f7f5972d4c18f8d1a8b92941",
       "mount_prefix": "/",
-      "mount_order": 15787,
+      "mount_order": 15892,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -23030,7 +23040,7 @@
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
       "source_digest": "4301ec6b0c26eb8242f47b9a5f960acfbb60dd0c352d34411dca0d15a71a88f2",
       "mount_prefix": "/",
-      "mount_order": 15833,
+      "mount_order": 15938,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -24640,7 +24650,7 @@
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
       "source_digest": "4301ec6b0c26eb8242f47b9a5f960acfbb60dd0c352d34411dca0d15a71a88f2",
       "mount_prefix": "/",
-      "mount_order": 15833,
+      "mount_order": 15938,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -24836,7 +24846,7 @@
       "source_file": "routes/dynamicContainerOverrideGovernanceSmokeRoutes.js",
       "source_digest": "9c8d0ea61803aa5527eb4ad381fc62d337fdd4520aed2fefbc0ad0a16d48b61b",
       "mount_prefix": "/",
-      "mount_order": 15918,
+      "mount_order": 16023,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -24967,7 +24977,7 @@
       "source_file": "routes/dynamicGrowthControlPlaneRoutes.js",
       "source_digest": "06d8502323d0ae6959bef5d0f431f34b53949ed455c2e1477bbfecdc0764473b",
       "mount_prefix": "/",
-      "mount_order": 16017,
+      "mount_order": 16122,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -26024,7 +26034,7 @@
       "source_file": "routes/activityBindingLifecycleRoutes.js",
       "source_digest": "780bd00554e0f2f4e9322c8a24a2e669710d099421bb2d1744243c2a613c760f",
       "mount_prefix": "/",
-      "mount_order": 16102,
+      "mount_order": 16207,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -26231,7 +26241,7 @@
       "source_file": "routes/tenantGrowthControlPlaneRoutes.js",
       "source_digest": "fbde167c3090f3a300ea4f2a268397c50fc5085206d206d7a83e12ad3ddb3d11",
       "mount_prefix": "/",
-      "mount_order": 16186,
+      "mount_order": 16291,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -26405,7 +26415,7 @@
       "source_file": "routes/openApiRegistrySyncRoutes.js",
       "source_digest": "db00769801a1b903f69e0160820bc721a204e3b005098838d0a55d500d0bbb6c",
       "mount_prefix": "/",
-      "mount_order": 16247,
+      "mount_order": 16352,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -26605,7 +26615,7 @@
       "source_file": "routes/sqlCachePolicyRoutes.js",
       "source_digest": "62256d14103d0d45e2cd754bbf6ff32bf6aefdf3914f2597e9cfc5e9fbe97992",
       "mount_prefix": "/",
-      "mount_order": 16326,
+      "mount_order": 16431,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -26803,7 +26813,7 @@
       "source_file": "routes/repositoryAutomationRoutes.js",
       "source_digest": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
       "mount_prefix": "/",
-      "mount_order": 16400,
+      "mount_order": 16505,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -27293,7 +27303,7 @@
       "source_file": "routes/repoConflictIntelligenceRoutes.js",
       "source_digest": "16a1d498ab405b94abe8e888cf8835d6ae74752ea8e06f9824043b90447b444d",
       "mount_prefix": "/",
-      "mount_order": 16480,
+      "mount_order": 16585,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -27880,7 +27890,7 @@
       "source_file": "routes/repoConflictIntelligenceRoutes.js",
       "source_digest": "16a1d498ab405b94abe8e888cf8835d6ae74752ea8e06f9824043b90447b444d",
       "mount_prefix": "/",
-      "mount_order": 16480,
+      "mount_order": 16585,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -28140,7 +28150,7 @@
       "source_file": "routes/operationOrchestratorRoutes.js",
       "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
       "mount_prefix": "/",
-      "mount_order": 16564,
+      "mount_order": 16669,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -28791,7 +28801,7 @@
       "source_file": "routes/operationOrchestratorRoutes.js",
       "source_digest": "b52eae41df94a5857915e85931474d5c0fc658dc72f9131190c0f82515259273",
       "mount_prefix": "/",
-      "mount_order": 16564,
+      "mount_order": 16669,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -29378,7 +29388,7 @@
       "source_file": "routes/workspaceResourceRoutes.js",
       "source_digest": "62e29888212edae7d7adea3b8d05d4c56d42a95decb86a7c4be2321a43e73b53",
       "mount_prefix": "/",
-      "mount_order": 16645,
+      "mount_order": 16750,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -29837,7 +29847,7 @@
       "source_file": "routes/brandSkillRoutes.js",
       "source_digest": "68a5dc8a68e4d3269881385c5093934f68c9b110b8a4ee915f122a1ad2ce0544",
       "mount_prefix": "/",
-      "mount_order": 16688,
+      "mount_order": 16793,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -30089,7 +30099,7 @@
       "source_file": "routes/resourceApiRoutes.js",
       "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
-      "mount_order": 16728,
+      "mount_order": 16833,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -31257,7 +31267,7 @@
       "source_file": "routes/resourceApiRoutes.js",
       "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
-      "mount_order": 16728,
+      "mount_order": 16833,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -32178,7 +32188,7 @@
       "source_file": "routes/resourceApiRoutes.js",
       "source_digest": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
       "mount_prefix": "/",
-      "mount_order": 16728,
+      "mount_order": 16833,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -32720,7 +32730,7 @@
       "source_file": "routes/resourceAuthorityGrantRoutes.js",
       "source_digest": "1fa13a82f8d09ef0609e600010ae2b38ff44badcebe07b9206f1951cb2343f8d",
       "mount_prefix": "/",
-      "mount_order": 16799,
+      "mount_order": 16904,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -32849,18 +32859,620 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "support-ticket.admin",
-      "label": "support ticket (admin)",
-      "source_file": "routes/supportTicketRoutes.js",
-      "source_digest": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+      "family_key": "support-ticket-lifecycle-integrity.admin",
+      "label": "support ticket lifecycle integrity (admin)",
+      "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+      "source_digest": "de186fe76455320858ae6a29e340cc7eccc39c7e63f6f152e569cc0e1e48eda0",
       "mount_prefix": "/",
-      "mount_order": 16881,
+      "mount_order": 16986,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
-      "group": "authentication",
+      "group": "support",
       "scope": "admin",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/admin/support/tickets/tenant-user/create-simulation",
+          "signature": "POST /admin/support/tickets/tenant-user/create-simulation",
+          "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/support/tickets/integrity/reconcile",
+          "signature": "GET /admin/support/tickets/integrity/reconcile",
+          "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/support/tickets/integrity/reconcile",
+          "signature": "POST /admin/support/tickets/integrity/reconcile",
+          "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [
+        "POST /admin/support/tickets/tenant-user/create-simulation",
+        "GET /admin/support/tickets/integrity/reconcile",
+        "POST /admin/support/tickets/integrity/reconcile"
+      ],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /admin/support/tickets/tenant-user/create-simulation",
+        "GET /admin/support/tickets/integrity/reconcile",
+        "POST /admin/support/tickets/integrity/reconcile"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/supportTicketLifecycleIntegrityRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /admin/support/tickets/tenant-user/create-simulation",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
+          "signature": "POST /admin/support/tickets/integrity/reconcile",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 12,
+        "class": "critical"
+      },
+      "wave": "F3-admin-workspaces"
+    },
+    {
+      "family_key": "support-ticket-lifecycle-integrity.tenant",
+      "label": "support ticket lifecycle integrity (tenant)",
+      "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+      "source_digest": "de186fe76455320858ae6a29e340cc7eccc39c7e63f6f152e569cc0e1e48eda0",
+      "mount_prefix": "/",
+      "mount_order": 16986,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "support",
+      "scope": "tenant",
+      "operations": [
+        {
+          "method": "POST",
+          "path": "/me/support/tickets",
+          "signature": "POST /me/support/tickets",
+          "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/me/support/tickets",
+          "signature": "GET /me/support/tickets",
+          "source_file": "routes/supportTicketLifecycleIntegrityRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        }
+      ],
+      "openapi_gaps": [],
+      "openapi_exemptions": [],
+      "openapi_detail_gaps": [
+        "POST /me/support/tickets",
+        "GET /me/support/tickets"
+      ],
+      "auth_contract_gaps": [],
+      "evidence_routes": [],
+      "tests": [],
+      "untested_operations": [
+        "POST /me/support/tickets",
+        "GET /me/support/tickets"
+      ],
+      "resources": [],
+      "embedded_ui": false,
+      "embedded_ui_operations": [],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/supportTicketLifecycleIntegrityRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "surface_decision": {
+        "decision": "requires_review",
+        "rationale": "No repository policy decision covers this route family.",
+        "owner": null
+      },
+      "operation_blockers": [
+        {
+          "signature": "POST /me/support/tickets",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
+      "risk": {
+        "score": 7,
+        "class": "high"
+      },
+      "wave": "F1-tenant-shell"
+    },
+    {
+      "family_key": "support-ticket.admin",
+      "label": "support ticket (admin)",
+      "source_file": "routes/supportTicketRoutes.js",
+      "source_digest": "d26c4e24af56ce8fea0651cbf54d16d68ad86ecb2131642771eb0d13d8e016df",
+      "mount_prefix": "/",
+      "mount_order": 17077,
+      "split_from_mixed_scope_file": true,
+      "split_from_surface_policy": false,
+      "surface_policy_partition": "default",
+      "group": "support",
+      "scope": "admin",
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/admin/tenant-requests",
+          "signature": "GET /admin/tenant-requests",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/tenant-requests/{ticketId}",
+          "signature": "GET /admin/tenant-requests/{ticketId}",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/admin/support/tickets/auth-email-outbox/status",
@@ -38035,6 +38647,8 @@
       ],
       "tests": [],
       "untested_operations": [
+        "GET /admin/tenant-requests",
+        "GET /admin/tenant-requests/{ticketId}",
         "GET /admin/support/tickets/auth-email-outbox/status",
         "POST /admin/support/tickets/auth-email-outbox/dry-run",
         "POST /admin/support/tickets/auth-email-outbox/skip-ineligible",
@@ -38122,6 +38736,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -38522,15 +39137,135 @@
       "family_key": "support-ticket.tenant",
       "label": "support ticket (tenant)",
       "source_file": "routes/supportTicketRoutes.js",
-      "source_digest": "2291eb54bdf559f9776fb256a8747686ced5e9ac3e441a256944968b74b16bab",
+      "source_digest": "d26c4e24af56ce8fea0651cbf54d16d68ad86ecb2131642771eb0d13d8e016df",
       "mount_prefix": "/",
-      "mount_order": 16881,
+      "mount_order": 17077,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
       "group": "support",
       "scope": "tenant",
       "operations": [
+        {
+          "method": "GET",
+          "path": "/tenants/{tenantId}/requests",
+          "signature": "GET /tenants/{tenantId}/requests",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/tenants/{tenantId}/requests/{ticketId}",
+          "signature": "GET /tenants/{tenantId}/requests/{ticketId}",
+          "source_file": "routes/supportTicketRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireTenantUserJwt"
+            ],
+            "evidence": [
+              "route:requireTenantUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/tenant-requests.openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "POST",
           "path": "/me/support/tickets",
@@ -38788,6 +39523,8 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
+        "GET /tenants/{tenantId}/requests",
+        "GET /tenants/{tenantId}/requests/{ticketId}",
         "POST /me/support/tickets",
         "GET /me/support/tickets",
         "GET /me/support/tickets/{ticket_id}",
@@ -38806,6 +39543,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -38842,7 +39580,7 @@
       "source_file": "routes/authEmailTargetedDeliveryRoutes.js",
       "source_digest": "8cdb63a122622959196659166968515c7b360a2f032252904e50ec275cb59450",
       "mount_prefix": "/",
-      "mount_order": 16954,
+      "mount_order": 17150,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -39122,7 +39860,7 @@
       "source_file": "routes/adminWorkspaceAuthorityRoutes.js",
       "source_digest": "27f1254f2546dd3c1c78040d656402a07543a0db9b1a2e3dba86a49721dad3f3",
       "mount_prefix": "/",
-      "mount_order": 17039,
+      "mount_order": 17235,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -39328,7 +40066,7 @@
       "source_file": "routes/tenantEvolutionRoutes.js",
       "source_digest": "d971780adb67452cfaa1797848881be622992bade1dcd787dd3539e8737f00bf",
       "mount_prefix": "/",
-      "mount_order": 17122,
+      "mount_order": 17318,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -39695,7 +40433,7 @@
       "source_file": "routes/tenantInfrastructureRoutes.js",
       "source_digest": "9b3eb33af00f8d5fbd40533a309ce5998ebc271c22af72449512b47614f8c325",
       "mount_prefix": "/",
-      "mount_order": 17163,
+      "mount_order": 17359,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -40877,7 +41615,7 @@
       "source_file": "routes/agentSurfaceRoutes.js",
       "source_digest": "44684258af8deb93ea49c08b6ff3a4118a204b887a3583e0a2847708e6227953",
       "mount_prefix": "/",
-      "mount_order": 17213,
+      "mount_order": 17409,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -41250,7 +41988,7 @@
       "source_file": "routes/gptSessionRoutes.js",
       "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
       "mount_prefix": "/",
-      "mount_order": 17255,
+      "mount_order": 17451,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -41789,7 +42527,7 @@
       "source_file": "routes/gptSessionRoutes.js",
       "source_digest": "7a74fb29e12e4e00aededf29669b1a04b961daa0dc4b47f902dc9e3f6da8aa4b",
       "mount_prefix": "/",
-      "mount_order": 17255,
+      "mount_order": 17451,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -41936,9 +42674,9 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "c32ac00e3500fa7e71d413e2a153b5fca94972041df1b7d488181a37fbb21561",
+      "source_digest": "bbcec703937de1939086983698fbe324d9f62ac5e4d31559e33b533e98e4406d",
       "mount_prefix": "/",
-      "mount_order": 17295,
+      "mount_order": 17491,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -42140,7 +42878,7 @@
       "source_file": "routes/platformGraphRoutes.js",
       "source_digest": "149ceb065f834fc1d4ce34e5bd3604e5c8ff4446960b5c2e0150f9d54adc8a6d",
       "mount_prefix": "/",
-      "mount_order": 17333,
+      "mount_order": 17529,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -42715,7 +43453,7 @@
       "source_file": "routes/platformSmokeRoutes.js",
       "source_digest": "fa3f68180ef4aa6b234a40aaee9e0a5ef1758fd2e58fe6a167e8398547edab96",
       "mount_prefix": "/",
-      "mount_order": 17406,
+      "mount_order": 17602,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -42916,7 +43654,7 @@
       "source_file": "routes/platformEvolutionRoutes.js",
       "source_digest": "33b6c24446a116a85e5e6faa183380f25c4775efe959530a4239330dc464bbe5",
       "mount_prefix": "/",
-      "mount_order": 17445,
+      "mount_order": 17641,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -43477,7 +44215,7 @@
       "source_file": "routes/platformEngineRoutes.js",
       "source_digest": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
       "mount_prefix": "/",
-      "mount_order": 17522,
+      "mount_order": 17718,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -45368,7 +46106,7 @@
       "source_file": "routes/agentGovernanceRoutes.js",
       "source_digest": "d2796c0cb255f7dd2d23a8297db37f4ee4223c9f314cd6b15b9f75662357a4e9",
       "mount_prefix": "/",
-      "mount_order": 17596,
+      "mount_order": 17792,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -46535,7 +47273,7 @@
       "source_file": "routes/platformPrivateCapabilityVaultRoutes.js",
       "source_digest": "a18efd7572280c78cd8a4ab6b427793289775773c422e8396861bbdd5f4dd209",
       "mount_prefix": "/",
-      "mount_order": 17671,
+      "mount_order": 17867,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -47439,7 +48177,7 @@
       "source_file": "routes/connectedExecutionRoutes.js",
       "source_digest": "544cf6f59eae97ea159cc876e7d10eadf820a2b29c0ed38a53611e8c6040aba5",
       "mount_prefix": "/",
-      "mount_order": 17761,
+      "mount_order": 17957,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -47870,7 +48608,7 @@
       "source_file": "routes/sessionInsightPromotionReviewRoutes.js",
       "source_digest": "90f25ea1fea348395c026fbb9ae454a4ba07d76ce0fa52a3e582369f0b5c1c3a",
       "mount_prefix": "/",
-      "mount_order": 17839,
+      "mount_order": 18035,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48080,7 +48818,7 @@
       "source_file": "routes/sessionInsightPromotionDryRunExecutorRoutes.js",
       "source_digest": "401d7d33f6d624940285c3d943b203800c890a7e18778e589de55d8989cb8552",
       "mount_prefix": "/",
-      "mount_order": 17928,
+      "mount_order": 18124,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48212,7 +48950,7 @@
       "source_file": "routes/sessionInsightPromotionApplyRequestRoutes.js",
       "source_digest": "cf520528a72818d44547738fdad6f2e3f096949227217733a7a8e910c3123947",
       "mount_prefix": "/",
-      "mount_order": 18025,
+      "mount_order": 18221,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48344,7 +49082,7 @@
       "source_file": "routes/sessionInsightPromotionTargetAdapterRegistryRoutes.js",
       "source_digest": "cfe83290c864dc90d2a7bc18d968d25185a336bfc200c45598c758260b8a5279",
       "mount_prefix": "/",
-      "mount_order": 18120,
+      "mount_order": 18316,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48473,7 +49211,7 @@
       "source_file": "routes/sessionInsightPromotionAdapterContractRoutes.js",
       "source_digest": "c444d9892996560de9c021aa3361c41559106e10084aec7b9707e66d8aed1a6c",
       "mount_prefix": "/",
-      "mount_order": 18224,
+      "mount_order": 18420,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48602,7 +49340,7 @@
       "source_file": "routes/sessionInsightPromotionPayloadPreviewRoutes.js",
       "source_digest": "0816095e982315271a8de95878079a04f03ac1ea3b1426d8b8ff3f1ebafeff71",
       "mount_prefix": "/",
-      "mount_order": 18322,
+      "mount_order": 18518,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48736,7 +49474,7 @@
       "source_file": "routes/sessionInsightPayloadPreviewReviewRoutes.js",
       "source_digest": "34327d1a80be26e153366441e123e30e5ae7928a6ee5a9af1d4dbeb9e276c6cc",
       "mount_prefix": "/",
-      "mount_order": 18419,
+      "mount_order": 18615,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -48949,7 +49687,7 @@
       "source_file": "routes/sessionInsightAdapterApplyReadinessGateRoutes.js",
       "source_digest": "734ec0b8a04bff7f30220501b02b34fad43b7341d490adc7bb8c8698c833635a",
       "mount_prefix": "/",
-      "mount_order": 18513,
+      "mount_order": 18709,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49078,7 +49816,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopePlanRoutes.js",
       "source_digest": "59ef7453d38d73768e70a05f150c7ba92fb9d5b9ba983378569652bcd582f8b6",
       "mount_prefix": "/",
-      "mount_order": 18612,
+      "mount_order": 18808,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49288,7 +50026,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateRoutes.js",
       "source_digest": "1969749f8b8020720f4ca87d22aac7f0d071cc9e5865a9ec22e29c79c2955a37",
       "mount_prefix": "/",
-      "mount_order": 18708,
+      "mount_order": 18904,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49498,7 +50236,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeRequestGateReviewRoutes.js",
       "source_digest": "e214cdbc29157e6a02a24f4ebf7e994233ea8c33d3945d30d8c7b5bd0d0325e5",
       "mount_prefix": "/",
-      "mount_order": 18811,
+      "mount_order": 19007,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49630,7 +50368,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js",
       "source_digest": "8764b7c24cf6a20888b59276375271863bb378f494b1be5107173e5fd4894022",
       "mount_prefix": "/",
-      "mount_order": 18920,
+      "mount_order": 19116,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49840,7 +50578,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchDryRunReviewRoutes.js",
       "source_digest": "ce306774432583d775f51ae3739d213ea9c840c7ee0713f07a71827b391b5a8d",
       "mount_prefix": "/",
-      "mount_order": 19026,
+      "mount_order": 19222,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -49972,7 +50710,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js",
       "source_digest": "9f4ee7f608454abffcc7afd3e153039d5fa8d2b459177b6bca2a5ac48bd12ac5",
       "mount_prefix": "/",
-      "mount_order": 19138,
+      "mount_order": 19334,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -50182,7 +50920,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeActualRequestRoutes.js",
       "source_digest": "41850dd74db95a582e6b1f327d0ddbbec891aa14233567fbc66cd7670891be46",
       "mount_prefix": "/",
-      "mount_order": 19252,
+      "mount_order": 19448,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -50392,7 +51130,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeApprovalRoutes.js",
       "source_digest": "a3daf97833248e6a65f57b0d6c3a049baa1c08494d293c6d40e9aeb6da4a93d5",
       "mount_prefix": "/",
-      "mount_order": 19357,
+      "mount_order": 19553,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -50602,7 +51340,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeDispatchReadbackRoutes.js",
       "source_digest": "102825f43f401c15d44f6897cdf182224855fa3052c585224420207d86ac51a9",
       "mount_prefix": "/",
-      "mount_order": 19457,
+      "mount_order": 19653,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -50815,7 +51553,7 @@
       "source_file": "routes/sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js",
       "source_digest": "3d93addd216f287acafad4cdb61d00200c002eaec274f92d1720502dbf04d134",
       "mount_prefix": "/",
-      "mount_order": 19565,
+      "mount_order": 19761,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -51025,7 +51763,7 @@
       "source_file": "routes/sessionInsightRemainingScopeCompletionRoutes.js",
       "source_digest": "814a062cb88c2a318cf7c84ea55a6763cfa1d2e6016c7edac09920dd724e9f34",
       "mount_prefix": "/",
-      "mount_order": 19677,
+      "mount_order": 19873,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -51235,7 +51973,7 @@
       "source_file": "routes/sessionInsightBacklogTargetWriteRoutes.js",
       "source_digest": "8eff9ae8a9871d8c6068201f306ae7163bcc1b37b506910dc7423bd81dc8c250",
       "mount_prefix": "/",
-      "mount_order": 19775,
+      "mount_order": 19971,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -51523,7 +52261,7 @@
       "source_file": "routes/sessionInsightTargetWriteReadbackRoutes.js",
       "source_digest": "6e841383080c5900f4e866d3e66e182ae026615b329adefbe7420bfdfd319e81",
       "mount_prefix": "/",
-      "mount_order": 19867,
+      "mount_order": 20063,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -51732,7 +52470,7 @@
       "source_file": "routes/platformPluginRoutes.js",
       "source_digest": "55c2efe7d971473777883c6b5f7e049640f78376ecc3b51272cd1d566dde8592",
       "mount_prefix": "/",
-      "mount_order": 19960,
+      "mount_order": 20156,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -55399,7 +56137,7 @@
       "source_file": "routes/browserRuntimeRoutes.js",
       "source_digest": "96f209c4eff37d24754f7064b15e41ccf86e0f80cb8923dbaae3755f6daf1203",
       "mount_prefix": "/",
-      "mount_order": 20034,
+      "mount_order": 20230,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -56398,7 +57136,7 @@
       "source_file": "routes/githubRoutes.js",
       "source_digest": "b91263371aa47236a614713098175d155c5a946e36a755bb4a553ce996563647",
       "mount_prefix": "/",
-      "mount_order": 20108,
+      "mount_order": 20304,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -56909,7 +57647,7 @@
       "source_file": "routes/jobRoutes.js",
       "source_digest": "8277390366724ee2da6ec710343ee1d79dbc2473fb47baa22336a82c7b5b7b6d",
       "mount_prefix": "/",
-      "mount_order": 20144,
+      "mount_order": 20340,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -57330,7 +58068,7 @@
       "source_file": "routes/agentIntelligenceRoutes.js",
       "source_digest": "6764a579a87415ddf946fa8aa7e8ba81b5248c6931e881af3cc85ad77cae14c0",
       "mount_prefix": "/",
-      "mount_order": 20207,
+      "mount_order": 20403,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -57610,7 +58348,7 @@
       "source_file": "routes/aiResolverRoutes.js",
       "source_digest": "c1ab5a7340343cb494338209b3eb97f1d30958d4a7c33c8f98c7eb55acee2f89",
       "mount_prefix": "/",
-      "mount_order": 20284,
+      "mount_order": 20480,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -57814,7 +58552,7 @@
       "source_file": "routes/tenantsRoutes.js",
       "source_digest": "5fe42b703b841fd2bdc6ab22150b6c68c6cc2d7519b361462f862649bf981fce",
       "mount_prefix": "/",
-      "mount_order": 20324,
+      "mount_order": 20520,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -58458,7 +59196,7 @@
       "source_file": "routes/growthIntelligenceRoutes.js",
       "source_digest": "9f3f40b9d501715ce0576c2c94b94cb11e2c964905280e1e0964e0729d8cbcb5",
       "mount_prefix": "/",
-      "mount_order": 20361,
+      "mount_order": 20557,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -59025,7 +59763,7 @@
       "source_file": "routes/identityRoutes.js",
       "source_digest": "dff309646a3e305761d56b0bb42d801323164c0de2f20df092e04bafbecedc67",
       "mount_prefix": "/",
-      "mount_order": 20439,
+      "mount_order": 20635,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -60172,7 +60910,7 @@
       "source_file": "routes/accessRoutes.js",
       "source_digest": "ac6cce82569a93a0cc7317b7efb36a71c8e090f65949263e5fa47339a5fe9ed4",
       "mount_prefix": "/",
-      "mount_order": 20477,
+      "mount_order": 20673,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -60368,7 +61106,7 @@
       "source_file": "routes/customerRoutes.js",
       "source_digest": "eaef1b160e0c1e0163b81d9a2f385779b3b996d9635f77cd1cdb31422068a176",
       "mount_prefix": "/",
-      "mount_order": 20513,
+      "mount_order": 20709,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -62049,7 +62787,7 @@
       "source_file": "routes/connectedSystemsRoutes.js",
       "source_digest": "c72a33fb60d46a67a5711dacde91f48375e8b33f1073ae0f5589e828b28c61e0",
       "mount_prefix": "/",
-      "mount_order": 20551,
+      "mount_order": 20747,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -63139,7 +63877,7 @@
       "source_file": "routes/plannerRoutes.js",
       "source_digest": "89d75d8ea2184f224932d7edcdb74021a98ad8eeb706ec9d22d5a1fa261afe5c",
       "mount_prefix": "/",
-      "mount_order": 20597,
+      "mount_order": 20793,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -64240,7 +64978,7 @@
       "source_file": "routes/agentRegistryRoutes.js",
       "source_digest": "97d795ac3de6f3e27f17a1e9b6dcfd2d2957853236287efddcafa7d1cc4e5e66",
       "mount_prefix": "/",
-      "mount_order": 20634,
+      "mount_order": 20830,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -64880,7 +65618,7 @@
       "source_file": "routes/agentSkillRoutes.js",
       "source_digest": "9304af4a5f71dcb39b00bac89f40d89843616980a3ee79cb1992fc8c8368178d",
       "mount_prefix": "/",
-      "mount_order": 20677,
+      "mount_order": 20873,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -65656,7 +66394,7 @@
       "source_file": "routes/appIntegrationRoutes.js",
       "source_digest": "e445f6b8bea03bba0502a7b5d6b243653957f75da7672c673e3df137498f0c1a",
       "mount_prefix": "/",
-      "mount_order": 20747,
+      "mount_order": 20943,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -66860,7 +67598,7 @@
       "source_file": "routes/appIntegrationRoutes.js",
       "source_digest": "e445f6b8bea03bba0502a7b5d6b243653957f75da7672c673e3df137498f0c1a",
       "mount_prefix": "/",
-      "mount_order": 20747,
+      "mount_order": 20943,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -67132,7 +67870,7 @@
       "source_file": "routes/credentialRoutes.js",
       "source_digest": "afdf0ca17f851790e0bfcfe731baa125d52f7e1f884b07acf746098c712a4367",
       "mount_prefix": "/",
-      "mount_order": 20791,
+      "mount_order": 20987,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -67710,7 +68448,7 @@
       "source_file": "routes/devAgentRoutes.js",
       "source_digest": "58c93ee45d25ccb3081b8beca00c5fae5473b29f25bb040ce4455db792999a19",
       "mount_prefix": "/",
-      "mount_order": 20831,
+      "mount_order": 21027,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -70042,7 +70780,7 @@
       "source_file": "routes/schemaImportRoutes.js",
       "source_digest": "d05f9ec53fbb9ede5555d7627519c8cb6c69cd86d99d45c306fb26e4c4ac1652",
       "mount_prefix": "/",
-      "mount_order": 20869,
+      "mount_order": 21065,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -70543,7 +71281,7 @@
       "source_file": "routes/uploadRoutes.js",
       "source_digest": "8c99a70764de5347c5b0a8ddcec8b7f07846fb2e621cf8a584149b4501e987af",
       "mount_prefix": "/",
-      "mount_order": 20911,
+      "mount_order": 21107,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -71197,7 +71935,7 @@
       "source_file": "routes/outputSinkRoutes.js",
       "source_digest": "26fddd79f9226a1cd9d9a415de060b5ec0834f45f8080d185a7381f802b3465a",
       "mount_prefix": "/",
-      "mount_order": 20947,
+      "mount_order": 21143,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -72065,7 +72803,7 @@
       "source_file": "routes/sessionRoutes.js",
       "source_digest": "4bff5975d41a7f2ab993764c8a75255643b465bea12eb2bf2b910412bd39125f",
       "mount_prefix": "/",
-      "mount_order": 20987,
+      "mount_order": 21183,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -73081,7 +73819,7 @@
       "source_file": "routes/bootstrapRoutes.js",
       "source_digest": "ab7d2dba11f0cfc5133463d2e0c0fb2d3f0f3b6c45b28961ed47cd753b0b1e97",
       "mount_prefix": "/",
-      "mount_order": 21024,
+      "mount_order": 21220,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -73424,7 +74162,7 @@
       "source_file": "routes/logicRoutes.js",
       "source_digest": "bad1f74c68e49abe8b259bb8cf9dab2fd2f959e36dc8cfca2036d0c04af04fa4",
       "mount_prefix": "/",
-      "mount_order": 21063,
+      "mount_order": 21259,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -74376,7 +75114,7 @@
       "source_file": "routes/workflowOrchestrationRoutes.js",
       "source_digest": "41371defd77f6ada99be681d13f41fa63b0264674792b7690ffc01c76b215ed5",
       "mount_prefix": "/",
-      "mount_order": 21098,
+      "mount_order": 21294,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -74945,7 +75683,7 @@
       "source_file": "routes/n8nWorkflowRuntimeRoutes.js",
       "source_digest": "3baa7448207f2fa513ea49e97d2c57f411e402c05917caf6e8e568a717cda7fc",
       "mount_prefix": "/",
-      "mount_order": 21149,
+      "mount_order": 21345,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -75231,7 +75969,7 @@
       "source_file": "routes/observabilityRoutes.js",
       "source_digest": "a3be5fe21c8d05dedcb916f8bc03e3f0effed26e754b1e0d9e83b68871ec3fb5",
       "mount_prefix": "/",
-      "mount_order": 21227,
+      "mount_order": 21423,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -76229,7 +76967,7 @@
       "source_file": "routes/observabilityRoutes.js",
       "source_digest": "a3be5fe21c8d05dedcb916f8bc03e3f0effed26e754b1e0d9e83b68871ec3fb5",
       "mount_prefix": "/",
-      "mount_order": 21227,
+      "mount_order": 21423,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -76498,7 +77236,7 @@
       "source_file": "routes/securityRoutes.js",
       "source_digest": "8ad21b5e3f4ff74ea235222aa203a2ee1b64d184ba0482a420a99d7c092abe53",
       "mount_prefix": "/",
-      "mount_order": 21270,
+      "mount_order": 21466,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -77220,7 +77958,7 @@
       "source_file": "routes/developerApiRoutes.js",
       "source_digest": "958199afb510ab4b81abe6f86660434f66b5b31225f0f618268241ad4ab24c25",
       "mount_prefix": "/",
-      "mount_order": 21308,
+      "mount_order": 21504,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -78102,7 +78840,7 @@
       "source_file": "routes/releaseRoutes.js",
       "source_digest": "7e67701cf8a545b3b8ff5c7bc37779b8ce949430e75640267fd170a11755e751",
       "mount_prefix": "/",
-      "mount_order": 21350,
+      "mount_order": 21546,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -79019,7 +79757,7 @@
       "source_file": "routes/connectorRoutes.js",
       "source_digest": "7b3f3db5fe9037c4ba560ee87e1e4af0f2e856666a22eb5fdc253256f256b67f",
       "mount_prefix": "/",
-      "mount_order": 21387,
+      "mount_order": 21583,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -79286,7 +80024,7 @@
       "source_file": "routes/batchRoutes.js",
       "source_digest": "56e0a69e0978f72229751d781e1703f323ce31111c64c940b5820b84b6f50945",
       "mount_prefix": "/",
-      "mount_order": 21426,
+      "mount_order": 21622,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -79414,7 +80152,7 @@
       "source_file": "routes/executeRoutes.js",
       "source_digest": "59d6334e7464204052fb5055793b896f2400c8e075fcfad5dac1089c1910b85a",
       "mount_prefix": "/",
-      "mount_order": 21461,
+      "mount_order": 21657,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -79542,7 +80280,7 @@
       "source_file": "routes/tenantCommercialRoutes.js",
       "source_digest": "491e0df58187d6c5e68bfbc2506c5753a4d1c084663f4cc3ca7bd9cac7463e15",
       "mount_prefix": "/",
-      "mount_order": 21498,
+      "mount_order": 21694,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -80326,7 +81064,7 @@
       "source_file": "routes/dispatchRoutes.js",
       "source_digest": "fbb049e5875900835c2ab746525b8a711e2cd74d53e406095f0b0091321d3ac9",
       "mount_prefix": "/",
-      "mount_order": 21544,
+      "mount_order": 21740,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -80526,7 +81264,7 @@
       "source_file": "routes/localConnectorRoutes.js",
       "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
       "mount_prefix": "/",
-      "mount_order": 21582,
+      "mount_order": 21778,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -80881,7 +81619,7 @@
       "source_file": "routes/localConnectorRoutes.js",
       "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
       "mount_prefix": "/",
-      "mount_order": 21582,
+      "mount_order": 21778,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -81000,7 +81738,7 @@
       "source_file": "routes/connectorProxyRoutes.js",
       "source_digest": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
       "mount_prefix": "/",
-      "mount_order": 21626,
+      "mount_order": 21822,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -82477,7 +83215,7 @@
       "source_file": "routes/connectorProxyRoutes.js",
       "source_digest": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
       "mount_prefix": "/",
-      "mount_order": 21626,
+      "mount_order": 21822,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "/local-manager",
@@ -82605,7 +83343,7 @@
       "source_file": "routes/adminScopeGrantsRoutes.js",
       "source_digest": "d1e89c9071b86c7856dfa25e80880b16d4cc2402a460091d133e564a57e1ed81",
       "mount_prefix": "/",
-      "mount_order": 21700,
+      "mount_order": 21896,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -82877,7 +83615,7 @@
       "source_file": "routes/adminScopeGrantsRoutes.js",
       "source_digest": "d1e89c9071b86c7856dfa25e80880b16d4cc2402a460091d133e564a57e1ed81",
       "mount_prefix": "/",
-      "mount_order": 21700,
+      "mount_order": 21896,
       "split_from_mixed_scope_file": true,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -82996,7 +83734,7 @@
       "source_file": "routes/deviceToolsRoutes.js",
       "source_digest": "e0eea44c7c90e35c64c322068526b55341fcfecd64b2144719e740fd2b79db13",
       "mount_prefix": "/",
-      "mount_order": 21776,
+      "mount_order": 21972,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -83192,7 +83930,7 @@
       "source_file": "routes/localGatewayToolsRoutes.js",
       "source_digest": "dda55c32b77e18239f78b33e6f764856a7b5b2c2e399f9492ad070b8d70b17dd",
       "mount_prefix": "/",
-      "mount_order": 21817,
+      "mount_order": 22013,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -83391,7 +84129,7 @@
       "source_file": "routes/localConnectorDeviceRouteRoutes.js",
       "source_digest": "6b84896f2ccbd611d2c580429017fbbbbf45f09a0ecadcd599f474f5351da048",
       "mount_prefix": "/",
-      "mount_order": 21864,
+      "mount_order": 22060,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -83668,7 +84406,7 @@
       "source_file": "routes/connectorTaxonomyRoutes.js",
       "source_digest": "98dd79181a82f1df6b99f5e7ec8ea791c2e527c1fe29383d8a18b42b08a966d7",
       "mount_prefix": "/",
-      "mount_order": 21919,
+      "mount_order": 22115,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -84001,9 +84739,9 @@
       "family_key": "index-js",
       "label": "index js",
       "source_file": "routes/index.js",
-      "source_digest": "f877bbd10dd7d253c8005b7b7026cc4a382fc7f6313b3674b09ecd735dc02ee6",
+      "source_digest": "a677b7a9c9e903b7d989d62aef6315daffbb32324ad3928b394b2c978dfffe90",
       "mount_prefix": "/",
-      "mount_order": 22052,
+      "mount_order": 22248,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -84218,7 +84956,7 @@
       "source_file": "routes/adminCliRoutes.js",
       "source_digest": "77e755355c4f9a7a6143c074d48483472e1bf27853d3864773dba436a0a3b26d",
       "mount_prefix": "/admin/cli",
-      "mount_order": 22294,
+      "mount_order": 22490,
       "split_from_mixed_scope_file": false,
       "split_from_surface_policy": false,
       "surface_policy_partition": "default",
@@ -86904,6 +87642,50 @@
       ]
     },
     {
+      "task_key": "frontend.support-ticket-lifecycle-integrity.tenant",
+      "title": "Resolve and deliver support ticket lifecycle integrity (tenant)",
+      "wave": "F1-tenant-shell",
+      "state": "blocked",
+      "blockers": [
+        "openapi_detail_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/supportTicketLifecycleIntegrityRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.support-ticket.tenant",
       "title": "Resolve and deliver support ticket (tenant)",
       "wave": "F1-tenant-shell",
@@ -86929,6 +87711,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",
@@ -91785,6 +92568,50 @@
       ]
     },
     {
+      "task_key": "frontend.support-ticket-lifecycle-integrity.admin",
+      "title": "Resolve and deliver support ticket lifecycle integrity (admin)",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "openapi_detail_contract_gap",
+        "test_ownership_gap",
+        "surface_policy_decision_required",
+        "operation_classification_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/supportTicketLifecycleIntegrityRoutes.js",
+        "scripts/test-manifest.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed"
+      ]
+    },
+    {
       "task_key": "frontend.support-ticket.admin",
       "title": "Resolve and deliver support ticket (admin)",
       "wave": "F3-admin-workspaces",
@@ -91810,6 +92637,7 @@
         "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
+        "openapi/tenant-requests.openapi.yaml",
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/supportTicketRoutes.js",

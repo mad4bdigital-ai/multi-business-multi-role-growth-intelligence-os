@@ -37,6 +37,7 @@ import {
   resolveGovernedResponseChunkPrincipal,
 } from "../governedToolResponseChunkOwnership.js";
 import { runGovernedResponseChunkDurableRecoverySmoke } from "../governedResponseChunkDurableRecoverySmoke.js";
+import { buildBoundedInlineChunkFallback } from "../systemLayerResponseFallback.js";
 import { bootstrapGovernedMigrationAuthorization } from "../governedMigrationAuthorizationBootstrap.js";
 import { bootstrapGovernedMigrationApplyPolicy } from "../governedMigrationApplyPolicyBootstrap.js";
 import { authorizeCapabilityResolutionEnvelopeApply } from "../scripts/capability-resolution-envelope-apply-authorize.mjs";
@@ -2261,6 +2262,18 @@ export function shouldChunkDispatchedToolResponse(toolKey = "", body = null) {
   return String(toolKey || "").trim() !== "response_chunk_read" && !isGovernedToolResponseChunkEnvelope(body);
 }
 
+function logToolResponseChunkFallback(error, optionsSource = {}) {
+  const diagnostic = {
+    code: error?.code || "response_chunk_persistence_unavailable",
+    cause_code: error?.details?.cause_code || error?.cause?.code || null,
+    operation: error?.details?.operation || "persist",
+    request_id: optionsSource?.request_id || optionsSource?.requestId || null,
+    source_tool_key: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || "gpt_tool_response",
+    secrets_included: false,
+  };
+  console.warn("[gpt-tools] durable response chunk persistence degraded", diagnostic);
+}
+
 export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps = {}) {
   if (isGovernedToolResponseChunkEnvelope(body)) return body;
   const options = normalizeResponseOptions(
@@ -2268,7 +2281,22 @@ export async function maybeChunkToolResponseBody(body, optionsSource = {}, deps 
   );
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
-  const { chunkId } = await storeToolResponseForChunks(body, optionsSource, deps);
+  let chunkId;
+  try {
+    ({ chunkId } = await storeToolResponseForChunks(body, optionsSource, deps));
+  } catch (error) {
+    logToolResponseChunkFallback(error, optionsSource);
+    const responseBudgetOptions = optionsSource?.response_options || optionsSource?._response || optionsSource || {};
+    const inlineMaxChars = resolveAdaptiveToolResponseMaxChars({
+      ...responseBudgetOptions,
+      max_chars: MAX_TOOL_RESPONSE_MAX_CHARS,
+      max_response_chars: MAX_TOOL_RESPONSE_MAX_CHARS,
+    });
+    return buildBoundedInlineChunkFallback(body, error, {
+      sourceToolKey: optionsSource?.source_tool_key || optionsSource?.tool_key || optionsSource?.name || "gpt_tool_response",
+      maxChars: inlineMaxChars,
+    });
+  }
   return buildToolResponseChunk({
     serialized,
     chunkId,
@@ -2539,6 +2567,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
           auth: req?.auth || null,
           source_tool_key: toolKey,
           source_surface: "gpt_tools_dispatch",
+          request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
         })
       : result?.body,
   };
@@ -4275,6 +4304,7 @@ export function buildGptToolsRoutes(deps) {
         auth: req?.auth || null,
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
+        request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
       }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });

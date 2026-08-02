@@ -2,11 +2,34 @@ import { Router } from "express";
 import {
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
+  normalizeTenantGptRequestHost,
 } from "../tenantGptOAuthResourceProfile.js";
 import { TENANT_GPT_SCOPE_LINKS } from "../tenantGptOAuthPreset.js";
+import {
+  buildRemoteMcpProtectedResourceMetadata,
+  remoteMcpEnabled,
+  resolveRemoteMcpResource,
+} from "../remoteMcpConnectorRuntime.js";
 
-export function buildTenantGptOAuthMetadataRoutes() {
+function requestHost(req) {
+  return normalizeTenantGptRequestHost(
+    req.headers?.["x-original-host"]
+      || req.headers?.["x-forwarded-host"]
+      || req.headers?.host,
+  );
+}
+
+function configuredMcpHost(env) {
+  try {
+    return new URL(resolveRemoteMcpResource(env)).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   const router = Router();
+  const env = deps.env || process.env;
 
   router.get("/.well-known/oauth-authorization-server", (_req, res) => {
     res.status(200).json({
@@ -21,8 +44,21 @@ export function buildTenantGptOAuthMetadataRoutes() {
     });
   });
 
-  router.get("/.well-known/oauth-protected-resource", (_req, res) => {
-    res.status(200).json({
+  router.get("/.well-known/oauth-protected-resource", (req, res) => {
+    const mcpHost = configuredMcpHost(env);
+    if (mcpHost && requestHost(req) === mcpHost) {
+      if (!remoteMcpEnabled(env)) {
+        return res.status(404).json({
+          ok: false,
+          error: { code: "MCP_DISABLED", message: "Not found." },
+          secrets_included: false,
+        });
+      }
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return res.status(200).json(buildRemoteMcpProtectedResourceMetadata(env));
+    }
+
+    return res.status(200).json({
       resource: TENANT_GPT_ACTIVATION_RESOURCE,
       authorization_servers: [TENANT_GPT_AUTHORIZATION_SERVER],
       scopes_supported: TENANT_GPT_SCOPE_LINKS,

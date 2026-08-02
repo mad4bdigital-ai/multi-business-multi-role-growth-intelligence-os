@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-generated-artifact-permission-split-regression",
+  "title": "Generated artifact evaluation and mutation permission split",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/test-test-manifest-runner.mjs",
+      ".changes/e2e/ci-generated-artifact-permission-split-regression.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep pull-request generated-artifact evaluation read-only while granting bounded write authority only to the governed exact-head workflow_dispatch operation.",
+      "e2e_journeys": [
+        {
+          "id": "validate-generated-artifact-permission-separation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository CI validator",
+          "entrypoint": "Canonical test manifest runner contract test",
+          "terminal_outcome": "The PR evaluator has read-only contents permission and no push path, while the separate governed apply workflow requires exact-head input, typed confirmation, and bounded contents/actions write permissions.",
+          "steps": [
+            "Load the PR generated-artifact evaluation workflow.",
+            "Assert read-only contents permission, non-persisted credentials, and absence of git push.",
+            "Load the governed generated-artifact apply workflow.",
+            "Assert workflow_dispatch-only mutation authority with contents/actions write permissions.",
+            "Assert exact expected-head SHA and typed confirmation remain required.",
+            "Run the same validator through the platform engine validator runner."
+          ],
+          "assertions": [
+            "Pull-request evaluation cannot mutate repository contents.",
+            "Mutation authority is isolated behind the registered governed workflow_dispatch operation.",
+            "Bot recursion remains rejected.",
+            "The validator remains discoverable in the canonical test manifest.",
+            "No migration, deployment, provider mutation, or secret access is performed."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-permission-split",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-test-manifest-runner.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-engine-validator-runner",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-engine-validator-runner.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-test-manifest-runner.mjs",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/test-platform-engine-validator-runner.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain the permission split as generated-artifact workflows evolve."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise malformed dispatch inputs and permission regressions without granting pull-request write access."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the split on representative generated-artifact refresh operations."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require the validated permission split for protected-branch merge readiness."
+    }
+  ]
+}
