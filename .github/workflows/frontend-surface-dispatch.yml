@@ -60,21 +60,96 @@ jobs:
         run: |
           echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
-      - name: Verify generator contract
-        run: |
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-      - name: Enforce committed deterministic output
+      - name: Diagnose workflow baseline contract
+        id: workflow_baseline
+        continue-on-error: true
+        run: node test-frontend-dispatch-workflow-baseline.mjs
+      - name: Diagnose operation governance generator
+        id: operation_generator
+        continue-on-error: true
+        run: node test-frontend-operation-governance-generator.mjs
+      - name: Diagnose frontend surface dispatch
+        id: surface_dispatch
+        continue-on-error: true
+        run: node test-frontend-surface-dispatch.mjs
+      - name: Diagnose frontend auth OpenAPI parity
+        id: auth_openapi
+        continue-on-error: true
+        run: node test-frontend-auth-openapi-parity.mjs
+      - name: Diagnose OpenAPI route coverage
+        id: route_coverage
+        continue-on-error: true
+        run: node test-openapi-route-coverage.mjs
+      - name: Diagnose OpenAPI auth synchronization
+        id: openapi_auth
+        continue-on-error: true
+        run: npm run openapi:auth:check
+      - name: Diagnose committed deterministic output
+        id: deterministic_output
+        continue-on-error: true
         run: |
           if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            echo "::error::frontend operation governance/dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
             exit 1
           fi
+      - name: Build structured generator-contract diagnosis
+        if: always()
+        env:
+          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
+          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
+          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
+          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
+          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
+          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
+          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p .ci-evidence/frontend-generator-contract-diagnosis
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const checks = [
+            ['workflow_baseline', process.env.WORKFLOW_BASELINE],
+            ['operation_generator', process.env.OPERATION_GENERATOR],
+            ['surface_dispatch', process.env.SURFACE_DISPATCH],
+            ['auth_openapi', process.env.AUTH_OPENAPI],
+            ['route_coverage', process.env.ROUTE_COVERAGE],
+            ['openapi_auth', process.env.OPENAPI_AUTH],
+            ['deterministic_output', process.env.DETERMINISTIC_OUTPUT],
+          ].map(([id, outcome]) => ({ id, outcome }));
+          const failed = checks.filter((check) => check.outcome !== 'success');
+          const report = {
+            contract: 'mad4b.frontend-generator-contract-diagnosis.v1',
+            candidate_sha: process.env.CANDIDATE_SHA,
+            outcome: failed.length === 0 ? 'passed' : 'blocked',
+            checks,
+            failed_check_ids: failed.map((check) => check.id),
+            consult_job_logs: false,
+            repository_mutation: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync('.ci-evidence/frontend-generator-contract-diagnosis/summary.json', `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+      - name: Upload structured generator-contract diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-generator-contract-diagnosis-${{ github.run_id }}
+          path: http-generic-api/.ci-evidence/frontend-generator-contract-diagnosis/summary.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce structured generator-contract decision
+        if: always()
+        env:
+          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
+          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
+          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
+          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
+          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
+          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
+          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
+        run: |
+          for outcome in "${WORKFLOW_BASELINE}" "${OPERATION_GENERATOR}" "${SURFACE_DISPATCH}" "${AUTH_OPENAPI}" "${ROUTE_COVERAGE}" "${OPENAPI_AUTH}" "${DETERMINISTIC_OUTPUT}"; do
+            [[ "${outcome}" == "success" ]] || exit 1
+          done
       - name: Upload dispatch evidence
         if: always()
         uses: actions/upload-artifact@v4
