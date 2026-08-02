@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authority-row-cardinality",
+  "title": "Spec 014 Durable Tenant Authority Row Cardinality",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authority-row-cardinality.json",
+      "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
+      "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-cardinality.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove durable Tenant authority identity cardinality before reading one SQL row and fail closed for ambiguous results.",
+      "e2e_journeys": [
+        {
+          "id": "durable-authority-row-cardinality-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The canonical durable Tenant authority store loadCurrent SQL read path",
+          "terminal_outcome": "Empty results return null, multiple results fail with STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS, and exactly one proven result is destructured without arbitrary first-candidate selection.",
+          "steps": [
+            "Normalize the database response into a bounded row collection.",
+            "Reject more than one row with the existing typed ambiguity error.",
+            "Return null only when the bounded collection is empty.",
+            "Destructure the sole remaining row and parse it through the canonical record validator.",
+            "Run the existing durable authority functional suite and the focused cardinality regression."
+          ],
+          "assertions": [
+            "No direct rows[0], rows?.[0], or boundedRows[0] selection remains in loadCurrent.",
+            "The existing STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS decision remains fail closed.",
+            "No schema, SQL contract, migration, runtime mount, provider dispatch, credential access, deployment, main merge, or Production authority changes.",
+            "Secrets are absent from code, tests, and evidence."
+          ],
+          "tests": [
+            {
+              "id": "durable-authority-functional-suite",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-durable-tenant-authority-store.mjs",
+              "args": []
+            },
+            {
+              "id": "durable-authority-row-cardinality-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-durable-tenant-authority-row-cardinality.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-durable-authority-row-cardinality.json",
+            "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
+            "http-generic-api/test-hostinger-storage-durable-tenant-authority-row-cardinality.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain exact-head canonical hardcoding and durable authority guard evidence for future SQL authority-store changes."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise driver-level malformed result shapes and duplicate durable rows in a disposable database certification cycle."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This bounded repository/runtime proof performs no live canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no migration, deployment, provider, or Production authority."
+    }
+  ]
+}
