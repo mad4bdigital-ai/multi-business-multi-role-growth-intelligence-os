@@ -237,6 +237,22 @@ assert.equal(persisted.mount_readback_digest, readback.mount_readback_digest);
 assert.equal(persisted.active, true);
 assert.equal(containsRuntimeMaterial(persisted), false);
 
+const originalStateRow = clone(database.tables.states.get(INJECTION_ID));
+const rewrittenStateRecord = JSON.parse(originalStateRow.record_json);
+rewrittenStateRecord.source_commit = h('f');
+rewrittenStateRecord.record_digest = h('a');
+database.tables.states.set(INJECTION_ID, {
+  ...originalStateRow,
+  record_digest: h('a'),
+  record_json: JSON.stringify(rewrittenStateRecord),
+});
+await assert.rejects(
+  restartedRegistry.readVerifiedInjection(INJECTION_ID),
+  (error) => error.code === 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH'
+    && error.details.kind === 'state',
+);
+database.tables.states.set(INJECTION_ID, originalStateRow);
+
 const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
 const resumed = resumedCoordinator.resumeAuthorizedInjection({
   bundle,
@@ -316,6 +332,8 @@ console.log(JSON.stringify({
   exact_registration_readback: true,
   exact_replay_idempotent: true,
   restart_registry_readback: true,
+  stored_record_content_digest_recomputed: true,
+  matching_fake_digest_fields_rejected: true,
   restart_coordinator_reconstruction: true,
   rehashed_receipt_readback_drift_rejected: true,
   rollback_cas_and_readback: true,
