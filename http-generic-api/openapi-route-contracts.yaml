@@ -139,3 +139,108 @@ contracts:
     owner: support_ticket_runtime
     exposure: admin_tool
     notes: Source-bound administrative event append contract; no raw secrets are exposed.
+
+  POST /admin/support/tickets/{ticket_id}/notification-ack:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNotificationAck'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound notification acknowledgement; runtime visibility and state validation remain authoritative.
+
+  GET /admin/support/tickets/auto-resolve/candidates:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolveCandidates'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound sanitized candidate listing; no auto-resolution is applied.
+
+  POST /admin/support/tickets/{ticket_id}/auto-resolve/propose:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolvePropose'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound auto-resolution proposal; proposal alone grants no apply authority.
+
+  GET /admin/activation/ticket-inbox:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminActivationTicketInbox'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound sanitized activation ticket inbox read contract.
+
+  POST /admin/support/tickets/{ticket_id}/admin-feedback:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketFeedback'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative feedback append contract.
+
+  GET /admin/support/tickets:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTickets'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound sanitized administrative support-ticket listing contract.
+
+  GET /admin/support/tickets/{ticket_id}:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketById'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound sanitized administrative support-ticket detail contract.
+
+  POST /admin/support/tickets/{ticket_id}/approval-hold:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHold'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound governed approval-hold contract.
+
+  POST /admin/support/tickets/{ticket_id}/execution-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketExecutionPlan'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound governed execution-plan contract.
+
+  POST /admin/support/tickets/{ticket_id}/workflow-run:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketWorkflowRun'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound governed workflow-run contract.
+
+  POST /admin/support/tickets/{ticket_id}/step-runs:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketStepRuns'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound governed step-run creation contract.
+
+  POST /admin/support/tickets/{ticket_id}/approval-hold/decision:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHoldDecision'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound governed approval-hold decision contract.
+
+  POST /admin/support/tickets/{ticket_id}/brand-mapping-remediation/complete:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandMappingRemediationComplete'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound remediation completion contract.
+
+  POST /admin/support/tickets/{ticket_id}/brand-ref-selection/request:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandRefSelectionRequest'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound brand-reference selection request contract.
+
+  POST /admin/support/tickets/{ticket_id}/new-brand-ref-approval/request:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNewBrandRefApprovalRequest'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound new brand-reference approval request contract.
