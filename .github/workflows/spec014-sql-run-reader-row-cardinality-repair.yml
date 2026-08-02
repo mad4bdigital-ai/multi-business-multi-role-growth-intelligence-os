@@ -1,0 +1,203 @@
+name: Spec014 SQL Run Reader Row Cardinality Repair
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/014-fix-sql-run-reader-row-cardinality-20260802'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/014-fix-sql-run-reader-row-cardinality-20260802
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply deterministic cardinality proof
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/hostingerStorageSqlRunReader.js')
+          source = path.read_text()
+          old = """      if ((rows || []).length > 1) {
+            throw fail(409, 'STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', { run_id: runId });
+          }
+          const run = rows?.[0] ? normalizeRun(rows[0]) : null;
+"""
+          new = """      const boundedRows = Array.isArray(rows) ? rows : [];
+          if (boundedRows.length > 1) {
+            throw fail(409, 'STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', { run_id: runId });
+          }
+          let run = null;
+          if (boundedRows.length === 1) {
+            const [row] = boundedRows;
+            run = normalizeRun(row);
+          }
+"""
+          if source.count(old) != 1:
+              raise SystemExit(f'exact run-reader block count was {source.count(old)}, expected 1')
+          path.write_text(source.replace(old, new))
+          PY
+
+          cat > http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs <<'EOF'
+          #!/usr/bin/env node
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+
+          const source = readFileSync('hostingerStorageSqlRunReader.js', 'utf8');
+          const readRunStart = source.indexOf('  async function readRun(');
+          const readerStart = source.indexOf('\n  const reader = {', readRunStart);
+
+          assert.ok(readRunStart >= 0, 'readRun must remain present');
+          assert.ok(readerStart > readRunStart, 'readRun must remain bounded before reader publication');
+
+          const readRunSource = source.slice(readRunStart, readerStart);
+          const directIndexPattern = new RegExp(`${'rows'}(?:\\?\\.)?\\[${'0'}\\]`, 'u');
+
+          assert.match(
+            readRunSource,
+            /const boundedRows = Array\.isArray\(rows\) \? rows : \[\];/u,
+            'readRun must normalize the database response into one bounded collection',
+          );
+          assert.match(
+            readRunSource,
+            /if \(boundedRows\.length > 1\)[\s\S]*STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS/u,
+            'readRun must reject ambiguous durable run identities',
+          );
+          assert.match(
+            readRunSource,
+            /let run = null;[\s\S]*if \(boundedRows\.length === 1\)[\s\S]*const \[row\] = boundedRows;[\s\S]*run = normalizeRun\(row\);/u,
+            'readRun must prove exact cardinality before destructuring the sole row',
+          );
+          assert.doesNotMatch(readRunSource, directIndexPattern, 'readRun must not directly select the first SQL candidate');
+
+          console.log('Hostinger SQL run-reader row-cardinality regression tests passed');
+          EOF
+
+          cat > .changes/e2e/spec014-sql-run-reader-row-cardinality.json <<'EOF'
+          {
+            "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+            "schema_version": 1,
+            "feature_key": "spec014-sql-run-reader-row-cardinality",
+            "title": "Spec 014 SQL Run Reader Row Cardinality",
+            "delivery_mode": "single_pr",
+            "current_phase": "mvp",
+            "scope": {
+              "include": [
+                ".changes/e2e/spec014-sql-run-reader-row-cardinality.json",
+                "http-generic-api/hostingerStorageSqlRunReader.js",
+                "http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs"
+              ]
+            },
+            "merge_contract": {
+              "minimum_phase": "mvp"
+            },
+            "phases": [
+              {
+                "id": "mvp",
+                "status": "implemented",
+                "objective": "Prove zero, one, or multiple durable run rows before returning a run instead of selecting the first SQL candidate.",
+                "e2e_journeys": [
+                  {
+                    "id": "durable-run-read-cardinality-proof",
+                    "end_to_end": true,
+                    "level": "synthetic_runtime",
+                    "actor": "Tenant-safe durable run reader",
+                    "entrypoint": "Node process invoking the canonical SQL run-reader regression suite",
+                    "terminal_outcome": "Zero rows return not found, one row is normalized only after uniqueness proof, and multiple rows fail closed with STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS.",
+                    "steps": [
+                      "Normalize the SQL driver response into one bounded row collection.",
+                      "Reject more than one row with the existing typed ambiguity error.",
+                      "Keep the result null unless exactly one row is proven.",
+                      "Destructure and normalize the sole proven row.",
+                      "Run the complete SQL run-reader suite and focused source-order regression."
+                    ],
+                    "assertions": [
+                      "No direct index-zero candidate selection remains in readRun.",
+                      "The existing ambiguity error and connection-release behavior remain fail closed.",
+                      "No schema, migration, live database, route, worker, provider, deployment, main, or Production authority changes occur."
+                    ],
+                    "tests": [
+                      {
+                        "id": "hostinger-storage-sql-run-reader",
+                        "runner": "node",
+                        "working_directory": "http-generic-api",
+                        "path": "test-hostinger-storage-sql-run-reader.mjs",
+                        "args": []
+                      },
+                      {
+                        "id": "hostinger-storage-sql-run-reader-row-cardinality",
+                        "runner": "node",
+                        "working_directory": "http-generic-api",
+                        "path": "test-hostinger-storage-sql-run-reader-row-cardinality.mjs",
+                        "args": []
+                      }
+                    ],
+                    "evidence_paths": [
+                      "http-generic-api/hostingerStorageSqlRunReader.js",
+                      "http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "operational",
+                "status": "not_applicable",
+                "objective": "The repair changes only an unmounted read-only repository component."
+              },
+              {
+                "id": "resilient",
+                "status": "not_applicable",
+                "objective": "Cardinality rejection is deterministic and introduces no retry state."
+              },
+              {
+                "id": "canary",
+                "status": "not_applicable",
+                "objective": "No live database or provider canary is introduced."
+              },
+              {
+                "id": "production",
+                "status": "not_applicable",
+                "objective": "The change grants no deployment, migration, provider, or Production authority."
+              }
+            ]
+          }
+          EOF
+
+      - name: Validate bounded repair
+        shell: bash
+        run: |
+          node --check http-generic-api/hostingerStorageSqlRunReader.js
+          node --check http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs
+          (
+            cd http-generic-api
+            node test-hostinger-storage-sql-run-reader.mjs
+            node test-hostinger-storage-sql-run-reader-row-cardinality.mjs
+          )
+
+      - name: Commit exact repair and remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/spec014-sql-run-reader-row-cardinality-repair.yml
+          git add .changes/e2e/spec014-sql-run-reader-row-cardinality.json \
+            http-generic-api/hostingerStorageSqlRunReader.js \
+            http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(spec-014): prove SQL run-reader row cardinality'
+          git push origin HEAD:gpt/014-fix-sql-run-reader-row-cardinality-20260802
