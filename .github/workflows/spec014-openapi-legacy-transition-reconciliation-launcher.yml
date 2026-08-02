@@ -1,0 +1,145 @@
+name: Spec 014 OpenAPI Legacy Transition Reconciliation Launcher
+
+on:
+  push:
+    branches:
+      - gpt/reconcile-spec014-main-b331e40a-20260802
+    paths:
+      - .github/workflows/spec014-openapi-legacy-transition-reconciliation-launcher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact launcher commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 2
+
+      - name: Verify bounded launcher write
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent='732197126d5b47612daa3afd7b5265e0bb850170'
+          actual_parent="$(git rev-parse HEAD^)"
+          test "$actual_parent" = "$expected_parent"
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          test "$changed" = '.github/workflows/spec014-openapi-legacy-transition-reconciliation-launcher.yml'
+
+      - name: Make actual-root regression state-aware
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const file = 'http-generic-api/test-openapi-precise-legacy-registry-transition.mjs';
+          const source = fs.readFileSync(file, 'utf8');
+          const before = `const actualRoot = await createActualRootFixture();
+          try {
+            const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+            const legacy = before.paths?.[ROUTE_PATH]?.post;
+            assert.equal(legacy?.operationId, OPERATION_ID, "The regression must exercise the actual historical root operation.");
+            assert.equal(legacy?.["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
+            assert.equal(legacy?.["x-runtime-contract-source"], undefined);
+            assert.equal(legacy?.["x-runtime-auth-profile"], undefined);
+            assert.ok(legacy?.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
+            assert.ok(legacy?.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+
+            const result = await runSync(actualRoot);
+            assert.equal(result.ok, true, result.stderr || result.stdout);
+            const summary = JSON.parse(result.stdout);
+            assert.equal(summary.ok, true);
+            assert.equal(summary.conflict_count, 0);
+            assert.ok(summary.applied_registered_path_replacements.some((entry) =>
+              entry.path === ROUTE_PATH
+              && entry.path_item_ref === PATH_REF
+              && entry.signatures.includes(SIGNATURE)));
+
+            const written = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+            assert.deepEqual(written.paths[ROUTE_PATH], { $ref: PATH_REF });
+
+            const check = await runSync(actualRoot, ["--check"]);
+            assert.equal(check.ok, true, check.stderr || check.stdout);
+            const checkSummary = JSON.parse(check.stdout);
+            assert.equal(checkSummary.ok, true);
+            assert.equal(checkSummary.changed, false);
+            assert.equal(checkSummary.conflict_count, 0);
+          } finally {
+            await rm(actualRoot, { recursive: true, force: true });
+          }`;
+
+          const after = `const actualRoot = await createActualRootFixture();
+          try {
+            const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+            const actualPathItem = before.paths?.[ROUTE_PATH];
+            const legacy = actualPathItem?.post;
+            const alreadyTransitioned = actualPathItem?.$ref === PATH_REF
+              && Object.keys(actualPathItem).length === 1;
+
+            assert.ok(legacy || alreadyTransitioned, "The actual root must contain either the reviewed historical operation or its exact registered path-item reference.");
+            if (legacy) {
+              assert.equal(legacy.operationId, OPERATION_ID, "The historical root operation must retain its reviewed operationId before transition.");
+              assert.equal(legacy["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
+              assert.equal(legacy["x-runtime-contract-source"], undefined);
+              assert.equal(legacy["x-runtime-auth-profile"], undefined);
+              assert.ok(legacy.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
+              assert.ok(legacy.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+            } else {
+              assert.deepEqual(actualPathItem, { $ref: PATH_REF });
+            }
+
+            const result = await runSync(actualRoot);
+            assert.equal(result.ok, true, result.stderr || result.stdout);
+            const summary = JSON.parse(result.stdout);
+            assert.equal(summary.ok, true);
+            assert.equal(summary.conflict_count, 0);
+            if (legacy) {
+              assert.equal(summary.changed, true);
+              assert.ok(summary.applied_registered_path_replacements.some((entry) =>
+                entry.path === ROUTE_PATH
+                && entry.path_item_ref === PATH_REF
+                && entry.signatures.includes(SIGNATURE)));
+            } else {
+              assert.equal(summary.changed, false);
+              assert.deepEqual(summary.applied_registered_path_replacements, []);
+            }
+
+            const written = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
+            assert.deepEqual(written.paths[ROUTE_PATH], { $ref: PATH_REF });
+
+            const check = await runSync(actualRoot, ["--check"]);
+            assert.equal(check.ok, true, check.stderr || check.stdout);
+            const checkSummary = JSON.parse(check.stdout);
+            assert.equal(checkSummary.ok, true);
+            assert.equal(checkSummary.changed, false);
+            assert.equal(checkSummary.conflict_count, 0);
+          } finally {
+            await rm(actualRoot, { recursive: true, force: true });
+          }`;
+
+          if (!source.includes(before)) {
+            throw new Error('Expected actual-root regression block was not found exactly.');
+          }
+          const updated = source.replace(before, after);
+          if (updated === source) throw new Error('Regression source did not change.');
+          fs.writeFileSync(file, updated);
+          NODE
+
+      - name: Remove launcher and push bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/spec014-openapi-legacy-transition-reconciliation-launcher.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add http-generic-api/test-openapi-precise-legacy-registry-transition.mjs .github/workflows/spec014-openapi-legacy-transition-reconciliation-launcher.yml
+          git diff --cached --name-only | sort > /tmp/changed
+          printf '%s\n' '.github/workflows/spec014-openapi-legacy-transition-reconciliation-launcher.yml' 'http-generic-api/test-openapi-precise-legacy-registry-transition.mjs' | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/changed
+          git commit -m 'test(openapi): support pre- and post-transition root states'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
