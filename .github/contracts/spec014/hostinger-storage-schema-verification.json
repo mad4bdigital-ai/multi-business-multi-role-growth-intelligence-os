@@ -16,7 +16,7 @@
   "max_signing_delay_minutes": 5,
   "max_attestation_age_minutes": 15,
   "expected_readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
-  "readback_contract_path": ".github/contracts/spec014/migrations/readback.sql",
+  "readback_contract_path": ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
   "expected_counts": {
     "compatible_tables": 17,
     "present_views": 3,
