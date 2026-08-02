@@ -1,0 +1,144 @@
+name: Spec 014 Main Sync Conflict Probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/spec014-main-sync-conflict-probe.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec014-main-sync-conflict-probe-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      INTEGRATION_SHA: b2a5b50e39cd7290d031346f61e3e9d1bcf0e517
+      MAIN_SHA: 2d43012b30b744354444b8dd9456bf7e91e192f1
+      REPORT_DIR: ${{ runner.temp }}/spec014-main-sync-conflict-probe
+    steps:
+      - name: Checkout probe definition
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Probe exact pinned merge without repository mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          git fetch --no-tags origin \
+            "${INTEGRATION_SHA}" \
+            "${MAIN_SHA}"
+          test "$(git rev-parse "${INTEGRATION_SHA}^{commit}")" = "$INTEGRATION_SHA"
+          test "$(git rev-parse "${MAIN_SHA}^{commit}")" = "$MAIN_SHA"
+          git checkout --detach "$INTEGRATION_SHA"
+
+          set +e
+          git -c merge.conflictStyle=diff3 merge --no-commit --no-ff "$MAIN_SHA" \
+            >"$REPORT_DIR/merge.stdout.txt" \
+            2>"$REPORT_DIR/merge.stderr.txt"
+          merge_exit_code=$?
+          set -e
+
+          git diff --name-only --diff-filter=U | LC_ALL=C sort > "$REPORT_DIR/conflict-paths.txt"
+          git ls-files -u > "$REPORT_DIR/unmerged-index.txt"
+          git diff --cc --binary > "$REPORT_DIR/conflicts.diff" || true
+          git rev-list --left-right --count "$MAIN_SHA...$INTEGRATION_SHA" > "$REPORT_DIR/relation.txt"
+
+          MERGE_EXIT_CODE="$merge_exit_code" python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          report_dir = Path(os.environ['REPORT_DIR'])
+          paths = [
+              line.strip()
+              for line in (report_dir / 'conflict-paths.txt').read_text().splitlines()
+              if line.strip()
+          ]
+          relation = (report_dir / 'relation.txt').read_text().strip().split()
+          report = {
+              'contract': 'spec014.main-sync-conflict-probe.v1',
+              'outcome': 'conflicts_detected' if paths else 'clean_merge',
+              'integration_branch': os.environ['INTEGRATION_BRANCH'],
+              'integration_sha': os.environ['INTEGRATION_SHA'],
+              'main_sha': os.environ['MAIN_SHA'],
+              'merge_exit_code': int(os.environ['MERGE_EXIT_CODE']),
+              'main_only_commits': int(relation[0]) if len(relation) == 2 else None,
+              'integration_only_commits': int(relation[1]) if len(relation) == 2 else None,
+              'conflict_count': len(paths),
+              'conflict_paths': paths,
+              'conflict_set_sha256': hashlib.sha256('\n'.join(paths).encode()).hexdigest(),
+              'repository_mutation_performed': False,
+              'remote_ref_updated': False,
+              'force_push_performed': False,
+              'job_logs_consulted': False,
+              'secrets_included': False,
+          }
+          (report_dir / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          lines = [
+              '## Spec 014 main synchronization conflict probe',
+              '',
+              f"- Outcome: **{report['outcome']}**",
+              f"- Integration SHA: `{report['integration_sha']}`",
+              f"- Main SHA: `{report['main_sha']}`",
+              f"- Main-only commits: `{report['main_only_commits']}`",
+              f"- Integration-only commits: `{report['integration_only_commits']}`",
+              f"- Merge exit code: `{report['merge_exit_code']}`",
+              f"- Conflict count: `{report['conflict_count']}`",
+              f"- Conflict-set SHA-256: `{report['conflict_set_sha256']}`",
+              '- Repository mutation performed: `false`',
+              '- Remote ref updated: `false`',
+              '- Force push performed: `false`',
+              '- Job logs consulted: `false`',
+              '- Secrets included: `false`',
+              '',
+              '### Conflict paths',
+              '',
+          ]
+          lines.extend([f'- `{path}`' for path in paths] or ['- None'])
+          (report_dir / 'summary.md').write_text('\n'.join(lines) + '\n')
+          PY
+
+          git merge --abort >/dev/null 2>&1 || true
+          test "$(git rev-parse HEAD)" = "$INTEGRATION_SHA"
+
+      - name: Upload canonical conflict evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-main-sync-conflict-probe-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce bounded probe result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['REPORT_DIR']) / 'summary.json').read_text())
+          assert report['contract'] == 'spec014.main-sync-conflict-probe.v1'
+          assert report['integration_sha'] == os.environ['INTEGRATION_SHA']
+          assert report['main_sha'] == os.environ['MAIN_SHA']
+          assert report['repository_mutation_performed'] is False
+          assert report['remote_ref_updated'] is False
+          assert report['force_push_performed'] is False
+          assert report['job_logs_consulted'] is False
+          assert report['secrets_included'] is False
+          assert report['outcome'] in {'conflicts_detected', 'clean_merge'}
+          print(json.dumps(report))
+          PY
