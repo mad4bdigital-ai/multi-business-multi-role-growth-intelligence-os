@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/specs/016/oauth-protected-resource.schema.json",
+  "title": "MAD4B MCP OAuth Protected Resource Metadata",
+  "description": "Specification-only OAuth protected-resource metadata contract for the ChatGPT MCP resource server.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "resource",
+    "authorization_servers",
+    "scopes_supported",
+    "bearer_methods_supported"
+  ],
+  "properties": {
+    "resource": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "description": "Canonical HTTPS resource identifier used for authorization and token audience/resource validation."
+    },
+    "authorization_servers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://"
+      }
+    },
+    "scopes_supported": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9._:-]+$"
+      }
+    },
+    "bearer_methods_supported": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["header"]
+      },
+      "description": "The ChatGPT MCP surface accepts bearer credentials in the Authorization header and never in the URL."
+    },
+    "resource_name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128
+    },
+    "resource_documentation": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "resource_policy_uri": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "resource_tos_uri": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "resource_signing_alg_values_supported": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 32
+      }
+    },
+    "authorization_details_types_supported": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "tls_client_certificate_bound_access_tokens": {
+      "type": "boolean"
+    },
+    "dpop_signing_alg_values_supported": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 32
+      }
+    },
+    "dpop_bound_access_tokens_required": {
+      "type": "boolean"
+    },
+    "mad4b_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "environment",
+        "context_authority",
+        "model_identifiers_are_selectors",
+        "secrets_included"
+      ],
+      "properties": {
+        "contract": {
+          "const": "mad4b.mcp-oauth-protected-resource.v1"
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["development", "staging", "review", "production"]
+        },
+        "context_authority": {
+          "const": "context_kernel"
+        },
+        "model_identifiers_are_selectors": {
+          "const": true
+        },
+        "catalog_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "secrets_included": {
+          "const": false
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "dpop_bound_access_tokens_required": {
+            "const": true
+          }
+        },
+        "required": ["dpop_bound_access_tokens_required"]
+      },
+      "then": {
+        "required": ["dpop_signing_alg_values_supported"],
+        "properties": {
+          "dpop_signing_alg_values_supported": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "resource": "https://mcp.mad4b.com/mcp",
+      "authorization_servers": [
+        "https://auth.mad4b.com"
+      ],
+      "scopes_supported": [
+        "profile.read",
+        "workspaces.read",
+        "brands.read",
+        "capabilities.read",
+        "operations.read"
+      ],
+      "bearer_methods_supported": [
+        "header"
+      ],
+      "resource_name": "MAD4B Growth Intelligence OS",
+      "resource_documentation": "https://mcp.mad4b.com/docs",
+      "mad4b_metadata": {
+        "contract": "mad4b.mcp-oauth-protected-resource.v1",
+        "environment": "development",
+        "context_authority": "context_kernel",
+        "model_identifiers_are_selectors": true,
+        "catalog_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+        "secrets_included": false
+      }
+    }
+  ]
+}

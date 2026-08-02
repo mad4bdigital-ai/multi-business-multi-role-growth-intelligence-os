@@ -1,0 +1,424 @@
+openapi: 3.1.0
+info:
+  title: MAD4B Growth Intelligence OS ChatGPT MCP Surface
+  version: 0.1.0-draft
+  description: >-
+    Specification-only HTTP boundary for a standards-compliant MCP Streamable
+    HTTP endpoint, OAuth protected-resource discovery, health, and temporary
+    legacy compatibility. MCP method semantics remain governed by the selected
+    MCP SDK and protocol version.
+servers:
+  - url: https://mcp.mad4b.com
+    description: Proposed production origin; deployment and routing are not yet verified.
+security: []
+tags:
+  - name: MCP
+  - name: OAuth Metadata
+  - name: Operations
+  - name: Health
+paths:
+  /mcp:
+    post:
+      tags: [MCP]
+      operationId: handleMcpStreamableHttp
+      summary: Handle an MCP Streamable HTTP request
+      description: >-
+        Negotiates MCP initialization, tool discovery, tool invocation, and
+        supported session behavior through the official protocol adapter.
+        Anonymous requests may initialize or discover only policy-approved
+        public metadata. Protected tools require a resource-bound bearer token.
+      parameters:
+        - $ref: '#/components/parameters/McpProtocolVersion'
+        - $ref: '#/components/parameters/McpSessionId'
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+      responses:
+        '200':
+          description: MCP JSON or streaming response.
+          headers:
+            MCP-Session-Id:
+              $ref: '#/components/headers/McpSessionId'
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/JsonRpcSuccess'
+                  - $ref: '#/components/schemas/JsonRpcError'
+            text/event-stream:
+              schema:
+                type: string
+                description: MCP server-sent event stream when negotiated.
+        '202':
+          description: Request accepted with no immediate response body when allowed by the MCP transport.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/InvalidMcpRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '406':
+          description: Requested response media type is not supported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request exceeds the configured byte or nesting limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Client, principal, tenant, or tool rate limit exceeded.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: A required authority or dependency is unavailable; the server fails closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [MCP]
+      operationId: terminateMcpSession
+      summary: Terminate an MCP session when the negotiated transport supports it
+      parameters:
+        - $ref: '#/components/parameters/McpSessionIdRequired'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '204':
+          description: Session termination accepted.
+        '400':
+          $ref: '#/components/responses/InvalidMcpRequest'
+        '404':
+          description: Session is unknown or already terminated.
+  /.well-known/oauth-protected-resource:
+    get:
+      tags: [OAuth Metadata]
+      operationId: getOAuthProtectedResourceMetadata
+      summary: Get OAuth protected-resource metadata for the MCP resource server
+      responses:
+        '200':
+          description: Resource-server metadata.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: public, max-age=300
+          content:
+            application/json:
+              schema:
+                $ref: './oauth-protected-resource.schema.json'
+        '503':
+          description: Metadata authority is unavailable; protected tools remain inaccessible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /health/mcp:
+    get:
+      tags: [Health]
+      operationId: getMcpHealth
+      summary: Read bounded MCP transport and dependency health
+      description: Returns no tenant, user, token, provider, or credential data.
+      responses:
+        '200':
+          description: MCP service is ready for its enabled mode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpHealth'
+        '503':
+          description: MCP service is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpHealth'
+  /operations/{operationId}:
+    get:
+      tags: [Operations]
+      operationId: getAuthorizedMcpOperationStatus
+      summary: Read an authorized durable operation status
+      description: >-
+        Optional HTTP readback companion for support and diagnostics. The public
+        plugin should normally use a focused MCP status tool. This endpoint must
+        enforce the same principal, tenant, Brand, resource, and operation authority.
+      security:
+        - oauth2: [operations.read]
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Authorized operation status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatus'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          description: Operation is unavailable to the caller; response must not reveal cross-tenant existence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: >-
+        Authorization endpoints and scopes are discovered from the approved
+        authorization server. Values below are placeholders for contract validation.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.mad4b.com/oauth2/authorize
+          tokenUrl: https://auth.mad4b.com/oauth2/token
+          scopes:
+            profile.read: Read the current user's bounded platform profile and context.
+            workspaces.read: List accessible workspaces.
+            brands.read: Read accessible Brand operating context.
+            capabilities.read: Search tenant-eligible platform capabilities.
+            operations.read: Read authorized operation status.
+            operations.write: Request separately governed write operations.
+  parameters:
+    McpProtocolVersion:
+      name: MCP-Protocol-Version
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+      description: Protocol version negotiated according to the MCP transport contract.
+    McpSessionId:
+      name: MCP-Session-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._~-]+$'
+    McpSessionIdRequired:
+      name: MCP-Session-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._~-]+$'
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+      description: Caller-provided correlation ID; the server validates or replaces invalid values.
+  headers:
+    McpSessionId:
+      schema:
+        type: string
+        maxLength: 128
+    RequestId:
+      schema:
+        type: string
+        maxLength: 128
+  responses:
+    InvalidMcpRequest:
+      description: Malformed or unsupported MCP request.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/JsonRpcError'
+              - $ref: '#/components/schemas/ErrorEnvelope'
+    AuthenticationRequired:
+      description: Authentication is required or the bearer token is invalid.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            example: 'Bearer resource_metadata="https://mcp.mad4b.com/.well-known/oauth-protected-resource"'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    AuthorizationDenied:
+      description: Authenticated principal lacks scope, capability, policy, or object-level authority.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    JsonRpcRequest:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          const: '2.0'
+        id:
+          oneOf:
+            - type: string
+              maxLength: 128
+            - type: integer
+        method:
+          type: string
+          minLength: 1
+          maxLength: 128
+        params:
+          type: object
+          maxProperties: 64
+          additionalProperties: true
+    JsonRpcSuccess:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, result]
+      properties:
+        jsonrpc:
+          const: '2.0'
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: 'null'
+        result:
+          type: object
+          additionalProperties: true
+    JsonRpcError:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, error]
+      properties:
+        jsonrpc:
+          const: '2.0'
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+            - type: 'null'
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+              maxLength: 512
+            data:
+              type: object
+              additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error, request_id]
+      properties:
+        ok:
+          const: false
+        request_id:
+          type: string
+          maxLength: 128
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              pattern: '^MCP_[A-Z0-9_]+$'
+            message:
+              type: string
+              maxLength: 512
+            retryable:
+              type: boolean
+            retry_after_seconds:
+              type: integer
+              minimum: 1
+            evidence_id:
+              type: string
+              maxLength: 128
+    McpHealth:
+      type: object
+      additionalProperties: false
+      required: [ok, mode, endpoint, catalog_fingerprint, dependencies, checked_at, secrets_included]
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum: [disabled, read_only, governed_writes]
+        endpoint:
+          const: /mcp
+        catalog_fingerprint:
+          type: [string, 'null']
+          pattern: '^[a-f0-9]{64}$'
+        dependencies:
+          type: object
+          maxProperties: 16
+          additionalProperties:
+            type: string
+            enum: [ready, degraded, unavailable, not_required]
+        checked_at:
+          type: string
+          format: date-time
+        secrets_included:
+          const: false
+    OperationStatus:
+      type: object
+      additionalProperties: false
+      required: [operation_id, state, retryable, updated_at, secrets_included]
+      properties:
+        operation_id:
+          type: string
+          maxLength: 128
+        state:
+          type: string
+          enum: [pending, running, succeeded, failed, compensated, cancelled, unknown]
+        retryable:
+          type: boolean
+        target_ref:
+          type: string
+          maxLength: 256
+        evidence_id:
+          type: string
+          maxLength: 128
+        next_action:
+          type: string
+          maxLength: 512
+        updated_at:
+          type: string
+          format: date-time
+        secrets_included:
+          const: false

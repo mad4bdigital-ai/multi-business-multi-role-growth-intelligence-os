@@ -1012,6 +1012,16 @@ async function chunkSystemLayerResponse(
     return await maybeChunkToolResponseBody(body, {
       response_options: {
         max_chars: Number(responseOptions.max_chars || source?.max_chars || 45000),
+        client_response_budget_chars: Number(
+          responseOptions.client_response_budget_chars
+          || source?.client_response_budget_chars
+          || 0,
+        ) || undefined,
+        response_envelope_overhead_chars: Number(
+          responseOptions.response_envelope_overhead_chars
+          || source?.response_envelope_overhead_chars
+          || 0,
+        ) || undefined,
         cursor: Number(responseOptions.cursor || source?.cursor || 0),
         chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
         chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
@@ -2535,14 +2545,18 @@ export function buildSystemLayerRoutes(deps) {
   });
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
-    return res.status(200).json(await chunkSystemLayerResponse(
-      body,
-      req.query || {},
-      req.auth,
-      "admin_system_tools_list",
-      "admin_system_tools_list",
-    ));
+    try {
+      const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+      return res.status(200).json(await chunkSystemLayerResponse(
+        body,
+        req.query || {},
+        req.auth,
+        "admin_system_tools_list",
+        "admin_system_tools_list",
+      ));
+    } catch (error) {
+      return sendSystemToolCatalogError(res, error, "system_tool_catalog_list_failed");
+    }
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {

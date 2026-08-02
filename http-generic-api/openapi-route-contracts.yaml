@@ -6,3 +6,31 @@ contracts:
     owner: dynamic_container_authority
     exposure: admin_tool
     notes: Precise contract for the capability-envelope-gated transactional governance smoke. No target execution, provider call, credential payload read, rollout change, enforcement change, external write, or secret output.
+
+  POST /me/support/tickets:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Tenant-scoped create-or-dedupe ticket contract. Resolution output is sanitized evidence and never authorizes a repair or external send.
+
+  GET /me/support/tickets:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Lists only customer-visible tickets in the authenticated tenant scope.
+
+  GET /me/support/tickets/{ticket_id}:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTicketById'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Returns role-gated resolution details only to a tenant admin or owner.
+
+  POST /me/support/tickets/{ticket_id}/events:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-tickets.yaml#/mySupportTicketEvents'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Appends a customer-visible event without provider dispatch or external delivery.

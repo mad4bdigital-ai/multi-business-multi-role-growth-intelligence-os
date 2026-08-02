@@ -4,9 +4,11 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildDiagnosticStream, redactDiagnosticOutput } from "./bounded-diagnostic-evidence.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, "..", "..");
+const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
 
 function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
@@ -344,6 +346,14 @@ function executableTests(contracts) {
   return tests;
 }
 
+function emitCapturedOutput(result) {
+  const failed = Boolean(result.error || result.status !== 0);
+  const stdout = failed ? redactDiagnosticOutput(result.stdout || "") : (result.stdout || "");
+  const stderr = failed ? redactDiagnosticOutput(result.stderr || "") : (result.stderr || "");
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
+}
+
 export function executePhaseTests(evaluation, options = {}) {
   const root = options.root || REPO_ROOT;
   const tests = executableTests(evaluation.contracts);
@@ -367,8 +377,10 @@ export function executePhaseTests(evaluation, options = {}) {
       env: { ...process.env, E2E_PHASE_GOVERNANCE: "true", E2E_FEATURE_KEY: item.featureKey, E2E_PHASE: item.phase },
       shell: false,
       encoding: "utf8",
-      stdio: "inherit"
+      maxBuffer: MAX_CAPTURE_BUFFER_BYTES
     });
+    emitCapturedOutput(result);
+    const failed = Boolean(result.error || result.status !== 0);
     results.push({
       feature_key: item.featureKey,
       phase: item.phase,
@@ -378,14 +390,25 @@ export function executePhaseTests(evaluation, options = {}) {
       status: result.error ? "error" : result.status === 0 ? "passed" : "failed",
       exit_code: result.error ? 1 : (result.status ?? 1),
       duration_ms: Date.now() - startedAt,
-      ...(result.error ? { error: result.error.message } : {})
+      ...(result.error ? { error: redactDiagnosticOutput(result.error.message) } : {}),
+      ...(failed ? {
+        diagnostic: {
+          stdout: buildDiagnosticStream(result.stdout),
+          stderr: buildDiagnosticStream(result.stderr)
+        }
+      } : {})
     });
-    if (result.error || result.status !== 0) break;
+    if (failed) break;
   }
   return {
     ok: results.length === tests.length && results.every((row) => row.status === "passed"),
     test_count: tests.length,
     results,
+    diagnostics: {
+      capture_mode: "bounded_redacted_failure_tail",
+      max_chars_per_stream: 12_000,
+      job_logs_role: "diagnostic_only"
+    },
     secrets_included: false
   };
 }

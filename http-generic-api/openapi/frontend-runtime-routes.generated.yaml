@@ -1996,6 +1996,51 @@ paths:
           - requireBackendApiKey
         configuration_dependencies:
           - BACKEND_API_KEY
+  /admin/support/tickets/integrity/reconcile:
+    get:
+      operationId: getAdminSupportTicketsIntegrityReconcile69830df6
+      summary: GET /admin/support/tickets/integrity/reconcile (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketLifecycleIntegrityRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+    post:
+      operationId: postAdminSupportTicketsIntegrityReconcile74417bd8
+      summary: POST /admin/support/tickets/integrity/reconcile (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/supportTicketLifecycleIntegrityRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /admin/support/tickets/notifications/adapters:
     get:
       operationId: getAdminSupportTicketsNotificationsAdapters86915061
@@ -3352,7 +3397,7 @@ paths:
         default:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
-      x-source-file: routes/supportTicketRoutes.js
+      x-source-file: routes/supportTicketLifecycleIntegrityRoutes.js
       x-mad4b-runtime-auth:
         profile: user_jwt
         principal: tenant_user
@@ -3372,7 +3417,7 @@ paths:
         default:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
-      x-source-file: routes/supportTicketRoutes.js
+      x-source-file: routes/supportTicketLifecycleIntegrityRoutes.js
       x-mad4b-runtime-auth:
         profile: user_jwt
         principal: tenant_user
@@ -7503,7 +7548,7 @@ paths:
         default:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
-      x-source-file: routes/supportTicketRoutes.js
+      x-source-file: routes/supportTicketLifecycleIntegrityRoutes.js
       x-mad4b-runtime-auth:
         profile: admin_backend
         principal: admin

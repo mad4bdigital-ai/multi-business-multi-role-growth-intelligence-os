@@ -1,0 +1,203 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-generated-artifact-evidence-routing",
+  "title": "Canonical evidence and governed apply for generated artifacts",
+  "delivery_mode": "single_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      ".github/ci-evidence-routing.json",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "docs/ci-evidence-routing.md",
+      "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      ".changes/e2e/ci-generated-artifact-evidence-routing.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish one bounded read-only canonical report for PR generated-artifact evaluation and preserve mutation behind a registered manually dispatched exact-head tool.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-read-only-canonical-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and PR reviewer",
+          "entrypoint": "PR Generated Artifact Refresh through pull_request or exact-head workflow_dispatch after the trusted workflow definition is present on the default branch",
+          "terminal_outcome": "The read-only workflow reports exact-head pass, drift, or first failure without repository mutation, and the trusted workflow_run publisher updates the authoritative PR comment without Job-log reconstruction.",
+          "steps": [
+            "Treat the workflow definition on the default branch as the active pull-request automation authority until this change is merged.",
+            "Resolve candidate SHA and target ref from the pull request or explicit workflow_dispatch inputs.",
+            "Checkout the exact candidate with read-only contents permission and without persisted credentials.",
+            "Verify that both local HEAD and the remote target ref equal the declared candidate SHA.",
+            "Generate and verify the bounded artifact set only inside the ephemeral runner workspace.",
+            "Return generated_artifact_drift_detected when reviewed generated files differ.",
+            "Upload canonical JSON and Markdown before enforcing the decision.",
+            "Validate the report against the current exact PR head before updating the authoritative comment."
+          ],
+          "assertions": [
+            "The report contract is mad4b.pr-generated-artifact-refresh-summary.v1.",
+            "candidate_sha and source_head_sha equal the exact branch head.",
+            "The read-only workflow contains no repository write permission, git push, or persisted checkout credentials.",
+            "A workflow_dispatch run is accepted only for PR Generated Artifact Refresh and an exact current work-branch head.",
+            "The report declares secrets_included=false and bounded redacted diagnostics.",
+            "The publisher rejects stale, substituted, mismatched, closed-unmerged, or ambiguous PR identities.",
+            "The tests remain discoverable through the canonical repository test manifest.",
+            "Pre-merge behavior of a pull_request workflow is not used as proof of its replacement definition; operational proof begins after the trusted definition reaches the default branch.",
+            "Job logs remain diagnostic-only and never override the canonical report."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-evidence-publisher-identity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/ci-evidence-routing.md",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/test-manifest.mjs"
+          ]
+        },
+        {
+          "id": "generated-artifact-governed-exact-head-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository operator",
+          "entrypoint": "Governed Generated Artifact Refresh workflow_dispatch",
+          "terminal_outcome": "A registered tool mutates only reviewed generated paths on a non-protected work branch, emits its canonical report, and dispatches read-only verification on the resulting exact head so bot-authored pushes do not leave the PR without evidence.",
+          "steps": [
+            "Require target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation.",
+            "Reject main, Production, invalid branch names, and malformed SHAs before generation.",
+            "Compare both local and remote heads to expected_head_sha before commit and again before push.",
+            "Generate and verify the bounded artifact set.",
+            "Reject every path outside the registered allowlist.",
+            "Commit and push by normal fast-forward only.",
+            "Resolve the resulting commit SHA from the canonical apply report and verify the remote target equals it.",
+            "Dispatch PR Generated Artifact Refresh on the resulting exact branch head.",
+            "Upload apply and dispatch evidence as JSON and Markdown."
+          ],
+          "assertions": [
+            "The tool is registered as mutating under the governed maintenance-tool root.",
+            "The apply workflow is workflow_dispatch-only and not pull_request-triggered.",
+            "Protected branches are rejected and force push is absent.",
+            "Concurrent target-ref movement returns an expected-head mismatch without writing.",
+            "The apply report contract is mad4b.governed-generated-artifact-refresh.v1 with secrets_included=false.",
+            "The dispatch evidence contract is mad4b.generated-artifact-refresh-verification-dispatch.v1 with the resulting candidate SHA.",
+            "A bot-authored generated commit is followed by an explicit read-only workflow_dispatch on that exact head.",
+            "Job logs remain diagnostic-only."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-governed-mutation-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Publish the same exact-head read-only generated-artifact authority for the governed main-to-Production promotion while keeping every mutating path forbidden on protected branches.",
+      "e2e_journeys": [
+        {
+          "id": "protected-promotion-read-only-generated-artifact-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "protected branch release reviewer",
+          "entrypoint": "A same-repository pull request whose head is the repository default branch and whose base is Production",
+          "terminal_outcome": "The Production promotion receives a canonical exact-head generated-artifact report without granting repository write authority or weakening the governed writer boundary.",
+          "steps": [
+            "Classify the event as pull_request rather than workflow_dispatch.",
+            "Require a same-repository pull request with the head equal to the repository default branch and the base equal to Production.",
+            "Resolve the exact default-branch head SHA and verify both local checkout and remote branch identity.",
+            "Run publisher safety tests and governed-writer safety tests before artifact evaluation.",
+            "Generate and verify the bounded artifact set only inside the ephemeral runner workspace.",
+            "Upload mad4b.pr-generated-artifact-refresh-summary.v1 and publish it through the trusted workflow_run publisher.",
+            "Keep workflow_dispatch and every mutating path restricted to non-protected governed work branches."
+          ],
+          "assertions": [
+            "The protected promotion exception applies only to the pull_request path main-to-Production.",
+            "workflow_dispatch continues to reject main and Production.",
+            "Governed Generated Artifact Refresh remains workflow_dispatch-only and rejects both protected branches.",
+            "The read-only workflow has contents:read, persist-credentials:false, and no git push.",
+            "The canonical report candidate_kind remains head and candidate_sha equals source_head_sha.",
+            "The report declares repository_mutation_performed=false and secrets_included=false.",
+            "A stale or substituted default-branch head is rejected before publication."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-protected-promotion-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
+            },
+            {
+              "id": "generated-artifact-protected-writer-rejection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise artifact-download failure, stale protected-head races, malformed reports, publisher retries, dispatch rejection, generated write-set violations, and mutating apply-report routing without consulting Job logs for the decision."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the first exact main-to-Production canonical generated-artifact evaluation and verify the writer remains unavailable to protected branches."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require exact generated-artifact canonical evidence for every protected-branch promotion while retaining manual governed mutation only on non-protected work branches."
+    }
+  ]
+}
