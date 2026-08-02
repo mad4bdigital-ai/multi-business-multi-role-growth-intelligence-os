@@ -1,0 +1,158 @@
+name: Spec014 Fix Reconciliation Merge Trap V2
+
+on:
+  push:
+    branches:
+      - gpt/reconcile-spec014-main-bdb4d32d-20260802-v2
+    paths:
+      - '.github/workflows/spec014-fix-reconciliation-merge-trap-v2.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-fix-reconciliation-merge-trap-v2
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_REF: gpt/reconcile-spec014-main-bdb4d32d-20260802-v2
+      EXPECTED_PARENT_SHA: ebaeae525840ac0800de2f3889fa0dfd8e6ec4c4
+      CREATION_INTEGRATION_SHA: 6684e7058e3b19dbbc37b4004f5531d5e8a7c24d
+      TARGET_WORKFLOW: .github/workflows/spec014-main-reconciliation-bdb4d32d-v2.yml
+      PATCH_WORKFLOW: .github/workflows/spec014-fix-reconciliation-merge-trap-v2.yml
+      REPORT_DIR: .ci-evidence/spec014-fix-reconciliation-merge-trap-v2
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_REF }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch merge trap handling
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+          current_step='verify_identity'
+          on_error() {
+            local status=$?
+            trap - ERR
+            STATUS="${status}" STEP="${current_step}" COMMAND="${BASH_COMMAND:-unknown}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path(os.environ['REPORT_DIR'], 'summary.json').write_text(json.dumps({
+            'contract': 'mad4b.spec014-fix-reconciliation-merge-trap-v2.v1',
+            'outcome': 'blocked',
+            'first_failure': {
+              'step': os.environ['STEP'],
+              'exit_status': int(os.environ['STATUS']),
+              'command': os.environ['COMMAND'],
+            },
+            'repository_push_performed': False,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }, indent=2) + '\n')
+          PY
+            exit "${status}"
+          }
+          trap on_error ERR
+
+          current_sha="$(git rev-parse HEAD)"
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_PARENT_SHA}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "${current_sha}" ]]
+          mapfile -t delta < <(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD)
+          [[ "${#delta[@]}" -eq 1 ]]
+          [[ "${delta[0]}" == "${PATCH_WORKFLOW}" ]]
+
+          current_step='patch_launcher'
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path(os.environ['TARGET_WORKFLOW'])
+          text = path.read_text(encoding='utf-8')
+
+          old_identity = '''          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_PARENT_SHA}" ]]
+          mapfile -t launcher_delta < <(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD)
+          [[ "${#launcher_delta[@]}" -eq 1 ]]
+          [[ "${launcher_delta[0]}" == "${LAUNCHER_PATH}" ]]
+'''
+          new_identity = '''          git merge-base --is-ancestor "${EXPECTED_PARENT_SHA}" HEAD
+          mapfile -t launcher_delta < <(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD)
+          [[ "${#launcher_delta[@]}" -eq 1 ]]
+          [[ "${launcher_delta[0]}" == "${LAUNCHER_PATH}" ]]
+'''
+          if text.count(old_identity) != 1:
+              raise SystemExit(f'launcher identity block count must be 1, got {text.count(old_identity)}')
+          text = text.replace(old_identity, new_identity)
+
+          old_merge = '''          current_step='merge_current_main'
+          set +e
+          git merge --no-commit --no-ff "${main_sha}"
+          merge_status=$?
+          set -e
+          git diff --name-only --diff-filter=U | sort -u > "${REPORT_DIR}/conflicts.txt"
+'''
+          new_merge = '''          current_step='merge_current_main'
+          trap - ERR
+          set +e
+          git merge --no-commit --no-ff "${main_sha}"
+          merge_status=$?
+          set -e
+          trap on_error ERR
+          git diff --name-only --diff-filter=U | sort -u > "${REPORT_DIR}/conflicts.txt"
+'''
+          if text.count(old_merge) != 1:
+              raise SystemExit(f'merge block count must be 1, got {text.count(old_merge)}')
+          path.write_text(text.replace(old_merge, new_merge), encoding='utf-8')
+          PY
+
+          grep -q 'git merge-base --is-ancestor "${EXPECTED_PARENT_SHA}" HEAD' "${TARGET_WORKFLOW}"
+          grep -q '^          trap - ERR$' "${TARGET_WORKFLOW}"
+          grep -q '^          trap on_error ERR$' "${TARGET_WORKFLOW}"
+
+          current_step='commit_patch'
+          git rm "${PATCH_WORKFLOW}"
+          git add "${TARGET_WORKFLOW}"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(ci): handle expected reconciliation merge conflicts'
+          result_sha="$(git rev-parse HEAD)"
+
+          current_step='write_success_evidence'
+          RESULT_SHA="${result_sha}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path(os.environ['REPORT_DIR'], 'summary.json').write_text(json.dumps({
+            'contract': 'mad4b.spec014-fix-reconciliation-merge-trap-v2.v1',
+            'outcome': 'passed',
+            'result_sha': os.environ['RESULT_SHA'],
+            'net_branch_delta_remains_single_launcher': True,
+            'expected_merge_nonzero_captured_without_err_trap': True,
+            'temporary_patch_workflow_removed': True,
+            'repository_push_performed': True,
+            'force_push': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }, indent=2) + '\n')
+          PY
+
+          current_step='push_patch'
+          git push origin "HEAD:${TARGET_REF}"
+          trap - ERR
+
+      - name: Upload structured patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-fix-reconciliation-merge-trap-v2-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/summary.json
+          if-no-files-found: error
+          retention-days: 14
