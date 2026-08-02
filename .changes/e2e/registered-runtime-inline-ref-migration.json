@@ -41,7 +41,7 @@
             "Every replaceable registry entry is sourced from routes/supportTicketRoutes.js and maps to the same path-item reference.",
             "Every current operation has canonical runtime provenance, recognized authorization metadata, matching security, a generated operation identity, responses, and the generator consequential classification.",
             "Path-level keys, missing methods, extra methods, wrong sources, wrong security, and partial registration remain conflicts.",
-            "The writer reports the number and identities of runtime-derived registry paths replaced.",
+            "The governed writer reports the number and identities of runtime-derived registry paths replaced on the exact eligible PR head.",
             "A second check reports no drift and the unsafe case leaves the source document unchanged."
           ],
           "tests": [
