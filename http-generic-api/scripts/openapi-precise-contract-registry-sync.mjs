@@ -5,6 +5,7 @@ import {
   buildSupportTicketRuntimePathItems,
   collectSupportTicketRuntimeOperations,
   inspectSupportTicketRuntimeContracts,
+  isReplaceablePreciseRuntimePathItem,
 } from "./support-ticket-runtime-openapi-contracts.mjs";
 
 const ROOT = process.cwd();
@@ -57,6 +58,36 @@ function inspectRegistry(doc, pathRefs) {
     else conflicts.push({ path: routePath, expected_path_item_ref: pathItemRef, current });
   }
   return { missing, synced, conflicts };
+}
+
+function classifyReplaceableRegistryConflicts(conflicts, contracts, runtimeOperations) {
+  const contractsByPath = new Map();
+  for (const contract of contracts) {
+    const entries = contractsByPath.get(contract.path) || [];
+    entries.push(contract);
+    contractsByPath.set(contract.path, entries);
+  }
+  const runtimeBySignature = new Map(runtimeOperations.map((operation) => [operation.signature, operation]));
+  const replaceableByPath = new Map();
+  const blocking = [];
+
+  for (const conflict of conflicts) {
+    const pathContracts = contractsByPath.get(conflict.path) || [];
+    const operations = pathContracts.map((contract) => runtimeBySignature.get(contract.signature));
+    const sourceBound = pathContracts.length > 0
+      && operations.every(Boolean)
+      && isReplaceablePreciseRuntimePathItem(conflict.current, operations);
+    if (sourceBound) {
+      replaceableByPath.set(conflict.path, {
+        path: conflict.path,
+        path_item_ref: conflict.expected_path_item_ref,
+      });
+    } else {
+      blocking.push(conflict);
+    }
+  }
+
+  return { replaceableByPath, blocking };
 }
 
 function renderPathEntries(entries) {
@@ -147,7 +178,13 @@ function main() {
   doc.paths ||= {};
   const { contracts, pathRefs } = normalizeRegistry(loadYaml(CONTRACT_REGISTRY_PATH, { contracts: {} }));
   const runtimeOperations = collectSupportTicketRuntimeOperations(ROOT);
-  const beforeRegistry = inspectRegistry(doc, pathRefs);
+  const rawBeforeRegistry = inspectRegistry(doc, pathRefs);
+  const { replaceableByPath: replaceableRegistryByPath, blocking: registryConflicts } = classifyReplaceableRegistryConflicts(
+    rawBeforeRegistry.conflicts,
+    contracts,
+    runtimeOperations,
+  );
+  const beforeRegistry = { ...rawBeforeRegistry, conflicts: registryConflicts };
   const beforeRuntime = inspectSupportTicketRuntimeContracts(doc, runtimeOperations, contracts, pathRefs);
   const conflicts = [...beforeRegistry.conflicts, ...beforeRuntime.conflicts];
   if (conflicts.length > 0) {
@@ -158,6 +195,7 @@ function main() {
       support_ticket_runtime_operation_count: runtimeOperations.length,
       missing_count: beforeRegistry.missing.length,
       missing_registry_count: beforeRegistry.missing.length,
+      replaceable_registry_path_count: replaceableRegistryByPath.size,
       missing_runtime_path_count: beforeRuntime.missingByPath.size,
       replaceable_runtime_path_count: beforeRuntime.replaceableByPath.size,
       conflict_count: conflicts.length,
@@ -166,8 +204,12 @@ function main() {
     process.exit(1);
   }
 
-  const appliedPreciseContracts = write ? beforeRegistry.missing : [];
-  const entries = new Map(beforeRegistry.missing.map((entry) => [entry.path, { $ref: entry.path_item_ref }]));
+  const registryEntries = [
+    ...beforeRegistry.missing,
+    ...replaceableRegistryByPath.values(),
+  ];
+  const appliedPreciseContracts = write ? registryEntries : [];
+  const entries = new Map(registryEntries.map((entry) => [entry.path, { $ref: entry.path_item_ref }]));
   for (const [routePath, pathItem] of buildSupportTicketRuntimePathItems(mergeRuntimeOperationsByPath(beforeRuntime))) {
     if (entries.has(routePath)) throw new Error(`Duplicate precise OpenAPI path composition requested for ${routePath}.`);
     entries.set(routePath, pathItem);
@@ -176,7 +218,11 @@ function main() {
   let afterRegistry = beforeRegistry;
   let afterRuntime = beforeRuntime;
   if (write && entries.size > 0) {
-    const withoutLegacyIndexes = removePathEntriesWithoutReformatting(openApiSource, beforeRuntime.replaceableByPath.keys());
+    const replacementPaths = new Set([
+      ...beforeRuntime.replaceableByPath.keys(),
+      ...replaceableRegistryByPath.keys(),
+    ]);
+    const withoutLegacyIndexes = removePathEntriesWithoutReformatting(openApiSource, replacementPaths);
     const updatedSource = applyPathEntriesWithoutReformatting(withoutLegacyIndexes, entries);
     const updatedDoc = YAML.parse(updatedSource) || {};
     afterRegistry = inspectRegistry(updatedDoc, pathRefs);
@@ -200,6 +246,7 @@ function main() {
     support_ticket_runtime_operation_count: runtimeOperations.length,
     support_ticket_generated_operation_count: runtimeOperations.length - staticRuntimeSignatureCount,
     applied_path_count: write ? entries.size : 0,
+    replaced_registry_runtime_path_count: write ? replaceableRegistryByPath.size : 0,
     replaced_runtime_index_path_count: write ? beforeRuntime.replaceableByPath.size : 0,
     missing_count: afterRegistry.missing.length,
     missing_registry_count: afterRegistry.missing.length,
