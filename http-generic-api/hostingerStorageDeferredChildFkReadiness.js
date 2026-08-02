@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 export const HOSTINGER_STORAGE_DEFERRED_CHILD_FK_READINESS_VERSION = 'spec014-hostinger-storage-deferred-child-fk-readiness-v1';
 
 export const HOSTINGER_STORAGE_DEFERRED_CHILD_FK_CANDIDATE = Object.freeze({
-  filename: '.github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql',
+  filename: '.github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql',
   checksum_sha256: '492a25d0b0202d133936fd73675e5c0f9c3ca8fafaef39ef0312e7e9c263e8d8',
   statement_count: 3,
   constraints: Object.freeze([
@@ -14,7 +14,7 @@ export const HOSTINGER_STORAGE_DEFERRED_CHILD_FK_CANDIDATE = Object.freeze({
 });
 
 export const HOSTINGER_STORAGE_DEFERRED_CHILD_FK_READBACK = Object.freeze({
-  filename: '.github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql',
+  filename: '.github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql',
   checksum_sha256: '699e1750f4aa4864a29745fc054a461c32f0296006068893cce210347c3cfc1e',
 });
 
@@ -98,6 +98,19 @@ function assertSecretFree(value, path = 'value', depth = 0) {
     }
     assertSecretFree(entry, `${path}.${key}`, depth + 1);
   }
+}
+
+function metricBlockers(metrics, { packet = false } = {}) {
+  const blockers = [];
+  for (const [metric, code] of Object.entries(ZERO_METRICS)) {
+    const value = Number(metrics?.[metric]);
+    if (!Number.isSafeInteger(value) || value < 0) {
+      if (packet) throw fail(409, 'STORAGE_DEFERRED_FK_PACKET_TAMPERED', 'Readiness packet contains invalid metric values.', { metric });
+      throw fail(400, 'STORAGE_DEFERRED_FK_INTEGER_INVALID', 'A non-negative bounded integer is required.', { field: `readback.metrics.${metric}` });
+    }
+    if (value !== 0) blockers.push(code);
+  }
+  return blockers.sort();
 }
 
 function normalizeSchemaVerification(value, nowEpoch) {
@@ -193,17 +206,14 @@ export function buildHostingerStorageDeferredChildFkReadiness({ schema_verificat
   const schema = normalizeSchemaVerification(schema_verification, nowEpoch);
   const normalizedCandidate = normalizeCandidate(candidate);
   const normalizedReadback = normalizeReadback(readback, schema, nowEpoch);
-  const blockers = [];
-  for (const [metric, code] of Object.entries(ZERO_METRICS)) {
-    if (normalizedReadback.metrics[metric] !== 0) blockers.push(code);
-  }
+  const blockers = metricBlockers(normalizedReadback.metrics);
   const core = {
     contract: 'spec014.hostinger-storage-deferred-child-fk-readiness.v1',
     version: HOSTINGER_STORAGE_DEFERRED_CHILD_FK_READINESS_VERSION,
     candidate: normalizedCandidate,
     schema_verification: schema,
     readback: normalizedReadback,
-    blockers: [...new Set(blockers)].sort(),
+    blockers,
     ready_for_separate_authorization: blockers.length === 0,
     authorization_created: false,
     migration_apply_authorized: false,
@@ -226,6 +236,13 @@ export function verifyHostingerStorageDeferredChildFkReadiness({ packet, expecte
     || packet?.runtime_mounted !== false || packet?.provider_dispatch_allowed !== false
     || packet?.production_ready !== false || packet?.secrets_included !== false) {
     throw fail(409, 'STORAGE_DEFERRED_FK_PACKET_BOUNDARY_INVALID', 'Unexpected or unsafe readiness packet.');
+  }
+  if (!Array.isArray(packet.blockers)) throw fail(409, 'STORAGE_DEFERRED_FK_PACKET_TAMPERED', 'Readiness packet blockers are invalid.');
+  const derivedBlockers = metricBlockers(packet.readback?.metrics, { packet: true });
+  const suppliedBlockers = [...new Set(packet.blockers.map((value) => text(value, 128)))].sort();
+  if (JSON.stringify(derivedBlockers) !== JSON.stringify(suppliedBlockers)
+    || packet.ready_for_separate_authorization !== (derivedBlockers.length === 0)) {
+    throw fail(409, 'STORAGE_DEFERRED_FK_PACKET_TAMPERED', 'Readiness packet metrics, blockers, and decision are inconsistent.');
   }
   const { readiness_digest: supplied, ...core } = packet;
   const observed = digest(core);
