@@ -1,11 +1,18 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 import {
+  cancelManagedExecutionRun,
   createManagedExecutionRun,
   createManagedExecutionStep,
   decideManagedExecutionApproval,
+  escalateManagedExecutionRun,
+  finalizeManagedExecutionRollback,
   projectManagedExecutionState,
+  reassignManagedExecutionStep,
+  requestManagedExecutionRollback,
+  retryManagedExecutionStep,
   syncManagedExecutionRunStatus,
+  syncManagedExecutionStepStatus,
 } from "../managedExecutionLifecycleService.js";
 
 function principalActor(req) {
@@ -62,7 +69,7 @@ async function readManagedExecution(pool, runId) {
   const [bindingRows] = await pool.query("SELECT * FROM managed_execution_bindings WHERE run_id = ? LIMIT 2", [runId]);
   if (bindingRows.length !== 1) throw routeError(409, "managed_execution_binding_missing", "Managed execution binding is missing or ambiguous.");
   const [steps] = await pool.query(
-    "SELECT step_run_id, step_key, step_type, status, attempt, started_at, completed_at FROM step_runs WHERE run_id = ? ORDER BY id",
+    "SELECT step_run_id, step_key, step_type, assigned_to, status, attempt, started_at, completed_at FROM step_runs WHERE run_id = ? ORDER BY id",
     [runId],
   );
   const [holds] = await pool.query(
@@ -121,6 +128,125 @@ export function buildManagedExecutionRoutes(deps) {
   };
 
   router.post("/managed-execution-runs/:id/steps", requireBackendApiKey, createStep);
+
+  router.patch("/managed-execution-runs/:id/steps/:stepId/status", requireBackendApiKey, async (req, res) => {
+    try {
+      const { status, output_json = null, error_message = null } = req.body || {};
+      if (!status) throw routeError(400, "managed_execution_step_status_required", "status is required.");
+      const result = await syncManagedExecutionStepStatus({
+        pool: getPool(),
+        runId: req.params.id,
+        stepRunId: req.params.stepId,
+        nextStatus: status,
+        actorId: principalActor(req),
+        output: output_json,
+        errorMessage: error_message,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_step_status_update_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/steps/:stepId/retry", requireBackendApiKey, async (req, res) => {
+    try {
+      const { idempotency_key, reason = null, max_attempts = undefined } = req.body || {};
+      const result = await retryManagedExecutionStep({
+        pool: getPool(),
+        runId: req.params.id,
+        stepRunId: req.params.stepId,
+        idempotencyKey: idempotency_key,
+        actorId: principalActor(req),
+        reason,
+        maxAttempts: max_attempts,
+      });
+      return res.status(result.reused ? 200 : 201).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_step_retry_failed");
+    }
+  });
+
+  router.patch("/managed-execution-runs/:id/steps/:stepId/assignment", requireBackendApiKey, async (req, res) => {
+    try {
+      const { assigned_to, reason = null } = req.body || {};
+      const result = await reassignManagedExecutionStep({
+        pool: getPool(),
+        runId: req.params.id,
+        stepRunId: req.params.stepId,
+        assignedTo: assigned_to,
+        actorId: principalActor(req),
+        reason,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_step_reassignment_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/escalate", requireBackendApiKey, async (req, res) => {
+    try {
+      const { reason = null, assigned_to = null } = req.body || {};
+      const result = await escalateManagedExecutionRun({
+        pool: getPool(),
+        runId: req.params.id,
+        actorId: principalActor(req),
+        reason,
+        assignedTo: assigned_to,
+      });
+      return res.status(result.reused ? 200 : 201).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_escalation_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/cancel", requireBackendApiKey, async (req, res) => {
+    try {
+      const { reason = null } = req.body || {};
+      const result = await cancelManagedExecutionRun({
+        pool: getPool(),
+        runId: req.params.id,
+        actorId: principalActor(req),
+        reason,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_cancellation_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/rollback", requireBackendApiKey, async (req, res) => {
+    try {
+      const { idempotency_key, assigned_to = null, reason = null } = req.body || {};
+      const result = await requestManagedExecutionRollback({
+        pool: getPool(),
+        runId: req.params.id,
+        idempotencyKey: idempotency_key,
+        actorId: principalActor(req),
+        assignedTo: assigned_to,
+        reason,
+      });
+      return res.status(result.reused ? 200 : 201).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_rollback_request_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/rollback/finalize", requireBackendApiKey, async (req, res) => {
+    try {
+      const { step_run_id, evidence = null } = req.body || {};
+      if (!step_run_id) throw routeError(400, "managed_execution_rollback_step_required", "step_run_id is required.");
+      const result = await finalizeManagedExecutionRollback({
+        pool: getPool(),
+        runId: req.params.id,
+        stepRunId: step_run_id,
+        actorId: principalActor(req),
+        evidence,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_rollback_finalize_failed");
+    }
+  });
 
   const updateStatus = async (req, res) => {
     try {
