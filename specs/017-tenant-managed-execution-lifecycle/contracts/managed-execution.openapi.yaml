@@ -1,0 +1,68 @@
+openapi: 3.1.0
+info:
+  title: Tenant Managed Execution Lifecycle API
+  version: 0.1.0
+  description: Foundation contract for Issue 4449. Runtime use requires Migration 1043 readiness.
+paths:
+  /managed-execution-runs:
+    post:
+      operationId: createManagedExecutionRun
+      summary: Create or reuse a parent-linked, capability- and resource-authorized managed execution run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManagedExecutionRunRequest'
+      responses:
+        '201': {description: Managed execution created}
+        '200': {description: Existing idempotent managed execution returned}
+        '400': {description: Invalid or secret-bearing input}
+        '403': {description: Effective grant denied}
+        '409': {description: Capability, schema, authority, or lifecycle blocker}
+  /managed-execution-runs/{runId}/steps:
+    post:
+      operationId: createManagedExecutionStep
+      summary: Create or reuse one authority-revalidated managed step
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManagedExecutionStepRequest'
+      responses:
+        '201': {description: Step created}
+        '200': {description: Existing idempotent step returned}
+        '409': {description: Approval, grant, authority, or lifecycle blocker}
+components:
+  schemas:
+    CreateManagedExecutionRunRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, user_id, parent_ticket_id, workflow_key, capability_key, resource_type, resource_ref, effect_class, idempotency_key]
+      properties:
+        tenant_id: {type: string}
+        user_id: {type: string}
+        parent_ticket_id: {type: string}
+        workflow_key: {type: string}
+        capability_key: {type: string}
+        resource_type: {type: string}
+        resource_ref: {type: string}
+        effect_class: {type: string, enum: [read_only, state_change, destructive, external_send, managed_operation]}
+        idempotency_key: {type: string, minLength: 8}
+        input_json: {type: object}
+    CreateManagedExecutionStepRequest:
+      type: object
+      additionalProperties: false
+      required: [step_key, idempotency_key]
+      properties:
+        step_key: {type: string}
+        step_type: {type: string, enum: [action, review, approval, managed_op, branch, wait, end]}
+        idempotency_key: {type: string, minLength: 8}
+        assigned_to: {type: string}
+        input_json: {type: object}
