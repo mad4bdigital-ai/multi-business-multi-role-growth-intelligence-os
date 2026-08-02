@@ -1,0 +1,130 @@
+name: Repository Lifecycle Path Filter Fix Launcher
+
+on:
+  push:
+    branches:
+      - gpt/fix-repository-lifecycle-path-literal-20260802
+    paths:
+      - .github/workflows/repository-lifecycle-path-filter-fix-launcher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact patch branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/fix-repository-lifecycle-path-literal-20260802
+          fetch-depth: 0
+
+      - name: Verify immutable input
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_input='bea0f3c346e5767baf8da7aea6a642b2bc179b82'
+          git merge-base --is-ancestor "$expected_input" HEAD
+          mapfile -t launcher_delta < <(git diff --name-only "$expected_input" HEAD)
+          test "${#launcher_delta[@]}" = '1'
+          test "${launcher_delta[0]}" = '.github/workflows/repository-lifecycle-path-filter-fix-launcher.yml'
+
+      - name: Apply exact guard and regression patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const guardPath = 'http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs';
+          const guard = fs.readFileSync(guardPath, 'utf8');
+          const oldGuard = `function containsBranchSpecificLiteral(content) {
+            return WORK_BRANCH_PATTERN.test(content);
+          }`;
+          const newGuard = `function containsBranchSpecificLiteral(content) {
+            const lines = content.split(/\\r?\\n/u);
+            let pathFilterIndent = null;
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              const indentation = line.match(/^\\s*/u)?.[0].length || 0;
+
+              if (/^(?:paths|paths-ignore):\\s*$/u.test(trimmed)) {
+                pathFilterIndent = indentation;
+                continue;
+              }
+              if (pathFilterIndent !== null) {
+                if (!trimmed || trimmed.startsWith('#')) continue;
+                if (indentation > pathFilterIndent) continue;
+                pathFilterIndent = null;
+              }
+              if (WORK_BRANCH_PATTERN.test(line)) return true;
+            }
+            return false;
+          }`;
+          if (!guard.includes(oldGuard)) throw new Error('guard_target_not_found');
+          if (guard.indexOf(oldGuard) !== guard.lastIndexOf(oldGuard)) throw new Error('guard_target_not_unique');
+          fs.writeFileSync(guardPath, guard.replace(oldGuard, newGuard));
+
+          const testPath = 'http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs';
+          const test = fs.readFileSync(testPath, 'utf8');
+          const anchor = `assert(multilineBranchFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
+          const triggerFindings`;
+          const replacement = `assert(multilineBranchFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
+          const repositoryPathWorkflow = ".github/workflows/repository-path-filter.yml";
+          const repositoryPathFindings = await evaluate(
+            [{ status: "A", path: repositoryPathWorkflow }],
+            {
+              [repositoryPathWorkflow]: \`\non:\n  pull_request:\n    paths:\n      - "docs/work-maps/**"\n      - "feat/example/**"\npermissions:\n  contents: read\n\`,
+            },
+          );
+          assert(!repositoryPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
+          const triggerFindings`;
+          if (!test.includes(anchor)) throw new Error('test_anchor_not_found');
+          if (test.indexOf(anchor) !== test.lastIndexOf(anchor)) throw new Error('test_anchor_not_unique');
+          let nextTest = test.replace(anchor, replacement);
+          const oldCases = '  cases: 18,';
+          if (!nextTest.includes(oldCases)) throw new Error('case_count_not_found');
+          nextTest = nextTest.replace(oldCases, '  cases: 19,');
+          fs.writeFileSync(testPath, nextTest);
+          NODE
+
+      - name: Run bounded lifecycle regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          printf '%s\n' \
+            $'M\t.github/workflows/hostinger-storage-final-work-map-readback-guard.yml' \
+            $'M\thttp-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs' \
+            $'M\thttp-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs' \
+            > /tmp/repository-tool-changes.tsv
+          rm -rf /tmp/repository-tool-lifecycle
+          CANDIDATE_SHA='bea0f3c346e5767baf8da7aea6a642b2bc179b82' \
+          BASE_SHA='3a20c19e66b5ef9dc5fe931c10c2be96cff9e5bf' \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files /tmp/repository-tool-changes.tsv \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir /tmp/repository-tool-lifecycle
+          node -e "const r=require('/tmp/repository-tool-lifecycle/repository-tool-lifecycle-report.json'); if(!r.ok||r.findings.length) process.exit(1)"
+
+      - name: Remove launcher and publish exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_input='bea0f3c346e5767baf8da7aea6a642b2bc179b82'
+          rm .github/workflows/repository-lifecycle-path-filter-fix-launcher.yml
+          mapfile -t final_delta < <(git diff --name-only "$expected_input")
+          test "${#final_delta[@]}" = '2'
+          printf '%s\n' "${final_delta[@]}" | grep -Fx 'http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs'
+          printf '%s\n' "${final_delta[@]}" | grep -Fx 'http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(repo): ignore repository paths in branch-literal guard'
+          git push origin 'HEAD:gpt/fix-repository-lifecycle-path-literal-20260802'
