@@ -35,66 +35,128 @@ jobs:
       - name: Evaluate exact root OpenAPI migration
         shell: bash
         run: |
-          set -euo pipefail
           report_dir="${RUNNER_TEMP}/openapi-completion-metadata-root-diagnostic"
           mkdir -p "$report_dir"
-          npm --prefix http-generic-api ci >/dev/null
+          : >"$report_dir/install.stdout"
+          : >"$report_dir/install.stderr"
+          : >"$report_dir/write.stdout"
+          : >"$report_dir/write.stderr"
+          : >"$report_dir/check.stdout"
+          : >"$report_dir/check.stderr"
 
           set +e
-          (cd http-generic-api && node scripts/openapi-precise-contract-registry-sync.mjs --write) >"$report_dir/write.stdout" 2>"$report_dir/write.stderr"
-          write_status=$?
-          set -e
+          npm --prefix http-generic-api ci >"$report_dir/install.stdout" 2>"$report_dir/install.stderr"
+          install_status=$?
 
+          write_status=99
           check_status=99
+          path_status=99
           path_ref=''
           changed_files=''
-          if [[ $write_status -eq 0 ]]; then
-            set +e
-            (cd http-generic-api && node scripts/openapi-precise-contract-registry-sync.mjs --check) >"$report_dir/check.stdout" 2>"$report_dir/check.stderr"
-            check_status=$?
-            set -e
-            changed_files="$(git diff --name-only | sort -u)"
-            path_ref="$(cd http-generic-api && node --input-type=module <<'NODE'
-            import fs from 'node:fs';
-            import YAML from 'yaml';
-            const doc = YAML.parse(fs.readFileSync('openapi.yaml', 'utf8'));
-            process.stdout.write(String(doc?.paths?.['/admin/support/tickets/{ticket_id}/external-delivery/completion-certification']?.$ref || ''));
-            NODE
-            )"
+
+          if [[ $install_status -eq 0 ]]; then
+            (cd http-generic-api && node scripts/openapi-precise-contract-registry-sync.mjs --write) >"$report_dir/write.stdout" 2>"$report_dir/write.stderr"
+            write_status=$?
           fi
 
-          WRITE_STATUS="$write_status" CHECK_STATUS="$check_status" PATH_REF="$path_ref" CHANGED_FILES="$changed_files" REPORT_DIR="$report_dir" python3 - <<'PY'
+          if [[ $write_status -eq 0 ]]; then
+            (cd http-generic-api && node scripts/openapi-precise-contract-registry-sync.mjs --check) >"$report_dir/check.stdout" 2>"$report_dir/check.stderr"
+            check_status=$?
+            changed_files="$(git diff --name-only | sort -u)"
+            path_ref="$(cd http-generic-api && node --input-type=module -e "import fs from 'node:fs'; import YAML from 'yaml'; const doc=YAML.parse(fs.readFileSync('openapi.yaml','utf8')); process.stdout.write(String(doc?.paths?.['/admin/support/tickets/{ticket_id}/external-delivery/completion-certification']?.['\$ref'] || ''));" 2>"$report_dir/path.stderr")"
+            path_status=$?
+          fi
+          set -e
+
+          INSTALL_STATUS="$install_status" \
+          WRITE_STATUS="$write_status" \
+          CHECK_STATUS="$check_status" \
+          PATH_STATUS="$path_status" \
+          PATH_REF="$path_ref" \
+          CHANGED_FILES="$changed_files" \
+          REPORT_DIR="$report_dir" \
+          python3 - <<'PY'
           import json, os, re
           from pathlib import Path
+
           root=Path(os.environ['REPORT_DIR'])
           def bounded(name):
             text=(root/name).read_text(errors='replace') if (root/name).exists() else ''
             text=re.sub(r'(?i)(authorization|api[_-]?key|token|password|secret|cookie)\s*[:=]\s*\S+', r'\1=[redacted]', text)
-            return {'head':text[:1200],'tail':text[-1200:]}
+            return {'head':text[:1600],'tail':text[-1600:]}
+
+          install_status=int(os.environ['INSTALL_STATUS'])
           write_status=int(os.environ['WRITE_STATUS'])
           check_status=int(os.environ['CHECK_STATUS'])
+          path_status=int(os.environ['PATH_STATUS'])
           changed=[line for line in os.environ['CHANGED_FILES'].splitlines() if line]
           expected='./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion'
-          passed=(write_status==0 and check_status==0 and changed==['http-generic-api/openapi.yaml'] and os.environ['PATH_REF']==expected)
+          passed=(
+            install_status==0
+            and write_status==0
+            and check_status==0
+            and path_status==0
+            and changed==['http-generic-api/openapi.yaml']
+            and os.environ['PATH_REF']==expected
+          )
+
           structured=None
           if write_status!=0:
-            try:
-              payload=json.loads((root/'write.stderr').read_text())
-              structured={'code':payload.get('code'),'conflict_count':payload.get('conflict_count'),'conflicts':[{'path':x.get('path'),'code':x.get('code'),'expected_path_item_ref':x.get('expected_path_item_ref')} for x in (payload.get('conflicts') or [])[:10]]}
-            except Exception:
-              pass
+            for source in ('write.stderr','write.stdout'):
+              try:
+                payload=json.loads((root/source).read_text())
+                structured={
+                  'code':payload.get('code'),
+                  'conflict_count':payload.get('conflict_count'),
+                  'conflicts':[
+                    {
+                      'path':item.get('path'),
+                      'code':item.get('code'),
+                      'expected_path_item_ref':item.get('expected_path_item_ref'),
+                      'signature':item.get('signature'),
+                    }
+                    for item in (payload.get('conflicts') or [])[:10]
+                  ],
+                }
+                break
+              except Exception:
+                pass
+
+          first_failure=None
+          for stage,status in (
+            ('install_dependencies',install_status),
+            ('sync_precise_registry_write',write_status),
+            ('sync_precise_registry_check',check_status),
+            ('inspect_completion_path_ref',path_status),
+          ):
+            if status!=0:
+              first_failure={'stage':stage,'exit_status':status,'secrets_included':False}
+              break
+          if first_failure is None and changed!=['http-generic-api/openapi.yaml']:
+            first_failure={'stage':'enforce_runner_write_set','changed_files':changed,'secrets_included':False}
+          if first_failure is None and os.environ['PATH_REF']!=expected:
+            first_failure={'stage':'enforce_expected_path_ref','observed':os.environ['PATH_REF'],'expected':expected,'secrets_included':False}
+
           report={
             'contract':'mad4b.openapi-completion-metadata-root-diagnostic.v1',
             'outcome':'passed' if passed else 'blocked',
             'candidate_sha':os.environ.get('GITHUB_SHA'),
+            'install_status':install_status,
             'write_status':write_status,
             'check_status':check_status,
+            'path_status':path_status,
             'changed_files':changed,
             'observed_path_ref':os.environ['PATH_REF'],
             'expected_path_ref':expected,
+            'first_failure':first_failure,
             'structured_failure':structured,
+            'install_output':bounded('install.stdout'),
+            'install_error':bounded('install.stderr'),
             'write_output':bounded('write.stdout'),
             'write_error':bounded('write.stderr'),
+            'check_output':bounded('check.stdout'),
+            'check_error':bounded('check.stderr'),
+            'path_error':bounded('path.stderr'),
             'repository_mutation_performed':False,
             'runner_worktree_modified':write_status==0,
             'job_logs_consulted':False,
