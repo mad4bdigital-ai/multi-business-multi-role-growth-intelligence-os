@@ -17174,8 +17174,6 @@ paths:
                       will_deploy: { type: boolean, enum: [false] }
                       will_publish: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
-  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
-    $ref: './openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion'
   /platform/orchestration/support-ticket/snapshot-record:
     post:
       x-openai-isConsequential: true
@@ -22310,6 +22308,8 @@ paths:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalDeliveryApproval
   /admin/support/tickets/{ticket_id}/external-delivery/approval/request:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/requestAdminSupportTicketExternalDeliveryApproval
+  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion
   /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalCredentialBinding
   /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request:

@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 613
-- Operations: 643
+- Paths: 614
+- Operations: 566
 - Top-level tags: 36
 
 ## Virtual Admin Tool Contract Notes
@@ -20,8 +20,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
-- `admin`: 78
-- `platform-plugins`: 53
+- `platform-plugins`: 52
 - `connected-systems`: 51
 - `platform-intelligence`: 36
 - `resource-api`: 34
@@ -31,15 +30,16 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `security`: 22
 - `connector-proxy`: 18
 - `identity`: 18
-- `tenants`: 17
 - `observability`: 16
 - `growth-dashboard`: 15
 - `platform-agent-governance`: 15
+- `tenants`: 15
 - `local-manager`: 14
 - `planner`: 14
 - `logic`: 12
 - `platform-evolution`: 12
 - `admin-internal`: 11
+- `developer-api`: 11
 
 ## Generated / Scoped OpenAPI Schemas
 
@@ -66,8 +66,14 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
+- `.github/workflows/e2e-contract-reference-integrity.yml`
 - `.github/workflows/e2e-phase-governance.yml`
+- `.github/workflows/frontend-parity-refresh-dispatch.yml`
+- `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
+- `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
+- `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
 - `.github/workflows/governed-generated-artifact-refresh.yml`
 - `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
 - `.github/workflows/governed-local-connector-production-closure-push.yml`
@@ -77,6 +83,45 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
+- `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
+- `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
+- `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
+- `.github/workflows/hostinger-storage-cleanup-guard.yml`
+- `.github/workflows/hostinger-storage-control-plane-guard.yml`
+- `.github/workflows/hostinger-storage-crash-safe-restart-reconciliation-guard.yml`
+- `.github/workflows/hostinger-storage-dedicated-worker-certification-guard.yml`
+- `.github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-lifecycle-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-schema-promotion-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-state-guard.yml`
+- `.github/workflows/hostinger-storage-durable-mount-authorization-registry-guard.yml`
+- `.github/workflows/hostinger-storage-durable-registry-commit-identity-blocker-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-authority-store-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-enablement-registry-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-repository-facade-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-runtime-bridge-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-final-work-map-readback-guard.yml`
+- `.github/workflows/hostinger-storage-fixed-dispatch-certification-guard.yml`
+- `.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-migration-drafts-guard.yml`
+- `.github/workflows/hostinger-storage-parent-aware-async-execution-engine-guard.yml`
+- `.github/workflows/hostinger-storage-production-preflight-guard.yml`
+- `.github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml`
+- `.github/workflows/hostinger-storage-schema-classification-guard.yml`
+- `.github/workflows/hostinger-storage-schema-verification-guard.yml`
+- `.github/workflows/hostinger-storage-separate-mount-authorization-guard.yml`
+- `.github/workflows/hostinger-storage-shared-canary-guard.yml`
+- `.github/workflows/hostinger-storage-sql-child-evidence-writer-guard.yml`
+- `.github/workflows/hostinger-storage-sql-control-plane-guard.yml`
+- `.github/workflows/hostinger-storage-sql-parent-writer-guard.yml`
+- `.github/workflows/hostinger-storage-synthetic-executor-guard.yml`
+- `.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml`
+- `.github/workflows/hostinger-storage-tenant-runtime-guard.yml`
+- `.github/workflows/hostinger-storage-tenant-safe-durable-projection-guard.yml`
+- `.github/workflows/hostinger-storage-toolchain-guard.yml`
+- `.github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
@@ -88,14 +133,19 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate-contract.yml`
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
-- `.github/workflows/protected-promotion-generated-artifact-refresh.yml`
+- `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
+- `.github/workflows/runtime-startup-deployment-evidence.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
+- `.github/workflows/spec014-main-79cbbc63-reconciliation-launcher.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
+- `.github/workflows/sprint69-1043-apply.yml`
+- `.github/workflows/sprint69-1043-repository-readiness.yml`
+- `.github/workflows/sprint69-1043-runtime-readiness.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-auto-remediation-closure.yml`
@@ -118,10 +168,12 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/repo-maintenance-sync.mjs`
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
+- `http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs`
 - `http-generic-api/scripts/surface-contract-auto-remediator.mjs`
 - `http-generic-api/scripts/surface-contract-discovery.mjs`
 - `http-generic-api/scripts/surface-contract-gap-triage.mjs`
 - `http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs`
+- `http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 
@@ -139,11 +191,18 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
 - `http-generic-api/test-growth-control-openapi-auth-contracts.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs`
+- `http-generic-api/test-hostinger-storage-root-openapi-parity.mjs`
+- `http-generic-api/test-hostinger-storage-schema-verification.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`
 - `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
+- `http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs`
+- `http-generic-api/test-openapi-precise-legacy-registry-transition.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-schema-output-paths.mjs`
@@ -173,6 +232,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-schema-split-importer-v2-reference-preservation.mjs`
+- `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
+- `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
+- `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
+- `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`

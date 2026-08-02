@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-runtime-parity-evidence",
+  "title": "Live Hostinger Production runtime parity evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-runtime-parity-evidence.json",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+      "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
+      "http-generic-api/config/deployment-branch-policy.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a workflow-dispatch-only verifier that binds the single Hostinger Production runtime auth.mad4b.com to exact protected Production DNS, TLS, HTTP, service, branch, and deployed-commit identity without conflating the independent Cloudflare local connector or planned local staging runtime.",
+      "e2e_journeys": [
+        {
+          "id": "validate-production-runtime-parity-verifier",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and pull-request reviewer",
+          "entrypoint": "Production Runtime Parity Evidence pull-request contract job",
+          "terminal_outcome": "Synthetic DNS, TLS, HTTP, and runtime-identity regressions plus deployment-policy assertions prove the trusted live workflow evaluates only auth.mad4b.com as Hostinger Production, rejects mismatched identity, persists bounded secret-free evidence, and leaves connector.mad4b.com and dev.mad4b.com to their separately governed runtime paths.",
+          "steps": [
+            "Load the deployment branch policy and require auth.mad4b.com as the Hostinger Production hostname sourced from protected Production.",
+            "Require connector.mad4b.com to remain a non-Hostinger Cloudflare Tunnel recovery surface and dev.mad4b.com to remain non-Production local staging.",
+            "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only and dispatches fail when GITHUB_REF is not refs/heads/main.",
+            "Prove trusted exact main-event checkout, full Production-ref availability, and expected_sha equality with refs/remotes/origin/Production.",
+            "Generate live evidence with exactly one required endpoint named auth and reject any workflow-level connector or dev endpoint input.",
+            "Exercise exact auth parity, required deployed-SHA drift, and untrusted identity fields while proving raw or malformed identity values are not persisted.",
+            "Reject loopback, private, link-local, documentation, multicast, invalid, and over-cardinality DNS results before TLS or HTTP execution.",
+            "Inspect bounded DNS and full-response HTTP timeout enforcement, exercise TLS failure, and verify secret redaction.",
+            "Emit a bounded secret-free component result without performing a live request in pull-request context."
+          ],
+          "assertions": [
+            "The synthetic runtime report contract is mad4b.production-runtime-parity-evidence.v1.",
+            "The workflow has no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
+            "Live probing runs only for workflow_dispatch; the contract job fails unless GITHUB_REF is refs/heads/main.",
+            "The workflow uses contents: read and checkout persist-credentials=false.",
+            "The live job checks out exact github.sha from a main-ref dispatch with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
+            "The workflow accepts only auth_url and invokes the reporter with exactly auth=https://auth.mad4b.com/version as the sole required runtime endpoint.",
+            "The workflow contains no connector_url, dev_url, require_dev, connector endpoint, or dev endpoint.",
+            "The deployment policy identifies connector.mad4b.com as Cloudflare Tunnel recovery with Hostinger Auto Deploy disabled.",
+            "The deployment policy identifies dev.mad4b.com as planned local staging with Hostinger Auto Deploy and Production traffic disabled.",
+            "DNS fails closed on loopback, private, link-local, multicast, documentation, invalid, or more than 16 returned addresses, and accepted public addresses are hashed before persistence.",
+            "The checked implementation applies bounded timeout enforcement to DNS, TLS, and the complete HTTP response body.",
+            "HTTP redirects are not followed, application/json is required, and response bodies are bounded before parsing.",
+            "The raw response body, unknown JSON fields, malformed identity values, and error details are never written to the artifact.",
+            "The required auth endpoint passes only when service equals http_generic_api_connector, deployed_commit_sha equals the exact requested SHA, and deployment branch equals Production.",
+            "Workflow enforcement requires exactly one auth endpoint, auth.required=true, auth.status=passed, first_failure=null, and tooling_sha equal to the exact trusted main event SHA.",
+            "The report declares secrets_included=false and all mutation/effect flags false."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-parity-auth-topology",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-production-runtime-parity-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+            "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Execute trusted-main live Hostinger Production readback for the exact current protected Production SHA, attach the run-bound artifact to issues 4948 and 4953, and keep connector recovery evidence in issue 4957."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded retry policy, certificate-expiry thresholds, multi-address parity, and canonical incident publication without weakening first-failure reporting."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the exact verifier against a separately authorized non-production Hostinger canary before future protected promotions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require a successful run-bound auth.mad4b.com parity artifact after every Production promotion before declaring Hostinger deployment complete."
+    }
+  ],
+  "secrets_included": false
+}

@@ -7,7 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
-      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json"
@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Restore an observable exact-head path to the registered generated-artifact writer through a strictly read-only pull-request request artifact and a separately trusted workflow-run dispatcher, without candidate checkout, pull-request write authority, direct contents mutation, protected-branch mutation, or secrets.",
+      "objective": "Maintain an observable exact-head path to the registered generated-artifact writer through the re-registered V2 workflow path, a strictly read-only pull-request request artifact, and a separately trusted workflow-run dispatcher, without candidate checkout, pull-request write authority, direct contents mutation, protected-branch mutation, or secrets.",
       "e2e_journeys": [
         {
           "id": "evaluate-read-only-request-then-dispatch-writer",
@@ -30,7 +30,7 @@
           "entrypoint": "A synchronize event on an open ready-for-review same-repository PR targeting main and carrying the generated-artifact-refresh label, or an explicit exact-head manual request",
           "terminal_outcome": "The pull-request stage emits a read-only exact-head request artifact; the independent workflow-run dispatcher downloads that exact run-bound artifact, revalidates the current PR, dispatches the registered writer with typed confirmation, observes the exact delegated run ID, and directly publishes canonical structured evidence.",
           "steps": [
-            "Run Governed Generated Artifact Refresh PR Target Request from protected default-branch workflow code on pull_request_target synchronize or explicit workflow_dispatch.",
+            "Run Governed Generated Artifact Refresh PR Target Request from the re-registered bridge-v2 workflow path and protected default-branch workflow code on pull_request_target synchronize or explicit workflow_dispatch.",
             "Ignore github-actions[bot] synchronization so a generated writer commit cannot recursively request another writer run.",
             "Perform no repository checkout and grant only contents:read and pull-requests:read to the request workflow.",
             "Read the current pull request through the GitHub API and require open non-draft state, same-repository head, base main, governed work-branch syntax, exact current head SHA, and generated-artifact-refresh label.",
@@ -43,9 +43,10 @@
             "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
             "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
             "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
-            "Run the focused bridge contract through this E2E journey; canonical test-manifest registration is intentionally deferred until the restored writer can update the dependent generated evidence in a follow-up governed change."
+            "Run the focused bridge contract through this E2E journey."
           ],
           "assertions": [
+            "The retired governed-generated-artifact-refresh-pr-target-bridge.yml path is absent and bridge-v2 is the sole request workflow path.",
             "The pull-request request workflow has no actions:write, issues:write, contents:write, write-all, API mutation, checkout, git push, or secret access.",
             "The pull-request request workflow emits structured evidence only and does not publish comments or dispatch workflows.",
             "The write-capable dispatcher has workflow_run and workflow_dispatch entrypoints but no pull_request, pull_request_target, push, or issue_comment trigger.",
@@ -56,7 +57,6 @@
             "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
-            "The focused test is executed by E2E governance even though generated manifest registration is excluded from this bootstrap PR.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
             "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
           ],
@@ -70,7 +70,7 @@
             }
           ],
           "evidence_paths": [
-            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
             ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
           ]
@@ -80,7 +80,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one synchronization of PR #4742 produce an eligible request artifact, a canonical dispatcher decision, an exact delegated writer run ID, and a bounded generated commit."
+      "objective": "Observe one labeled human synchronization produce an eligible request artifact, a canonical dispatcher decision, an exact delegated writer run ID, and a bounded generated commit."
     },
     {
       "id": "resilient",
