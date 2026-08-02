@@ -89,6 +89,40 @@ FROM expected_runtime_indexes e
 LEFT JOIN information_schema.statistics s
   ON s.table_schema = DATABASE() AND s.table_name = e.table_name AND s.index_name = e.index_name AND s.seq_in_index = e.seq_in_index;
 
+WITH expected_authorized_injection_constraints AS (
+  SELECT table_name, constraint_name, constraint_type FROM JSON_TABLE(
+    '[
+      {"t":"storage_authorized_injection_states","n":"PRIMARY","y":"PRIMARY KEY"},
+      {"t":"storage_authorized_injection_states","n":"uq_storage_authorized_injection_receipt","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_states","n":"uq_storage_authorized_injection_readback","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_digests","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_version","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_active","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_no_secrets","y":"CHECK"},
+      {"t":"storage_authorized_injection_rollbacks","n":"PRIMARY","y":"PRIMARY KEY"},
+      {"t":"storage_authorized_injection_rollbacks","n":"uq_storage_authorized_injection_rollback_once","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_rollbacks","n":"uq_storage_authorized_injection_rollback_digest","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_rollbacks","n":"fk_storage_authorized_injection_rollback_state","y":"FOREIGN KEY"},
+      {"t":"storage_authorized_injection_rollbacks","n":"chk_storage_authorized_injection_rollback_digests","y":"CHECK"},
+      {"t":"storage_authorized_injection_rollbacks","n":"chk_storage_authorized_injection_rollback_no_secrets","y":"CHECK"}
+    ]',
+    '$[*]' COLUMNS(table_name VARCHAR(128) PATH '$.t', constraint_name VARCHAR(128) PATH '$.n', constraint_type VARCHAR(32) PATH '$.y')
+  ) AS j
+)
+SELECT
+  COUNT(*) AS expected_authorized_injection_state_constraint_count,
+  SUM(tc.constraint_name IS NOT NULL AND tc.constraint_type = e.constraint_type) AS authorized_injection_state_constraint_count,
+  CASE WHEN SUM(tc.constraint_name IS NOT NULL AND tc.constraint_type = e.constraint_type) = COUNT(*) THEN 'ready_exact_contract' ELSE 'blocked' END AS authorized_injection_state_schema_status,
+  'hostinger_storage_durable_authorized_injection_state_schema_v1' AS authorized_injection_state_schema_contract_key,
+  '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a' AS authorized_injection_state_schema_contract_digest,
+  JSON_ARRAY('storage_authorized_injection_states','storage_authorized_injection_rollbacks') AS authorized_injection_state_tables,
+  0 AS secrets_included
+FROM expected_authorized_injection_constraints e
+LEFT JOIN information_schema.table_constraints tc
+  ON tc.constraint_schema = DATABASE()
+ AND tc.table_name = e.table_name
+ AND tc.constraint_name = e.constraint_name;
+
 SELECT table_name, constraint_type, COUNT(*) AS constraint_count
 FROM information_schema.table_constraints
 WHERE table_schema = DATABASE() AND table_name LIKE 'storage\\_%'
@@ -115,7 +149,7 @@ ORDER BY tool_key;
 
 SELECT
   'spec014_hostinger_storage_migration_readback_v4' AS contract_key,
-  'candidate_only_unsigned' AS schema_verification_status,
+  'candidate_only_unsigned_v2' AS schema_verification_status,
   0 AS production_ready,
   0 AS provider_calls,
   0 AS credential_payload_reads,
