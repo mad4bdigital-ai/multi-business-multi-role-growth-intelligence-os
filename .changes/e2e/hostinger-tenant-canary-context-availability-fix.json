@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "hostinger-tenant-canary-context-availability-fix",
-  "title": "Valid GitHub Actions context usage for Hostinger Tenant Canary registration",
+  "title": "Valid GitHub Actions context and bootstrap boundary for Hostinger Tenant Canary",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -19,32 +19,35 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove an unavailable runner context from jobs.<job_id>.env so GitHub can register and schedule the canonical Tenant Canary workflow while preserving exact-head evidence and the read-only authority boundary.",
+      "objective": "Remove an unavailable runner context from jobs.<job_id>.env and prevent the main-only workflow bootstrap from invoking an Integration-owned runner that is not present in the bootstrap candidate.",
       "e2e_journeys": [
         {
-          "id": "register-tenant-canary-with-valid-context-availability",
+          "id": "register-tenant-canary-with-valid-context-and-bootstrap-boundary",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "GitHub Actions workflow parser and repository reviewer",
           "entrypoint": "The canonical Tenant Canary workflow and bootstrap regression",
-          "terminal_outcome": "The workflow contains only contexts allowed at job-env evaluation time, retains its candidate-owned runner and run-bound Artifact contract, and remains connected to the trusted publisher.",
+          "terminal_outcome": "GitHub can register the workflow, workflow-only bootstrap changes do not self-trigger an unavailable candidate runner, and qualifying Tenant Canary evidence/runtime changes still execute the exact-head canonical producer.",
           "steps": [
             "Detect that runner.temp was referenced from jobs.tenant-canary.env before a runner exists.",
             "Replace that expression with a stable repository-relative evidence directory.",
+            "Remove the workflow file itself from the Tenant Canary path filter so a main-only registration repair does not execute an Integration-owned runner that is absent from the candidate.",
+            "Retain the canonical evidence manifest, runner, producer regression, Tenant Canary runtime, and provenance paths as qualifying triggers.",
             "Require the runner, Artifact upload, and canonical enforcement steps to consume the same REPORT_DIR value.",
-            "Extend bootstrap regression coverage to reject runner.temp in the workflow and require the valid report directory.",
-            "Revalidate workflow identity, exact-head checkout, bounded permissions, publisher route, and no-secret declarations."
+            "Extend bootstrap regression coverage to reject runner.temp and the workflow self-trigger while preserving exact-head, publisher, and no-secret contracts."
           ],
           "assertions": [
             "jobs.<job_id>.env contains no runner context reference.",
             "REPORT_DIR is stable and relative to the checked-out candidate workspace.",
-            "The workflow name, triggers, path filters, runner command, Artifact identity, and canonical report contract remain unchanged.",
+            "The workflow file is not a self-triggering path for a main-only bootstrap candidate.",
+            "Canonical evidence and Tenant Canary runner/runtime paths remain qualifying triggers.",
+            "The workflow name, event types, runner command, Artifact identity, and canonical report contract remain unchanged.",
             "The PR-head workflow retains contents:read only and persist-credentials:false.",
             "No runtime module, provider call, credential access, SQL, migration, deployment, Production action, or force push occurs."
           ],
           "tests": [
             {
-              "id": "hostinger-tenant-canary-context-availability-contract",
+              "id": "hostinger-tenant-canary-context-and-bootstrap-boundary-contract",
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
@@ -63,12 +66,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the first pull-request-triggered Tenant Canary run and trusted publication after the corrected workflow reaches main."
+      "objective": "Observe the first pull-request-triggered Tenant Canary run and trusted publication on a candidate that contains the canonical runner and its dependency closure."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject future unavailable-context regressions and preserve fail-closed handling for missing or malformed canonical evidence."
+      "objective": "Reject future unavailable-context or bootstrap-self-trigger regressions and preserve fail-closed handling for missing or malformed canonical evidence."
     },
     {
       "id": "canary",
