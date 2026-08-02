@@ -4,7 +4,7 @@
   "spec": "014-governed-hostinger-storage-orchestration",
   "capability": "canonical_durable_repository_facade",
   "capability_status": "implemented_unmounted",
-  "purpose": "Expose one async-only Tenant execution facade over the canonical verified SQL composition while sequencing plan-item parents, operation transition, exact plan consumption, and run-parent creation before child evidence writes.",
+  "purpose": "Expose one async-only Tenant execution facade over the canonical verified SQL composition while sequencing plan-item parents, operation transitions, exact plan consumption, run-parent lifecycle, and parent-aware child evidence writes.",
   "canonical_dependency": {
     "composition_key": "hostinger_storage_verified_sql_runtime_composition_v1",
     "composition_version": "spec014-hostinger-storage-verified-sql-runtime-composition-v1",
@@ -22,12 +22,13 @@
     "methods": [
       "readExecutionAggregate",
       "prepareExecution",
+      "advanceExecutionState",
       "appendJournalEvent",
       "appendReconciliation",
       "finalizeRun"
     ],
     "raw_composition_exposed": false,
-    "transition_operation_exposed": false,
+    "raw_transition_operation_exposed": false,
     "consume_plan_exposed": false,
     "legacy_record_reconciliation_exposed": false,
     "legacy_synthetic_executor_compatible": false
@@ -40,6 +41,19 @@
     "create_exact_run_parent",
     "read_back_executing_operation_and_exact_plan_consumption"
   ],
+  "governed_state_advancement": {
+    "fresh_read_before_transition": true,
+    "exact_expected_version_required": true,
+    "exact_expected_current_state_required": true,
+    "canonical_transition_policy_required": true,
+    "transition_readback_required": true,
+    "raw_repository_transition_exposed": false,
+    "allowed_executor_path": [
+      "executing_to_readback_pending",
+      "readback_pending_to_reconciling",
+      "reconciling_to_completed_blocked_or_unknown_outcome"
+    ]
+  },
   "binding_requirements": [
     "operation_id",
     "operation_version",
@@ -66,12 +80,12 @@
   "failure_and_replay": {
     "binding_mismatch_rejected_before_first_mutation": true,
     "operation_version_conflict_rejected_before_first_mutation": true,
+    "state_transition_policy_denial_rejected_before_mutation": true,
     "executing_same_run_replay_supported_after_fresh_read": true,
     "partial_attempt_requires_fresh_read_before_retry": true,
     "automatic_blind_retry_allowed": false
   },
   "remaining_bridge_capabilities": [
-    "parent_aware_async_execution_engine",
     "durable_authority_store",
     "durable_enablement_registry",
     "tenant_safe_durable_projection",
