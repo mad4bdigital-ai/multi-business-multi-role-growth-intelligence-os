@@ -1,0 +1,113 @@
+name: Spec014 SQL Run Reader Cardinality Repair
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - .github/workflows/spec014-sql-run-reader-cardinality-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-sql-run-reader-cardinality-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'gpt/014-fix-sql-run-reader-row-cardinality-20260802'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/014-fix-sql-run-reader-row-cardinality-20260802
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply deterministic run-reader cardinality proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('http-generic-api/hostingerStorageSqlRunReader.js')
+          test_path = Path('http-generic-api/test-hostinger-storage-sql-run-reader.mjs')
+          workflow_path = Path('.github/workflows/spec014-sql-run-reader-cardinality-repair.yml')
+
+          source = source_path.read_text(encoding='utf-8')
+          old = """      if ((rows || []).length > 1) {
+        throw fail(409, 'STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', { run_id: runId });
+      }
+      const run = rows?.[0] ? normalizeRun(rows[0]) : null;
+"""
+          new = """      const boundedRows = Array.isArray(rows) ? rows : [];
+      if (boundedRows.length > 1) {
+        throw fail(409, 'STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', { run_id: runId });
+      }
+      let run = null;
+      if (boundedRows.length === 1) {
+        const [row] = boundedRows;
+        run = normalizeRun(row);
+      }
+"""
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one reviewed run-reader block, found {source.count(old)}')
+          source_path.write_text(source.replace(old, new), encoding='utf-8')
+
+          test = test_path.read_text(encoding='utf-8')
+          import_anchor = "import assert from 'node:assert/strict';\n"
+          import_line = "import fs from 'node:fs';\n"
+          if import_line not in test:
+              if test.count(import_anchor) != 1:
+                  raise SystemExit('reviewed test import anchor not found exactly once')
+              test = test.replace(import_anchor, import_anchor + import_line)
+
+          assertion_anchor = "\nconsole.log(JSON.stringify({\n"
+          assertions = """
+const readerSource = fs.readFileSync(new URL('./hostingerStorageSqlRunReader.js', import.meta.url), 'utf8');
+assert.match(readerSource, /const boundedRows = Array\\.isArray\\(rows\\) \\? rows : \\[\\];/u);
+assert.match(readerSource, /if \\(boundedRows\\.length === 1\\) \\{\\s+const \\[row\\] = boundedRows;\\s+run = normalizeRun\\(row\\);/u);
+assert.doesNotMatch(readerSource, /rows\\?\\.\\[0\\]|rows\\[0\\]/u);
+
+"""
+          if 'const readerSource = fs.readFileSync' not in test:
+              if test.count(assertion_anchor) != 1:
+                  raise SystemExit('reviewed test assertion anchor not found exactly once')
+              test = test.replace(assertion_anchor, '\n' + assertions + 'console.log(JSON.stringify({\n')
+          test_path.write_text(test, encoding='utf-8')
+
+          workflow_path.unlink()
+          PY
+
+      - name: Validate bounded repair
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check hostingerStorageSqlRunReader.js
+          node test-hostinger-storage-sql-run-reader.mjs
+          node test-hostinger-storage-verified-sql-runtime-composition.mjs
+          node test-hostinger-storage-tenant-safe-durable-projection.mjs
+
+      - name: Commit exact repair and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(spec-014): prove SQL run reader row cardinality'
+          git push origin HEAD:gpt/014-fix-sql-run-reader-row-cardinality-20260802
