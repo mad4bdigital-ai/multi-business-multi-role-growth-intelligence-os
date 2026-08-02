@@ -25,7 +25,7 @@ const successfulTls = async () => ({
   subject_cn: "*.mad4b.com",
   issuer_cn: "Test CA"
 });
-const lookup = async () => [{ address: "203.0.113.10", family: 4 }];
+const lookup = async () => [{ address: "104.21.10.20", family: 4 }];
 
 try {
   const configuration = validateConfiguration({
@@ -52,6 +52,11 @@ try {
     expectedBranch: "Production",
     endpoints: [{ name: "bad", url: "https://example.com/version", required: true }]
   }), /mad4b\.com/u);
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [{ name: "bad", url: "https://auth.mad4b.com:8443/version", required: true }]
+  }), /port 443/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "production",
@@ -96,7 +101,7 @@ try {
   assert.equal(passed.report.endpoints[1].status, "passed");
   assert.equal(passed.report.endpoints[2].status, "optional_failed");
   assert.equal(passed.report.endpoints[0].dns.addresses[0].length, 64);
-  assert.notEqual(passed.report.endpoints[0].dns.addresses[0], "203.0.113.10");
+  assert.notEqual(passed.report.endpoints[0].dns.addresses[0], "104.21.10.20");
   assert.equal(passed.report.side_effects.repository_mutation_performed, false);
   assert.equal(passed.report.side_effects.sql_execution_performed, false);
   assert.equal(passed.report.secrets_included, false);
@@ -128,6 +133,22 @@ try {
   assert.doesNotMatch(JSON.stringify(failed.report), /must-not-be-persisted/u);
   assert.equal(failed.report.endpoints[1].http.body_sha256.length, 64);
 
+  const privateDnsFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [endpoint("auth")],
+    outputDir: path.join(root, "private-dns-failed"),
+    lookup: async () => [{ address: "127.0.0.1", family: 4 }],
+    tlsProbe: async () => {
+      throw new Error("TLS must not run for a forbidden DNS address");
+    },
+    fetchImpl: async () => {
+      throw new Error("HTTP must not run for a forbidden DNS address");
+    }
+  });
+  assert.equal(privateDnsFailed.report.outcome, "failed");
+  assert.equal(privateDnsFailed.report.first_failure.code, "dns_address_forbidden");
+
   const tlsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
@@ -152,7 +173,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 4,
+  tests: 5,
   gate: "production_runtime_parity_structured_evidence",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
