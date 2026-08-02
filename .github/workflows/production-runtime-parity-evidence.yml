@@ -1,0 +1,182 @@
+name: Production Runtime Parity Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/production-runtime-parity-evidence.json'
+      - '.github/workflows/production-runtime-parity-evidence.yml'
+      - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
+      - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact 40-character Production deployment SHA
+        required: true
+        type: string
+      expected_branch:
+        description: Exact deployment branch reported by /version
+        required: true
+        default: Production
+        type: string
+      auth_url:
+        description: Auth runtime /version endpoint
+        required: true
+        default: https://auth.mad4b.com/version
+        type: string
+      connector_url:
+        description: Connector runtime /version endpoint
+        required: true
+        default: https://connector.mad4b.com/version
+        type: string
+      dev_url:
+        description: Optional development or additional runtime /version endpoint
+        required: true
+        default: https://dev.mad4b.com/version
+        type: string
+      require_dev:
+        description: Fail when the dev/additional endpoint does not pass
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-runtime-parity-evidence-${{ github.event.pull_request.number || inputs.expected_sha || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Structured Evidence Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate production runtime parity reporter
+        working-directory: http-generic-api
+        run: node scripts/test-production-runtime-parity-evidence.mjs
+
+  live:
+    name: Live Production Runtime Parity
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate immutable dispatch identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+
+      - name: Generate structured live parity evidence
+        id: parity
+        continue-on-error: true
+        shell: bash
+        working-directory: http-generic-api
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          AUTH_URL: ${{ inputs.auth_url }}
+          CONNECTOR_URL: ${{ inputs.connector_url }}
+          DEV_URL: ${{ inputs.dev_url }}
+          REQUIRE_DEV: ${{ inputs.require_dev }}
+          PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
+        run: |
+          set -euo pipefail
+          args=(
+            --expected-sha "${EXPECTED_SHA}"
+            --expected-branch "${EXPECTED_BRANCH}"
+            --endpoint "auth=${AUTH_URL}"
+            --endpoint "connector=${CONNECTOR_URL}"
+            --output-dir "${PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR}"
+          )
+          if [[ "${REQUIRE_DEV}" == "true" ]]; then
+            args+=(--endpoint "dev=${DEV_URL}")
+          else
+            args+=(--optional-endpoint "dev=${DEV_URL}")
+          fi
+          node scripts/production-runtime-parity-evidence.mjs "${args[@]}"
+
+      - name: Upload structured live parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-parity-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-runtime-parity-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured live parity decision
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: ${{ runner.temp }}/production-runtime-parity-evidence/production-runtime-parity-evidence.json
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) {
+              console.error(JSON.stringify({ ok: false, error: "production_runtime_parity_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const effects = report.side_effects || {};
+            const valid =
+              report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
+              report.identity?.expected_sha === process.env.EXPECTED_SHA &&
+              report.identity?.expected_branch === "Production" &&
+              report.secrets_included === false &&
+              report.routing?.consult_job_logs === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.credential_access_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.external_send_performed === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                first_failure: report.first_failure || { code: "invalid_structured_report" },
+                consult_job_logs: false,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              outcome: report.outcome,
+              expected_sha: report.identity.expected_sha,
+              passed_endpoints: report.endpoints.filter((endpoint) => endpoint.status === "passed").map((endpoint) => endpoint.name),
+              secrets_included: false
+            }));
+          '
