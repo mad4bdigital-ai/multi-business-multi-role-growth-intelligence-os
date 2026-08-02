@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Reject changed implemented contracts with missing evidence and reject file deletion or rename when any unchanged implemented contract still references the retired path.",
+      "objective": "Reject changed implemented contracts with missing or non-regular evidence, reject evidence deletion or rename when any unchanged implemented contract still references the retired path, and reject deleting or renaming an E2E contract without an explicit reviewed retirement path.",
       "e2e_journeys": [
         {
           "id": "ratchet-e2e-contract-reference-integrity",
@@ -28,16 +28,20 @@
           "level": "synthetic_runtime",
           "actor": "pull-request governance evaluator",
           "entrypoint": "Exact-head changed-file diff and repository E2E contract index",
-          "terminal_outcome": "New contract drift and deleted evidence references fail on the originating pull request, while a separately dispatched full audit can enumerate historical drift without widening mutation authority.",
+          "terminal_outcome": "New contract drift, deleted or renamed contract identities, deleted evidence references, symbolic-link evidence, and non-file evidence fail on the originating pull request, while a separately dispatched full audit can enumerate historical drift without widening mutation authority.",
           "steps": [
             "Build the exact changed-file and rename/deletion set from base...head.",
             "Index Spec and non-Spec E2E contracts and their implemented journey evidence paths.",
+            "Reject deleted or renamed E2E contract identities unless a separately reviewed retirement mechanism is introduced.",
             "Validate every changed contract and every unchanged contract affected by a deleted or renamed evidence path.",
-            "Emit a canonical secret-free report and fail closed on invalid, missing, or deleted evidence references."
+            "Resolve evidence with lstat semantics and reject missing, symbolic-link, directory, device, or other non-regular-file targets.",
+            "Emit a canonical secret-free report and fail closed on invalid, missing, deleted, renamed, symbolic-link, or non-regular evidence references."
           ],
           "assertions": [
             "A changed `.changes/e2e` or Spec contract cannot bypass evidence validation.",
+            "Deleting or renaming an E2E contract fails closed and requires an explicit separately reviewed retirement path.",
             "Deleting or renaming evidence is rejected when any implemented contract still references the old path.",
+            "Every implemented evidence path must resolve inside the repository to a regular file and must not be a symbolic link.",
             "Unrelated historical drift is not silently expanded into a pull-request blocker; workflow dispatch provides the explicit full-audit mode.",
             "The workflow uses exact pull-request head checkout, read-only contents permission, persisted credentials disabled, and a bounded artifact.",
             "No database, provider, credential, deployment, external-send, Production, force-push, or protected-branch authority is granted."
@@ -68,7 +72,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Add an explicit reviewed baseline and bounded cleanup workflow if the full repository audit identifies historical debt outside active changes."
+      "objective": "Add an explicit reviewed contract-retirement protocol and bounded cleanup workflow if the full repository audit identifies historical debt outside active changes."
     },
     {
       "id": "canary",
