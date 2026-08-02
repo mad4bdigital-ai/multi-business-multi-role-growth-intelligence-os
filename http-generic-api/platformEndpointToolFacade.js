@@ -41,8 +41,12 @@ function mergePropertySchemas(schemas = []) {
         .map((schema) => schema?.properties?.[name])
         .filter((value) => value !== undefined),
     );
-    if (variants.length === 1) properties[name] = variants[0];
-    else if (variants.length > 1) properties[name] = { anyOf: variants };
+    if (variants.length === 1) {
+      const [variant] = variants;
+      properties[name] = variant;
+    } else if (variants.length > 1) {
+      properties[name] = { anyOf: variants };
+    }
   }
   return properties;
 }
@@ -77,12 +81,12 @@ function buildMultiBindingSchema(rows, normalizeInputSchema) {
   return {
     type: "object",
     properties: {
+      ...mergePropertySchemas(normalizedSchemas),
       endpoint_key: {
         type: "string",
         enum: endpointKeys,
         description: "Select the active endpoint binding exposed through this public system tool.",
       },
-      ...mergePropertySchemas(normalizedSchemas),
     },
     required: ["endpoint_key"],
     additionalProperties: normalizedSchemas.some((schema) => schema?.additionalProperties !== false),
@@ -102,9 +106,18 @@ export function buildPlatformEndpointToolDescriptors(
   }
 
   return [...groups.entries()].map(([toolName, bindings]) => {
+    if (bindings.length < 1) {
+      throw createSelectionError(
+        500,
+        "platform_endpoint_tool_descriptor_binding_missing",
+        "A public platform endpoint tool descriptor cannot be built without an active binding.",
+        { tool_name: toolName },
+      );
+    }
+
+    const [first] = bindings;
     const endpointKeys = allowedEndpointKeys(bindings);
     const multiBinding = bindings.length > 1;
-    const first = bindings[0];
     const inputSchema = multiBinding
       ? buildMultiBindingSchema(bindings, normalizeInputSchema)
       : normalizeInputSchema(first.input_schema_json);
@@ -136,12 +149,42 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
   const candidates = stableRows(rows);
   if (!candidates.length) return null;
 
-  const toolName = normalizedText(name) || normalizedText(candidates[0].tool_name);
+  const candidateToolNames = [
+    ...new Set(candidates.map((row) => normalizedText(row.tool_name)).filter(Boolean)),
+  ];
+  if (candidateToolNames.length !== 1) {
+    throw createSelectionError(
+      409,
+      "platform_endpoint_tool_name_ambiguous",
+      "The candidate bindings do not resolve to exactly one public platform endpoint tool name.",
+      {
+        requested_tool_name: normalizedText(name) || null,
+        candidate_tool_names: candidateToolNames,
+        candidate_count: candidates.length,
+      },
+    );
+  }
+
+  const [candidateToolName] = candidateToolNames;
+  const requestedToolName = normalizedText(name);
+  if (requestedToolName && requestedToolName !== candidateToolName) {
+    throw createSelectionError(
+      409,
+      "platform_endpoint_tool_name_mismatch",
+      "The requested public tool name does not match the candidate endpoint bindings.",
+      {
+        requested_tool_name: requestedToolName,
+        candidate_tool_name: candidateToolName,
+      },
+    );
+  }
+
+  const toolName = requestedToolName || candidateToolName;
   const endpointKeys = allowedEndpointKeys(candidates);
   const requestedEndpointKey = normalizedText(args?.endpoint_key);
 
   if (candidates.length === 1) {
-    const row = candidates[0];
+    const [row] = candidates;
     if (requestedEndpointKey && requestedEndpointKey !== normalizedText(row.endpoint_key)) {
       throw createSelectionError(
         400,
@@ -199,5 +242,6 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
     );
   }
 
-  return selected[0];
+  const [row] = selected;
+  return row;
 }
