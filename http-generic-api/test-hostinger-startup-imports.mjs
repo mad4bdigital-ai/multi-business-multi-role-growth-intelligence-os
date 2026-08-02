@@ -3,9 +3,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
+import runtimeAuthSecretBootstrap from "../runtime-auth-secret-bootstrap.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const {
+  bootstrapRuntimeAuthSecrets,
+  deriveBackendBoundJwtSecret,
+} = runtimeAuthSecretBootstrap;
 
 function checkSyntax(relativePath) {
   const absolutePath = join(__dirname, relativePath);
@@ -28,6 +33,7 @@ async function importModule(relativePath) {
 const syntaxOnlyFiles = [
   "../server.js",
   "../hostinger-entrypoint-runtime.js",
+  "../runtime-auth-secret-bootstrap.js",
   "server.js",
   "routes/activationRoutes.js",
   "routes/gptSessionRoutes.js",
@@ -133,6 +139,43 @@ assert.equal(
   /const\s+startupPromise\s*=\s*startApplication\s*\(/.test(rootRuntimeSource),
   false,
   "Hostinger runtime helper imports must not launch the real server"
+);
+assert(
+  rootRuntimeSource.includes("bootstrapRuntimeAuthSecrets(env)"),
+  "Hostinger startup must bootstrap the shared Admin/Tenant JWT secret contract"
+);
+assert(
+  rootRuntimeSource.indexOf("bootstrapRuntimeAuthSecrets(env)") < rootRuntimeSource.indexOf("return importer("),
+  "JWT secret bootstrap must run before importing any route module"
+);
+
+{
+  const env = { BACKEND_API_KEY: "hostinger-startup-backend-key", NODE_ENV: "production" };
+  const result = bootstrapRuntimeAuthSecrets(env);
+  assert.equal(result.configured, true);
+  assert.equal(result.source, "BACKEND_API_KEY_DERIVED");
+  assert.equal(result.derived, true);
+  assert.equal(result.secrets_included, false);
+  assert.equal(env.JWT_SECRET, deriveBackendBoundJwtSecret(env.BACKEND_API_KEY));
+  assert.equal(Object.hasOwn(result, "secret"), false, "bootstrap evidence must never expose secret material");
+}
+
+{
+  const env = {
+    USER_JWT_SECRET: "hostinger-user-jwt-alias",
+    BACKEND_API_KEY: "hostinger-startup-backend-key",
+  };
+  const result = bootstrapRuntimeAuthSecrets(env);
+  assert.equal(result.source, "USER_JWT_SECRET");
+  assert.equal(result.derived, false);
+  assert.equal(env.JWT_SECRET, env.USER_JWT_SECRET);
+}
+
+const nestedPackage = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
+assert.equal(
+  nestedPackage.scripts?.start,
+  "node ../server.js",
+  "nested npm start must route through the canonical pre-import auth bootstrap"
 );
 
 const modelReadinessMigration = readFileSync(
