@@ -1,0 +1,131 @@
+name: Spec014 Main Reconciliation Diagnostic 14c4fa99
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-main-reconciliation-diagnostic-14c4fa99.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: spec014-main-reconciliation-diagnostic-14c4fa99
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/diagnose-spec014-main-14c4fa99-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MAIN_SHA: 14c4fa99aec49ea9f97fe853e0d4d036e23bdc30
+      INTEGRATION_SHA: 96615b4bfed19e56239a6422d37e5d587ec4b573
+      DIAGNOSTIC_BRANCH: gpt/diagnose-spec014-main-14c4fa99-20260802
+    steps:
+      - name: Checkout exact diagnostic branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DIAGNOSTIC_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build structured reconciliation diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/spec014-main-reconciliation-diagnostic"
+          mkdir -p "${evidence_dir}"
+
+          diagnostic_head="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "${INTEGRATION_SHA}" "${diagnostic_head}"
+          git fetch --no-tags origin "${MAIN_SHA}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          set +e
+          git merge --no-commit --no-ff "${MAIN_SHA}"
+          merge_status=$?
+          set -e
+
+          git diff --name-only --diff-filter=U | sort -u > "${evidence_dir}/conflicts.txt"
+          git diff --cached --name-only | sort -u > "${evidence_dir}/staged.txt"
+          git diff --name-only | sort -u > "${evidence_dir}/unstaged.txt"
+          git status --porcelain=v1 > "${evidence_dir}/status.txt"
+
+          MERGE_STATUS="${merge_status}" \
+          DIAGNOSTIC_HEAD="${diagnostic_head}" \
+          EVIDENCE_DIR="${evidence_dir}" \
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['EVIDENCE_DIR'])
+
+          def lines(name):
+              path = root / name
+              if not path.exists():
+                  return []
+              return [line.strip() for line in path.read_text().splitlines() if line.strip()]
+
+          conflicts = lines('conflicts.txt')
+          staged = lines('staged.txt')
+          unstaged = lines('unstaged.txt')
+          status_lines = lines('status.txt')
+
+          generated_paths = {
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml',
+              'http-generic-api/openapi.yaml',
+          }
+          openapi_paths = {p for p in conflicts if p.startswith('http-generic-api/openapi') or p == 'http-generic-api/openapi-route-contracts.yaml'}
+          workflow_paths = {p for p in conflicts if p.startswith('.github/workflows/')}
+
+          report = {
+              'contract': 'mad4b.spec014-main-reconciliation-diagnostic.v1',
+              'integration_sha': os.environ['INTEGRATION_SHA'],
+              'main_sha': os.environ['MAIN_SHA'],
+              'diagnostic_head_sha': os.environ['DIAGNOSTIC_HEAD'],
+              'merge_status': int(os.environ['MERGE_STATUS']),
+              'clean_merge': int(os.environ['MERGE_STATUS']) == 0 and not conflicts,
+              'conflict_count': len(conflicts),
+              'conflict_paths': conflicts,
+              'generated_conflict_paths': [p for p in conflicts if p in generated_paths],
+              'openapi_conflict_paths': sorted(openapi_paths),
+              'workflow_conflict_paths': sorted(workflow_paths),
+              'other_conflict_paths': [p for p in conflicts if p not in generated_paths | openapi_paths | workflow_paths],
+              'staged_path_count': len(staged),
+              'staged_paths': staged,
+              'unstaged_path_count': len(unstaged),
+              'unstaged_paths': unstaged,
+              'status_entry_count': len(status_lines),
+              'repository_write_performed': False,
+              'job_logs_consulted': False,
+              'provider_dispatch': False,
+              'credential_access': False,
+              'secrets_included': False,
+          }
+          (root / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+          git merge --abort >/dev/null 2>&1 || true
+
+      - name: Upload structured reconciliation diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-main-reconciliation-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-main-reconciliation-diagnostic/summary.json
+          if-no-files-found: error
+          retention-days: 14
