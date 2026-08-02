@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_BRANCH: gpt/014-fix-post-reconciliation-repository-governance-20260802
-      EXPECTED_HEAD_SHA: 22caafb3faf60765aff09242e5aa86fba4a8c9b3
+      EXPECTED_PARENT_SHA: bbf69a1d3fd78d7a9d1e3ca224d5ddb659142474
       TARGET_FILE: http-generic-api/test-frontend-surface-dispatch.mjs
       LAUNCHER_FILE: .github/workflows/spec014-patch-frontend-surface-test.yml
       EVIDENCE_DIR: .ci-evidence/spec014-patch-frontend-surface-test
@@ -55,7 +55,7 @@ jobs:
           report = {
             'contract': 'mad4b.spec014-frontend-surface-contract-patch.v1',
             'outcome': 'blocked',
-            'expected_head_sha': os.environ['EXPECTED_HEAD_SHA'],
+            'expected_parent_sha': os.environ['EXPECTED_PARENT_SHA'],
             'target_branch': os.environ['TARGET_BRANCH'],
             'target_file': os.environ['TARGET_FILE'],
             'failure': {
@@ -77,10 +77,10 @@ jobs:
 
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           local_sha="$(git rev-parse HEAD)"
-          [[ "${remote_sha}" == "${EXPECTED_HEAD_SHA}" ]]
-          [[ "${local_sha}" != "${EXPECTED_HEAD_SHA}" ]]
-          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_HEAD_SHA}" ]]
-          unexpected_launcher_paths="$(git diff --name-only "${EXPECTED_HEAD_SHA}" HEAD | grep -vxF "${LAUNCHER_FILE}" || true)"
+          parent_sha="$(git rev-parse HEAD^)"
+          [[ "${remote_sha}" == "${local_sha}" ]]
+          [[ "${parent_sha}" == "${EXPECTED_PARENT_SHA}" ]]
+          unexpected_launcher_paths="$(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD | grep -vxF "${LAUNCHER_FILE}" || true)"
           [[ -z "${unexpected_launcher_paths}" ]]
 
           current_stage='replace_legacy_contract'
@@ -192,7 +192,7 @@ jobs:
           report = {
             'contract': 'mad4b.spec014-frontend-surface-contract-patch.v1',
             'outcome': 'passed',
-            'expected_head_sha': os.environ['EXPECTED_HEAD_SHA'],
+            'expected_parent_sha': os.environ['EXPECTED_PARENT_SHA'],
             'result_sha': os.environ['RESULT_SHA'],
             'target_branch': os.environ['TARGET_BRANCH'],
             'target_file': os.environ['TARGET_FILE'],
