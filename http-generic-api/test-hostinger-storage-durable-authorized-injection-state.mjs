@@ -19,6 +19,20 @@ const stable = (value) => Array.isArray(value)
       : Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])));
 const digest = (value) => createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 const clone = (value) => structuredClone(value);
+const containsRuntimeMaterial = (value, active = new WeakSet()) => {
+  if (typeof value === 'function') return true;
+  if (!value || typeof value !== 'object') return false;
+  if (active.has(value)) return false;
+  active.add(value);
+  try {
+    return Reflect.ownKeys(value).some((key) => {
+      if (key === 'tenantStorageRuntime') return true;
+      return containsRuntimeMaterial(value[key], active);
+    });
+  } finally {
+    active.delete(value);
+  }
+};
 const SOURCE = h('1');
 const DATABASE = h('d');
 const NOW = 1_786_000_200;
@@ -202,7 +216,7 @@ assert.equal(registered.created, true);
 assert.equal(registered.replay, false);
 assert.equal(registered.state.active, true);
 assert.equal(registered.state.runtime_material_persisted, false);
-assert.equal(JSON.stringify(registered.state).includes('tenantStorageRuntime'), false);
+assert.equal(containsRuntimeMaterial(registered.state), false);
 
 const replay = await registry.registerVerifiedInjection({
   injection_receipt: receipt,
@@ -221,6 +235,7 @@ const persisted = await restartedRegistry.readVerifiedInjection(INJECTION_ID);
 assert.equal(persisted.injection_receipt_digest, receipt.injection_receipt_digest);
 assert.equal(persisted.mount_readback_digest, readback.mount_readback_digest);
 assert.equal(persisted.active, true);
+assert.equal(containsRuntimeMaterial(persisted), false);
 
 const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
 const resumed = resumedCoordinator.resumeAuthorizedInjection({
@@ -267,6 +282,8 @@ const finalRollback = await registry.readRollback(INJECTION_ID);
 assert.equal(finalState.active, false);
 assert.equal(finalState.rollback_receipt_digest, rollbackReceipt.rollback_receipt_digest);
 assert.equal(finalRollback.fail_closed_route_restored, true);
+assert.equal(containsRuntimeMaterial(finalState), false);
+assert.equal(containsRuntimeMaterial(finalRollback), false);
 
 await assert.rejects(
   registry.registerVerifiedInjection({
