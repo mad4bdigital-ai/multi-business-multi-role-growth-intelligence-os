@@ -30,6 +30,17 @@ assert.match(
   /if \(boundedRows\.length === 0\) return null;[\s\S]*const \[row\] = boundedRows;/u,
   'loadRecord must prove zero or one row before destructuring',
 );
+const recordNormalizeIndex = loadRecordSource.indexOf('const boundedRows = Array.isArray(rows) ? rows : [];');
+const recordAmbiguityIndex = loadRecordSource.indexOf('if (boundedRows.length > 1)');
+const recordEmptyIndex = loadRecordSource.indexOf('if (boundedRows.length === 0) return null;');
+const recordSelectionIndex = loadRecordSource.indexOf('const [row] = boundedRows;');
+assert.ok(
+  recordNormalizeIndex >= 0
+    && recordAmbiguityIndex > recordNormalizeIndex
+    && recordEmptyIndex > recordAmbiguityIndex
+    && recordSelectionIndex > recordEmptyIndex,
+  'loadRecord must normalize, reject ambiguity, prove empty, then select the sole row in order',
+);
 assert.doesNotMatch(loadRecordSource, directIndexPattern, 'loadRecord must not use direct candidate indexing');
 
 assert.match(
@@ -46,6 +57,17 @@ assert.match(
   loadConsumptionSource,
   /if \(boundedConsumptionRows\.length === 0\) return null;[\s\S]*const \[row\] = boundedConsumptionRows;/u,
   'loadConsumption must prove zero or one row before destructuring',
+);
+const consumptionNormalizeIndex = loadConsumptionSource.indexOf('const boundedConsumptionRows = Array.isArray(rows) ? rows : [];');
+const consumptionAmbiguityIndex = loadConsumptionSource.indexOf('if (boundedConsumptionRows.length > 1)');
+const consumptionEmptyIndex = loadConsumptionSource.indexOf('if (boundedConsumptionRows.length === 0) return null;');
+const consumptionSelectionIndex = loadConsumptionSource.indexOf('const [row] = boundedConsumptionRows;');
+assert.ok(
+  consumptionNormalizeIndex >= 0
+    && consumptionAmbiguityIndex > consumptionNormalizeIndex
+    && consumptionEmptyIndex > consumptionAmbiguityIndex
+    && consumptionSelectionIndex > consumptionEmptyIndex,
+  'loadConsumption must normalize, reject ambiguity, prove empty, then select the sole row in order',
 );
 assert.doesNotMatch(loadConsumptionSource, directIndexPattern, 'loadConsumption must not use direct candidate indexing');
 
