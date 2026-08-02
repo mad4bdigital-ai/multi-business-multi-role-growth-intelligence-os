@@ -9,7 +9,6 @@ on:
       - '.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json'
-      - '.github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json'
       - '.github/workflows/hostinger-storage-schema-verification-guard.yml'
       - 'http-generic-api/hostingerStorageSchemaVerification.js'
       - 'http-generic-api/test-hostinger-storage-schema-verification.mjs'
@@ -49,33 +48,35 @@ jobs:
           set -euo pipefail
           readback='.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
           contract='.github/contracts/spec014/hostinger-storage-schema-verification.json'
-          refresh='.github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json'
           grep -q 'spec014-hostinger-storage-schema-verification-v2' \
             "$contract" \
             .github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json \
-            "$refresh" \
+            .github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'STORAGE_SCHEMA_VERIFICATION_ATTESTATION_VERSION_INVALID' \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'hostinger_storage_durable_authorized_injection_state_schema_v1' \
-            "$contract" "$readback" "$refresh" \
+            "$contract" "$readback" \
+            .github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a' \
-            "$contract" "$readback" "$refresh" \
+            "$contract" "$readback" \
+            .github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json \
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'expected_authorized_injection_state_constraint_count' "$readback"
           grep -q 'authorized_injection_state_schema' http-generic-api/hostingerStorageSchemaVerification.js
           grep -q '17 AS expected_table_count' "$readback"
-          grep -q '"created_at","d":"datetime"' "$readback"
-          grep -q '"updated_at","d":"datetime"' "$readback"
+          test "$(grep -o '"created_at","d":"datetime"' "$readback" | wc -l)" -eq 2
+          test "$(grep -o '"updated_at","d":"datetime"' "$readback" | wc -l)" -eq 1
           grep -q 'compatible_runtime_column_count: 71' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'compatible_runtime_index_column_count: 31' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'authorized_injection_state_constraint_count: 13' http-generic-api/test-hostinger-storage-schema-verification.mjs
-          grep -q 'v1_attestation_replay_rejected: true' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'v1_signature_replay_rejected: true' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'durable_registry_binding_ready: true' http-generic-api/test-hostinger-storage-schema-verification.mjs
       - name: Preserve T027, registry, and public-key-only non-live boundary
         shell: bash
         run: |
@@ -86,7 +87,6 @@ jobs:
           ! printf '%s\n' "$changed_files" | grep -Fx '.github/contracts/spec014/migrations/readback.sql'
           ! printf '%s\n' "$changed_files" | grep -Fx '.github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs'
           ! printf '%s\n' "$changed_files" | grep -Fx '.github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json'
-          ! printf '%s\n' "$changed_files" | grep -Fx '.changes/e2e/spec014-signed-schema-v2-registry-binding.json'
           ! printf '%s\n' "$changed_files" | grep -E '(^|/)(db\.js|server\.js)$'
           ! git diff "$base" "$head" -- \
             http-generic-api/hostingerStorageSchemaVerification.js \
@@ -96,6 +96,7 @@ jobs:
             http-generic-api/hostingerStorageSchemaVerification.js \
             http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'signature_created_in_live_environment: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
           grep -q 'private_key_committed: false' http-generic-api/test-hostinger-storage-schema-verification.mjs
