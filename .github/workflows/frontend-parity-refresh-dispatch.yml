@@ -26,8 +26,8 @@ jobs:
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
       SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
       EVENT_SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      REPORT_DIR: ${{ runner.temp }}/frontend-parity-refresh-dispatch
-      SOURCE_DIR: ${{ runner.temp }}/frontend-dispatch-source-evidence
+      REPORT_DIR: .ci-evidence/frontend-parity-refresh-dispatch
+      SOURCE_DIR: .ci-evidence/frontend-dispatch-source-evidence
     steps:
       - name: Download exact source structured evidence
         id: download
