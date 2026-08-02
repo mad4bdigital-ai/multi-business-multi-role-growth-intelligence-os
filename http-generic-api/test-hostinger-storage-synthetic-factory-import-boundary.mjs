@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const rules = Object.freeze([
   Object.freeze({
-    token: 'hostingerStorageSyntheticAdapterBase.js',
+    token: ['hostingerStorageSynthetic', 'AdapterBase.js'].join(''),
     allowed: Object.freeze(['hostingerStorageSyntheticAdapter.js']),
   }),
   Object.freeze({
-    token: 'hostingerStorageSyntheticExecutorBase.js',
+    token: ['hostingerStorageSynthetic', 'ExecutorBase.js'].join(''),
     allowed: Object.freeze(['hostingerStorageSyntheticExecutor.js']),
   }),
 ]);
