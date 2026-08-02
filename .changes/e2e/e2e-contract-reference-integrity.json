@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "e2e-contract-reference-integrity",
+  "title": "Fail-closed E2E contract reference integrity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/e2e-contract-reference-integrity.json",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      "http-generic-api/scripts/e2e-contract-reference-integrity.mjs",
+      "http-generic-api/scripts/e2e-contract-git-index-integrity.mjs",
+      "http-generic-api/test-e2e-contract-reference-integrity.mjs",
+      "http-generic-api/test-e2e-contract-git-index-integrity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject changed implemented contracts with missing, untracked, non-regular, or path-escaping evidence; reject evidence deletion or rename when any unchanged implemented contract still references the retired path; and reject deleting or renaming an E2E contract without an explicit reviewed retirement path.",
+      "e2e_journeys": [
+        {
+          "id": "ratchet-e2e-contract-reference-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "pull-request governance evaluator",
+          "entrypoint": "Exact-head changed-file diff, repository E2E contract index, filesystem path chain, and Git stage-zero index",
+          "terminal_outcome": "New contract drift, deleted or renamed contract identities, deleted evidence references, symlink components, realpath escapes, untracked files, non-stage-zero Git objects, and non-regular files fail on the originating pull request, while a separately dispatched full audit can enumerate historical drift without widening mutation authority.",
+          "steps": [
+            "Build the exact changed-file and rename/deletion set from base...head.",
+            "Index Spec and non-Spec E2E contracts and their implemented journey evidence paths.",
+            "Reject deleted or renamed E2E contract identities unless a separately reviewed retirement mechanism is introduced.",
+            "Validate every changed contract and every unchanged contract affected by a deleted or renamed evidence path.",
+            "Resolve every path component with lstat and realpath semantics, rejecting symlink components and repository-root escapes.",
+            "Require each targeted contract and evidence path to be tracked at Git stage zero with regular blob mode 100644 or 100755.",
+            "Emit one canonical secret-free report and fail closed on invalid, missing, deleted, renamed, untracked, symbolic-link, escaping, or non-regular references."
+          ],
+          "assertions": [
+            "A changed `.changes/e2e` or Spec contract cannot bypass evidence validation.",
+            "Deleting or renaming an E2E contract fails closed and requires an explicit separately reviewed retirement path.",
+            "Deleting or renaming evidence is rejected when any implemented contract still references the old path.",
+            "Every targeted contract and implemented evidence path must remain lexically and physically inside the repository, with no symbolic-link component.",
+            "Every targeted path must be tracked at Git stage zero as a regular 100644 or 100755 blob; untracked files and mode 120000 links are rejected.",
+            "Unrelated historical drift is not silently expanded into a pull-request blocker; workflow dispatch provides the explicit full-audit mode.",
+            "The workflow uses exact pull-request head checkout, read-only contents permission, persisted credentials disabled, and a bounded artifact.",
+            "No database, provider, credential, deployment, external-send, Production, force-push, or protected-branch authority is granted."
+          ],
+          "tests": [
+            {
+              "id": "e2e-contract-reference-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-e2e-contract-reference-integrity.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-contract-git-index-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-e2e-contract-git-index-integrity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/e2e-contract-reference-integrity.json",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            "http-generic-api/scripts/e2e-contract-reference-integrity.mjs",
+            "http-generic-api/scripts/e2e-contract-git-index-integrity.mjs",
+            "http-generic-api/test-e2e-contract-reference-integrity.mjs",
+            "http-generic-api/test-e2e-contract-git-index-integrity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish trusted pull-request summaries and make the integrity workflow a required protected-branch status after observation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add an explicit reviewed contract-retirement protocol and bounded cleanup workflow if the full repository audit identifies historical debt outside active changes."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The guard operates entirely on repository contracts and has no external canary target."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The guard does not deploy, apply migrations, call providers, or mutate Production."
+    }
+  ]
+}

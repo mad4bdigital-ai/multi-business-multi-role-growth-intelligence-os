@@ -1,16 +1,29 @@
 # Requirements Checklist
 
 - [x] Every managed run has explicit tenant, user, parent ticket, capability, resource, effect, and idempotency scope.
+- [x] Authenticated non-admin tenant/user identity cannot be overridden by request-body identifiers.
+- [x] Managed reads, steps, status changes, and recovery operations enforce the authenticated tenant/requester scope.
 - [x] Capability and resource grants are resolved from existing runtime authorities.
 - [x] Authority snapshots are immutable and fingerprinted.
-- [x] Approval policy is derived from effect and access policy.
-- [x] Approval decisions verify the authenticated principal meets or exceeds `required_role`.
-- [x] Revoked or drifted authority blocks step creation.
-- [x] Repeated step requests reuse one step.
+- [x] Approval policy is derived from effect/access policy.
+- [x] Approval decisions require platform admin authority or active same-tenant membership with the required role, an explicitly higher role, or tenant owner/admin authority.
+- [x] Revoked or drifted authority blocks step creation and executable recovery work.
+- [x] Repeated step and recovery requests reuse existing evidence or compensation work.
 - [x] Generic orchestration routes cannot bypass managed enforcement.
-- [x] Secret-bearing fields and recognizable secret values are rejected.
-- [x] Migration 1043 is additive and remains unapplied in this PR.
+- [x] Preserved legacy workflow routes remain discoverable through an explicit non-runtime source bridge in the directly mounted builder.
+- [x] Secret-bearing payload fields and recognizable secret values are rejected.
+- [x] Migration is additive and remains unapplied in implementation PRs.
+- [x] Failed-step retries are bounded to three total attempts and require no conflicting active work.
+- [x] Reassignment requires active same-tenant membership.
+- [x] Escalation creates or safely reuses an explicit supervisor approval hold.
+- [x] Cancellation synchronizes active steps, open holds, run, binding, ticket, and event state atomically.
+- [x] Rollback requires an idempotent managed compensation step and explicit completed-step finalization.
+- [x] Tenant projection excludes execution context, authority snapshots, raw payloads, raw idempotency keys, and unfiltered evidence.
+- [x] Admin projection exposes safe linked-state, authority, hold, step, intervention, contradiction, and reconciliation summaries.
+- [x] Structural and ambiguous contradictions block automatic reconciliation.
+- [x] Repairable status drift produces deterministic SHA-256-bound actions.
+- [x] Reconciliation Apply requires platform-admin authority and exact plan confirmation.
+- [x] Reconciliation is transactional, evidence-bearing, and fails closed on non-empty post-write contradiction readback.
 - [ ] Migration ledger and readiness evidence recorded.
 - [ ] Production exact-SHA and protected-user-path verification recorded.
-- [ ] Cancellation, rollback, reassignment, and bounded retry completed.
 - [ ] Final tenant-safe report and post-merge audit completed.
