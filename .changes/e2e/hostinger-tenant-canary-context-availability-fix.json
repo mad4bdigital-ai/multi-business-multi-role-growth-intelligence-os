@@ -34,7 +34,7 @@
             "Remove the workflow file itself from the Tenant Canary path filter so a main-only registration repair does not execute an Integration-owned runner that is absent from the candidate.",
             "Retain the canonical evidence manifest, runner, producer regression, Tenant Canary runtime, and provenance paths as qualifying triggers.",
             "Require the runner, Artifact upload, and canonical enforcement steps to consume the same REPORT_DIR value.",
-            "Extend bootstrap regression coverage to reject runner.temp and the workflow self-trigger while preserving exact-head, publisher, and no-secret contracts."
+            "Extend bootstrap regression coverage to reject runner.temp and the workflow self-trigger while preserving exact-head, generic publisher routing, and no-secret contracts."
           ],
           "assertions": [
             "jobs.<job_id>.env contains no runner context reference.",
@@ -43,6 +43,7 @@
             "Canonical evidence and Tenant Canary runner/runtime paths remain qualifying triggers.",
             "The workflow name, event types, runner command, Artifact identity, and canonical report contract remain unchanged.",
             "The PR-head workflow retains contents:read only and persist-credentials:false.",
+            "Canonical Tenant Canary publication uses the current generic CI evidence publisher and repository routing registry; the retired Hostinger-specific publisher is not required.",
             "No runtime module, provider call, credential access, SQL, migration, deployment, Production action, or force push occurs."
           ],
           "tests": [
@@ -57,7 +58,7 @@
           "evidence_paths": [
             ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
             ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
-            ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/ci-evidence-routing.json"
           ]
         }
@@ -71,7 +72,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject future unavailable-context or bootstrap-self-trigger regressions and preserve fail-closed handling for missing or malformed canonical evidence."
+      "objective": "Reject future unavailable-context, bootstrap-self-trigger, or retired-publisher regressions and preserve fail-closed handling for missing or malformed canonical evidence."
     },
     {
       "id": "canary",
