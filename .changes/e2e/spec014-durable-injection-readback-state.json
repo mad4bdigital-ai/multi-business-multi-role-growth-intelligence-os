@@ -1,0 +1,135 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-injection-readback-state",
+  "title": "Durable authorized injection Receipt, Readback, recovery snapshot, and rollback state",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-injection-readback-state.json",
+      ".github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json",
+      ".github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql",
+      ".github/workflows/hostinger-storage-durable-injection-readback-state-guard.yml",
+      "http-generic-api/hostingerStorageDurableInjectionReadbackState.js",
+      "http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist one canonical injection Receipt and verified Mount Readback as data-only durable state with immutable lifecycle evidence and same-transaction readback, without persisting the runtime object or granting live authority.",
+      "e2e_journeys": [
+        {
+          "id": "persist-verified-injection-and-reconstruct-coordinator",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "durable Spec 014 injection-state repository",
+          "entrypoint": "A canonical Injection Receipt and Mount Readback produced from the authorized mount bundle",
+          "terminal_outcome": "The repository commits one active generation-1 state and immutable readback_verified event, returns a data-only recovery snapshot, and a fresh coordinator reconstructs the identical Mount Readback without a second authorization consumption.",
+          "steps": [
+            "Verify both SHA-256 evidence records independently and reject runtime objects, secrets, accessors, unsafe fields, and extra operation fields.",
+            "Require exact parity for injection ID, generation, bundle, snapshot, runtime SHA, source commit, database fingerprint, schema evidence, readback cycle, and Receipt digest.",
+            "Acquire the bounded advisory lock and lock the injection state row for update.",
+            "Insert generation-1 active state and one immutable readback_verified event in the same transaction.",
+            "Read both records back before commit and reject any digest, row-version, event, or cardinality mismatch.",
+            "Allow exact replay but reject the same injection ID when rebound to different valid evidence.",
+            "Return a recovery snapshot containing only serialized Receipt/Readback data and no tenantStorageRuntime object.",
+            "Use the recovery snapshot with the canonical Authorized Mount Bundle to reproduce the identical readback digest and verified route dependencies."
+          ],
+          "assertions": [
+            "The durable state has status readback_verified, active=true, generation=1, row_version=1, and resume_allowed=true.",
+            "Exactly one readback_verified event exists at state generation 1.",
+            "Runtime object persistence is false and serialized durable JSON contains no tenantStorageRuntime field.",
+            "Exact replay returns replay=true without an additional event.",
+            "Conflicting valid replay is rejected and the transaction rolls back.",
+            "Restart reconstruction produces the original Mount Readback digest without consuming authorization again.",
+            "No Route, Server, live database, migration, provider, deployment, main, or Production authority is exercised."
+          ],
+          "tests": [
+            {
+              "id": "durable-injection-readback-state-lifecycle",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json",
+            ".github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql",
+            "http-generic-api/hostingerStorageDurableInjectionReadbackState.js",
+            "http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bind this repository to a separately verified and migrated live schema through the canonical runtime composition after explicit authorization."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Apply exact generation and row-version CAS for rollback, preserve immutable two-event history, and make rolled-back recovery snapshots fail closed.",
+      "e2e_journeys": [
+        {
+          "id": "rollback-durable-injection-with-cas-and-disable-resume",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "durable rollback and restart reconciliation controller",
+          "entrypoint": "The exact active injection state and canonical Rollback Receipt",
+          "terminal_outcome": "Generation advances from 1 to 2, state becomes rolled_back and inactive, one immutable rollback event is appended, exact replay is allowed, conflicting replay is rejected, and no recovery evidence is exposed for runtime resume.",
+          "steps": [
+            "Verify the Rollback Receipt digest and fail-closed boundary independently.",
+            "Bind rollback to the active injection, Receipt, Readback, bundle, and rollback-plan digests.",
+            "Require expected generation 1 and exact current row version 1.",
+            "Apply one CAS update and append the rolled_back event inside the same transaction.",
+            "Read state and both ordered lifecycle events back before commit.",
+            "Allow exact rollback replay without a third event and reject different rollback evidence.",
+            "Recreate the repository from the same Pool and verify the rolled-back state remains digest-identical.",
+            "Return resume_allowed=false with null Receipt and Readback evidence after rollback."
+          ],
+          "assertions": [
+            "Rolled-back state has generation=2, row_version=2, active=false, status=rolled_back, and resume_allowed=false.",
+            "The immutable event sequence is readback_verified at generation 1 then rolled_back at generation 2.",
+            "Wrong expected row version is rejected before mutation.",
+            "Ambiguous durable state rows are rejected.",
+            "After restart, the same state digest is read and runtime resume evidence remains unavailable.",
+            "Provider dispatch, production readiness, automatic retry, live database access, migration apply, and secrets remain false."
+          ],
+          "tests": [
+            {
+              "id": "durable-injection-rollback-cas-and-restart",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableInjectionReadbackState.js",
+            "http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs",
+            ".github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production durable persistence and rollback cycle after exact schema verification."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Contract-local DDL and repository tests grant no migration, provider, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
