@@ -32,6 +32,19 @@ function deepClone(value) {
   return structuredClone(value);
 }
 
+function containsRuntimeObject(value, active = new WeakSet()) {
+  if (typeof value === 'function') return true;
+  if (!value || typeof value !== 'object') return false;
+  if (active.has(value)) return true;
+  active.add(value);
+  try {
+    if (Object.hasOwn(value, 'tenantStorageRuntime')) return true;
+    return Object.values(value).some((child) => containsRuntimeObject(child, active));
+  } finally {
+    active.delete(value);
+  }
+}
+
 class FakePool {
   constructor() {
     this.states = new Map();
@@ -256,7 +269,7 @@ assert.equal(persisted.state.status, 'readback_verified');
 assert.equal(persisted.state.active, true);
 assert.equal(persisted.state.resume_allowed, true);
 assert.equal(persisted.state.runtime_object_persisted, false);
-assert.equal(JSON.stringify(persisted.state).includes('tenantStorageRuntime'), false);
+assert.equal(containsRuntimeObject(persisted.state), false);
 assert.equal(pool.commits, 1);
 assert.equal(pool.rollbacks, 0);
 
@@ -279,6 +292,7 @@ const recovery = await repository.readRecoverySnapshot(evidence.receipt.injectio
 assert.equal(recovery.active, true);
 assert.equal(recovery.resume_allowed, true);
 assert.equal(recovery.runtime_object_persisted, false);
+assert.equal(containsRuntimeObject(recovery), false);
 assert.equal(recovery.injection_receipt_digest, evidence.receipt.injection_receipt_digest);
 assert.equal(recovery.mount_readback_digest, evidence.readback.mount_readback_digest);
 
@@ -355,6 +369,7 @@ assert.equal(recoveryAfterRollback.resume_allowed, false);
 assert.equal(recoveryAfterRollback.injection_receipt, null);
 assert.equal(recoveryAfterRollback.mount_readback, null);
 assert.equal(recoveryAfterRollback.rollback_receipt_digest, rollbackReceipt.rollback_receipt_digest);
+assert.equal(containsRuntimeObject(recoveryAfterRollback), false);
 
 const eventsAfterRollback = await repository.readEvents(evidence.receipt.injection_id);
 assert.equal(eventsAfterRollback.length, 2);
@@ -428,6 +443,8 @@ console.log(JSON.stringify({
   conflicting_replay_rejected: true,
   generation_and_row_version_cas: true,
   restart_readback: true,
+  dependency_key_metadata_allowed: true,
+  runtime_object_property_absence_verified_recursively: true,
   runtime_object_persisted: false,
   route_files_modified: false,
   server_files_modified: false,
