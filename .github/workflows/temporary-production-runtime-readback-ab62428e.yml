@@ -1,0 +1,86 @@
+name: Temporary Production Runtime Readback ab62428e
+
+on:
+  pull_request:
+    branches:
+      - gpt/production-runtime-readback-base-ab62428e-20260802
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout diagnostic head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Generate bounded public runtime evidence
+        id: parity
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
+        run: |
+          node scripts/production-runtime-parity-evidence.mjs \
+            --expected-sha ab62428e9f401119fc03a57981ecf627b337eddd \
+            --expected-branch Production \
+            --endpoint auth=https://auth.mad4b.com/version \
+            --output-dir "${REPORT_DIR}"
+
+      - name: Upload bounded public runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-parity-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-runtime-parity-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce exact deployed identity
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: ${{ runner.temp }}/production-runtime-parity-evidence/production-runtime-parity-evidence.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            const auth = Array.isArray(report.endpoints)
+              ? report.endpoints.find((endpoint) => endpoint.name === "auth")
+              : null;
+            const valid =
+              report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
+              report.identity?.expected_sha === "ab62428e9f401119fc03a57981ecf627b337eddd" &&
+              report.identity?.expected_branch === "Production" &&
+              report.outcome === "passed" &&
+              auth?.required === true &&
+              auth?.status === "passed" &&
+              report.first_failure === null &&
+              report.secrets_included === false;
+            if (!valid) {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome,
+                first_failure: report.first_failure,
+                auth_status: auth?.status || null,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              expected_sha: report.identity.expected_sha,
+              auth_status: auth.status,
+              secrets_included: false
+            }));
+          '
