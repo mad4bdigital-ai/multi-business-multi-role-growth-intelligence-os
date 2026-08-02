@@ -30,7 +30,7 @@ jobs:
     env:
       CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      REPORT_DIR: ${{ runner.temp }}/hostinger-storage-tenant-canary-evidence
+      REPORT_DIR: .ci-evidence/hostinger-storage-tenant-canary
     steps:
       - name: Validate exact candidate identity
         shell: bash
