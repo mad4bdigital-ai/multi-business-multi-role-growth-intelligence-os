@@ -1,0 +1,133 @@
+name: CI Evidence PR Publisher
+
+on:
+  workflow_run:
+    workflows:
+      - E2E Phase Governance
+      - Branch Test Diagnostic Shards
+      - Context Kernel Hardcoding Report
+      - PR Generated Artifact Refresh
+      - Protected Promotion Generated Artifact Refresh
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ci-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.head_sha != null &&
+      (github.event.workflow_run.event == 'pull_request' ||
+       (github.event.workflow_run.event == 'workflow_dispatch' &&
+        github.event.workflow_run.name == 'PR Generated Artifact Refresh'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download E2E canonical report
+        if: github.event.workflow_run.name == 'E2E Phase Governance'
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-phase-summary-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download branch diagnostic canonical report
+        if: github.event.workflow_run.name == 'Branch Test Diagnostic Shards'
+        uses: actions/download-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Context Kernel canonical report
+        if: github.event.workflow_run.name == 'Context Kernel Hardcoding Report'
+        uses: actions/download-artifact@v4
+        with:
+          name: context-kernel-hardcoding-summary-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download generated-artifact canonical report
+        if: >-
+          github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
+          github.event.workflow_run.name == 'Protected Promotion Generated Artifact Refresh'
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-generated-artifact-refresh-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Select canonical report file
+        id: report
+        shell: bash
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          case "$WORKFLOW_NAME" in
+            "E2E Phase Governance") report="${RUNNER_TEMP}/canonical/e2e-phase-summary.json" ;;
+            "Branch Test Diagnostic Shards") report="${RUNNER_TEMP}/canonical/diagnostic-summary.json" ;;
+            "Context Kernel Hardcoding Report") report="${RUNNER_TEMP}/canonical/context-kernel-hardcoding-summary.json" ;;
+            "PR Generated Artifact Refresh"|"Protected Promotion Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/pr-generated-artifact-refresh-summary.json" ;;
+            *) echo "Unsupported workflow: $WORKFLOW_NAME" >&2; exit 2 ;;
+          esac
+          test -f "$report"
+          echo "path=$report" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert authoritative PR evidence comment
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPORT_PATH: ${{ steps.report.outputs.path }}
+        run: |
+          set -euo pipefail
+          common_args=(
+            --repository "${GITHUB_REPOSITORY}"
+            --workflow-conclusion "${WORKFLOW_CONCLUSION}"
+            --report "${REPORT_PATH}"
+            --workflow-run-id "${WORKFLOW_RUN_ID}"
+            --source-head-sha "${SOURCE_HEAD_SHA}"
+          )
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            common_args+=(--pr-number "${PR_NUMBER}")
+          fi
+          if [[ -n "${HEAD_BRANCH:-}" ]]; then
+            common_args+=(--head-branch "${HEAD_BRANCH}")
+          fi
+          if [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" ]]; then
+            node http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs "${common_args[@]}"
+          else
+            node http-generic-api/scripts/ci-evidence-pr-comment.mjs --workflow "${WORKFLOW_NAME}" "${common_args[@]}"
+          fi
