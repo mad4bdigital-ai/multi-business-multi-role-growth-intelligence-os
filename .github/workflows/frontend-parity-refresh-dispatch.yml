@@ -114,14 +114,16 @@ jobs:
 
             const identityValid = source.contract === 'mad4b.frontend-dispatch-verification-evidence.v1'
               && source.identity?.workflow === 'Frontend surface dispatch'
-              && source.identity?.candidate_sha === process.env.EVENT_CANDIDATE_SHA
+              && source.identity?.candidate_kind === 'merge_candidate'
+              && fullSha.test(source.identity?.candidate_sha || '')
+              && sourceHeadSha === process.env.EVENT_CANDIDATE_SHA
               && fullSha.test(sourceHeadSha)
               && targetPattern.test(targetBranch)
               && source.identity?.base_ref === 'main'
               && source.routing?.consult_job_logs === false
               && source.secrets_included === false;
             if (!identityValid) {
-              fail('source_evidence_integrity_failure', 'Canonical identity, contract, routing, or no-secret assertions did not match the workflow_run event.');
+              fail('source_evidence_integrity_failure', 'Canonical identity, contract, candidate/source-head routing, or no-secret assertions did not match the workflow_run event.');
               persist();
               process.exit(1);
             }
