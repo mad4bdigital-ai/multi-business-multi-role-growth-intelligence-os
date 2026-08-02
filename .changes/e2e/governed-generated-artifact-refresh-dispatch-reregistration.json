@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-dispatch-reregistration",
+  "title": "Governed generated-artifact dispatcher workflow re-registration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-generated-artifact-refresh-dispatch-reregistration.json",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+      "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Re-register the trusted issue-comment dispatcher under a fresh GitHub Actions path without changing its workflow bytes, public workflow name, permissions, exact-head checks, delegated writer, or no-secret boundary.",
+      "e2e_journeys": [
+        {
+          "id": "reregister-generated-artifact-dispatcher",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository contract maintainer and GitHub Actions workflow registry",
+          "entrypoint": "Merge of a byte-equivalent dispatcher workflow move to the protected default branch",
+          "terminal_outcome": "GitHub receives a fresh workflow path for Governed Generated Artifact Refresh Dispatch while the stale path is absent and all trusted command, exact-head, writer-observation, publication, and fail-closed contracts remain enforced.",
+          "steps": [
+            "Create the new workflow path from the exact existing dispatcher content.",
+            "Remove the stale workflow path in the same reviewable branch without force push.",
+            "Update active workflow-path references in tests and E2E evidence contracts.",
+            "Run the dispatcher workflow contract and bounded publisher contract.",
+            "After merge, issue one trusted exact-head refresh command and require an observed delegated writer run ID."
+          ],
+          "assertions": [
+            "The workflow name remains Governed Generated Artifact Refresh Dispatch.",
+            "The retired workflow path is absent.",
+            "The new workflow remains issue_comment and workflow_dispatch only.",
+            "Permissions remain actions:write, contents:read, issues:write, and pull-requests:read, with no contents:write.",
+            "The dispatcher checks out trusted main without persisted credentials and never checks out candidate code.",
+            "The generated-artifact-refresh label, exact current PR head, trusted author association, and protected-branch rejection remain mandatory.",
+            "HTTP 204 alone is not accepted; passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "No generated file mutation, migration, deployment, Production mutation, provider call, credential access, external send, direct protected-branch write, or force push occurs in this re-registration PR."
+          ],
+          "tests": [
+            {
+              "id": "dispatcher-reregistration-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            },
+            {
+              "id": "dispatcher-reregistration-publisher-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the first trusted command on the re-registered default-branch workflow publish a delegated writer run ID and start the exact-head writer."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Continue to fail closed for stale heads, missing labels, untrusted authors, protected branches, inactive writer state, rejected dispatch, and an unobserved delegated run."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow registration repair performs no provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no migration, runtime, deployment, provider, credential, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

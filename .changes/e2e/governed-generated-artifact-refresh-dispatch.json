@@ -7,7 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
-      ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-dispatch.json"
     ]
@@ -65,7 +65,7 @@
             }
           ],
           "evidence_paths": [
-            ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
           ]
         }
