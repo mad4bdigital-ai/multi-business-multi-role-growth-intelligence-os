@@ -4,40 +4,61 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WORKFLOW = path.resolve(
+const REQUEST_WORKFLOW = path.resolve(
   HERE,
   "../.github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml",
 );
-const source = fs.readFileSync(WORKFLOW, "utf8");
+const DISPATCHER_WORKFLOW = path.resolve(
+  HERE,
+  "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml",
+);
+const request = fs.readFileSync(REQUEST_WORKFLOW, "utf8");
+const dispatcher = fs.readFileSync(DISPATCHER_WORKFLOW, "utf8");
 
-assert.match(source, /^name: Governed Generated Artifact Refresh PR Target V3$/m);
-assert.match(source, /^  pull_request_target:$/m);
-assert.match(source, /types: \[labeled, synchronize, ready_for_review, reopened\]/);
-assert.match(source, /^  actions: write$/m);
-assert.match(source, /^  contents: read$/m);
-assert.match(source, /^  pull-requests: read$/m);
-assert.doesNotMatch(source, /^  contents: write$/m);
-assert.doesNotMatch(source, /^  issues: write$/m);
+assert.match(request, /^name: Governed Generated Artifact Refresh PR Target Request V3$/m);
+assert.match(request, /^  pull_request_target:$/m);
+assert.match(request, /types: \[labeled, synchronize, ready_for_review, reopened\]/);
+assert.match(request, /^  workflow_dispatch:$/m);
+assert.match(request, /^  contents: read$/m);
+assert.match(request, /^  pull-requests: read$/m);
+assert.doesNotMatch(request, /^  actions: write$/m);
+assert.doesNotMatch(request, /^  contents: write$/m);
+assert.doesNotMatch(request, /^  issues: write$/m);
+assert.doesNotMatch(request, /actions\/checkout/);
+assert.doesNotMatch(request, /actions\/workflows\/.*\/dispatches/);
+assert.doesNotMatch(request, /git\s+push/);
+assert.match(request, /generated-artifact-refresh-request-v3-\$\{\{ github\.run_id \}\}/);
+assert.match(request, /workflow_dispatch_performed:false/);
+assert.match(request, /candidate_code_checkout:false/);
+assert.match(request, /repository_mutation_performed:false/);
 
-assert.match(source, /head\.repo\.full_name == github\.repository/);
-assert.match(source, /base\.ref == 'main'/);
-assert.match(source, /pull_request\.draft == false/);
-assert.match(source, /generated-artifact-refresh/);
-assert.match(source, /EXPECTED_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
-assert.match(source, /TARGET_REF: \$\{\{ github\.event\.pull_request\.head\.ref \}\}/);
-assert.match(source, /\^\(gpt\|cert\|fix\|feat\|chore\|docs\|release\)\//);
-
+assert.match(dispatcher, /^name: Governed Generated Artifact Refresh Request Dispatcher V3$/m);
+assert.match(dispatcher, /^  workflow_run:$/m);
+assert.match(dispatcher, /Governed Generated Artifact Refresh PR Target Request V3/);
+assert.match(dispatcher, /^  workflow_dispatch:$/m);
+assert.doesNotMatch(dispatcher, /^  pull_request:$/m);
+assert.doesNotMatch(dispatcher, /^  pull_request_target:$/m);
+assert.doesNotMatch(dispatcher, /^  issue_comment:$/m);
+assert.doesNotMatch(dispatcher, /^  push:$/m);
+assert.match(dispatcher, /^  actions: write$/m);
+assert.match(dispatcher, /^  contents: read$/m);
+assert.match(dispatcher, /^  pull-requests: read$/m);
+assert.doesNotMatch(dispatcher, /^  contents: write$/m);
+assert.doesNotMatch(dispatcher, /^  issues: write$/m);
+assert.doesNotMatch(dispatcher, /actions\/checkout/);
+assert.doesNotMatch(dispatcher, /git\s+push/);
+assert.match(dispatcher, /request_source_run_mismatch/);
+assert.match(dispatcher, /pull_request_head_mismatch/);
+assert.match(dispatcher, /generated_artifact_refresh_label_absent/);
+assert.match(dispatcher, /protected_branch_mutation_forbidden/);
 assert.match(
-  source,
+  dispatcher,
   /actions\/workflows\/governed-generated-artifact-refresh-dispatch-v2\.yml\/dispatches/,
 );
-assert.match(source, /event=workflow_dispatch&branch=main/);
-assert.match(source, /no V2 run was observed in the bounded window/);
+assert.doesNotMatch(dispatcher, /actions\/workflows\/governed-generated-artifact-refresh\.yml\/dispatches/);
+assert.match(dispatcher, /v2_workflow_run_not_observed/);
+assert.match(dispatcher, /v2_run_observed:true/);
+assert.match(dispatcher, /direct_repository_mutation:false/);
+assert.match(dispatcher, /secrets_included:false/);
 
-assert.doesNotMatch(source, /actions\/checkout/);
-assert.doesNotMatch(source, /governed-generated-artifact-refresh\.yml\/dispatches/);
-assert.doesNotMatch(source, /git\s+push/);
-assert.doesNotMatch(source, /pull-requests:\s*write/);
-assert.doesNotMatch(source, /github\.event\.pull_request\.head\.ref\s*\}\}\s*\n\s*fetch-depth/);
-
-console.log("governed generated-artifact PR-target V3 contract passed");
+console.log("governed generated-artifact PR-target V3 two-stage contract passed");
