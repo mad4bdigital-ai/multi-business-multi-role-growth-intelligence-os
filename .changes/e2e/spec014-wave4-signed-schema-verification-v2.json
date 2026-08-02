@@ -17,6 +17,7 @@
       ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
       ".github/workflows/hostinger-storage-schema-verification-guard.yml",
       ".github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml",
+      ".github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml",
       "http-generic-api/hostingerStorageSchemaVerification.js",
       "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
       "http-generic-api/test-hostinger-storage-schema-verification.mjs",
