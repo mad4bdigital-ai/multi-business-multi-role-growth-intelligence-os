@@ -329,10 +329,13 @@ async function loadCurrent(connection, authorityType, id, { forUpdate = false } 
     : 'storage_tenant_authority_approvals';
   const marker = authorityType === 'allowlist' ? 'load-allowlist' : 'load-approval';
   const [rows] = await execute(connection, `/* spec014:authority:${marker} */ SELECT record_digest, record_json, row_version FROM ${table} WHERE id=?${forUpdate ? ' FOR UPDATE' : ''}`, [id]);
-  if ((rows || []).length > 1) {
+  const boundedRows = Array.isArray(rows) ? rows : [];
+  if (boundedRows.length > 1) {
     throw fail(409, 'STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS', 'Authority identity resolved to multiple durable rows.', { authority_type: authorityType, authority_id: id });
   }
-  return rows?.[0] ? { record: parseRecord(rows[0], table), row_version: Number(rows[0].row_version) } : null;
+  if (boundedRows.length === 0) return null;
+  const [row] = boundedRows;
+  return { record: parseRecord(row, table), row_version: Number(row.row_version) };
 }
 
 async function loadToken(connection, authorityType, authorityId, tokenKind, tokenValue) {
