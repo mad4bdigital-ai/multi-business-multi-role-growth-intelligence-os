@@ -17,8 +17,9 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
     {
-      operation_id: "supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification",
+      operation_id: "issueSupportTicketExternalDeliveryCompletionCertification",
       auth_profile: "admin_backend",
+      path_item_ref: "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion",
     },
   ],
 ]);
@@ -99,6 +100,7 @@ function isKnownLegacyRegisteredOperation(operation, contract) {
   if (!transition) return false;
   const security = expectedSecurity(transition.auth_profile);
   return contract.route_file === SUPPORT_TICKET_ROUTE_FILE
+    && contract.path_item_ref === transition.path_item_ref
     && operation.operationId === transition.operation_id
     && typeof operation.summary === "string"
     && operation.summary.length > 0
