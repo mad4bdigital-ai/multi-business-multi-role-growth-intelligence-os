@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   readiness:
@@ -41,16 +40,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Record readiness start
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
-
       - name: Execute integrated readiness wave
         run: node .github/ops/response-chunk-ownership-governed-rollout.mjs
 
@@ -63,30 +52,22 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record readiness outcome
+      - name: Publish readiness summary
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          node <<'NODE' >"${RUNNER_TEMP}/readiness-comment.txt"
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
           const fs = require('node:fs');
           const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
           const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
-          let body;
           if (fs.existsSync(summaryPath)) {
             const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} migration_blob=${s.migration_blob_sha} checksum=${s.checksum} statement_count=${s.statement_count} authorization=${s.authorization || 'already_applied'} dry_run=${s.dry_run || 'already_applied'} artifact=response-chunk-ownership-readiness-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Response chunk ownership readiness: pass\n\n- Production SHA: \`${s.production_sha}\`\n- Migration blob: \`${s.migration_blob_sha}\`\n- Checksum: \`${s.checksum}\`\n- Statements: ${s.statement_count}\n- Authorization: ${s.authorization || 'already_applied'}\n- Dry run: ${s.dry_run || 'already_applied'}\n`);
           } else {
             const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_READINESS result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} apply_sent=${f.apply_sent || false} error_code=${f.error?.code || 'workflow_failed'} artifact=response-chunk-ownership-readiness-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Response chunk ownership readiness: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Apply sent: ${f.apply_sent || false}\n- Error code: ${f.error?.code || 'workflow_failed'}\n`);
           }
-          process.stdout.write(body);
           NODE
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="$(cat "${RUNNER_TEMP}/readiness-comment.txt")"
 
   apply:
     name: Apply and certify response chunk ownership
@@ -120,16 +101,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Record apply start
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
-
       - name: Execute integrated apply and certification wave
         run: node .github/ops/response-chunk-ownership-governed-rollout.mjs
 
@@ -142,30 +113,22 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record apply outcome
+      - name: Publish apply summary
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          node <<'NODE' >"${RUNNER_TEMP}/apply-comment.txt"
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
           const fs = require('node:fs');
           const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
           const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
-          let body;
           if (fs.existsSync(summaryPath)) {
             const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} migration_blob=${s.migration_blob_sha} checksum=${s.checksum} statement_count=${s.statement_count} apply_sent=${s.apply_sent_by_this_run} apply_retried=false ledger=pass readiness=pass artifact=response-chunk-ownership-apply-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Response chunk ownership apply: pass\n\n- Production SHA: \`${s.production_sha}\`\n- Migration blob: \`${s.migration_blob_sha}\`\n- Checksum: \`${s.checksum}\`\n- Statements: ${s.statement_count}\n- Apply sent by this run: ${s.apply_sent_by_this_run}\n- Apply retried: false\n- Ledger: pass\n- Readiness: pass\n`);
           } else {
             const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_APPLY result=fail run_id=${process.env.GITHUB_RUN_ID} stage=${f.stage || 'unknown'} apply_sent=${f.apply_sent || false} error_code=${f.error?.code || 'workflow_failed'} artifact=response-chunk-ownership-apply-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Response chunk ownership apply: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Apply sent: ${f.apply_sent || false}\n- Error code: ${f.error?.code || 'workflow_failed'}\n`);
           }
-          process.stdout.write(body);
           NODE
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="$(cat "${RUNNER_TEMP}/apply-comment.txt")"
 
   runtime-closure:
     name: Verify Production response chunk ownership runtime
@@ -195,16 +158,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Record runtime closure start
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="GOVERNED_RESPONSE_CHUNK_OWNERSHIP_RUNTIME status=started run_id=${GITHUB_RUN_ID} trusted_ref=main"
-
       - name: Verify runtime parity, schema, and durable recovery
         run: node .github/ops/response-chunk-ownership-runtime-closure.mjs
 
@@ -217,27 +170,20 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record runtime closure outcome
+      - name: Publish runtime closure summary
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          node <<'NODE' >"${RUNNER_TEMP}/runtime-closure-comment.txt"
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
           const fs = require('node:fs');
           const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
           const failurePath = `${process.env.EVIDENCE_DIR}/failure.json`;
-          let body;
           if (fs.existsSync(summaryPath)) {
             const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_RUNTIME result=pass run_id=${process.env.GITHUB_RUN_ID} production_sha=${s.production_sha} source_merge=${s.source_merge_sha} migration_blob=${s.migration_blob_sha} checksum=${s.checksum} statement_count=${s.statement_count} ledger=pass readiness=pass durable_recovery_smoke=pass artifact=response-chunk-ownership-runtime-closure-${process.env.GITHUB_RUN_ID}`;
+            process.stdout.write(`## Response chunk ownership runtime closure: pass\n\n- Production SHA: \`${s.production_sha}\`\n- Source merge: \`${s.source_merge_sha}\`\n- Migration blob: \`${s.migration_blob_sha}\`\n- Checksum: \`${s.checksum}\`\n- Statements: ${s.statement_count}\n- Ledger: pass\n- Readiness: pass\n- Durable recovery smoke: pass\n`);
           } else {
             const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
-            body = `GOVERNED_RESPONSE_CHUNK_OWNERSHIP_RUNTIME result=fail run_id=${process.env.GITHUB_RUN_ID} production_sha=${f.production_sha || 'unverified'} stage=${f.stage || 'unknown'} error=${String(f.error || 'workflow_failed').replace(/\s+/g, '_').slice(0, 160)} artifact=response-chunk-ownership-runtime-closure-${process.env.GITHUB_RUN_ID}`;
+            const error = String(f.error || 'workflow_failed').replace(/\s+/g, '_').slice(0, 160);
+            process.stdout.write(`## Response chunk ownership runtime closure: fail\n\n- Production SHA: \`${f.production_sha || 'unverified'}\`\n- Stage: ${f.stage || 'unknown'}\n- Error: ${error}\n`);
           }
-          process.stdout.write(body);
           NODE
-          gh api --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/${{ github.repository }}/issues/4191/comments' \
-            -f body="$(cat "${RUNNER_TEMP}/runtime-closure-comment.txt")"
