@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "openapi-generated-refresh-production-unblock",
+  "title": "Governed OpenAPI generated refresh for protected Production promotion",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/openapi-generated-refresh-production-unblock.json",
+      "http-generic-api/openapi-route-contracts.yaml",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+      ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+      ".github/workflows/governed-generated-artifact-refresh.yml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Use the registered exact-head generated-artifact writer on a governed work branch to reconcile openapi/frontend-runtime-routes.generated.yaml with the already-reviewed source tree before protected main-to-Production promotion.",
+      "e2e_journeys": [
+        {
+          "id": "refresh-openapi-generated-through-governed-writer",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "read-only refresh request, trusted dispatcher, and governed generated-artifact writer",
+          "entrypoint": "A labeled same-repository pull request from a governed gpt branch to main emits an exact-head refresh request after a synchronize event.",
+          "terminal_outcome": "The registered writer updates only bounded deterministic OpenAPI artifacts on the exact branch head, pushes normally without force, and dispatches read-only verification for the resulting SHA.",
+          "steps": [
+            "Create the governed refresh branch from the exact main head blocked by Protected Promotion Generated Artifact Refresh.",
+            "Use a temporary non-runtime trigger file only to emit a synchronize event after the explicit generated-artifact-refresh label is attached.",
+            "Let the protected default-branch request workflow validate the open same-repository PR, main base, governed branch, label, and exact current head without candidate checkout or mutation.",
+            "Let the trusted dispatcher revalidate the request artifact and invoke governed-generated-artifact-refresh.yml with the typed confirmation and exact target SHA.",
+            "Let the registered maintenance tool generate only allowlisted artifacts, reject unexpected paths, create the bounded generated commit, and dispatch exact-head read-only verification.",
+            "Remove the temporary trigger file and retain only this E2E contract plus writer-produced generated artifacts before merge."
+          ],
+          "assertions": [
+            "openapi/frontend-runtime-routes.generated.yaml is produced by the registered governed writer and is not edited or copied manually.",
+            "The writer targets only the governed work branch and rejects main and Production.",
+            "The expected head SHA is validated before mutation and the writer uses a normal non-force push.",
+            "The temporary trigger file is absent from the final reviewed tree.",
+            "The final exact-head OpenAPI and frontend generated-artifact checks report no deterministic drift.",
+            "No runtime handler, authorization behavior, database row, SQL, migration, provider call, credential access, deployment, Production mutation, external send, protected-branch bypass, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-maintenance-tool",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe canonical request, dispatcher, writer, and read-only verification evidence bound to the final exact branch head."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain fail-closed handling for stale heads, absent labels, protected targets, unexpected generated paths, inactive writer registration, and unobserved delegated runs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository artifact refresh performs no external provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This PR does not promote, deploy, migrate, or mutate Production; it only removes deterministic generated-artifact drift through the governed writer."
+    }
+  ],
+  "secrets_included": false
+}
