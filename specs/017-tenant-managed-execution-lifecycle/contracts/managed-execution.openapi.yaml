@@ -2,58 +2,28 @@ openapi: 3.1.0
 info:
   title: Tenant Managed Execution Lifecycle API
   version: 0.1.0
-  description: Foundation contract for capability-bound, resource-grant-bound, approval-gated tenant managed execution.
-servers:
-  - url: https://auth.mad4b.com
-security:
-  - bearerAuth: []
+  description: Foundation contract for Issue 4449. Runtime use requires Migration 1043 readiness.
 paths:
   /managed-execution-runs:
     post:
       operationId: createManagedExecutionRun
-      summary: Create or reuse a governed managed execution run
+      summary: Create or reuse a parent-linked, capability- and resource-authorized managed execution run
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
-              required: [tenant_id, user_id, parent_ticket_id, workflow_key, capability_key, resource_type, resource_ref, effect_class, idempotency_key]
-              properties:
-                tenant_id: {type: string}
-                user_id: {type: string}
-                parent_ticket_id: {type: string}
-                workflow_key: {type: string}
-                capability_key: {type: string}
-                resource_type: {type: string}
-                resource_ref: {type: string}
-                effect_class:
-                  type: string
-                  enum: [read_only, state_change, destructive, external_send, managed_operation]
-                idempotency_key: {type: string}
+              $ref: '#/components/schemas/CreateManagedExecutionRunRequest'
       responses:
-        '201': {description: Managed run created}
-        '200': {description: Existing idempotent or active-scope run returned}
-        '400': {description: Invalid or secret-bearing request}
-        '403': {description: Effective authority missing}
-        '409': {description: Capability, approval, or state conflict}
-  /managed-execution-runs/{runId}:
-    get:
-      operationId: getManagedExecutionRun
-      summary: Read a managed execution and contradiction-safe projection
-      parameters:
-        - in: path
-          name: runId
-          required: true
-          schema: {type: string}
-      responses:
-        '200': {description: Managed execution projection}
-        '404': {description: Run not found}
+        '201': {description: Managed execution created}
+        '200': {description: Existing idempotent managed execution returned}
+        '400': {description: Invalid or secret-bearing input}
+        '403': {description: Effective grant denied}
+        '409': {description: Capability, schema, authority, or lifecycle blocker}
   /managed-execution-runs/{runId}/steps:
     post:
       operationId: createManagedExecutionStep
-      summary: Create or reuse an authority-revalidated managed step
+      summary: Create or reuse one authority-revalidated managed step
       parameters:
         - in: path
           name: runId
@@ -64,32 +34,69 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [step_key, idempotency_key]
-              properties:
-                step_key: {type: string}
-                idempotency_key: {type: string}
-                step_type: {type: string}
-                assigned_to: {type: string}
-                input_json: {type: object}
+              $ref: '#/components/schemas/CreateManagedExecutionStepRequest'
       responses:
-        '201': {description: Managed step created}
+        '201': {description: Step created}
         '200': {description: Existing idempotent step returned}
-        '409': {description: Approval, authority, or lifecycle conflict}
-  /managed-execution-runs/{runId}/status:
-    patch:
-      operationId: updateManagedExecutionRunStatus
-      summary: Apply a guarded managed run transition
+        '403': {description: Live capability or resource authority denied}
+        '409': {description: Approval or lifecycle blocker}
+  /approval-holds/{holdId}/decide:
+    post:
+      operationId: decideManagedExecutionApproval
+      summary: Decide a managed approval using verified role authority
       parameters:
         - in: path
-          name: runId
+          name: holdId
           required: true
           schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManagedApprovalDecisionRequest'
       responses:
-        '200': {description: Run status synchronized}
-        '409': {description: Invalid transition or linked-state conflict}
+        '200': {description: Approval decision synchronized}
+        '400': {description: Invalid decision}
+        '403': {description: Authenticated principal does not meet required_role}
+        '409': {description: Hold expired, already decided, or authority drifted}
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
+  schemas:
+    CreateManagedExecutionRunRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, user_id, parent_ticket_id, workflow_key, capability_key, resource_type, resource_ref, effect_class, idempotency_key]
+      properties:
+        tenant_id: {type: string}
+        user_id: {type: string}
+        parent_ticket_id: {type: string}
+        workflow_key: {type: string}
+        capability_key: {type: string}
+        resource_type: {type: string}
+        resource_ref: {type: string}
+        effect_class:
+          type: string
+          enum: [read_only, state_change, destructive, external_send, managed_operation]
+        idempotency_key: {type: string, minLength: 8}
+        input_json: {type: object}
+    CreateManagedExecutionStepRequest:
+      type: object
+      additionalProperties: false
+      required: [step_key, idempotency_key]
+      properties:
+        step_key: {type: string}
+        step_type:
+          type: string
+          enum: [action, review, approval, managed_op, branch, wait, end]
+        idempotency_key: {type: string, minLength: 8}
+        assigned_to: {type: string}
+        input_json: {type: object}
+    ManagedApprovalDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected, escalated]
+        decision_note: {type: string, maxLength: 2000}
