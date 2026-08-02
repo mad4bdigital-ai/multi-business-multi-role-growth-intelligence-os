@@ -1,0 +1,80 @@
+{
+  "contract_key": "spec014_hostinger_storage_durable_authorized_injection_lifecycle",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-durable-authorized-injection-lifecycle-v1",
+  "purpose": "Own the canonical dependency-injection coordinator, bind its verified Receipt and exact mount Readback to the canonical durable injection-state registry, expose route dependencies only after durable readback, reconstruct after restart, and make rollback fail closed before durable commit.",
+  "dependencies": {
+    "canonical_authorized_mount_bundle_required": true,
+    "canonical_dependency_injection_coordinator_factory_owned": true,
+    "canonical_durable_injection_state_registry_required": true,
+    "raw_coordinator_override_allowed": false,
+    "raw_runtime_override_allowed": false,
+    "runtime_material_persisted": false
+  },
+  "activation": {
+    "inject_before_durable_registration": true,
+    "exact_mount_readback_required": true,
+    "durable_registration_required_before_route_resolution": true,
+    "registration_readback_identity_checked": true,
+    "registration_failure_rolls_back_in_memory_dependency": true,
+    "route_fail_closed_on_registration_failure": true
+  },
+  "route_resolution": {
+    "exact_mount_readback_digest_required": true,
+    "durable_state_must_be_active": true,
+    "frozen_dependency_snapshot_returned": true,
+    "missing_invalid_or_mismatched_digest_returns_empty_snapshot": true,
+    "pending_rollback_returns_empty_snapshot": true
+  },
+  "restart": {
+    "durable_state_read_required": true,
+    "canonical_bundle_reconstruction_required": true,
+    "second_mount_authorization_consumption_allowed": false,
+    "coordinator_resume_used": true,
+    "exact_mount_readback_digest_preserved": true
+  },
+  "rollback": {
+    "route_fail_closed_before_durable_rollback_commit": true,
+    "exact_active_readback_required": true,
+    "durable_rollback_record_required": true,
+    "durable_unknown_outcome_sets_reconciliation_required": true,
+    "automatic_retry_allowed": false,
+    "explicit_reconciliation_supported": true,
+    "rolled_back_reactivation_rejected": true
+  },
+  "factory_boundary": {
+    "database_connections": 0,
+    "live_database_access_performed": false,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "provider_files_modified": 0,
+    "deployment_files_modified": 0
+  },
+  "terminal_authority": {
+    "repository_lifecycle_ready": true,
+    "live_server_modified": false,
+    "live_route_registration_performed": false,
+    "migration_apply_authorized": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false,
+    "secrets_included": false
+  },
+  "forbidden_authority": {
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "live_database_access": false,
+    "provider_dispatch": false,
+    "worker_mount": false,
+    "migration_apply": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "secrets_included": false
+}
