@@ -56,7 +56,6 @@ assert.equal(contract.production_ready, false);
 assert.equal(contract.secrets_included, false);
 assert.equal(attestationSchema.additionalProperties, false);
 assert.equal(attestationSchema.properties.attestation_version.const, HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION);
-assert.equal(attestationSchema.properties.predicate_type.const, HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE);
 assert.equal(attestationSchema.properties.secrets_included.const, false);
 assert.equal(Object.hasOwn(attestationSchema.properties, 'private_key'), false);
 assert.equal(refreshContract.live_database_access_performed, false);
@@ -168,7 +167,6 @@ const unsignedAttestation = {
 const signaturePayload = hostingerStorageSchemaVerificationSignaturePayload(unsignedAttestation);
 const attestation = {
   ...unsignedAttestation,
-  predicate_type: HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE,
   signature_b64url: sign(
     null,
     Buffer.from(stableHostingerStorageSchemaVerificationJson(signaturePayload), 'utf8'),
