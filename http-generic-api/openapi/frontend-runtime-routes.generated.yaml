@@ -8091,27 +8091,6 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
-  /tenant/storage-operations/apply-plan:
-    post:
-      operationId: postTenantStorageOperationsApplyPlan40d63b36
-      summary: POST /tenant/storage-operations/apply-plan (runtime operation index)
-      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
-      tags:
-        - runtime-route-index
-      security:
-        - userJwtAuth: []
-      responses:
-        default:
-          description: Runtime response shape is not yet captured by a reviewed canonical schema.
-      x-contract-completeness: operation-index-only
-      x-source-file: routes/hostingerStorageTenantRoutes.js
-      x-mad4b-runtime-auth:
-        profile: user_jwt
-        principal: tenant_user
-        guard_chain:
-          - requireTenantPrincipal
-        configuration_dependencies:
-          - JWT_SECRET
   /tenants/{id}/credits/debit:
     post:
       operationId: postTenantsByIdCreditsDebit32dae0ad
