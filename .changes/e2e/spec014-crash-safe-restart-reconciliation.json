@@ -15,17 +15,65 @@
       "http-generic-api/hostingerStorageSqlRunReader.js",
       "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
       "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
-      "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs"
+      "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs"
     ]
   },
   "merge_contract": {
-    "minimum_phase": "resilient"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Read exact durable Tenant operation, plan, run, plan-item parent, journal, and reconciliation evidence from one verified SQL composition without replaying execution."
+      "objective": "Read and validate exact durable Tenant operation, plan, run, plan-item parent, journal, and reconciliation evidence from one verified SQL composition without replaying execution.",
+      "e2e_journeys": [
+        {
+          "id": "load-and-bind-durable-restart-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 restart reconciler",
+          "entrypoint": "Hostinger Storage Crash-safe Restart Reconciliation Guard",
+          "terminal_outcome": "One verified SQL composition returns an exact Tenant operation aggregate, Run parent, ordered immutable plan-item parents, and parent-bound child evidence with one database fingerprint before any recovery write is attempted.",
+          "steps": [
+            "Create the reconciler from one canonical unmounted verified SQL composition.",
+            "Read the exact operation aggregate, Run parent, and ordered plan-item parent set.",
+            "Verify Tenant context, consumed plan-to-Run binding, item count, contiguous ordinals, item hashes, and database fingerprint parity.",
+            "Reject missing, duplicated, cross-bound, protected, or non-pending parent evidence before any state transition or reconciliation write."
+          ],
+          "assertions": [
+            "Factory construction performs no durable read or write.",
+            "The raw composition, pool, adapter, and SQL reader are not exposed.",
+            "Binding drift fails before Run, Operation, or Reconciliation mutation.",
+            "No adapter, provider, filesystem, shell, Route, Server, or worker call is available.",
+            "Runtime mounting, provider dispatch, and Production readiness remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-restart-evidence-loading",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-restart-plan-item-reader",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
+            "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+            "http-generic-api/hostingerStorageSqlRunReader.js",
+            "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+            ".github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json"
+          ]
+        }
+      ]
     },
     {
       "id": "operational",
