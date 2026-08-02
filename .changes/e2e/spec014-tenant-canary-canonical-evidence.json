@@ -79,11 +79,8 @@
     },
     {
       "id": "operational",
-      "status": "blocked",
-      "objective": "The exact-head E2E fallback reached main at 06e1f5d4bf9bf84031f0f19b71c0e51da5ccff47. Complete the operational phase by producing one new head where Tenant Canary and E2E both succeed, then proving CI Evidence PR Publisher discovers the matching Tenant run and writes the hostinger-storage-tenant-canary section for the same SHA.",
-      "blockers": [
-        "No post-06e1f5d exact-head Tenant Canary Artifact and matching fallback-published Hostinger comment section have yet been observed together."
-      ]
+      "status": "implemented",
+      "objective": "Exact-head publication is proven on PR #4660 at SHA ec230596a071f1dad7857284d43b9d903f9204a5: Tenant Canary Run 30729924130 produced mad4b.hostinger-guard-summary.v1 with 8/8 passed and zero findings; E2E Run 30729924136 triggered the trusted fallback; the shared authoritative comment published both sections with the same SHA, Job logs diagnostic-only, and no secret, provider, credential, repository, SQL, migration, deployment, or Production action."
     },
     {
       "id": "resilient",
