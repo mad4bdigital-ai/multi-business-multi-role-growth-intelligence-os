@@ -27,8 +27,8 @@ jobs:
       CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
       PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
-      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
+      REPORT_PATH: ${{ github.workspace }}/.ci-evidence/production-promotion-generated-artifact/pr-generated-artifact-refresh-summary.json
+      REPORT_MARKDOWN_PATH: ${{ github.workspace }}/.ci-evidence/production-promotion-generated-artifact/pr-generated-artifact-refresh-summary.md
     steps:
       - name: Validate exact protected-promotion candidate
         shell: bash
