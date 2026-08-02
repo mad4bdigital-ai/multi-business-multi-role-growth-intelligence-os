@@ -11,6 +11,7 @@
       ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml",
       "http-generic-api/scripts/spec014-final-work-map-readback.mjs",
       "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/evidence/final-work-map-exact-head-readback-20260802.md",
       "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
       "specs/014-governed-hostinger-storage-orchestration/tasks.md"
     ]
@@ -39,6 +40,7 @@
             "Compare the complete Work Map and domain decision sets with the effective registry.",
             "Compare the manifest fingerprint, source hashes, counts, implementation readiness, and unresolved-dimension state with the current registry.",
             "Write a bounded JSON and Markdown report even when drift is detected.",
+            "Publish the initial diagnostic and exact refreshed values inside the Spec evidence package.",
             "Upload the structured report before enforcing the fail-closed result."
           ],
           "assertions": [
@@ -47,6 +49,7 @@
             "Schema classification is fail-closed with zero unresolved objects and no expired or ambiguous exception.",
             "Implementation readiness has no blocking dimensions after all repository decisions are resolved.",
             "The producer changes only work-map-integration.json and the T006 task line.",
+            "The permanent evidence records the structured diagnostic artifact and exact before/after registry values.",
             "No repository mutation occurs during readback execution.",
             "No Hostinger, SSH, credential, live database, migration Apply, Provider dispatch, deployment, main merge, or Production mutation occurs."
           ],
@@ -63,6 +66,7 @@
             ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml",
             "http-generic-api/scripts/spec014-final-work-map-readback.mjs",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/evidence/final-work-map-exact-head-readback-20260802.md",
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
             ".specify/work-map-schema-classification-registry.json"
           ]
