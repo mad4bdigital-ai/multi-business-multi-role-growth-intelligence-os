@@ -25,10 +25,10 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'gpt/014-fix-post-reconciliation-repository-governance-20260802'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/014-fix-post-reconciliation-repository-governance-20260802
-      EXPECTED_PARENT_SHA: 23709bf496079c12d162a49427c7d4ee776f368b
+      EXPECTED_PARENT_SHA: 168b5e5bb25f20b3f7b0f129a72a1452a2a47b89
       TARGET_FILE: http-generic-api/test-frontend-surface-dispatch.mjs
       LAUNCHER_FILE: .github/workflows/spec014-patch-frontend-surface-test.yml
       EVIDENCE_DIR: .ci-evidence/spec014-patch-frontend-surface-test
@@ -39,6 +39,13 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
 
       - name: Patch exact legacy assertion block
         shell: bash
@@ -170,6 +177,10 @@ jobs:
               raise SystemExit(f'legacy block occurrence count must be 1, got {count}')
           path.write_text(source.replace(old, new))
           PY
+
+          current_stage='install_dependencies'
+          npm ci --prefix http-generic-api > "${EVIDENCE_DIR}/failure-output.txt" 2>&1
+          rm -f "${EVIDENCE_DIR}/failure-output.txt"
 
           run_contract() {
             local contract_id="$1"
