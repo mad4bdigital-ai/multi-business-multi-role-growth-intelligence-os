@@ -3,6 +3,7 @@ import path from "node:path";
 
 export const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
 const METHOD_ORDER = new Map(["GET", "POST", "PUT", "PATCH", "DELETE"].map((method, index) => [method, index]));
+const HTTP_METHOD_KEYS = new Set([...METHOD_ORDER.keys()].map((method) => method.toLowerCase()));
 const ROUTE_RE = /router\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)["'`]/g;
 
 function normalizePath(routePath) {
@@ -123,10 +124,33 @@ function buildOperation(operation) {
   return result;
 }
 
+function isPreciseRuntimeContract(current, operation) {
+  return current
+    && current.operationId === operationIdFor(operation)
+    && typeof current.summary === "string"
+    && current.summary.length > 0
+    && current.responses
+    && typeof current.responses === "object"
+    && canonicalSecurity(current.security) === canonicalSecurity(securityFor(operation.auth_profile))
+    && current["x-openai-isConsequential"] === (operation.method !== "GET")
+    && current["x-runtime-contract-source"] === SUPPORT_TICKET_ROUTE_FILE
+    && current["x-runtime-auth-profile"] === operation.auth_profile
+    && current["x-contract-completeness"] !== "operation-index-only";
+}
+
+function isReplaceableRuntimeIndex(current, operation) {
+  return current
+    && current["x-contract-completeness"] === "operation-index-only"
+    && current["x-source-file"] === SUPPORT_TICKET_ROUTE_FILE
+    && canonicalSecurity(current.security) === canonicalSecurity(securityFor(operation.auth_profile));
+}
+
 export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, staticContracts, staticPathRefs) {
   const staticSignatures = new Set(staticContracts.map((contract) => contract.signature));
   const expectedOperationIds = new Map();
+  const runtimeBySignature = new Map(runtimeOperations.map((operation) => [operation.signature, operation]));
   const missingByPath = new Map();
+  const replaceableByPath = new Map();
   const synced = [];
   const conflicts = [];
 
@@ -147,17 +171,22 @@ export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, sta
     const pathItem = doc.paths?.[operation.path];
     const current = pathItem?.[operation.method.toLowerCase()];
     if (current) {
-      const valid = typeof current.operationId === "string"
-        && current.operationId.length > 0
-        && typeof current.summary === "string"
-        && current.summary.length > 0
-        && current.responses
-        && typeof current.responses === "object"
-        && canonicalSecurity(current.security) === canonicalSecurity(securityFor(operation.auth_profile));
-      if (!valid) {
-        conflicts.push({ signature: operation.signature, code: "support_ticket_existing_contract_not_precise", expected_security: securityFor(operation.auth_profile), actual_security: current.security || null });
-      } else {
+      if (isPreciseRuntimeContract(current, operation)) {
         synced.push({ signature: operation.signature, source: "existing_openapi" });
+      } else if (isReplaceableRuntimeIndex(current, operation)) {
+        const operations = replaceableByPath.get(operation.path) || [];
+        operations.push(operation);
+        replaceableByPath.set(operation.path, operations);
+      } else {
+        conflicts.push({
+          signature: operation.signature,
+          code: "support_ticket_existing_contract_not_precise",
+          expected_operation_id: operationId,
+          expected_security: securityFor(operation.auth_profile),
+          actual_security: current.security || null,
+          actual_contract_source: current["x-runtime-contract-source"] || current["x-source-file"] || null,
+          actual_contract_completeness: current["x-contract-completeness"] || null,
+        });
       }
       continue;
     }
@@ -169,12 +198,32 @@ export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, sta
     operations.push(operation);
     missingByPath.set(operation.path, operations);
   }
-  return { missingByPath, synced, conflicts };
+
+  for (const [routePath, operations] of replaceableByPath) {
+    const pathItem = doc.paths?.[routePath] || {};
+    const replacementSignatures = new Set(operations.map((operation) => operation.signature));
+    const unsafeKeys = Object.keys(pathItem).filter((key) => {
+      if (!HTTP_METHOD_KEYS.has(key)) return true;
+      const signature = `${key.toUpperCase()} ${routePath}`;
+      const operation = runtimeBySignature.get(signature);
+      return !operation || !replacementSignatures.has(signature) || !isReplaceableRuntimeIndex(pathItem[key], operation);
+    });
+    if (unsafeKeys.length > 0) {
+      conflicts.push({
+        path: routePath,
+        code: "support_ticket_runtime_index_path_not_fully_replaceable",
+        unsafe_keys: unsafeKeys,
+      });
+      replaceableByPath.delete(routePath);
+    }
+  }
+
+  return { missingByPath, replaceableByPath, synced, conflicts };
 }
 
-export function buildSupportTicketRuntimePathItems(missingByPath) {
+export function buildSupportTicketRuntimePathItems(operationsByPath) {
   const entries = new Map();
-  for (const [routePath, operations] of [...missingByPath.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+  for (const [routePath, operations] of [...operationsByPath.entries()].sort(([left], [right]) => left.localeCompare(right))) {
     const pathItem = {};
     for (const operation of [...operations].sort((left, right) => METHOD_ORDER.get(left.method) - METHOD_ORDER.get(right.method))) {
       pathItem[operation.method.toLowerCase()] = buildOperation(operation);
