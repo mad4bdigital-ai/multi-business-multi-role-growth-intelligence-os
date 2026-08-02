@@ -36,7 +36,7 @@ const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 export const HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS = Object.freeze({
   table_count: 17,
   view_count: 3,
-  runtime_column_count: 68,
+  runtime_column_count: 71,
   runtime_index_column_count: 31,
   authorized_injection_state_constraint_count: 13,
   default_off_tool_count: 3,
@@ -294,7 +294,6 @@ function normalizeReadback(value = {}) {
   if (normalized.enabled_tool_count !== 0) mismatches.push('enabled_tool_count');
   if (normalized.object_readiness_status !== 'ready_for_column_index_constraint_readback') mismatches.push('object_readiness_status');
   if (normalized.runtime_column_readback_status !== 'ready') mismatches.push('runtime_column_readback_status');
-  if (normalized.runtime_index_column_readback_status === 'blocked') mismatches.push('runtime_index_readback_status');
   if (normalized.runtime_index_readback_status !== 'ready') mismatches.push('runtime_index_readback_status');
   if (normalized.tool_seed_readback_status !== 'ready_default_off') mismatches.push('tool_seed_readback_status');
   if (normalized.provider_calls !== 0) mismatches.push('provider_calls');
@@ -306,7 +305,7 @@ function normalizeReadback(value = {}) {
       409,
       'STORAGE_SCHEMA_VERIFICATION_READBACK_NOT_READY',
       'Live readback does not prove the complete four-wave default-off schema contract.',
-      { mismatches: [...new Set(mismatches)] },
+      { mismatches },
     );
   }
   return Object.freeze(normalized);

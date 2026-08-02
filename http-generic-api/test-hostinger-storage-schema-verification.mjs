@@ -39,7 +39,7 @@ assert.equal(contract.v1_signature_replay_allowed, false);
 assert.equal(contract.expected_readback_contract_key, 'spec014_hostinger_storage_migration_readback_v4');
 assert.equal(contract.readback_contract_path, '.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql');
 assert.equal(contract.expected_counts.compatible_tables, 17);
-assert.equal(contract.expected_counts.compatible_runtime_columns, 68);
+assert.equal(contract.expected_counts.compatible_runtime_columns, 71);
 assert.equal(contract.expected_counts.compatible_runtime_index_columns, 31);
 assert.equal(contract.expected_counts.authorized_injection_state_constraints, 13);
 assert.equal(contract.live_database_access_performed, false);
@@ -57,9 +57,12 @@ assert.equal(attestationSchema.properties.attestation_version.const, HOSTINGER_S
 assert.equal(attestationSchema.properties.secrets_included.const, false);
 assert.equal(Object.hasOwn(attestationSchema.properties, 'private_key'), false);
 
+assert.equal(HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.runtime_column_count, 71);
 assert.match(readbackContract, /17 AS expected_table_count/u);
 assert.match(readbackContract, /storage_authorized_injection_states/u);
 assert.match(readbackContract, /storage_authorized_injection_rollbacks/u);
+assert.equal((readbackContract.match(/"created_at","d":"datetime"/gu) || []).length, 2);
+assert.equal((readbackContract.match(/"updated_at","d":"datetime"/gu) || []).length, 1);
 assert.match(readbackContract, /expected_authorized_injection_state_constraint_count/u);
 assert.match(readbackContract, /fk_storage_authorized_injection_rollback_state/u);
 assert.match(readbackContract, /652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a/u);
@@ -87,7 +90,7 @@ const readback = {
   constraint_inventory_digest: 'd'.repeat(64),
   compatible_table_count: 17,
   present_view_count: 3,
-  compatible_runtime_column_count: 68,
+  compatible_runtime_column_count: 71,
   compatible_runtime_index_column_count: 31,
   authorized_injection_state_schema_contract_key: schemaExpectation.contract_key,
   authorized_injection_state_schema_contract_digest: schemaExpectation.contract_digest,
@@ -119,7 +122,7 @@ assert.equal(subject.ok, true);
 assert.equal(subject.payload.schema_version, 2);
 assert.equal(subject.payload.attestation_version, HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION);
 assert.equal(subject.payload.migrations.length, 4);
-assert.equal(subject.payload.readback.compatible_runtime_column_count, 68);
+assert.equal(subject.payload.readback.compatible_runtime_column_count, 71);
 assert.equal(subject.payload.readback.authorized_injection_state_constraint_count, 13);
 assert.deepEqual(subject.payload.readback.authorized_injection_state_tables, schemaExpectation.tables);
 assert.equal(subject.signing_allowed, false);
@@ -284,7 +287,7 @@ console.log(JSON.stringify({
   attestation_version: HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION,
   readback_contract: readback.contract_key,
   migration_wave_count: migrations.length,
-  compatible_runtime_column_count: 68,
+  compatible_runtime_column_count: 71,
   compatible_runtime_index_column_count: 31,
   authorized_injection_state_constraint_count: 13,
   authorized_injection_schema_digest: schemaExpectation.contract_digest,

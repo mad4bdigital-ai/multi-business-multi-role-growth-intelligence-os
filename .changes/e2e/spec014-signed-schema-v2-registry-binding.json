@@ -24,34 +24,38 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Upgrade the existing four-wave readback verifier to attestation v2, reject v1 replay, and emit the exact schema evidence required by the Durable Authorized Injection Registry.",
+      "objective": "Retain attestation v2 and its exact Durable Authorized Injection Registry binding while extending the four-wave readback from 68 to all 71 critical columns, including the three promoted timestamp columns.",
       "e2e_journeys": [
         {
-          "id": "verify-v2-subject-and-registry-schema-binding",
+          "id": "verify-v2-subject-registry-and-timestamp-schema-binding",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Spec 014 signed schema verifier",
           "entrypoint": "The canonical four-wave readback v4 plus synthetic successful migration ledger evidence",
-          "terminal_outcome": "A synthetic Ed25519 v2 signature verifies, v1 replay fails closed, and verified evidence includes the exact Durable Injection schema key, digest, tables, count, constraints, and status expected by the registry.",
+          "terminal_outcome": "A synthetic Ed25519 v2 signature verifies, v1 replay fails closed, verified evidence retains the exact Durable Injection registry schema, and the readback requires both state timestamps plus the rollback timestamp for 71 critical columns.",
           "steps": [
-            "Retain the canonical dedicated readback v4 file and its 17-table, 68-column, 31-index-column expectations.",
-            "Add exact readback of 13 Durable Authorized Injection constraints and the canonical schema digest.",
-            "Upgrade the subject, predicate, attestation schema, and evidence identities from v1 to v2.",
+            "Retain the canonical dedicated readback v4 file and its 17-table and 31-index-column expectations.",
+            "Require storage_authorized_injection_states.created_at as datetime.",
+            "Require storage_authorized_injection_states.updated_at as datetime.",
+            "Require storage_authorized_injection_rollbacks.created_at as datetime.",
+            "Raise the exact critical runtime-column count from 68 to 71.",
+            "Retain exact readback of 13 Durable Authorized Injection constraints and the canonical schema digest.",
+            "Retain the v2 subject, predicate, attestation schema, and evidence identities.",
             "Reject any v1 attestation before signature verification.",
             "Verify one synthetic Ed25519 signature using public-key material only.",
-            "Emit evidence.authorized_injection_state_schema with exact registry-compatible fields.",
-            "Reject schema digest, table, constraint, ledger, signature, parity, timing, and secret drift."
+            "Reject timestamp, schema digest, table, constraint, ledger, signature, parity, timing, and secret drift."
           ],
           "assertions": [
             "Only spec014-hostinger-storage-schema-verification-v2 attestations are accepted.",
             "The verifier retains exactly four migration waves and readback v4.",
+            "The readback proves exactly two created_at datetime fields and one updated_at datetime field across the two Durable Injection tables.",
             "The authorized injection schema digest equals 652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a.",
             "The verified schema evidence contains both exact Durable Injection tables and 13 constraints.",
             "No private key, live database access, live signature, migration Apply, provider dispatch, deployment, main merge, or Production mutation occurs."
           ],
           "tests": [
             {
-              "id": "signed-schema-v2-registry-binding",
+              "id": "signed-schema-v2-registry-timestamp-binding",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-schema-verification.mjs",
@@ -62,7 +66,8 @@
             ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
             ".github/contracts/spec014/hostinger-storage-schema-verification.json",
             ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
-            "http-generic-api/hostingerStorageSchemaVerification.js"
+            "http-generic-api/hostingerStorageSchemaVerification.js",
+            "http-generic-api/test-hostinger-storage-schema-verification.mjs"
           ]
         }
       ]

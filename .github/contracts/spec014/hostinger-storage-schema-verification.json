@@ -22,7 +22,7 @@
   "expected_counts": {
     "compatible_tables": 17,
     "present_views": 3,
-    "compatible_runtime_columns": 68,
+    "compatible_runtime_columns": 71,
     "compatible_runtime_index_columns": 31,
     "authorized_injection_state_constraints": 13,
     "observed_tools": 3,
