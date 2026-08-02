@@ -56,7 +56,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
-            ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/ci-evidence-routing.json",
             ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
           ]
