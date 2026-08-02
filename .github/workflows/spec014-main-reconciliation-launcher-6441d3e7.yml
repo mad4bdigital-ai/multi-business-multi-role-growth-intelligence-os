@@ -1,0 +1,205 @@
+name: Spec014 Main Reconciliation Launcher 6441d3e7
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-main-reconciliation-launcher-6441d3e7.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-main-reconciliation-launcher-6441d3e7
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/reconcile-spec014-main-6441d3e7-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      TARGET_REF: gpt/reconcile-spec014-main-6441d3e7-20260802
+      INTEGRATION_REF: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      EXPECTED_INTEGRATION_SHA: 92d757dda69f631a5ccee8eef39408cf783bf395
+      EXPECTED_MAIN_SHA: 6441d3e76bbdfe445034da3196c612382d0c8e4e
+      LAUNCHER_PATH: .github/workflows/spec014-main-reconciliation-launcher-6441d3e7.yml
+      REPORT_DIR: .ci-evidence/spec014-main-reconciliation-6441d3e7
+    steps:
+      - name: Checkout exact launcher head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Capture exact parents and build bounded merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          current_step=preflight
+          initial_sha="$(git rev-parse HEAD)"
+          printf '%s\n' "$initial_sha" > "${REPORT_DIR}/launcher-head.txt"
+          trap 'status=$?; if [[ $status -ne 0 ]]; then CURRENT_STEP="$current_step" EXIT_STATUS="$status" python3 - <<"PY"
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["REPORT_DIR"]); root.mkdir(parents=True, exist_ok=True)
+          report={"contract":"mad4b.spec014-main-reconciliation-launcher.v1","outcome":"blocked","first_failure":{"step":os.environ.get("CURRENT_STEP","unknown"),"exit_status":int(os.environ.get("EXIT_STATUS","1")),"secrets_included":False},"force_push":False,"protected_branch_mutation":False,"provider_dispatch":False,"credential_access":False,"job_logs_consulted":False,"secrets_included":False}
+          (root/"summary.json").write_text(json.dumps(report,indent=2)+"\n")
+          PY
+          fi' EXIT
+
+          current_step=fetch_exact_parents
+          git fetch --no-tags origin \
+            "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          integration_sha="$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")"
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          [[ "$integration_sha" == "$EXPECTED_INTEGRATION_SHA" ]]
+          [[ "$main_sha" == "$EXPECTED_MAIN_SHA" ]]
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "$initial_sha" ]]
+
+          current_step=validate_launcher_only_delta
+          git merge-base --is-ancestor "$integration_sha" "$initial_sha"
+          mapfile -t launcher_delta < <(git diff --name-only "$integration_sha" "$initial_sha")
+          [[ "${#launcher_delta[@]}" -eq 1 ]]
+          [[ "${launcher_delta[0]}" == "$LAUNCHER_PATH" ]]
+
+          current_step=merge_main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          set +e
+          git merge --no-commit --no-ff "$main_sha"
+          merge_status=$?
+          set -e
+          git diff --name-only --diff-filter=U | sort -u > "${REPORT_DIR}/conflicts.txt"
+          mapfile -t conflicts < "${REPORT_DIR}/conflicts.txt"
+          if [[ $merge_status -eq 0 ]]; then
+            [[ "${#conflicts[@]}" -eq 0 ]]
+          else
+            [[ $merge_status -eq 1 ]]
+            [[ "${#conflicts[@]}" -eq 1 ]]
+            [[ "${conflicts[0]}" == 'http-generic-api/frontend-surface-dispatch.generated.json' ]]
+            git checkout --ours -- http-generic-api/frontend-surface-dispatch.generated.json
+            git add -- http-generic-api/frontend-surface-dispatch.generated.json
+          fi
+
+          current_step=install_dependencies
+          npm --prefix http-generic-api ci
+          git branch -f main "$main_sha"
+
+          current_step=regenerate_registered_artifacts
+          (
+            cd http-generic-api
+            node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+            node scripts/openapi-precise-contract-registry-sync.mjs --write
+            node scripts/openapi-autofill-missing-routes.mjs --write
+            node scripts/openapi-runtime-auth-sync.mjs --write
+            npm run frontend:dispatch:generate -- --baseline-ref=main
+            node scripts/generate-custom-gpt-schemas.mjs --write
+          )
+
+          current_step=enforce_generated_write_set
+          git diff --name-only | sort -u > "${REPORT_DIR}/generated-unstaged.txt"
+          allowed='^(http-generic-api/openapi\.yaml|http-generic-api/openapi/support-tickets\.yaml|http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml|http-generic-api/openapi/openapi\.custom-gpt\.auth-dispatcher\.yaml|http-generic-api/openapi/openapi\.custom-gpt\.activation-admin\.yaml|http-generic-api/openapi/openapi\.tenant-gpt\.auth\.yaml|http-generic-api/openapi/openapi\.tenant-gpt\.activation\.yaml|http-generic-api/openapi\.gpt-action\.local-connector\.yaml)$'
+          unexpected="$(grep -Ev "$allowed" "${REPORT_DIR}/generated-unstaged.txt" || true)"
+          [[ -z "$unexpected" ]]
+          mapfile -t generated_paths < "${REPORT_DIR}/generated-unstaged.txt"
+          if [[ "${#generated_paths[@]}" -gt 0 ]]; then git add -- "${generated_paths[@]}"; fi
+          [[ -z "$(git diff --name-only)" ]]
+
+          current_step=verify_merged_tree
+          (
+            cd http-generic-api
+            node test-openapi-autofill-missing-routes.mjs
+            node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            npm run schemas:guard
+            node test-hostinger-storage-authorized-mount-executor.mjs
+            node test-hostinger-storage-authorized-dependency-injection.mjs
+            node test-hostinger-storage-durable-authorized-injection-state.mjs
+            node test-hostinger-storage-authorized-route-resolution.mjs
+          )
+
+          current_step=commit_reconciliation
+          git commit -m 'chore: reconcile current main into Spec 014 Integration'
+          merge_sha="$(git rev-parse HEAD)"
+          git rev-list --parents -n 1 "$merge_sha" > "${REPORT_DIR}/merge-parents.txt"
+          git merge-base --is-ancestor "$integration_sha" "$merge_sha"
+          git merge-base --is-ancestor "$main_sha" "$merge_sha"
+
+          current_step=remove_launcher
+          git rm -- "$LAUNCHER_PATH"
+          git commit -m 'chore(ci): remove Spec 014 main reconciliation launcher'
+          final_sha="$(git rev-parse HEAD)"
+          [[ ! -e "$LAUNCHER_PATH" ]]
+
+          current_step=prepush_exact_head_check
+          git fetch --no-tags origin \
+            "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          [[ "$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")" == "$integration_sha" ]]
+          [[ "$(git rev-parse refs/remotes/origin/main)" == "$main_sha" ]]
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "$initial_sha" ]]
+          git merge-base --is-ancestor "$integration_sha" "$final_sha"
+          git merge-base --is-ancestor "$main_sha" "$final_sha"
+
+          current_step=push_reconciliation
+          git push origin "HEAD:${TARGET_REF}"
+
+          current_step=write_canonical_report
+          INTEGRATION_SHA="$integration_sha" MAIN_SHA="$main_sha" INITIAL_SHA="$initial_sha" MERGE_SHA="$merge_sha" FINAL_SHA="$final_sha" MERGE_STATUS="$merge_status" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['REPORT_DIR'])
+          lines=lambda name:[x.strip() for x in (root/name).read_text().splitlines() if x.strip()] if (root/name).exists() else []
+          report={
+            'contract':'mad4b.spec014-main-reconciliation-launcher.v1',
+            'outcome':'passed',
+            'integration_sha':os.environ['INTEGRATION_SHA'],
+            'main_sha':os.environ['MAIN_SHA'],
+            'launcher_head_sha':os.environ['INITIAL_SHA'],
+            'reconciliation_merge_sha':os.environ['MERGE_SHA'],
+            'final_sha':os.environ['FINAL_SHA'],
+            'merge_status_before_resolution':int(os.environ['MERGE_STATUS']),
+            'conflict_paths':lines('conflicts.txt'),
+            'generated_paths_regenerated':lines('generated-unstaged.txt'),
+            'launcher_removed':True,
+            'ordinary_fast_forward_push':True,
+            'force_push':False,
+            'protected_branch_mutation':False,
+            'provider_dispatch':False,
+            'credential_access':False,
+            'job_logs_consulted':False,
+            'secrets_included':False,
+          }
+          (root/'summary.json').write_text(json.dumps(report,indent=2)+'\n')
+          PY
+
+      - name: Upload canonical reconciliation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-main-reconciliation-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
