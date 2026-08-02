@@ -1,0 +1,79 @@
+name: Hostinger Storage Authorized Dependency Injection Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-authorized-dependency-injection-mount-readback.json'
+      - '.github/contracts/spec014/hostinger-storage-authorized-dependency-injection.json'
+      - '.github/workflows/hostinger-storage-authorized-dependency-injection-guard.yml'
+      - 'http-generic-api/hostingerStorageAuthorizedDependencyInjection.js'
+      - 'http-generic-api/routes/hostingerStorageTenantRoutes.js'
+      - 'http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-authorized-dependency-injection-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authorized-dependency-injection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Check controller and route syntax
+        run: |
+          node --check http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          node --check http-generic-api/routes/hostingerStorageTenantRoutes.js
+          node --check http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+
+      - name: Validate injection readback rollback and restart
+        run: node http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+
+      - name: Preserve exact authorized ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'isCanonicalHostingerStorageAuthorizedMountBundle' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'mount_readback_digest' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'resumeAuthorizedMountInjection' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'rollbackAuthorizedMount' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'isCanonicalHostingerStorageAuthorizedDependencyInjectionController' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'isCanonicalHostingerStorageMountedRuntimeResolution' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'tenantStorageRuntimeMount.resolveMountedRuntime' http-generic-api/routes/hostingerStorageTenantRoutes.js
+
+      - name: Preserve fail-closed non-production boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|migrations/)'
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/routes/index\.js$'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageAuthorizedDependencyInjection.js \
+            http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+          grep -q "storage_tenant_runtime_unavailable" http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'runtime_material_included: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q '"server_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection.json
+          grep -q '"migration_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection.json
