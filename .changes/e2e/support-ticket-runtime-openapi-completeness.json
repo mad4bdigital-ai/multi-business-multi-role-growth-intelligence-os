@@ -1,0 +1,113 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-runtime-openapi-completeness",
+  "title": "Support Ticket runtime and OpenAPI operation completeness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/support-ticket-runtime-openapi-completeness.json",
+      "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi-registry.json",
+      "http-generic-api/frontend-capabilities.json",
+      "http-generic-api/gpt-action-operations.json",
+      "http-generic-api/gpt-actions.openapi.yaml",
+      "gpt-actions.openapi.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Compose every exact Support Ticket and Tenant Request runtime operation into the reviewed root OpenAPI contract with fail-closed authentication, path, operation identifier, response, and consequential metadata.",
+      "e2e_journeys": [
+        {
+          "id": "compose-complete-support-ticket-runtime-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "OpenAPI maintenance runner and authenticated Support Ticket clients",
+          "entrypoint": "The precise contract registry sync reads routes/supportTicketRoutes.js before the missing-route coverage gate.",
+          "terminal_outcome": "Every unique runtime method and normalized path is either bound to an existing reviewed path-item reference or represented by a deterministic source-bound OpenAPI operation, while ambiguous authorization and partial path coverage fail closed.",
+          "steps": [
+            "Extract every literal Express method and path from the Support Ticket route source.",
+            "Normalize Express path parameters to OpenAPI path parameters and deduplicate exact signatures.",
+            "Bind requireUserJwt and requireTenantUserJwt routes to userJwtAuth.",
+            "Bind adminGuards routes to alternative adminBearerAuth or backendApiKeyAuth requirements.",
+            "Preserve existing precise path-item references and reject partial static path registration.",
+            "Generate deterministic operation identifiers, summaries, parameters, responses, and consequential flags for uncovered operations.",
+            "Write only the root OpenAPI generated artifact before the missing-route and authentication parity gates run.",
+            "Re-run the same synchronization in check mode and require zero missing paths, conflicts, or drift."
+          ],
+          "assertions": [
+            "Every current Support Ticket runtime operation has an exact OpenAPI method and normalized path.",
+            "Administrative operations declare adminBearerAuth and backendApiKeyAuth as alternatives.",
+            "Tenant and member operations declare userJwtAuth.",
+            "GET operations are non-consequential and mutation operations are consequential.",
+            "Every path parameter is required and typed as a non-empty string.",
+            "Operation identifiers are deterministic and collision-free.",
+            "An unknown or ambiguous runtime guard blocks synchronization.",
+            "A partially registered path blocks synchronization rather than overwriting reviewed contracts.",
+            "No runtime authorization, handler behavior, migration, SQL, deployment, provider, credential, external-send, protected-branch, or Production behavior changes."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-runtime-openapi-sync",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-runtime-openapi-sync.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-autofill-missing-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-autofill-missing-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+            "http-generic-api/openapi.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the governed generated-artifact writer refresh the exact OpenAPI and downstream indexes on a reviewed gpt branch without source-file mutation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise duplicate signatures, operation identifier collisions, unknown guards, partial static path registration, and authentication drift with stable blocking findings."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This contract-generation repair performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no migration, SQL, deployment, Production, provider, credential, external publication, or direct protected-branch authority."
+    }
+  ],
+  "secrets_included": false
+}
