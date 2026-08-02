@@ -29,6 +29,7 @@
           "entrypoint": "The canonical durable Tenant enablement registry record and consumption read paths",
           "terminal_outcome": "Empty results return null, ambiguous results fail with typed errors, and exactly one proven result is destructured without direct candidate indexing.",
           "steps": [
+            "Apply the reviewed cardinality changes through an exact-match repository automation that refuses drift and removes itself before the final candidate is produced.",
             "Normalize each database response into a bounded row collection.",
             "Reject multiple enablement records with STORAGE_DURABLE_ENABLEMENT_ROW_AMBIGUOUS.",
             "Reject multiple consumption receipts with STORAGE_DURABLE_ENABLEMENT_CONSUMPTION_AMBIGUOUS.",
@@ -37,6 +38,7 @@
             "Run the existing durable enablement lifecycle suite and focused cardinality regression."
           ],
           "assertions": [
+            "The temporary repair workflow is absent from the final candidate tree.",
             "No direct index-zero candidate selection remains in loadRecord or loadConsumption.",
             "Existing typed ambiguity decisions remain fail closed and secret safe.",
             "No schema, SQL contract, migration, runtime mount, provider dispatch, credential access, deployment, main merge, or Production authority changes.",
