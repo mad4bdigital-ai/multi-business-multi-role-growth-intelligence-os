@@ -11,8 +11,8 @@ import {
 
 const h = (character) => character.repeat(64);
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
-const candidatePath = new URL('../.github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql', import.meta.url);
-const readbackPath = new URL('../.github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql', import.meta.url);
+const candidatePath = new URL('../.github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql', import.meta.url);
+const readbackPath = new URL('../.github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql', import.meta.url);
 const candidateSql = await readFile(candidatePath, 'utf8');
 const readbackSql = await readFile(readbackPath, 'utf8');
 
@@ -176,6 +176,10 @@ const tampered = structuredClone(packet);
 tampered.readback.metrics.journal_orphan_run_count = 1;
 assert.throws(() => verifyHostingerStorageDeferredChildFkReadiness({ packet: tampered }), (error) => error.code === 'STORAGE_DEFERRED_FK_PACKET_TAMPERED');
 
+const digestTampered = structuredClone(packet);
+digestTampered.readiness_digest = h('f');
+assert.throws(() => verifyHostingerStorageDeferredChildFkReadiness({ packet: digestTampered }), (error) => error.code === 'STORAGE_DEFERRED_FK_PACKET_TAMPERED');
+
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_deferred_child_fk_readiness',
@@ -186,6 +190,8 @@ console.log(JSON.stringify({
   zero_orphans_required: true,
   zero_parent_mismatch_required: true,
   exact_runtime_database_cycle_binding: true,
+  semantic_packet_tamper_detection: true,
+  digest_packet_tamper_detection: true,
   authorization_created: false,
   migration_apply_authorized: false,
   foreign_keys_enabled: false,
