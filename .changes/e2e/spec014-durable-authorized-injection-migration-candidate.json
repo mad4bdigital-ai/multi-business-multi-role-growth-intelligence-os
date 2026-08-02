@@ -1,0 +1,103 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-migration-candidate",
+  "title": "Create an exact unpromoted Wave 4 Durable Authorized Injection State migration candidate",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-migration-candidate.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js",
+      "http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Create and inspect one exact additive Wave 4 migration candidate copied from the reviewed contract-local Durable Authorized Injection State DDL, while proving that it is not yet promoted or dependency-registered.",
+      "e2e_journeys": [
+        {
+          "id": "create-unpromoted-durable-injection-wave-4-candidate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable injection migration-candidate inspector",
+          "entrypoint": "The exact Wave 4 candidate, reviewed contract-local DDL, current runtime migration contract, and dependency registry",
+          "terminal_outcome": "A frozen secret-free candidate packet proves exact checksum, two-table statement parity, and Wave 3 dependency while runtime promotion and authorization remain false.",
+          "steps": [
+            "Bind the candidate to the exact Integration source after schema-promotion readiness.",
+            "Read and hash the candidate migration file.",
+            "Compare its parsed statements exactly with the reviewed contract-local DDL.",
+            "Require the state table before the rollback child table.",
+            "Bind Wave 4 to exact Wave 3 migration, checksum, statement count, and apply-ledger dependency.",
+            "Prove Wave 4 is absent from the governed runtime sequence and dependency registry.",
+            "Reject checksum drift, source-parity drift, dependency drift, premature promotion, and premature dependency registration."
+          ],
+          "assertions": [
+            "The candidate checksum is fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981.",
+            "The candidate contains exactly two additive CREATE TABLE statements.",
+            "The candidate statements exactly match the reviewed contract-local DDL.",
+            "The exact Wave 3 dependency remains present and unchanged.",
+            "The candidate is not in hostinger-storage-runtime-migrations.json.",
+            "The candidate is not in governed-migration-dependencies.json.",
+            "No capability resolution, authorization, dry-run, Apply, live database access, Provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "durable-injection-migration-candidate",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+            ".github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js",
+            "http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Promote Wave 4 and register its exact Wave 3 dependency through a separate reviewed PR before any authorization can exist.",
+      "blockers": [
+        "SEPARATELY_REVIEWED_RUNTIME_SEQUENCE_PROMOTION_REQUIRED",
+        "DEPENDENCY_REGISTRY_UPDATE_REQUIRED",
+        "WAVE_3_APPLY_LEDGER_REQUIRED",
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+        "SAME_CYCLE_DRY_RUN_REQUIRED",
+        "LIVE_SCHEMA_ABSENCE_OR_COMPATIBILITY_READBACK_REQUIRED",
+        "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Require exact ledger and signed readback identity before restart reconstruction can consume the durable schema."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production Wave 4 apply and durable lifecycle canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This migration-candidate slice grants no promotion, authorization, Apply, runtime, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
