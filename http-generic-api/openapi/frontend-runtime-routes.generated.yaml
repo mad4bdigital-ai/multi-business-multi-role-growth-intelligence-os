@@ -4483,6 +4483,36 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /tenants/{id}/workflow-runs:
+    get:
+      operationId: getTenantsByIdWorkflowRuns930166a2
+      summary: GET /tenants/{id}/workflow-runs (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/workflowOrchestrationRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
   /tenants/{id}/workspaces:
     get:
       operationId: getTenantsByIdWorkspaces838e476f
@@ -4639,6 +4669,36 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/uploadRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /workflow-runs/{id}:
+    get:
+      operationId: getWorkflowRunsById0afc8b33
+      summary: GET /workflow-runs/{id} (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/workflowOrchestrationRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
@@ -4991,6 +5051,36 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/uploadRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /workflow-runs/{id}/status:
+    patch:
+      operationId: patchWorkflowRunsByIdStatus8a66b084
+      summary: PATCH /workflow-runs/{id}/status (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/workflowOrchestrationRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
@@ -5519,6 +5609,36 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/agentRegistryRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /approval-holds/{id}/decide:
+    post:
+      operationId: postApprovalHoldsByIdDecide87ef8511
+      summary: POST /approval-holds/{id}/decide (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/workflowOrchestrationRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
@@ -8189,6 +8309,36 @@ paths:
           description: Runtime response shape is not yet captured by a reviewed canonical schema.
       x-contract-completeness: operation-index-only
       x-source-file: routes/outputSinkRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
+  /workflow-runs/{id}/steps:
+    post:
+      operationId: postWorkflowRunsByIdSteps9cbe8c3e
+      summary: POST /workflow-runs/{id}/steps (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/workflowOrchestrationRoutes.js
       x-mad4b-runtime-auth:
         profile: backend_or_user
         principal: authenticated
