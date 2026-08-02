@@ -10,7 +10,9 @@
       ".changes/e2e/spec014-post-reconciliation-repository-governance-fix.json",
       ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
       ".github/workflows/frontend-surface-dispatch.yml",
-      ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs"
+      ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+      "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+      "http-generic-api/test-frontend-surface-dispatch.mjs"
     ]
   },
   "merge_contract": {
@@ -56,6 +58,20 @@
               "args": []
             },
             {
+              "id": "frontend-dispatch-delegated-refresh-baseline",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-delegated-refresh-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
               "id": "tenant-canary-shared-publisher-bootstrap",
               "runner": "node",
               "working_directory": ".",
@@ -66,6 +82,10 @@
           "evidence_paths": [
             ".github/workflows/frontend-surface-dispatch.yml",
             ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+            "http-generic-api/test-frontend-surface-dispatch.mjs",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
             ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/ci-evidence-routing.json"
@@ -81,7 +101,73 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Repository Tool Lifecycle and explicit regression tests fail closed if pull-request mutation authority or retired evidence paths return."
+      "objective": "Repository Tool Lifecycle and explicit regression tests fail closed if pull-request mutation authority, retained credentials, inline refresh ownership, or retired evidence paths return.",
+      "e2e_journeys": [
+        {
+          "id": "reject-return-of-pull-request-write-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository lifecycle policy and Frontend contract regressions",
+          "entrypoint": "A future change to Frontend surface dispatch, its contract tests, or Tenant Canary evidence routing",
+          "terminal_outcome": "The candidate is blocked before merge if pull-request write authority, inline commit or push behavior, retained checkout credentials, stale specialized publisher evidence, or non-deterministic generated output returns.",
+          "steps": [
+            "Load the pull-request Frontend workflow and the separately dispatched generated-artifact refresh workflow.",
+            "Assert that the pull-request workflow is contents:read, uses persist-credentials:false, and contains no refresh-generated job, git commit, or git push command.",
+            "Assert that mutation authority remains isolated in the explicitly dispatched workflow and expected-head/protected-branch guarded maintenance tool.",
+            "Execute both legacy Frontend contract regressions against the delegated-refresh architecture.",
+            "Execute the Tenant Canary bootstrap regression against the shared publisher and routing registry.",
+            "Emit structured no-log, no-secret evidence and fail closed on any mismatch."
+          ],
+          "assertions": [
+            "Pull-request Frontend verification cannot mutate repository contents.",
+            "Generated artifact mutation requires explicit workflow_dispatch, typed confirmation, expected-head verification, and protected-branch rejection.",
+            "Both Frontend contract regressions validate the delegated refresh architecture instead of requiring inline PR mutation.",
+            "The shared CI Evidence PR Publisher remains the only Hostinger Tenant Canary publisher evidence path.",
+            "Structured evidence remains authoritative before Job status and Job logs."
+          ],
+          "tests": [
+            {
+              "id": "read-only-frontend-workflow-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+              "args": []
+            },
+            {
+              "id": "delegated-refresh-workflow-baseline-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "delegated-refresh-surface-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
+              "id": "shared-publisher-evidence-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/frontend-surface-dispatch.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/tests/spec014/frontend-surface-dispatch-read-only.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+            "http-generic-api/test-frontend-surface-dispatch.mjs",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
