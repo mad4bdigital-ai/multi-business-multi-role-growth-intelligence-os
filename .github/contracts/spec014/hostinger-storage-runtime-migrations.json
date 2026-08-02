@@ -6,10 +6,13 @@
   "source_contract": ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
   "extension_source_contracts": [
     ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
-    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json"
+    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+    ".github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json"
   ],
   "migration_directory": "http-generic-api/migrations",
   "dependency_registry": "http-generic-api/config/governed-migration-dependencies.json",
+  "readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
+  "schema_verification_attestation_version": "spec014-hostinger-storage-schema-verification-v2",
   "migration_apply_authorized": false,
   "live_database_access_performed": false,
   "schema_verified": false,
@@ -66,9 +69,8 @@
     "Wave 3 must prove all three tool keys are absent before apply; INSERT IGNORE and silent duplicate reconciliation are intentionally forbidden.",
     "Wave 4 must prove both target tables are absent or exactly compatible before apply because CREATE TABLE IF NOT EXISTS must not hide incompatible live schema.",
     "Wave 4 requires exact successful Wave 3 apply-ledger evidence before authorization or execution.",
-    "Signed schema verification and same-cycle readback contracts must be refreshed for the fourth wave before any apply can be considered.",
     "Every wave requires fresh checksum-bound authorization, governed dependency evidence, dry-run evidence, typed confirmation, and same-cycle live readback.",
-    "Signed schema verification is required before mounting the SQL repository or setting production_ready=true."
+    "Same-cycle readback v4 and a valid externally signed Ed25519 schema-verification v2 attestation are required before mounting the SQL repository or setting production_ready=true."
   ],
   "secrets_included": false
 }
