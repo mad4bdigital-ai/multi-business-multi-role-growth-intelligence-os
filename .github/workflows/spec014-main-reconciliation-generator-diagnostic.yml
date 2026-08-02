@@ -1,0 +1,121 @@
+name: Spec014 Main Reconciliation Generator Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-main-reconciliation-generator-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-generators:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/reconcile-spec014-main-6441d3e7-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Build bounded generator diagnostic
+        shell: bash
+        env:
+          INTEGRATION_REF: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/spec014-main-reconciliation-generator-diagnostic"
+          mkdir -p "$report_dir"
+          git fetch --no-tags origin \
+            "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          integration_sha="$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")"
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-ff --no-edit "$integration_sha"
+          set +e
+          git merge --no-commit --no-ff "$main_sha"
+          merge_status=$?
+          set -e
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort -u)
+          [[ $merge_status -eq 1 ]]
+          [[ "${#conflicts[@]}" -eq 1 ]]
+          [[ "${conflicts[0]}" == 'http-generic-api/frontend-surface-dispatch.generated.json' ]]
+          git checkout --ours -- http-generic-api/frontend-surface-dispatch.generated.json
+          git add -- http-generic-api/frontend-surface-dispatch.generated.json
+          npm --prefix http-generic-api ci >/dev/null
+          git branch -f main "$main_sha"
+
+          first_failure=''
+          failure_status=0
+          failure_stdout=''
+          failure_stderr=''
+          run_bounded() {
+            local step="$1"; shift
+            local stdout_file="$report_dir/${step}.stdout"
+            local stderr_file="$report_dir/${step}.stderr"
+            set +e
+            (cd http-generic-api && "$@") >"$stdout_file" 2>"$stderr_file"
+            local status=$?
+            set -e
+            if [[ $status -ne 0 && -z "$first_failure" ]]; then
+              first_failure="$step"
+              failure_status=$status
+              failure_stdout="$(tail -c 4000 "$stdout_file" | sed -E 's/(authorization|api[_-]?key|token|password|secret|cookie)[=:][^[:space:]]+/\1=[redacted]/Ig')"
+              failure_stderr="$(tail -c 4000 "$stderr_file" | sed -E 's/(authorization|api[_-]?key|token|password|secret|cookie)[=:][^[:space:]]+/\1=[redacted]/Ig')"
+              return $status
+            fi
+          }
+
+          run_bounded verify_exact_operation_auth_repair node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs || true
+          if [[ -z "$first_failure" ]]; then run_bounded sync_precise_registry node scripts/openapi-precise-contract-registry-sync.mjs --write || true; fi
+          if [[ -z "$first_failure" ]]; then run_bounded autofill_openapi_routes node scripts/openapi-autofill-missing-routes.mjs --write || true; fi
+          if [[ -z "$first_failure" ]]; then run_bounded sync_openapi_runtime_auth node scripts/openapi-runtime-auth-sync.mjs --write || true; fi
+          if [[ -z "$first_failure" ]]; then run_bounded generate_frontend_dispatch npm run frontend:dispatch:generate -- --baseline-ref=main || true; fi
+          if [[ -z "$first_failure" ]]; then run_bounded generate_custom_gpt_schemas node scripts/generate-custom-gpt-schemas.mjs --write || true; fi
+
+          INTEGRATION_SHA="$integration_sha" MAIN_SHA="$main_sha" FIRST_FAILURE="$first_failure" FAILURE_STATUS="$failure_status" FAILURE_STDOUT="$failure_stdout" FAILURE_STDERR="$failure_stderr" REPORT_DIR="$report_dir" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report={
+            'contract':'mad4b.spec014-main-reconciliation-generator-diagnostic.v1',
+            'outcome':'blocked' if os.environ['FIRST_FAILURE'] else 'passed',
+            'integration_sha':os.environ['INTEGRATION_SHA'],
+            'main_sha':os.environ['MAIN_SHA'],
+            'conflict_paths':['http-generic-api/frontend-surface-dispatch.generated.json'],
+            'first_failure':None if not os.environ['FIRST_FAILURE'] else {
+              'step':os.environ['FIRST_FAILURE'],
+              'exit_status':int(os.environ['FAILURE_STATUS']),
+              'stdout_tail':os.environ['FAILURE_STDOUT'],
+              'stderr_tail':os.environ['FAILURE_STDERR'],
+              'secrets_included':False,
+            },
+            'repository_write_performed':False,
+            'job_logs_consulted':False,
+            'provider_dispatch':False,
+            'credential_access':False,
+            'secrets_included':False,
+          }
+          Path(os.environ['REPORT_DIR'],'summary.json').write_text(json.dumps(report,indent=2)+'\n')
+          PY
+      - name: Upload generator diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-main-reconciliation-generator-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-main-reconciliation-generator-diagnostic/summary.json
+          if-no-files-found: error
+          retention-days: 14
