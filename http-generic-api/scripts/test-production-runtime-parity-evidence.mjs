@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   PRODUCTION_RUNTIME_PARITY_CONTRACT,
   runProductionRuntimeParityEvidence,
@@ -37,6 +38,18 @@ try {
   assert.equal(configuration.endpoints.length, 3);
   assert.equal(configuration.endpoints[2].required, false);
 
+  const repositoryRoot = process.env.REPOSITORY_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const workflowPath = path.join(repositoryRoot, ".github/workflows/production-runtime-parity-evidence.yml");
+  const workflow = fs.readFileSync(workflowPath, "utf8");
+  assert.match(workflow, /permissions:\n  contents: read/u);
+  assert.match(workflow, /if: github\.event_name == 'workflow_dispatch'/u);
+  assert.match(workflow, /ref: main/u);
+  assert.match(workflow, /fetch-depth: 0/u);
+  assert.match(workflow, /persist-credentials: false/u);
+  assert.match(workflow, /refs\/remotes\/origin\/Production/u);
+  assert.match(workflow, /\[\[ "\$\{production_sha\}" == "\$\{EXPECTED_SHA\}" \]\]/u);
+  assert.doesNotMatch(workflow, /^  (?:push|schedule|pull_request_target|issue_comment|deployment):/mu);
+
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
@@ -51,7 +64,12 @@ try {
     expectedSha: SHA,
     expectedBranch: "Production",
     endpoints: [{ name: "bad", url: "https://example.com/version", required: true }]
-  }), /mad4b\.com/u);
+  }), /approved Production host/u);
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [{ name: "bad", url: "https://arbitrary.mad4b.com/version", required: true }]
+  }), /approved Production host/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
@@ -173,7 +191,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 5,
+  tests: 6,
   gate: "production_runtime_parity_structured_evidence",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
