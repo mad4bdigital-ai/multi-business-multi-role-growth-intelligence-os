@@ -12,6 +12,7 @@
       ".github/contracts/spec014/hostinger-storage-schema-verification.json",
       ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
       ".github/contracts/spec014/migrations/readback.sql",
+      ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
       ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
       ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
       ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
@@ -48,7 +49,7 @@
             "Build a v2 subject and reject v1 attestation replay.",
             "Verify one synthetic Ed25519 signature through public-key-only verification.",
             "Propagate the exact authorized injection schema contract into verified evidence.",
-            "Converge Runtime Promotion and Authorization Readiness onto readback v4 and attestation v2.",
+            "Converge Runtime Promotion, Authorization Readiness, and the historical Migration Drafts validator onto readback v4 and attestation v2.",
             "Keep live signature, live database access, authorization, dry-run, Apply, Provider dispatch, and Production false."
           ],
           "assertions": [
@@ -56,6 +57,7 @@
             "The readback contract key is spec014_hostinger_storage_migration_readback_v4.",
             "The verified evidence contains the exact two-table Durable Injection schema contract and digest.",
             "Runtime Promotion and Authorization Readiness no longer report a stale verification-refresh blocker.",
+            "The original three contract-local draft waves remain unchanged while their readback validator accepts the separately governed Wave 4 extension.",
             "Any missing table, column, index, constraint, wrong digest, old attestation version, or migration drift fails closed.",
             "No live signature or external mutation occurs."
           ],
@@ -80,6 +82,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
               "args": []
+            },
+            {
+              "id": "wave4-migration-drafts-readback-extension",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -87,6 +96,7 @@
             ".github/contracts/spec014/hostinger-storage-schema-verification.json",
             ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
             ".github/contracts/spec014/migrations/readback.sql",
+            ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
             "http-generic-api/hostingerStorageSchemaVerification.js"
           ]
         }
