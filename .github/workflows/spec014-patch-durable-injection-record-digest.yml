@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/014-hostinger/durable-injection-record-digest-hardening-20260802
-      EXPECTED_PARENT_SHA: f6514393eaf9bf6abb336b2c571394dcace7461e
+      EXPECTED_PARENT_SHA: b3d4c2a007d5eb13961a52657766863a4fb9f98a
       IMPLEMENTATION_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
       TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
       LAUNCHER_FILE: .github/workflows/spec014-patch-durable-injection-record-digest.yml
