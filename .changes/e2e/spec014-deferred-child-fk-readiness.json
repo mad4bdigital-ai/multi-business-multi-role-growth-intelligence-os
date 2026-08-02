@@ -9,8 +9,8 @@
     "include": [
       ".changes/e2e/spec014-deferred-child-fk-readiness.json",
       ".github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json",
-      ".github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql",
-      ".github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql",
+      ".github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql",
+      ".github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql",
       ".github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml",
       "http-generic-api/hostingerStorageDeferredChildFkReadiness.js",
       "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs"
@@ -41,11 +41,11 @@
             "Keep authorization_created, migration_apply_authorized, foreign_keys_enabled, runtime_mounted, provider_dispatch_allowed, and production_ready false."
           ],
           "assertions": [
-            "The candidate is not present in http-generic-api/migrations.",
+            "The candidate is isolated from both the original migration-draft waves and http-generic-api/migrations.",
             "Exactly three non-cascading foreign keys are proposed.",
             "The evaluator imports no database or process-dispatch client.",
             "Any non-zero blocking metric produces a stable blocker code.",
-            "Packet tampering, checksum drift, runtime/database-cycle mismatch, stale evidence, and secret-bearing fields fail closed."
+            "Packet metric/blocker inconsistency, digest tampering, checksum drift, runtime/database-cycle mismatch, stale evidence, and secret-bearing fields fail closed."
           ],
           "tests": [
             {
@@ -58,8 +58,8 @@
           ],
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json",
-            ".github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql",
-            ".github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql",
+            ".github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql",
+            ".github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql",
             "http-generic-api/hostingerStorageDeferredChildFkReadiness.js",
             "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs"
           ]
