@@ -26,7 +26,31 @@ try {
     "info:",
     "  title: Support Ticket runtime contract fixture",
     "  version: 1.0.0",
-    "paths: {}",
+    "paths:",
+    "  /admin/activation/ticket-inbox:",
+    "    get:",
+    "      operationId: getAdminActivationTicketInboxLegacy",
+    "      summary: GET /admin/activation/ticket-inbox (runtime operation index)",
+    "      security:",
+    "        - adminBearerAuth: []",
+    "        - backendApiKeyAuth: []",
+    "      responses:",
+    "        default:",
+    "          description: Legacy runtime route index.",
+    "      x-contract-completeness: operation-index-only",
+    "      x-source-file: routes/supportTicketRoutes.js",
+    "  /admin/automation/validation/sync-ticket:",
+    "    post:",
+    "      operationId: postAdminAutomationValidationSyncTicketExisting",
+    "      summary: Preserve unrelated runtime contract",
+    "      security:",
+    "        - adminBearerAuth: []",
+    "        - backendApiKeyAuth: []",
+    "      responses:",
+    "        '200':",
+    "          description: Existing unrelated response.",
+    "      x-contract-completeness: operation-index-only",
+    "      x-source-file: routes/automationValidationRoutes.js",
     "components:",
     "  securitySchemes:",
     "    adminBearerAuth:",
@@ -51,6 +75,7 @@ try {
     "",
   ].join("\n"));
   writeFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), [
+    "router.get(\"/admin/activation/ticket-inbox\", ...adminGuards, async (req, res) => {});",
     "router.get(\"/admin/support/tickets\", ...adminGuards, async (req, res) => {});",
     "router.post(\"/admin/support/tickets/:ticket_id/actions\", ...adminGuards, async (req, res) => {});",
     "router.get(\"/tenants/:tenantId/requests\", requireTenantUserJwt, async (req, res) => {});",
@@ -63,11 +88,24 @@ try {
   assert.equal(write.status, 0, write.stderr || write.stdout);
   const result = JSON.parse(write.stdout);
   assert.equal(result.ok, true);
-  assert.equal(result.support_ticket_runtime_operation_count, 5);
-  assert.equal(result.support_ticket_generated_operation_count, 4);
+  assert.equal(result.support_ticket_runtime_operation_count, 6);
+  assert.equal(result.support_ticket_generated_operation_count, 5);
+  assert.equal(result.replaced_runtime_index_path_count, 1);
+  assert.equal(result.replaceable_runtime_path_count, 0);
 
   const doc = YAML.parse(readFileSync(join(tempRoot, "openapi.yaml"), "utf8"));
   assert.equal(doc.paths["/me/support/tickets"].$ref, "./openapi/support-tickets.yaml#/mySupportTickets");
+
+  const activationInbox = doc.paths["/admin/activation/ticket-inbox"].get;
+  assert.equal(activationInbox.operationId, "supportTicketRuntimeGetAdminActivationTicketInbox");
+  assert.equal(activationInbox["x-runtime-contract-source"], "routes/supportTicketRoutes.js");
+  assert.equal(activationInbox["x-runtime-auth-profile"], "admin_backend");
+  assert.equal(activationInbox["x-openai-isConsequential"], false);
+  assert.equal(activationInbox["x-contract-completeness"], undefined);
+
+  const unrelatedContract = doc.paths["/admin/automation/validation/sync-ticket"].post;
+  assert.equal(unrelatedContract.operationId, "postAdminAutomationValidationSyncTicketExisting");
+  assert.equal(unrelatedContract["x-source-file"], "routes/automationValidationRoutes.js");
 
   const adminRead = doc.paths["/admin/support/tickets"].get;
   assert.deepEqual(securityKeys(adminRead), ["adminBearerAuth", "backendApiKeyAuth"]);
