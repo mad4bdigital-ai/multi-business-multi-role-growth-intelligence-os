@@ -3,9 +3,9 @@
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "b6f6ef53c0ddf181ef0c070e5b48905a618b28748c36f803146901d23ddbe36a",
-    "index_source_hash": "b875f59334d878209754ce9dc95b3f319982bd2af83076dd34c0c1fd0e174a47",
-    "coverage_source_hash": "f5b3be7e6549d47fec89925fff685cf8bfcf7683573090e8b62a2b6f05eac831",
+    "fingerprint": "383c65f8f709088a1b6422f8b21d144b198e0581e52c6449bc0053065a24eaac",
+    "index_source_hash": "752bc2ef9ed7417689f1644ab9b492009fa4611a2c91e4bf0d2ddf0326d25073",
+    "coverage_source_hash": "0cdfc494f247174aa8badfb019a7ce3aec1df42173f69b0f870ea9d55012159f",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -16,192 +16,508 @@
       "decision": "not_applicable",
       "rationale": "Storage orchestration does not alter activation eligibility, activation access, or onboarding access decisions.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["FR-027 keeps provider dispatch disabled and no activation surface is introduced."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "FR-027 keeps provider dispatch disabled and no activation surface is introduced."
+      ],
       "depends_on": []
     },
     "activation-onboarding-map": {
       "decision": "not_applicable",
       "rationale": "The feature manages hosting storage after resource ownership exists and does not create or change tenant onboarding.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#scope"],
-      "non_applicability_evidence": ["No activation or onboarding entity, route, or state is added."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#scope"
+      ],
+      "non_applicability_evidence": [
+        "No activation or onboarding entity, route, or state is added."
+      ],
       "depends_on": []
     },
     "agent-skill-plugin-map": {
       "decision": "not_applicable",
       "rationale": "The delivery does not add agent skills, plugins, discovery, or model-directed execution authority.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["All operations are fixed storage operation keys and no skill/plugin surface is created."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "All operations are fixed storage operation keys and no skill/plugin surface is created."
+      ],
       "depends_on": []
     },
     "asset-package-map": {
       "decision": "not_applicable",
       "rationale": "Cleanup plans are operational records and are not platform asset packages or downloadable asset lifecycle objects.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md"],
-      "non_applicability_evidence": ["The data model contains no asset package entity or package distribution behavior."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md"
+      ],
+      "non_applicability_evidence": [
+        "The data model contains no asset package entity or package distribution behavior."
+      ],
       "depends_on": []
     },
     "commercial-usage-map": {
       "decision": "not_applicable",
       "rationale": "This phase does not meter, bill, price, or allocate commercial storage entitlements; it only observes operational pressure.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["Commercial quota and billing are explicitly outside this specification."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "Commercial quota and billing are explicitly outside this specification."
+      ],
       "depends_on": []
     },
     "connector-provider-map": {
       "decision": "extend",
       "rationale": "The feature adds a fixed Hostinger SSH storage adapter over the existing provider and credential-resolution boundaries.",
       "owner": "platform-team",
-      "integration_points": ["hostinger_ssh_storage_v1 fixed adapter", "provider target and pinned host-key resolution"],
-      "requirement_refs": ["FR-016", "FR-017", "FR-027"],
-      "task_refs": ["T040", "T041", "T042"],
-      "acceptance_refs": ["AC-008", "AC-009", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/contracts/storage-operation.schema.json", "docs/work-maps/connector-provider-map.md"],
-      "depends_on": ["policy-authority-map", "platform-resource-graph-map"]
+      "integration_points": [
+        "hostinger_ssh_storage_v1 fixed adapter",
+        "provider target and pinned host-key resolution"
+      ],
+      "requirement_refs": [
+        "FR-016",
+        "FR-017",
+        "FR-027"
+      ],
+      "task_refs": [
+        "T040",
+        "T041",
+        "T042"
+      ],
+      "acceptance_refs": [
+        "AC-008",
+        "AC-009",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/contracts/storage-operation.schema.json",
+        "docs/work-maps/connector-provider-map.md"
+      ],
+      "depends_on": [
+        "policy-authority-map",
+        "platform-resource-graph-map"
+      ]
     },
     "data-model-domain-map": {
       "decision": "extend",
       "rationale": "Durable targets, snapshots, operations, plans, items, approvals, leases, runs, and incidents require classified schema additions.",
       "owner": "platform-team",
-      "integration_points": ["storage orchestration schema domain", "opaque path reference and evidence retention"],
-      "requirement_refs": ["FR-003", "FR-012", "FR-020", "FR-021", "FR-026"],
-      "task_refs": ["T020", "T021", "T022", "T023"],
-      "acceptance_refs": ["AC-003", "AC-011", "AC-015"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md", "docs/work-maps/data-model-domain-map.md"],
-      "depends_on": ["migration-lifecycle-map", "policy-authority-map"]
+      "integration_points": [
+        "storage orchestration schema domain",
+        "opaque path reference and evidence retention"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-012",
+        "FR-020",
+        "FR-021",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T020",
+        "T021",
+        "T022",
+        "T023"
+      ],
+      "acceptance_refs": [
+        "AC-003",
+        "AC-011",
+        "AC-015"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md",
+        "docs/work-maps/data-model-domain-map.md"
+      ],
+      "depends_on": [
+        "migration-lifecycle-map",
+        "policy-authority-map"
+      ]
     },
     "delivery-support-map": {
       "decision": "integrate",
       "rationale": "Storage incidents, support cases, provider escalation, delegation, and recovery handoff are first-class operation paths.",
       "owner": "platform-team",
-      "integration_points": ["storage pressure incident", "support-case-bound delegated operation", "Hostinger escalation evidence"],
-      "requirement_refs": ["FR-005", "FR-024", "FR-026"],
-      "task_refs": ["T055", "T056", "T081"],
-      "acceptance_refs": ["AC-006", "AC-017", "AC-019"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/operation-paths.md#op-012", "docs/work-maps/delivery-support-map.md"],
-      "depends_on": ["policy-authority-map", "observability-release-map"]
+      "integration_points": [
+        "storage pressure incident",
+        "support-case-bound delegated operation",
+        "Hostinger escalation evidence"
+      ],
+      "requirement_refs": [
+        "FR-005",
+        "FR-024",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T055",
+        "T056",
+        "T081"
+      ],
+      "acceptance_refs": [
+        "AC-006",
+        "AC-017",
+        "AC-019"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/operation-paths.md#op-012",
+        "docs/work-maps/delivery-support-map.md"
+      ],
+      "depends_on": [
+        "policy-authority-map",
+        "observability-release-map"
+      ]
     },
     "execution-log-evidence-map": {
       "decision": "integrate",
       "rationale": "Each operation requires bounded journals, checkpoints, before/after evidence, denial reasons, and reconciliation records.",
       "owner": "platform-team",
-      "integration_points": ["storage operation evidence packet", "per-item checkpoint journal", "same-operation reconciliation"],
-      "requirement_refs": ["FR-021", "FR-022", "FR-023", "FR-026"],
-      "task_refs": ["T050", "T051", "T052"],
-      "acceptance_refs": ["AC-014", "AC-015", "AC-016"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/contracts/storage-evidence.schema.json", "docs/work-maps/execution-log-evidence-map.md"],
-      "depends_on": ["workflow-task-orchestration-map", "observability-release-map"]
+      "integration_points": [
+        "storage operation evidence packet",
+        "per-item checkpoint journal",
+        "same-operation reconciliation"
+      ],
+      "requirement_refs": [
+        "FR-021",
+        "FR-022",
+        "FR-023",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T050",
+        "T051",
+        "T052"
+      ],
+      "acceptance_refs": [
+        "AC-014",
+        "AC-015",
+        "AC-016"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/contracts/storage-evidence.schema.json",
+        "docs/work-maps/execution-log-evidence-map.md"
+      ],
+      "depends_on": [
+        "workflow-task-orchestration-map",
+        "observability-release-map"
+      ]
     },
     "migration-lifecycle-map": {
       "decision": "extend",
       "rationale": "The durable orchestration model requires additive migrations, governed apply, readback, rollback, and compatibility sequencing.",
       "owner": "platform-team",
-      "integration_points": ["additive storage orchestration migration set", "same-cycle migration readback"],
-      "requirement_refs": ["FR-012", "FR-020", "FR-026"],
-      "task_refs": ["T024", "T025", "T026"],
-      "acceptance_refs": ["AC-011", "AC-012", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/plan.md#data-and-migration-plan", "docs/work-maps/migration-lifecycle-map.md"],
-      "depends_on": ["data-model-domain-map", "observability-release-map"]
+      "integration_points": [
+        "additive storage orchestration migration set",
+        "same-cycle migration readback"
+      ],
+      "requirement_refs": [
+        "FR-012",
+        "FR-020",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T024",
+        "T025",
+        "T026"
+      ],
+      "acceptance_refs": [
+        "AC-011",
+        "AC-012",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/plan.md#data-and-migration-plan",
+        "docs/work-maps/migration-lifecycle-map.md"
+      ],
+      "depends_on": [
+        "data-model-domain-map",
+        "observability-release-map"
+      ]
     },
     "observability-release-map": {
       "decision": "extend",
       "rationale": "The feature adds byte/inode pressure metrics, alerts, promotion preflight, readback completeness, and rollout gates.",
       "owner": "platform-team",
-      "integration_points": ["storage pressure metrics", "Production promotion storage preflight", "runtime and hPanel readback"],
-      "requirement_refs": ["FR-007", "FR-008", "FR-023", "FR-025"],
-      "task_refs": ["T060", "T061", "T062", "T090"],
-      "acceptance_refs": ["AC-001", "AC-002", "AC-018", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/rollout.md", "docs/work-maps/observability-release-map.md"],
-      "depends_on": ["execution-log-evidence-map", "platform-runtime-map"]
+      "integration_points": [
+        "storage pressure metrics",
+        "Production promotion storage preflight",
+        "runtime and hPanel readback"
+      ],
+      "requirement_refs": [
+        "FR-007",
+        "FR-008",
+        "FR-023",
+        "FR-025"
+      ],
+      "task_refs": [
+        "T060",
+        "T061",
+        "T062",
+        "T090"
+      ],
+      "acceptance_refs": [
+        "AC-001",
+        "AC-002",
+        "AC-018",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/rollout.md",
+        "docs/work-maps/observability-release-map.md"
+      ],
+      "depends_on": [
+        "execution-log-evidence-map",
+        "platform-runtime-map"
+      ]
     },
     "platform-resource-graph-map": {
       "decision": "extend",
       "rationale": "Hosting accounts, websites, deployment slots, storage roots, plans, runs, and incidents require explicit graph identities and ownership edges.",
       "owner": "platform-team",
-      "integration_points": ["hosting resource graph", "tenant/platform/shared ownership edges", "active deployment root binding"],
-      "requirement_refs": ["FR-003", "FR-004", "FR-006", "FR-028"],
-      "task_refs": ["T030", "T031", "T032"],
-      "acceptance_refs": ["AC-003", "AC-004", "AC-007"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md#resource-graph", "docs/work-maps/platform-resource-graph-map.md"],
-      "depends_on": ["tenancy-and-identity", "data-model-domain-map"]
+      "integration_points": [
+        "hosting resource graph",
+        "tenant/platform/shared ownership edges",
+        "active deployment root binding"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-004",
+        "FR-006",
+        "FR-028"
+      ],
+      "task_refs": [
+        "T030",
+        "T031",
+        "T032"
+      ],
+      "acceptance_refs": [
+        "AC-003",
+        "AC-004",
+        "AC-007"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md#resource-graph",
+        "docs/work-maps/platform-resource-graph-map.md"
+      ],
+      "depends_on": [
+        "tenancy-and-identity",
+        "data-model-domain-map"
+      ]
     },
     "platform-runtime-map": {
       "decision": "integrate",
       "rationale": "Provider execution must run on a dedicated worker or connector, remain disabled on the public web runtime, and expose runtime certification state.",
       "owner": "platform-team",
-      "integration_points": ["dedicated storage worker", "dispatch certification registry", "public-runtime deny guard"],
-      "requirement_refs": ["FR-016", "FR-017", "FR-027"],
-      "task_refs": ["T043", "T044", "T045"],
-      "acceptance_refs": ["AC-008", "AC-009", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/concerns.md#runtime-boundary", "docs/work-maps/platform-runtime-map.md"],
-      "depends_on": ["connector-provider-map", "policy-authority-map"]
+      "integration_points": [
+        "dedicated storage worker",
+        "dispatch certification registry",
+        "public-runtime deny guard"
+      ],
+      "requirement_refs": [
+        "FR-016",
+        "FR-017",
+        "FR-027"
+      ],
+      "task_refs": [
+        "T043",
+        "T044",
+        "T045"
+      ],
+      "acceptance_refs": [
+        "AC-008",
+        "AC-009",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/concerns.md#runtime-boundary",
+        "docs/work-maps/platform-runtime-map.md"
+      ],
+      "depends_on": [
+        "connector-provider-map",
+        "policy-authority-map"
+      ]
     },
     "policy-authority-map": {
       "decision": "extend",
       "rationale": "The feature composes explicit Admin/Tenant context, ownership scope, Resource Authority, Capability Envelope, approvals, delegation, break-glass, lease, and Release Authority.",
       "owner": "platform-team",
-      "integration_points": ["storage operation authority resolver", "scope-specific approval matrix", "delegation and break-glass boundary"],
-      "requirement_refs": ["FR-001", "FR-002", "FR-004", "FR-005", "FR-006", "FR-014", "FR-015"],
-      "task_refs": ["T033", "T034", "T035", "T036"],
-      "acceptance_refs": ["AC-004", "AC-005", "AC-006", "AC-007"],
-      "evidence_refs": ["http-generic-api/config/hostinger-storage-orchestration-policy.json", "docs/work-maps/policy-authority-map.md"],
-      "depends_on": ["platform-resource-graph-map", "workflow-task-orchestration-map"]
+      "integration_points": [
+        "storage operation authority resolver",
+        "scope-specific approval matrix",
+        "delegation and break-glass boundary"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-002",
+        "FR-004",
+        "FR-005",
+        "FR-006",
+        "FR-014",
+        "FR-015"
+      ],
+      "task_refs": [
+        "T033",
+        "T034",
+        "T035",
+        "T036"
+      ],
+      "acceptance_refs": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "evidence_refs": [
+        "http-generic-api/config/hostinger-storage-orchestration-policy.json",
+        "docs/work-maps/policy-authority-map.md"
+      ],
+      "depends_on": [
+        "platform-resource-graph-map",
+        "workflow-task-orchestration-map"
+      ]
     },
     "repository-automation-map": {
       "decision": "reuse",
       "rationale": "Existing Spec Kit, Work Map, CI, Docs Agent, exact-head, and generated-artifact automation is reused without a new automation authority surface.",
       "owner": "platform-team",
-      "integration_points": ["Spec Kit Work Map Integration gate", "Hostinger Storage Orchestration Guard"],
-      "requirement_refs": ["FR-027"],
-      "task_refs": ["T003", "T004", "T070", "T071"],
-      "acceptance_refs": ["AC-020"],
-      "evidence_refs": [".github/workflows/hostinger-storage-cleanup-guard.yml", "docs/work-maps/repository-automation-map.md"],
-      "depends_on": ["repository-development-map", "work-map-coverage-matrix"]
+      "integration_points": [
+        "Spec Kit Work Map Integration gate",
+        "Hostinger Storage Orchestration Guard"
+      ],
+      "requirement_refs": [
+        "FR-027"
+      ],
+      "task_refs": [
+        "T003",
+        "T004",
+        "T070",
+        "T071"
+      ],
+      "acceptance_refs": [
+        "AC-020"
+      ],
+      "evidence_refs": [
+        ".github/workflows/hostinger-storage-cleanup-guard.yml",
+        "docs/work-maps/repository-automation-map.md"
+      ],
+      "depends_on": [
+        "repository-development-map",
+        "work-map-coverage-matrix"
+      ]
     },
     "repository-development-map": {
       "decision": "integrate",
       "rationale": "The delivery adds reviewed policies, shell tooling, Node authority code, schemas, tests, documentation, and governed branch synchronization.",
       "owner": "platform-team",
-      "integration_points": ["storage orchestration source and test set", "Spec 014 package", "exact-head branch maintenance"],
-      "requirement_refs": ["NFR-010", "FR-027"],
-      "task_refs": ["T001", "T002", "T070", "T071", "T072"],
-      "acceptance_refs": ["AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/traceability.md", "docs/work-maps/repository-development-map.md"],
-      "depends_on": ["repository-automation-map"]
+      "integration_points": [
+        "storage orchestration source and test set",
+        "Spec 014 package",
+        "exact-head branch maintenance"
+      ],
+      "requirement_refs": [
+        "NFR-010",
+        "FR-027"
+      ],
+      "task_refs": [
+        "T001",
+        "T002",
+        "T070",
+        "T071",
+        "T072"
+      ],
+      "acceptance_refs": [
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/traceability.md",
+        "docs/work-maps/repository-development-map.md"
+      ],
+      "depends_on": [
+        "repository-automation-map"
+      ]
     },
     "session-memory-map": {
       "decision": "not_applicable",
       "rationale": "Storage orchestration does not create conversational memory, session recall, or memory persistence behavior.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["Operations use durable operation state and audit records, not session memory."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "Operations use durable operation state and audit records, not session memory."
+      ],
       "depends_on": []
     },
     "work-map-coverage-matrix": {
       "decision": "reuse",
       "rationale": "The generated coverage matrix and canonical schema classification registry are reused to classify all proposed storage entities into existing domains and maps.",
       "owner": "platform-team",
-      "integration_points": ["schema classification review", "all-map readiness binding"],
-      "requirement_refs": ["FR-003", "FR-026"],
-      "task_refs": ["T003", "T004", "T023"],
-      "acceptance_refs": ["AC-011", "AC-020"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", ".specify/work-map-schema-classification-registry.json"],
-      "depends_on": ["data-model-domain-map"]
+      "integration_points": [
+        "schema classification review",
+        "all-map readiness binding"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T003",
+        "T004",
+        "T023"
+      ],
+      "acceptance_refs": [
+        "AC-011",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        ".specify/work-map-schema-classification-registry.json"
+      ],
+      "depends_on": [
+        "data-model-domain-map"
+      ]
     },
     "workflow-task-orchestration-map": {
       "decision": "extend",
       "rationale": "Storage operations require a durable state machine, approval holds, execution leases, idempotency, checkpoints, cancellation, and reconciliation.",
       "owner": "platform-team",
-      "integration_points": ["storage operation state machine", "approval hold and lease orchestration", "unknown-outcome reconciliation"],
-      "requirement_refs": ["FR-013", "FR-015", "FR-020", "FR-021", "FR-022"],
-      "task_refs": ["T037", "T038", "T050", "T051", "T052"],
-      "acceptance_refs": ["AC-010", "AC-013", "AC-014", "AC-016"],
-      "evidence_refs": ["http-generic-api/hostingerStorageOrchestrationPolicy.js", "docs/work-maps/workflow-task-orchestration-map.md"],
-      "depends_on": ["policy-authority-map", "execution-log-evidence-map"]
+      "integration_points": [
+        "storage operation state machine",
+        "approval hold and lease orchestration",
+        "unknown-outcome reconciliation"
+      ],
+      "requirement_refs": [
+        "FR-013",
+        "FR-015",
+        "FR-020",
+        "FR-021",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T037",
+        "T038",
+        "T050",
+        "T051",
+        "T052"
+      ],
+      "acceptance_refs": [
+        "AC-010",
+        "AC-013",
+        "AC-014",
+        "AC-016"
+      ],
+      "evidence_refs": [
+        "http-generic-api/hostingerStorageOrchestrationPolicy.js",
+        "docs/work-maps/workflow-task-orchestration-map.md"
+      ],
+      "depends_on": [
+        "policy-authority-map",
+        "execution-log-evidence-map"
+      ]
     }
   },
   "domain_decisions": {
@@ -210,8 +526,12 @@
       "decision": "not_applicable",
       "rationale": "No activation or onboarding state is introduced or modified by storage orchestration.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["The feature starts after hosting target/resource ownership exists."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "The feature starts after hosting target/resource ownership exists."
+      ],
       "depends_on": []
     },
     "agents-and-intelligence": {
@@ -219,8 +539,12 @@
       "decision": "not_applicable",
       "rationale": "No AI agent, model inference, skill catalog, or autonomous deletion decision is introduced.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/concerns.md"],
-      "non_applicability_evidence": ["Automatic apply is prohibited and fixed operations require human/governed authority."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/concerns.md"
+      ],
+      "non_applicability_evidence": [
+        "Automatic apply is prohibited and fixed operations require human/governed authority."
+      ],
       "depends_on": []
     },
     "assets-and-packages": {
@@ -228,8 +552,12 @@
       "decision": "not_applicable",
       "rationale": "Storage cleanup plans are operational records rather than asset or package lifecycle objects.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md"],
-      "non_applicability_evidence": ["No asset package entity or delivery path is specified."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md"
+      ],
+      "non_applicability_evidence": [
+        "No asset package entity or delivery path is specified."
+      ],
       "depends_on": []
     },
     "brand-and-business": {
@@ -237,8 +565,12 @@
       "decision": "not_applicable",
       "rationale": "The authority scope is Tenant/Workspace/Resource and does not add Brand-specific storage semantics in this phase.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#scope"],
-      "non_applicability_evidence": ["Brand ownership remains outside the Hostinger target model for this delivery."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#scope"
+      ],
+      "non_applicability_evidence": [
+        "Brand ownership remains outside the Hostinger target model for this delivery."
+      ],
       "depends_on": []
     },
     "commercial-and-usage": {
@@ -246,8 +578,12 @@
       "decision": "not_applicable",
       "rationale": "Operational pressure evidence is not commercial metering, billing, pricing, or entitlement allocation.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"],
-      "non_applicability_evidence": ["No billing or commercial usage contract is included."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/spec.md#excluded"
+      ],
+      "non_applicability_evidence": [
+        "No billing or commercial usage contract is included."
+      ],
       "depends_on": []
     },
     "connectors-and-providers": {
@@ -255,104 +591,285 @@
       "decision": "extend",
       "rationale": "A fixed Hostinger SSH provider adapter, target resolution, credential reference, and host-key pin contract are added.",
       "owner": "platform-team",
-      "integration_points": ["Hostinger SSH storage adapter", "provider target certification"],
-      "requirement_refs": ["FR-016", "FR-017", "FR-027"],
-      "task_refs": ["T040", "T041", "T042", "T043"],
-      "acceptance_refs": ["AC-008", "AC-009", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/contracts/storage-operation.schema.json"],
-      "depends_on": ["governance-and-authority", "platform-resources-and-graph"]
+      "integration_points": [
+        "Hostinger SSH storage adapter",
+        "provider target certification"
+      ],
+      "requirement_refs": [
+        "FR-016",
+        "FR-017",
+        "FR-027"
+      ],
+      "task_refs": [
+        "T040",
+        "T041",
+        "T042",
+        "T043"
+      ],
+      "acceptance_refs": [
+        "AC-008",
+        "AC-009",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/contracts/storage-operation.schema.json"
+      ],
+      "depends_on": [
+        "governance-and-authority",
+        "platform-resources-and-graph"
+      ]
     },
     "delivery-and-support": {
       "label": "Delivery & support",
       "decision": "extend",
       "rationale": "Storage incidents, support cases, delegation, provider escalation, and recovery evidence extend support operations.",
       "owner": "platform-team",
-      "integration_points": ["storage incident and support handoff"],
-      "requirement_refs": ["FR-005", "FR-024", "FR-026"],
-      "task_refs": ["T055", "T056", "T081"],
-      "acceptance_refs": ["AC-006", "AC-017", "AC-019"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/operation-paths.md#op-012"],
-      "depends_on": ["observability-and-release", "governance-and-authority"]
+      "integration_points": [
+        "storage incident and support handoff"
+      ],
+      "requirement_refs": [
+        "FR-005",
+        "FR-024",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T055",
+        "T056",
+        "T081"
+      ],
+      "acceptance_refs": [
+        "AC-006",
+        "AC-017",
+        "AC-019"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/operation-paths.md#op-012"
+      ],
+      "depends_on": [
+        "observability-and-release",
+        "governance-and-authority"
+      ]
     },
     "developer-and-api": {
       "label": "Developer & API",
       "decision": "extend",
       "rationale": "Separate Admin and Tenant HTTP contracts are added over one storage orchestration application service.",
       "owner": "platform-team",
-      "integration_points": ["Admin storage API", "Tenant storage API", "JSON evidence schemas"],
-      "requirement_refs": ["FR-001", "FR-004", "FR-009", "FR-010"],
-      "task_refs": ["T010", "T011", "T012"],
-      "acceptance_refs": ["AC-003", "AC-004", "AC-005"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/contracts/openapi.yaml"],
-      "depends_on": ["governance-and-authority", "tenancy-and-identity"]
+      "integration_points": [
+        "Admin storage API",
+        "Tenant storage API",
+        "JSON evidence schemas"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-004",
+        "FR-009",
+        "FR-010"
+      ],
+      "task_refs": [
+        "T010",
+        "T011",
+        "T012"
+      ],
+      "acceptance_refs": [
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/contracts/openapi.yaml"
+      ],
+      "depends_on": [
+        "governance-and-authority",
+        "tenancy-and-identity"
+      ]
     },
     "governance-and-authority": {
       "label": "Governance & authority",
       "decision": "extend",
       "rationale": "Admin/Tenant context, ownership, Resource Authority, Capability Envelope, approvals, delegation, break-glass, leases, and Release Authority are composed for storage operations.",
       "owner": "platform-team",
-      "integration_points": ["storage authority resolver", "approval and delegation policy"],
-      "requirement_refs": ["FR-001", "FR-002", "FR-004", "FR-005", "FR-006", "FR-014", "FR-015"],
-      "task_refs": ["T033", "T034", "T035", "T036"],
-      "acceptance_refs": ["AC-004", "AC-005", "AC-006", "AC-007"],
-      "evidence_refs": ["http-generic-api/config/hostinger-storage-orchestration-policy.json"],
-      "depends_on": ["tenancy-and-identity", "platform-resources-and-graph"]
+      "integration_points": [
+        "storage authority resolver",
+        "approval and delegation policy"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-002",
+        "FR-004",
+        "FR-005",
+        "FR-006",
+        "FR-014",
+        "FR-015"
+      ],
+      "task_refs": [
+        "T033",
+        "T034",
+        "T035",
+        "T036"
+      ],
+      "acceptance_refs": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "evidence_refs": [
+        "http-generic-api/config/hostinger-storage-orchestration-policy.json"
+      ],
+      "depends_on": [
+        "tenancy-and-identity",
+        "platform-resources-and-graph"
+      ]
     },
     "migration-and-lifecycle": {
       "label": "Migration & lifecycle",
       "decision": "extend",
       "rationale": "Additive orchestration tables and lifecycle transitions require governed migration, readback, rollback, and compatibility controls.",
       "owner": "platform-team",
-      "integration_points": ["storage schema migration set", "operation lifecycle state"],
-      "requirement_refs": ["FR-012", "FR-020", "FR-022", "FR-026"],
-      "task_refs": ["T024", "T025", "T026", "T037"],
-      "acceptance_refs": ["AC-011", "AC-012", "AC-016"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md", "specs/014-governed-hostinger-storage-orchestration/rollout.md"],
-      "depends_on": ["data-model-domain-map", "workflow-and-tasks"]
+      "integration_points": [
+        "storage schema migration set",
+        "operation lifecycle state"
+      ],
+      "requirement_refs": [
+        "FR-012",
+        "FR-020",
+        "FR-022",
+        "FR-026"
+      ],
+      "task_refs": [
+        "T024",
+        "T025",
+        "T026",
+        "T037"
+      ],
+      "acceptance_refs": [
+        "AC-011",
+        "AC-012",
+        "AC-016"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md",
+        "specs/014-governed-hostinger-storage-orchestration/rollout.md"
+      ],
+      "depends_on": [
+        "data-model-domain-map",
+        "workflow-and-tasks"
+      ]
     },
     "observability-and-release": {
       "label": "Observability & release",
       "decision": "extend",
       "rationale": "Byte/inode metrics, alert thresholds, promotion preflight, readback completeness, and rollout certification extend release observability.",
       "owner": "platform-team",
-      "integration_points": ["storage metrics and alerts", "Production storage preflight", "post-apply readback"],
-      "requirement_refs": ["FR-007", "FR-008", "FR-023", "FR-025"],
-      "task_refs": ["T060", "T061", "T062", "T090"],
-      "acceptance_refs": ["AC-001", "AC-002", "AC-018", "AC-020"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/rollout.md"],
-      "depends_on": ["delivery-and-support", "workflow-and-tasks"]
+      "integration_points": [
+        "storage metrics and alerts",
+        "Production storage preflight",
+        "post-apply readback"
+      ],
+      "requirement_refs": [
+        "FR-007",
+        "FR-008",
+        "FR-023",
+        "FR-025"
+      ],
+      "task_refs": [
+        "T060",
+        "T061",
+        "T062",
+        "T090"
+      ],
+      "acceptance_refs": [
+        "AC-001",
+        "AC-002",
+        "AC-018",
+        "AC-020"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/rollout.md"
+      ],
+      "depends_on": [
+        "delivery-and-support",
+        "workflow-and-tasks"
+      ]
     },
     "platform-resources-and-graph": {
       "label": "Platform resources & graph",
       "decision": "extend",
       "rationale": "Hostinger accounts, websites, deployment slots, roots, plans, runs, and incidents are modeled as owned resources and graph edges.",
       "owner": "platform-team",
-      "integration_points": ["storage target resource graph", "ownership and active deployment edges"],
-      "requirement_refs": ["FR-003", "FR-004", "FR-006", "FR-028"],
-      "task_refs": ["T030", "T031", "T032"],
-      "acceptance_refs": ["AC-003", "AC-004", "AC-007"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md#resource-graph"],
-      "depends_on": ["tenancy-and-identity", "governance-and-authority"]
+      "integration_points": [
+        "storage target resource graph",
+        "ownership and active deployment edges"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-004",
+        "FR-006",
+        "FR-028"
+      ],
+      "task_refs": [
+        "T030",
+        "T031",
+        "T032"
+      ],
+      "acceptance_refs": [
+        "AC-003",
+        "AC-004",
+        "AC-007"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md#resource-graph"
+      ],
+      "depends_on": [
+        "tenancy-and-identity",
+        "governance-and-authority"
+      ]
     },
     "repository-and-development": {
       "label": "Repository & development",
       "decision": "integrate",
       "rationale": "Spec Kit, policies, scripts, tests, CI, generated Work Maps, exact-head synchronization, and governed PR delivery are repository concerns.",
       "owner": "platform-team",
-      "integration_points": ["Spec 014 package", "storage orchestration guard", "Work Map integration gate"],
-      "requirement_refs": ["FR-027", "NFR-010"],
-      "task_refs": ["T001", "T002", "T003", "T070", "T071", "T072"],
-      "acceptance_refs": ["AC-020"],
-      "evidence_refs": [".github/workflows/hostinger-storage-cleanup-guard.yml", "specs/014-governed-hostinger-storage-orchestration/traceability.md"],
-      "depends_on": ["work-map-coverage-matrix"]
+      "integration_points": [
+        "Spec 014 package",
+        "storage orchestration guard",
+        "Work Map integration gate"
+      ],
+      "requirement_refs": [
+        "FR-027",
+        "NFR-010"
+      ],
+      "task_refs": [
+        "T001",
+        "T002",
+        "T003",
+        "T070",
+        "T071",
+        "T072"
+      ],
+      "acceptance_refs": [
+        "AC-020"
+      ],
+      "evidence_refs": [
+        ".github/workflows/hostinger-storage-cleanup-guard.yml",
+        "specs/014-governed-hostinger-storage-orchestration/traceability.md"
+      ],
+      "depends_on": [
+        "work-map-coverage-matrix"
+      ]
     },
     "sessions-and-memory": {
       "label": "Sessions & memory",
       "decision": "not_applicable",
       "rationale": "The feature uses durable operations and audits rather than conversational session or memory state.",
       "owner": "platform-team",
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/data-model.md"],
-      "non_applicability_evidence": ["No session-memory entity or retrieval behavior is introduced."],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/data-model.md"
+      ],
+      "non_applicability_evidence": [
+        "No session-memory entity or retrieval behavior is introduced."
+      ],
       "depends_on": []
     },
     "tenancy-and-identity": {
@@ -360,33 +877,106 @@
       "decision": "extend",
       "rationale": "Tenant/Workspace/Resource context, Workspace Owner and Operator roles, dual-role context selection, and tenant-safe projections extend tenant identity enforcement.",
       "owner": "platform-team",
-      "integration_points": ["explicit Tenant context", "workspace ownership and role checks", "tenant-safe evidence projection"],
-      "requirement_refs": ["FR-001", "FR-002", "FR-004", "FR-010", "FR-014"],
-      "task_refs": ["T033", "T034", "T035"],
-      "acceptance_refs": ["AC-004", "AC-005", "AC-006"],
-      "evidence_refs": ["http-generic-api/hostingerStorageOrchestrationPolicy.js"],
-      "depends_on": ["governance-and-authority", "platform-resources-and-graph"]
+      "integration_points": [
+        "explicit Tenant context",
+        "workspace ownership and role checks",
+        "tenant-safe evidence projection"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-002",
+        "FR-004",
+        "FR-010",
+        "FR-014"
+      ],
+      "task_refs": [
+        "T033",
+        "T034",
+        "T035"
+      ],
+      "acceptance_refs": [
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "evidence_refs": [
+        "http-generic-api/hostingerStorageOrchestrationPolicy.js"
+      ],
+      "depends_on": [
+        "governance-and-authority",
+        "platform-resources-and-graph"
+      ]
     },
     "workflow-and-tasks": {
       "label": "Workflow & tasks",
       "decision": "extend",
       "rationale": "The feature adds durable operation states, approval holds, execution leases, checkpoints, cancellation, and unknown-outcome reconciliation.",
       "owner": "platform-team",
-      "integration_points": ["storage operation state machine", "approval/lease workflow", "reconciliation workflow"],
-      "requirement_refs": ["FR-013", "FR-015", "FR-020", "FR-021", "FR-022"],
-      "task_refs": ["T037", "T038", "T050", "T051", "T052"],
-      "acceptance_refs": ["AC-010", "AC-013", "AC-014", "AC-016"],
-      "evidence_refs": ["specs/014-governed-hostinger-storage-orchestration/operation-paths.md"],
-      "depends_on": ["governance-and-authority", "observability-and-release"]
+      "integration_points": [
+        "storage operation state machine",
+        "approval/lease workflow",
+        "reconciliation workflow"
+      ],
+      "requirement_refs": [
+        "FR-013",
+        "FR-015",
+        "FR-020",
+        "FR-021",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T037",
+        "T038",
+        "T050",
+        "T051",
+        "T052"
+      ],
+      "acceptance_refs": [
+        "AC-010",
+        "AC-013",
+        "AC-014",
+        "AC-016"
+      ],
+      "evidence_refs": [
+        "specs/014-governed-hostinger-storage-orchestration/operation-paths.md"
+      ],
+      "depends_on": [
+        "governance-and-authority",
+        "observability-and-release"
+      ]
     }
   },
   "cross_map_dependencies": [
-    {"from": "policy-authority-map", "to": "platform-resource-graph-map", "reason": "Authority is resolved against owned target/resource graph identities."},
-    {"from": "platform-resource-graph-map", "to": "connector-provider-map", "reason": "Owned target resolves to one certified Hostinger provider target."},
-    {"from": "workflow-task-orchestration-map", "to": "execution-log-evidence-map", "reason": "Every lifecycle transition and checkpoint produces operation evidence."},
-    {"from": "observability-release-map", "to": "delivery-support-map", "reason": "Pressure alerts and blocked promotions open support/incident workflows."},
-    {"from": "data-model-domain-map", "to": "migration-lifecycle-map", "reason": "Durable orchestration entities require governed additive migrations."},
-    {"from": "repository-development-map", "to": "repository-automation-map", "reason": "Source and Spec changes are validated by existing repository automation."}
+    {
+      "from": "policy-authority-map",
+      "to": "platform-resource-graph-map",
+      "reason": "Authority is resolved against owned target/resource graph identities."
+    },
+    {
+      "from": "platform-resource-graph-map",
+      "to": "connector-provider-map",
+      "reason": "Owned target resolves to one certified Hostinger provider target."
+    },
+    {
+      "from": "workflow-task-orchestration-map",
+      "to": "execution-log-evidence-map",
+      "reason": "Every lifecycle transition and checkpoint produces operation evidence."
+    },
+    {
+      "from": "observability-release-map",
+      "to": "delivery-support-map",
+      "reason": "Pressure alerts and blocked promotions open support/incident workflows."
+    },
+    {
+      "from": "data-model-domain-map",
+      "to": "migration-lifecycle-map",
+      "reason": "Durable orchestration entities require governed additive migrations."
+    },
+    {
+      "from": "repository-development-map",
+      "to": "repository-automation-map",
+      "reason": "Source and Spec changes are validated by existing repository automation."
+    }
   ],
   "dimension_discovery": {
     "registry_gap_clusters": {},
