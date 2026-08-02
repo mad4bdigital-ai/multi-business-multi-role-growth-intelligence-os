@@ -120,6 +120,23 @@ permissions:
 );
 assert(multilineBranchFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
 
+const repositoryPathWorkflow = ".github/workflows/repository-path-filter.yml";
+const repositoryPathFindings = await evaluate(
+  [{ status: "A", path: repositoryPathWorkflow }],
+  {
+    [repositoryPathWorkflow]: `
+on:
+  pull_request:
+    paths:
+      - "docs/work-maps/**"
+      - "feat/example/**"
+permissions:
+  contents: read
+`,
+  },
+);
+assert(!repositoryPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
 const triggerFindings = await evaluate([
   { status: "A", path: ".changes/e2e/.runtime-patch-trigger" },
 ]);
@@ -309,6 +326,6 @@ assert.deepEqual(compliantFindings, []);
 console.log(JSON.stringify({
   ok: true,
   gate: "repository_tool_lifecycle_governance",
-  cases: 18,
+  cases: 19,
   secrets_included: false,
 }));
