@@ -15,12 +15,13 @@
   "max_readback_cycle_minutes": 10,
   "max_signing_delay_minutes": 5,
   "max_attestation_age_minutes": 15,
-  "expected_readback_contract_key": "spec014_hostinger_storage_migration_readback_v3",
+  "expected_readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
+  "readback_contract_path": ".github/contracts/spec014/migrations/readback.sql",
   "expected_counts": {
-    "compatible_tables": 15,
+    "compatible_tables": 17,
     "present_views": 3,
-    "compatible_runtime_columns": 52,
-    "compatible_runtime_index_columns": 22,
+    "compatible_runtime_columns": 68,
+    "compatible_runtime_index_columns": 31,
     "observed_tools": 3,
     "disabled_tools": 3,
     "enabled_tools": 0
@@ -47,6 +48,14 @@
       "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
       "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
       "statement_count": 9,
+      "required_ledger_mode": "apply",
+      "required_ledger_status": "success"
+    },
+    {
+      "wave": 4,
+      "migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+      "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+      "statement_count": 2,
       "required_ledger_mode": "apply",
       "required_ledger_status": "success"
     }
