@@ -13,7 +13,7 @@ const SYNC_SCRIPT = path.join(API_DIR, "scripts", "openapi-precise-contract-regi
 const SIGNATURE = "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
 const ROUTE_PATH = "/admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
 const PATH_REF = "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion";
-const OPERATION_ID = "issueSupportTicketExternalDeliveryCompletionCertification";
+const OPERATION_ID = "supportTicketExternalDeliveryCompletionCertify";
 
 function legacyOperation(overrides = {}) {
   return {
