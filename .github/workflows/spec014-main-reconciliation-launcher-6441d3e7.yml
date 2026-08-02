@@ -28,8 +28,8 @@ jobs:
     env:
       TARGET_REF: gpt/reconcile-spec014-main-6441d3e7-20260802
       INTEGRATION_REF: gpt/hostinger-safe-storage-cleanup-ssh-20260801
-      EXPECTED_INTEGRATION_SHA: 92d757dda69f631a5ccee8eef39408cf783bf395
-      EXPECTED_MAIN_SHA: 6441d3e76bbdfe445034da3196c612382d0c8e4e
+      MINIMUM_INTEGRATION_SHA: 92d757dda69f631a5ccee8eef39408cf783bf395
+      MINIMUM_MAIN_SHA: 6441d3e76bbdfe445034da3196c612382d0c8e4e
       LAUNCHER_PATH: .github/workflows/spec014-main-reconciliation-launcher-6441d3e7.yml
       REPORT_DIR: .ci-evidence/spec014-main-reconciliation-6441d3e7
     steps:
@@ -47,7 +47,7 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Capture exact parents and build bounded merge
+      - name: Capture latest parents and build bounded merge
         shell: bash
         run: |
           set -euo pipefail
@@ -64,25 +64,31 @@ jobs:
           PY
           fi' EXIT
 
-          current_step=fetch_exact_parents
+          current_step=fetch_latest_parents
           git fetch --no-tags origin \
             "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
             "+refs/heads/main:refs/remotes/origin/main"
           integration_sha="$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")"
           main_sha="$(git rev-parse refs/remotes/origin/main)"
-          [[ "$integration_sha" == "$EXPECTED_INTEGRATION_SHA" ]]
-          [[ "$main_sha" == "$EXPECTED_MAIN_SHA" ]]
+          git merge-base --is-ancestor "$MINIMUM_INTEGRATION_SHA" "$integration_sha"
+          git merge-base --is-ancestor "$MINIMUM_MAIN_SHA" "$main_sha"
           [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "$initial_sha" ]]
 
           current_step=validate_launcher_only_delta
-          git merge-base --is-ancestor "$integration_sha" "$initial_sha"
-          mapfile -t launcher_delta < <(git diff --name-only "$integration_sha" "$initial_sha")
+          git merge-base --is-ancestor "$MINIMUM_INTEGRATION_SHA" "$initial_sha"
+          mapfile -t launcher_delta < <(git diff --name-only "$MINIMUM_INTEGRATION_SHA" "$initial_sha")
           [[ "${#launcher_delta[@]}" -eq 1 ]]
           [[ "${launcher_delta[0]}" == "$LAUNCHER_PATH" ]]
 
-          current_step=merge_main
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          current_step=merge_latest_integration
+          if [[ "$integration_sha" != "$MINIMUM_INTEGRATION_SHA" ]]; then
+            git merge --no-ff --no-edit "$integration_sha"
+          fi
+
+          current_step=merge_latest_main
           set +e
           git merge --no-commit --no-ff "$main_sha"
           merge_status=$?
