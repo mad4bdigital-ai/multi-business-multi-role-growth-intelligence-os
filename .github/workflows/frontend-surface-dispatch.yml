@@ -141,3 +141,52 @@ jobs:
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if-no-files-found: error
           retention-days: 14
+
+  apply-generated-evidence-once:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'github-actions[bot]' &&
+      github.head_ref == 'gpt/016-remote-mcp-oauth21-main-recovery-20260802'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_REF: ${{ github.head_ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      OUTPUT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh
+    steps:
+      - name: Reject protected or unexpected target
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${TARGET_REF}" == "gpt/016-remote-mcp-oauth21-main-recovery-20260802" ]]
+          [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+      - name: Checkout exact expected head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Apply registered generated-artifact refresh tool
+        run: >-
+          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
+          --target-ref "${TARGET_REF}"
+          --expected-head-sha "${EXPECTED_HEAD_SHA}"
+          --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH"
+          --output-dir "${OUTPUT_DIR}"
+      - name: Upload governed refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-once-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
