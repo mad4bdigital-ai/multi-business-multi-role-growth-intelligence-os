@@ -251,6 +251,23 @@ function routeDependencySnapshotCore(bundle) {
   };
 }
 
+function expectedReceiptBundleBindings(bundle) {
+  return {
+    mount_bundle_digest: bundle.mount_bundle_digest,
+    authorization_id: bundle.authorization_id,
+    authorization_generation: bundle.authorization_generation,
+    authorization_consumption_digest: bundle.authorization_consumption_digest,
+    dependency_manifest_digest: bundle.dependency_manifest_digest,
+    expected_runtime_sha: bundle.expected_runtime_sha,
+    source_commit: bundle.source_commit,
+    database_fingerprint: bundle.database_fingerprint,
+    schema_verification_digest: bundle.schema_verification_digest,
+    readback_cycle_id: bundle.readback_cycle_id,
+    rollback_plan_digest: bundle.rollback_plan_digest,
+    route_dependency_snapshot_digest: digest(routeDependencySnapshotCore(bundle)),
+  };
+}
+
 function createInjectionReceipt(bundle, request) {
   const dependencySnapshot = routeDependencySnapshotCore(bundle);
   const core = {
@@ -465,15 +482,24 @@ export function createHostingerStorageAuthorizedDependencyInjectionCoordinator(o
     const receipt = verifySerializedReceipt(input.injection_receipt);
     const readback = verifySerializedReadback(input.mount_readback);
     const mismatches = [];
-    if (receipt.mount_bundle_digest !== bundle.mount_bundle_digest) mismatches.push('mount_bundle_digest');
-    if (receipt.authorization_id !== bundle.authorization_id) mismatches.push('authorization_id');
-    if (receipt.authorization_generation !== bundle.authorization_generation) mismatches.push('authorization_generation');
-    if (receipt.expected_runtime_sha !== bundle.expected_runtime_sha) mismatches.push('expected_runtime_sha');
-    if (receipt.dependency_manifest_digest !== bundle.dependency_manifest_digest) mismatches.push('dependency_manifest_digest');
-    if (readback.injection_id !== receipt.injection_id) mismatches.push('readback.injection_id');
-    if (readback.injection_receipt_digest !== receipt.injection_receipt_digest) mismatches.push('readback.injection_receipt_digest');
-    if (readback.mount_bundle_digest !== receipt.mount_bundle_digest) mismatches.push('readback.mount_bundle_digest');
-    if (readback.route_dependency_snapshot_digest !== receipt.route_dependency_snapshot_digest) mismatches.push('readback.route_dependency_snapshot_digest');
+    for (const [field, expectedValue] of Object.entries(expectedReceiptBundleBindings(bundle))) {
+      if (receipt[field] !== expectedValue) mismatches.push(`receipt.${field}`);
+    }
+    const expectedReadbackBindings = {
+      injection_id: receipt.injection_id,
+      injection_generation: receipt.injection_generation,
+      injection_receipt_digest: receipt.injection_receipt_digest,
+      mount_bundle_digest: receipt.mount_bundle_digest,
+      route_dependency_snapshot_digest: receipt.route_dependency_snapshot_digest,
+      expected_runtime_sha: receipt.expected_runtime_sha,
+      source_commit: receipt.source_commit,
+      database_fingerprint: receipt.database_fingerprint,
+      schema_verification_digest: receipt.schema_verification_digest,
+      readback_cycle_id: receipt.readback_cycle_id,
+    };
+    for (const [field, expectedValue] of Object.entries(expectedReadbackBindings)) {
+      if (readback[field] !== expectedValue) mismatches.push(`readback.${field}`);
+    }
     if (mismatches.length) {
       throw fail(409, 'STORAGE_AUTHORIZED_INJECTION_RESUME_BINDING_MISMATCH', 'Persisted injection evidence does not match the reconstructed authorized mount bundle.', {
         mismatches: [...new Set(mismatches)].sort(),
