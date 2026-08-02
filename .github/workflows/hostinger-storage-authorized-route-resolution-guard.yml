@@ -1,0 +1,118 @@
+name: Hostinger Storage Authorized Route Resolution Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-authorized-route-resolution.json'
+      - '.github/contracts/spec014/hostinger-storage-authorized-route-resolution.json'
+      - '.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml'
+      - 'http-generic-api/routes/hostingerStorageTenantRoutes.js'
+      - 'http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-authorized-route-resolution-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authorized-route-resolution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check route and regression syntax
+        run: |
+          node --check http-generic-api/routes/hostingerStorageTenantRoutes.js
+          node --check http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs
+
+      - name: Execute verified route resolution and rollback contract
+        run: node http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs
+
+      - name: Preserve canonical coordinator and fail-closed resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'isCanonicalHostingerStorageAuthorizedDependencyInjectionCoordinator' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'tenantStorageRuntimeInjectionCoordinator.resolveRouteDependencies' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'expectedTenantStorageMountReadbackDigest' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'Object.getOwnPropertyDescriptor(routeDependencies, DEPENDENCY_KEY)' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'descriptor.enumerable !== false' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'descriptor.configurable !== false' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'descriptor.writable !== false' http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q 'rollback_restores_http_503: true' http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs
+
+      - name: Preserve repository-only authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/index\.js$|migrations/)'
+          ! grep -E "from ['\"](?:node:child_process|node:net|node:tls|mysql2)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/routes/hostingerStorageTenantRoutes.js \
+            http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q '"server_files": 0' .github/contracts/spec014/hostinger-storage-authorized-route-resolution.json
+          grep -q '"route_registry_files": 0' .github/contracts/spec014/hostinger-storage-authorized-route-resolution.json
+          grep -q '"migration_files": 0' .github/contracts/spec014/hostinger-storage-authorized-route-resolution.json
+          grep -q '"provider_dispatch_performed": false' .github/contracts/spec014/hostinger-storage-authorized-route-resolution.json
+          grep -q '"production_mutation_performed": false' .github/contracts/spec014/hostinger-storage-authorized-route-resolution.json
+
+      - name: Build structured guard summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-evidence/spec014-authorized-route-resolution
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = {
+            'contract': 'mad4b.hostinger-authorized-route-resolution-guard.v1',
+            'outcome': 'passed',
+            'candidate_kind': 'head',
+            'exact_candidate_sha': '${{ github.event.pull_request.head.sha }}',
+            'canonical_coordinator_required': True,
+            'exact_readback_digest_required': True,
+            'per_request_resolution': True,
+            'fail_closed_before_readback': True,
+            'rollback_restores_http_503': True,
+            'direct_runtime_fallback_preserved': True,
+            'server_bootstrap_modified': False,
+            'route_registry_modified': False,
+            'worker_mounted': False,
+            'provider_dispatch_allowed': False,
+            'production_ready': False,
+            'repository_mutation': False,
+            'secrets_included': False,
+          }
+          Path('.ci-evidence/spec014-authorized-route-resolution/summary.json').write_text(
+            json.dumps(report, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Upload structured guard evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-authorized-route-resolution-${{ github.run_id }}
+          path: .ci-evidence/spec014-authorized-route-resolution/summary.json
+          if-no-files-found: error
+          retention-days: 14
