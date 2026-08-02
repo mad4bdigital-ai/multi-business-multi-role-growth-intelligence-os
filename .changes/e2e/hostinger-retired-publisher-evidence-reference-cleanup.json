@@ -4,7 +4,7 @@
   "feature_key": "hostinger-retired-publisher-evidence-reference-cleanup",
   "title": "Retired Hostinger publisher evidence reference cleanup",
   "delivery_mode": "single_pr",
-  "current_phase": "mvp",
+  "current_phase": "resilient",
   "scope": {
     "include": [
       ".changes/e2e/hostinger-retired-publisher-evidence-reference-cleanup.json",
