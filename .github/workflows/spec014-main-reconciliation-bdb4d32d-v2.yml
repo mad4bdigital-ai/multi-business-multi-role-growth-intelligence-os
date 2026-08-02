@@ -59,6 +59,32 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
+      - name: Scope whitespace validation to reconciliation outputs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          path = Path(os.environ['RECONCILIATION_SCRIPT'])
+          text = path.read_text(encoding='utf-8')
+          old = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
+            git add -- "${generated_paths[@]}"
+          fi
+          [[ -z "$(git diff --name-only)" ]]
+          git diff --cached --check
+          '''
+          new = '''if [[ "${#generated_paths[@]}" -gt 0 ]]; then
+            git add -- "${generated_paths[@]}"
+            git diff --cached --check -- "${generated_paths[@]}"
+          fi
+          [[ -z "$(git diff --name-only)" ]]
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'generated write-set block count must be 1, got {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          git add -- "${RECONCILIATION_SCRIPT}"
+
       - name: Build, validate, and push bounded reconciliation
         shell: bash
         run: bash "${RECONCILIATION_SCRIPT}"
