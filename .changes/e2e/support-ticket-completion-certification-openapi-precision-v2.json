@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-completion-certification-openapi-precision-v2",
+  "title": "Support Ticket Completion Certification OpenAPI Precision V2",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/support-ticket-completion-certification-openapi-precision-v2.json",
+      "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+      "http-generic-api/test-openapi-completion-metadata-root.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recover the exact legacy completion-certification operation as one reviewed Support Ticket path-item reference while preserving current main tests and failing closed for every other imprecise operation.",
+      "e2e_journeys": [
+        {
+          "id": "upgrade-actual-root-completion-certification-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed Support Ticket OpenAPI composer",
+          "entrypoint": "Run the recovered Support Ticket runtime contract helper and precise registry writer against a temporary copy of the actual root OpenAPI document.",
+          "terminal_outcome": "The exact legacy completion-certification operation becomes the reviewed local path-item reference, current Support Ticket sync regressions still pass, and check mode is idempotent.",
+          "steps": [
+            "Load the exact reviewed source recovery without replacing the current main integration test file.",
+            "Run the existing Support Ticket runtime OpenAPI synchronization regression.",
+            "Copy the actual root OpenAPI, registry, and route source into an isolated temporary directory.",
+            "Run precise registry write mode and verify the exact reviewed completion-certification reference.",
+            "Run precise registry check mode and verify no remaining drift."
+          ],
+          "assertions": [
+            "Only the explicitly allowlisted legacy completion-certification signature may receive the metadata-only upgrade.",
+            "Parameters, request body, responses, descriptions, and consequential classification are preserved.",
+            "Every non-allowlisted imprecise operation remains rejected.",
+            "The actual root document succeeds, not only an isolated synthetic operation fixture.",
+            "No repository mutation, provider dispatch, credential access, external send, deployment, or secret output occurs."
+          ],
+          "tests": [
+            {
+              "id": "current-support-ticket-runtime-sync-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-runtime-openapi-sync.mjs",
+              "args": []
+            },
+            {
+              "id": "actual-root-completion-metadata-upgrade",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-completion-metadata-root.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+            "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+            "http-generic-api/test-openapi-completion-metadata-root.mjs",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi-route-contracts.yaml"
+          ]
+        }
+      ]
+    }
+  ]
+}
