@@ -48,6 +48,19 @@ function safeViolation(item = {}) {
   };
 }
 
+function safeError(error = {}) {
+  const message = String(error?.message || "diagnostic generation failed")
+    .replace(/[A-Za-z0-9_+/=-]{48,}/g, "[redacted]")
+    .slice(0, 500);
+  return {
+    stage: String(error?.diagnosticStage || "unknown").slice(0, 128),
+    name: String(error?.name || "Error").slice(0, 128),
+    code: error?.code ? String(error.code).slice(0, 128) : null,
+    message,
+    raw_stderr_included: false,
+  };
+}
+
 function writeReport(reportFile, report) {
   if (!reportFile) {
     throw new Error("--report-file is required.");
@@ -56,7 +69,7 @@ function writeReport(reportFile, report) {
   writeFileSync(resolve(reportFile), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }
 
-function buildReport({ baselineRef = "", violations = [], failure = false } = {}) {
+function buildReport({ baselineRef = "", violations = [], failure = null } = {}) {
   const candidateSha = String(
     process.env.CANDIDATE_SHA || process.env.GITHUB_SHA || git(["rev-parse", "HEAD"]),
   ).trim();
@@ -77,6 +90,7 @@ function buildReport({ baselineRef = "", violations = [], failure = false } = {}
     hardened_file_count: HARDENED_AUTH_FILES.length,
     violation_count: safeViolations.length,
     violations: safeViolations,
+    diagnostic_error: failure ? safeError(failure) : null,
     integrity_findings: [],
     job_logs_consulted: false,
     repository_mutation: false,
@@ -86,18 +100,31 @@ function buildReport({ baselineRef = "", violations = [], failure = false } = {}
   };
 }
 
+function stage(name, callback) {
+  try {
+    return callback();
+  } catch (error) {
+    error.diagnosticStage = name;
+    throw error;
+  }
+}
+
 function collectViolations(explicitBaselineRef = "") {
-  const baselineRef = resolveBaselineRef(explicitBaselineRef);
+  const baselineRef = stage("resolve_baseline", () => resolveBaselineRef(explicitBaselineRef));
   const diffs = [];
   if (baselineRef) {
-    diffs.push(git(["diff", "--unified=0", `${baselineRef}...HEAD`, "--", "*.js", "*.mjs"]));
+    diffs.push(stage("diff_baseline_to_head", () =>
+      git(["diff", "--unified=0", `${baselineRef}...HEAD`, "--", "*.js", "*.mjs"]),
+    ));
   }
-  diffs.push(git(["diff", "--unified=0", "HEAD", "--", "*.js", "*.mjs"]));
-  const violations = uniqueViolations([
-    ...hardenedFileViolations(),
-    ...addedLineViolations(addedLinesFromDiff(diffs.filter(Boolean).join("\n"))),
-  ]);
-  return { baselineRef, violations };
+  diffs.push(stage("diff_worktree_to_head", () =>
+    git(["diff", "--unified=0", "HEAD", "--", "*.js", "*.mjs"]),
+  ));
+  const hardened = stage("scan_hardened_files", () => hardenedFileViolations());
+  const added = stage("scan_added_lines", () =>
+    addedLineViolations(addedLinesFromDiff(diffs.filter(Boolean).join("\n"))),
+  );
+  return { baselineRef, violations: uniqueViolations([...hardened, ...added]) };
 }
 
 const { baselineRef: requestedBaselineRef, reportFile } = parseArgs(process.argv.slice(2));
@@ -109,8 +136,8 @@ try {
   console.log(
     `User JWT auth governance diagnostic ${report.outcome}: ${report.violation_count} violation(s); report=${resolve(reportFile)}`,
   );
-} catch {
-  const report = buildReport({ baselineRef: requestedBaselineRef, violations: [], failure: true });
+} catch (error) {
+  const report = buildReport({ baselineRef: requestedBaselineRef, violations: [], failure: error });
   writeReport(reportFile, report);
-  console.log(`User JWT auth governance diagnostic error; report=${resolve(reportFile)}`);
+  console.log(`User JWT auth governance diagnostic error at ${report.diagnostic_error.stage}; report=${resolve(reportFile)}`);
 }
