@@ -1,9 +1,15 @@
 import { Router } from 'express';
+import {
+  isCanonicalHostingerStorageAuthorizedDependencyInjectionController,
+  isCanonicalHostingerStorageMountedRuntimeResolution,
+} from '../hostingerStorageAuthorizedDependencyInjection.js';
 
 const TOKEN_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 const REASON_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,190}$/u;
 const SHA_RE = /^(?:[0-9a-f]{7,64}|sha256-[0-9a-f]{32,128})$/u;
 const ALLOWED_BODY_FIELDS = Object.freeze(['expected_sha', 'operation_id']);
+const ROUTE_PATH = '/tenant/storage-operations/apply-plan';
+const DEPENDENCY_KEY = 'tenantStorageRuntime';
 
 function requireTenantPrincipal(req, res, next) {
   if (req.auth?.mode !== 'user_jwt'
@@ -65,6 +71,7 @@ function safeReasonCodes(error) {
     error?.details?.reasonCodes,
     error?.details?.mismatch_fields,
     error?.details?.mismatchFields,
+    error?.details?.mismatches,
   ];
   return [...new Set(sources
     .flatMap((source) => Array.isArray(source) ? source : [])
@@ -102,20 +109,52 @@ function safeErrorResponse(error) {
   };
 }
 
-export function buildHostingerStorageTenantRoutes({ tenantStorageRuntime = null } = {}) {
+function validateTenantStorageRuntime(runtime) {
+  return Boolean(runtime
+    && typeof runtime.execute === 'function'
+    && runtime.synthetic_only === true
+    && runtime.provider_dispatch_allowed === false
+    && runtime.production_ready === false);
+}
+
+function resolveTenantStorageRuntime({ tenantStorageRuntime, tenantStorageRuntimeMount }) {
+  if (tenantStorageRuntimeMount !== null && tenantStorageRuntimeMount !== undefined) {
+    if (!isCanonicalHostingerStorageAuthorizedDependencyInjectionController(tenantStorageRuntimeMount)) {
+      throw fail(503, 'storage_tenant_runtime_unavailable', 'Tenant storage runtime mount controller is invalid.');
+    }
+    try {
+      const resolution = tenantStorageRuntimeMount.resolveMountedRuntime({
+        route_path: ROUTE_PATH,
+        dependency_key: DEPENDENCY_KEY,
+      });
+      if (!isCanonicalHostingerStorageMountedRuntimeResolution(resolution)) {
+        throw fail(503, 'storage_tenant_runtime_unavailable', 'Tenant storage runtime mount readback is invalid.');
+      }
+      return resolution.tenantStorageRuntime;
+    } catch (error) {
+      if (error?.code === 'STORAGE_AUTHORIZED_DEPENDENCY_NOT_MOUNTED') {
+        throw fail(503, 'storage_tenant_runtime_unavailable', 'Tenant storage runtime is not mounted.');
+      }
+      throw error;
+    }
+  }
+  return tenantStorageRuntime;
+}
+
+export function buildHostingerStorageTenantRoutes({
+  tenantStorageRuntime = null,
+  tenantStorageRuntimeMount = null,
+} = {}) {
   const router = Router();
 
-  router.post('/tenant/storage-operations/apply-plan', requireTenantPrincipal, async (req, res) => {
+  router.post(ROUTE_PATH, requireTenantPrincipal, async (req, res) => {
     try {
-      if (!tenantStorageRuntime
-        || typeof tenantStorageRuntime.execute !== 'function'
-        || tenantStorageRuntime.synthetic_only !== true
-        || tenantStorageRuntime.provider_dispatch_allowed !== false
-        || tenantStorageRuntime.production_ready !== false) {
+      const runtime = resolveTenantStorageRuntime({ tenantStorageRuntime, tenantStorageRuntimeMount });
+      if (!validateTenantStorageRuntime(runtime)) {
         throw fail(503, 'storage_tenant_runtime_unavailable', 'Tenant storage runtime is not mounted.');
       }
       const body = snapshotRequestBody(req.body);
-      const result = await tenantStorageRuntime.execute({
+      const result = await runtime.execute({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
         operationId: body.operation_id,
@@ -135,4 +174,6 @@ export const _testingHostingerStorageTenantRoutes = Object.freeze({
   requireTenantPrincipal,
   snapshotRequestBody,
   safeReasonCodes,
+  validateTenantStorageRuntime,
+  resolveTenantStorageRuntime,
 });
