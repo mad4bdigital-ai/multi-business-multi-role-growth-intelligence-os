@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-promotion-generated-artifact-context-fix",
+  "title": "Valid GitHub Actions context for Production generated-artifact evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-promotion-generated-artifact-context-fix.json",
+      ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+      "http-generic-api/test-production-promotion-generated-artifact-context.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace an unavailable runner context in jobs.refresh.env so GitHub Actions can register and schedule exact-head generated-artifact evidence for pull requests targeting Production.",
+      "e2e_journeys": [
+        {
+          "id": "register-production-promotion-evidence-with-valid-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow parser and protected-release reviewer",
+          "entrypoint": "A same-repository pull request targets Production and the protected-promotion evidence workflow is evaluated",
+          "terminal_outcome": "GitHub can plan the workflow, both canonical report paths resolve through github.workspace, and the existing exact-head read-only producer contract remains unchanged.",
+          "steps": [
+            "Detect that runner.temp is unavailable in jobs.refresh.env before a runner exists.",
+            "Replace both report paths with github.workspace-backed absolute workspace paths.",
+            "Keep JSON and Markdown evidence in one stable .ci-evidence directory across steps with and without working-directory overrides.",
+            "Retain same-repository source validation, Production base validation, exact-head checkout, and remote/local SHA equality.",
+            "Retain the canonical publisher regression, mutation-boundary regression, generated-artifact evaluator, run-bound Artifact upload, and report enforcement.",
+            "Reject future jobs-level runner.temp use through a focused repository test."
+          ],
+          "assertions": [
+            "jobs.refresh.env contains no runner context reference.",
+            "REPORT_PATH and REPORT_MARKDOWN_PATH use the jobs-level-compatible github.workspace context.",
+            "Both paths share the same stable workspace evidence directory.",
+            "The workflow name, pull_request events, Production branch filter, Artifact identity, and canonical report contract remain unchanged.",
+            "The workflow retains contents:read only and persist-credentials:false.",
+            "No workflow dispatch, repository write, force push, migration, SQL/database mutation, deployment, provider call, credential access, or external send occurs."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-generated-artifact-context-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-generated-artifact-context.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+            "http-generic-api/test-production-promotion-generated-artifact-context.mjs",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe a real Protected Promotion Generated Artifact Refresh run and trusted canonical publication on an exact pinned Production candidate."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject malformed paths, missing reports, stale heads, cross-repository heads, cancelled superseded runs, and future unavailable-context regressions without repository mutation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Record the first authoritative generated-artifact evidence section on a controlled main-to-Production promotion candidate."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This registration repair grants no deployment, provider, database, migration, credential, or Production mutation authority."
+    }
+  ]
+}
