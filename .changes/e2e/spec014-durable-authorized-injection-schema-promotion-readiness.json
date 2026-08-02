@@ -26,7 +26,7 @@
         {
           "id": "verify-durable-injection-ddl-before-promotion",
           "end_to_end": true,
-          "level": "repository_contract",
+          "level": "synthetic_runtime",
           "actor": "Spec 014 schema-promotion readiness builder",
           "entrypoint": "The exact contract-local Durable Authorized Injection State DDL and canonical state contract",
           "terminal_outcome": "A frozen secret-free readiness packet proves additive table order, constraints, and foreign-key dependency while denying migration creation, promotion, authorization, Apply, and live access.",
