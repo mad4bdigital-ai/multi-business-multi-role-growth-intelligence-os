@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-pr-target-bridge",
+  "title": "Trusted pull-request-target bridge for governed generated-artifact refresh",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore an observable exact-head path to the registered generated-artifact writer when connector-authored issue comments do not deliver workflow events, while keeping candidate code, direct contents mutation, protected branches, and secrets outside the bridge authority.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-writer-from-trusted-pr-synchronization",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository operator, protected default-branch workflow, and GitHub Actions writer",
+          "entrypoint": "A synchronize event on an open ready-for-review same-repository PR targeting main and carrying the generated-artifact-refresh label",
+          "terminal_outcome": "The trusted default-branch bridge validates the current PR identity and exact head without checking out candidate code, dispatches the registered writer with typed confirmation, observes the exact delegated run ID, and directly publishes canonical structured evidence.",
+          "steps": [
+            "Load the bridge definition from the protected default branch through pull_request_target synchronize or an explicit manual workflow input.",
+            "Reject github-actions[bot] as the synchronization actor so the generated writer commit cannot recursively dispatch itself.",
+            "Checkout only main with persisted credentials disabled.",
+            "Read the current pull request through the GitHub API.",
+            "Require open non-draft state, same-repository head, base main, governed work-branch syntax, exact current head SHA, and the generated-artifact-refresh label.",
+            "Reject main, Production, forks, stale heads, drafts, and missing labels before dispatch.",
+            "Ensure the registered governed writer is active.",
+            "Dispatch governed-generated-artifact-refresh.yml on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
+            "Observe only a workflow_dispatch run whose exact display title contains the same target ref and SHA.",
+            "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the decision."
+          ],
+          "assertions": [
+            "The automatic trigger is pull_request_target synchronize only; issue_comment and arbitrary push events are not used.",
+            "The bridge checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
+            "Permissions are actions:write, contents:read, issues:write, and pull-requests:read with no contents:write.",
+            "The bridge consumes no repository secrets and performs no git push or direct repository mutation.",
+            "Only same-repository ready-for-review PRs targeting main may dispatch.",
+            "The exact current PR head and generated-artifact-refresh label remain mandatory.",
+            "Protected branches and malformed work branches fail closed.",
+            "Writer-generated synchronize events are ignored to prevent recursion.",
+            "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
+            "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in the bridge."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-artifact-refresh-pr-target-bridge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+            "http-generic-api/scripts/test-manifest.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one synchronization of PR #4742 produce a canonical bridge decision, an exact delegated writer run ID, and a bounded generated commit."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise fork, draft, stale head, missing label, invalid branch, inactive writer, rejected dispatch, unobserved exact run, and bot-generated synchronization without candidate checkout or repository mutation."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-control bridge performs no external provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The bridge rejects protected branches and grants no migration, deployment, runtime, provider, credential, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
