@@ -7,8 +7,9 @@ import {
   decideManagedExecutionApproval,
   escalateManagedExecutionRun,
   finalizeManagedExecutionRollback,
-  projectManagedExecutionState,
+  readManagedExecutionProjection,
   reassignManagedExecutionStep,
+  reconcileManagedExecutionState,
   requestManagedExecutionRollback,
   retryManagedExecutionStep,
   syncManagedExecutionRunStatus,
@@ -20,6 +21,10 @@ function principalActor(req) {
     req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
     req.auth?.sub || req.auth?.mode || "backend_api_key"
   ).trim();
+}
+
+function principalIsAdmin(req) {
+  return req.auth?.is_admin === true;
 }
 
 function routeError(status, code, message) {
@@ -63,34 +68,6 @@ async function readHoldContract(pool, holdId) {
   return { found: true, managed: context.source === "managed_execution_lifecycle", context };
 }
 
-async function readManagedExecution(pool, runId) {
-  const [runRows] = await pool.query("SELECT * FROM workflow_runs WHERE run_id = ? LIMIT 2", [runId]);
-  if (runRows.length !== 1) throw routeError(404, "managed_execution_run_not_found", "Managed execution run not found.");
-  const [bindingRows] = await pool.query("SELECT * FROM managed_execution_bindings WHERE run_id = ? LIMIT 2", [runId]);
-  if (bindingRows.length !== 1) throw routeError(409, "managed_execution_binding_missing", "Managed execution binding is missing or ambiguous.");
-  const [steps] = await pool.query(
-    "SELECT step_run_id, step_key, step_type, assigned_to, status, attempt, started_at, completed_at FROM step_runs WHERE run_id = ? ORDER BY id",
-    [runId],
-  );
-  const [holds] = await pool.query(
-    "SELECT hold_id, hold_type, required_role, status, assigned_to, expires_at, decided_at FROM approval_holds WHERE run_id = ? ORDER BY id",
-    [runId],
-  );
-  const run = runRows[0];
-  const binding = bindingRows[0];
-  for (const field of ["input_json", "output_json", "error_json", "execution_context_json"]) {
-    if (run[field]) try { run[field] = JSON.parse(run[field]); } catch {}
-  }
-  if (binding.authority_snapshot_json) try { binding.authority_snapshot_json = JSON.parse(binding.authority_snapshot_json); } catch {}
-  return {
-    run,
-    binding,
-    steps,
-    holds,
-    projection: projectManagedExecutionState({ run, binding, steps, holds }),
-  };
-}
-
 export function buildManagedExecutionRoutes(deps) {
   const router = Router();
   const { requireBackendApiKey } = deps;
@@ -106,10 +83,31 @@ export function buildManagedExecutionRoutes(deps) {
 
   router.get("/managed-execution-runs/:id", requireBackendApiKey, async (req, res) => {
     try {
-      const result = await readManagedExecution(getPool(), req.params.id);
-      return res.status(200).json({ ok: true, ...result, secrets_included: false });
+      const projection = await readManagedExecutionProjection({
+        pool: getPool(),
+        runId: req.params.id,
+        view: principalIsAdmin(req) ? "admin" : "tenant",
+      });
+      return res.status(200).json({ ok: true, projection, secrets_included: false });
     } catch (error) {
       return routeFailure(res, error, "managed_execution_read_failed");
+    }
+  });
+
+  router.post("/managed-execution-runs/:id/reconcile", requireBackendApiKey, async (req, res) => {
+    try {
+      const { mode = "dry_run", confirmation = null } = req.body || {};
+      const result = await reconcileManagedExecutionState({
+        pool: getPool(),
+        runId: req.params.id,
+        mode,
+        confirmation,
+        actorId: principalActor(req),
+        isAdmin: principalIsAdmin(req),
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return routeFailure(res, error, "managed_execution_reconciliation_failed");
     }
   });
 
