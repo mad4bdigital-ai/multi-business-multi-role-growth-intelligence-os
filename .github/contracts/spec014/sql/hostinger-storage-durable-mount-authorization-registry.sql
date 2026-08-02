@@ -87,7 +87,6 @@ CREATE TABLE IF NOT EXISTS storage_mount_authorization_consumptions (
   mount_attempt_id VARCHAR(191) NOT NULL,
   operation_id VARCHAR(191) NOT NULL,
   plan_id VARCHAR(191) NOT NULL,
-  expected_runtime_sha CHAR(64) NOT NULL,
   registered_generation BIGINT UNSIGNED NOT NULL,
   consumed_generation BIGINT UNSIGNED NOT NULL,
   consumed_at_epoch BIGINT UNSIGNED NOT NULL,
@@ -113,13 +112,13 @@ CREATE TABLE IF NOT EXISTS storage_mount_authorization_consumptions (
   CONSTRAINT chk_storage_mount_authorization_consumption_digests
     CHECK (
       authorization_digest REGEXP '^[0-9a-f]{64}$'
-      AND expected_runtime_sha REGEXP '^[0-9a-f]{64}$'
       AND record_digest REGEXP '^[0-9a-f]{64}$'
     ),
   CONSTRAINT chk_storage_mount_authorization_consumption_no_secrets
     CHECK (secrets_included = 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- expected_runtime_sha remains an authenticated field inside record_json and its record_digest.
 -- Consumption receipts are append-only; no UPDATE or DELETE path is authorized.
 -- The current authorization may transition exactly once from unconsumed generation N
 -- to consumed generation N+1 before any mount execution is allowed to begin.
