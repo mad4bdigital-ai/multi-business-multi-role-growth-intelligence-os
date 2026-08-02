@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-evidence-publisher-reference-parity",
+  "title": "Hostinger Tenant Canary evidence publisher reference parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-evidence-publisher-reference-parity.json",
+      ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+      ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+      ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+      "http-generic-api/test-hostinger-evidence-publisher-reference-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace retired Hostinger-only publisher references with the canonical generic CI Evidence PR Publisher and reject future evidence drift.",
+      "e2e_journeys": [
+        {
+          "id": "validate-hostinger-publisher-evidence-reference-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository evidence governance reviewer",
+          "entrypoint": "Hostinger Tenant Canary E2E contracts and the canonical CI Evidence PR Publisher",
+          "terminal_outcome": "Every implemented Hostinger contract references existing canonical producer, publisher, routing, and regression evidence, while the retired publisher remains absent.",
+          "steps": [
+            "Load each implemented Hostinger Tenant Canary contract and resolve its evidence paths against the repository tree.",
+            "Verify canonical publisher subscription, run-bound artifact download, trusted-main checkout, and bounded Hostinger evidence rendering."
+          ],
+          "assertions": [
+            "No contract references the retired Hostinger-only publisher path.",
+            "Every declared evidence path exists on the exact candidate head.",
+            "The generic publisher consumes Hostinger Storage Tenant Canary Guard artifacts and invokes the bounded Hostinger renderer.",
+            "No provider call, credential access, migration apply, deployment, Production mutation, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-evidence-publisher-reference-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-evidence-publisher-reference-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+            ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+            ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            "http-generic-api/test-hostinger-evidence-publisher-reference-parity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the first exact-head Tenant Canary artifact published through the generic publisher after the reference repair."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Extend repository-wide evidence integrity so retired or missing paths are rejected even when their original contract is unchanged."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify authoritative Hostinger evidence publication on a qualifying non-production candidate."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This evidence-reference repair grants no deployment, migration, provider, or Production authority."
+    }
+  ]
+}
