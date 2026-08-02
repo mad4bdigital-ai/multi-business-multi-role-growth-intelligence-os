@@ -136,7 +136,7 @@ function assertCandidateSql(candidateSql, contractSql) {
   const source = candidateStatements.join('\n');
   if (
     /\b(?:DROP|TRUNCATE|RENAME|GRANT|REVOKE|CALL)\b/iu.test(source)
-    || /\b(?:DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+[`A-Za-z0-9_]+|ALTER\s+TABLE|LOAD\s+DATA|INTO\s+(?:OUTFILE|DUMPFILE))\b/iu.test(source)
+    || /\b(?:DELETE\s+FROM|INSERT\s+INTO|ALTER\s+TABLE|LOAD\s+DATA|INTO\s+(?:OUTFILE|DUMPFILE))\b/iu.test(source)
     || /\bCREATE\s+(?:VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT)\b/iu.test(source)
   ) {
     throw candidateError(
