@@ -22,9 +22,10 @@ assert.equal((candidateSql.match(/\bALTER\s+TABLE\b/giu) || []).length, 3);
 assert.equal((candidateSql.match(/\bADD\s+CONSTRAINT\b/giu) || []).length, 3);
 assert.equal(/\b(DROP|DELETE|TRUNCATE|UPDATE|INSERT|REPLACE|CASCADE)\b/iu.test(candidateSql), false);
 assert.equal(/\b(INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE)\b/iu.test(readbackSql.replace(/^--.*$/gmu, '')), false);
+const normalizedCandidateSql = candidateSql.replace(/\s+/gu, ' ').trim();
 for (const constraint of HOSTINGER_STORAGE_DEFERRED_CHILD_FK_CANDIDATE.constraints) {
-  assert.match(candidateSql, new RegExp(`ADD\\s+CONSTRAINT\\s+${constraint.name}`, 'iu'));
-  assert.match(candidateSql, new RegExp(`FOREIGN\\s+KEY\\s*\\(${constraint.child_column}\\)\\s+REFERENCES\\s+${constraint.parent_table}\\s*\\(${constraint.parent_column}\\)`, 'iu'));
+  assert.equal(normalizedCandidateSql.includes(`ADD CONSTRAINT ${constraint.name}`), true);
+  assert.equal(normalizedCandidateSql.includes(`FOREIGN KEY (${constraint.child_column}) REFERENCES ${constraint.parent_table}(${constraint.parent_column})`), true);
 }
 
 function schema(overrides = {}) {
