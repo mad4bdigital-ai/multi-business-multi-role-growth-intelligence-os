@@ -50,6 +50,7 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "${MAIN_SHA}"
           git update-ref refs/heads/main "${MAIN_SHA}"
+          integration_parent="$(git rev-parse HEAD)"
 
           set +e
           git merge --no-commit --no-ff "${MAIN_SHA}"
@@ -57,6 +58,14 @@ jobs:
           set -e
 
           mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          printf 'merge_status=%s\n' "${merge_status}"
+          printf 'integration_parent=%s\n' "${integration_parent}"
+          printf 'main_parent=%s\n' "${MAIN_SHA}"
+          printf 'conflicts=%s\n' "${#conflicts[@]}"
+          printf 'conflict_path=%s\n' "${conflicts[@]:-}"
+          git status --short
+          git ls-files -u || true
+
           allowed_conflicts=(
             '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'
             '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'
@@ -84,12 +93,27 @@ jobs:
             fi
           done
 
+          restore_integration_blob() {
+            local path="$1"
+            git show "${integration_parent}:${path}" > "${path}"
+            git add -- "${path}"
+          }
+
           for identical_path in \
             '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json' \
             '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'; do
             if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${identical_path}"; then
-              git checkout --ours -- "${identical_path}"
-              git add "${identical_path}"
+              ours_tmp="$(mktemp)"
+              theirs_tmp="$(mktemp)"
+              git show "${integration_parent}:${identical_path}" > "${ours_tmp}"
+              git show "${MAIN_SHA}:${identical_path}" > "${theirs_tmp}"
+              cmp --silent "${ours_tmp}" "${theirs_tmp}" || {
+                echo "Tenant Canary conflict is not byte-identical: ${identical_path}" >&2
+                exit 1
+              }
+              cat "${ours_tmp}" > "${identical_path}"
+              git add -- "${identical_path}"
+              rm -f "${ours_tmp}" "${theirs_tmp}"
             fi
           done
 
@@ -98,8 +122,7 @@ jobs:
             'http-generic-api/frontend-surface-dispatch.generated.json' \
             'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
             if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${generated_path}"; then
-              git checkout --ours -- "${generated_path}"
-              git add "${generated_path}"
+              restore_integration_blob "${generated_path}"
             fi
           done
 
@@ -108,6 +131,8 @@ jobs:
             git diff --name-only --diff-filter=U >&2
             exit 1
           fi
+
+          git status --short
 
       - name: Regenerate combined frontend authority evidence
         working-directory: http-generic-api
