@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-fixed-dispatch-certification.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unmounted",
+  "implementation": "http-generic-api/hostingerStorageFixedDispatchCertification.js",
+  "test": "http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs",
+  "certification_key": "hostinger_storage_fixed_dispatch_certification_v1",
+  "prerequisite": {
+    "canonical_dedicated_worker_certification_required": true,
+    "worker_certification_digest_required": true,
+    "worker_must_be_ready_for_fixed_dispatch_certification": true
+  },
+  "dispatcher": {
+    "kind": "fixed_internal_dispatcher",
+    "internal_only": true,
+    "public_http_allowed": false,
+    "public_runtime_allowed": false,
+    "default_off": true,
+    "queue_key": "hostinger_storage_dispatch_v1",
+    "single_operation": true,
+    "artifact_digest_required": true
+  },
+  "fixed_invocation": {
+    "adapter_key": "hostinger_ssh_storage_v1",
+    "operation_key": "apply_exact_plan",
+    "provider_action": "apply",
+    "fixed_script_ref": "repo:http-generic-api/scripts/hostinger-storage-cleanup.sh",
+    "reviewed_program_digest_required": true,
+    "structured_arguments_only": true,
+    "credential_reference_only": true,
+    "shell_command_allowed": false,
+    "wildcard_allowed": false,
+    "arbitrary_root_allowed": false,
+    "output_policy": "bounded_redacted_json"
+  },
+  "exact_bindings": {
+    "source_commit": true,
+    "operation_id": true,
+    "target_id": true,
+    "plan_id": true,
+    "plan_hash": true,
+    "execution_lease_id": true,
+    "lease_generation": true,
+    "authorization_bundle_hash": true,
+    "arguments_schema_digest": true,
+    "storage_root_ref_digest": true,
+    "typed_confirmation_digest": true,
+    "credential_binding_digest": true,
+    "host_key_revision": true,
+    "host_key_fingerprint_digest": true
+  },
+  "certification_result": {
+    "successful_terminal": "ready_for_separate_mount_authorization",
+    "certificate_digest_required": true,
+    "tamper_reverification_required": true,
+    "maximum_evidence_lifetime_hours": 24
+  },
+  "operational_boundary": {
+    "repository_only": true,
+    "dispatcher_created": false,
+    "dispatch_job_enqueued": false,
+    "worker_invoked": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "credential_values_resolved": 0,
+    "provider_calls": 0,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}
