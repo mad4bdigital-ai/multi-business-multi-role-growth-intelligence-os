@@ -1,0 +1,163 @@
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import YAML from "yaml";
+
+const execFileAsync = promisify(execFile);
+const API_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SYNC_SCRIPT = path.join(API_DIR, "scripts", "openapi-precise-contract-registry-sync.mjs");
+const SIGNATURE = "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
+const ROUTE_PATH = "/admin/support/tickets/{ticket_id}/external-delivery/completion-certification";
+const PATH_REF = "./openapi/support-ticket-runtime-completion.yaml#/paths/~1admin~1support~1tickets~1{ticket_id}~1external-delivery~1completion-certification";
+const OPERATION_ID = "supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification";
+
+function legacyOperation(overrides = {}) {
+  return {
+    operationId: OPERATION_ID,
+    summary: "Certify external delivery completion",
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }],
+    "x-openai-isConsequential": true,
+    responses: {
+      "200": { description: "Completion certification recorded." },
+      "409": { description: "Completion certification conflicts with current state." },
+    },
+    ...overrides,
+  };
+}
+
+async function createFixture(operation) {
+  const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-legacy-transition-"));
+  await mkdir(path.join(root, "routes"), { recursive: true });
+  await writeFile(
+    path.join(root, "routes", "supportTicketRoutes.js"),
+    `router.post("/admin/support/tickets/:ticket_id/external-delivery/completion-certification", ...adminGuards, handler);\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(root, "openapi-route-contracts.yaml"),
+    YAML.stringify({
+      contracts: {
+        [SIGNATURE]: {
+          route_file: "routes/supportTicketRoutes.js",
+          path_item_ref: PATH_REF,
+        },
+      },
+    }),
+    "utf8",
+  );
+  await writeFile(
+    path.join(root, "openapi.yaml"),
+    YAML.stringify({
+      openapi: "3.1.0",
+      info: { title: "Fixture", version: "1.0.0" },
+      paths: { [ROUTE_PATH]: { post: operation } },
+    }),
+    "utf8",
+  );
+  return root;
+}
+
+async function runSync(root) {
+  try {
+    const result = await execFileAsync(process.execPath, [SYNC_SCRIPT, "--write"], {
+      cwd: root,
+      env: { ...process.env },
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+    });
+    return { ok: true, stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    return {
+      ok: false,
+      stdout: String(error?.stdout || ""),
+      stderr: String(error?.stderr || ""),
+      exit_code: error?.code ?? null,
+    };
+  }
+}
+
+const validRoot = await createFixture(legacyOperation());
+try {
+  const result = await runSync(validRoot);
+  assert.equal(result.ok, true, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.equal(summary.changed, true);
+  assert.equal(summary.replaced_runtime_derived_registry_path_count, 1);
+  assert.equal(summary.conflict_count, 0);
+  assert.deepEqual(summary.applied_registered_path_replacements, [{
+    path: ROUTE_PATH,
+    path_item_ref: PATH_REF,
+    signatures: [SIGNATURE],
+  }]);
+
+  const written = YAML.parse(await readFile(path.join(validRoot, "openapi.yaml"), "utf8"));
+  assert.deepEqual(written.paths[ROUTE_PATH], { $ref: PATH_REF });
+} finally {
+  await rm(validRoot, { recursive: true, force: true });
+}
+
+for (const malformed of [
+  legacyOperation({ operationId: `${OPERATION_ID}Unexpected` }),
+  legacyOperation({ security: [{ backendApiKeyAuth: [] }] }),
+  legacyOperation({ "x-runtime-contract-source": "routes/other.js" }),
+]) {
+  const blockedRoot = await createFixture(malformed);
+  try {
+    const result = await runSync(blockedRoot);
+    assert.equal(result.ok, false, "Malformed registered inline contract must remain fail-closed.");
+    assert.match(result.stderr, /openapi_precise_contract_path_conflict/);
+    assert.match(result.stderr, /registered_path_inline_contract_not_replaceable/);
+    const unchanged = YAML.parse(await readFile(path.join(blockedRoot, "openapi.yaml"), "utf8"));
+    assert.equal(unchanged.paths[ROUTE_PATH].$ref, undefined);
+  } finally {
+    await rm(blockedRoot, { recursive: true, force: true });
+  }
+}
+
+const unrelatedRoot = await createFixture(legacyOperation());
+try {
+  const registry = YAML.parse(await readFile(path.join(unrelatedRoot, "openapi-route-contracts.yaml"), "utf8"));
+  registry.contracts["POST /admin/support/tickets/{ticket_id}/unrelated-operation"] = {
+    route_file: "routes/supportTicketRoutes.js",
+    path_item_ref: "./openapi/unrelated.yaml#/paths/~1admin~1support~1tickets~1{ticket_id}~1unrelated-operation",
+  };
+  delete registry.contracts[SIGNATURE];
+  await writeFile(path.join(unrelatedRoot, "openapi-route-contracts.yaml"), YAML.stringify(registry), "utf8");
+  const doc = YAML.parse(await readFile(path.join(unrelatedRoot, "openapi.yaml"), "utf8"));
+  doc.paths = {
+    "/admin/support/tickets/{ticket_id}/unrelated-operation": { post: legacyOperation() },
+  };
+  await writeFile(path.join(unrelatedRoot, "openapi.yaml"), YAML.stringify(doc), "utf8");
+  const result = await runSync(unrelatedRoot);
+  assert.equal(result.ok, false, "Legacy transition allowlist must not broaden to unrelated paths.");
+  assert.match(result.stderr, /registered_path_inline_contract_not_replaceable/);
+} finally {
+  await rm(unrelatedRoot, { recursive: true, force: true });
+}
+
+const hostingerContract = JSON.parse(await readFile(
+  path.join(API_DIR, "..", ".changes", "e2e", "hostinger-tenant-canary-context-availability-fix.json"),
+  "utf8",
+));
+const hostingerJourney = hostingerContract.phases
+  .flatMap((phase) => phase.e2e_journeys || [])
+  .find((journey) => journey.id === "register-tenant-canary-with-valid-context-and-bootstrap-boundary");
+assert.ok(hostingerJourney);
+assert.ok(hostingerJourney.evidence_paths.includes(".github/workflows/ci-evidence-pr-publisher.yml"));
+assert.ok(hostingerJourney.evidence_paths.includes(".github/ci-evidence-routing.json"));
+assert.equal(hostingerJourney.evidence_paths.includes(".github/workflows/hostinger-ci-evidence-pr-publisher.yml"), false);
+
+console.log(JSON.stringify({
+  ok: true,
+  contract: "openapi_precise_legacy_registered_path_transition.v1",
+  exact_signature: SIGNATURE,
+  malformed_variants_blocked: 3,
+  unrelated_path_blocked: true,
+  retired_hostinger_publisher_removed: true,
+  secrets_included: false,
+}, null, 2));
