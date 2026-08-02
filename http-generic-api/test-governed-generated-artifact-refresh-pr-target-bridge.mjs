@@ -2,11 +2,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
+const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml";
+const retiredRequestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
 const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";
 const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
 const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
 
+assert.equal(fs.existsSync(retiredRequestWorkflowPath), false, "retired request bridge path must remain absent");
 assert.match(requestWorkflow, /^name:\s*Governed Generated Artifact Refresh PR Target Request$/mu);
 assert.match(requestWorkflow, /^\s*pull_request_target:\s*$/mu, "request evaluator must execute from trusted default-branch workflow code");
 assert.match(requestWorkflow, /types:\s*\[synchronize\]/u, "automatic request evaluation must be limited to PR head synchronization");
@@ -95,10 +97,12 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 80,
+  tests: 81,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
+  request_workflow_reregistered: true,
+  retired_request_workflow_absent: true,
   pull_request_stage_read_only: true,
   trusted_workflow_run_dispatcher: true,
   candidate_checkout: false,

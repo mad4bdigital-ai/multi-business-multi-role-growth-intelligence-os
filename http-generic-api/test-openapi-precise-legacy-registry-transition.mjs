@@ -157,24 +157,24 @@ try {
   await rm(wrongRefRoot, { recursive: true, force: true });
 }
 
+let actualRootInitialState = "unknown";
 const actualRoot = await createActualRootFixture();
 try {
   const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
-  const actualPathItem = before.paths?.[ROUTE_PATH];
-  const legacy = actualPathItem?.post;
-  const alreadyTransitioned = actualPathItem?.$ref === PATH_REF
-    && Object.keys(actualPathItem).length === 1;
+  const pathItem = before.paths?.[ROUTE_PATH];
+  const alreadySynced = pathItem?.$ref === PATH_REF && Object.keys(pathItem).length === 1;
+  actualRootInitialState = alreadySynced ? "registered_ref" : "historical_inline";
 
-  assert.ok(legacy || alreadyTransitioned, "The actual root must contain either the reviewed historical operation or its exact registered path-item reference.");
-  if (legacy) {
-    assert.equal(legacy.operationId, OPERATION_ID, "The historical root operation must retain its reviewed operationId before transition.");
-    assert.equal(legacy["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
-    assert.equal(legacy["x-runtime-contract-source"], undefined);
-    assert.equal(legacy["x-runtime-auth-profile"], undefined);
-    assert.ok(legacy.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
-    assert.ok(legacy.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+  if (alreadySynced) {
+    assert.deepEqual(pathItem, { $ref: PATH_REF }, "The synchronized root must retain only the exact reviewed path-item reference.");
   } else {
-    assert.deepEqual(actualPathItem, { $ref: PATH_REF });
+    const legacy = pathItem?.post;
+    assert.equal(legacy?.operationId, OPERATION_ID, "The historical root operation must retain the reviewed operation identity before transition.");
+    assert.equal(legacy?.["x-openai-isConsequential"], false, "The historical no-send certification operation must remain non-consequential.");
+    assert.equal(legacy?.["x-runtime-contract-source"], undefined);
+    assert.equal(legacy?.["x-runtime-auth-profile"], undefined);
+    assert.ok(legacy?.requestBody, "The historical operation must retain its detailed request contract before transition.");
+    assert.ok(legacy?.responses?.["200"], "The historical operation must retain its detailed success contract before transition.");
   }
 
   const result = await runSync(actualRoot);
@@ -182,15 +182,14 @@ try {
   const summary = JSON.parse(result.stdout);
   assert.equal(summary.ok, true);
   assert.equal(summary.conflict_count, 0);
-  if (legacy) {
-    assert.equal(summary.changed, true);
+  assert.equal(summary.changed, !alreadySynced);
+  if (alreadySynced) {
+    assert.deepEqual(summary.applied_registered_path_replacements, []);
+  } else {
     assert.ok(summary.applied_registered_path_replacements.some((entry) =>
       entry.path === ROUTE_PATH
       && entry.path_item_ref === PATH_REF
       && entry.signatures.includes(SIGNATURE)));
-  } else {
-    assert.equal(summary.changed, false);
-    assert.deepEqual(summary.applied_registered_path_replacements, []);
   }
 
   const written = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
@@ -208,7 +207,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  contract: "openapi_precise_legacy_registered_path_transition.v2",
+  contract: "openapi_precise_legacy_registered_path_transition.v3",
   exact_signature: SIGNATURE,
   exact_operation_id: OPERATION_ID,
   exact_consequential: false,
@@ -216,7 +215,7 @@ console.log(JSON.stringify({
   malformed_variants_blocked: 4,
   wrong_path_item_ref_blocked: true,
   unrelated_path_blocked: true,
-  actual_root_regression_passed: true,
-  reconciled_actual_root_states: ["historical_inline", "registered_path_item_ref"],
+  actual_root_initial_state: actualRootInitialState,
+  actual_root_idempotency_passed: true,
   secrets_included: false,
 }, null, 2));
