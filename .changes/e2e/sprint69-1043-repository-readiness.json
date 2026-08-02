@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1043-repository-readiness",
+  "title": "Sprint 69 Migration 1043 repository-only readiness evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1043-repository-readiness.json",
+      ".github/ops/sprint69-1043-repository-readiness.mjs",
+      ".github/workflows/sprint69-1043-repository-readiness.yml",
+      "http-generic-api/test-sprint69-1043-repository-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Generate checksum-bound, no-secret repository evidence for Migration 1043 without runtime, database, authorization, registry-sync, or Apply access.",
+      "e2e_journeys": [
+        {
+          "id": "inspect-migration-1043-without-mutation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository automation reviewer",
+          "entrypoint": "Sprint 69 Migration 1043 Repository Readiness workflow",
+          "terminal_outcome": "The workflow publishes an Artifact containing the exact Git blob SHA, SHA-256 checksum, four-statement additive contract, expected tables/view, and explicit false mutation flags without accessing secrets or any runtime endpoint.",
+          "steps": [
+            "Checkout the candidate with contents-read permission only.",
+            "Run the focused static boundary regression test.",
+            "Split Migration 1043 through the canonical migration statement parser.",
+            "Verify three CREATE TABLE IF NOT EXISTS statements and one CREATE OR REPLACE VIEW statement.",
+            "Reject destructive, data-mutating, privilege-changing, procedure-call, or file-system SQL clauses.",
+            "Publish a no-secret Artifact and Job Summary with checksum/blob evidence and all mutation flags false."
+          ],
+          "assertions": [
+            "The workflow contains no issue-comment trigger, workflow dispatch, secret reference, backend API key, auth host, or GitHub mutation command.",
+            "The script contains no fetch, admin-control, GPT tool-call, or Authorization transport.",
+            "The migration Git blob remains 7f3e0152bcdfba36a659ff4a1df8e30d82024c8c.",
+            "The canonical parser returns exactly four statements.",
+            "Runtime contacted, authorization created, Apply authorized/sent, database mutation, registry sync, provider call, credential access, and external write remain false.",
+            "No secrets are included in output evidence."
+          ],
+          "tests": [
+            {
+              "id": "migration-1043-repository-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-repository-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/sprint69-1043-repository-readiness.mjs",
+            ".github/workflows/sprint69-1043-repository-readiness.yml",
+            "http-generic-api/test-sprint69-1043-repository-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Obtain a separate checksum-bound operator authorization before any runtime readiness call or database Apply path is introduced or invoked."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep checksum, statement-shape, no-secret, and no-mutation regressions fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository-only inspection performs no runtime or database canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no migration Apply, deployment, provider, credential, registry-sync, or Production authority."
+    }
+  ]
+}
