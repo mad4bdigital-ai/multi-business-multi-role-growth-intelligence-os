@@ -65,6 +65,47 @@ function renderPathEntries(entries) {
   return YAML.stringify(object, { lineWidth: 0 }).trimEnd().split("\n").map((line) => `  ${line}`).join("\n") + "\n";
 }
 
+function removePathEntriesWithoutReformatting(source, routePaths) {
+  const targets = new Set(routePaths);
+  if (targets.size === 0) return source;
+  const found = new Set();
+  const lines = source.split("\n");
+  const output = [];
+  let inPaths = false;
+  let skipping = false;
+
+  for (const line of lines) {
+    if (!inPaths) {
+      output.push(line);
+      if (/^paths:\s*(?:\{\s*\})?\s*$/.test(line)) inPaths = true;
+      continue;
+    }
+
+    if (/^(?!\s|#)([A-Za-z0-9_$"'-][^:\n]*):(?:\s.*)?$/.test(line)) {
+      inPaths = false;
+      skipping = false;
+      output.push(line);
+      continue;
+    }
+
+    const pathMatch = /^  (\/[^:]+):\s*$/.exec(line);
+    if (pathMatch) {
+      skipping = targets.has(pathMatch[1]);
+      if (skipping) found.add(pathMatch[1]);
+      else output.push(line);
+      continue;
+    }
+
+    if (!skipping) output.push(line);
+  }
+
+  const missingTargets = [...targets].filter((routePath) => !found.has(routePath));
+  if (missingTargets.length > 0) {
+    throw new Error(`Legacy precise-contract replacement could not locate path blocks: ${missingTargets.join(", ")}`);
+  }
+  return output.join("\n");
+}
+
 function applyPathEntriesWithoutReformatting(source, entries) {
   if (entries.size === 0) return source;
   const pathsMatch = /^paths:\s*(\{\s*\})?\s*$/m.exec(source);
@@ -87,6 +128,17 @@ function applyPathEntriesWithoutReformatting(source, entries) {
   return `${normalizedPrefix}${block}${normalizedSuffix}`;
 }
 
+function mergeRuntimeOperationsByPath(beforeRuntime) {
+  const operationsByPath = new Map();
+  for (const source of [beforeRuntime.missingByPath, beforeRuntime.replaceableByPath]) {
+    for (const [routePath, operations] of source) {
+      if (operationsByPath.has(routePath)) throw new Error(`Duplicate Support Ticket runtime composition requested for ${routePath}.`);
+      operationsByPath.set(routePath, operations);
+    }
+  }
+  return operationsByPath;
+}
+
 function main() {
   const write = process.argv.includes("--write");
   const check = process.argv.includes("--check");
@@ -107,6 +159,7 @@ function main() {
       missing_count: beforeRegistry.missing.length,
       missing_registry_count: beforeRegistry.missing.length,
       missing_runtime_path_count: beforeRuntime.missingByPath.size,
+      replaceable_runtime_path_count: beforeRuntime.replaceableByPath.size,
       conflict_count: conflicts.length,
       conflicts,
     }, null, 2));
@@ -115,7 +168,7 @@ function main() {
 
   const appliedPreciseContracts = write ? beforeRegistry.missing : [];
   const entries = new Map(beforeRegistry.missing.map((entry) => [entry.path, { $ref: entry.path_item_ref }]));
-  for (const [routePath, pathItem] of buildSupportTicketRuntimePathItems(beforeRuntime.missingByPath)) {
+  for (const [routePath, pathItem] of buildSupportTicketRuntimePathItems(mergeRuntimeOperationsByPath(beforeRuntime))) {
     if (entries.has(routePath)) throw new Error(`Duplicate precise OpenAPI path composition requested for ${routePath}.`);
     entries.set(routePath, pathItem);
   }
@@ -123,11 +176,12 @@ function main() {
   let afterRegistry = beforeRegistry;
   let afterRuntime = beforeRuntime;
   if (write && entries.size > 0) {
-    const updatedSource = applyPathEntriesWithoutReformatting(openApiSource, entries);
+    const withoutLegacyIndexes = removePathEntriesWithoutReformatting(openApiSource, beforeRuntime.replaceableByPath.keys());
+    const updatedSource = applyPathEntriesWithoutReformatting(withoutLegacyIndexes, entries);
     const updatedDoc = YAML.parse(updatedSource) || {};
     afterRegistry = inspectRegistry(updatedDoc, pathRefs);
     afterRuntime = inspectSupportTicketRuntimeContracts(updatedDoc, runtimeOperations, contracts, pathRefs);
-    if (afterRegistry.missing.length || afterRegistry.conflicts.length || afterRuntime.missingByPath.size || afterRuntime.conflicts.length) {
+    if (afterRegistry.missing.length || afterRegistry.conflicts.length || afterRuntime.missingByPath.size || afterRuntime.replaceableByPath.size || afterRuntime.conflicts.length) {
       throw new Error("Precise route-contract composition failed post-write verification.");
     }
     fs.writeFileSync(OPENAPI_PATH, updatedSource.endsWith("\n") ? updatedSource : `${updatedSource}\n`);
@@ -135,20 +189,27 @@ function main() {
 
   const staticRuntimeSignatureCount = contracts.filter((contract) => runtimeOperations.some((operation) => operation.signature === contract.signature)).length;
   const result = {
-    ok: afterRegistry.missing.length === 0 && afterRegistry.conflicts.length === 0 && afterRuntime.missingByPath.size === 0 && afterRuntime.conflicts.length === 0,
+    ok: afterRegistry.missing.length === 0
+      && afterRegistry.conflicts.length === 0
+      && afterRuntime.missingByPath.size === 0
+      && afterRuntime.replaceableByPath.size === 0
+      && afterRuntime.conflicts.length === 0,
     changed: write && entries.size > 0,
     precise_contract_count: contracts.length,
     applied_precise_contracts: appliedPreciseContracts,
     support_ticket_runtime_operation_count: runtimeOperations.length,
     support_ticket_generated_operation_count: runtimeOperations.length - staticRuntimeSignatureCount,
     applied_path_count: write ? entries.size : 0,
+    replaced_runtime_index_path_count: write ? beforeRuntime.replaceableByPath.size : 0,
     missing_count: afterRegistry.missing.length,
     missing_registry_count: afterRegistry.missing.length,
     missing_runtime_path_count: afterRuntime.missingByPath.size,
+    replaceable_runtime_path_count: afterRuntime.replaceableByPath.size,
     conflict_count: afterRegistry.conflicts.length + afterRuntime.conflicts.length,
     missing: afterRegistry.missing,
     missing_registry: afterRegistry.missing,
     missing_runtime_paths: [...afterRuntime.missingByPath.keys()].sort(),
+    replaceable_runtime_paths: [...afterRuntime.replaceableByPath.keys()].sort(),
     conflicts: [...afterRegistry.conflicts, ...afterRuntime.conflicts],
   };
   console.log(JSON.stringify(result, null, 2));
