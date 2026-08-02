@@ -19,6 +19,32 @@ function securityKeys(operation) {
   return (operation.security || []).map((entry) => Object.keys(entry).sort().join(",")).sort();
 }
 
+function registry({ includeAdminRead = false, includeAdminAction = false } = {}) {
+  return [
+    "contracts:",
+    "  POST /me/support/tickets:",
+    "    route_file: 'routes/supportTicketRoutes.js'",
+    "    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'",
+    "    owner: support_ticket_runtime",
+    "    exposure: tenant_user",
+    ...(includeAdminRead ? [
+      "  GET /admin/support/tickets:",
+      "    route_file: 'routes/supportTicketRoutes.js'",
+      "    path_item_ref: './openapi/support-ticket-admin.yaml#/adminSupportTickets'",
+      "    owner: support_ticket_runtime",
+      "    exposure: admin_tool",
+    ] : []),
+    ...(includeAdminAction ? [
+      "  POST /admin/support/tickets/{ticket_id}/actions:",
+      "    route_file: 'routes/supportTicketRoutes.js'",
+      "    path_item_ref: './openapi/support-ticket-admin.yaml#/adminSupportTicketActions'",
+      "    owner: support_ticket_runtime",
+      "    exposure: admin_tool",
+    ] : []),
+    "",
+  ].join("\n");
+}
+
 try {
   mkdirSync(join(tempRoot, "routes"), { recursive: true });
   writeFileSync(join(tempRoot, "openapi.yaml"), [
@@ -65,15 +91,7 @@ try {
     "      scheme: bearer",
     "",
   ].join("\n"));
-  writeFileSync(join(tempRoot, "openapi-route-contracts.yaml"), [
-    "contracts:",
-    "  POST /me/support/tickets:",
-    "    route_file: 'routes/supportTicketRoutes.js'",
-    "    path_item_ref: './openapi/support-tickets.yaml#/mySupportTickets'",
-    "    owner: support_ticket_runtime",
-    "    exposure: tenant_user",
-    "",
-  ].join("\n"));
+  writeFileSync(join(tempRoot, "openapi-route-contracts.yaml"), registry());
   writeFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), [
     "router.get(\"/admin/activation/ticket-inbox\", ...adminGuards, async (req, res) => {});",
     "router.get(\"/admin/support/tickets\", ...adminGuards, async (req, res) => {});",
@@ -91,6 +109,7 @@ try {
   assert.equal(result.support_ticket_runtime_operation_count, 6);
   assert.equal(result.support_ticket_generated_operation_count, 5);
   assert.equal(result.replaced_runtime_index_path_count, 1);
+  assert.equal(result.replaced_registry_runtime_path_count, 0);
   assert.equal(result.replaceable_runtime_path_count, 0);
 
   const doc = YAML.parse(readFileSync(join(tempRoot, "openapi.yaml"), "utf8"));
@@ -124,6 +143,34 @@ try {
   const memberRead = doc.paths["/me/support/tickets/{ticket_id}"].get;
   assert.deepEqual(securityKeys(memberRead), ["userJwtAuth"]);
   assert.notEqual(memberRead.operationId, tenantRead.operationId);
+
+  writeFileSync(join(tempRoot, "openapi-route-contracts.yaml"), registry({ includeAdminRead: true }));
+  const replacePreciseRuntime = run(["--write"]);
+  assert.equal(replacePreciseRuntime.status, 0, replacePreciseRuntime.stderr || replacePreciseRuntime.stdout);
+  const replacementResult = JSON.parse(replacePreciseRuntime.stdout);
+  assert.equal(replacementResult.ok, true);
+  assert.equal(replacementResult.replaced_registry_runtime_path_count, 1);
+  const replacedDoc = YAML.parse(readFileSync(join(tempRoot, "openapi.yaml"), "utf8"));
+  assert.deepEqual(replacedDoc.paths["/admin/support/tickets"], {
+    $ref: "./openapi/support-ticket-admin.yaml#/adminSupportTickets",
+  });
+  assert.equal(
+    replacedDoc.paths["/admin/automation/validation/sync-ticket"].post.operationId,
+    "postAdminAutomationValidationSyncTicketExisting",
+  );
+
+  const safeOpenApi = readFileSync(join(tempRoot, "openapi.yaml"), "utf8");
+  const safeRegistry = readFileSync(join(tempRoot, "openapi-route-contracts.yaml"), "utf8");
+  const unsafeDoc = YAML.parse(safeOpenApi);
+  unsafeDoc.paths["/admin/support/tickets/{ticket_id}/actions"].post.operationId = "customAdminSupportTicketAction";
+  writeFileSync(join(tempRoot, "openapi.yaml"), YAML.stringify(unsafeDoc, { lineWidth: 0 }));
+  writeFileSync(join(tempRoot, "openapi-route-contracts.yaml"), registry({ includeAdminRead: true, includeAdminAction: true }));
+  const unsafeReplacement = run(["--write"]);
+  assert.notEqual(unsafeReplacement.status, 0);
+  assert.match(unsafeReplacement.stderr, /openapi_precise_contract_path_conflict/);
+  assert.match(unsafeReplacement.stderr, /admin\/support\/tickets\/\{ticket_id\}\/actions/);
+  writeFileSync(join(tempRoot, "openapi.yaml"), safeOpenApi);
+  writeFileSync(join(tempRoot, "openapi-route-contracts.yaml"), safeRegistry);
 
   const check = run(["--check"]);
   assert.equal(check.status, 0, check.stderr || check.stdout);
