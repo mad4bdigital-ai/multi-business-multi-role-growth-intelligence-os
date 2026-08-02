@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "017-tenant-managed-execution-lifecycle",
+  "title": "Tenant managed execution authority and approval lifecycle",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/managedExecutionCore.js",
+      "http-generic-api/managedExecutionAuthority.js",
+      "http-generic-api/managedExecutionPersistence.js",
+      "http-generic-api/managedExecutionRunService.js",
+      "http-generic-api/managedExecutionDecisionService.js",
+      "http-generic-api/managedExecutionLifecycleService.js",
+      "http-generic-api/routes/workflowOrchestrationRoutes.js",
+      "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "http-generic-api/test-tenant-managed-execution-lifecycle.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove code and additive schema contracts for capability-bound, resource-grant-bound, approval-gated, idempotent managed execution without applying the migration or performing an external operation.",
+      "e2e_journeys": [
+        {
+          "id": "create-and-gate-tenant-managed-execution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized tenant requester and managed execution approver",
+          "entrypoint": "Managed execution service and workflow orchestration routes",
+          "terminal_outcome": "The linked task and run contain immutable authority evidence, approval cannot be bypassed, insufficient approver roles are rejected, authority drift blocks new steps, and repeated step requests remain idempotent.",
+          "steps": [
+            "Validate explicit tenant, requester, parent ticket, capability, resource, effect, and idempotency scope.",
+            "Resolve active capability authority and effective resource grant.",
+            "Build a fingerprinted authority snapshot and derive approval policy.",
+            "Create or reuse the linked task, run, hold, binding, and event contract.",
+            "Verify approver role authority and revalidate live authority before a managed step.",
+            "Reject secret-bearing payloads, generic-route bypass, invalid transitions, and contradictory terminal states."
+          ],
+          "assertions": [
+            "Missing or inactive capability authority fails closed.",
+            "Insufficient, revoked, expired, or changed resource authority fails closed.",
+            "Approval-required execution cannot create a managed step before an approved hold exists.",
+            "A principal below the hold required_role cannot decide the approval.",
+            "Repeated run and step requests reuse existing objects.",
+            "Migration 1043 is additive and contains no destructive table operation.",
+            "No provider call, credential read, external send, deployment, Production mutation, or SQL Apply occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-managed-execution-lifecycle-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-managed-execution-lifecycle.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/managedExecutionCore.js",
+            "http-generic-api/managedExecutionAuthority.js",
+            "http-generic-api/managedExecutionRunService.js",
+            "http-generic-api/managedExecutionDecisionService.js",
+            "http-generic-api/routes/workflowOrchestrationRoutes.js",
+            "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
+            "http-generic-api/test-tenant-managed-execution-lifecycle.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Apply Migration 1043 through a separately authorized governed migration and verify ledger and readiness evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Complete bounded retry, cancellation, reassignment, rollback, and linked-state reconciliation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run tenant and admin canary paths against an exact deployed non-production candidate."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, migration ledger, protected tenant path, runtime readback, and post-merge audit before closing Issue 4449."
+    }
+  ]
+}
