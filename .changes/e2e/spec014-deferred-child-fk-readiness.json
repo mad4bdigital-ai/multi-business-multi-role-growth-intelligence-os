@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-deferred-child-fk-readiness",
+  "title": "Spec 014 Deferred Child Foreign-Key Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-deferred-child-fk-readiness.json",
+      ".github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json",
+      ".github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql",
+      ".github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql",
+      ".github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml",
+      "http-generic-api/hostingerStorageDeferredChildFkReadiness.js",
+      "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define and validate the exact evidence required before separately authorizing deferred run and plan-item foreign keys, without promoting or applying the candidate migration.",
+      "e2e_journeys": [
+        {
+          "id": "parent-aware-child-schema-to-deferred-fk-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 database release reviewer",
+          "entrypoint": "Hostinger Storage Deferred Child FK Readiness Guard",
+          "terminal_outcome": "A checksum-bound packet reports whether all legacy-null, orphan, mismatch, duplicate-sequence, and append-only row-version metrics are zero while authorization, migration apply, and foreign-key enablement remain false.",
+          "steps": [
+            "Validate the three reviewed ALTER TABLE statements and prohibit destructive or cascading DDL.",
+            "Validate the read-only counts-only parity query and pin both SQL checksums.",
+            "Bind evidence to current signed schema verification, exact runtime parity, database fingerprint, and readback cycle.",
+            "Require every legacy-null, orphan, parent mismatch, duplicate sequence, and immutable row-version violation count to be zero.",
+            "Return ready_for_separate_authorization only when all metrics pass.",
+            "Keep authorization_created, migration_apply_authorized, foreign_keys_enabled, runtime_mounted, provider_dispatch_allowed, and production_ready false."
+          ],
+          "assertions": [
+            "The candidate is not present in http-generic-api/migrations.",
+            "Exactly three non-cascading foreign keys are proposed.",
+            "The evaluator imports no database or process-dispatch client.",
+            "Any non-zero blocking metric produces a stable blocker code.",
+            "Packet tampering, checksum drift, runtime/database-cycle mismatch, stale evidence, and secret-bearing fields fail closed."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-deferred-child-fk-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json",
+            ".github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql",
+            ".github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql",
+            "http-generic-api/hostingerStorageDeferredChildFkReadiness.js",
+            "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Collect same-cycle live readback and create a separate checksum-bound authorization after explicit live-stage authority.",
+      "blockers": [
+        "Live database readback has not been performed.",
+        "A fresh capability envelope and authorization registry entry have not been created.",
+        "The candidate has not been promoted to the governed runtime migration sequence."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove partial-existing-constraint, DDL retry, metadata-lock timeout, and post-apply parity handling."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live schema mutation occurs in this repository-only slice."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production remains blocked until authorized apply and post-apply signed readback."
+    }
+  ]
+}
