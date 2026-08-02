@@ -80,15 +80,15 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Multiple exact-head runs already proved the run-bound Tenant Canary Artifact and 8/8 guard checks. CI Evidence PR Publisher gained the canonical Hostinger route on main at 525007fbc19048002e389818902737d208b555c3. Complete the operational phase by proving a post-convergence exact-head Artifact is consumed and written into the shared authoritative PR comment.",
+      "objective": "The exact-head E2E fallback reached main at 06e1f5d4bf9bf84031f0f19b71c0e51da5ccff47. Complete the operational phase by producing one new head where Tenant Canary and E2E both succeed, then proving CI Evidence PR Publisher discovers the matching Tenant run and writes the hostinger-storage-tenant-canary section for the same SHA.",
       "blockers": [
-        "No post-525007f exact-head Tenant Canary run and matching hostinger-storage-tenant-canary comment section have yet been observed together."
+        "No post-06e1f5d exact-head Tenant Canary Artifact and matching fallback-published Hostinger comment section have yet been observed together."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, duplicate workflow identity, and publisher retry behavior while preserving canonical-first diagnosis."
+      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, exact-head discovery absence, branch mismatch, and publisher retry behavior while preserving canonical-first diagnosis."
     },
     {
       "id": "canary",
