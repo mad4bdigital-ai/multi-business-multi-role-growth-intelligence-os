@@ -1,9 +1,5 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import {
-  buildHostingerStorageMigrationAuthorizationReadiness,
-  HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
-} from './hostingerStorageMigrationAuthorizationReadiness.js';
 
 const reportPath = process.env.SPEC014_MIGRATION_READINESS_REPORT || '';
 const report = {
@@ -30,6 +26,12 @@ function completed(stage) {
 }
 
 try {
+  report.stage = 'import_readiness_module';
+  const {
+    buildHostingerStorageMigrationAuthorizationReadiness,
+    HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
+  } = await import('./hostingerStorageMigrationAuthorizationReadiness.js');
+
   report.stage = 'build_readiness_packet';
   const result = await buildHostingerStorageMigrationAuthorizationReadiness();
 
