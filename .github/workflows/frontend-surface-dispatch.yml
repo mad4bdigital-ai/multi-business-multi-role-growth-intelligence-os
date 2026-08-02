@@ -90,6 +90,12 @@ jobs:
         id: deterministic_output
         continue-on-error: true
         run: |
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded Frontend evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
           if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
             git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
             exit 1
