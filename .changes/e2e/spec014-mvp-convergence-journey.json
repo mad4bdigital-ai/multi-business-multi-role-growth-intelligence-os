@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-mvp-convergence-journey",
+  "title": "Spec 014 synthetic-runtime MVP convergence journey",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-mvp-convergence-journey.json",
+      "http-generic-api/test-hostinger-storage-e2e.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove one synthetic Tenant storage request from mounted HTTP entrypoint through Context Kernel authority, immutable plan and fixed execution contracts to durable journal, reconciliation guards, and Tenant-safe readback.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-storage-request-to-reconciled-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_workspace_owner",
+          "entrypoint": "POST /tenant/storage-operations/apply-plan",
+          "terminal_outcome": "The exact synthetic operation returns Tenant-safe reconciled readback while immutable plan, append-only journal, retry, SHA, and cross-Tenant guards remain enforced.",
+          "steps": [
+            "Execute the mounted Tenant HTTP runtime journey through Context Kernel and effective-authority dynamic evidence.",
+            "Bind the request to the exact operation and expected SHA while rejecting request-side authority injection and cross-Tenant context.",
+            "Consume one manual enablement only after all checks and dispatch the fixed synthetic worker path without free-form shell input.",
+            "Require the durable control-plane contract to preserve immutable plans, append-only approvals, CAS lease generations, and restart-safe journal ordering.",
+            "Require single-use plan consumption and unknown-outcome retry protection.",
+            "Return only Tenant-safe evidence with provider dispatch, live mutation, Production readiness, and secrets disabled."
+          ],
+          "assertions": [
+            "The mounted route reports Context Kernel and effective-authority evidence success.",
+            "Expected-SHA mismatch, authority injection, Admin use, and cross-Tenant access fail before mutation consumption.",
+            "Immutable plan, append-only approvals, CAS leases, restart-safe journal, single-use plan, and unknown-outcome retry guards all pass.",
+            "The journey is synthetic-only and cannot call a provider, deploy, apply SQL, or become Production-ready.",
+            "No secret or raw credential field is emitted."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-mvp-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-e2e.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-e2e.mjs",
+            "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+            "http-generic-api/test-hostinger-storage-control-plane-repository.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Extend the journey with cancellation, approval revocation, bounded retry, and operator-visible transitions."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Extend the journey with fault injection, worker restart recovery, and checkpoint restoration."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the journey against one separately authorized non-production Tenant target."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This bounded change supplies synthetic MVP evidence only and grants no Production authority."
+    }
+  ],
+  "secrets_included": false
+}
