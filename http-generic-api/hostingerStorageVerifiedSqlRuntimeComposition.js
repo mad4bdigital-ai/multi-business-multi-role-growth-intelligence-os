@@ -16,6 +16,11 @@ import {
   createHostingerStorageSqlChildEvidenceWriter,
   isCanonicalHostingerStorageSqlChildEvidenceWriter,
 } from './hostingerStorageSqlChildEvidenceWriter.js';
+import {
+  HOSTINGER_STORAGE_SQL_RUN_READER_VERSION,
+  createHostingerStorageSqlRunReader,
+  isCanonicalHostingerStorageSqlRunReader,
+} from './hostingerStorageSqlRunReader.js';
 
 export const HOSTINGER_STORAGE_VERIFIED_SQL_RUNTIME_COMPOSITION_VERSION = 'spec014-hostinger-storage-verified-sql-runtime-composition-v1';
 
@@ -120,11 +125,13 @@ export function createHostingerStorageVerifiedSqlRuntimeComposition(options = {}
   const repository = createHostingerStorageControlPlaneRepository({ adapter });
   const parentWriter = createMySqlHostingerStorageSqlParentWriter({ pool, schema_verification, lock_timeout_seconds });
   const childWriter = createHostingerStorageSqlChildEvidenceWriter({ pool, schema_verification, lock_timeout_seconds });
+  const runReader = createHostingerStorageSqlRunReader({ pool, schema_verification });
 
   if (!isCanonicalMySqlHostingerStoragePersistenceAdapter(adapter)
     || !isCanonicalHostingerStorageControlPlaneRepository(repository)
     || !isCanonicalMySqlHostingerStorageSqlParentWriter(parentWriter)
-    || !isCanonicalHostingerStorageSqlChildEvidenceWriter(childWriter)) {
+    || !isCanonicalHostingerStorageSqlChildEvidenceWriter(childWriter)
+    || !isCanonicalHostingerStorageSqlRunReader(runReader)) {
     throw fail(500, 'STORAGE_VERIFIED_SQL_COMPOSITION_COMPONENT_INVALID', 'Every composed SQL component must be canonical.');
   }
   if (parentWriter.schema_verification_digest !== verification.evidence_digest
@@ -132,8 +139,10 @@ export function createHostingerStorageVerifiedSqlRuntimeComposition(options = {}
     || childWriter.schema_verification.evidence_digest !== verification.evidence_digest
     || childWriter.schema_verification.database_fingerprint !== verification.database_fingerprint
     || childWriter.schema_verification.source_commit !== verification.source_commit
-    || childWriter.schema_verification.deployed_runtime_sha !== verification.deployed_runtime_sha) {
-    throw fail(409, 'STORAGE_VERIFIED_SQL_COMPOSITION_PROVENANCE_MISMATCH', 'Composed writers do not share one schema-verification provenance.');
+    || childWriter.schema_verification.deployed_runtime_sha !== verification.deployed_runtime_sha
+    || runReader.schema_verification_digest !== verification.evidence_digest
+    || runReader.database_fingerprint !== verification.database_fingerprint) {
+    throw fail(409, 'STORAGE_VERIFIED_SQL_COMPOSITION_PROVENANCE_MISMATCH', 'Composed readers and writers do not share one schema-verification provenance.');
   }
 
   const controlPlane = facet({
@@ -153,6 +162,7 @@ export function createHostingerStorageVerifiedSqlRuntimeComposition(options = {}
     registerPlanItems: parentWriter.registerPlanItems,
     startRun: parentWriter.startRun,
     finalizeRun: parentWriter.finalizeRun,
+    readRun: runReader.readRun,
   });
   const childEvidence = facet({
     appendJournalEvent: childWriter.appendJournalEvent,
@@ -169,6 +179,7 @@ export function createHostingerStorageVerifiedSqlRuntimeComposition(options = {}
       adapter: HOSTINGER_STORAGE_SQL_PERSISTENCE_ADAPTER_VERSION,
       parent_writer: HOSTINGER_STORAGE_SQL_PARENT_WRITER_VERSION,
       child_writer: HOSTINGER_STORAGE_SQL_CHILD_EVIDENCE_WRITER_VERSION,
+      run_reader: HOSTINGER_STORAGE_SQL_RUN_READER_VERSION,
     }),
     control_plane: controlPlane,
     execution_parents: executionParents,
@@ -210,6 +221,7 @@ export function isCanonicalHostingerStorageVerifiedSqlRuntimeComposition(value) 
     && typeof value?.control_plane?.appendJournalEvent === 'undefined'
     && typeof value?.control_plane?.recordReconciliation === 'undefined'
     && typeof value?.execution_parents?.registerPlanItems === 'function'
+    && typeof value?.execution_parents?.readRun === 'function'
     && typeof value?.child_evidence?.appendJournalEvent === 'function'
     && typeof value?.child_evidence?.appendReconciliation === 'function');
 }
