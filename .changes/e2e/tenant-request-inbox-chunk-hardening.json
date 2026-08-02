@@ -1,0 +1,276 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-request-inbox-chunk-hardening",
+  "title": "Tenant request inbox and durable chunk-store hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/governedToolResponseChunkStore.js",
+      "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      "http-generic-api/openapi/tenant-requests.openapi.yaml",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/supportTicketRoutes.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/supportTicketResolutionService.js",
+      "http-generic-api/tenantRequestInboxService.js",
+      "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
+      "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+      "http-generic-api/test-gpt-tools-response-chunking.mjs",
+      "http-generic-api/test-platform-routes.mjs",
+      "http-generic-api/test-tenant-request-auth-parity.mjs",
+      "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "List tenant tickets and resolution cases as one bounded inbox while retaining independent statuses, enforcing object-level tenant scope, and degrading large tool responses safely when durable chunk schema is incomplete.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-inbox-list-detail-and-safe-chunk-fallback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform admin or authenticated tenant member",
+          "entrypoint": "GET /admin/tenant-requests or GET /tenants/{tenantId}/requests",
+          "terminal_outcome": "A bounded ticket/case projection and redacted timeline are returned, while incomplete chunk persistence falls back to bounded inline output or a typed budget error instead of failing the request process.",
+          "steps": [
+            "Authorize the caller against platform-admin or active tenant membership scope.",
+            "Detect whether the explicit tenant_resolution_cases.ticket_id link is available and preserve the ticket:// compatibility fallback before migration.",
+            "Discover a bounded candidate ticket window from set-wise ticket, event, case, and readback activity sources before exact ordering.",
+            "Read tickets ordered by latest activity and stable ticket_id with opaque cursor pagination.",
+            "Return ticket status and resolution case status in separate nested objects.",
+            "Read ticket, case, and readback timeline rows with tenant-safe redaction and bounded row limits.",
+            "Inspect durable chunk-store schema before persistence and return bounded inline output when required columns are unavailable.",
+            "Apply the caller's effective client and envelope response budget to degraded system-tool responses.",
+            "Resolve the central tenant User JWT middleware to the same userJwtAuth contract declared by OpenAPI.",
+            "Expose the four inbox endpoints through the generated frontend dispatch inventory."
+          ],
+          "assertions": [
+            "Ticket open and resolution case escalated remain separate states for the regression ticket.",
+            "A tenant cannot read another tenant's request by tenant_id, ticket_id, or resolution_case_id inference.",
+            "Cursor pagination uses latest_activity_at plus ticket_id and never OFFSET.",
+            "Latest-activity ranking performs exact correlated calculations only for a bounded candidate ticket window.",
+            "Tenant timelines exclude internal ticket events, case evidence refs, and raw readback states.",
+            "The migration is additive and does not delete, archive, or rename existing records.",
+            "Chunk schema failures expose typed non-secret diagnostics and do not silently drop the tool-list request.",
+            "Default client budgets reject oversized degraded system-tool lists with a typed 503, while an explicit sufficient bounded budget preserves a 200 response.",
+            "Generated dispatch classifies both tenant request routes as user_jwt with equivalent OpenAPI authentication.",
+            "The generated dispatch inventory contains the admin and tenant request list/detail surfaces."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-inbox-and-chunk-hardening-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-tool-response-chunk-fallback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-response-chunk-durable-recovery-smoke",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-response-chunk-durable-recovery-smoke.mjs",
+              "args": []
+            },
+            {
+              "id": "gpt-tools-bounded-inline-chunk-fallback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-gpt-tools-response-chunking.mjs",
+              "args": []
+            },
+            {
+              "id": "system-layer-response-budget-and-typed-fallback-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/tenant-requests.openapi.yaml",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+            "http-generic-api/test-gpt-tools-response-chunking.mjs",
+            "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs",
+            "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Provide schema readiness views, typed diagnostics, bounded paging, stable request identifiers, explicit authentication parity, and explicit response-budget behavior without external mutations.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-schema-readiness-and-bounded-operation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform operations",
+          "entrypoint": "Migration readiness views, inbox list filters, and system-tool list routes",
+          "terminal_outcome": "Operations can distinguish missing schema from missing data, bound latest-activity work, verify authentication parity, and receive a bounded response or typed budget failure.",
+          "steps": [
+            "Inspect explicit ticket-link and chunk-runtime schema readiness.",
+            "List a bounded page with filters and a stable next cursor.",
+            "Bound exact latest-activity calculations to a candidate ticket set.",
+            "Verify runtime User JWT evidence matches the tenant inbox OpenAPI security contract.",
+            "Apply the effective client and envelope budget to degraded system-tool list responses.",
+            "Log only error code, cause code, operation, request id, and source tool key during chunk fallback."
+          ],
+          "assertions": [
+            "No response content or credentials are written to fallback diagnostics.",
+            "Readiness views report blocked until every required additive column and index is present.",
+            "Candidate activity indexes support ticket lifecycle, resolution-case event, and readback discovery.",
+            "Both tenant request routes have resolved user_jwt runtime authentication and equivalent userJwtAuth OpenAPI security.",
+            "An oversized degraded response is returned as a typed non-secret 503 rather than an unhandled rejection.",
+            "No migration is applied by the runtime code in this change."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-operational-hardening-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-chunk-schema-diagnostic-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
+            },
+            {
+              "id": "system-layer-operational-budget-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+            "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on authorization, malformed cursors, unbounded activity work, unresolved authentication evidence, and response-budget overflow while retaining bounded inline availability during chunk-store schema drift.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-object-scope-and-schema-drift-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "unauthorized tenant caller or runtime with incomplete chunk schema",
+          "entrypoint": "Tenant request detail lookup, inbox list ranking, or governed response chunk persistence",
+          "terminal_outcome": "Unauthorized object access is rejected, latest-activity work remains bounded, authentication evidence remains explicit, and chunk persistence degradation is contained without exposing secrets.",
+          "steps": [
+            "Attempt to access a tenant request without an active membership.",
+            "Attempt to decode a malformed pagination cursor.",
+            "Discover latest-activity candidates from bounded set-wise sources.",
+            "Verify the central User JWT middleware remains statically resolvable by generated dispatch governance.",
+            "Inspect a chunk table missing one runtime-required ownership column.",
+            "Attempt to return a degraded response that exceeds the effective client budget.",
+            "Return typed errors or bounded inline response without provider calls."
+          ],
+          "assertions": [
+            "Unauthorized tenant access returns tenant_request_scope_violation.",
+            "Malformed cursors return tenant_request_cursor_invalid.",
+            "Candidate discovery is capped and exact ordering is restricted to candidate ticket IDs.",
+            "The tenant inbox route guard is resolved as user_jwt rather than unknown auth evidence.",
+            "Missing chunk columns are listed explicitly with secrets_included=false.",
+            "Budget overflow returns response_chunk_persistence_unavailable_inline_limit_exceeded with secrets_included=false.",
+            "No external provider call, SQL apply, or destructive mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-auth-parity-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-auth-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-request-chunk-drift-fallback-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
+            },
+            {
+              "id": "system-layer-budget-fail-closed-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+            "http-generic-api/test-platform-routes.mjs",
+            "http-generic-api/test-tenant-request-auth-parity.mjs",
+            "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Apply the additive migration in an authorized non-production database and verify the regression ticket appears first with open/escalated states."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, migration ledger, schema readback, and live tenant/admin inbox responses."
+    }
+  ]
+}

@@ -21,10 +21,14 @@ A valid canonical report is the status authority. Job logs may never override it
 
 Every report must label the tested candidate:
 
-- `head`: the PR branch head itself. E2E Phase Governance and Context Kernel Hardcoding Report explicitly checkout this SHA.
+- `head`: the PR branch head itself. E2E Phase Governance, Context Kernel Hardcoding Report, PR Generated Artifact Refresh, and Protected Promotion Generated Artifact Refresh explicitly checkout this SHA.
 - `merge_candidate`: GitHub's synthetic `refs/pull/<number>/merge` commit. Branch Test Diagnostic Shards use it to prove compatibility with the current base.
 
 A merge-candidate SHA must never be described as the PR head. The two evidence kinds may complement one another, but their SHA, run ID, artifact, and conclusion must remain separate.
+
+The pull-request generated-artifact evaluators are read-only. Their `candidate_sha` and `source_head_sha` must both equal the exact workflow-run head. They may not report or publish a generated commit.
+
+Repository mutation is a separate governed operation. The manually dispatched Generated Artifact Refresh tool records `target_ref`, `expected_head_sha`, and the resulting commit in its own maintenance-tool report; that report must not be substituted for PR workflow evidence.
 
 ## Fail-closed source contract
 
@@ -83,6 +87,16 @@ Never combine evidence from different candidates into one unlabeled status.
 
 For workstream failures, `e2e-parallel-test-runner.mjs` places bounded redacted stdout and stderr tails inside `e2e-parallel-execution.json`. Raw Job logs remain secondary.
 
+For direct phase tests, `e2e-phase-governance.mjs` captures stdout and stderr instead of discarding them. The first failed result contains:
+
+- the original exit code;
+- `diagnostic.stdout` and `diagnostic.stderr` produced by the shared bounded diagnostic helper;
+- redaction status, original size, returned size, SHA-256, truncation state, and a tail limited to 12,000 characters;
+- `secrets_included: false`;
+- `diagnostics.job_logs_role: diagnostic_only`.
+
+The direct execution report therefore remains the normal diagnostic authority. Job logs are consulted only when the canonical router explicitly reports missing, malformed, or insufficient structured evidence.
+
 ## Branch Test Diagnostic Shards
 
 `Branch Test Diagnostic Shards` publishes `mad4b.test-diagnostic-summary.v2` as `branch-test-diagnostic-<run_id>-summary`. It is merge-candidate evidence; `ref` and `commitSha` identify the synthetic commit tested. Use its exact rerun coordinates rather than reading every shard log.
@@ -98,13 +112,62 @@ For workstream failures, `e2e-parallel-test-runner.mjs` places bounded redacted 
 
 The canonical report is uploaded before enforcement, so a blocked guard remains diagnosable without opening its Job log.
 
+## Generated Artifact read-only evaluators
+
+Two separately registered pull-request workflows use the same canonical report contract:
+
+- `PR Generated Artifact Refresh` evaluates governed non-Production work branches and retains the explicit non-protected `workflow_dispatch` verification path.
+- `Protected Promotion Generated Artifact Refresh` evaluates same-repository pull requests targeting `Production` and has no manual-dispatch trigger.
+
+The distinct workflow names prevent registration ambiguity while `.github/ci-evidence-routing.json` and `CI Evidence PR Publisher` intentionally normalize both names to the same canonical evidence section.
+
+Both evaluators use `contents: read`, do not persist checkout credentials, and perform no commit or push. They generate and verify the bounded artifact set only inside the ephemeral runner workspace, then publish `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing the decision.
+
+The report contains:
+
+- exact `candidate_sha` and `source_head_sha`, both equal to the workflow-run PR head;
+- bounded generated drift paths;
+- `commit_sha: null` and `repository_mutation_performed: false`;
+- the first failed step, command, exit status, and redacted bounded stdout/stderr tails;
+- `secrets_included: false`;
+- `routing.job_logs_role: diagnostic_only`.
+
+If generated files differ, the canonical result is `generated_artifact_drift_detected`. The remediation is to run the registered governed mutation tool on an eligible work branch; neither pull-request evaluator writes to the repository.
+
+## Governed Generated Artifact Refresh
+
+`Governed Generated Artifact Refresh` is a separate `workflow_dispatch` operation backed by the registered tool:
+
+`http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs`
+
+It requires:
+
+- a governed non-protected `target_ref`;
+- an exact 40-character `expected_head_sha`;
+- typed confirmation `APPLY_GENERATED_ARTIFACT_REFRESH`.
+
+The tool verifies both local and remote head identity before generation, before commit, and before normal fast-forward push. It rejects `main`, `Production`, force push, concurrent branch movement, and every changed path outside its registered allowlist.
+
+Its canonical report contract is `mad4b.governed-generated-artifact-refresh.v1`. The JSON and Markdown report are uploaded before enforcement and declare `secrets_included: false` and `job_logs_role: diagnostic_only`.
+
+After the governed tool determines the resulting exact head, the workflow dispatches the work-branch `PR Generated Artifact Refresh` evaluator for that SHA. This closes the GitHub Actions token boundary where a bot-authored generated commit would otherwise not start pull-request checks automatically.
+
+## Repository Tool Lifecycle Governance
+
+Repository automation changes are governed by `mad4b.repository-tool-lifecycle-report.v1`. Read its artifact before opening Job logs. In particular:
+
+- pull-request workflows must remain read-only;
+- reusable mutating tools must be registered under the governed maintenance-tool root;
+- mutations require expected-head verification and protected-branch rejection;
+- force push, self-deleting workflows, and branch-specific one-shot automation fail closed.
+
 ## PR-visible evidence
 
-`CI Evidence PR Publisher` is a trusted `workflow_run` workflow. It checks out `main`, downloads the exact completed-run canonical artifact, validates it against the workflow-run head, and maintains one comment marked with:
+`CI Evidence PR Publisher` is a trusted `workflow_run` workflow. It checks out `main`, downloads the exact completed-run canonical artifact, validates it against the workflow-run identity and current PR head, and maintains one comment marked with:
 
 `<!-- mad4b-ci-evidence-authority -->`
 
-Each workflow owns one section. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows have read-only permissions and do not receive comment-writing authority.
+The publisher listens to both generated-artifact workflow names but routes them through the same generated-artifact publisher and comment slug. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows do not receive comment-writing authority.
 
 ## Agent response rule
 

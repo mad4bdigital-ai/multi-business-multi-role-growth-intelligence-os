@@ -33,6 +33,10 @@
     "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
     "update_mode": "replace_matching_workflow_section_when_run_id_is_newer",
     "pr_head_workflows_may_write_comments": false,
+    "generated_artifact_workflow_aliases": [
+      "PR Generated Artifact Refresh",
+      "Protected Promotion Generated Artifact Refresh"
+    ],
     "pr_resolution": {
       "event_pr_number_preferred": true,
       "fallback_query_state": "all",
@@ -52,6 +56,18 @@
       "merge_candidate_must_remain_provable": true
     }
   },
+  "specialized_publishers": [
+    {
+      "workflow": "Hostinger CI Evidence PR Publisher",
+      "trigger": "workflow_run",
+      "trusted_ref": "main",
+      "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
+      "routes": ["Hostinger Storage Tenant Canary Guard"],
+      "pr_head_workflows_may_write_comments": false,
+      "exact_head_required": true,
+      "job_logs_authority": "diagnostic_only"
+    }
+  ],
   "routes": [
     {
       "workflow": "E2E Phase Governance",
@@ -85,6 +101,36 @@
         "context-kernel-hardcoding-source.json": "mad4b.context-kernel-hardcoding-source.v1"
       },
       "source_artifacts": ["context-kernel-hardcoding-source.json"]
+    },
+    {
+      "workflow": "PR Generated Artifact Refresh",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.pr-generated-artifact-refresh-summary.v1",
+      "canonical_artifact": "pr-generated-artifact-refresh-${run_id}-summary",
+      "source_head_may_precede_candidate": false,
+      "candidate_rule": "candidate_sha must equal source_head_sha; commit_sha must be null; repository_mutation_performed must be false",
+      "source_artifacts": ["pr-generated-artifact-refresh-summary.json"]
+    },
+    {
+      "workflow": "Protected Promotion Generated Artifact Refresh",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.pr-generated-artifact-refresh-summary.v1",
+      "canonical_artifact": "pr-generated-artifact-refresh-${run_id}-summary",
+      "source_head_may_precede_candidate": false,
+      "candidate_rule": "candidate_sha must equal source_head_sha; commit_sha must be null; repository_mutation_performed must be false",
+      "source_artifacts": ["pr-generated-artifact-refresh-summary.json"]
+    },
+    {
+      "workflow": "Hostinger Storage Tenant Canary Guard",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.hostinger-guard-summary.v1",
+      "canonical_artifact": "hostinger-storage-tenant-canary-${run_id}-summary",
+      "publisher_workflow": "Hostinger CI Evidence PR Publisher",
+      "candidate_rule": "report.workflow must equal workflow; identity.candidate_sha must equal workflow_run.head_sha; job_logs_consulted must be false; secrets_included must be false",
+      "source_contracts": {
+        "hostinger-storage-tenant-canary-summary.json": "mad4b.hostinger-guard-summary.v1"
+      },
+      "source_artifacts": ["hostinger-storage-tenant-canary-${run_id}-summary"]
     }
   ],
   "secrets_included": false

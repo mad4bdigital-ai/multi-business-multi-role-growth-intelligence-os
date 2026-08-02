@@ -39,6 +39,29 @@ A promoted tool must:
 - treat Job logs as diagnostic-only evidence;
 - include regression tests for allowed and rejected behavior.
 
+## Immutable safety baseline
+
+The pull-request candidate may extend repository-tool policy, but it may not weaken the safety baseline in the same change it is asking the guard to evaluate. The guard therefore rejects attempts to:
+
+- set any mandatory lifecycle rule to `false` or omit it;
+- remove `main` or `Production` from the protected-branch set;
+- move the governed tool root;
+- remove or reclassify the canonical lifecycle guard;
+- remove baseline detection for trigger files, one-shot workflows, or versioned temporary runners.
+
+Configured policy patterns are additive to the baseline embedded in the guard; they are not a replacement for it.
+
+## Registered tool body inspection
+
+Registration is not sufficient by itself. The guard reads every registered entrypoint and compares its implementation with its declared mode:
+
+- a `read_only` tool must not contain repository mutation behavior;
+- a `mutating` tool must declare a non-empty changed-path allowlist;
+- all detected mutations require exact expected-head verification and explicit rejection of `main` and `Production`;
+- force push and workflow self-deletion are rejected regardless of declared mode.
+
+Mutation detection is based on the operation found in the body, not only the workflow token declaration. A workflow using `permissions: write-all`, a PAT, a GitHub App token, or another external credential cannot bypass dispatch, expected-head, or protected-branch guards.
+
 ## One-off automation rule
 
 Temporary automation may help diagnose or construct a change on a work branch, but it must not survive into the merge diff. This includes:
@@ -56,7 +79,7 @@ Before Ready for Review, move the resulting runtime changes into normal source f
 
 ## Mutation safety
 
-A permanent mutating tool must be manually dispatched or invoked by another governed control plane. It must verify the exact current head SHA before mutation, reject protected branches, avoid force push, and fail when the target branch moves concurrently. Pull-request-triggered workflows remain read-only.
+A permanent mutating tool must be manually dispatched or invoked by another governed control plane. It must verify the exact current head SHA before mutation, reject protected branches, avoid force push, and fail when the target branch moves concurrently. Pull-request-triggered workflows remain read-only and may not request any write scope, including `permissions: write-all`.
 
 ## Evidence routing
 
@@ -67,6 +90,8 @@ The lifecycle check publishes `mad4b.repository-tool-lifecycle-report.v1`. Read 
 A pull request that creates or changes repository automation is not ready until:
 
 - each tool is registered or explicitly identified as temporary;
+- mandatory rules and protected branches remain immutable;
+- registered tool bodies agree with their declared read-only or mutating mode;
 - temporary artifacts are absent from the final diff;
 - no work-branch literal is embedded in a permanent workflow;
 - write workflows are explicitly dispatched and exact-head guarded;

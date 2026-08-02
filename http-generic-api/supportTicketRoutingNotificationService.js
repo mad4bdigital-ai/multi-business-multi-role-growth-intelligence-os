@@ -122,8 +122,7 @@ async function fetchPlatformAdmins(connection, ticket = {}) {
 }
 
 export async function resolveSupportTicketRoutingRecipients(ticket = {}, options = {}) {
-  const pool = options.pool || getPool();
-  const connection = options.connection || await pool.getConnection();
+  const connection = options.connection || await (options.pool || getPool()).getConnection();
   const ownsConnection = !options.connection;
   try {
     const metadata = parseJsonObject(ticket.metadata_json, {});
@@ -207,8 +206,7 @@ async function insertLifecycleEvent(connection, { ticket_id, tenant_id, event_ty
 }
 
 export async function queueSupportTicketRoutingNotifications({ ticket = {}, event_type = "ticket_created", deduped = false } = {}, options = {}) {
-  const pool = options.pool || getPool();
-  const connection = options.connection || await pool.getConnection();
+  const connection = options.connection || await (options.pool || getPool()).getConnection();
   const ownsConnection = !options.connection;
   try {
     const routing = await resolveSupportTicketRoutingRecipients(ticket, { connection });
