@@ -54,6 +54,7 @@ for (const marker of [
 assert.doesNotMatch(workflow, /governed-migration-runner\.mjs[\s\S]*--apply/);
 assert.doesNotMatch(workflow, /environment:\s*production/i);
 assert.doesNotMatch(workflow, /PRODUCTION_DB_/);
+assert.match(workflow, /- name: Validate typed binding inputs\n\s+working-directory: \.\n\s+shell: bash/);
 
 for (const marker of [
   "issue_comment:",
