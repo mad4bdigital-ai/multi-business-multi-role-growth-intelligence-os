@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "protected-promotion-context-availability",
+  "title": "Valid GitHub Actions context for protected Production promotion evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/protected-promotion-context-availability.json",
+      ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+      "http-generic-api/test-protected-promotion-generated-artifact-context.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow GitHub to register and plan the Production-target generated-artifact evidence workflow by removing the unavailable jobs-level runner.temp expression while preserving exact-head, read-only, and canonical-evidence boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "register-protected-promotion-generated-artifact-evidence-with-valid-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "release operator and GitHub Actions workflow planner",
+          "entrypoint": "A same-repository pull request is opened, synchronized, or reopened with base Production",
+          "terminal_outcome": "GitHub schedules Protected Promotion Generated Artifact Refresh on the exact PR head, writes its canonical report to one repository-relative path, uploads the same report, and enforces the structured decision without repository mutation.",
+          "steps": [
+            "Reject jobs-level use of runner.temp before a runner exists.",
+            "Bind exact source head, source branch, and Production base identity from the pull-request event.",
+            "Checkout the exact same-repository head without persisted credentials.",
+            "Run the generated-artifact evaluator from repository root.",
+            "Write JSON and Markdown reports under .ci-evidence/production-promotion-generated-artifact-evidence.",
+            "Upload the exact report paths and enforce mad4b.pr-generated-artifact-refresh-summary.v1."
+          ],
+          "assertions": [
+            "jobs.refresh.env contains no runner.temp expression.",
+            "REPORT_PATH and REPORT_MARKDOWN_PATH are stable repository-relative paths.",
+            "The evaluator runs from repository root so writer and uploader resolve identical paths.",
+            "The workflow remains pull_request-only for base Production and rejects a Production head.",
+            "Permissions remain contents:read with persist-credentials:false and no contents:write.",
+            "Exact local and remote source-head identity remains enforced.",
+            "Job logs remain diagnostic-only and secrets_included remains false.",
+            "No migration, deployment, Production mutation, provider call, credential access, external publication, direct contents write, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "protected-promotion-generated-artifact-context-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-protected-promotion-generated-artifact-context.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-promotion-generated-artifact-evidence.yml",
+            "http-generic-api/test-protected-promotion-generated-artifact-context.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one exact-head Production-target pull request schedule the workflow and publish a passed canonical generated-artifact evidence report."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale heads, cross-repository heads, invalid base identity, missing reports, blocked generated drift, and publisher failure without consulting Job logs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository automation repair performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The workflow grants no migration, runtime, provider, credential, deployment, or direct Production mutation authority."
+    }
+  ],
+  "secrets_included": false
+}
