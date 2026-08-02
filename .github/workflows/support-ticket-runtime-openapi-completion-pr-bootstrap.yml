@@ -1,0 +1,56 @@
+name: Trigger Support Ticket Runtime OpenAPI Completion
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/support-ticket-runtime-openapi-completion-pr-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/support-ticket-runtime-openapi-completion-20260802
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Execute bounded composer embedded in bootstrap
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/support-ticket-runtime-openapi-completion-bootstrap.yml').read_text(encoding='utf-8')
+          opening = "          python3 <<'PY'\n"
+          closing = "\n          PY\n"
+          start = workflow.index(opening) + len(opening)
+          end = workflow.index(closing, start)
+          source = textwrap.dedent(workflow[start:end])
+          exec(compile(source, '<support-ticket-runtime-openapi-bootstrap>', 'exec'), {})
+          PY
+      - name: Run precise completeness regression
+        working-directory: http-generic-api
+        run: node test-support-ticket-runtime-openapi-completion.mjs
+      - name: Commit bounded completion and remove both bootstraps
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- \
+            .github/workflows/support-ticket-runtime-openapi-completion-bootstrap.yml \
+            .github/workflows/support-ticket-runtime-openapi-completion-pr-bootstrap.yml
+          git add \
+            .changes/e2e/support-ticket-runtime-openapi-completion.json \
+            http-generic-api/openapi-route-contracts.yaml \
+            http-generic-api/openapi/support-ticket-runtime-completion.yaml \
+            http-generic-api/test-support-ticket-runtime-openapi-completion.mjs
+          git commit -m "fix(openapi): complete Support Ticket runtime contracts"
+          git push origin HEAD:fix/support-ticket-runtime-openapi-completion-20260802
