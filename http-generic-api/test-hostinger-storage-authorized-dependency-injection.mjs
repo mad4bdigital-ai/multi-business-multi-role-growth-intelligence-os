@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import express from 'express';
 
@@ -12,6 +13,18 @@ import { buildHostingerStorageTenantRoutes } from './routes/hostingerStorageTena
 
 const INJECTION_ID = 'authorized-injection-001';
 const NOW = 1_786_000_100;
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : (!value || typeof value !== 'object'
+      ? value
+      : Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])));
+const digest = (value) => createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
+const rehash = (value, digestField) => {
+  const copy = structuredClone(value);
+  delete copy[digestField];
+  copy[digestField] = digest(copy);
+  return copy;
+};
 
 async function startApp(routeDependencies) {
   const app = express();
@@ -194,6 +207,28 @@ assert.equal(mountedRoute.body.error.code, 'storage_tenant_request_field_forbidd
 
 const persistedReceipt = JSON.parse(JSON.stringify(receipt));
 const persistedReadback = JSON.parse(JSON.stringify(readback));
+const tamperedSnapshotDigest = 'e'.repeat(64);
+const tamperedReceipt = rehash({
+  ...persistedReceipt,
+  route_dependency_snapshot_digest: tamperedSnapshotDigest,
+}, 'injection_receipt_digest');
+const tamperedReadback = rehash({
+  ...persistedReadback,
+  injection_receipt_digest: tamperedReceipt.injection_receipt_digest,
+  route_dependency_snapshot_digest: tamperedSnapshotDigest,
+}, 'mount_readback_digest');
+const tamperedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+assert.throws(
+  () => tamperedCoordinator.resumeAuthorizedInjection({
+    bundle,
+    injection_receipt: tamperedReceipt,
+    mount_readback: tamperedReadback,
+  }),
+  (error) => error.code === 'STORAGE_AUTHORIZED_INJECTION_RESUME_BINDING_MISMATCH'
+    && error.details.mismatches.includes('receipt.route_dependency_snapshot_digest'),
+);
+assert.equal(tamperedCoordinator.readState().active, false);
+
 const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
 const resumed = resumedCoordinator.resumeAuthorizedInjection({
   bundle,
@@ -259,6 +294,7 @@ console.log(JSON.stringify({
   route_fail_closed_before_readback: true,
   route_available_after_exact_readback: true,
   restart_reconstruction_without_second_consumption: true,
+  rehashed_persisted_snapshot_tampering_rejected: true,
   rollback_restores_http_503: true,
   invalid_or_missing_readback_digest_fail_closed: true,
   live_server_modified: false,
