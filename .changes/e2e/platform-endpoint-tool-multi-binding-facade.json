@@ -1,0 +1,193 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-endpoint-tool-multi-binding-facade",
+  "title": "Multi-binding platform endpoint system-tool facade",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/platformEndpointToolFacade.js",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-platform-endpoint-tool-facade.mjs",
+      "http-generic-api/test-spec013-runtime-ratchet-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "resilient"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Project one public system-tool descriptor per visible tool_name and select one active endpoint binding by endpoint_key without weakening Catalog V2 collision protection.",
+      "e2e_journeys": [
+        {
+          "id": "admin-and-tenant-multi-binding-discovery-and-call",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated platform admin or authenticated tenant member",
+          "entrypoint": "GET /system/tools followed by POST /system/tools/call",
+          "terminal_outcome": "The caller receives one descriptor for the public tool name and the call reaches only the explicitly selected visible endpoint binding.",
+          "steps": [
+            "Resolve the caller principal and derive the allowed platform endpoint scope classes.",
+            "Apply the tenant ownership clause and tenant blocked-tool policy before descriptor projection.",
+            "Group visible active rows by tool_name and expose one descriptor with a stable endpoint_key enum.",
+            "Require endpoint_key only when the visible public name has more than one active binding.",
+            "Select the exact matching endpoint row before passing path_params, query, body, headers, timeout, and readback context to the existing dispatcher.",
+            "Return the dispatcher result through the existing system-layer response contract."
+          ],
+          "assertions": [
+            "Catalog V2 receives exactly one descriptor for github_rest_endpoint_dispatch and does not encounter a descriptor-name collision.",
+            "The tenant descriptor excludes admin-only endpoint keys while the admin descriptor may include both shared and admin-only bindings.",
+            "The endpoint_key enum is sorted deterministically.",
+            "A single-binding public tool remains callable without endpoint_key.",
+            "The selected parent_action_key, endpoint_key, and method belong to the requested binding only.",
+            "SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION remains unchanged for genuinely conflicting descriptors."
+          ],
+          "tests": [
+            {
+              "id": "platform-endpoint-tool-facade-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-endpoint-tool-facade.mjs",
+              "args": []
+            },
+            {
+              "id": "system-tool-catalog-v2-collision-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-system-tool-catalog-v2.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformEndpointToolFacade.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-platform-endpoint-tool-facade.mjs",
+            "http-generic-api/test-system-tool-catalog-v2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve deterministic bounded lookup, structured non-secret selection errors, generated frontend evidence, and explicit Admin/Tenant route guards.",
+      "e2e_journeys": [
+        {
+          "id": "bounded-endpoint-selection-and-structured-errors",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform operator validating Admin and Tenant system-tool surfaces",
+          "entrypoint": "System-layer discovery and call handlers plus generated frontend dispatch governance",
+          "terminal_outcome": "Operational checks prove a bounded ordered candidate lookup, exact binding selection, current generated evidence, and structured errors with secrets_included=false.",
+          "steps": [
+            "Load at most 200 visible bindings ordered by endpoint_key and parent_action_key.",
+            "Validate that candidate rows resolve to exactly one public tool name.",
+            "Return allowed_endpoint_keys when a multi-binding call omits or misstates endpoint_key.",
+            "Retain the explicit admin-required check after selection.",
+            "Expose error.details through the shared system-layer error envelope.",
+            "Regenerate frontend operation governance and surface-dispatch evidence from the exact candidate head."
+          ],
+          "assertions": [
+            "The runtime no longer uses LIMIT 2 as a proxy for public-name uniqueness.",
+            "The runtime does not select rows[0] without a cardinality proof.",
+            "Missing endpoint_key returns platform_endpoint_tool_endpoint_key_required with the visible allowed keys.",
+            "Unknown endpoint_key returns platform_endpoint_tool_endpoint_key_unknown.",
+            "Admin-only selected bindings remain forbidden to non-admin principals.",
+            "Generated frontend evidence is byte-current for the changed route and test manifest."
+          ],
+          "tests": [
+            {
+              "id": "spec013-platform-endpoint-runtime-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec013-runtime-ratchet-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-endpoint-tool-facade-operational",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-endpoint-tool-facade.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-spec013-runtime-ratchet-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on missing, unknown, cross-name, or genuinely duplicate selected bindings while preserving tenant isolation and the existing catalog collision invariant.",
+      "e2e_journeys": [
+        {
+          "id": "multi-binding-selection-fail-closed-boundaries",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant or admin caller submitting incomplete or conflicting endpoint selection",
+          "entrypoint": "POST /system/tools/call",
+          "terminal_outcome": "Invalid or ambiguous selection is rejected with a typed non-secret response and no provider or endpoint dispatch occurs.",
+          "steps": [
+            "Attempt a multi-binding call without endpoint_key.",
+            "Attempt a call with an endpoint_key outside the visible principal-scoped set.",
+            "Attempt selection from candidate rows spanning more than one public tool name.",
+            "Attempt selection where the requested endpoint_key still resolves to duplicate active rows.",
+            "Verify tenant projection never includes an admin-only endpoint key.",
+            "Verify the catalog's genuine descriptor collision guard remains fail-closed."
+          ],
+          "assertions": [
+            "Missing selection is rejected with HTTP-compatible status 400 and platform_endpoint_tool_endpoint_key_required.",
+            "Unknown selection is rejected with HTTP-compatible status 400 and platform_endpoint_tool_endpoint_key_unknown.",
+            "Cross-name candidates are rejected with platform_endpoint_tool_name_ambiguous.",
+            "A duplicate selected binding is rejected with status 409 and platform_endpoint_tool_binding_ambiguous.",
+            "Every selection error includes secrets_included=false.",
+            "No database row deletion, tool-name rewrite, provider call, migration apply, or in-memory durability fallback occurs."
+          ],
+          "tests": [
+            {
+              "id": "platform-endpoint-tool-facade-resilience",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-endpoint-tool-facade.mjs",
+              "args": []
+            },
+            {
+              "id": "catalog-v2-fail-closed-resilience",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-system-tool-catalog-v2.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/platformEndpointToolFacade.js",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/test-platform-endpoint-tool-facade.mjs",
+            "http-generic-api/test-system-tool-catalog-v2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify one descriptor and endpoint-key-selected dispatch against a non-production registry snapshot containing shared, tenant-visible, and admin-only bindings."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "After governed promotion, verify the live Admin and Tenant /system/tools and /system/tools/call acceptance criteria against the exact deployed Production SHA."
+    }
+  ]
+}
