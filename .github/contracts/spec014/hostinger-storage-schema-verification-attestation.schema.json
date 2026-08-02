@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mad4b.com/schemas/spec014-hostinger-storage-schema-verification-attestation.schema.json",
-  "title": "Spec 014 Hostinger Storage Schema Verification Attestation",
+  "$id": "https://mad4b.com/schemas/spec014-hostinger-storage-schema-verification-attestation-v2.schema.json",
+  "title": "Spec 014 Hostinger Storage Schema Verification Attestation v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
   ],
   "properties": {
     "attestation_version": {
-      "const": "spec014-hostinger-storage-schema-verification-v1"
+      "const": "spec014-hostinger-storage-schema-verification-v2"
     },
     "subject_digest": {
       "type": "string",
