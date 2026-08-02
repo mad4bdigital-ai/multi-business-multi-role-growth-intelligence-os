@@ -212,6 +212,25 @@ try {
   assert.equal(privateDnsFailed.report.outcome, "failed");
   assert.equal(privateDnsFailed.report.first_failure.code, "dns_address_forbidden");
 
+  const excessiveDnsFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [endpoint("auth")],
+    outputDir: path.join(root, "excessive-dns-failed"),
+    lookup: async () => Array.from({ length: 17 }, (_, index) => ({
+      address: `104.21.10.${index + 1}`,
+      family: 4
+    })),
+    tlsProbe: async () => {
+      throw new Error("TLS must not run when DNS address cardinality exceeds the cap");
+    },
+    fetchImpl: async () => {
+      throw new Error("HTTP must not run when DNS address cardinality exceeds the cap");
+    }
+  });
+  assert.equal(excessiveDnsFailed.report.outcome, "failed");
+  assert.equal(excessiveDnsFailed.report.first_failure.code, "dns_address_count_exceeded");
+
   for (const address of ["192.0.2.10", "198.51.100.10", "203.0.113.10", "2001:db8::10"]) {
     const documentationDnsFailed = await runProductionRuntimeParityEvidence({
       expectedSha: SHA,
@@ -254,7 +273,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 8,
+  tests: 9,
   gate: "production_runtime_parity_structured_evidence",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
