@@ -54,6 +54,8 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
       - name: Generate source-pinned dispatch plan
+        id: generate_plan
+        continue-on-error: true
         env:
           CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
           TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
@@ -88,6 +90,12 @@ jobs:
         id: deterministic_output
         continue-on-error: true
         run: |
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded Frontend evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
           if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
             git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
             exit 1
@@ -95,6 +103,7 @@ jobs:
       - name: Build structured generator-contract summary
         if: always()
         env:
+          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
           WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
           OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
           SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
@@ -102,7 +111,8 @@ jobs:
           ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
           OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
           DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
-          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CANDIDATE_SHA: ${{ github.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p .ci-evidence/frontend-generator-contract
           node --input-type=module <<'NODE'
@@ -116,12 +126,15 @@ jobs:
             ['openapi_auth', process.env.OPENAPI_AUTH],
             ['deterministic_output', process.env.DETERMINISTIC_OUTPUT],
           ].map(([id, outcome]) => ({ id, outcome }));
-          const failed = checks.filter((check) => check.outcome !== 'success');
+          const generation = { id: 'generate_plan', outcome: process.env.GENERATE_PLAN };
+          const failed = [generation, ...checks].filter((check) => check.outcome !== 'success');
           const report = {
             contract: 'mad4b.frontend-generator-contract-summary.v1',
             candidate_sha: process.env.CANDIDATE_SHA,
-            outcome: failed.length === 0 ? 'passed' : 'blocked',
+            source_head_sha: process.env.SOURCE_HEAD_SHA,
+            generation,
             checks,
+            outcome: failed.length === 0 ? 'passed' : 'blocked',
             failed_check_ids: failed.map((check) => check.id),
             consult_job_logs: false,
             repository_mutation: false,
@@ -137,9 +150,10 @@ jobs:
           path: http-generic-api/.ci-evidence/frontend-generator-contract/summary.json
           if-no-files-found: error
           retention-days: 14
-      - name: Enforce structured generator-contract decision
+      - name: Build trusted workflow-run source evidence
         if: always()
         env:
+          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
           WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
           OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
           SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
@@ -147,10 +161,71 @@ jobs:
           ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
           OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
           DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
+          CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'merge_candidate' || 'head' }}
+          CANDIDATE_SHA: ${{ github.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'main' }}
         run: |
-          for outcome in "${WORKFLOW_BASELINE}" "${OPERATION_GENERATOR}" "${SURFACE_DISPATCH}" "${AUTH_OPENAPI}" "${ROUTE_COVERAGE}" "${OPENAPI_AUTH}" "${DETERMINISTIC_OUTPUT}"; do
-            [[ "${outcome}" == "success" ]] || exit 1
-          done
+          mkdir -p .ci-evidence/frontend-dispatch-verification
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const stages = [
+            ['generate_dispatch_plan', process.env.GENERATE_PLAN],
+            ['workflow_baseline', process.env.WORKFLOW_BASELINE],
+            ['operation_generator', process.env.OPERATION_GENERATOR],
+            ['surface_dispatch', process.env.SURFACE_DISPATCH],
+            ['auth_openapi', process.env.AUTH_OPENAPI],
+            ['route_coverage', process.env.ROUTE_COVERAGE],
+            ['openapi_auth', process.env.OPENAPI_AUTH],
+            ['committed_generated_parity', process.env.DETERMINISTIC_OUTPUT],
+          ].map(([stage_id, outcome]) => ({ stage_id, outcome }));
+          const firstFailure = stages.find((stage) => stage.outcome !== 'success') || null;
+          const fullSha = /^[0-9a-f]{40}$/u;
+          const identityValid = fullSha.test(process.env.CANDIDATE_SHA || '')
+            && fullSha.test(process.env.SOURCE_HEAD_SHA || '')
+            && Boolean(process.env.HEAD_REF)
+            && Boolean(process.env.BASE_REF);
+          const report = {
+            contract: 'mad4b.frontend-dispatch-verification-evidence.v1',
+            outcome: firstFailure || !identityValid ? 'failed' : 'passed',
+            identity: {
+              workflow: 'Frontend surface dispatch',
+              candidate_kind: process.env.CANDIDATE_KIND,
+              candidate_sha: process.env.CANDIDATE_SHA,
+              source_head_sha: process.env.SOURCE_HEAD_SHA,
+              head_ref: process.env.HEAD_REF,
+              base_ref: process.env.BASE_REF,
+            },
+            stages,
+            first_failure: firstFailure || (identityValid ? null : {
+              stage_id: 'candidate_identity',
+              outcome: 'failure',
+            }),
+            routing: {
+              consult_job_logs: false,
+              delegated_writer: 'governed-generated-artifact-refresh.yml',
+              dispatch_workflow: 'frontend-parity-refresh-dispatch.yml',
+            },
+            direct_repository_mutation: false,
+            protected_branch_mutation: false,
+            force_push: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(
+            '.ci-evidence/frontend-dispatch-verification/frontend-dispatch-verification-evidence.json',
+            `${JSON.stringify(report, null, 2)}\n`,
+          );
+          NODE
+      - name: Upload trusted workflow-run source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dispatch-verification-evidence-${{ github.run_id }}
+          path: http-generic-api/.ci-evidence/frontend-dispatch-verification/frontend-dispatch-verification-evidence.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload dispatch evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -162,55 +237,18 @@ jobs:
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if-no-files-found: error
           retention-days: 14
-
-  refresh-generated:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       startsWith(github.head_ref, 'gpt/'))
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: http-generic-api
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-      - run: npm ci
-      - name: Generate and commit bounded dispatch evidence
-        shell: bash
+      - name: Enforce structured generator-contract decision
+        if: always()
         env:
-          TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
+          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
+          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
+          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
+          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
+          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
+          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
+          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
         run: |
-          if [[ "${TARGET_BRANCH}" != gpt/* ]]; then
-            echo "::error::generated evidence refresh is restricted to gpt/* work branches"
-            exit 1
-          fi
-          git fetch origin main --depth=1
-          BASE_REF="main"
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          if [[ -n "${UNEXPECTED}" ]]; then
-            echo "::error::generator changed files outside the bounded evidence set"
-            printf '%s\n' "${UNEXPECTED}"
-            exit 1
-          fi
-          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
-            echo "Generated evidence is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
-          git commit -m "chore(ci): refresh frontend dispatch evidence"
-          git push origin "HEAD:${TARGET_BRANCH}"
+          for outcome in "${GENERATE_PLAN}" "${WORKFLOW_BASELINE}" "${OPERATION_GENERATOR}" "${SURFACE_DISPATCH}" "${AUTH_OPENAPI}" "${ROUTE_COVERAGE}" "${OPENAPI_AUTH}" "${DETERMINISTIC_OUTPUT}"; do
+            [[ "${outcome}" == "success" ]] || exit 1
+          done
