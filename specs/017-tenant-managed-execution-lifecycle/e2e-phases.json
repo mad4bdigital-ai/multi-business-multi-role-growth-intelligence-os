@@ -220,8 +220,8 @@
     },
     {
       "id": "resilient",
-      "status": "implemented",
-      "objective": "Provide bounded recovery, role-safe projections, structural contradiction detection, and fingerprinted transactional status reconciliation."
+      "status": "planned",
+      "objective": "Validate bounded recovery, role-safe projections, blocking contradictions, and fingerprinted reconciliation against persistent non-production runtime data after Migration 1043 is available."
     },
     {
       "id": "canary",
