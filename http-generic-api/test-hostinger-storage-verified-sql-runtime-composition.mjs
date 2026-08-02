@@ -86,6 +86,7 @@ assert.deepEqual(Object.keys(composition.control_plane).sort(), [
 ]);
 assert.deepEqual(Object.keys(composition.execution_parents).sort(), [
   'finalizeRun',
+  'readPlanItems',
   'readRun',
   'registerPlanItems',
   'startRun',
