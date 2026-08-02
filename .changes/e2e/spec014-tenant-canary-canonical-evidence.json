@@ -80,10 +80,10 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Publish and consume the first run-bound Tenant Canary canonical Artifact through the trusted main-based publisher.",
+      "objective": "Observe and publish the first real run-bound Tenant Canary canonical Artifact now that the canonical workflow path is registered on both main and the Spec 014 Integration branch.",
       "blockers": [
-        "A qualifying post-alignment pull-request event must schedule the canonical-path Hostinger Storage Tenant Canary Guard on the exact Integration head.",
-        "The trusted publisher must consume the same run-bound Artifact and update the shared authoritative PR comment before operational publication is claimed."
+        "No exact-head pull-request-triggered Hostinger Storage Tenant Canary Guard Artifact has yet been observed after canonical-path registration on both governing branches.",
+        "The trusted Hostinger CI Evidence PR Publisher has not yet consumed that same run-bound Artifact and written the Hostinger section into the shared authoritative PR comment."
       ]
     },
     {
