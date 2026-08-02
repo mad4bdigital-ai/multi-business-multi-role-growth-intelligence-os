@@ -12,13 +12,16 @@
       ".github/contracts/spec014/hostinger-storage-schema-verification.json",
       ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
       ".github/contracts/spec014/migrations/readback.sql",
+      ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
       ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
       ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
       ".github/workflows/hostinger-storage-schema-verification-guard.yml",
+      ".github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml",
       "http-generic-api/hostingerStorageSchemaVerification.js",
       "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
       "http-generic-api/test-hostinger-storage-schema-verification.mjs",
-      "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
+      "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs",
+      "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs"
     ]
   },
   "merge_contract": {
@@ -44,12 +47,14 @@
             "Build a v2 subject and reject v1 attestation replay.",
             "Verify one synthetic Ed25519 signature through public-key-only verification.",
             "Propagate the exact authorized injection schema contract into verified evidence.",
+            "Converge Runtime Promotion and Authorization Readiness onto readback v4 and attestation v2.",
             "Keep live signature, live database access, authorization, dry-run, Apply, Provider dispatch, and Production false."
           ],
           "assertions": [
             "The v2 subject contains exactly four migration rows.",
             "The readback contract key is spec014_hostinger_storage_migration_readback_v4.",
             "The verified evidence contains the exact two-table Durable Injection schema contract and digest.",
+            "Runtime Promotion and Authorization Readiness no longer report a stale verification-refresh blocker.",
             "Any missing table, column, index, constraint, wrong digest, old attestation version, or migration drift fails closed.",
             "No live signature or external mutation occurs."
           ],
@@ -67,11 +72,19 @@
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs",
               "args": []
+            },
+            {
+              "id": "wave4-promotion-refresh-convergence",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json",
             ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
             ".github/contracts/spec014/migrations/readback.sql",
             "http-generic-api/hostingerStorageSchemaVerification.js"
           ]
