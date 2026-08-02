@@ -1,0 +1,360 @@
+name: Spec014 Main Reconciliation bdb4d32d V2
+
+on:
+  push:
+    branches:
+      - gpt/reconcile-spec014-main-bdb4d32d-20260802-v2
+    paths:
+      - '.github/workflows/spec014-main-reconciliation-bdb4d32d-v2.yml'
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-main-reconciliation-bdb4d32d-v2.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-main-reconciliation-bdb4d32d-v2
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'gpt/reconcile-spec014-main-bdb4d32d-20260802-v2')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TARGET_REF: gpt/reconcile-spec014-main-bdb4d32d-20260802-v2
+      INTEGRATION_REF: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      EXPECTED_PARENT_SHA: 6684e7058e3b19dbbc37b4004f5531d5e8a7c24d
+      MINIMUM_MAIN_SHA: bdb4d32d12fd96e0a0034fd7b1186faf2c7075f0
+      LAUNCHER_PATH: .github/workflows/spec014-main-reconciliation-bdb4d32d-v2.yml
+      REPORT_DIR: .ci-evidence/spec014-main-reconciliation-bdb4d32d-v2
+      NORMALIZED_OPENAPI_PATH: /admin/support/tickets/{ticket_id}/external-delivery/completion-certification
+      NORMALIZED_OPENAPI_REF: ./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion
+    steps:
+      - name: Checkout exact launcher head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Build, validate, and push bounded reconciliation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+          current_step='preflight'
+          on_error() {
+            local status=$?
+            trap - ERR
+            STATUS="${status}" STEP="${current_step}" COMMAND="${BASH_COMMAND:-unknown}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['REPORT_DIR'])
+          root.mkdir(parents=True, exist_ok=True)
+          report = {
+            'contract': 'mad4b.spec014-main-reconciliation-bdb4d32d-v2.v1',
+            'outcome': 'blocked',
+            'target_ref': os.environ['TARGET_REF'],
+            'expected_parent_sha': os.environ['EXPECTED_PARENT_SHA'],
+            'minimum_main_sha': os.environ['MINIMUM_MAIN_SHA'],
+            'first_failure': {
+              'step': os.environ['STEP'],
+              'exit_status': int(os.environ['STATUS']),
+              'command': os.environ['COMMAND'],
+              'secrets_included': False,
+            },
+            'repository_push_performed': False,
+            'ordinary_fast_forward_push': False,
+            'force_push': False,
+            'protected_branch_mutation': False,
+            'provider_dispatch': False,
+            'credential_access': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          (root / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+            exit "${status}"
+          }
+          trap on_error ERR
+
+          launcher_sha="$(git rev-parse HEAD)"
+          printf '%s\n' "${launcher_sha}" > "${REPORT_DIR}/launcher-head.txt"
+
+          current_step='verify_launcher_only_delta'
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_PARENT_SHA}" ]]
+          mapfile -t launcher_delta < <(git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD)
+          [[ "${#launcher_delta[@]}" -eq 1 ]]
+          [[ "${launcher_delta[0]}" == "${LAUNCHER_PATH}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "${launcher_sha}" ]]
+
+          current_step='fetch_exact_parents'
+          git fetch --no-tags origin \
+            "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          integration_sha="$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")"
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          git merge-base --is-ancestor "${EXPECTED_PARENT_SHA}" "${integration_sha}"
+          git merge-base --is-ancestor "${MINIMUM_MAIN_SHA}" "${main_sha}"
+          printf '%s\n' "${integration_sha}" > "${REPORT_DIR}/integration-sha.txt"
+          printf '%s\n' "${main_sha}" > "${REPORT_DIR}/main-sha.txt"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          current_step='merge_latest_integration'
+          if [[ "${integration_sha}" != "${EXPECTED_PARENT_SHA}" ]]; then
+            git merge --no-ff --no-edit "${integration_sha}"
+          fi
+
+          current_step='merge_current_main'
+          set +e
+          git merge --no-commit --no-ff "${main_sha}"
+          merge_status=$?
+          set -e
+          git diff --name-only --diff-filter=U | sort -u > "${REPORT_DIR}/conflicts.txt"
+          mapfile -t conflicts < "${REPORT_DIR}/conflicts.txt"
+          if [[ "${merge_status}" -eq 0 ]]; then
+            [[ "${#conflicts[@]}" -eq 0 ]]
+          else
+            [[ "${merge_status}" -eq 1 ]]
+            allowed_conflicts='^(http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$'
+            [[ "${#conflicts[@]}" -ge 1 ]]
+            unexpected_conflicts="$(printf '%s\n' "${conflicts[@]}" | grep -Ev "${allowed_conflicts}" || true)"
+            [[ -z "${unexpected_conflicts}" ]]
+            for conflict in "${conflicts[@]}"; do
+              git checkout --ours -- "${conflict}"
+              git add -- "${conflict}"
+            done
+          fi
+          [[ -z "$(git diff --name-only --diff-filter=U)" ]]
+
+          current_step='normalize_known_inline_openapi_contract'
+          pushd http-generic-api >/dev/null
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import YAML from 'yaml';
+
+          const file = 'openapi.yaml';
+          const targetPath = process.env.NORMALIZED_OPENAPI_PATH;
+          const targetRef = process.env.NORMALIZED_OPENAPI_REF;
+          const source = fs.readFileSync(file, 'utf8');
+          const doc = YAML.parse(source) || {};
+          const current = doc.paths?.[targetPath];
+          const exactRef = current
+            && typeof current === 'object'
+            && !Array.isArray(current)
+            && Object.keys(current).length === 1
+            && current.$ref === targetRef;
+
+          if (!exactRef) {
+            if (!current || typeof current !== 'object' || Array.isArray(current) || current.$ref) {
+              throw new Error('Known completion-certification path is neither the exact ref nor the bounded inline contract.');
+            }
+            const keys = Object.keys(current);
+            if (keys.length !== 1 || keys[0] !== 'post') {
+              throw new Error(`Known completion-certification path has unexpected path-item keys: ${keys.join(',')}`);
+            }
+            const operation = current.post;
+            if (!operation || operation.operationId !== 'supportTicketExternalDeliveryCompletionCertify') {
+              throw new Error('Known completion-certification inline operationId does not match the reviewed conflict.');
+            }
+            const security = (Array.isArray(operation.security) ? operation.security : [])
+              .map((entry) => Object.keys(entry || {}).sort().join(','))
+              .sort();
+            const expectedSecurity = ['adminBearerAuth', 'backendApiKeyAuth'].sort();
+            if (JSON.stringify(security) !== JSON.stringify(expectedSecurity)) {
+              throw new Error(`Known completion-certification inline security differs: ${JSON.stringify(security)}`);
+            }
+            if (!operation.responses || typeof operation.responses !== 'object') {
+              throw new Error('Known completion-certification inline operation has no response contract.');
+            }
+
+            const lines = source.split('\n');
+            const header = `  ${targetPath}:`;
+            const start = lines.findIndex((line) => line === header);
+            if (start < 0) throw new Error('Could not locate the exact completion-certification path block without reformatting.');
+            let end = lines.length;
+            for (let index = start + 1; index < lines.length; index += 1) {
+              const line = lines[index];
+              if (/^  \/[^:]+:\s*$/.test(line) || /^(?!\s|#)[A-Za-z0-9_$"'-][^:\n]*:(?:\s.*)?$/.test(line)) {
+                end = index;
+                break;
+              }
+            }
+            const replacement = [header, `    $ref: '${targetRef}'`];
+            lines.splice(start, end - start, ...replacement);
+            const updated = lines.join('\n');
+            const verified = YAML.parse(updated) || {};
+            const pathItem = verified.paths?.[targetPath];
+            if (!pathItem || Object.keys(pathItem).length !== 1 || pathItem.$ref !== targetRef) {
+              throw new Error('Completion-certification path normalization failed post-write verification.');
+            }
+            fs.writeFileSync(file, updated.endsWith('\n') ? updated : `${updated}\n`);
+            console.log(JSON.stringify({ ok: true, changed: true, path: targetPath, path_item_ref: targetRef }));
+          } else {
+            console.log(JSON.stringify({ ok: true, changed: false, path: targetPath, path_item_ref: targetRef }));
+          }
+          NODE
+          popd >/dev/null
+          printf '%s\n' "${NORMALIZED_OPENAPI_PATH}" > "${REPORT_DIR}/normalized-openapi-paths.txt"
+
+          current_step='prepare_main_baseline_ref'
+          git branch -f main "${main_sha}"
+
+          pushd http-generic-api >/dev/null
+          current_step='sync_precise_registry'
+          node scripts/openapi-precise-contract-registry-sync.mjs --write
+          current_step='autofill_openapi_routes'
+          node scripts/openapi-autofill-missing-routes.mjs --write
+          current_step='sync_openapi_runtime_auth'
+          node scripts/openapi-runtime-auth-sync.mjs --write
+          current_step='generate_frontend_dispatch'
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          current_step='generate_custom_gpt_schemas'
+          node scripts/generate-custom-gpt-schemas.mjs --write
+          popd >/dev/null
+
+          current_step='enforce_generated_write_set'
+          git diff --name-only | sort -u > "${REPORT_DIR}/generated-unstaged.txt"
+          allowed_generated='^(http-generic-api/openapi\.yaml|http-generic-api/openapi/support-tickets\.yaml|http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml|http-generic-api/openapi/openapi\.custom-gpt\.auth-dispatcher\.yaml|http-generic-api/openapi/openapi\.custom-gpt\.activation-admin\.yaml|http-generic-api/openapi/openapi\.tenant-gpt\.auth\.yaml|http-generic-api/openapi/openapi\.tenant-gpt\.activation\.yaml|http-generic-api/openapi\.gpt-action\.local-connector\.yaml)$'
+          unexpected_generated="$(grep -Ev "${allowed_generated}" "${REPORT_DIR}/generated-unstaged.txt" || true)"
+          [[ -z "${unexpected_generated}" ]]
+          mapfile -t generated_paths < "${REPORT_DIR}/generated-unstaged.txt"
+          if [[ "${#generated_paths[@]}" -gt 0 ]]; then
+            git add -- "${generated_paths[@]}"
+          fi
+          [[ -z "$(git diff --name-only)" ]]
+          git diff --cached --check
+
+          pushd http-generic-api >/dev/null
+          current_step='verify_precise_registry'
+          node scripts/openapi-precise-contract-registry-sync.mjs --check
+          current_step='verify_openapi_autofill'
+          node test-openapi-autofill-missing-routes.mjs
+          current_step='verify_support_ticket_runtime_sync'
+          node test-support-ticket-runtime-openapi-sync.mjs
+          current_step='verify_support_ticket_runtime_completion'
+          node test-support-ticket-runtime-openapi-completion.mjs
+          current_step='verify_openapi_auth_operation_insertion'
+          node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+          current_step='verify_frontend_governance'
+          node test-frontend-operation-governance-generator.mjs
+          current_step='verify_frontend_dispatch'
+          node test-frontend-surface-dispatch.mjs
+          current_step='verify_auth_parity'
+          node test-frontend-auth-openapi-parity.mjs
+          current_step='verify_openapi_route_coverage'
+          node test-openapi-route-coverage.mjs
+          current_step='verify_openapi_auth'
+          npm run openapi:auth:check
+          current_step='verify_schema_guard'
+          npm run schemas:guard
+          current_step='verify_authorized_mount_executor'
+          node test-hostinger-storage-authorized-mount-executor.mjs
+          current_step='verify_authorized_dependency_injection'
+          node test-hostinger-storage-authorized-dependency-injection.mjs
+          current_step='verify_durable_authorized_injection_state'
+          node test-hostinger-storage-durable-authorized-injection-state.mjs
+          current_step='verify_durable_authorized_injection_schema_ddl'
+          node test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
+          current_step='verify_authorized_route_resolution'
+          node test-hostinger-storage-authorized-route-resolution.mjs
+          current_step='verify_additional_injection_lifecycle_tests'
+          mapfile -t lifecycle_tests < <(find . -maxdepth 1 -type f -name 'test-hostinger-storage-*injection*lifecycle*.mjs' -printf '%f\n' | sort -u)
+          for test_file in "${lifecycle_tests[@]}"; do
+            node "${test_file}"
+          done
+          popd >/dev/null
+
+          current_step='commit_reconciliation_merge'
+          git commit -m 'chore: reconcile current main into Spec 014 Integration'
+          reconciliation_merge_sha="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "${integration_sha}" "${reconciliation_merge_sha}"
+          git merge-base --is-ancestor "${main_sha}" "${reconciliation_merge_sha}"
+          git rev-list --parents -n 1 "${reconciliation_merge_sha}" > "${REPORT_DIR}/merge-parents.txt"
+
+          current_step='remove_launcher'
+          git rm -- "${LAUNCHER_PATH}"
+          git commit -m 'chore(ci): remove current-main reconciliation launcher'
+          final_sha="$(git rev-parse HEAD)"
+          [[ ! -e "${LAUNCHER_PATH}" ]]
+
+          current_step='prepush_exact_parent_check'
+          git fetch --no-tags origin \
+            "+refs/heads/${INTEGRATION_REF}:refs/remotes/origin/${INTEGRATION_REF}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          [[ "$(git rev-parse "refs/remotes/origin/${INTEGRATION_REF}")" == "${integration_sha}" ]]
+          [[ "$(git rev-parse refs/remotes/origin/main)" == "${main_sha}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')" == "${launcher_sha}" ]]
+          git merge-base --is-ancestor "${integration_sha}" "${final_sha}"
+          git merge-base --is-ancestor "${main_sha}" "${final_sha}"
+
+          current_step='write_success_evidence'
+          INTEGRATION_SHA="${integration_sha}" MAIN_SHA="${main_sha}" LAUNCHER_SHA="${launcher_sha}" MERGE_SHA="${reconciliation_merge_sha}" FINAL_SHA="${final_sha}" MERGE_STATUS="${merge_status}" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['REPORT_DIR'])
+          def lines(name):
+              path = root / name
+              return [line.strip() for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+          report = {
+            'contract': 'mad4b.spec014-main-reconciliation-bdb4d32d-v2.v1',
+            'outcome': 'passed',
+            'integration_sha': os.environ['INTEGRATION_SHA'],
+            'main_sha': os.environ['MAIN_SHA'],
+            'launcher_head_sha': os.environ['LAUNCHER_SHA'],
+            'reconciliation_merge_sha': os.environ['MERGE_SHA'],
+            'final_sha': os.environ['FINAL_SHA'],
+            'merge_status_before_resolution': int(os.environ['MERGE_STATUS']),
+            'conflict_paths': lines('conflicts.txt'),
+            'normalized_openapi_paths': lines('normalized-openapi-paths.txt'),
+            'generated_paths_regenerated': lines('generated-unstaged.txt'),
+            'launcher_removed': True,
+            'repository_push_performed': True,
+            'ordinary_fast_forward_push': True,
+            'force_push': False,
+            'protected_branch_mutation': False,
+            'provider_dispatch': False,
+            'credential_access': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          (root / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+          current_step='push_reconciliation'
+          git push origin "HEAD:${TARGET_REF}"
+          trap - ERR
+
+      - name: Upload canonical reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-main-reconciliation-bdb4d32d-v2-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
