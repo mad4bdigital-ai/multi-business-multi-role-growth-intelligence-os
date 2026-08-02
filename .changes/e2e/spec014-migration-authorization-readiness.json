@@ -66,7 +66,13 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Create a fresh Wave 1 authorization only through the governed capability-envelope and authorization-registry path after explicit live-stage authority."
+      "objective": "Create a fresh Wave 1 authorization only through the governed capability-envelope and authorization-registry path after explicit live-stage authority.",
+      "blockers": [
+        "Explicit live-stage authority has not been granted.",
+        "A fresh capability resolution envelope has not been resolved.",
+        "The governed migration authorization registry has not been written.",
+        "Same-cycle dry-run and live schema readback have not been performed."
+      ]
     },
     {
       "id": "resilient",
