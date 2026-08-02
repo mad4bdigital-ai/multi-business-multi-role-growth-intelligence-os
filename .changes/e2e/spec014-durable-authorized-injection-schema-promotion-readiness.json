@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-schema-promotion-readiness",
+  "title": "Verify the exact Durable Authorized Injection State DDL before any governed migration promotion",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-schema-promotion-readiness.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-schema-promotion-readiness.json",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-schema-promotion-readiness-guard.yml",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionSchemaPromotionReadiness.js",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Inspect the exact contract-local two-table DDL with the canonical SQL statement parser, bind it to the reviewed Integration and Git blob identities, and emit explicit blockers before a migration candidate can be created.",
+      "e2e_journeys": [
+        {
+          "id": "verify-durable-injection-ddl-before-promotion",
+          "end_to_end": true,
+          "level": "repository_contract",
+          "actor": "Spec 014 schema-promotion readiness builder",
+          "entrypoint": "The exact contract-local Durable Authorized Injection State DDL and canonical state contract",
+          "terminal_outcome": "A frozen secret-free readiness packet proves additive table order, constraints, and foreign-key dependency while denying migration creation, promotion, authorization, Apply, and live access.",
+          "steps": [
+            "Bind the inspection to exact Integration and Git blob identities.",
+            "Read the canonical state contract and require contract-local, unpromoted, unapplied status.",
+            "Split SQL through the canonical migration statement parser.",
+            "Require exactly the state table followed by its rollback child table.",
+            "Verify primary, unique, index, row-version, no-secret, and foreign-key bindings.",
+            "Reject extra, destructive, data-mutating, privilege-changing, executable, or file-system SQL.",
+            "Emit checksums and explicit blockers for every later live or mutating stage."
+          ],
+          "assertions": [
+            "The exact DDL and state contract produce one frozen readiness packet.",
+            "The packet is ready only for creation of a separately reviewed migration candidate.",
+            "Wrong source or DDL blob identities fail closed.",
+            "Table-name, table-order, foreign-key, and state-contract drift fail closed.",
+            "No migration candidate, authorization, dry-run, Apply, live database access, Provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "durable-injection-schema-promotion-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-schema-promotion-readiness.json",
+            ".github/workflows/hostinger-storage-durable-authorized-injection-schema-promotion-readiness-guard.yml",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionSchemaPromotionReadiness.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Create and promote a checksum-bound migration candidate only through a separate reviewed slice.",
+      "blockers": [
+        "SEPARATELY_REVIEWED_MIGRATION_CANDIDATE_REQUIRED",
+        "RUNTIME_MIGRATION_SEQUENCE_PROMOTION_REQUIRED",
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+        "SAME_CYCLE_DRY_RUN_REQUIRED",
+        "LIVE_SCHEMA_ABSENCE_OR_COMPATIBILITY_READBACK_REQUIRED",
+        "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Bind later migration execution and restart reconciliation to exact same-cycle ledger and signed schema-readback evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production schema and lifecycle canary after migration Apply and signed readback."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-readiness slice grants no migration, runtime, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
