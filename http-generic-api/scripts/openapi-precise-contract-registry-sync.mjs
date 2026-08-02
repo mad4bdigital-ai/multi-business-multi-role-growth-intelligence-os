@@ -104,6 +104,7 @@ function main() {
       code: "openapi_precise_contract_path_conflict",
       precise_contract_count: contracts.length,
       support_ticket_runtime_operation_count: runtimeOperations.length,
+      missing_count: beforeRegistry.missing.length,
       missing_registry_count: beforeRegistry.missing.length,
       missing_runtime_path_count: beforeRuntime.missingByPath.size,
       conflict_count: conflicts.length,
@@ -112,6 +113,7 @@ function main() {
     process.exit(1);
   }
 
+  const appliedPreciseContracts = write ? beforeRegistry.missing : [];
   const entries = new Map(beforeRegistry.missing.map((entry) => [entry.path, { $ref: entry.path_item_ref }]));
   for (const [routePath, pathItem] of buildSupportTicketRuntimePathItems(beforeRuntime.missingByPath)) {
     if (entries.has(routePath)) throw new Error(`Duplicate precise OpenAPI path composition requested for ${routePath}.`);
@@ -136,12 +138,15 @@ function main() {
     ok: afterRegistry.missing.length === 0 && afterRegistry.conflicts.length === 0 && afterRuntime.missingByPath.size === 0 && afterRuntime.conflicts.length === 0,
     changed: write && entries.size > 0,
     precise_contract_count: contracts.length,
+    applied_precise_contracts: appliedPreciseContracts,
     support_ticket_runtime_operation_count: runtimeOperations.length,
     support_ticket_generated_operation_count: runtimeOperations.length - staticRuntimeSignatureCount,
     applied_path_count: write ? entries.size : 0,
+    missing_count: afterRegistry.missing.length,
     missing_registry_count: afterRegistry.missing.length,
     missing_runtime_path_count: afterRuntime.missingByPath.size,
     conflict_count: afterRegistry.conflicts.length + afterRuntime.conflicts.length,
+    missing: afterRegistry.missing,
     missing_registry: afterRegistry.missing,
     missing_runtime_paths: [...afterRuntime.missingByPath.keys()].sort(),
     conflicts: [...afterRegistry.conflicts, ...afterRuntime.conflicts],
