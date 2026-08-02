@@ -30,6 +30,15 @@ assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u, "delegated workflow 
 assert.match(workflow, /expected_head_sha/u, "delegated workflow must receive an exact expected head SHA");
 assert.match(workflow, /main.*Production/u, "dispatcher must reject protected branches before API dispatch");
 assert.match(workflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "dispatcher must target the registered mutating workflow");
+assert.match(workflow, /workflow_state="\$\(gh api[\s\S]*governed-generated-artifact-refresh\.yml[\s\S]*--jq '\.state'\)"/u, "dispatcher must read the writer workflow state before dispatch");
+assert.match(workflow, /governed-generated-artifact-refresh\.yml\/enable/u, "dispatcher must reactivate the registered writer when it is disabled");
+assert.match(workflow, /delegated_workflow_not_active/u, "writer activation failure must block dispatch");
+assert.match(workflow, /actions\/workflows\/governed-generated-artifact-refresh\.yml\/runs\?event=workflow_dispatch&branch=main/u, "dispatcher must observe the delegated workflow through the workflow-scoped runs API");
+assert.match(workflow, /dispatch_started_at/u, "delegated run observation must be bounded to runs created after the request");
+assert.match(workflow, /for attempt in \$\(seq 1 12\)/u, "delegated run observation must use a bounded retry window");
+assert.match(workflow, /delegated_workflow_run_not_observed/u, "HTTP 204 without an observable writer run must fail closed");
+assert.match(workflow, /delegated_run_observed:true/u, "passed evidence must require an observed delegated run");
+assert.match(workflow, /delegated_run_id:\$delegated_run_id/u, "canonical evidence must publish the delegated run ID");
 assert.match(workflow, /mad4b\.governed-generated-artifact-refresh-dispatch\.v1/u, "dispatcher must emit its canonical evidence contract");
 assert.match(workflow, /Upload canonical dispatch evidence/u, "dispatcher must upload the structured decision before enforcement");
 assert.match(workflow, /Publish canonical dispatch evidence directly/u, "trusted dispatcher must publish the exact decision directly");
@@ -44,12 +53,14 @@ assert.match(workflow, /workflow_conclusion="success"/u, "passed or skipped evid
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 36,
+  tests: 45,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
   trusted_comment_command: true,
   trusted_main_checkout: true,
   direct_canonical_publication: true,
+  delegated_run_observation: true,
+  http_204_is_not_sufficient: true,
   push_trigger: false,
   pull_request_write_workflow: false,
   direct_contents_write: false,
