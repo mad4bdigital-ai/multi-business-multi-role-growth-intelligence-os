@@ -23,6 +23,7 @@
     "private_key_material_forbidden": true
   },
   "durable_injection_registry_binding": {
+    "binding_scope": "schema_evidence_only",
     "contract_key": "hostinger_storage_durable_authorized_injection_state_schema_v1",
     "contract_digest": "652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a",
     "tables": [
@@ -32,11 +33,15 @@
     "table_count": 2,
     "constraint_count": 13,
     "schema_status": "ready_exact_contract",
-    "verified_evidence_field": "evidence.authorized_injection_state_schema"
+    "verified_evidence_field": "evidence.authorized_injection_state_schema",
+    "commit_identity_accepted_lengths": [40, 64],
+    "durable_registry_current_accepted_length": 64
   },
   "terminal_boundary": {
     "schema_verification_v2_ready": true,
     "durable_registry_binding_ready": true,
+    "durable_registry_binding_scope": "schema_evidence_only",
+    "durable_registry_runtime_acceptance_ready": false,
     "live_database_access_performed": false,
     "signature_created": false,
     "schema_verified_in_live_environment": false,
@@ -51,6 +56,7 @@
     "secrets_included": false
   },
   "blockers": [
+    "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED",
     "GOVERNED_MIGRATION_APPLY_LEDGER_REQUIRED",
     "SAME_CYCLE_LIVE_READBACK_REQUIRED",
     "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",

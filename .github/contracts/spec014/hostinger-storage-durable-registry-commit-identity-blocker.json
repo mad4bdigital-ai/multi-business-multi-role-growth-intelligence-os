@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-durable-registry-commit-identity-blocker.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "source_integration_commit": "2f6e910a2afd1a5b413327bdb7f62ff5eb5b73cb",
+  "producer_contract": {
+    "module": "http-generic-api/hostingerStorageSchemaVerification.js",
+    "source_commit_format": "git_object_id",
+    "accepted_lengths": [40, 64],
+    "current_repository_hash_length": 40
+  },
+  "consumer_contract": {
+    "module": "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+    "consumer": "assertSchemaVerification",
+    "current_validator": "hash",
+    "current_accepted_lengths": [64],
+    "failure_code": "STORAGE_DURABLE_INJECTION_HASH_INVALID",
+    "failure_field": "schema_verification.source_commit"
+  },
+  "reproduction": {
+    "forty_character_git_commit_rejected": true,
+    "sixty_four_character_identity_accepted": true,
+    "schema_contract_binding_passes_before_identity_validation": true,
+    "database_connection_opened": false,
+    "live_database_access_performed": false
+  },
+  "required_repair": {
+    "replace_hash_validation_for_source_commit": true,
+    "replace_hash_validation_for_deployed_runtime_sha": true,
+    "retain_sha256_validation_for_evidence_digest": true,
+    "retain_sha256_validation_for_database_fingerprint": true,
+    "require_exact_source_runtime_parity": true,
+    "accepted_commit_lengths": [40, 64],
+    "error_code_must_be_commit_specific": true
+  },
+  "terminal_boundary": {
+    "blocker_reproduced": true,
+    "runtime_repair_performed": false,
+    "durable_registry_runtime_acceptance_ready": false,
+    "live_database_access_performed": false,
+    "signature_created": false,
+    "migration_sql_executed": false,
+    "provider_dispatch_allowed": false,
+    "deployment_authorized": false,
+    "production_ready": false,
+    "secrets_included": false
+  },
+  "blockers": [
+    "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED"
+  ],
+  "secrets_included": false
+}
