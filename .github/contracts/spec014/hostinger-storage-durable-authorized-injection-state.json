@@ -9,6 +9,9 @@
       "storage_authorized_injection_states",
       "storage_authorized_injection_rollbacks"
     ],
+    "ddl_contract_path": ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+    "ddl_contract_present": true,
+    "ddl_matches_registry_sql": true,
     "contract_local_only": true,
     "governed_runtime_migration_promoted": false,
     "migration_apply_authorized": false,
@@ -76,6 +79,7 @@
   },
   "terminal_state": {
     "durable_sql_contract_ready": true,
+    "explicit_ddl_contract_present": true,
     "schema_verified": true,
     "migration_apply_authorized": false,
     "runtime_material_persisted": false,
