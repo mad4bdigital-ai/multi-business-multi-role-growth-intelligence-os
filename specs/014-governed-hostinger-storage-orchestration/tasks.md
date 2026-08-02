@@ -68,7 +68,7 @@
 ## Phase 5 — Planning, approval, execution, and reconciliation
 
 - [ ] **T050** [FR-012/FR-021/OP-003–OP-008] Implement immutable plan/item/impact repositories and plan hashing.
-- [ ] **T051** [FR-020] Implement lease, idempotency, consumed-plan marker, and per-item journal/checkpoints.
+- [ ] **T051** [FR-020/FR-021] Implement lease, idempotency, consumed-plan marker, and per-item journal/checkpoints.
 - [ ] **T052** [FR-022/OP-009] Implement same-operation unknown-outcome reconciliation and outcome classifier.
 - [ ] **T053** Implement approval invalidation on context/target/ownership/policy/plan/impact/expiry changes.
 - [ ] **T054** Implement shared-impact approval completeness and policy-defined quorum support.
