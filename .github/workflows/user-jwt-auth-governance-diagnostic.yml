@@ -64,6 +64,17 @@ jobs:
             const findings = Array.isArray(report.violations) && report.violations.length
               ? report.violations.map((item) => `- \`${item.file}\` — \`${item.rule}\` — fingerprint \`${item.evidence_fingerprint || 'not_applicable'}\``)
               : ['- No violations found.'];
+            const diagnosticError = report.diagnostic_error
+              ? [
+                  '',
+                  '### Diagnostic generation error',
+                  `- Stage: \`${report.diagnostic_error.stage || 'unknown'}\``,
+                  `- Name: \`${report.diagnostic_error.name || 'Error'}\``,
+                  `- Code: \`${report.diagnostic_error.code || 'none'}\``,
+                  `- Message: ${report.diagnostic_error.message || 'not available'}`,
+                  '- Raw stderr included: `false`',
+                ]
+              : [];
             const body = [
               marker,
               '## Automated User JWT auth governance diagnosis',
@@ -76,6 +87,7 @@ jobs:
               `- Violation count: **${report.violation_count}**`,
               '- Job logs consulted: `false`',
               '- Secrets included: `false`',
+              ...diagnosticError,
               '',
               '### Findings',
               ...findings,
