@@ -175,3 +175,99 @@ jobs:
           else
             node http-generic-api/scripts/ci-evidence-pr-comment.mjs --workflow "${WORKFLOW_NAME}" "${common_args[@]}"
           fi
+
+      - name: Discover exact-head Hostinger Tenant Canary run
+        if: github.event.workflow_run.name == 'E2E Phase Governance'
+        id: hostinger_discovery
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const repository = process.env.GITHUB_REPOSITORY;
+          const headSha = process.env.SOURCE_HEAD_SHA;
+          const headBranch = process.env.HEAD_BRANCH || '';
+          const token = process.env.GITHUB_TOKEN;
+          const workflow = 'hostinger-storage-tenant-canary-canonical-guard.yml';
+          const url = new URL(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/runs`);
+          url.searchParams.set('event', 'pull_request');
+          url.searchParams.set('status', 'completed');
+          url.searchParams.set('head_sha', headSha);
+          url.searchParams.set('per_page', '20');
+          (async () => {
+            const response = await fetch(url, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28'
+              }
+            });
+            if (!response.ok) throw new Error(`Tenant Canary discovery failed: HTTP ${response.status}`);
+            const payload = await response.json();
+            const runs = Array.isArray(payload.workflow_runs) ? payload.workflow_runs : [];
+            const run = runs
+              .filter((item) => item?.name === 'Hostinger Storage Tenant Canary Guard')
+              .filter((item) => item?.event === 'pull_request')
+              .filter((item) => item?.status === 'completed' && item?.conclusion === 'success')
+              .filter((item) => item?.head_sha === headSha)
+              .filter((item) => !headBranch || item?.head_branch === headBranch)
+              .sort((left, right) => Number(right.id || 0) - Number(left.id || 0))[0];
+            const lines = run
+              ? [`found=true`, `run_id=${run.id}`, `conclusion=${run.conclusion}`, `head_sha=${run.head_sha}`]
+              : ['found=false'];
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
+            console.log(JSON.stringify({
+              found: Boolean(run),
+              run_id: run?.id || null,
+              head_sha: run?.head_sha || headSha,
+              head_branch: run?.head_branch || headBranch,
+              job_logs_consulted: false,
+              secrets_included: false
+            }));
+          })().catch((error) => {
+            console.error(error.stack || error.message);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Download exact-head Hostinger Tenant Canary fallback report
+        if: steps.hostinger_discovery.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: hostinger-storage-tenant-canary-${{ steps.hostinger_discovery.outputs.run_id }}-summary
+          path: ${{ runner.temp }}/hostinger-canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.hostinger_discovery.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Publish exact-head Hostinger Tenant Canary fallback evidence
+        if: steps.hostinger_discovery.outputs.found == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_CONCLUSION: ${{ steps.hostinger_discovery.outputs.conclusion }}
+          WORKFLOW_RUN_ID: ${{ steps.hostinger_discovery.outputs.run_id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPORT_PATH: ${{ runner.temp }}/hostinger-canonical/hostinger-storage-tenant-canary-summary.json
+        run: |
+          set -euo pipefail
+          args=(
+            --repository "${GITHUB_REPOSITORY}"
+            --workflow-conclusion "${WORKFLOW_CONCLUSION}"
+            --report "${REPORT_PATH}"
+            --workflow-run-id "${WORKFLOW_RUN_ID}"
+            --source-head-sha "${SOURCE_HEAD_SHA}"
+          )
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            args+=(--pr-number "${PR_NUMBER}")
+          fi
+          if [[ -n "${HEAD_BRANCH:-}" ]]; then
+            args+=(--head-branch "${HEAD_BRANCH}")
+          fi
+          node http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs "${args[@]}"
