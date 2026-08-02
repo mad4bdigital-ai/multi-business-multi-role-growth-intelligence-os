@@ -1,0 +1,96 @@
+name: Spec 014 Authorized Route Generated Refresh
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-authorized-route-generated-refresh.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-authorized-route-generated-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/014-hostinger/authorized-route-resolution-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TARGET_REF: gpt/014-hostinger/authorized-route-resolution-20260802
+      LAUNCHER_FILE: .github/workflows/spec014-authorized-route-generated-refresh.yml
+      OUTPUT_DIR: .ci-evidence/spec014-authorized-route-generated-refresh
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply official governed generated refresh
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          local_sha="$(git rev-parse HEAD)"
+          [[ "$remote_sha" == "$EXPECTED_HEAD_SHA" ]]
+          [[ "$local_sha" == "$EXPECTED_HEAD_SHA" ]]
+          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs \
+            --target-ref "$TARGET_REF" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --confirmation APPLY_GENERATED_ARTIFACT_REFRESH \
+            --output-dir "$OUTPUT_DIR"
+          jq -e '.outcome == "passed" and .mutation.force_push == false and .mutation.protected_branches_rejected == true and .secrets_included == false' \
+            "$OUTPUT_DIR/generated-artifact-refresh-report.json"
+
+      - name: Remove temporary launcher with normal fast-forward push
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$generated_sha" ]]
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm "$LAUNCHER_FILE"
+          git commit -m 'chore(spec-014): remove authorized route refresh launcher'
+          final_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:${TARGET_REF}"
+          remote_final_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          [[ "$remote_final_sha" == "$final_sha" ]]
+          jq -n \
+            --arg contract 'mad4b.spec014-authorized-route-generated-refresh.v1' \
+            --arg target_ref "$TARGET_REF" \
+            --arg generated_sha "$generated_sha" \
+            --arg final_sha "$final_sha" \
+            '{contract:$contract,outcome:"passed",target_ref:$target_ref,generated_commit_sha:$generated_sha,final_commit_sha:$final_sha,launcher_removed:true,normal_fast_forward_push:true,force_push:false,protected_branch_mutation:false,secrets_included:false}' \
+            > "$OUTPUT_DIR/launcher-cleanup.json"
+
+      - name: Upload structured refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-authorized-route-generated-refresh-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
