@@ -9,6 +9,7 @@ const LOCK_NAME = 'spec014:hostinger-storage-authorized-injection-state';
 const ROUTE_PATH = '/tenant/storage-operations/apply-plan';
 const DEPENDENCY_KEY = 'tenantStorageRuntime';
 const SHA256_RE = /^[0-9a-f]{64}$/u;
+const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/+/-]{0,255}$/u;
 const ALLOWED_OPTIONS = new Set(['pool', 'schema_verification', 'lock_timeout_seconds']);
 
@@ -64,6 +65,14 @@ function hash(value, field) {
   const normalized = text(value, 64).toLowerCase();
   if (!SHA256_RE.test(normalized)) {
     throw fail(400, 'STORAGE_DURABLE_INJECTION_HASH_INVALID', 'A lowercase SHA-256 binding is required.', { field });
+  }
+  return normalized;
+}
+
+function commit(value, field) {
+  const normalized = String(value ?? '').trim();
+  if (normalized !== normalized.toLowerCase() || !COMMIT_RE.test(normalized)) {
+    throw fail(400, 'STORAGE_DURABLE_INJECTION_COMMIT_INVALID', 'A lowercase Git object identity with exactly 40 or 64 hexadecimal characters is required.', { field });
   }
   return normalized;
 }
@@ -272,8 +281,8 @@ function assertSchemaVerification(value) {
   }
   const verified = {
     evidence_digest: hash(value.evidence_digest, 'schema_verification.evidence_digest'),
-    source_commit: hash(evidence.source_commit, 'schema_verification.source_commit'),
-    deployed_runtime_sha: hash(evidence.deployed_runtime_sha, 'schema_verification.deployed_runtime_sha'),
+    source_commit: commit(evidence.source_commit, 'schema_verification.source_commit'),
+    deployed_runtime_sha: commit(evidence.deployed_runtime_sha, 'schema_verification.deployed_runtime_sha'),
     runtime_parity: evidence.runtime_parity === true,
     database_fingerprint: hash(evidence.database_fingerprint, 'schema_verification.database_fingerprint'),
     readback_cycle_id: identifier(evidence.readback_cycle_id, 'schema_verification.readback_cycle_id', 191),

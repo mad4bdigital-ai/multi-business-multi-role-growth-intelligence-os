@@ -3,6 +3,14 @@
   "contract": "spec014.hostinger-storage-durable-registry-commit-identity-blocker.v1",
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "source_integration_commit": "2f6e910a2afd1a5b413327bdb7f62ff5eb5b73cb",
+  "blocker_evidence": {
+    "pull_request": 4922,
+    "feature_head": "e34c80a5cfa3ecca8f140adc9e5bc3e9f976ecd7",
+    "integration_merge_sha": "be84a5bcdbfa933ab2ee3dc11dce3c1576730b2c",
+    "forty_character_git_commit_rejected_before_repair": true,
+    "historical_failure_code": "STORAGE_DURABLE_INJECTION_HASH_INVALID",
+    "historical_failure_field": "schema_verification.source_commit"
+  },
   "producer_contract": {
     "module": "http-generic-api/hostingerStorageSchemaVerification.js",
     "source_commit_format": "git_object_id",
@@ -12,31 +20,31 @@
   "consumer_contract": {
     "module": "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
     "consumer": "assertSchemaVerification",
-    "current_validator": "hash",
-    "current_accepted_lengths": [64],
-    "failure_code": "STORAGE_DURABLE_INJECTION_HASH_INVALID",
-    "failure_field": "schema_verification.source_commit"
+    "current_validator": "commit",
+    "current_accepted_lengths": [40, 64],
+    "lowercase_required": true,
+    "truncation_allowed": false,
+    "invalid_identity_code": "STORAGE_DURABLE_INJECTION_COMMIT_INVALID",
+    "source_field": "schema_verification.source_commit",
+    "runtime_field": "schema_verification.deployed_runtime_sha"
   },
-  "reproduction": {
-    "forty_character_git_commit_rejected": true,
-    "sixty_four_character_identity_accepted": true,
-    "schema_contract_binding_passes_before_identity_validation": true,
-    "database_connection_opened": false,
-    "live_database_access_performed": false
-  },
-  "required_repair": {
-    "replace_hash_validation_for_source_commit": true,
-    "replace_hash_validation_for_deployed_runtime_sha": true,
-    "retain_sha256_validation_for_evidence_digest": true,
-    "retain_sha256_validation_for_database_fingerprint": true,
-    "require_exact_source_runtime_parity": true,
-    "accepted_commit_lengths": [40, 64],
-    "error_code_must_be_commit_specific": true
+  "repair": {
+    "pull_request": 4926,
+    "source_patch_commit": "97c719e04f430daf142cab83ed09a7877b93f0f9",
+    "source_commit_validator_replaced": true,
+    "deployed_runtime_sha_validator_replaced": true,
+    "sha256_evidence_digest_validation_preserved": true,
+    "sha256_database_fingerprint_validation_preserved": true,
+    "exact_source_runtime_parity_preserved": true,
+    "forty_character_git_commit_accepted": true,
+    "sixty_four_character_git_commit_accepted": true,
+    "uppercase_rejected": true,
+    "unsupported_lengths_rejected": true
   },
   "terminal_boundary": {
     "blocker_reproduced": true,
-    "runtime_repair_performed": false,
-    "durable_registry_runtime_acceptance_ready": false,
+    "runtime_repair_performed": true,
+    "durable_registry_runtime_acceptance_ready": true,
     "live_database_access_performed": false,
     "signature_created": false,
     "migration_sql_executed": false,
@@ -45,8 +53,6 @@
     "production_ready": false,
     "secrets_included": false
   },
-  "blockers": [
-    "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED"
-  ],
+  "blockers": [],
   "secrets_included": false
 }
