@@ -1,0 +1,82 @@
+name: Sprint 69 Migration 1043 Runtime Readiness Discovery Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sprint69-1043-runtime-readiness-discovery-diagnostic.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: sprint69-1043-runtime-readiness-discovery-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Discover authorization-bound run and Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      ISSUE_NUMBER: '4449'
+      AUTHORIZATION_COMMENT_ID: '5160291051'
+      REPORT_DIR: .artifacts/sprint69-1043-runtime-readiness-discovery
+      SOURCE_DIR: .artifacts/sprint69-1043-runtime-readiness-source
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Discover exact authorization-bound run
+        id: discover
+        run: node .github/ops/sprint69-1043-runtime-readiness-backfill.mjs discover
+
+      - name: Download exact Runtime Readiness Artifact
+        if: steps.discover.outputs.artifact_found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.discover.outputs.artifact_name }}
+          path: ${{ env.SOURCE_DIR }}
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.discover.outputs.run_id }}
+
+      - name: Upload structured discovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint69-1043-runtime-readiness-discovery-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}
+            ${{ env.SOURCE_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Emit bounded diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Migration 1043 Runtime Readiness discovery'
+            echo
+            echo '- authorization comment: 5160291051'
+            echo '- run id: `${{ steps.discover.outputs.run_id || 'not_found' }}`'
+            echo '- run conclusion: `${{ steps.discover.outputs.run_conclusion || 'unavailable' }}`'
+            echo '- artifact found: `${{ steps.discover.outputs.artifact_found || 'false' }}`'
+            echo '- Job logs consulted: `false`'
+            echo '- repository mutation: `false`'
+            echo '- runtime/Admin Control call: `false`'
+            echo '- Migration Apply: `false`'
+            echo '- secrets included: `false`'
+          } >> "$GITHUB_STEP_SUMMARY"
