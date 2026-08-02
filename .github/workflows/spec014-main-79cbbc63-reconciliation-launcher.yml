@@ -301,42 +301,78 @@ jobs:
           npm run openapi:auth:check
           npm run schemas:guard
 
-      - name: Enforce bounded final write set
+      - name: Collect bounded final write set evidence
         shell: bash
         run: |
           set -euo pipefail
           integration_sha='06daaf7aeb270af435910a5ea07a2385cdbb4fbf'
-          mapfile -t changed < <(git diff --name-only "$integration_sha" | sort -u)
-          for file in "${changed[@]}"; do
+          evidence_dir="$RUNNER_TEMP/spec014-final-write-set"
+          mkdir -p "$evidence_dir"
+
+          cat > "$evidence_dir/allowed-exact.txt" <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json
+          .changes/e2e/governed-generated-artifact-refresh-request-reregistration-v2.json
+          .changes/e2e/openapi-auto-sync-generated-contract-review.json
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          .github/workflows/spec014-main-79cbbc63-reconciliation-launcher.yml
+          docs/repo-maintenance-status.md
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi.yaml
+          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml
+          http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml
+          http-generic-api/openapi/openapi.tenant-gpt.activation.yaml
+          http-generic-api/openapi/openapi.tenant-gpt.auth.yaml
+          http-generic-api/openapi.gpt-action.local-connector.yaml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          http-generic-api/test-openapi-precise-legacy-registry-transition.mjs
+          EOF
+          sed -i 's/^          //' "$evidence_dir/allowed-exact.txt"
+          sort -u -o "$evidence_dir/allowed-exact.txt" "$evidence_dir/allowed-exact.txt"
+
+          git diff --name-only "$integration_sha" | sort -u > "$evidence_dir/actual.txt"
+          : > "$evidence_dir/unexpected.txt"
+          while IFS= read -r file; do
             case "$file" in
-              .changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json|
-              .changes/e2e/governed-generated-artifact-refresh-request-reregistration-v2.json|
-              .changes/e2e/openapi-auto-sync-generated-contract-review.json|
-              .github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml|
-              .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml|
-              docs/repo-maintenance-status.md|
-              docs/surface-contract-*.json|
-              docs/surface-contract-*.md|
-              http-generic-api/frontend-operation-governance.generated.json|
-              http-generic-api/frontend-surface-dispatch.generated.json|
-              http-generic-api/openapi.yaml|
-              http-generic-api/openapi/frontend-runtime-routes.generated.yaml|
-              http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml|
-              http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml|
-              http-generic-api/openapi/openapi.tenant-gpt.auth.yaml|
-              http-generic-api/openapi/openapi.tenant-gpt.activation.yaml|
-              http-generic-api/openapi.gpt-action.local-connector.yaml|
-              http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs|
-              http-generic-api/test-openapi-precise-legacy-registry-transition.mjs|
-              .github/workflows/spec014-main-79cbbc63-reconciliation-launcher.yml)
+              docs/surface-contract-*.json|docs/surface-contract-*.md)
                 ;;
               *)
-                echo "Unexpected final changed file: $file" >&2
-                exit 1
+                if ! grep -Fxq "$file" "$evidence_dir/allowed-exact.txt"; then
+                  printf '%s\n' "$file" >> "$evidence_dir/unexpected.txt"
+                fi
                 ;;
             esac
-          done
-          test -n "${changed[*]}"
+          done < "$evidence_dir/actual.txt"
+
+          echo 'Actual final write set:'
+          cat "$evidence_dir/actual.txt"
+          if [[ -s "$evidence_dir/unexpected.txt" ]]; then
+            echo 'Unexpected final changed files:' >&2
+            cat "$evidence_dir/unexpected.txt" >&2
+          fi
+          test -s "$evidence_dir/actual.txt"
+
+      - name: Upload bounded final write set evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-write-set-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: ${{ runner.temp }}/spec014-final-write-set
+
+      - name: Enforce bounded final write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected_file="$RUNNER_TEMP/spec014-final-write-set/unexpected.txt"
+          if [[ -s "$unexpected_file" ]]; then
+            echo 'Final write set exceeded the reviewed allowlist.' >&2
+            cat "$unexpected_file" >&2
+            exit 1
+          fi
 
       - name: Remove launcher and publish merge commit
         shell: bash
