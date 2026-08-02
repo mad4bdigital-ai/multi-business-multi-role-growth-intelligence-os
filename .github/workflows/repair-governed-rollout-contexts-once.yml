@@ -1,0 +1,109 @@
+name: Repair Governed Rollout Workflow Contexts Once
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-governed-rollout-contexts-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/fix-governed-rollout-workflow-contexts-20260802'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply bounded workflow and regression repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceExact(path, before, after) {
+            const original = fs.readFileSync(path, 'utf8');
+            if (!original.includes(before)) throw new Error(`${path}: expected source block not found`);
+            const updated = original.replace(before, after);
+            if (updated === original) throw new Error(`${path}: replacement produced no change`);
+            fs.writeFileSync(path, updated);
+          }
+
+          replaceExact(
+            '.github/workflows/brand-skill-mariadb-certification.yml',
+            `      - name: Validate typed binding inputs\n        shell: bash\n        env:`,
+            `      - name: Validate typed binding inputs\n        working-directory: .\n        shell: bash\n        env:`,
+          );
+
+          for (const [path, prefix] of [
+            ['.github/workflows/sprint69-1006-governed-rollout.yml', 'sprint69-1006-'],
+            ['.github/workflows/response-chunk-ownership-governed-rollout.yml', 'response-chunk-ownership-'],
+          ]) {
+            const original = fs.readFileSync(path, 'utf8');
+            const needle = `EVIDENCE_DIR: \${{ runner.temp }}/${prefix}`;
+            const replacement = `EVIDENCE_DIR: .artifacts/${prefix}`;
+            const count = original.split(needle).length - 1;
+            if (count < 2) throw new Error(`${path}: expected at least two job-level runner.temp bindings, found ${count}`);
+            const updated = original.split(needle).join(replacement);
+            if (/EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/.test(updated)) {
+              throw new Error(`${path}: job-level runner.temp evidence binding remains`);
+            }
+            fs.writeFileSync(path, updated);
+          }
+
+          replaceExact(
+            'http-generic-api/test-brand-skill-mariadb-certification-contract.mjs',
+            `assert.doesNotMatch(workflow, /PRODUCTION_DB_/);`,
+            `assert.doesNotMatch(workflow, /PRODUCTION_DB_/);\nassert.match(workflow, /- name: Validate typed binding inputs\\n\\s+working-directory: \\.\\n\\s+shell: bash/);`,
+          );
+
+          replaceExact(
+            'http-generic-api/test-sprint69-1006-governed-rollout-control.mjs',
+            `assert.match(workflow, /Upload no-secret apply evidence/);`,
+            `assert.match(workflow, /Upload no-secret apply evidence/);\nassert.doesNotMatch(workflow, /EVIDENCE_DIR:\\s*\\$\\{\\{\\s*runner\\.temp\\s*\\}\\}/);\nassert.match(workflow, /EVIDENCE_DIR: \\.artifacts\\/sprint69-1006-readiness/);\nassert.match(workflow, /EVIDENCE_DIR: \\.artifacts\\/sprint69-1006-apply/);`,
+          );
+
+          replaceExact(
+            'http-generic-api/test-response-chunk-ownership-governed-rollout-control.mjs',
+            `assert.match(workflow, /response-chunk-ownership-runtime-closure-/);`,
+            `assert.match(workflow, /response-chunk-ownership-runtime-closure-/);\nassert.doesNotMatch(workflow, /EVIDENCE_DIR:\\s*\\$\\{\\{\\s*runner\\.temp\\s*\\}\\}/);\nassert.match(workflow, /EVIDENCE_DIR: \\.artifacts\\/response-chunk-ownership-readiness/);\nassert.match(workflow, /EVIDENCE_DIR: \\.artifacts\\/response-chunk-ownership-apply/);\nassert.match(workflow, /EVIDENCE_DIR: \\.artifacts\\/response-chunk-ownership-runtime-closure/);`,
+          );
+
+          fs.unlinkSync('.github/workflows/repair-governed-rollout-contexts-once.yml');
+          NODE
+
+      - name: Run focused workflow contract tests
+        working-directory: http-generic-api
+        run: |
+          node test-brand-skill-mariadb-certification-contract.mjs
+          node test-sprint69-1006-governed-rollout-control.mjs
+          node test-response-chunk-ownership-governed-rollout-control.mjs
+
+      - name: Commit bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/brand-skill-mariadb-certification.yml \
+                  .github/workflows/sprint69-1006-governed-rollout.yml \
+                  .github/workflows/response-chunk-ownership-governed-rollout.yml \
+                  http-generic-api/test-brand-skill-mariadb-certification-contract.mjs \
+                  http-generic-api/test-sprint69-1006-governed-rollout-control.mjs \
+                  http-generic-api/test-response-chunk-ownership-governed-rollout-control.mjs \
+                  .github/workflows/repair-governed-rollout-contexts-once.yml
+          git diff --cached --check
+          git commit -m "fix(ci): repair governed rollout workflow contexts"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
