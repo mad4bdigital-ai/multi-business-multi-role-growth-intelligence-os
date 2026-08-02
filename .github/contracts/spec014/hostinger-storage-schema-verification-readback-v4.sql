@@ -1,10 +1,10 @@
--- spec014_hostinger_storage_schema_verification_readback_v4.sql
--- SIGNED-SCHEMA-VERIFICATION READBACK CONTRACT ONLY.
--- Repository definition; not runnable by governed-migration-runner.
--- Requires separately governed four-wave Apply evidence and same-cycle live execution.
+-- spec014_hostinger_storage_readback.sql
+-- DRAFT SAME-CYCLE READBACK v4; contract-local and not runnable by governed-migration-runner.
+-- Task: T027 + Durable Authorized Injection State Wave 4 extension
 -- migration_apply_authorized=false
 -- schema_verified=false
 -- production_ready=false
+-- signed_schema_verification_required=true
 -- no_provider_call
 -- no_credential_payload_read
 -- no_raw_secrets
@@ -48,8 +48,8 @@ WITH expected_runtime_columns AS (
       {"t":"storage_execution_leases","c":"target_id","d":"char"},{"t":"storage_execution_leases","c":"lease_id","d":"char"},{"t":"storage_execution_leases","c":"operation_id","d":"char"},{"t":"storage_execution_leases","c":"generation","d":"bigint"},{"t":"storage_execution_leases","c":"status","d":"varchar"},{"t":"storage_execution_leases","c":"expires_at_epoch","d":"bigint"},{"t":"storage_execution_leases","c":"record_digest","d":"char"},{"t":"storage_execution_leases","c":"record_json","d":"json"},{"t":"storage_execution_leases","c":"row_version","d":"bigint"},
       {"t":"storage_cleanup_run_items","c":"id","d":"char"},{"t":"storage_cleanup_run_items","c":"operation_id","d":"char"},{"t":"storage_cleanup_run_items","c":"run_id","d":"char"},{"t":"storage_cleanup_run_items","c":"plan_id","d":"char"},{"t":"storage_cleanup_run_items","c":"item_id","d":"varchar"},{"t":"storage_cleanup_run_items","c":"sequence","d":"bigint"},{"t":"storage_cleanup_run_items","c":"phase","d":"varchar"},{"t":"storage_cleanup_run_items","c":"result","d":"varchar"},{"t":"storage_cleanup_run_items","c":"record_digest","d":"char"},{"t":"storage_cleanup_run_items","c":"record_json","d":"json"},{"t":"storage_cleanup_run_items","c":"row_version","d":"bigint"},
       {"t":"storage_reconciliation_results","c":"id","d":"char"},{"t":"storage_reconciliation_results","c":"operation_id","d":"char"},{"t":"storage_reconciliation_results","c":"run_id","d":"char"},{"t":"storage_reconciliation_results","c":"outcome","d":"varchar"},{"t":"storage_reconciliation_results","c":"retry_permission","d":"tinyint"},{"t":"storage_reconciliation_results","c":"record_digest","d":"char"},{"t":"storage_reconciliation_results","c":"record_json","d":"json"},{"t":"storage_reconciliation_results","c":"row_version","d":"bigint"},
-      {"t":"storage_authorized_injection_states","c":"injection_id","d":"varchar"},{"t":"storage_authorized_injection_states","c":"injection_receipt_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"mount_readback_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"mount_bundle_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"active","d":"tinyint"},{"t":"storage_authorized_injection_states","c":"generation","d":"bigint"},{"t":"storage_authorized_injection_states","c":"record_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"record_json","d":"json"},{"t":"storage_authorized_injection_states","c":"row_version","d":"bigint"},{"t":"storage_authorized_injection_states","c":"secrets_included","d":"tinyint"},
-      {"t":"storage_authorized_injection_rollbacks","c":"id","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"injection_id","d":"varchar"},{"t":"storage_authorized_injection_rollbacks","c":"rollback_receipt_digest","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"record_digest","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"record_json","d":"json"},{"t":"storage_authorized_injection_rollbacks","c":"secrets_included","d":"tinyint"}
+      {"t":"storage_authorized_injection_states","c":"injection_id","d":"varchar"},{"t":"storage_authorized_injection_states","c":"injection_receipt_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"mount_readback_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"mount_bundle_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"active","d":"tinyint"},{"t":"storage_authorized_injection_states","c":"generation","d":"bigint"},{"t":"storage_authorized_injection_states","c":"record_digest","d":"char"},{"t":"storage_authorized_injection_states","c":"record_json","d":"json"},{"t":"storage_authorized_injection_states","c":"row_version","d":"bigint"},{"t":"storage_authorized_injection_states","c":"secrets_included","d":"tinyint"},{"t":"storage_authorized_injection_states","c":"created_at","d":"datetime"},{"t":"storage_authorized_injection_states","c":"updated_at","d":"datetime"},
+      {"t":"storage_authorized_injection_rollbacks","c":"id","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"injection_id","d":"varchar"},{"t":"storage_authorized_injection_rollbacks","c":"rollback_receipt_digest","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"record_digest","d":"char"},{"t":"storage_authorized_injection_rollbacks","c":"record_json","d":"json"},{"t":"storage_authorized_injection_rollbacks","c":"secrets_included","d":"tinyint"},{"t":"storage_authorized_injection_rollbacks","c":"created_at","d":"datetime"}
     ]',
     '$[*]' COLUMNS(table_name VARCHAR(128) PATH '$.t', column_name VARCHAR(128) PATH '$.c', data_type VARCHAR(32) PATH '$.d')
   ) AS j
@@ -89,6 +89,40 @@ FROM expected_runtime_indexes e
 LEFT JOIN information_schema.statistics s
   ON s.table_schema = DATABASE() AND s.table_name = e.table_name AND s.index_name = e.index_name AND s.seq_in_index = e.seq_in_index;
 
+WITH expected_authorized_injection_constraints AS (
+  SELECT table_name, constraint_name, constraint_type FROM JSON_TABLE(
+    '[
+      {"t":"storage_authorized_injection_states","n":"PRIMARY","y":"PRIMARY KEY"},
+      {"t":"storage_authorized_injection_states","n":"uq_storage_authorized_injection_receipt","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_states","n":"uq_storage_authorized_injection_readback","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_digests","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_version","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_active","y":"CHECK"},
+      {"t":"storage_authorized_injection_states","n":"chk_storage_authorized_injection_state_no_secrets","y":"CHECK"},
+      {"t":"storage_authorized_injection_rollbacks","n":"PRIMARY","y":"PRIMARY KEY"},
+      {"t":"storage_authorized_injection_rollbacks","n":"uq_storage_authorized_injection_rollback_once","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_rollbacks","n":"uq_storage_authorized_injection_rollback_digest","y":"UNIQUE"},
+      {"t":"storage_authorized_injection_rollbacks","n":"fk_storage_authorized_injection_rollback_state","y":"FOREIGN KEY"},
+      {"t":"storage_authorized_injection_rollbacks","n":"chk_storage_authorized_injection_rollback_digests","y":"CHECK"},
+      {"t":"storage_authorized_injection_rollbacks","n":"chk_storage_authorized_injection_rollback_no_secrets","y":"CHECK"}
+    ]',
+    '$[*]' COLUMNS(table_name VARCHAR(128) PATH '$.t', constraint_name VARCHAR(128) PATH '$.n', constraint_type VARCHAR(32) PATH '$.y')
+  ) AS j
+)
+SELECT
+  COUNT(*) AS expected_authorized_injection_state_constraint_count,
+  SUM(tc.constraint_name IS NOT NULL AND tc.constraint_type = e.constraint_type) AS authorized_injection_state_constraint_count,
+  CASE WHEN SUM(tc.constraint_name IS NOT NULL AND tc.constraint_type = e.constraint_type) = COUNT(*) THEN 'ready_exact_contract' ELSE 'blocked' END AS authorized_injection_state_schema_status,
+  'hostinger_storage_durable_authorized_injection_state_schema_v1' AS authorized_injection_state_schema_contract_key,
+  '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a' AS authorized_injection_state_schema_contract_digest,
+  JSON_ARRAY('storage_authorized_injection_states','storage_authorized_injection_rollbacks') AS authorized_injection_state_tables,
+  0 AS secrets_included
+FROM expected_authorized_injection_constraints e
+LEFT JOIN information_schema.table_constraints tc
+  ON tc.constraint_schema = DATABASE()
+ AND tc.table_name = e.table_name
+ AND tc.constraint_name = e.constraint_name;
+
 SELECT table_name, constraint_type, COUNT(*) AS constraint_count
 FROM information_schema.table_constraints
 WHERE table_schema = DATABASE() AND table_name LIKE 'storage\\_%'
@@ -115,7 +149,7 @@ ORDER BY tool_key;
 
 SELECT
   'spec014_hostinger_storage_migration_readback_v4' AS contract_key,
-  'candidate_only_unsigned' AS schema_verification_status,
+  'candidate_only_unsigned_v2' AS schema_verification_status,
   0 AS production_ready,
   0 AS provider_calls,
   0 AS credential_payload_reads,

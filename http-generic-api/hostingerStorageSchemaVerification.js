@@ -5,12 +5,29 @@ import {
 } from 'node:crypto';
 import { assertHostingerStorageSecretFree } from './hostingerStorageAttestationSecretFree.js';
 
-export const HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION = 'spec014-hostinger-storage-schema-verification-v1';
-export const HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE = 'https://mad4b.com/attestations/hostinger-storage-schema-verification/v1';
+export const HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION =
+  'spec014-hostinger-storage-schema-verification-v2';
+export const HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE =
+  'https://mad4b.com/attestations/hostinger-storage-schema-verification/v2';
 export const HOSTINGER_STORAGE_SCHEMA_SUBJECT_TYPE = 'application/vnd.in-toto+json';
 
-const SUBJECT_KEY = 'hostinger_storage_schema_verification_v1';
+const SUBJECT_KEY = 'hostinger_storage_schema_verification_v2';
 const READBACK_CONTRACT_KEY = 'spec014_hostinger_storage_migration_readback_v4';
+const AUTHORIZED_INJECTION_SCHEMA_CONTRACT = Object.freeze({
+  contract_key: 'hostinger_storage_durable_authorized_injection_state_schema_v1',
+  tables: Object.freeze([
+    'storage_authorized_injection_states',
+    'storage_authorized_injection_rollbacks',
+  ]),
+  one_active_state_per_injection: true,
+  exact_receipt_readback_binding: true,
+  immutable_rollback_receipt: true,
+  row_version_cas: true,
+  runtime_material_persisted: false,
+  secrets_included: false,
+});
+const AUTHORIZED_INJECTION_SCHEMA_DIGEST =
+  '652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a';
 const SHA256_RE = /^[0-9a-f]{64}$/u;
 const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/u;
@@ -19,9 +36,18 @@ const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 export const HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS = Object.freeze({
   table_count: 17,
   view_count: 3,
-  runtime_column_count: 68,
+  runtime_column_count: 71,
   runtime_index_column_count: 31,
+  authorized_injection_state_constraint_count: 13,
   default_off_tool_count: 3,
+  authorized_injection_state_schema: Object.freeze({
+    contract_key: AUTHORIZED_INJECTION_SCHEMA_CONTRACT.contract_key,
+    contract_digest: AUTHORIZED_INJECTION_SCHEMA_DIGEST,
+    tables: AUTHORIZED_INJECTION_SCHEMA_CONTRACT.tables,
+    table_count: 2,
+    constraint_count: 13,
+    schema_status: 'ready_exact_contract',
+  }),
   migrations: Object.freeze([
     Object.freeze({
       wave: 1,
@@ -69,7 +95,17 @@ export function stableHostingerStorageSchemaVerificationJson(value) {
 }
 
 function digest(value) {
-  return createHash('sha256').update(stableHostingerStorageSchemaVerificationJson(value), 'utf8').digest('hex');
+  return createHash('sha256')
+    .update(stableHostingerStorageSchemaVerificationJson(value), 'utf8')
+    .digest('hex');
+}
+
+function compactDigest(value) {
+  return createHash('sha256').update(JSON.stringify(stable(value)), 'utf8').digest('hex');
+}
+
+if (compactDigest(AUTHORIZED_INJECTION_SCHEMA_CONTRACT) !== AUTHORIZED_INJECTION_SCHEMA_DIGEST) {
+  throw new Error('Authorized Injection schema digest constant drifted.');
 }
 
 function text(value, max = 512) {
@@ -117,6 +153,20 @@ function integer(value, field, { minimum = 0 } = {}) {
   return result;
 }
 
+function exactSafeIdArray(value, expected, field) {
+  if (!Array.isArray(value) || value.length !== expected.length) {
+    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SCHEMA_TABLES_INVALID', 'An exact ordered schema table set is required.', { field });
+  }
+  const normalized = value.map((entry, index) => safeId(entry, `${field}[${index}]`));
+  if (JSON.stringify(normalized) !== JSON.stringify(expected)) {
+    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SCHEMA_TABLES_MISMATCH', 'Schema table identities drifted.', {
+      expected,
+      actual: normalized,
+    });
+  }
+  return Object.freeze(normalized);
+}
+
 function assertSecretFree(value, at) {
   return assertHostingerStorageSecretFree(value, {
     at,
@@ -132,7 +182,11 @@ function assertSecretFree(value, at) {
 
 function normalizeMigrations(rows) {
   if (!Array.isArray(rows) || rows.length !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations.length) {
-    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_SEQUENCE_INVALID', 'All four governed migration waves are required.');
+    throw fail(
+      409,
+      'STORAGE_SCHEMA_VERIFICATION_MIGRATION_SEQUENCE_INVALID',
+      'All four governed migration waves are required.',
+    );
   }
   return HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations.map((expected, index) => {
     const row = rows[index] || {};
@@ -153,16 +207,19 @@ function normalizeMigrations(rows) {
     if (normalized.ledger_mode !== 'apply') mismatches.push('ledger_mode');
     if (normalized.ledger_status !== 'success') mismatches.push('ledger_status');
     if (mismatches.length) {
-      throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_EVIDENCE_MISMATCH', 'Migration ledger evidence does not match the governed sequence.', {
-        wave: expected.wave,
-        mismatches,
-      });
+      throw fail(
+        409,
+        'STORAGE_SCHEMA_VERIFICATION_MIGRATION_EVIDENCE_MISMATCH',
+        'Migration ledger evidence does not match the governed sequence.',
+        { wave: expected.wave, mismatches },
+      );
     }
-    return normalized;
+    return Object.freeze(normalized);
   });
 }
 
 function normalizeReadback(value = {}) {
+  const expectedSchema = HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.authorized_injection_state_schema;
   const normalized = {
     contract_key: text(value.contract_key, 128),
     cycle_id: safeId(value.cycle_id, 'readback.cycle_id'),
@@ -176,6 +233,31 @@ function normalizeReadback(value = {}) {
     present_view_count: integer(value.present_view_count, 'readback.present_view_count'),
     compatible_runtime_column_count: integer(value.compatible_runtime_column_count, 'readback.compatible_runtime_column_count'),
     compatible_runtime_index_column_count: integer(value.compatible_runtime_index_column_count, 'readback.compatible_runtime_index_column_count'),
+    authorized_injection_state_schema_contract_key: text(
+      value.authorized_injection_state_schema_contract_key,
+      128,
+    ),
+    authorized_injection_state_schema_contract_digest: hash(
+      value.authorized_injection_state_schema_contract_digest,
+      'readback.authorized_injection_state_schema_contract_digest',
+    ),
+    authorized_injection_state_tables: exactSafeIdArray(
+      value.authorized_injection_state_tables,
+      expectedSchema.tables,
+      'readback.authorized_injection_state_tables',
+    ),
+    authorized_injection_state_table_count: integer(
+      value.authorized_injection_state_table_count,
+      'readback.authorized_injection_state_table_count',
+    ),
+    authorized_injection_state_constraint_count: integer(
+      value.authorized_injection_state_constraint_count,
+      'readback.authorized_injection_state_constraint_count',
+    ),
+    authorized_injection_state_schema_status: text(
+      value.authorized_injection_state_schema_status,
+      64,
+    ),
     observed_tool_count: integer(value.observed_tool_count, 'readback.observed_tool_count'),
     disabled_tool_count: integer(value.disabled_tool_count, 'readback.disabled_tool_count'),
     enabled_tool_count: integer(value.enabled_tool_count, 'readback.enabled_tool_count'),
@@ -202,6 +284,11 @@ function normalizeReadback(value = {}) {
   if (normalized.present_view_count !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.view_count) mismatches.push('present_view_count');
   if (normalized.compatible_runtime_column_count !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.runtime_column_count) mismatches.push('compatible_runtime_column_count');
   if (normalized.compatible_runtime_index_column_count !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.runtime_index_column_count) mismatches.push('compatible_runtime_index_column_count');
+  if (normalized.authorized_injection_state_schema_contract_key !== expectedSchema.contract_key) mismatches.push('authorized_injection_state_schema_contract_key');
+  if (normalized.authorized_injection_state_schema_contract_digest !== expectedSchema.contract_digest) mismatches.push('authorized_injection_state_schema_contract_digest');
+  if (normalized.authorized_injection_state_table_count !== expectedSchema.table_count) mismatches.push('authorized_injection_state_table_count');
+  if (normalized.authorized_injection_state_constraint_count !== expectedSchema.constraint_count) mismatches.push('authorized_injection_state_constraint_count');
+  if (normalized.authorized_injection_state_schema_status !== expectedSchema.schema_status) mismatches.push('authorized_injection_state_schema_status');
   if (normalized.observed_tool_count !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.default_off_tool_count) mismatches.push('observed_tool_count');
   if (normalized.disabled_tool_count !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.default_off_tool_count) mismatches.push('disabled_tool_count');
   if (normalized.enabled_tool_count !== 0) mismatches.push('enabled_tool_count');
@@ -214,9 +301,14 @@ function normalizeReadback(value = {}) {
   if (normalized.external_writes !== 0) mismatches.push('external_writes');
   if (normalized.secrets_included !== false) mismatches.push('secrets_included');
   if (mismatches.length) {
-    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_READBACK_NOT_READY', 'Live readback does not prove the complete default-off schema contract.', { mismatches });
+    throw fail(
+      409,
+      'STORAGE_SCHEMA_VERIFICATION_READBACK_NOT_READY',
+      'Live readback does not prove the complete four-wave default-off schema contract.',
+      { mismatches },
+    );
   }
-  return normalized;
+  return Object.freeze(normalized);
 }
 
 function normalizeSubjectPayload(payload = {}) {
@@ -234,8 +326,12 @@ function normalizeSubjectPayload(payload = {}) {
     migration_evidence_digest: hash(payload.migration_evidence_digest, 'payload.migration_evidence_digest'),
     secrets_included: payload.secrets_included === false ? false : true,
   };
-  if (normalized.schema_version !== 1 || normalized.subject_key !== SUBJECT_KEY || normalized.attestation_version !== HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION) {
-    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SUBJECT_SCHEMA_INVALID', 'Unexpected schema verification subject identity.');
+  if (
+    normalized.schema_version !== 2
+    || normalized.subject_key !== SUBJECT_KEY
+    || normalized.attestation_version !== HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION
+  ) {
+    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SUBJECT_SCHEMA_INVALID', 'Unexpected schema verification v2 subject identity.');
   }
   if (normalized.repository !== 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os') {
     throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_REPOSITORY_INVALID', 'Schema evidence is bound to an unexpected repository.');
@@ -249,7 +345,7 @@ function normalizeSubjectPayload(payload = {}) {
   if (normalized.secrets_included !== false) {
     throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SECRET_DECLARATION_INVALID', 'Schema verification evidence must declare that no secrets are included.');
   }
-  return normalized;
+  return Object.freeze(normalized);
 }
 
 export function buildHostingerStorageSchemaVerificationSubject({
@@ -260,11 +356,14 @@ export function buildHostingerStorageSchemaVerificationSubject({
   readback,
   created_at,
 } = {}) {
-  assertSecretFree({ repository, source_commit, deployed_runtime_sha, migrations, readback, created_at, secrets_included: false }, 'schema_verification_subject');
+  assertSecretFree(
+    { repository, source_commit, deployed_runtime_sha, migrations, readback, created_at, secrets_included: false },
+    'schema_verification_subject',
+  );
   const normalizedMigrations = normalizeMigrations(migrations);
   const normalizedReadback = normalizeReadback(readback);
   const payload = Object.freeze({
-    schema_version: 1,
+    schema_version: 2,
     subject_key: SUBJECT_KEY,
     attestation_version: HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION,
     created_at: iso(created_at, 'created_at'),
@@ -285,7 +384,7 @@ export function buildHostingerStorageSchemaVerificationSubject({
     predicate_type: HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE,
     subject_name: `hostinger-storage-schema:${normalized.readback.cycle_id}`,
     subject_digest: subjectDigest,
-    payload: Object.freeze(normalized),
+    payload: normalized,
     signing_allowed: false,
     schema_verified: false,
     production_ready: false,
@@ -319,19 +418,28 @@ function normalizePublicJwk(value = {}) {
   if (normalized.kty !== 'OKP' || normalized.crv !== 'Ed25519' || !BASE64URL_RE.test(normalized.x)) {
     throw fail(400, 'STORAGE_SCHEMA_VERIFICATION_PUBLIC_KEY_INVALID', 'An Ed25519 public JWK is required.');
   }
-  return normalized;
+  return Object.freeze(normalized);
 }
 
 export function hostingerStorageSchemaVerificationSignaturePayload(attestation = {}) {
-  return {
-    attestation_version: HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION,
+  const attestationVersion = text(attestation.attestation_version, 128);
+  if (attestationVersion !== HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION) {
+    throw fail(
+      409,
+      'STORAGE_SCHEMA_VERIFICATION_ATTESTATION_VERSION_INVALID',
+      'Only the four-wave schema verification v2 attestation is accepted.',
+      { actual: attestationVersion || null },
+    );
+  }
+  return Object.freeze({
+    attestation_version: attestationVersion,
     subject_digest: hash(attestation.subject_digest, 'attestation.subject_digest'),
     key_id: safeId(attestation.key_id, 'attestation.key_id'),
     signer_identity: safeId(attestation.signer_identity, 'attestation.signer_identity'),
     issuer: safeId(attestation.issuer, 'attestation.issuer'),
     signed_at: iso(attestation.signed_at, 'attestation.signed_at'),
     expires_at: iso(attestation.expires_at, 'attestation.expires_at'),
-  };
+  });
 }
 
 function base64UrlDecode(value) {
@@ -349,8 +457,14 @@ export function verifyHostingerStorageSchemaVerification({
   policy,
   now,
 } = {}) {
-  assertSecretFree({ subject, attestation, public_key_jwk, policy, now, secrets_included: false }, 'schema_verification');
-  if (subject?.subject_type !== HOSTINGER_STORAGE_SCHEMA_SUBJECT_TYPE || subject?.predicate_type !== HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE) {
+  assertSecretFree(
+    { subject, attestation, public_key_jwk, policy, now, secrets_included: false },
+    'schema_verification',
+  );
+  if (
+    subject?.subject_type !== HOSTINGER_STORAGE_SCHEMA_SUBJECT_TYPE
+    || subject?.predicate_type !== HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE
+  ) {
     throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_SUBJECT_TYPE_INVALID', 'Unexpected schema verification subject type.');
   }
   const normalizedPayload = normalizeSubjectPayload(subject?.payload);
@@ -404,17 +518,32 @@ export function verifyHostingerStorageSchemaVerification({
   if (signingDelayMinutes > Number(policy?.max_signing_delay_minutes ?? 5)) blockers.push('STORAGE_SCHEMA_VERIFICATION_SIGNING_DELAY_EXCEEDED');
   if (readbackDurationMinutes > Number(policy?.max_readback_cycle_minutes ?? 10)) blockers.push('STORAGE_SCHEMA_VERIFICATION_READBACK_CYCLE_TOO_LONG');
 
-  const expectedSource = policy?.expected_source_commit ? commit(policy.expected_source_commit, 'policy.expected_source_commit') : null;
-  const expectedRuntime = policy?.expected_deployed_runtime_sha ? commit(policy.expected_deployed_runtime_sha, 'policy.expected_deployed_runtime_sha') : null;
-  const expectedDatabaseFingerprint = policy?.expected_database_fingerprint ? hash(policy.expected_database_fingerprint, 'policy.expected_database_fingerprint') : null;
+  const expectedSource = policy?.expected_source_commit
+    ? commit(policy.expected_source_commit, 'policy.expected_source_commit')
+    : null;
+  const expectedRuntime = policy?.expected_deployed_runtime_sha
+    ? commit(policy.expected_deployed_runtime_sha, 'policy.expected_deployed_runtime_sha')
+    : null;
+  const expectedDatabaseFingerprint = policy?.expected_database_fingerprint
+    ? hash(policy.expected_database_fingerprint, 'policy.expected_database_fingerprint')
+    : null;
   if (expectedSource && normalizedPayload.source_commit !== expectedSource) blockers.push('STORAGE_SCHEMA_VERIFICATION_SOURCE_COMMIT_MISMATCH');
   if (expectedRuntime && normalizedPayload.deployed_runtime_sha !== expectedRuntime) blockers.push('STORAGE_SCHEMA_VERIFICATION_RUNTIME_SHA_MISMATCH');
   if (policy?.runtime_parity_required === true && normalizedPayload.source_commit !== normalizedPayload.deployed_runtime_sha) blockers.push('STORAGE_SCHEMA_VERIFICATION_RUNTIME_PARITY_REQUIRED');
   if (expectedDatabaseFingerprint && normalizedPayload.readback.database_fingerprint !== expectedDatabaseFingerprint) blockers.push('STORAGE_SCHEMA_VERIFICATION_DATABASE_FINGERPRINT_MISMATCH');
 
+  const authorizedInjectionStateSchema = Object.freeze({
+    contract_key: normalizedPayload.readback.authorized_injection_state_schema_contract_key,
+    contract_digest: normalizedPayload.readback.authorized_injection_state_schema_contract_digest,
+    tables: normalizedPayload.readback.authorized_injection_state_tables,
+    table_count: normalizedPayload.readback.authorized_injection_state_table_count,
+    constraint_count: normalizedPayload.readback.authorized_injection_state_constraint_count,
+    schema_status: normalizedPayload.readback.authorized_injection_state_schema_status,
+    secrets_included: false,
+  });
   const evidence = Object.freeze({
-    schema_version: 1,
-    evidence_key: 'hostinger_storage_signed_schema_verification_v1',
+    schema_version: 2,
+    evidence_key: 'hostinger_storage_signed_schema_verification_v2',
     subject_digest: calculatedSubjectDigest,
     source_commit: normalizedPayload.source_commit,
     deployed_runtime_sha: normalizedPayload.deployed_runtime_sha,
@@ -423,6 +552,7 @@ export function verifyHostingerStorageSchemaVerification({
     readback_digest: normalizedPayload.readback_digest,
     migration_evidence_digest: normalizedPayload.migration_evidence_digest,
     database_fingerprint: normalizedPayload.readback.database_fingerprint,
+    authorized_injection_state_schema: authorizedInjectionStateSchema,
     key_id: signedPayload.key_id,
     public_key_fingerprint_sha256: publicKeyFingerprint,
     signer_identity: signedPayload.signer_identity,
