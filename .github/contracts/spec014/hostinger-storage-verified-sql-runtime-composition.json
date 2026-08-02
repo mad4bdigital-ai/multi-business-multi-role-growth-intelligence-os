@@ -10,7 +10,8 @@
     "control_plane_repository": "canonical_mysql",
     "sql_persistence_adapter": "canonical_mysql",
     "execution_parent_writer": "canonical_mysql",
-    "child_evidence_writer": "canonical_mysql"
+    "child_evidence_writer": "canonical_mysql",
+    "sql_run_reader": "canonical_mysql_read_only"
   },
   "single_provenance": {
     "signed_schema_verification_required": true,
@@ -38,7 +39,8 @@
     "execution_parents": [
       "registerPlanItems",
       "startRun",
-      "finalizeRun"
+      "finalizeRun",
+      "readRun"
     ],
     "child_evidence": [
       "appendJournalEvent",
@@ -51,10 +53,12 @@
     "raw_repository_exposed": false,
     "raw_parent_writer_exposed": false,
     "raw_child_writer_exposed": false,
+    "raw_run_reader_exposed": false,
     "legacy_repository_appendJournalEvent_exposed": false,
     "legacy_repository_recordReconciliation_exposed": false,
     "component_override_allowed": false,
-    "child_evidence_has_one_public_write_path": true
+    "child_evidence_has_one_public_write_path": true,
+    "run_read_has_one_public_path": true
   },
   "factory_boundary": {
     "database_connection_during_creation": false,
