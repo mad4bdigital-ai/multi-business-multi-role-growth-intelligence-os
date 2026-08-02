@@ -12,7 +12,7 @@
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
-      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml"
     ]
@@ -36,13 +36,14 @@
           "steps": [
             "Create the governed refresh branch from the exact main head blocked by Protected Promotion Generated Artifact Refresh.",
             "Use a temporary non-runtime trigger file only to emit a synchronize event after the explicit generated-artifact-refresh label is attached.",
-            "Let the protected default-branch request workflow validate the open same-repository PR, main base, governed branch, label, and exact current head without candidate checkout or mutation.",
+            "Let the protected default-branch request workflow from the re-registered bridge-v2 path validate the open same-repository PR, main base, governed branch, label, and exact current head without candidate checkout or mutation.",
             "Let the trusted dispatcher revalidate the request artifact and invoke governed-generated-artifact-refresh.yml with the typed confirmation and exact target SHA.",
             "Let the registered maintenance tool generate only allowlisted artifacts, reject unexpected paths, create the bounded generated commit, and dispatch exact-head read-only verification.",
             "Remove the temporary trigger file and retain only this E2E contract plus writer-produced generated artifacts before merge."
           ],
           "assertions": [
             "openapi/frontend-runtime-routes.generated.yaml is produced by the registered governed writer and is not edited or copied manually.",
+            "The request is emitted by governed-generated-artifact-refresh-pr-target-bridge-v2.yml and the retired bridge path is absent.",
             "The writer targets only the governed work branch and rejects main and Production.",
             "The expected head SHA is validated before mutation and the writer uses a normal non-force push.",
             "The temporary trigger file is absent from the final reviewed tree.",
@@ -62,7 +63,7 @@
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
-            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
             ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml"
           ]
