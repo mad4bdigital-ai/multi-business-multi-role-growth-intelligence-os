@@ -89,52 +89,47 @@ jobs:
 
   refresh-generated:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       startsWith(github.head_ref, 'gpt/'))
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'chore/repo-contract-auto-sync-30737521950'
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: http-generic-api
+    timeout-minutes: 20
+    env:
+      OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact expected head
+        uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+          persist-credentials: true
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: "22"
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
-      - run: npm ci
-      - name: Generate and commit bounded dispatch evidence
+      - name: Apply registered generated-artifact refresh tool
         shell: bash
         env:
-          TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          TARGET_REF: ${{ github.head_ref }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [[ "${TARGET_BRANCH}" != gpt/* ]]; then
-            echo "::error::generated evidence refresh is restricted to gpt/* work branches"
-            exit 1
-          fi
-          git fetch origin main --depth=1
-          BASE_REF="main"
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          if [[ -n "${UNEXPECTED}" ]]; then
-            echo "::error::generator changed files outside the bounded evidence set"
-            printf '%s\n' "${UNEXPECTED}"
-            exit 1
-          fi
-          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
-            echo "Generated evidence is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
-          git commit -m "chore(ci): refresh frontend dispatch evidence"
-          git push origin "HEAD:${TARGET_BRANCH}"
+          set -euo pipefail
+          [[ "${TARGET_REF}" == "chore/repo-contract-auto-sync-30737521950" ]]
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs \
+            --target-ref "${TARGET_REF}" \
+            --expected-head-sha "${EXPECTED_HEAD_SHA}" \
+            --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH" \
+            --output-dir "${OUTPUT_DIR}"
+      - name: Upload canonical refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-branch-recovery
+          path: ${{ env.OUTPUT_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
