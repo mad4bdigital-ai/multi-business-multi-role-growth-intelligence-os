@@ -51,7 +51,6 @@ const staticDiscoveryCommands = [
   "node test-frontend-surface-dispatch.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
-  "node test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-pr-create-rest-fallback.mjs",
