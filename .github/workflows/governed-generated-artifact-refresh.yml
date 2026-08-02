@@ -1,4 +1,5 @@
 name: Governed Generated Artifact Refresh
+run-name: Governed Generated Artifact Refresh · ${{ inputs.target_ref }} · ${{ inputs.expected_head_sha }}
 
 on:
   workflow_dispatch:
@@ -22,7 +23,7 @@ permissions:
 
 concurrency:
   group: governed-generated-artifact-refresh-${{ inputs.target_ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply:

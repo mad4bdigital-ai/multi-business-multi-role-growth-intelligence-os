@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-rollout-workflow-contexts",
+  "title": "Governed rollout workflow context and GitHub write-boundary repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-rollout-workflow-contexts.json",
+      ".github/workflows/brand-skill-mariadb-certification.yml",
+      ".github/workflows/response-chunk-ownership-governed-rollout.yml",
+      ".github/workflows/sprint69-1006-governed-rollout.yml",
+      "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
+      "http-generic-api/test-response-chunk-ownership-governed-rollout-control.mjs",
+      "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow the three governed rollout workflows to register and execute their authorized evidence phases without unavailable GitHub Actions contexts or repository-side status mutations.",
+      "e2e_journeys": [
+        {
+          "id": "validate-governed-rollout-registration-and-evidence-boundaries",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow parser and governed rollout operator",
+          "entrypoint": "The Brand Skill, Sprint 69 Migration 1006, and response chunk ownership workflow contracts",
+          "terminal_outcome": "Each workflow can reach its exact authorization gate, use a valid evidence directory, preserve separate Apply or runtime confirmations, and emit no-secret Artifact and Job Summary evidence without writing to repository Issues.",
+          "steps": [
+            "Validate Brand Skill typed bindings from repository root before checkout creates the service working directory.",
+            "Bind Sprint 69 readiness and Apply evidence to stable repository-relative directories.",
+            "Bind response chunk readiness, Apply, and runtime-closure evidence to stable repository-relative directories.",
+            "Remove GitHub Issue write permissions and API status-comment mutations from the two governed rollout workflows.",
+            "Publish bounded no-secret artifacts and GitHub Job Summaries while preserving exact readiness, Apply, and runtime authorization tokens.",
+            "Run the focused workflow contracts that reject unavailable contexts and repository write regressions."
+          ],
+          "assertions": [
+            "No job-level EVIDENCE_DIR references runner.temp before a runner exists.",
+            "Brand Skill pre-checkout validation explicitly runs from repository root.",
+            "The Sprint 69 and response chunk workflows request contents:read only and contain no gh api mutation.",
+            "Readiness, Apply, and runtime-closure evidence directories are stable repository-relative paths.",
+            "Exact issue, association, and confirmation gates remain present and separate.",
+            "No SQL, migration Apply, provider call, credential read, deployment, Production mutation, or external business write is executed by these contract tests."
+          ],
+          "tests": [
+            {
+              "id": "brand-skill-workflow-context-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-skill-mariadb-certification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "sprint69-rollout-context-and-write-boundary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1006-governed-rollout-control.mjs",
+              "args": []
+            },
+            {
+              "id": "response-chunk-rollout-context-and-write-boundary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-response-chunk-ownership-governed-rollout-control.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/brand-skill-mariadb-certification.yml",
+            ".github/workflows/sprint69-1006-governed-rollout.yml",
+            ".github/workflows/response-chunk-ownership-governed-rollout.yml",
+            "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
+            "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs",
+            "http-generic-api/test-response-chunk-ownership-governed-rollout-control.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe fresh authorized readiness or staging runs after merge and validate the uploaded evidence artifacts."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep unavailable-context and repository-write regressions fail-closed through the focused contracts and repository lifecycle governance."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate a fresh checksum-bound non-Production staging or readiness execution using the repaired workflows."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This workflow repair grants no migration Apply, deployment, provider, credential, or Production authority."
+    }
+  ]
+}
