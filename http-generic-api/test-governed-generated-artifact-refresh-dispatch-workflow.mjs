@@ -6,32 +6,35 @@ const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-d
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch$/mu);
-assert.match(workflow, /^\s*push:\s*$/mu, "dispatcher must observe governed work-branch pushes");
 assert.match(workflow, /^\s*issue_comment:\s*$/mu, "dispatcher must expose a trusted comment command from main");
 assert.match(workflow, /types:\s*\[created\]/u, "comment dispatcher must use newly created comments only");
 assert.match(workflow, /^\s*workflow_dispatch:\s*$/mu, "dispatcher must retain an explicit dispatch surface");
-for (const pattern of ["gpt/**", "cert/**", "fix/**", "feat/**", "chore/**", "docs/**", "release/**"]) {
-  assert.ok(workflow.includes(`- "${pattern}"`), `missing governed branch family ${pattern}`);
-}
+assert.doesNotMatch(workflow, /^\s*push:\s*$/mu, "dispatcher must not execute from work-branch pushes");
 assert.match(workflow, /actions:\s*write/u, "dispatcher requires Actions dispatch authority");
 assert.match(workflow, /contents:\s*read/u, "dispatcher must keep repository contents read-only");
-assert.match(workflow, /issues:\s*read/u, "dispatcher must inspect trusted comment metadata without comment mutation");
-assert.match(workflow, /pull-requests:\s*read/u, "dispatcher must resolve the associated pull request without comment authority");
+assert.match(workflow, /issues:\s*write/u, "dispatcher directly publishes its bounded canonical decision");
+assert.match(workflow, /pull-requests:\s*read/u, "dispatcher must resolve the associated pull request");
 assert.doesNotMatch(workflow, /contents:\s*write/u, "dispatcher must not receive direct contents-write authority");
 assert.doesNotMatch(workflow, /\bgit\s+push\b/u, "dispatcher must not push repository contents directly");
-assert.doesNotMatch(workflow, /actions\/checkout/u, "comment dispatcher must never checkout candidate code");
 assert.doesNotMatch(workflow, /pull_request(?:_target)?:/u, "write-capable dispatcher must not be a pull-request workflow");
+assert.match(workflow, /Checkout trusted default branch publisher/u);
+assert.match(workflow, /ref:\s*main/u);
+assert.match(workflow, /persist-credentials:\s*false/u);
+assert.match(workflow, /REPORT_DIR:\s*\.ci-evidence\/governed-generated-artifact-refresh-dispatch/u);
+assert.doesNotMatch(workflow, /\$\{\{\s*runner\.temp\s*\}\}/u, "jobs-level env must not reference the unavailable runner context");
 assert.match(workflow, /github\.event\.issue\.pull_request/u, "comment command must be limited to pull-request conversations");
 assert.match(workflow, /OWNER.*MEMBER.*COLLABORATOR/u, "comment command must require a trusted author association");
 assert.match(workflow, /\/refresh-generated-artifacts/u, "dispatcher must require the explicit typed comment command");
 assert.match(workflow, /\[0-9a-f\]\{40\}/u, "typed comment command must bind one exact lowercase SHA");
-assert.match(workflow, /head\.repo\.full_name/u, "runtime readback must bind the same repository");
+assert.match(workflow, /head_repo/u, "runtime readback must bind the same repository");
 assert.match(workflow, /generated-artifact-refresh/u, "dispatch must still require the explicit PR label");
 assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u, "delegated workflow must receive typed confirmation");
 assert.match(workflow, /expected_head_sha/u, "delegated workflow must receive an exact expected head SHA");
 assert.match(workflow, /main.*Production/u, "dispatcher must reject protected branches before API dispatch");
 assert.match(workflow, /governed-generated-artifact-refresh\.yml\/dispatches/u, "dispatcher must target the registered mutating workflow");
 assert.match(workflow, /mad4b\.governed-generated-artifact-refresh-dispatch\.v1/u, "dispatcher must emit its canonical evidence contract");
+assert.match(workflow, /Publish canonical dispatch evidence directly/u);
+assert.match(workflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
 assert.match(workflow, /source_of_truth:\s*"structured_report"/u);
 assert.match(workflow, /job_logs_role:\s*"diagnostic_only"/u);
 assert.match(workflow, /consult_job_logs:\s*false/u);
@@ -40,13 +43,15 @@ assert.match(workflow, /github\.actor != 'github-actions\[bot\]'/u, "bot-authore
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 27,
+  tests: 35,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
   trusted_comment_command: true,
   candidate_checkout: false,
+  trusted_main_checkout: true,
   pull_request_write_workflow: false,
   direct_contents_write: false,
+  jobs_level_runner_context_used: false,
   force_push: false,
   secrets_included: false,
 }));
