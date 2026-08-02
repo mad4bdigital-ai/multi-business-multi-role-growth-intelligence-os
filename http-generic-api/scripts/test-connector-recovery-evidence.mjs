@@ -66,7 +66,7 @@ try {
   assert.match(openapi, /\/health:/u);
   assert.match(openapi, /security: \[\]/u);
   assert.equal(policy.connector_recovery.hostname, "connector.mad4b.com");
-  assert.equal(policy.connector_recovery.deployment_provider, "cloudflare_tunnel");
+  assert.equal(policy.connector_recovery.deployment_provider, "cloudflare_tunnel_local_windows_service");
   assert.equal(policy.connector_recovery.hostinger_auto_deploy, false);
 
   const passed = await runConnectorRecoveryEvidence({
