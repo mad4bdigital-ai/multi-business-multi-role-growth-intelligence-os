@@ -22308,3 +22308,9 @@ paths:
         "403": { description: Admin principal required }
   /admin/container-authority/override-governance-smokes:
     $ref: ./openapi/container-authority-override-governance-smoke.yaml#/adminContainerAuthorityOverrideGovernanceSmokes
+  /me/support/tickets:
+    $ref: ./openapi/support-tickets.yaml#/mySupportTickets
+  /me/support/tickets/{ticket_id}:
+    $ref: ./openapi/support-tickets.yaml#/mySupportTicketById
+  /me/support/tickets/{ticket_id}/events:
+    $ref: ./openapi/support-tickets.yaml#/mySupportTicketEvents
