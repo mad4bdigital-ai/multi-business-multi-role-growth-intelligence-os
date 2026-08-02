@@ -44,6 +44,7 @@
             "Require canonical durable Tenant authority and one-shot enablement dependencies bound to the same database fingerprint.",
             "Read the operation aggregate first and reject any Tenant, Workspace, Resource, context-mode, or operation mismatch before secondary reads.",
             "Read the exact run, allowlist, approval, enablement, and immutable consumption receipt only after the audience gate passes.",
+            "Classify SQL Run Reader results as zero, exactly one, or ambiguous before normalizing the sole proven row.",
             "Verify operation-to-plan, operation-plan-to-run, target-to-allowlist, Workspace Owner approval, and operation-run enablement bindings.",
             "Verify that the current consumed state agrees with immutable consumption-receipt presence.",
             "Reduce journal rows to phase and outcome counts and reduce reconciliation rows to the latest outcome and retry semantics.",
@@ -54,6 +55,7 @@
           "assertions": [
             "Audience mismatch stops after the aggregate read and before run, authority, approval, enablement, or receipt reads.",
             "All durable dependencies bind the same database fingerprint.",
+            "The SQL Run Reader returns no run only for zero rows, normalizes only one proven row, and rejects multiple rows with STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS.",
             "Run, allowlist, approval, enablement, and receipt mismatches fail closed.",
             "Raw journal, reconciliation, and run metadata rows are never exposed.",
             "Path, worker, connector, dispatch-certification, host-key, snapshot, inode, device, timestamp-stat, ownership, and internal evidence references are absent from serialized output.",
