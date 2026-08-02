@@ -61,8 +61,6 @@ jobs:
 
           first_failure=''
           failure_status=0
-          failure_stdout=''
-          failure_stderr=''
           run_bounded() {
             local step="$1"; shift
             local stdout_file="$report_dir/${step}.stdout"
@@ -74,8 +72,6 @@ jobs:
             if [[ $status -ne 0 && -z "$first_failure" ]]; then
               first_failure="$step"
               failure_status=$status
-              failure_stdout="$(tail -c 4000 "$stdout_file" | sed -E 's/(authorization|api[_-]?key|token|password|secret|cookie)[=:][^[:space:]]+/\1=[redacted]/Ig')"
-              failure_stderr="$(tail -c 4000 "$stderr_file" | sed -E 's/(authorization|api[_-]?key|token|password|secret|cookie)[=:][^[:space:]]+/\1=[redacted]/Ig')"
               return $status
             fi
           }
@@ -87,20 +83,49 @@ jobs:
           if [[ -z "$first_failure" ]]; then run_bounded generate_frontend_dispatch npm run frontend:dispatch:generate -- --baseline-ref=main || true; fi
           if [[ -z "$first_failure" ]]; then run_bounded generate_custom_gpt_schemas node scripts/generate-custom-gpt-schemas.mjs --write || true; fi
 
-          INTEGRATION_SHA="$integration_sha" MAIN_SHA="$main_sha" FIRST_FAILURE="$first_failure" FAILURE_STATUS="$failure_status" FAILURE_STDOUT="$failure_stdout" FAILURE_STDERR="$failure_stderr" REPORT_DIR="$report_dir" python3 - <<'PY'
-          import json, os
+          INTEGRATION_SHA="$integration_sha" MAIN_SHA="$main_sha" FIRST_FAILURE="$first_failure" FAILURE_STATUS="$failure_status" REPORT_DIR="$report_dir" python3 - <<'PY'
+          import json, os, re
           from pathlib import Path
+          root=Path(os.environ['REPORT_DIR'])
+          step=os.environ['FIRST_FAILURE']
+          details=None
+          stdout_head=stdout_tail=stderr_head=stderr_tail=''
+          if step:
+            stdout=(root/f'{step}.stdout').read_text(errors='replace')
+            stderr=(root/f'{step}.stderr').read_text(errors='replace')
+            redact=lambda value: re.sub(r'(?i)(authorization|api[_-]?key|token|password|secret|cookie)\s*[:=]\s*\S+', r'\1=[redacted]', value)
+            stdout_head=redact(stdout[:1200]); stdout_tail=redact(stdout[-1200:])
+            stderr_head=redact(stderr[:1200]); stderr_tail=redact(stderr[-1200:])
+            try:
+              payload=json.loads(stderr)
+              details={
+                'code':payload.get('code'),
+                'conflict_count':payload.get('conflict_count'),
+                'conflicts':[
+                  {
+                    'path':item.get('path'),
+                    'code':item.get('code'),
+                    'expected_path_item_ref':item.get('expected_path_item_ref'),
+                  }
+                  for item in (payload.get('conflicts') or [])[:20]
+                ],
+              }
+            except Exception:
+              details=None
           report={
             'contract':'mad4b.spec014-main-reconciliation-generator-diagnostic.v1',
-            'outcome':'blocked' if os.environ['FIRST_FAILURE'] else 'passed',
+            'outcome':'blocked' if step else 'passed',
             'integration_sha':os.environ['INTEGRATION_SHA'],
             'main_sha':os.environ['MAIN_SHA'],
             'conflict_paths':['http-generic-api/frontend-surface-dispatch.generated.json'],
-            'first_failure':None if not os.environ['FIRST_FAILURE'] else {
-              'step':os.environ['FIRST_FAILURE'],
+            'first_failure':None if not step else {
+              'step':step,
               'exit_status':int(os.environ['FAILURE_STATUS']),
-              'stdout_tail':os.environ['FAILURE_STDOUT'],
-              'stderr_tail':os.environ['FAILURE_STDERR'],
+              'structured_details':details,
+              'stdout_head':stdout_head,
+              'stdout_tail':stdout_tail,
+              'stderr_head':stderr_head,
+              'stderr_tail':stderr_tail,
               'secrets_included':False,
             },
             'repository_write_performed':False,
@@ -109,7 +134,7 @@ jobs:
             'credential_access':False,
             'secrets_included':False,
           }
-          Path(os.environ['REPORT_DIR'],'summary.json').write_text(json.dumps(report,indent=2)+'\n')
+          (root/'summary.json').write_text(json.dumps(report,indent=2)+'\n')
           PY
       - name: Upload generator diagnostic
         if: always()
