@@ -7,23 +7,26 @@ const workflow = fs.readFileSync(workflowPath, "utf8");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch$/mu);
 assert.match(workflow, /^\s*push:\s*$/mu, "dispatcher must observe governed work-branch pushes");
-assert.match(workflow, /^\s*pull_request_target:\s*$/mu, "dispatcher must observe trusted PR label and synchronization events from main");
-assert.match(workflow, /types:\s*\[labeled, synchronize, reopened\]/u, "trusted PR dispatch must cover label, synchronize, and reopen events");
+assert.match(workflow, /^\s*issue_comment:\s*$/mu, "dispatcher must expose a trusted comment command from main");
+assert.match(workflow, /types:\s*\[created\]/u, "comment dispatcher must use newly created comments only");
 assert.match(workflow, /^\s*workflow_dispatch:\s*$/mu, "dispatcher must retain an explicit dispatch surface");
 for (const pattern of ["gpt/**", "cert/**", "fix/**", "feat/**", "chore/**", "docs/**", "release/**"]) {
   assert.ok(workflow.includes(`- "${pattern}"`), `missing governed branch family ${pattern}`);
 }
 assert.match(workflow, /actions:\s*write/u, "dispatcher requires Actions dispatch authority");
 assert.match(workflow, /contents:\s*read/u, "dispatcher must keep repository contents read-only");
+assert.match(workflow, /issues:\s*read/u, "dispatcher must inspect trusted comment metadata without comment mutation");
 assert.match(workflow, /pull-requests:\s*read/u, "dispatcher must resolve the associated pull request without comment authority");
 assert.doesNotMatch(workflow, /contents:\s*write/u, "dispatcher must not receive direct contents-write authority");
 assert.doesNotMatch(workflow, /\bgit\s+push\b/u, "dispatcher must not push repository contents directly");
-assert.doesNotMatch(workflow, /actions\/checkout/u, "pull_request_target dispatcher must never checkout candidate code");
-assert.match(workflow, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u, "trusted PR dispatch must reject cross-repository heads");
-assert.match(workflow, /github\.event\.pull_request\.head\.ref/u, "trusted PR dispatch must bind the event head ref");
-assert.match(workflow, /github\.event\.pull_request\.head\.sha/u, "trusted PR dispatch must bind the event exact head SHA");
-assert.match(workflow, /cross_repository_pull_request_forbidden/u, "runtime readback must also reject cross-repository PRs");
-assert.match(workflow, /generated-artifact-refresh/u, "dispatch must require the explicit PR label");
+assert.doesNotMatch(workflow, /actions\/checkout/u, "comment dispatcher must never checkout candidate code");
+assert.doesNotMatch(workflow, /pull_request(?:_target)?:/u, "write-capable dispatcher must not be a pull-request workflow");
+assert.match(workflow, /github\.event\.issue\.pull_request/u, "comment command must be limited to pull-request conversations");
+assert.match(workflow, /OWNER.*MEMBER.*COLLABORATOR/u, "comment command must require a trusted author association");
+assert.match(workflow, /\/refresh-generated-artifacts/u, "dispatcher must require the explicit typed comment command");
+assert.match(workflow, /\[0-9a-f\]\{40\}/u, "typed comment command must bind one exact lowercase SHA");
+assert.match(workflow, /head\.repo\.full_name/u, "runtime readback must bind the same repository");
+assert.match(workflow, /generated-artifact-refresh/u, "dispatch must still require the explicit PR label");
 assert.match(workflow, /APPLY_GENERATED_ARTIFACT_REFRESH/u, "delegated workflow must receive typed confirmation");
 assert.match(workflow, /expected_head_sha/u, "delegated workflow must receive an exact expected head SHA");
 assert.match(workflow, /main.*Production/u, "dispatcher must reject protected branches before API dispatch");
@@ -37,11 +40,12 @@ assert.match(workflow, /github\.actor != 'github-actions\[bot\]'/u, "bot-authore
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 25,
+  tests: 27,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
-  trusted_pr_event: true,
+  trusted_comment_command: true,
   candidate_checkout: false,
+  pull_request_write_workflow: false,
   direct_contents_write: false,
   force_push: false,
   secrets_included: false,
