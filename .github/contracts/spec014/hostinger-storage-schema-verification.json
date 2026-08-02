@@ -1,14 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "contract": "spec014.hostinger-storage-signed-schema-verification.v1",
+  "contract": "spec014.hostinger-storage-signed-schema-verification.v2",
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "status": "verification_contract_ready_unsigned",
   "subject_type": "application/vnd.in-toto+json",
-  "predicate_type": "https://mad4b.com/attestations/hostinger-storage-schema-verification/v1",
+  "predicate_type": "https://mad4b.com/attestations/hostinger-storage-schema-verification/v2",
+  "attestation_version": "spec014-hostinger-storage-schema-verification-v2",
   "signature_algorithm": "Ed25519",
   "canonicalization": "stable-json-sorted-keys-utf8-newline",
   "public_key_only_verification": true,
   "private_key_material_forbidden": true,
+  "v1_attestation_replay_rejected": true,
   "repository": "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   "runtime_parity_required": true,
   "same_cycle_readback_required": true,
@@ -17,11 +19,25 @@
   "max_attestation_age_minutes": 15,
   "expected_readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
   "readback_contract_path": ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
+  "authorized_injection_state_schema": {
+    "contract_key": "hostinger_storage_durable_authorized_injection_state_schema_v1",
+    "contract_digest": "652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a",
+    "tables": [
+      "storage_authorized_injection_states",
+      "storage_authorized_injection_rollbacks"
+    ],
+    "table_count": 2,
+    "constraint_count": 13,
+    "schema_status": "ready_exact_contract",
+    "runtime_material_persisted": false,
+    "secrets_included": false
+  },
   "expected_counts": {
     "compatible_tables": 17,
     "present_views": 3,
-    "compatible_runtime_columns": 68,
+    "compatible_runtime_columns": 71,
     "compatible_runtime_index_columns": 31,
+    "authorized_injection_state_constraints": 13,
     "observed_tools": 3,
     "disabled_tools": 3,
     "enabled_tools": 0
@@ -64,6 +80,7 @@
     "object_readiness_status": "ready_for_column_index_constraint_readback",
     "runtime_column_readback_status": "ready",
     "runtime_index_readback_status": "ready",
+    "authorized_injection_state_schema_status": "ready_exact_contract",
     "tool_seed_readback_status": "ready_default_off"
   },
   "required_zero_activity": {
@@ -73,7 +90,7 @@
     "secrets_included": false
   },
   "verification_result": {
-    "schema_verified_may_be_true_only_after_valid_signature": true,
+    "schema_verified_may_be_true_only_after_valid_v2_signature": true,
     "production_ready_remains_false": true,
     "authority_granted": false,
     "migration_apply_authorized": false,
