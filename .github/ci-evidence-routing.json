@@ -60,7 +60,7 @@
   },
   "specialized_publishers": [
     {
-      "workflow": "Hostinger CI Evidence PR Publisher",
+      "workflow": "Hostinger Canonical Evidence PR Publisher",
       "trigger": "workflow_run",
       "trusted_ref": "main",
       "comment_marker": "<!-- mad4b-ci-evidence-authority -->",
@@ -145,7 +145,7 @@
       "candidate_kind": "head",
       "canonical_contract": "mad4b.hostinger-guard-summary.v1",
       "canonical_artifact": "hostinger-storage-tenant-canary-${run_id}-summary",
-      "publisher_workflow": "Hostinger CI Evidence PR Publisher",
+      "publisher_workflow": "Hostinger Canonical Evidence PR Publisher",
       "candidate_rule": "report.workflow must equal workflow; identity.candidate_sha must equal workflow_run.head_sha; job_logs_consulted must be false; secrets_included must be false",
       "source_contracts": {
         "hostinger-storage-tenant-canary-summary.json": "mad4b.hostinger-guard-summary.v1"

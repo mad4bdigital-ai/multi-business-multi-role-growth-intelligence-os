@@ -21,7 +21,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add a trusted exact-head publisher route for Hostinger Storage Tenant Canary Guard without changing the existing general CI publisher or granting repository/runtime mutation authority.",
+      "objective": "Add a trusted exact-head publisher route for Hostinger Storage Tenant Canary Guard under the unique Hostinger Canonical Evidence PR Publisher identity without changing the general CI publisher or granting repository/runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "hostinger-tenant-canary-canonical-evidence-publication",
@@ -29,7 +29,7 @@
           "level": "synthetic_runtime",
           "actor": "repository reviewer and trusted workflow_run publisher",
           "entrypoint": "A completed Hostinger Storage Tenant Canary Guard run carrying a canonical structured artifact",
-          "terminal_outcome": "The trusted main-based publisher validates the exact PR head, workflow and guard identity, contract, counts, no-secret declaration, and no-log decision before updating the shared authoritative PR comment.",
+          "terminal_outcome": "The trusted main-based Hostinger Canonical Evidence PR Publisher validates the exact PR head, workflow and guard identity, contract, counts, no-secret declaration, and no-log decision before updating the shared authoritative PR comment.",
           "steps": [
             "Receive a completed workflow_run event only for Hostinger Storage Tenant Canary Guard.",
             "Checkout trusted main without persisted credentials.",
@@ -41,6 +41,7 @@
           ],
           "assertions": [
             "The source and report workflow is Hostinger Storage Tenant Canary Guard and guard_key is hostinger-storage-tenant-canary.",
+            "The specialized publisher workflow identity is Hostinger Canonical Evidence PR Publisher.",
             "The canonical contract is mad4b.hostinger-guard-summary.v1.",
             "The candidate kind is head and candidate SHA equals workflow_run.head_sha.",
             "Passed evidence requires all selected checks to pass, zero integrity findings, and first_failure=null.",
@@ -72,10 +73,10 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Re-register the specialized workflow at its canonical path, then consume a real run-bound Tenant Canary artifact and update the exact-head authoritative PR comment.",
+      "objective": "Register the specialized publisher under a unique workflow identity, then consume a real run-bound Tenant Canary artifact and update the exact-head authoritative PR comment.",
       "blockers": [
-        "The previous publisher workflow path did not produce a workflow_run publication after two successful Tenant Canary runs, while the general E2E publisher updated the same comment.",
-        "A post-merge Tenant Canary run must prove the re-registered publisher adds the Hostinger section for the same exact head."
+        "Path-only re-registration at main commit 606545e7aaa07c580d28174bb1e6db52e2b6c53c retained the previous internal workflow identity and still produced no Hostinger comment section after runs 30728203790 and 30728283325.",
+        "A post-merge Tenant Canary run must prove Hostinger Canonical Evidence PR Publisher adds the Hostinger section for the same exact head."
       ]
     },
     {

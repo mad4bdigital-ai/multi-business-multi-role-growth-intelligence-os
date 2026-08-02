@@ -2,13 +2,14 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "hostinger-evidence-publisher-workflow-reregistration",
-  "title": "Hostinger evidence publisher workflow re-registration",
+  "title": "Hostinger evidence publisher unique workflow identity",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/hostinger-evidence-publisher-workflow-reregistration.json",
       ".changes/e2e/hostinger-canonical-evidence-publisher.json",
+      ".github/ci-evidence-routing.json",
       ".github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml",
       "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
     ]
@@ -20,33 +21,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Move the unchanged Hostinger workflow_run publisher to a canonical workflow path so GitHub registers the specialized publisher without changing its permissions, artifact identity, PR resolution, comment authority, or runtime safety boundary.",
+      "objective": "Assign the specialized Hostinger workflow_run publisher a unique internal workflow identity so GitHub registers it independently while preserving its permissions, artifact identity, PR resolution, comment authority, and runtime safety boundary.",
       "e2e_journeys": [
         {
-          "id": "hostinger-publisher-canonical-path-registration",
+          "id": "hostinger-publisher-unique-workflow-identity",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "trusted repository workflow maintainer",
-          "entrypoint": "The specialized Hostinger publisher workflow and its static contract test",
-          "terminal_outcome": "Exactly one specialized publisher workflow remains at the canonical path and retains the existing workflow_run trigger, trusted-main checkout, run-bound artifact download, and bounded authoritative-comment update contract.",
+          "entrypoint": "The specialized Hostinger publisher workflow, routing contract, and static contract test",
+          "terminal_outcome": "Exactly one specialized publisher is registered as Hostinger Canonical Evidence PR Publisher and retains the workflow_run trigger, trusted-main checkout, run-bound artifact download, exact PR identity validation, and bounded authoritative-comment update contract.",
           "steps": [
-            "Register the byte-equivalent publisher at the canonical workflow path.",
-            "Remove the previous workflow path to prevent duplicate workflow_run publishers.",
-            "Update the static contract test and E2E evidence paths to the canonical path.",
+            "Change the publisher workflow name from Hostinger CI Evidence PR Publisher to Hostinger Canonical Evidence PR Publisher.",
+            "Preserve the completed workflow_run trigger for Hostinger Storage Tenant Canary Guard.",
+            "Update ci-evidence routing and static regression expectations to the unique publisher name.",
             "Run the specialized publisher normalization and comment-upsert regression suite."
           ],
           "assertions": [
-            "The workflow name remains Hostinger CI Evidence PR Publisher.",
+            "The unique workflow name is Hostinger Canonical Evidence PR Publisher.",
             "The trigger remains workflow_run completed for Hostinger Storage Tenant Canary Guard only.",
             "Permissions remain actions:read, contents:read, issues:write, and pull-requests:write.",
             "The publisher checks out trusted main with persist-credentials:false.",
             "The downloaded artifact name remains hostinger-storage-tenant-canary-${run_id}-summary.",
+            "Routing references the unique publisher name for both the specialized publisher registry and Tenant Canary route.",
             "No PR-head code receives comment-write authority.",
             "No provider, credential, SQL, migration, deployment, Production, protected-branch, or force-push action occurs."
           ],
           "tests": [
             {
-              "id": "hostinger-publisher-canonical-path-contract",
+              "id": "hostinger-publisher-unique-identity-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-hostinger-ci-evidence-pr-comment.mjs",
@@ -54,6 +56,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/ci-evidence-routing.json",
             ".github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml",
             ".changes/e2e/hostinger-canonical-evidence-publisher.json",
             "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
@@ -64,10 +67,10 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "After merge, complete a new exact-head Tenant Canary run and prove the re-registered publisher writes the Hostinger section to the shared authoritative PR comment.",
+      "objective": "After merge, complete a new exact-head Tenant Canary run and prove Hostinger Canonical Evidence PR Publisher writes the Hostinger section to the shared authoritative PR comment.",
       "blockers": [
-        "The canonical publisher path has not reached main yet.",
-        "No post-registration workflow_run publication has been observed."
+        "The unique publisher workflow identity has not reached main yet.",
+        "No post-identity-change workflow_run publication has been observed."
       ]
     },
     {
