@@ -2,18 +2,19 @@ name: Hostinger Storage Tenant Canary Guard
 
 on:
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
     paths:
-      - '**/*.js'
-      - '**/*.mjs'
-      - '**/*.cjs'
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.mts'
-      - '**/*.cts'
-      - '.github/tests/spec014/**'
       - '.github/workflows/hostinger-storage-tenant-canary-guard.yml'
       - '.changes/e2e/spec014-tenant-canary-canonical-evidence.json'
-      - 'specs/014-governed-hostinger-storage-orchestration/**'
+      - 'http-generic-api/scripts/hostinger-tenant-canary-ci.mjs'
+      - 'http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs'
+      - 'http-generic-api/hostingerStorageTenantCanary*.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-canary*.mjs'
+      - '.github/tests/spec014/tenant-canary-repository-provenance.mjs'
 
 permissions:
   contents: read
