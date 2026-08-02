@@ -36,6 +36,18 @@
           "required_ledger_mode": "apply"
         }
       ]
+    },
+    "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql": {
+      "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+      "statement_count": 2,
+      "dependencies": [
+        {
+          "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+          "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+          "statement_count": 9,
+          "required_ledger_mode": "apply"
+        }
+      ]
     }
   }
 }

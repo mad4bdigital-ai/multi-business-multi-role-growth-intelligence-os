@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - '.changes/e2e/spec014-migration-authorization-readiness.json'
+      - '.changes/e2e/spec014-durable-authorized-injection-wave4-runtime-promotion.json'
       - '.github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json'
       - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json'
       - '.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml'
       - 'http-generic-api/governedMigrationAuthorizationBootstrap.js'
       - 'http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js'
@@ -13,6 +15,7 @@ on:
       - 'http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql'
       - 'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql'
       - 'http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql'
+      - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
 
 permissions:
   contents: read
@@ -58,9 +61,12 @@ jobs:
           grep -q "authorization_registry_mutated: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
           grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
           grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR = 4879" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q '"wave_4_promotion_pull_request": 4879' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"authorization_created": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"migration_sql_executed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"live_database_access_performed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
 
       - name: Execute readiness contract regression
         env:

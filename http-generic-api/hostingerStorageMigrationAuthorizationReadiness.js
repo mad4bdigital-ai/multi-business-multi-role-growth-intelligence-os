@@ -20,6 +20,9 @@ const DEFAULT_MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 export const HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR = 4564;
 export const HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA =
   '7a96920eff2579321707d193a1d030e6454891b1';
+export const HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR = 4879;
+export const HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA =
+  '4ca8d8691baa66210b679da51c5d92909c88c14c';
 
 const EXPECTED_WAVES = Object.freeze([
   Object.freeze({
@@ -28,6 +31,8 @@ const EXPECTED_WAVES = Object.freeze([
     checksum_sha256: '9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053',
     statement_count: 4,
     dependency: null,
+    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
+    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
   }),
   Object.freeze({
     wave: 2,
@@ -35,6 +40,8 @@ const EXPECTED_WAVES = Object.freeze([
     checksum_sha256: '80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33',
     statement_count: 6,
     dependency: '20260802_01_spec014_hostinger_storage_foundation.sql',
+    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
+    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
   }),
   Object.freeze({
     wave: 3,
@@ -42,6 +49,17 @@ const EXPECTED_WAVES = Object.freeze([
     checksum_sha256: 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096',
     statement_count: 9,
     dependency: '20260802_02_spec014_hostinger_storage_control_plane.sql',
+    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
+    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
+  }),
+  Object.freeze({
+    wave: 4,
+    migration: '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql',
+    checksum_sha256: 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981',
+    statement_count: 2,
+    dependency: '20260802_03_spec014_hostinger_storage_execution_evidence.sql',
+    promotion_pull_request: HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR,
+    promotion_merge_sha: HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
   }),
 ]);
 
@@ -84,7 +102,7 @@ function assertRuntimeContract(contract = {}) {
   if (!Array.isArray(contract.waves) || contract.waves.length !== EXPECTED_WAVES.length) {
     throw readinessError(
       'STORAGE_MIGRATION_READINESS_WAVE_SEQUENCE_INVALID',
-      'Exactly three governed migration waves are required.',
+      'Exactly four governed migration waves are required.',
     );
   }
   for (let index = 0; index < EXPECTED_WAVES.length; index += 1) {
@@ -111,6 +129,49 @@ function uniqueSorted(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
 }
 
+function resolvePromotionSource(input, expected) {
+  const wave4 = expected.wave === 4;
+  const pullRequest = Number(
+    wave4
+      ? input.wave_4_pull_request ?? expected.promotion_pull_request
+      : input.pull_request ?? expected.promotion_pull_request,
+  );
+  const mergeSha = String(
+    wave4
+      ? input.wave_4_merge_sha ?? expected.promotion_merge_sha
+      : input.merge_sha ?? expected.promotion_merge_sha,
+  ).trim().toLowerCase();
+
+  if (pullRequest !== expected.promotion_pull_request) {
+    throw readinessError(
+      'STORAGE_MIGRATION_READINESS_PROMOTION_PR_MISMATCH',
+      'Readiness is bound to the exact reviewed promotion PR for each wave.',
+      {
+        wave: expected.wave,
+        expected: expected.promotion_pull_request,
+        actual: pullRequest,
+      },
+    );
+  }
+  if (mergeSha !== expected.promotion_merge_sha) {
+    throw readinessError(
+      'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH',
+      'Readiness is bound to the exact reviewed promotion merge SHA for each wave.',
+      {
+        wave: expected.wave,
+        expected: expected.promotion_merge_sha,
+        actual: mergeSha,
+      },
+    );
+  }
+
+  return Object.freeze({
+    pull_request: pullRequest,
+    merge_sha: mergeSha,
+    secrets_included: false,
+  });
+}
+
 export async function buildHostingerStorageMigrationAuthorizationReadiness(
   input = {},
   deps = {},
@@ -122,35 +183,23 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
   const inspectCandidate =
     deps.inspectCandidate || inspectGovernedMigrationAuthorizationCandidate;
 
-  const pullRequest = Number(
-    input.pull_request ?? HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
-  );
-  const mergeSha = String(
-    input.merge_sha ?? HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
-  ).trim().toLowerCase();
-
-  if (pullRequest !== HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_PROMOTION_PR_MISMATCH',
-      'Readiness is bound to the governed runtime migration promotion PR.',
-      { expected: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR, actual: pullRequest },
-    );
-  }
-  if (mergeSha !== HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA) {
-    throw readinessError(
-      'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH',
-      'Readiness is bound to the exact governed migration promotion merge SHA.',
-      { expected: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA, actual: mergeSha },
-    );
-  }
-
   const contract = input.runtime_contract
     ? structuredClone(input.runtime_contract)
     : JSON.parse(await readFile(runtimeContractPath, 'utf8'));
   assertRuntimeContract(contract);
 
+  const promotionSources = EXPECTED_WAVES.map((expected) => Object.freeze({
+    wave: expected.wave,
+    ...resolvePromotionSource(input, expected),
+  }));
+  const promotionSourceByWave = new Map(
+    promotionSources.map((source) => [source.wave, source]),
+  );
+
   const waves = [];
   for (const wave of contract.waves) {
+    const expected = EXPECTED_WAVES.find((entry) => entry.wave === wave.wave);
+    const source = promotionSourceByWave.get(wave.wave);
     const confirmation = governedMigrationAuthorizationConfirmation(wave.migration);
     let candidate = null;
     let inspectionError = null;
@@ -161,8 +210,8 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
           migration: wave.migration,
           expected_checksum_sha256: wave.checksum_sha256,
           expected_statement_count: wave.statement_count,
-          pull_request: pullRequest,
-          merge_sha: mergeSha,
+          pull_request: source.pull_request,
+          merge_sha: source.merge_sha,
           confirm: confirmation,
         },
         { readFile, migrationsDir },
@@ -189,6 +238,12 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
         'LIVE_TOOL_KEY_ABSENCE_READBACK_REQUIRED',
       );
     }
+    if (wave.wave === 4) {
+      blockers.push(
+        'LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED',
+        'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED',
+      );
+    }
     if (inspectionError) blockers.push(inspectionError.code);
 
     let readinessState = 'candidate_inspection_ready_authorization_not_created';
@@ -198,6 +253,10 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
     if (wave.wave === 3) {
       readinessState = 'candidate_inspection_blocked_live_absence_readback_required';
     }
+    if (wave.wave === 4) {
+      readinessState =
+        'candidate_inspection_ready_dependency_and_live_schema_readback_required';
+    }
 
     waves.push(
       Object.freeze({
@@ -206,6 +265,8 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
         checksum_sha256: wave.checksum_sha256,
         statement_count: wave.statement_count,
         dependency: wave.dependency || null,
+        promotion_pull_request: source.pull_request,
+        promotion_merge_sha: source.merge_sha,
         required_confirmation: confirmation,
         repository_preflight_status: wave.preflight_status,
         repository_preflight_risk_count: Number(wave.preflight_risk_count || 0),
@@ -221,6 +282,14 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
         secrets_included: false,
       }),
     );
+
+    if (!expected || expected.migration !== wave.migration) {
+      throw readinessError(
+        'STORAGE_MIGRATION_READINESS_EXPECTED_WAVE_MISSING',
+        'Expected wave metadata was not available during readiness construction.',
+        { wave: wave.wave },
+      );
+    }
   }
 
   const byWave = new Map(waves.map((wave) => [wave.wave, wave]));
@@ -248,14 +317,24 @@ export async function buildHostingerStorageMigrationAuthorizationReadiness(
       { inspection_error: byWave.get(3)?.candidate_inspection_error || null },
     );
   }
+  if (!byWave.get(4)?.candidate_inspection_passed) {
+    throw readinessError(
+      'STORAGE_MIGRATION_READINESS_WAVE_4_INSPECTION_FAILED',
+      'Wave 4 must pass repository-only authorization candidate inspection.',
+      { inspection_error: byWave.get(4)?.candidate_inspection_error || null },
+    );
+  }
 
   return Object.freeze({
     ok: true,
     contract: 'spec014.hostinger-storage-migration-authorization-readiness.v1',
     status: 'repository_inspection_complete_live_authorization_blocked',
     source_contract: '.github/contracts/spec014/hostinger-storage-runtime-migrations.json',
-    promotion_pull_request: pullRequest,
-    promotion_merge_sha: mergeSha,
+    promotion_pull_request: HOSTINGER_STORAGE_MIGRATION_PROMOTION_PR,
+    promotion_merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
+    wave_4_promotion_pull_request: HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR,
+    wave_4_promotion_merge_sha: HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
+    promotion_sources: Object.freeze(promotionSources),
     wave_count: waves.length,
     next_authorizable_wave: 1,
     waves: Object.freeze(waves),

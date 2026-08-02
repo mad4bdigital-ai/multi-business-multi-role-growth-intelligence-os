@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - '.changes/e2e/spec014-runtime-migration-promotion.json'
+      - '.changes/e2e/spec014-durable-authorized-injection-wave4-runtime-promotion.json'
       - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql'
       - '.github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml'
       - 'http-generic-api/config/governed-migration-dependencies.json'
       - 'http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql'
       - 'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql'
       - 'http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql'
+      - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
       - 'http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs'
       - '.github/contracts/spec014/migrations/**'
 
@@ -53,6 +57,7 @@ jobs:
           grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
           grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
           grep -q 'secrets_included: false' http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs
+          grep -q '"signed_schema_verification_contract_refreshed": false' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json
       - name: Upload migration promotion diagnostics
         if: always()
         uses: actions/upload-artifact@v4
