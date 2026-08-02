@@ -68,5 +68,9 @@
     "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",
     "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
   ],
+  "live_database_access_performed": false,
+  "signature_created": false,
+  "schema_verified": false,
+  "production_ready": false,
   "secrets_included": false
 }
