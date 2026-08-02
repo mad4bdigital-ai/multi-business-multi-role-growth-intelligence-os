@@ -19,7 +19,7 @@
 - [x] **T003** Generate/construct complete `work-map-integration.json` for all 19 maps and 16 domains.
 - [x] **T004** Resolve every map/domain decision and prove zero unresolved/intentionally unclassified schema objects in current registry.
 - [x] **T005** Mark Work Map integration ready with requirement/task/acceptance/evidence bindings.
-- [ ] **T006** Re-run Work Map scaffold/gate on final exact head and repair any fingerprint drift caused by later `main` movement.
+- [x] **T006** Re-run Work Map scaffold/gate on final exact head and repair fingerprint drift caused by later `main` movement. Evidence: `http-generic-api/scripts/spec014-final-work-map-readback.mjs`, `http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs`, and `.github/workflows/hostinger-storage-final-work-map-readback-guard.yml`.
 - [ ] **T007** Resolve open research gates Q-001–Q-005 with owners and evidence.
 
 ## Phase 1 — Contract freeze
