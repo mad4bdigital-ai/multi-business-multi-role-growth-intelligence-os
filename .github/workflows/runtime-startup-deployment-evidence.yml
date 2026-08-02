@@ -1,0 +1,94 @@
+name: Runtime Startup Deployment Evidence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, Production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-startup-deployment-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: Structured Runtime Startup Evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate structured evidence reporter
+        working-directory: http-generic-api
+        run: node scripts/test-runtime-startup-deployment-evidence.mjs
+
+      - name: Guard disabled OAuth startup boundary
+        working-directory: http-generic-api
+        run: node test-remote-mcp-disabled-startup-boundary.mjs
+
+      - name: Generate structured runtime startup evidence
+        id: runtime_evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
+          CI_CANDIDATE_KIND: "${{ github.event_name == 'pull_request' && 'merge_candidate' || 'head' }}"
+          CI_CANDIDATE_SHA: "${{ github.sha }}"
+          CI_SOURCE_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
+          RUNTIME_STARTUP_EVIDENCE_DIR: "${{ runner.temp }}/runtime-startup-deployment-evidence"
+        run: node scripts/runtime-startup-deployment-evidence.mjs --output-dir "$RUNTIME_STARTUP_EVIDENCE_DIR"
+
+      - name: Upload structured runtime startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-startup-deployment-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/runtime-startup-deployment-evidence/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured evidence decision
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: "${{ runner.temp }}/runtime-startup-deployment-evidence/runtime-startup-deployment-evidence.json"
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) {
+              console.error(JSON.stringify({ ok: false, error: "runtime_startup_structured_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const valid = report.contract === "mad4b.runtime-startup-deployment-evidence.v1" && report.secrets_included === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                first_failure: report.first_failure?.stage_id || "invalid_structured_report",
+                consult_job_logs: report.routing?.consult_job_logs === true,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ ok: true, outcome: report.outcome, candidate_sha: report.identity?.candidate_sha, secrets_included: false }));
+          '

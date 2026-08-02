@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-dispatch",
+  "title": "Governed generated-artifact refresh dispatcher",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+      ".changes/e2e/governed-generated-artifact-refresh-dispatch.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide an exact-head, read-only dispatcher with a trusted issue-comment command that delegates bounded generated-artifact mutation to the already registered workflow without becoming a pull-request write workflow, checking out candidate code, or writing repository contents directly.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-governed-generated-artifact-refresh",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository collaborator and repository automation",
+          "entrypoint": "A trusted PR comment in the exact form /refresh-generated-artifacts <40-character SHA>, a governed work-branch push, or an explicit workflow dispatch",
+          "terminal_outcome": "The dispatcher verifies a trusted comment author, exact typed SHA, same-repository pull request, required generated-artifact-refresh label, and current head; then delegates to governed-generated-artifact-refresh.yml with typed confirmation and publishes structured evidence without checking out candidate code or writing repository contents directly.",
+          "steps": [
+            "Accept newly created issue comments only when they belong to a pull-request conversation.",
+            "Require OWNER, MEMBER, or COLLABORATOR author association.",
+            "Parse exactly /refresh-generated-artifacts followed by one lowercase 40-character SHA.",
+            "Read the pull request from the GitHub API without checking out candidate code.",
+            "Reject cross-repository heads and reject a typed SHA that differs from the current PR head.",
+            "Validate the governed target branch and exact current head SHA.",
+            "Resolve exactly one open same-repository pull request for the target branch.",
+            "Require the generated-artifact-refresh label and matching pull-request head.",
+            "Dispatch the registered mutating workflow on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
+            "Publish JSON and Markdown evidence before enforcing the structured decision."
+          ],
+          "assertions": [
+            "The write-capable dispatcher is not triggered by pull_request or pull_request_target.",
+            "The dispatcher never checks out pull-request candidate code.",
+            "The comment command is accepted only from OWNER, MEMBER, or COLLABORATOR.",
+            "The comment command binds the exact current PR head SHA.",
+            "The dispatcher rejects fork or cross-repository heads through API readback.",
+            "The dispatcher has actions: write but contents: read, issues: read, and pull-requests: read only.",
+            "The dispatcher contains no git push and performs no direct repository mutation.",
+            "The generated-artifact-refresh label remains mandatory.",
+            "main and Production are rejected before API dispatch.",
+            "Bot-authored generated commits do not recursively dispatch.",
+            "The evidence contract is mad4b.governed-generated-artifact-refresh-dispatch.v1.",
+            "Job logs are diagnostic-only and the report declares consult_job_logs=false and secrets_included=false.",
+            "Force push is forbidden."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-artifact-refresh-dispatch-workflow",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish dispatch evidence through the canonical PR evidence publisher."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale typed SHA, untrusted author association, API rejection, ambiguous PR, cross-repository, and artifact upload failures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the first non-production exact-head dispatch from the trusted PR comment command."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Keep protected branches and untrusted candidate code outside direct mutation authority."
+    }
+  ]
+}

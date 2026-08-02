@@ -10,9 +10,12 @@
       ".github/ci-evidence-routing.json",
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/ci-evidence-pr-publisher.yml",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       "docs/ci-evidence-routing.md",
+      "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+      "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
       "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
       "http-generic-api/scripts/generated-artifact-refresh-runner.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
@@ -84,43 +87,82 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
-          "entrypoint": "Governed Generated Artifact Refresh workflow_dispatch",
-          "terminal_outcome": "A registered tool mutates only reviewed generated paths on a non-protected work branch, emits its canonical report, and dispatches read-only verification on the resulting exact head so bot-authored pushes do not leave the PR without evidence.",
+          "entrypoint": "Governed Generated Artifact Refresh Dispatch from a trusted issue comment or explicit workflow_dispatch",
+          "terminal_outcome": "The trusted dispatcher publishes whether the exact-head writer was delegated before enforcing its decision, then the registered tool mutates only reviewed generated paths on a non-protected work branch, publishes the exact apply decision, and dispatches read-only verification on the resulting head.",
           "steps": [
-            "Require target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation.",
-            "Reject main, Production, invalid branch names, and malformed SHAs before generation.",
+            "Run the issue-comment command from the default-branch workflow definition or invoke workflow_dispatch explicitly on main; never execute the dispatcher from a work-branch push.",
+            "Checkout trusted main publisher code with contents read and persisted credentials disabled.",
+            "Resolve the exact open same-repository PR, target_ref, expected_head_sha, and generated-artifact-refresh authorization label.",
+            "Upload mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the dispatch decision.",
+            "Publish the exact dispatcher decision directly from the trusted command workflow using pr_number, target_ref, and expected_head_sha.",
+            "Retain the trusted workflow_run publisher as a redundant recovery path rather than the sole publication authority.",
+            "Require target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation for the delegated writer.",
+            "Reject main, Production, invalid branch names, malformed SHAs, stale PR heads, and ambiguous PR cardinality before generation.",
             "Compare both local and remote heads to expected_head_sha before commit and again before push.",
             "Generate and verify the bounded artifact set.",
             "Reject every path outside the registered allowlist.",
             "Commit and push by normal fast-forward only.",
+            "Upload mad4b.governed-generated-artifact-refresh.v1 before workflow enforcement.",
+            "Have the trusted default-branch publisher download the exact run-bound apply artifact.",
+            "Resolve the PR from target_ref and bind blocked reports to expected_head_sha or successful mutating reports to commit_sha.",
             "Resolve the resulting commit SHA from the canonical apply report and verify the remote target equals it.",
             "Dispatch PR Generated Artifact Refresh on the resulting exact branch head.",
-            "Upload apply and dispatch evidence as JSON and Markdown."
+            "Upload dispatcher, apply, and verification-dispatch evidence as JSON and Markdown."
           ],
           "assertions": [
+            "The dispatcher report contract is mad4b.governed-generated-artifact-refresh-dispatch.v1 with secrets_included=false and consult_job_logs=false.",
+            "The dispatcher has no push trigger; issue_comment and workflow_dispatch are the only command entrypoints.",
+            "The dispatcher checks out trusted main with persist-credentials=false before invoking the canonical publisher.",
+            "The dispatcher has actions:write, contents:read, issues:write, and pull-requests:read, with no contents:write authority.",
+            "Passed dispatcher evidence requires dispatch_requested=true; blocked dispatcher evidence requires first_failure.code.",
+            "The direct dispatcher publisher accepts only one open same-repository PR whose branch and head equal target_ref and expected_head_sha.",
+            "The fallback workflow_run publisher may replay the same bounded section but is not required for first publication.",
             "The tool is registered as mutating under the governed maintenance-tool root.",
             "The apply workflow is workflow_dispatch-only and not pull_request-triggered.",
             "Protected branches are rejected and force push is absent.",
             "Concurrent target-ref movement returns an expected-head mismatch without writing.",
             "The apply report contract is mad4b.governed-generated-artifact-refresh.v1 with secrets_included=false.",
-            "The dispatch evidence contract is mad4b.generated-artifact-refresh-verification-dispatch.v1 with the resulting candidate SHA.",
+            "The canonical publisher accepts only registered generated paths and consult_job_logs=false.",
+            "A blocked apply binds the unchanged expected_head_sha; a successful mutating apply binds the exact generated commit_sha.",
+            "The publisher resolves exactly one same-repository open or merged PR from target_ref and the report candidate.",
+            "The verification dispatch evidence contract is mad4b.generated-artifact-refresh-verification-dispatch.v1 with the resulting candidate SHA.",
             "A bot-authored generated commit is followed by an explicit read-only workflow_dispatch on that exact head.",
             "Job logs remain diagnostic-only."
           ],
           "tests": [
+            {
+              "id": "generated-artifact-governed-dispatch-publication",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+              "args": []
+            },
             {
               "id": "generated-artifact-governed-mutation-safety",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
               "args": []
+            },
+            {
+              "id": "generated-artifact-governed-apply-publication",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
-            ".github/repository-maintenance-tool-governance.json",
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs"
           ]
         }
       ]
@@ -187,7 +229,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise artifact-download failure, stale protected-head races, malformed reports, publisher retries, dispatch rejection, generated write-set violations, and mutating apply-report routing without consulting Job logs for the decision."
+      "objective": "Exercise artifact-download failure, stale protected-head races, malformed reports, publisher retries, dispatch rejection, and generated write-set violations without consulting Job logs for the decision."
     },
     {
       "id": "canary",
