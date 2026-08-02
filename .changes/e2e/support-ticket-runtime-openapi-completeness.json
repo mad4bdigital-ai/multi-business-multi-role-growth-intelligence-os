@@ -101,7 +101,7 @@
         {
           "id": "governed-support-ticket-openapi-refresh",
           "end_to_end": true,
-          "level": "repository_automation",
+          "level": "synthetic_runtime",
           "actor": "trusted generated-artifact dispatcher and governed writer",
           "entrypoint": "The trusted refresh command targets source head 7ab82718401b475d63bbc59d5458bb60d6ec1c3c on PR 4769.",
           "terminal_outcome": "Generated commit b28c3fa86a335cc3a909d22b73fc428145afb772 updates exactly three allowlisted artifacts and leaves runtime source, migrations, workflows, protected branches, and Production unchanged.",
