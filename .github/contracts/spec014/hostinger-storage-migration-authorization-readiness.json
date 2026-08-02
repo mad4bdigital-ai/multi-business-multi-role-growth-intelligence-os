@@ -8,6 +8,9 @@
   "promotion_merge_sha": "7a96920eff2579321707d193a1d030e6454891b1",
   "wave_4_promotion_pull_request": 4879,
   "wave_4_promotion_merge_sha": "4ca8d8691baa66210b679da51c5d92909c88c14c",
+  "readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
+  "schema_verification_attestation_version": "spec014-hostinger-storage-schema-verification-v2",
+  "signed_schema_verification_contract_refreshed": true,
   "promotion_sources": [
     {
       "waves": [1, 2, 3],
@@ -83,7 +86,10 @@
       "promotion_pull_request": 4879,
       "promotion_merge_sha": "4ca8d8691baa66210b679da51c5d92909c88c14c",
       "repository_candidate_inspection": "pass",
-      "readiness_state": "candidate_inspection_ready_dependency_and_live_schema_readback_required",
+      "signed_schema_verification_contract_refreshed": true,
+      "readback_contract_key": "spec014_hostinger_storage_migration_readback_v4",
+      "schema_verification_attestation_version": "spec014-hostinger-storage-schema-verification-v2",
+      "readiness_state": "candidate_inspection_ready_dependency_live_readback_and_signature_required",
       "blockers": [
         "DEPENDENCY_APPLY_LEDGER_REQUIRED:20260802_03_spec014_hostinger_storage_execution_evidence.sql",
         "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
@@ -91,7 +97,8 @@
         "SAME_CYCLE_DRY_RUN_NOT_PERFORMED",
         "LIVE_SCHEMA_READBACK_NOT_PERFORMED",
         "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED",
-        "SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED"
+        "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",
+        "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
       ]
     }
   ],
@@ -102,6 +109,7 @@
     "dry_run_performed": false,
     "migration_sql_executed": false,
     "live_database_access_performed": false,
+    "signature_created": false,
     "schema_verified": false,
     "production_ready": false,
     "provider_dispatch_allowed": false,
