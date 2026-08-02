@@ -1,0 +1,153 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "openapi-auto-sync-generated-contract-review",
+  "title": "Generated OpenAPI reference composition and frontend dispatch parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/openapi-auto-sync-generated-contract-review.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/openapi-route-contracts.yaml",
+      "http-generic-api/openapi/support-ticket-admin-execution.yaml",
+      "http-generic-api/openapi/support-ticket-admin-brand.yaml",
+      "http-generic-api/openapi/support-ticket-admin-remaining.yaml",
+      "http-generic-api/openapi/support-ticket-runtime-completion.yaml",
+      "http-generic-api/routes/supportTicketRoutes.js",
+      "docs/repo-maintenance-status.md",
+      "docs/surface-contract-*.json",
+      "docs/surface-contract-*.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the OpenAPI Auto Sync conversion of reviewed Support Ticket inline operations to external path-item references preserves resolvable contracts, runtime authorization parity, no-send consequential classification, route coverage, and deterministic frontend dispatch evidence.",
+      "e2e_journeys": [
+        {
+          "id": "validate-generated-openapi-and-frontend-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository OpenAPI and frontend contract governance",
+          "entrypoint": "The exact generated root OpenAPI and frontend dispatch evidence committed from OpenAPI Auto Sync run 30756584697",
+          "terminal_outcome": "Every reviewed Support Ticket reference resolves to the registered precise contract, completion certification remains no-send and non-consequential, runtime/OpenAPI authorization stays equivalent, route coverage has no gaps, and frontend dispatch regeneration is deterministic.",
+          "steps": [
+            "Validate migration from historical inline Support Ticket contracts to registered path-item references.",
+            "Validate the exact completion-certification legacy transition and its idempotent follow-up check.",
+            "Validate precise Admin execution, brand, remaining, and completion OpenAPI contracts against the Support Ticket runtime routes.",
+            "Validate generated frontend surface dispatch against source-pinned OpenAPI authority.",
+            "Validate frontend runtime authorization alternatives against OpenAPI security declarations.",
+            "Validate root and referenced OpenAPI route coverage with no undocumented runtime gaps."
+          ],
+          "assertions": [
+            "The root OpenAPI uses only resolvable reviewed local references for the converted Support Ticket path items.",
+            "Path and HTTP method coverage is preserved after reference composition.",
+            "Operation identifiers, request and response contracts, authentication alternatives, and consequential classifications remain precise.",
+            "Completion certification resolves exactly to `./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion` and remains `x-openai-isConsequential: false`.",
+            "Generated frontend dispatch and runtime-route evidence are deterministic and source-pinned.",
+            "A lower count of operations physically inline in the root document is not treated as coverage loss when exact referenced contracts resolve and route coverage remains complete.",
+            "No Migration 1043 Apply, activation registry synchronization, provider call, credential access, external send, deployment, Production mutation, or secret inclusion occurs."
+          ],
+          "tests": [
+            {
+              "id": "openapi-precise-inline-ref-migration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-contract-inline-ref-migration.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-precise-legacy-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-legacy-registry-transition.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-admin-precise-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-admin-openapi-precise-contracts.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-admin-remaining-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-admin-remaining-openapi-contracts.mjs",
+              "args": []
+            },
+            {
+              "id": "support-ticket-runtime-completion-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-runtime-openapi-completion.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-route-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-route-coverage.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi-route-contracts.yaml",
+            "http-generic-api/openapi/support-ticket-admin-execution.yaml",
+            "http-generic-api/openapi/support-ticket-admin-brand.yaml",
+            "http-generic-api/openapi/support-ticket-admin-remaining.yaml",
+            "http-generic-api/openapi/support-ticket-runtime-completion.yaml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+            "http-generic-api/routes/supportTicketRoutes.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the reviewed generated contracts to main and require the next OpenAPI Auto Sync run to report no residual generated drift."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep unresolved references, authorization drift, consequential-classification drift, route gaps, and stale frontend evidence fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Rebuild a fresh exact-main-tree Production candidate after the generated contracts are merged."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote only through separately authorized Production governance after exact-candidate validation."
+    }
+  ]
+}
