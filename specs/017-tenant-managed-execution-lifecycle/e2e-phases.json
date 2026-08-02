@@ -7,6 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/managedExecutionCore.js",
       "http-generic-api/managedExecutionAuthority.js",
       "http-generic-api/managedExecutionPersistence.js",
@@ -88,6 +89,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/managedExecutionCore.js",
             "http-generic-api/managedExecutionAuthority.js",
             "http-generic-api/managedExecutionPersistence.js",
