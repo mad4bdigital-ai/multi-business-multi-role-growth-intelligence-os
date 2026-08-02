@@ -25,7 +25,7 @@
         {
           "id": "hostinger-publisher-canonical-path-registration",
           "end_to_end": true,
-          "level": "governance_only",
+          "level": "synthetic_runtime",
           "actor": "trusted repository workflow maintainer",
           "entrypoint": "The specialized Hostinger publisher workflow and its static contract test",
           "terminal_outcome": "Exactly one specialized publisher workflow remains at the canonical path and retains the existing workflow_run trigger, trusted-main checkout, run-bound artifact download, and bounded authoritative-comment update contract.",
