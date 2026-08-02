@@ -13,6 +13,17 @@ const CONTRACT_REGISTRY_PATH = path.join(ROOT, "openapi-route-contracts.yaml");
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const HTTP_METHOD_KEYS = new Set([...HTTP_METHODS].map((method) => method.toLowerCase()));
 const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
+const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
+  [
+    "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
+    {
+      operation_id: "supportTicketExternalDeliveryCompletionCertify",
+      auth_profile: "admin_backend",
+      consequential: false,
+      path_item_ref: "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion",
+    },
+  ],
+]);
 
 function loadYaml(filePath, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
@@ -84,6 +95,26 @@ function isRuntimeDerivedRegisteredOperation(operation, method) {
     && canonicalSecurity(operation.security) === canonicalSecurity(security);
 }
 
+function isKnownLegacyRegisteredOperation(operation, contract) {
+  if (!operation || typeof operation !== "object") return false;
+  const transition = LEGACY_REGISTERED_PATH_TRANSITIONS.get(contract.signature);
+  if (!transition) return false;
+  const security = expectedSecurity(transition.auth_profile);
+  return contract.route_file === SUPPORT_TICKET_ROUTE_FILE
+    && contract.path_item_ref === transition.path_item_ref
+    && operation.operationId === transition.operation_id
+    && typeof operation.summary === "string"
+    && operation.summary.length > 0
+    && operation.responses
+    && typeof operation.responses === "object"
+    && operation["x-openai-isConsequential"] === transition.consequential
+    && canonicalSecurity(operation.security) === canonicalSecurity(security)
+    && operation["x-runtime-contract-source"] == null
+    && operation["x-source-file"] == null
+    && operation["x-runtime-auth-profile"] == null
+    && operation["x-contract-completeness"] == null;
+}
+
 function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts) {
   if (!current || typeof current !== "object" || Array.isArray(current) || current.$ref) return null;
   const currentKeys = Object.keys(current);
@@ -99,7 +130,11 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
   if (expectedMethods.size !== currentKeys.length) return null;
   if (currentKeys.some((key) => !expectedMethods.has(key.toUpperCase()))) return null;
   if ([...expectedMethods].some((method) => !current[method.toLowerCase()])) return null;
-  if (expected.some((contract) => !isRuntimeDerivedRegisteredOperation(current[contract.method.toLowerCase()], contract.method))) return null;
+  if (expected.some((contract) => {
+    const operation = current[contract.method.toLowerCase()];
+    return !isRuntimeDerivedRegisteredOperation(operation, contract.method)
+      && !isKnownLegacyRegisteredOperation(operation, contract);
+  })) return null;
 
   return {
     path: routePath,
