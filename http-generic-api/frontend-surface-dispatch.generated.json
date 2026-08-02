@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "5b4c338dcc040943a08e4d0c99aa5d29b7e0e8b422208a03cafee8aadf30ccae",
+    "source_digest": "645bc07da7adc7f01fe678f2b2ab9fb0796560d287286491ddc91b24d90e4897",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "2223c5ae5dbdbf1d9f3a44ddbeb255a432e03848fe9dc159aa7d21c1a4363da2",
+        "sha256": "ee65e6aeb4d7b903fc27b88a3ec34f3542fac7d38d3c93729178d8151fb49e64",
         "present": true
       },
       {
@@ -157,11 +157,6 @@
       {
         "file": "openapi/release-operations.yaml",
         "sha256": "8a17cc3b9b5c9982558cf493f3b656d4dd0535a1e76ba03f64af5cf450ff932d",
-        "present": true
-      },
-      {
-        "file": "openapi/remote-mcp-oauth21.yaml",
-        "sha256": "f2140317d1ed65cf9bfc49ae0d5877430eedb94fb9ff79edaccc08d5b3b63521",
         "present": true
       },
       {
@@ -641,7 +636,7 @@
       },
       {
         "file": "routes/mcpRoutes.js",
-        "sha256": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
+        "sha256": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
         "present": true
       },
       {
@@ -931,7 +926,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
+        "sha256": "722f77d7fa16e13add4f91ca7e3d7a1c58d2f96d9fec867ba18a4504d37c8710",
         "present": true
       },
       {
@@ -956,7 +951,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
+        "sha256": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
         "present": true
       },
       {
@@ -1016,7 +1011,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "e67ee4fbcf631ac4c03466fb453004150b70c7d05dcee1aea720fa005f05801b",
+        "sha256": "88b9be4a7df6e9bb4758d936bf8e6b7eb90b98071fd8563379afa9dc6b3c3885",
         "present": true
       },
       {
@@ -1563,7 +1558,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
+      "source_digest": "45c4c639902d431d17ce1342db88662f6e9e8142c9f2fe6fff829cd53940e957",
       "mount_prefix": "/",
       "mount_order": 12082,
       "split_from_mixed_scope_file": false,
@@ -9420,7 +9415,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
+      "source_digest": "722f77d7fa16e13add4f91ca7e3d7a1c58d2f96d9fec867ba18a4504d37c8710",
       "mount_prefix": "/",
       "mount_order": 13683,
       "split_from_mixed_scope_file": true,
@@ -10189,7 +10184,7 @@
       "family_key": "system-layer.unresolved",
       "label": "system layer (unresolved)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "a8fa1186af16a7a8f617d362683c46cc8bdb74ee34faf21bc7b5e3f5164b6b2b",
+      "source_digest": "722f77d7fa16e13add4f91ca7e3d7a1c58d2f96d9fec867ba18a4504d37c8710",
       "mount_prefix": "/",
       "mount_order": 13683,
       "split_from_mixed_scope_file": true,
@@ -18881,7 +18876,7 @@
       "family_key": "mcp",
       "label": "mcp",
       "source_file": "routes/mcpRoutes.js",
-      "source_digest": "84cc4b4ac585eb77874891456e0f10db5fd2ce90358a32ab5497a850a163ecf2",
+      "source_digest": "6eb0fe4676718cfe817da55968e61b023ff5e11deb199bccc7fe064ef20b6794",
       "mount_prefix": "/",
       "mount_order": 15067,
       "split_from_mixed_scope_file": false,
