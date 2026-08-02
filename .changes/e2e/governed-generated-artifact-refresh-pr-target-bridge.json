@@ -10,7 +10,6 @@
       ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
-      "http-generic-api/scripts/test-manifest.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json"
     ]
   },
@@ -43,7 +42,8 @@
             "Dispatch governed-generated-artifact-refresh.yml on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
             "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
             "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
-            "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result."
+            "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
+            "Run the focused bridge contract through this E2E journey; canonical test-manifest registration is intentionally deferred until the restored writer can update the dependent generated evidence in a follow-up governed change."
           ],
           "assertions": [
             "The pull-request request workflow has no actions:write, issues:write, contents:write, write-all, API mutation, checkout, git push, or secret access.",
@@ -56,6 +56,7 @@
             "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "The focused test is executed by E2E governance even though generated manifest registration is excluded from this bootstrap PR.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
             "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
           ],
@@ -71,8 +72,7 @@
           "evidence_paths": [
             ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml",
             ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
-            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
-            "http-generic-api/scripts/test-manifest.mjs"
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
           ]
         }
       ]
