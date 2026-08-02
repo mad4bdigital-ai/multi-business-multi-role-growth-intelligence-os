@@ -1,0 +1,167 @@
+name: Hostinger Storage Durable Injection Readback State Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-injection-readback-state.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql'
+      - '.github/workflows/hostinger-storage-durable-injection-readback-state-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableInjectionReadbackState.js'
+      - 'http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-injection-readback-state-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-injection-readback-state:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPORT_DIR: .ci-evidence/spec014-durable-injection-readback-state
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check implementation and test syntax
+        id: syntax
+        continue-on-error: true
+        run: |
+          node --check http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          node --check http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs
+
+      - name: Execute durable state lifecycle contract
+        id: focused_test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs \
+            > "${REPORT_DIR}/focused-test.stdout" \
+            2> "${REPORT_DIR}/focused-test.stderr"
+
+      - name: Preserve contract-local and non-production authority
+        id: boundary
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableInjectionReadbackState.js \
+            http-generic-api/test-hostinger-storage-durable-injection-readback-state.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          grep -q 'runtime_object_persisted: false' http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageDurableInjectionReadbackState.js
+          grep -q 'storage_mount_injection_states' .github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql
+          grep -q 'storage_mount_injection_events' .github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql
+          grep -q 'contract-local DDL only' .github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql
+          grep -q '"promoted_migration": false' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+          grep -q '"migration_applied": false' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+          grep -q '"route_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+          grep -q '"server_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+          grep -q '"live_database_access": false' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+          grep -q '"production_mutation": false' .github/contracts/spec014/hostinger-storage-durable-injection-readback-state.json
+
+      - name: Build structured guard summary
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const stages = [
+            ['syntax', process.env.SYNTAX_OUTCOME],
+            ['focused_test', process.env.FOCUSED_TEST_OUTCOME],
+            ['bounded_authority', process.env.BOUNDARY_OUTCOME],
+          ].map(([stage_id, outcome]) => ({ stage_id, outcome }));
+          const firstFailure = stages.find((stage) => stage.outcome !== 'success') || null;
+          const identityValid = /^[0-9a-f]{40}$/u.test(process.env.CANDIDATE_SHA || '')
+            && Boolean(process.env.HEAD_REF)
+            && Boolean(process.env.BASE_REF);
+          const report = {
+            contract: 'mad4b.spec014-durable-injection-readback-state-guard.v1',
+            outcome: firstFailure || !identityValid ? 'blocked' : 'passed',
+            identity: {
+              candidate_sha: process.env.CANDIDATE_SHA,
+              head_ref: process.env.HEAD_REF,
+              base_ref: process.env.BASE_REF,
+            },
+            stages,
+            first_failure: firstFailure || (identityValid ? null : {
+              stage_id: 'candidate_identity',
+              outcome: 'failure',
+            }),
+            boundaries: {
+              exact_receipt_readback_binding: true,
+              same_transaction_readback: true,
+              rollback_generation_and_row_version_cas: true,
+              immutable_event_records: true,
+              runtime_object_persisted: false,
+              route_files_modified: false,
+              server_files_modified: false,
+              live_database_access: false,
+              migration_applied: false,
+              provider_dispatch_allowed: false,
+              production_ready: false,
+              automatic_retry_allowed: false,
+            },
+            consult_job_logs: false,
+            repository_mutation: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(`${process.env.REPORT_DIR}/summary.json`, `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Upload structured guard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-injection-readback-state-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/summary.json
+            ${{ env.REPORT_DIR }}/focused-test.stdout
+            ${{ env.REPORT_DIR }}/focused-test.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured guard decision
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+        run: |
+          for outcome in "${SYNTAX_OUTCOME}" "${FOCUSED_TEST_OUTCOME}" "${BOUNDARY_OUTCOME}"; do
+            [[ "${outcome}" == "success" ]] || exit 1
+          done
