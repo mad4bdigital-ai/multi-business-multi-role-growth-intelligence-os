@@ -2,14 +2,17 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "spec014-durable-authorized-injection-migration-candidate",
-  "title": "Create an exact unpromoted Wave 4 Durable Authorized Injection State migration candidate",
+  "title": "Preserve exact Wave 4 candidate integrity across governed runtime promotion",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/spec014-durable-authorized-injection-migration-candidate.json",
       ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+      ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
       ".github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml",
+      "http-generic-api/config/governed-migration-dependencies.json",
       "http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js",
       "http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
       "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs"
@@ -22,36 +25,37 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Create and inspect one exact additive Wave 4 migration candidate copied from the reviewed contract-local Durable Authorized Injection State DDL, while proving that it is not yet promoted or dependency-registered.",
+      "objective": "Preserve the immutable unpromoted Wave 4 candidate inspection contract while independently proving that the current repository contains only the exact separately reviewed runtime-sequence promotion and dependency registration, with authorization and Apply still blocked.",
       "e2e_journeys": [
         {
-          "id": "create-unpromoted-durable-injection-wave-4-candidate",
+          "id": "verify-durable-injection-wave-4-candidate-and-exact-promotion",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Spec 014 durable injection migration-candidate inspector",
-          "entrypoint": "The exact Wave 4 candidate, reviewed contract-local DDL, current runtime migration contract, and dependency registry",
-          "terminal_outcome": "A frozen secret-free candidate packet proves exact checksum, two-table statement parity, and Wave 3 dependency while runtime promotion and authorization remain false.",
+          "actor": "Spec 014 durable injection candidate and promotion integrity guard",
+          "entrypoint": "The exact Wave 4 SQL candidate, historical candidate contract, current runtime migration sequence, dependency registry, and promotion contract",
+          "terminal_outcome": "The historical candidate remains byte-exact and independently testable as unpromoted, while the current repository proves one exact Wave 4 promotion and dependency registration without granting authorization, Apply, live access, dispatch, deployment, or Production authority.",
           "steps": [
-            "Bind the candidate to the exact Integration source after schema-promotion readiness.",
-            "Read and hash the candidate migration file.",
-            "Compare its parsed statements exactly with the reviewed contract-local DDL.",
-            "Require the state table before the rollback child table.",
-            "Bind Wave 4 to exact Wave 3 migration, checksum, statement count, and apply-ledger dependency.",
-            "Prove Wave 4 is absent from the governed runtime sequence and dependency registry.",
-            "Reject checksum drift, source-parity drift, dependency drift, premature promotion, and premature dependency registration."
+            "Read and hash the exact Wave 4 candidate migration file.",
+            "Inspect the candidate against a synthetic pre-promotion snapshot that excludes Wave 4 from the runtime sequence and dependency registry.",
+            "Compare parsed candidate statements exactly with the reviewed contract-local DDL and require the state table before the rollback child table.",
+            "Bind the candidate to the exact Wave 3 migration, checksum, statement count, and apply-ledger dependency.",
+            "Verify the current runtime sequence contains Wave 4 exactly once at position four with the reviewed checksum, statement count, dependency, and zero-risk repository preflight.",
+            "Verify the dependency registry contains one exact Wave 4 record with one exact Wave 3 apply-ledger dependency.",
+            "Verify the separate promotion contract binds candidate PR #4879, its exact candidate head and Integration merge, and keeps authorization, dry-run, Apply, live database access, Provider dispatch, deployment, and Production readiness false.",
+            "Reject candidate checksum drift, source-parity drift, dependency drift, partial promotion, duplicate promotion, registry drift, or promotion-contract drift."
           ],
           "assertions": [
             "The candidate checksum is fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981.",
-            "The candidate contains exactly two additive CREATE TABLE statements.",
-            "The candidate statements exactly match the reviewed contract-local DDL.",
-            "The exact Wave 3 dependency remains present and unchanged.",
-            "The candidate is not in hostinger-storage-runtime-migrations.json.",
-            "The candidate is not in governed-migration-dependencies.json.",
-            "No capability resolution, authorization, dry-run, Apply, live database access, Provider dispatch, deployment, main merge, or Production mutation occurs."
+            "The candidate contains exactly two additive CREATE TABLE statements matching the reviewed contract-local DDL.",
+            "The historical candidate packet remains runtime_sequence_promoted=false and dependency_registry_updated=false under an exact pre-promotion fixture.",
+            "The current runtime sequence contains exactly four ordered waves and Wave 4 is the exact reviewed candidate.",
+            "The current dependency registry binds Wave 4 only to the exact Wave 3 apply ledger.",
+            "The promotion contract reports runtime_sequence_promoted=true and dependency_registry_updated=true while ready_for_authorization=false and ready_for_apply=false.",
+            "No capability resolution, authorization registry mutation, dry-run, Apply, live database access, Hostinger or SSH access, credential access, Provider dispatch, worker mount, deployment, main merge, or Production mutation occurs."
           ],
           "tests": [
             {
-              "id": "durable-injection-migration-candidate",
+              "id": "durable-injection-migration-candidate-lifecycle-integrity",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs",
@@ -60,7 +64,10 @@
           ],
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
             ".github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml",
+            "http-generic-api/config/governed-migration-dependencies.json",
             "http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js",
             "http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
             "http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs"
@@ -71,32 +78,31 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Promote Wave 4 and register its exact Wave 3 dependency through a separate reviewed PR before any authorization can exist.",
+      "objective": "Create a fresh checksum-bound Wave 4 authorization only after exact successful Wave 3 apply-ledger evidence and same-cycle live compatibility readback exist.",
       "blockers": [
-        "SEPARATELY_REVIEWED_RUNTIME_SEQUENCE_PROMOTION_REQUIRED",
-        "DEPENDENCY_REGISTRY_UPDATE_REQUIRED",
         "WAVE_3_APPLY_LEDGER_REQUIRED",
         "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
         "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
         "SAME_CYCLE_DRY_RUN_REQUIRED",
-        "LIVE_SCHEMA_ABSENCE_OR_COMPATIBILITY_READBACK_REQUIRED",
+        "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED",
+        "SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED",
         "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Require exact ledger and signed readback identity before restart reconstruction can consume the durable schema."
+      "objective": "Require exact ledger, signed readback identity, and crash-safe restart evidence before durable runtime consumption."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe one separately authorized non-production Wave 4 apply and durable lifecycle canary."
+      "objective": "Observe one separately authorized non-production Wave 4 Apply and durable lifecycle canary."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This migration-candidate slice grants no promotion, authorization, Apply, runtime, deployment, main, or Production authority."
+      "objective": "This candidate-integrity slice grants no authorization, Apply, runtime, deployment, main, or Production authority."
     }
   ],
   "secrets_included": false
