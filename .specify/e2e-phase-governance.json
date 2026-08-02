@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "policy_key": "e2e_phase_governance",
+  "enforcement_mode": "fail_closed",
+  "spec_root": "specs",
+  "spec_contract_file": "e2e-phases.json",
+  "contract_schema_path": ".specify/schemas/e2e-phases.schema.json",
+  "non_spec_contract_root": ".changes/e2e",
+  "delivery_modes": ["single_pr", "multi_pr"],
+  "phase_order": ["mvp", "operational", "resilient", "canary", "production"],
+  "phase_minimum_e2e_level": {
+    "mvp": "synthetic_runtime",
+    "operational": "synthetic_runtime",
+    "resilient": "synthetic_runtime",
+    "canary": "live_non_production",
+    "production": "production_readback"
+  },
+  "e2e_level_order": [
+    "component",
+    "in_process",
+    "synthetic_runtime",
+    "live_non_production",
+    "production_readback"
+  ],
+  "runtime_patterns": [
+    "server.js",
+    "src/**",
+    "http-generic-api/**",
+    "migrations/**",
+    "database/**",
+    "frontend/**",
+    "apps/**",
+    "packages/**",
+    "workers/**",
+    "scripts/**"
+  ],
+  "spec_patterns": ["specs/**"],
+  "docs_only_patterns": ["docs/**"],
+  "governance_only_patterns": [
+    ".github/**",
+    ".specify/**",
+    "http-generic-api/scripts/e2e-phase-*.mjs",
+    "http-generic-api/scripts/e2e-parallel-*.mjs",
+    "http-generic-api/scripts/ci-evidence-*.mjs",
+    "http-generic-api/scripts/test-ci-evidence-*.mjs",
+    "http-generic-api/scripts/test-e2e-parallel-*.mjs",
+    "http-generic-api/scripts/bounded-diagnostic-evidence.mjs"
+  ],
+  "ignored_patterns": [
+    ".gitignore",
+    ".gitattributes",
+    "LICENSE"
+  ],
+  "forbidden_scope_patterns": ["*", "**", "**/**"],
+  "allowed_test_runners": ["node", "npm"],
+  "auto_scope_mode": "exact_changed_runtime_files",
+  "max_test_count_per_contract": 25,
+  "max_test_args": 30,
+  "require_changed_contract": true,
+  "require_all_runtime_changes_covered": true,
+  "require_current_phase_implemented": true,
+  "require_mvp_or_later_for_merge": true
+}

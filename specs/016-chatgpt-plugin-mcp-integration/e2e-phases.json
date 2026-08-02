@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-plugin-mcp-integration",
+  "title": "Multi-client AI connector and standards-compliant MCP integration specification",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/016-chatgpt-plugin-mcp-integration/README.md",
+      "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+      "specs/016-chatgpt-plugin-mcp-integration/spec.md",
+      "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md",
+      "specs/016-chatgpt-plugin-mcp-integration/research.md",
+      "specs/016-chatgpt-plugin-mcp-integration/concerns.md",
+      "specs/016-chatgpt-plugin-mcp-integration/operation-paths.md",
+      "specs/016-chatgpt-plugin-mcp-integration/plan.md",
+      "specs/016-chatgpt-plugin-mcp-integration/data-model.md",
+      "specs/016-chatgpt-plugin-mcp-integration/quickstart.md",
+      "specs/016-chatgpt-plugin-mcp-integration/tasks.md",
+      "specs/016-chatgpt-plugin-mcp-integration/traceability.md",
+      "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md",
+      "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+      "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/requirements.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/security.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/mcp-tool.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/oauth-protected-resource.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/plugin-package.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the shared remote MCP specification, client profiles, contracts, Work Map posture, delivery boundaries, and no-secret guarantees are internally consistent without granting runtime, migration, deployment, submission, directory, or publication authority.",
+      "e2e_journeys": [
+        {
+          "id": "multi-client-specification-contract-to-truthful-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform specification reviewer",
+          "entrypoint": "Spec 016 manifest, multi-client extension, and executable validation tool",
+          "terminal_outcome": "The reviewer receives a deterministic pass only when all recorded artifacts exist, JSON contracts parse, the shared MCP and OAuth surfaces are present, completion remains truthful, implementation stays blocked by owned gates, and no secret-like value is detected.",
+          "steps": [
+            "Load the canonical Spec 016 manifest and verify its complete unique file inventory.",
+            "Parse every JSON contract and confirm the required MCP and protected-resource paths are declared.",
+            "Verify the multi-client extension covers OpenAI, Anthropic, and generic approved MCP clients without creating alternate authority paths.",
+            "Verify completion counts, in-progress state, no Production deployment, no publication, and no-secret boundaries.",
+            "Verify the Work Map has zero accidental unclassified objects while implementation readiness remains blocked pending canonical review.",
+            "Scan every specification artifact for bounded secret-like patterns and emit a no-secret validation result."
+          ],
+          "assertions": [
+            "Every manifest entry exists inside the Spec 016 root and no path escapes that root.",
+            "The manifest and completion file counts are equal and include the executable validator and multi-client extension.",
+            "The OpenAPI draft includes the MCP endpoint and OAuth protected-resource metadata endpoint.",
+            "ChatGPT, Claude, and generic client profiles share one MCP resource and one platform authority path.",
+            "The specification records implementation as in progress while deployment, connector creation, publication, and migration remain false.",
+            "The validator cannot authorize implementation, merge, deployment, OAuth registration, external mutation, submission, directory listing, or publication."
+          ],
+          "tests": [
+            {
+              "id": "spec-016-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/016-chatgpt-plugin-mcp-integration",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs",
+            "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+            "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+            "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+            "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete approved OAuth, transport, context, catalog, client registration, and cross-client implementation evidence in separately governed runtime PRs."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove isolation, revocation, dependency faults, unknown outcomes, metadata drift detection, client disable controls, and recovery without secret or cross-tenant leakage."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the exact implementation candidate through MCP Inspector, ChatGPT Developer mode, Claude Custom Connector, and one neutral programmatic MCP client against an authorized non-production endpoint."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, public routing, OAuth linkage, client registrations, metadata parity, monitoring, revocation, rollback, and post-merge evidence under separate release authorization."
+    }
+  ]
+}
