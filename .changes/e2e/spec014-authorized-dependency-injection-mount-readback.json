@@ -1,0 +1,119 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-authorized-dependency-injection-mount-readback",
+  "title": "Spec 014 Authorized Dependency Injection and Mount Readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-authorized-dependency-injection-mount-readback.json",
+      ".github/contracts/spec014/hostinger-storage-authorized-dependency-injection.json",
+      ".github/workflows/hostinger-storage-authorized-dependency-injection-guard.yml",
+      "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+      "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+      "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Inject one exact authorized mount bundle into the existing Tenant route dependency seam only after canonical readback proves the runtime identity, while preserving the default fail-closed route when no controller is supplied.",
+      "e2e_journeys": [
+        {
+          "id": "inject-authorized-runtime-and-prove-route-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 authorized dependency injection controller",
+          "entrypoint": "Hostinger Storage Authorized Dependency Injection Guard",
+          "terminal_outcome": "The route resolves the non-enumerable synthetic-only tenantStorageRuntime only after exact mount readback and remains non-dispatching and non-production-ready.",
+          "steps": [
+            "Start the Tenant route with an empty authorized dependency injection controller and prove HTTP 503.",
+            "Validate the canonical consumed mount bundle and all expected authorization, runtime, manifest, and generation bindings.",
+            "Create a secret-free exact mount readback and atomically expose the runtime through the controller.",
+            "Resolve the mounted runtime from the route using the fixed route path and dependency key.",
+            "Prove that the request reaches the mounted runtime without exposing the runtime in readback JSON."
+          ],
+          "assertions": [
+            "No server bootstrap, migration, worker, provider, Hostinger, credential, or Production path is modified.",
+            "The route remains fail-closed when the controller is absent, invalid, unmounted, or rolled back.",
+            "The mounted runtime remains synthetic-only with provider dispatch and Production readiness false.",
+            "The mount readback is digest-bound to the authorized mount bundle and exact runtime identity.",
+            "Raw runtime material is non-enumerable and excluded from snapshots."
+          ],
+          "tests": [
+            {
+              "id": "authorized-dependency-injection-route-readback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+            "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+            ".github/contracts/spec014/hostinger-storage-authorized-dependency-injection.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Persist and bootstrap the authorized mount controller in a live runtime only after schema, migration, deployment, worker, rollback, and provider prerequisites are separately authorized.",
+      "blockers": [
+        "The durable mount-authorization registry schema remains unapplied.",
+        "No live server bootstrap creates or restores this controller.",
+        "No live runtime composition or credentials are available.",
+        "Provider dispatch and Production mutation remain forbidden."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Rollback to the fail-closed route and reconstruct the same mounted runtime from the exact bundle and mount readback after restart without consuming the authorization a second time.",
+      "e2e_journeys": [
+        {
+          "id": "rollback-and-resume-authorized-route-mount",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 authorized dependency injection controller",
+          "entrypoint": "Hostinger Storage Authorized Dependency Injection Guard",
+          "terminal_outcome": "Rollback restores HTTP 503 and restart reconstruction restores the exact readback and runtime without a second registry write or authorization consumption.",
+          "steps": [
+            "Bind rollback to the active injection ID and exact mount-readback digest.",
+            "Remove the runtime atomically and prove the route returns HTTP 503 again.",
+            "Create a fresh controller after simulated restart.",
+            "Validate the stored mount readback digest and exact bundle parity.",
+            "Restore the same route runtime while proving the durable consumption count and registry commit count do not increase."
+          ],
+          "assertions": [
+            "A modified readback digest or bundle binding fails closed.",
+            "Rollback never enables Provider dispatch or Production readiness.",
+            "Restart reconstruction performs no second authorization consumption.",
+            "Automatic retry remains disabled and read-before-retry remains required."
+          ],
+          "tests": [
+            {
+              "id": "authorized-dependency-injection-rollback-restart",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+            "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
