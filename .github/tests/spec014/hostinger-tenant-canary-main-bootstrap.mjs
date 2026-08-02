@@ -28,7 +28,6 @@ for (const eventType of ['opened', 'reopened', 'synchronize', 'ready_for_review'
 }
 
 for (const governedPath of [
-  ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
   ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
   "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
   "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs",
@@ -38,6 +37,11 @@ for (const governedPath of [
 ]) {
   requireIncludes(workflow, `      - '${governedPath}'`, 'Tenant Canary workflow path filter');
 }
+requireExcludes(
+  workflow,
+  "      - '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'",
+  'Tenant Canary bootstrap self-trigger',
+);
 
 for (const broadGlob of ["'**/*.js'", "'**/*.mjs'", "'**/*.cjs'", "'**/*.ts'", "'**/*.tsx'"]) {
   requireExcludes(workflow, broadGlob, 'Tenant Canary workflow path filter');
@@ -117,6 +121,7 @@ console.log(JSON.stringify({
   publisher: 'Hostinger CI Evidence PR Publisher',
   candidate_kind: 'head',
   report_directory_context_valid: true,
+  bootstrap_self_trigger_blocked: true,
   repository_mutation_performed: false,
   provider_dispatch_performed: false,
   credential_access_performed: false,
