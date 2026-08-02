@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "managed-execution-recovery-operations",
+  "title": "Bounded managed execution retry, reassignment, escalation, cancellation, and rollback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/managed-execution-recovery-operations.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/managedExecutionRecoveryService.js",
+      "http-generic-api/managedExecutionLifecycleService.js",
+      "http-generic-api/routes/managedExecutionRoutes.js",
+      "http-generic-api/test-managed-execution-recovery-operations.mjs",
+      "specs/017-tenant-managed-execution-lifecycle/checklists/requirements.md",
+      "specs/017-tenant-managed-execution-lifecycle/implementation/pr-recovery-operations.md",
+      "specs/017-tenant-managed-execution-lifecycle/plan.md",
+      "specs/017-tenant-managed-execution-lifecycle/spec.md",
+      "specs/017-tenant-managed-execution-lifecycle/tasks.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove fail-closed recovery operations for managed execution using existing workflow, step, hold, binding, request, and event tables without applying a migration or invoking providers.",
+      "e2e_journeys": [
+        {
+          "id": "recover-managed-execution-with-bounded-auditable-operations",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant requester or authorized platform operator acting within the original managed run scope",
+          "entrypoint": "Managed execution step-status, retry, assignment, escalation, cancellation, and rollback routes",
+          "terminal_outcome": "Failed managed work can be retried within a hard bound, reassigned only to an active same-tenant member, escalated through a supervisor hold, cancelled atomically, or rolled back through an idempotent completed compensation step, with synchronized lifecycle and immutable no-secret evidence.",
+          "steps": [
+            "Route every recovery operation through the existing managed-run tenant/requester authorization boundary.",
+            "Validate explicit step transitions and pause the run when a managed step fails.",
+            "Retry only a failed step on a paused or failed run with no open hold or other active step.",
+            "Reject retry after three total attempts and revalidate live capability/resource authority before resetting executable work.",
+            "Deduplicate retry requests through a SHA-256 request-key fingerprint recorded in managed execution events.",
+            "Require one active membership in the run tenant before changing a step assignee.",
+            "Escalate only paused or failed runs with no running step and create or reuse a supervisor approval hold.",
+            "Cancel eligible runs in one transaction by skipping active steps, rejecting open holds, and synchronizing run, binding, task ticket, and evidence state.",
+            "Create rollback as an idempotent managed-operation compensation step and revalidate live authority before the compensation work becomes executable.",
+            "Finalize rollback only after the exact compensation step is completed and all other linked steps are inactive."
+          ],
+          "assertions": [
+            "The default retry limit is three total attempts and the third failed attempt cannot be retried.",
+            "Retry requires failed-step state, paused/failed run state, no open approval hold, no conflicting active step, and unchanged live authority.",
+            "Retry evidence stores the request-key SHA-256 and does not store the raw key in managed execution events.",
+            "Reassignment rejects inactive, missing, ambiguous, or cross-tenant membership and is limited to pending, awaiting, or failed steps.",
+            "Escalation creates a supervisor_approval hold, rejects running steps and conflicting holds, and safely reuses an existing supervisor hold.",
+            "Cancellation changes active steps to skipped, open holds to rejected, the run to cancelled, and linked binding/task states to cancelled atomically.",
+            "Rollback is rejected for read-only effects, active steps, open holds, invalid run states, authority drift, or ambiguous idempotency evidence.",
+            "Rollback finalization requires the `__managed_rollback__` managed_op step in completed state and no other active step.",
+            "The run terminal enum remains cancelled after compensation while binding and task lifecycle state records rolled_back.",
+            "All seven recovery endpoints are discoverable and remain behind the managed route authorization layer.",
+            "No provider call, credential read, external send, deployment, migration Apply, registry sync, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "managed-execution-recovery-operations-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-managed-execution-recovery-operations.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/managedExecutionRecoveryService.js",
+            "http-generic-api/managedExecutionLifecycleService.js",
+            "http-generic-api/routes/managedExecutionRoutes.js",
+            "http-generic-api/test-managed-execution-recovery-operations.mjs",
+            "specs/017-tenant-managed-execution-lifecycle/implementation/pr-recovery-operations.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Apply Migration 1043 through its separate governed boundary before exercising recovery operations against persistent runtime data."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add complete tenant/admin projections and automated contradiction reconciliation as T019."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Exercise retry, cancellation, escalation, reassignment, and compensation rollback against a non-production tenant canary after exact runtime readiness."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify the exact deployed SHA, migration ledger, protected tenant path, recovery evidence, and post-merge audit before closing #4449."
+    }
+  ]
+}
