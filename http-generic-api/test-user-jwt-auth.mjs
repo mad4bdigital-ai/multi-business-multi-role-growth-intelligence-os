@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
-import { createUserJwtMiddleware, verifyUserJwtAuthorization } from "./userJwtAuth.js";
+import {
+  createUserJwtMiddleware,
+  resolveUserJwtSecret,
+  resolveUserJwtSecretStatus,
+  verifyUserJwtAuthorization,
+} from "./userJwtAuth.js";
 import { addedLineViolations, hardenedFileViolations } from "./scripts/user-jwt-auth-governance.mjs";
 
 function callMiddleware(middleware, { authorization = "", auth = null } = {}) {
@@ -41,6 +46,41 @@ function callMiddleware(middleware, { authorization = "", auth = null } = {}) {
   const rejected = verifyUserJwtAuthorization(`Bearer ${wrongAlgorithm}`, { env });
   assert.equal(rejected.ok, false);
   assert.equal(rejected.status, 401);
+}
+
+{
+  const aliasEnv = {
+    USER_JWT_SECRET: "alias-user-jwt-secret",
+    AUTH_JWT_SECRET: "lower-priority-auth-secret",
+    BACKEND_API_KEY: "backend-key-must-not-win",
+  };
+  assert.equal(resolveUserJwtSecret(aliasEnv), aliasEnv.USER_JWT_SECRET);
+  assert.deepEqual(resolveUserJwtSecretStatus(aliasEnv), {
+    configured: true,
+    source: "USER_JWT_SECRET",
+    derived: false,
+    secrets_included: false,
+  });
+}
+
+{
+  const env = { BACKEND_API_KEY: "startup-smoke-backend-key" };
+  const derivedSecret = resolveUserJwtSecret(env);
+  assert.ok(derivedSecret, "BACKEND_API_KEY must provide a deterministic compatibility secret");
+  assert.notEqual(derivedSecret, env.BACKEND_API_KEY, "the JWT secret must be context-derived, not reused verbatim");
+  assert.equal(derivedSecret, resolveUserJwtSecret({ ...env }), "derived secret must be deterministic across instances");
+  assert.deepEqual(resolveUserJwtSecretStatus(env), {
+    configured: true,
+    source: "BACKEND_API_KEY_DERIVED",
+    derived: true,
+    secrets_included: false,
+  });
+
+  const token = jwt.sign({ user_id: "tenant-user", tenant_id: "tenant-1" }, derivedSecret, { algorithm: "HS256" });
+  const accepted = callMiddleware(createUserJwtMiddleware({ env }), { authorization: `Bearer ${token}` });
+  assert.equal(accepted.nextCalled, true);
+  assert.equal(accepted.req.auth?.user_id, "tenant-user");
+  assert.equal(accepted.req.auth?.tenant_id, "tenant-1");
 }
 
 {
