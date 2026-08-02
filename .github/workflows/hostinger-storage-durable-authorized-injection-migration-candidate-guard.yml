@@ -5,7 +5,10 @@ on:
     paths:
       - '.changes/e2e/spec014-durable-authorized-injection-migration-candidate.json'
       - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json'
+      - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
       - '.github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml'
+      - 'http-generic-api/config/governed-migration-dependencies.json'
       - 'http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js'
       - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
       - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs'
@@ -49,7 +52,7 @@ jobs:
           node --check http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
           node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
 
-      - name: Execute exact candidate inspection contract
+      - name: Execute candidate snapshot and promotion lifecycle contract
         id: focused_test
         continue-on-error: true
         shell: bash
@@ -60,7 +63,7 @@ jobs:
             > "${REPORT_DIR}/focused-test.stdout" \
             2> "${REPORT_DIR}/focused-test.stderr"
 
-      - name: Verify checksum and unpromoted boundary
+      - name: Verify checksum and exact promoted boundary
         id: contract
         continue-on-error: true
         shell: bash
@@ -68,12 +71,19 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import crypto from 'node:crypto';
+
           const migration = '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql';
+          const dependency = '20260802_03_spec014_hostinger_storage_execution_evidence.sql';
           const expectedChecksum = 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981';
+          const expectedDependencyChecksum = 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096';
           const sql = fs.readFileSync(`http-generic-api/migrations/${migration}`, 'utf8');
           const checksum = crypto.createHash('sha256').update(sql).digest('hex');
-          const contract = JSON.parse(fs.readFileSync(
+          const candidate = JSON.parse(fs.readFileSync(
             '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json',
+            'utf8',
+          ));
+          const promotion = JSON.parse(fs.readFileSync(
+            '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json',
             'utf8',
           ));
           const runtime = JSON.parse(fs.readFileSync(
@@ -84,24 +94,92 @@ jobs:
             'http-generic-api/config/governed-migration-dependencies.json',
             'utf8',
           ));
+
+          const waves = runtime.waves.filter((wave) => wave.migration === migration);
+          const wave = waves[0];
+          const registered = dependencies.migrations[migration];
+          const registeredDependencies = registered?.dependencies || [];
+          const registeredDependency = registeredDependencies[0];
+          const terminal = promotion.terminal_boundary || {};
+
           if (checksum !== expectedChecksum
-            || contract.candidate.checksum_sha256 !== expectedChecksum
-            || contract.candidate.statement_count !== 2
-            || contract.candidate.candidate_created !== true
-            || contract.candidate.candidate_inspection_passed !== true
-            || contract.promotion_boundary.runtime_sequence_promoted !== false
-            || contract.promotion_boundary.dependency_registry_updated !== false
-            || contract.promotion_boundary.ready_for_promotion_review !== true
-            || contract.promotion_boundary.ready_for_authorization !== false
-            || contract.promotion_boundary.ready_for_apply !== false
-            || runtime.waves.some((wave) => wave.migration === migration)
-            || Object.hasOwn(dependencies.migrations, migration)
-            || contract.secrets_included !== false) {
+            || candidate.candidate.checksum_sha256 !== expectedChecksum
+            || candidate.candidate.statement_count !== 2
+            || candidate.candidate.candidate_created !== true
+            || candidate.candidate.candidate_inspection_passed !== true
+            || candidate.promotion_boundary.runtime_sequence_promoted !== false
+            || candidate.promotion_boundary.dependency_registry_updated !== false
+            || candidate.promotion_boundary.ready_for_promotion_review !== true
+            || candidate.promotion_boundary.ready_for_authorization !== false
+            || candidate.promotion_boundary.ready_for_apply !== false
+            || candidate.secrets_included !== false
+            || runtime.contract !== 'spec014.hostinger-storage-runtime-migrations.v1'
+            || runtime.status !== 'governed_sequence_registered_apply_blocked'
+            || runtime.migration_apply_authorized !== false
+            || runtime.live_database_access_performed !== false
+            || runtime.schema_verified !== false
+            || runtime.production_ready !== false
+            || runtime.secrets_included !== false
+            || runtime.waves.length !== 4
+            || waves.length !== 1
+            || wave.wave !== 4
+            || wave.checksum_sha256 !== expectedChecksum
+            || wave.statement_count !== 2
+            || wave.dependency !== dependency
+            || wave.preflight_status !== 'pass'
+            || wave.preflight_risk_count !== 0
+            || !Array.isArray(wave.preflight_risk_codes)
+            || wave.preflight_risk_codes.length !== 0
+            || dependencies.schema_version !== 'governed_migration_dependencies.v1'
+            || !registered
+            || registered.checksum_sha256 !== expectedChecksum
+            || registered.statement_count !== 2
+            || registeredDependencies.length !== 1
+            || registeredDependency.migration !== dependency
+            || registeredDependency.checksum_sha256 !== expectedDependencyChecksum
+            || registeredDependency.statement_count !== 9
+            || registeredDependency.required_ledger_mode !== 'apply'
+            || promotion.contract !== 'spec014.hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.v1'
+            || promotion.candidate_source.pull_request !== 4879
+            || promotion.candidate_source.candidate_head_sha !== '25f937c5ee0ff68a65da245c8af607e66eafa737'
+            || promotion.candidate_source.integration_merge_sha !== '4ca8d8691baa66210b679da51c5d92909c88c14c'
+            || promotion.candidate_source.migration !== migration
+            || promotion.candidate_source.checksum_sha256 !== expectedChecksum
+            || promotion.candidate_source.statement_count !== 2
+            || promotion.promotion.wave !== 4
+            || promotion.promotion.runtime_sequence_promoted !== true
+            || promotion.promotion.dependency_registry_updated !== true
+            || promotion.promotion.dependency !== dependency
+            || promotion.promotion.dependency_checksum_sha256 !== expectedDependencyChecksum
+            || promotion.promotion.dependency_statement_count !== 9
+            || promotion.promotion.required_ledger_mode !== 'apply'
+            || promotion.promotion.preflight_status !== 'pass'
+            || promotion.promotion.preflight_risk_count !== 0
+            || !Array.isArray(promotion.promotion.preflight_risk_codes)
+            || promotion.promotion.preflight_risk_codes.length !== 0
+            || terminal.ready_for_repository_authorization_inspection !== true
+            || terminal.ready_for_authorization !== false
+            || terminal.ready_for_apply !== false
+            || terminal.authorization_created !== false
+            || terminal.authorization_registry_mutated !== false
+            || terminal.capability_envelope_resolved !== false
+            || terminal.dry_run_performed !== false
+            || terminal.migration_sql_executed !== false
+            || terminal.live_database_access_performed !== false
+            || terminal.live_schema_readback_performed !== false
+            || terminal.schema_verified !== false
+            || terminal.provider_dispatch_allowed !== false
+            || terminal.worker_mounted !== false
+            || terminal.deployment_authorized !== false
+            || terminal.production_ready !== false
+            || terminal.automatic_retry_allowed !== false
+            || terminal.secrets_included !== false
+            || promotion.secrets_included !== false) {
             process.exit(1);
           }
           NODE
 
-      - name: Preserve candidate-only authority boundary
+      - name: Preserve candidate snapshot and promoted authority boundary
         id: boundary
         continue-on-error: true
         shell: bash
@@ -109,18 +187,21 @@ jobs:
           set -euo pipefail
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
           ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/)'
-          ! printf '%s\n' "${changed_files}" | grep -F 'http-generic-api/config/governed-migration-dependencies.json'
-          ! printf '%s\n' "${changed_files}" | grep -F '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
           ! printf '%s\n' "${changed_files}" | grep -E '^\.github/workflows/.*(?:production|deploy|provider|migration-apply)'
           ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls|node:http|node:https)['\"]|\b(exec|execFile|spawn|fork|fetch)\s*\(" \
             http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js \
             http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
           grep -q "runtime_sequence_promoted: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
           grep -q "dependency_registry_updated: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
-          grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
-          grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
-          grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
-          grep -q "production_ready: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "historical_candidate_snapshot_verified: true" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "runtime_sequence_promoted: true" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "dependency_registry_updated: true" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "promotion_contract_verified: true" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "authorization_created: false" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "migration_sql_executed: false" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "live_database_access_performed: false" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "provider_dispatch_allowed: false" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "production_ready: false" http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
 
       - name: Build structured guard summary
         if: always()
@@ -153,9 +234,14 @@ jobs:
             checks,
             first_failure: failed[0] || null,
             repository_mutation_performed: false,
+            historical_candidate_snapshot_verified: failed.length === 0,
             migration_candidate_created: true,
-            runtime_sequence_promoted: false,
-            dependency_registry_updated: false,
+            runtime_sequence_promoted: true,
+            dependency_registry_updated: true,
+            promotion_contract_verified: failed.length === 0,
+            ready_for_repository_authorization_inspection: failed.length === 0,
+            ready_for_authorization: false,
+            ready_for_apply: false,
             authorization_created: false,
             migration_sql_executed: false,
             live_database_access_performed: false,
