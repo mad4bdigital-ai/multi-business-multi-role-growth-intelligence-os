@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch.yml";
+const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch$/mu);
