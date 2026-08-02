@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_durable_tenant_repository_facade_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "canonical_durable_repository_facade",
+  "capability_status": "implemented_unmounted",
+  "purpose": "Expose one async-only Tenant execution facade over the canonical verified SQL composition while sequencing plan-item parents, operation transition, exact plan consumption, and run-parent creation before child evidence writes.",
+  "canonical_dependency": {
+    "composition_key": "hostinger_storage_verified_sql_runtime_composition_v1",
+    "composition_version": "spec014-hostinger-storage-verified-sql-runtime-composition-v1",
+    "must_be_schema_verified": true,
+    "must_be_runtime_mounted": false,
+    "must_be_route_mounted": false,
+    "must_be_worker_mounted": false,
+    "must_allow_provider_dispatch": false,
+    "must_be_production_ready": false
+  },
+  "public_facade": {
+    "facade_key": "hostinger_storage_durable_tenant_repository_facade_v1",
+    "facade_version": "spec014-hostinger-storage-durable-tenant-repository-facade-v1",
+    "async_only": true,
+    "methods": [
+      "readExecutionAggregate",
+      "prepareExecution",
+      "appendJournalEvent",
+      "appendReconciliation",
+      "finalizeRun"
+    ],
+    "raw_composition_exposed": false,
+    "transition_operation_exposed": false,
+    "consume_plan_exposed": false,
+    "legacy_record_reconciliation_exposed": false,
+    "legacy_synthetic_executor_compatible": false
+  },
+  "preparation_order": [
+    "read_and_validate_current_aggregate",
+    "register_plan_item_parents",
+    "transition_operation_from_lease_acquired_to_executing_when_required",
+    "consume_exact_immutable_plan_by_exact_run",
+    "create_exact_run_parent",
+    "read_back_executing_operation_and_exact_plan_consumption"
+  ],
+  "binding_requirements": [
+    "operation_id",
+    "operation_version",
+    "operation_state",
+    "target_id",
+    "plan_id",
+    "plan_hash",
+    "plan_status",
+    "plan_consumed_run_id",
+    "run_id",
+    "contiguous_plan_item_ordinals",
+    "schema_verification_digest",
+    "source_commit",
+    "deployed_runtime_sha",
+    "database_fingerprint",
+    "readback_cycle_id"
+  ],
+  "child_evidence_ownership": {
+    "journal_writer": "composition.child_evidence.appendJournalEvent",
+    "reconciliation_writer": "composition.child_evidence.appendReconciliation",
+    "legacy_control_plane_child_paths_publicly_exposed": false,
+    "duplicate_child_write_paths_allowed": false
+  },
+  "failure_and_replay": {
+    "binding_mismatch_rejected_before_first_mutation": true,
+    "operation_version_conflict_rejected_before_first_mutation": true,
+    "executing_same_run_replay_supported_after_fresh_read": true,
+    "partial_attempt_requires_fresh_read_before_retry": true,
+    "automatic_blind_retry_allowed": false
+  },
+  "remaining_bridge_capabilities": [
+    "parent_aware_async_execution_engine",
+    "durable_authority_store",
+    "durable_enablement_registry",
+    "tenant_safe_durable_projection",
+    "dedicated_worker_certification",
+    "fixed_dispatch_certification",
+    "crash_safe_restart_reconciliation",
+    "separate_mount_authorization"
+  ],
+  "non_goals": {
+    "runtime_dependency_injection": false,
+    "route_mount": false,
+    "worker_mount": false,
+    "provider_dispatch": false,
+    "migration_authorization": false,
+    "migration_apply": false,
+    "foreign_key_enablement": false,
+    "live_database_access_by_factory": false,
+    "hostinger_access": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "factory_database_calls": 0,
+    "factory_provider_calls": 0,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}
