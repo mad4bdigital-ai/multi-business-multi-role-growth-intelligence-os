@@ -36,10 +36,10 @@
 - [x] **T021** [P] Classify proposed tables/views into existing schema domains and Work Maps. Evidence: `.github/contracts/spec014/hostinger-storage-schema-classification.json` enumerates the exact 15 additive tables and binds each to one existing domain and its Work Maps.
 - [x] **T022** Define indexes, uniqueness, FK, CAS lease, immutable-plan, retention, and encrypted/opaque path constraints. Evidence: the guarded schema-classification contract and validator enforce per-object keys, indexes, authority, immutability, retention, and sensitive-data boundaries.
 - [x] **T023** Update canonical schema classification registry before SQL creation; prove zero ambiguity/unresolved objects. Evidence: `.specify/work-map-schema-classification-registry.json` contains one bounded exact rule per proposed table; the official registry-contract and classification validators remain fail-closed. No SQL or migration apply is included.
-- [ ] **T024** Draft additive migration wave 1: provider accounts, targets, bindings, snapshots.
-- [ ] **T025** Draft additive migration wave 2: operations, plans, items, impacts, approvals, leases.
-- [ ] **T026** Draft additive migration wave 3: runs, reconciliation, reserves, incidents, read-only projections and default-off tool seeds.
-- [ ] **T027** Add migration preflight/readback/rollback tests; no apply in specification PR.
+- [x] **T024** Draft additive migration wave 1: provider accounts, targets, bindings, snapshots. Evidence: reviewed contract candidate `.github/contracts/spec014/migrations/wave-1-foundation.sql` from PR #4558; promoted without apply as `http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql` by PR #4564.
+- [x] **T025** Draft additive migration wave 2: operations, plans, items, impacts, approvals, leases. Evidence: reviewed contract candidate `.github/contracts/spec014/migrations/wave-2-control-plane.sql` from PR #4558; promoted without apply as `http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql` by PR #4564 with an exact Wave 1 apply-ledger dependency.
+- [x] **T026** Draft additive migration wave 3: runs, reconciliation, reserves, incidents, read-only projections and default-off tool seeds. Evidence: reviewed contract candidate `.github/contracts/spec014/migrations/wave-3-execution-evidence.sql` from PR #4558; promoted without apply as `http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql` by PR #4564 while retaining view/tool-key absence blockers.
+- [x] **T027** Add migration preflight/readback/rollback tests; no apply in specification PR. Evidence: `.github/contracts/spec014/migrations/preflight.sql`, `readback.sql`, `rollback-prelive.sql`, `validate-hostinger-storage-migration-drafts.mjs`, and the migration/runtime promotion guards merged through PRs #4558 and #4564. Repository-only authorization readiness from PR #4576 performs inspection only; it creates no authorization, dry-run, SQL execution, or live readback.
 
 ## Phase 3 — Resource, context, and authority orchestration
 
@@ -68,7 +68,7 @@
 ## Phase 5 — Planning, approval, execution, and reconciliation
 
 - [ ] **T050** [FR-012/FR-021/OP-003–OP-008] Implement immutable plan/item/impact repositories and plan hashing.
-- [ ] **T051** [FR-020/FR-021] Implement lease, idempotency, consumed-plan marker, and per-item journal/checkpoints.
+- [ ] **T051** [FR-020] Implement lease, idempotency, consumed-plan marker, and per-item journal/checkpoints.
 - [ ] **T052** [FR-022/OP-009] Implement same-operation unknown-outcome reconciliation and outcome classifier.
 - [ ] **T053** Implement approval invalidation on context/target/ownership/policy/plan/impact/expiry changes.
 - [ ] **T054** Implement shared-impact approval completeness and policy-defined quorum support.
@@ -136,7 +136,7 @@ T093 -> T094 -> T095 -> T096 -> T097
 
 ## Current implementation boundary
 
-Completed items establish specification, conservative local tooling, pure authority logic, and CI regression only. They do not create live SQL authority, runtime routes, provider dispatch, credential access, file deletion on Hostinger, Production promotion, or deployment.
+Completed items now include the reviewed migration design waves, governed runtime migration registration, SQL parent-writer support, signed schema-verification contract, and repository-only authorization readiness inspection. They do not create a live capability envelope, migration authorization, dry-run, SQL apply, live schema/readback evidence, runtime provider dispatch, credential access, file deletion on Hostinger, Production promotion, or deployment. T094 therefore remains incomplete.
 
 ## Completion rule
 
