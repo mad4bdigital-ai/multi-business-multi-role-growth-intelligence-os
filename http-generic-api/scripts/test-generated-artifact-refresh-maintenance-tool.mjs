@@ -99,6 +99,15 @@ runCheck("tool-no-force-push", () => {
     assert.doesNotMatch(call, /["'](?:--force|-f)["']/u);
   }
 });
+runCheck("tool-canonical-auth-repair", () => {
+  assert.match(toolSource, /"git", \["branch", "-f", "main", "origin\/main"\]/u);
+  assert.match(toolSource, /scripts\/openapi-runtime-auth-sync\.mjs", "--write"/u);
+  assert.match(toolSource, /scripts\/test-openapi-runtime-auth-sync-operation-insertion\.mjs/u);
+  assert.match(toolSource, /http-generic-api\/openapi\/support-tickets\.yaml/u);
+  const authSyncIndex = toolSource.indexOf("sync_openapi_runtime_auth");
+  const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
+  assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
+});
 
 const workflowSource = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 runCheck("governed-workflow-dispatch-only", () => {
@@ -151,6 +160,10 @@ runCheck("maintenance-tool-registration", () => {
   assert.equal(registration?.mode, "mutating");
   assert.equal(registration?.entrypoint, "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs");
   assert.ok(registration?.allowed_changed_path_patterns?.length >= 1);
+  assert.ok(
+    registration?.allowed_changed_path_patterns?.includes("^http-generic-api/openapi/support-tickets\\.yaml$"),
+    "canonical support-ticket auth repair must be explicitly governed",
+  );
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
 });
 
@@ -159,6 +172,7 @@ console.log(JSON.stringify({
   ok: true,
   checks,
   exact_head_verification_dispatch: true,
+  canonical_auth_repair_registered: true,
   jobs_level_runner_context_used: false,
   secrets_included: false,
 }));

@@ -1,0 +1,7 @@
+{
+  "surface_key": "remote_mcp_oauth_grants",
+  "source_table": "remote_mcp_oauth_grants",
+  "reason": "Excluded because this table is an internal Remote MCP OAuth access, rotation, and revocation ledger consumed only by the authorization boundary. It is not a tenant or admin discovery surface and does not replace platform tenant, workspace, Brand, resource, capability, connection, or operation authority checks.",
+  "owner": "identity-security",
+  "review_after": "2026-12-31"
+}

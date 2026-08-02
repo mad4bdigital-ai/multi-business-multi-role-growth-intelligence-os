@@ -72,8 +72,10 @@ assert.equal(completion.implementation.published, false);
 assert.equal(e2e.$schema, "../../.specify/schemas/e2e-phases.schema.json");
 assert.equal(e2e.feature_key, manifest.spec_key);
 assert.equal(e2e.delivery_mode, "multi_pr");
-assert.equal(e2e.current_phase, "mvp");
+assert.equal(e2e.merge_contract?.minimum_phase, "mvp");
+assert.equal(e2e.current_phase, "operational");
 assert(e2e.phases.some((phase) => phase.id === "mvp" && phase.status === "implemented"));
+assert(e2e.phases.some((phase) => phase.id === "operational" && phase.status === "implemented"));
 
 assert.equal(workMap.feature_key, manifest.spec_key);
 assert.equal(workMap.review_state, "draft");
@@ -102,6 +104,8 @@ console.log(JSON.stringify({
   file_count: manifest.file_count,
   json_contracts_validated: manifest.files.filter((path) => path.endsWith(".json")).length,
   openapi_contract_present: true,
+  current_phase: e2e.current_phase,
+  minimum_merge_phase: e2e.merge_contract.minimum_phase,
   implementation_authorized: false,
   secrets_included: false,
 }));
