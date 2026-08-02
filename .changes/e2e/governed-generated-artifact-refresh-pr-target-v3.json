@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-pr-target-v3",
+  "title": "Restore generated-artifact refresh dispatch through a trusted pull-request-target bridge",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs",
+      ".changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Use a default-branch pull_request_target bridge to dispatch the registered V2 decision workflow for an exact same-repository, non-draft, main-target pull request carrying the explicit generated-artifact-refresh label.",
+      "e2e_journeys": [
+        {
+          "id": "trusted-pr-target-to-v2-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted generated-artifact refresh control plane",
+          "entrypoint": "A same-repository pull request targeting main is labeled, synchronized, reopened, or marked ready while carrying generated-artifact-refresh.",
+          "terminal_outcome": "The bridge validates immutable PR metadata, dispatches the registered V2 workflow on main with the exact head ref and SHA, and observes a delegated V2 run without checking out candidate code or writing repository contents.",
+          "steps": [
+            "Read pull-request metadata directly from the pull_request_target event.",
+            "Require same repository, base main, non-draft state, explicit refresh label, allowed branch prefix, and a 40-character lowercase SHA.",
+            "Dispatch governed-generated-artifact-refresh-dispatch-v2.yml on main with target_ref and expected_head_sha.",
+            "Observe a new workflow_dispatch run within a bounded window and fail closed otherwise."
+          ],
+          "assertions": [
+            "The bridge has actions:write only for delegation and keeps contents and pull requests read-only.",
+            "The bridge does not request issue write authority, checkout candidate code, push commits, or invoke the generated-artifact writer directly.",
+            "Cross-repository, draft, non-main-target, unlabeled, stale-SHA, protected-ref, and unsupported-prefix candidates do not dispatch.",
+            "V2 remains the canonical decision publisher and the only workflow that may delegate to the governed writer."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-artifact-refresh-pr-target-v3-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-pr-target-v3.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retire older unobserved issue-comment bootstrap paths after V3 produces stable run-bound evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Detect duplicate or stale control-plane triggers without broadening writer authority."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The bridge changes repository automation only and has no external canary target."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production deployment and runtime verification remain outside this control-plane repair."
+    }
+  ],
+  "secrets_included": false
+}
