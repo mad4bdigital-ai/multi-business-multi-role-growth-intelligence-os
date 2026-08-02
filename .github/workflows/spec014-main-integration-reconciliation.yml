@@ -99,10 +99,21 @@ jobs:
             git add -- "${path}"
           }
 
+          has_conflict() {
+            local expected_path="$1"
+            local conflict_path
+            for conflict_path in "${conflicts[@]}"; do
+              if [[ "${conflict_path}" == "${expected_path}" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
           for identical_path in \
             '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json' \
             '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'; do
-            if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${identical_path}"; then
+            if has_conflict "${identical_path}"; then
               ours_tmp="$(mktemp)"
               theirs_tmp="$(mktemp)"
               git show "${integration_parent}:${identical_path}" > "${ours_tmp}"
@@ -121,7 +132,7 @@ jobs:
             'http-generic-api/frontend-operation-governance.generated.json' \
             'http-generic-api/frontend-surface-dispatch.generated.json' \
             'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
-            if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${generated_path}"; then
+            if has_conflict "${generated_path}"; then
               restore_integration_blob "${generated_path}"
             fi
           done
