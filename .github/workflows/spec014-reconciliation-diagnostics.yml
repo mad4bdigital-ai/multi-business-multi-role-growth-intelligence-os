@@ -1,0 +1,234 @@
+name: Spec014 Reconciliation Diagnostics
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-reconciliation-diagnostics.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: spec014-reconciliation-diagnostics
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/reconcile-spec014-main-support-auth-parity-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MAIN_SHA: c2fda7d04be5b6179320ebe6042742f2b5adaa80
+      RECONCILIATION_BRANCH: gpt/reconcile-spec014-main-support-auth-parity-20260802
+      DIAGNOSTIC_FILE: reconciliation-diagnostics.txt
+    steps:
+      - name: Checkout exact reconciliation branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RECONCILIATION_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Reproduce reconciliation and capture exact failure
+        shell: bash
+        run: |
+          : > "${DIAGNOSTIC_FILE}"
+          exec > >(tee -a "${DIAGNOSTIC_FILE}") 2>&1
+          set -Eeuo pipefail
+
+          current_stage='bootstrap'
+          on_error() {
+            local status=$?
+            local line=${BASH_LINENO[0]:-${LINENO}}
+            local command=${BASH_COMMAND:-unknown}
+            set +e
+            echo '=== REPOSITORY AUTOMATION FAILURE ==='
+            echo "stage=${current_stage}"
+            echo "exit_status=${status}"
+            echo "line=${line}"
+            echo "command=${command}"
+            echo "head=$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "main_sha=${MAIN_SHA}"
+            echo '--- git status --short ---'
+            git status --short || true
+            echo '--- unresolved conflict paths ---'
+            git diff --name-only --diff-filter=U || true
+            echo '--- unmerged index entries ---'
+            git ls-files -u || true
+            echo '--- unstaged changed paths ---'
+            git diff --name-only || true
+            echo '--- staged changed paths ---'
+            git diff --cached --name-only || true
+            exit "${status}"
+          }
+          trap on_error ERR
+
+          echo '=== REPOSITORY AUTOMATION INPUT ==='
+          echo "branch=${RECONCILIATION_BRANCH}"
+          echo "head=$(git rev-parse HEAD)"
+          echo "main_sha=${MAIN_SHA}"
+
+          current_stage='merge_main'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin "${MAIN_SHA}"
+          git update-ref refs/heads/main "${MAIN_SHA}"
+          integration_parent="$(git rev-parse HEAD)"
+
+          set +e
+          git merge --no-commit --no-ff "${MAIN_SHA}"
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          echo "merge_status=${merge_status}"
+          echo "integration_parent=${integration_parent}"
+          echo "main_parent=${MAIN_SHA}"
+          echo "conflict_count=${#conflicts[@]}"
+          printf 'conflict_path=%s\n' "${conflicts[@]:-}"
+
+          allowed_conflicts=(
+            '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'
+            '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'
+            'http-generic-api/frontend-operation-governance.generated.json'
+            'http-generic-api/frontend-surface-dispatch.generated.json'
+            'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
+          )
+
+          if [[ ${merge_status} -ne 0 && ${#conflicts[@]} -eq 0 ]]; then
+            echo 'Merge failed without resolvable content conflicts.' >&2
+            false
+          fi
+
+          for conflict in "${conflicts[@]}"; do
+            allowed=false
+            for candidate in "${allowed_conflicts[@]}"; do
+              if [[ "${conflict}" == "${candidate}" ]]; then
+                allowed=true
+                break
+              fi
+            done
+            if [[ "${allowed}" != true ]]; then
+              echo "Unexpected reconciliation conflict: ${conflict}" >&2
+              false
+            fi
+          done
+
+          restore_integration_blob() {
+            local path="$1"
+            git show "${integration_parent}:${path}" > "${path}"
+            git add -- "${path}"
+          }
+
+          has_conflict() {
+            local expected_path="$1"
+            local conflict_path
+            for conflict_path in "${conflicts[@]}"; do
+              if [[ "${conflict_path}" == "${expected_path}" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          current_stage='resolve_identical_canary_conflicts'
+          for identical_path in \
+            '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json' \
+            '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'; do
+            if has_conflict "${identical_path}"; then
+              ours_tmp="$(mktemp)"
+              theirs_tmp="$(mktemp)"
+              git show "${integration_parent}:${identical_path}" > "${ours_tmp}"
+              git show "${MAIN_SHA}:${identical_path}" > "${theirs_tmp}"
+              cmp --silent "${ours_tmp}" "${theirs_tmp}" || {
+                echo "Tenant Canary conflict is not byte-identical: ${identical_path}" >&2
+                false
+              }
+              cat "${ours_tmp}" > "${identical_path}"
+              git add -- "${identical_path}"
+              rm -f "${ours_tmp}" "${theirs_tmp}"
+            fi
+          done
+
+          current_stage='resolve_generated_conflicts'
+          for generated_path in \
+            'http-generic-api/frontend-operation-governance.generated.json' \
+            'http-generic-api/frontend-surface-dispatch.generated.json' \
+            'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
+            if has_conflict "${generated_path}"; then
+              restore_integration_blob "${generated_path}"
+            fi
+          done
+
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo 'Unresolved merge conflicts remain.' >&2
+            git diff --name-only --diff-filter=U >&2
+            false
+          fi
+
+          current_stage='install_dependencies'
+          npm ci --prefix http-generic-api
+
+          current_stage='generate_frontend_authority_evidence'
+          (
+            cd http-generic-api
+            npm run frontend:dispatch:generate -- --baseline-ref=main
+          )
+
+          mapfile -t unstaged < <(git diff --name-only)
+          for path in "${unstaged[@]}"; do
+            case "${path}" in
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                ;;
+              *)
+                echo "Unexpected generator mutation: ${path}" >&2
+                false
+                ;;
+            esac
+          done
+
+          current_stage='validate_frontend_and_canary_contracts'
+          (
+            cd http-generic-api
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+          )
+          node .github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs
+          grep -Fq 'userJwtAuth' http-generic-api/openapi/support-tickets.yaml
+
+          current_stage='complete'
+          echo '=== REPOSITORY AUTOMATION RESULT ==='
+          echo 'status=success'
+          echo 'No reconciliation failure reproduced.'
+          trap - ERR
+
+      - name: Publish repository automation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-reconciliation-diagnostics
+          path: reconciliation-diagnostics.txt
+          if-no-files-found: error
+          retention-days: 7
