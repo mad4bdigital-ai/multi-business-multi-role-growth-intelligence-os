@@ -1,0 +1,261 @@
+name: Frontend Parity Refresh Dispatch
+
+on:
+  workflow_run:
+    workflows:
+      - Frontend surface dispatch
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: frontend-parity-refresh-dispatch-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+      EVENT_CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      REPORT_DIR: ${{ runner.temp }}/frontend-parity-refresh-dispatch
+      SOURCE_DIR: ${{ runner.temp }}/frontend-dispatch-source-evidence
+    steps:
+      - name: Download exact source structured evidence
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dispatch-verification-evidence-${{ github.event.workflow_run.id }}
+          path: ${{ env.SOURCE_DIR }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Evaluate canonical evidence and dispatch registered refresh
+        id: decision
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const reportPath = path.join(process.env.REPORT_DIR, 'frontend-parity-refresh-dispatch.json');
+          const sourcePath = path.join(process.env.SOURCE_DIR, 'frontend-dispatch-verification-evidence.json');
+          const fullSha = /^[0-9a-f]{40}$/u;
+          const targetPattern = /^(gpt|cert|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
+          const sanitize = (value) => String(value || '')
+            .replace(/\r/gu, '')
+            .replace(/\bBearer\s+[^\s]+/giu, 'Bearer [REDACTED]')
+            .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu, '[REDACTED_GITHUB_TOKEN]')
+            .replace(/\b(authorization|token|secret|password|cookie|api[_-]?key)\b(\s*[:=]\s*)([^\s,;]+)/giu, '$1$2[REDACTED]')
+            .slice(-2000);
+
+          const state = {
+            contract: 'mad4b.frontend-parity-refresh-dispatch.v1',
+            outcome: 'blocked',
+            source_workflow: process.env.SOURCE_WORKFLOW,
+            source_run_id: Number(process.env.SOURCE_RUN_ID),
+            candidate_sha: process.env.EVENT_CANDIDATE_SHA,
+            source_head_sha: null,
+            target_ref: null,
+            pr_number: null,
+            dispatch_requested: false,
+            delegated_workflow: null,
+            typed_confirmation: null,
+            http_status: null,
+            first_failure: null,
+            source_of_truth: 'structured_report',
+            job_logs_role: 'diagnostic_only',
+            consult_job_logs: false,
+            direct_repository_mutation: false,
+            protected_branch_mutation: false,
+            force_push: false,
+            secrets_included: false,
+          };
+          const fail = (code, diagnostic) => {
+            state.outcome = 'blocked';
+            state.first_failure = { code, diagnostic_tail: sanitize(diagnostic) };
+          };
+          const persist = () => fs.writeFileSync(reportPath, `${JSON.stringify(state, null, 2)}\n`);
+
+          try {
+            if (process.env.DOWNLOAD_OUTCOME !== 'success' || !fs.existsSync(sourcePath)) {
+              fail('source_structured_report_missing', 'The exact structured artifact was unavailable; Job logs were not consulted.');
+              persist();
+              process.exit(1);
+            }
+
+            const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+            const targetBranch = source.identity?.head_ref || '';
+            const sourceHeadSha = source.identity?.source_head_sha || '';
+            state.source_head_sha = sourceHeadSha || null;
+            state.target_ref = targetBranch || null;
+
+            if (targetBranch === 'main' || targetBranch === 'Production') {
+              fail('protected_branch_rejected', `Protected branch mutation is forbidden: ${targetBranch}`);
+              persist();
+              process.exit(1);
+            }
+
+            const identityValid = source.contract === 'mad4b.frontend-dispatch-verification-evidence.v1'
+              && source.identity?.workflow === 'Frontend surface dispatch'
+              && source.identity?.candidate_sha === process.env.EVENT_CANDIDATE_SHA
+              && fullSha.test(sourceHeadSha)
+              && targetPattern.test(targetBranch)
+              && source.identity?.base_ref === 'main'
+              && source.routing?.consult_job_logs === false
+              && source.secrets_included === false;
+            if (!identityValid) {
+              fail('source_evidence_integrity_failure', 'Canonical identity, contract, routing, or no-secret assertions did not match the workflow_run event.');
+              persist();
+              process.exit(1);
+            }
+
+            if (source.outcome !== 'failed' || source.first_failure?.stage_id !== 'committed_generated_parity') {
+              state.outcome = 'skipped';
+              persist();
+              process.exit(0);
+            }
+
+            const prQuery = spawnSync('gh', [
+              'api',
+              '-H', 'Accept: application/vnd.github+json',
+              '-H', 'X-GitHub-Api-Version: 2022-11-28',
+              '--method', 'GET',
+              `repos/${process.env.GITHUB_REPOSITORY}/pulls`,
+              '-f', 'state=open',
+              '-f', `head=${process.env.GITHUB_REPOSITORY_OWNER}:${targetBranch}`,
+              '-f', 'per_page=10',
+            ], { encoding: 'utf8', env: process.env });
+            if (prQuery.status !== 0) {
+              fail('pull_request_resolution_failed', prQuery.stderr || prQuery.stdout);
+              persist();
+              process.exit(1);
+            }
+            const prs = JSON.parse(prQuery.stdout || '[]');
+            if (prs.length !== 1) {
+              fail('associated_pull_request_cardinality_invalid', `Expected one open same-repository pull request; found ${prs.length}.`);
+              persist();
+              process.exit(1);
+            }
+
+            const pr = prs[0];
+            state.pr_number = pr.number;
+            if (pr.head?.sha !== sourceHeadSha) {
+              fail('pull_request_head_mismatch', 'The PR head moved after the source evidence was produced.');
+              persist();
+              process.exit(1);
+            }
+            const labels = new Set((pr.labels || []).map((item) => item.name));
+            if (!labels.has('generated-artifact-refresh')) {
+              state.outcome = 'skipped';
+              persist();
+              process.exit(0);
+            }
+
+            const expectedHeadSha = sourceHeadSha;
+            const payload = JSON.stringify({
+              ref: 'main',
+              inputs: {
+                target_ref: targetBranch,
+                expected_head_sha: expectedHeadSha,
+                confirmation: 'APPLY_GENERATED_ARTIFACT_REFRESH',
+              },
+            });
+            const dispatch = spawnSync('gh', [
+              'api',
+              '--method', 'POST',
+              `repos/${process.env.GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches`,
+              '--input', '-',
+            ], { input: payload, encoding: 'utf8', env: process.env });
+            if (dispatch.status !== 0) {
+              fail('workflow_dispatch_rejected', dispatch.stderr || dispatch.stdout);
+              persist();
+              process.exit(1);
+            }
+
+            state.outcome = 'passed';
+            state.dispatch_requested = true;
+            state.delegated_workflow = 'governed-generated-artifact-refresh.yml';
+            state.typed_confirmation = 'APPLY_GENERATED_ARTIFACT_REFRESH';
+            state.http_status = 204;
+            persist();
+          } catch (error) {
+            fail('dispatcher_unhandled_error', error?.message || error);
+            persist();
+            process.exit(1);
+          }
+          NODE
+
+      - name: Render bounded Markdown evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_FILE="${REPORT_DIR}/frontend-parity-refresh-dispatch.json"
+          MARKDOWN_FILE="${REPORT_DIR}/frontend-parity-refresh-dispatch.md"
+          test -f "${REPORT_FILE}"
+          REPORT_FILE="${REPORT_FILE}" MARKDOWN_FILE="${MARKDOWN_FILE}" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, 'utf8'));
+          const lines = [
+            '# Frontend parity refresh dispatch',
+            '',
+            `- Contract: \`${report.contract}\``,
+            `- Outcome: **${report.outcome}**`,
+            `- Source run: \`${report.source_run_id}\``,
+            `- Candidate SHA: \`${report.candidate_sha}\``,
+            `- Source head SHA: \`${report.source_head_sha || 'not-resolved'}\``,
+            `- Target ref: \`${report.target_ref || 'not-resolved'}\``,
+            `- PR: \`${report.pr_number ?? 'not-resolved'}\``,
+            `- Dispatch requested: **${report.dispatch_requested ? 'yes' : 'no'}**`,
+            '- Job logs: **diagnostic-only**',
+            '- Secrets included: **no**',
+          ];
+          if (report.first_failure) {
+            lines.push('', '## First blocking finding', '', `- Code: \`${report.first_failure.code}\``, `- Diagnostic: ${report.first_failure.diagnostic_tail}`);
+          }
+          fs.writeFileSync(process.env.MARKDOWN_FILE, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Upload canonical dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-parity-refresh-dispatch-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured dispatch decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/frontend-parity-refresh-dispatch.json`, 'utf8'));
+          const valid = report.contract === 'mad4b.frontend-parity-refresh-dispatch.v1'
+            && report.secrets_included === false
+            && report.consult_job_logs === false
+            && report.direct_repository_mutation === false
+            && report.protected_branch_mutation === false
+            && report.force_push === false;
+          if (!valid || report.outcome === 'blocked') process.exit(1);
+          process.exit(0);
+          NODE
