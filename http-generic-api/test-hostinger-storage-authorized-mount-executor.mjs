@@ -314,7 +314,7 @@ const execution = {
   now_epoch: NOW,
 };
 
-const bundle = await harness.executor.executeAuthorizedMount(execution);
+export const bundle = await harness.executor.executeAuthorizedMount(execution);
 assert.equal(isCanonicalHostingerStorageAuthorizedMountBundle(bundle), true);
 assert.equal(bundle.ready_for_dependency_injection, true);
 assert.equal(bundle.authorization_generation, 2);

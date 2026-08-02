@@ -1,0 +1,171 @@
+name: Hostinger Storage Authorized Dependency Injection Readback Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-authorized-dependency-injection-readback.json'
+      - '.github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json'
+      - '.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml'
+      - 'http-generic-api/hostingerStorageAuthorizedDependencyInjection.js'
+      - 'http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs'
+      - 'http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-authorized-dependency-injection-readback-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authorized-dependency-injection-readback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPORT_DIR: .ci-evidence/spec014-authorized-dependency-injection-readback
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check module and test syntax
+        id: syntax
+        continue-on-error: true
+        run: |
+          node --check http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          node --check http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+          node --check http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs
+
+      - name: Execute injection, readback, restart, and rollback contract
+        id: focused_test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs \
+            > "${REPORT_DIR}/focused-test.stdout" \
+            2> "${REPORT_DIR}/focused-test.stderr"
+
+      - name: Preserve bounded repository-only authority
+        id: boundary
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageAuthorizedDependencyInjection.js \
+            http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'isCanonicalHostingerStorageAuthorizedMountBundle' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'requires_exact_readback_before_route_resolution: true' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'rollback_restores_fail_closed_route: true' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'exact_runtime_object_identity' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'live_server_modified: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'live_route_registration_performed: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageAuthorizedDependencyInjection.js
+          grep -q '"route_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json
+          grep -q '"server_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json
+          grep -q '"provider_dispatch": false' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json
+          grep -q '"production_mutation": false' .github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json
+
+      - name: Build structured guard summary
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const stages = [
+            ['syntax', process.env.SYNTAX_OUTCOME],
+            ['focused_test', process.env.FOCUSED_TEST_OUTCOME],
+            ['bounded_authority', process.env.BOUNDARY_OUTCOME],
+          ].map(([stage_id, outcome]) => ({ stage_id, outcome }));
+          const firstFailure = stages.find((stage) => stage.outcome !== 'success') || null;
+          const fullSha = /^[0-9a-f]{40}$/u;
+          const identityValid = fullSha.test(process.env.CANDIDATE_SHA || '')
+            && Boolean(process.env.HEAD_REF)
+            && Boolean(process.env.BASE_REF);
+          const report = {
+            contract: 'mad4b.spec014-authorized-dependency-injection-readback-guard.v1',
+            outcome: firstFailure || !identityValid ? 'blocked' : 'passed',
+            identity: {
+              candidate_sha: process.env.CANDIDATE_SHA,
+              head_ref: process.env.HEAD_REF,
+              base_ref: process.env.BASE_REF,
+            },
+            stages,
+            first_failure: firstFailure || (identityValid ? null : {
+              stage_id: 'candidate_identity',
+              outcome: 'failure',
+            }),
+            boundaries: {
+              canonical_authorized_mount_bundle_required: true,
+              exact_readback_required_before_route_resolution: true,
+              restart_reconciliation_without_second_consumption: true,
+              rollback_restores_fail_closed_route: true,
+              live_server_modified: false,
+              live_route_registration_performed: false,
+              worker_mounted: false,
+              provider_dispatch_allowed: false,
+              production_ready: false,
+              automatic_retry_allowed: false,
+            },
+            consult_job_logs: false,
+            repository_mutation: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(
+            `${process.env.REPORT_DIR}/summary.json`,
+            `${JSON.stringify(report, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload structured guard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-authorized-dependency-injection-readback-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/summary.json
+            ${{ env.REPORT_DIR }}/focused-test.stdout
+            ${{ env.REPORT_DIR }}/focused-test.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured guard decision
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+        run: |
+          for outcome in "${SYNTAX_OUTCOME}" "${FOCUSED_TEST_OUTCOME}" "${BOUNDARY_OUTCOME}"; do
+            [[ "${outcome}" == "success" ]] || exit 1
+          done
