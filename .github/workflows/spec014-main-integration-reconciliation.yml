@@ -1,0 +1,161 @@
+name: Spec014 Main Integration Reconciliation
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-main-integration-reconciliation.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-main-integration-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/reconcile-spec014-main-support-auth-parity-20260802'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MAIN_SHA: c2fda7d04be5b6179320ebe6042742f2b5adaa80
+      RECONCILIATION_BRANCH: gpt/reconcile-spec014-main-support-auth-parity-20260802
+    steps:
+      - name: Checkout exact reconciliation branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RECONCILIATION_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Merge current main and resolve bounded generated conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${MAIN_SHA}"
+          git update-ref refs/heads/main "${MAIN_SHA}"
+
+          set +e
+          git merge --no-commit --no-ff "${MAIN_SHA}"
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          allowed_conflicts=(
+            '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'
+            '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'
+            'http-generic-api/frontend-surface-dispatch.generated.json'
+            'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
+          )
+
+          if [[ ${merge_status} -ne 0 && ${#conflicts[@]} -eq 0 ]]; then
+            echo 'Merge failed without resolvable content conflicts.' >&2
+            exit 1
+          fi
+
+          for conflict in "${conflicts[@]}"; do
+            allowed=false
+            for candidate in "${allowed_conflicts[@]}"; do
+              if [[ "${conflict}" == "${candidate}" ]]; then
+                allowed=true
+                break
+              fi
+            done
+            if [[ "${allowed}" != true ]]; then
+              echo "Unexpected reconciliation conflict: ${conflict}" >&2
+              exit 1
+            fi
+          done
+
+          for identical_path in \
+            '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json' \
+            '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'; do
+            if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${identical_path}"; then
+              git checkout --ours -- "${identical_path}"
+              git add "${identical_path}"
+            fi
+          done
+
+          for generated_path in \
+            'http-generic-api/frontend-surface-dispatch.generated.json' \
+            'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
+            if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${generated_path}"; then
+              git checkout --ours -- "${generated_path}"
+              git add "${generated_path}"
+            fi
+          done
+
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo 'Unresolved merge conflicts remain.' >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+
+      - name: Regenerate combined frontend authority evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+
+          mapfile -t unstaged < <(git diff --name-only)
+          for path in "${unstaged[@]}"; do
+            case "${path}" in
+              http-generic-api/frontend-operation-governance.generated.json|\
+              http-generic-api/frontend-surface-dispatch.generated.json|\
+              http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                ;;
+              *)
+                echo "Unexpected generator mutation: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Validate merged frontend and Tenant Canary contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+          )
+          node .github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs
+          grep -Fq 'userJwtAuth' http-generic-api/openapi/support-tickets.yaml
+
+      - name: Commit two-parent reconciliation and remove launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/spec014-main-integration-reconciliation.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: reconcile current main into Spec 014 Integration'
+
+          read -r commit first_parent second_parent extra < <(git rev-list --parents -n 1 HEAD)
+          [[ -n "${commit}" && -n "${first_parent}" && "${second_parent}" == "${MAIN_SHA}" && -z "${extra:-}" ]]
+          git push origin "HEAD:${RECONCILIATION_BRANCH}"
