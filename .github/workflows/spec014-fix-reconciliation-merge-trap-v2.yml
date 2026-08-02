@@ -1,4 +1,5 @@
 name: Spec014 Fix Reconciliation Merge Trap V2
+# Registered-workflow retrigger for the bounded self-removing patch.
 
 on:
   push:
@@ -20,7 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_REF: gpt/reconcile-spec014-main-bdb4d32d-20260802-v2
-      EXPECTED_PARENT_SHA: ebaeae525840ac0800de2f3889fa0dfd8e6ec4c4
+      EXPECTED_PARENT_SHA: 0f5f0cd3096a00ddc571041a994c041135f3b28f
       CREATION_INTEGRATION_SHA: 6684e7058e3b19dbbc37b4004f5531d5e8a7c24d
       TARGET_WORKFLOW: .github/workflows/spec014-main-reconciliation-bdb4d32d-v2.yml
       PATCH_WORKFLOW: .github/workflows/spec014-fix-reconciliation-merge-trap-v2.yml
