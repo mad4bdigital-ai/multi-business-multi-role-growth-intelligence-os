@@ -1,0 +1,75 @@
+name: E2E Contract Reference Integrity
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-contract-reference-integrity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact pull request head
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout selected branch
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run reference integrity regression tests
+        run: node http-generic-api/test-e2e-contract-reference-integrity.mjs
+
+      - name: Run path-chain and Git-index regression tests
+        run: node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+
+      - name: Evaluate contract references
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          args=(--report-file artifacts/e2e-contract-reference-integrity.json)
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            test -n "${BASE_SHA}"
+            test -n "${HEAD_SHA}"
+            args+=(--base "${BASE_SHA}" --head "${HEAD_SHA}")
+          else
+            args+=(--all)
+          fi
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs "${args[@]}"
+
+      - name: Verify path chain and tracked Git object modes
+        run: >-
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs
+          --report-file artifacts/e2e-contract-reference-integrity.json
+
+      - name: Upload canonical integrity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-contract-reference-integrity-${{ github.run_id }}
+          path: artifacts/e2e-contract-reference-integrity.json
+          if-no-files-found: error
+          retention-days: 14

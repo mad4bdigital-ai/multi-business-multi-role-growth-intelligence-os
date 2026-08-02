@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-retired-publisher-evidence-reference-cleanup",
+  "title": "Retired Hostinger publisher evidence reference cleanup",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-retired-publisher-evidence-reference-cleanup.json",
+      ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+      ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+      ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove stale evidence references to the retired specialized Hostinger publisher and bind the three historical Tenant Canary journeys to the canonical shared CI Evidence PR Publisher.",
+      "e2e_journeys": [
+        {
+          "id": "align-retired-hostinger-publisher-evidence-references",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository evidence contract maintainer",
+          "entrypoint": "The three historical Tenant Canary E2E journey manifests and the current shared publisher bootstrap contract",
+          "terminal_outcome": "No selected journey requests structured evidence from the deleted specialized publisher; all three journeys point to the registered shared publisher while the retired workflow remains absent.",
+          "steps": [
+            "Identify the three Tenant Canary journeys whose evidence paths still reference the retired specialized publisher workflow.",
+            "Replace only that retired evidence path with the registered CI Evidence PR Publisher path.",
+            "Preserve the canonical Tenant Canary producer, routing registry, test paths, assertions, and authority boundaries.",
+            "Run the existing Tenant Canary bootstrap regression that requires the shared publisher and rejects restoration of the retired workflow."
+          ],
+          "assertions": [
+            "The three corrected manifests reference .github/workflows/ci-evidence-pr-publisher.yml.",
+            "No corrected manifest references .github/workflows/hostinger-ci-evidence-pr-publisher.yml.",
+            "The retired specialized publisher workflow remains absent.",
+            "The shared publisher remains the sole bounded comment-writing workflow for Hostinger Tenant Canary evidence.",
+            "No runtime code, provider call, credential access, SQL, migration, deployment, Production mutation, protected-branch bypass, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-shared-publisher-bootstrap-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+            ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+            ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This change corrects repository evidence metadata and does not execute a live Hostinger operation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep the bootstrap regression fail closed against future restoration of the retired publisher or stale evidence-path reintroduction."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live canary is executed by this metadata correction."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no Production, deployment, migration, provider, credential, or runtime authority."
+    }
+  ]
+}
