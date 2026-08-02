@@ -358,7 +358,17 @@ function parseStored(row, kind) {
     }
   }
   assertDataOnly(value, `${kind}.record_json`);
-  if (!value || value.record_digest !== row?.record_digest) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
+  }
+  const embeddedDigest = text(value.record_digest, 64).toLowerCase();
+  const columnDigest = text(row?.record_digest, 64).toLowerCase();
+  const core = clone(value);
+  delete core.record_digest;
+  if (!SHA256_RE.test(embeddedDigest)
+    || !SHA256_RE.test(columnDigest)
+    || embeddedDigest !== columnDigest
+    || digest(core) !== columnDigest) {
     throw fail(409, 'STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH', 'Durable injection record digest mismatch.', { kind });
   }
   return deepFreeze(clone(value));
