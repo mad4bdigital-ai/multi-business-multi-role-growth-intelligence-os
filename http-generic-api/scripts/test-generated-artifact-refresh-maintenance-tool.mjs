@@ -123,7 +123,7 @@ runCheck("governed-workflow-context-availability", () => {
     "jobs-level environment must not reference the unavailable runner context",
   );
   assert.match(workflowSource, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
-  assert.match(workflowSource, /--output-dir \"\$\{OUTPUT_DIR\}\"/u);
+  assert.match(workflowSource, /--output-dir "\$\{OUTPUT_DIR\}"/u);
 });
 
 const prWorkflowSource = fs.readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
