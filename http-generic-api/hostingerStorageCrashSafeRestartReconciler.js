@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
+import { transitionHostingerStorageOperation } from './hostingerStorageOrchestrationPolicy.js';
 import {
-  HOSTINGER_STORAGE_DURABLE_TENANT_REPOSITORY_FACADE_VERSION,
-  isCanonicalHostingerStorageDurableTenantRepositoryFacade,
-} from './hostingerStorageDurableTenantRepositoryFacade.js';
+  HOSTINGER_STORAGE_VERIFIED_SQL_RUNTIME_COMPOSITION_VERSION,
+  isCanonicalHostingerStorageVerifiedSqlRuntimeComposition,
+} from './hostingerStorageVerifiedSqlRuntimeComposition.js';
 
 export const HOSTINGER_STORAGE_CRASH_SAFE_RESTART_RECONCILER_VERSION = 'spec014-hostinger-storage-crash-safe-restart-reconciler-v1';
 
 const BRAND = Symbol.for('mad4b.spec014.hostinger-storage-crash-safe-restart-reconciler');
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 const SHA256_RE = /^[0-9a-f]{64}$/u;
-const ALLOWED_OPTIONS = new Set(['facade']);
+const UINT64_RE = /^(?:0|[1-9][0-9]{0,19})$/u;
+const ALLOWED_OPTIONS = new Set(['composition']);
 const ACTIVE_RUN_STATES = new Set(['executing', 'readback_pending', 'reconciling', 'unknown_outcome']);
 const TERMINAL_RUN_STATES = new Set(['completed', 'failed']);
 const ACTIVE_OPERATION_STATES = new Set(['executing', 'readback_pending', 'reconciling', 'unknown_outcome']);
@@ -67,8 +69,7 @@ function integer(value, field, minimum = 0) {
 
 function uint64(value, field) {
   const normalized = String(value ?? '');
-  if (!/^(?:0|[1-9][0-9]{0,19})$/u.test(normalized)
-    || BigInt(normalized) > 18446744073709551615n) {
+  if (!UINT64_RE.test(normalized) || BigInt(normalized) > 18446744073709551615n) {
     throw fail(409, 'STORAGE_RESTART_RECONCILER_UINT64_INVALID', 'An unsigned BIGINT-compatible value is required.', { field });
   }
   return normalized;
@@ -114,9 +115,9 @@ function deepFreeze(value) {
   return value;
 }
 
-function deterministicUuid(seed, variant = 'd') {
+function deterministicUuid(seed) {
   const hex = createHash('sha256').update(seed).digest('hex').slice(0, 32);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-e${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 function normalizeRequest(input = {}) {
@@ -130,22 +131,21 @@ function normalizeRequest(input = {}) {
   });
 }
 
-function assertFacade(facade) {
-  if (!isCanonicalHostingerStorageDurableTenantRepositoryFacade(facade)
-    || facade.facade_version !== HOSTINGER_STORAGE_DURABLE_TENANT_REPOSITORY_FACADE_VERSION
-    || facade.async_only !== true
-    || facade.runtime_mounted !== false
-    || facade.route_mounted !== false
-    || facade.worker_mounted !== false
-    || facade.provider_dispatch_allowed !== false
-    || facade.production_ready !== false
-    || typeof facade.readExecutionAggregate !== 'function'
-    || typeof facade.readExecutionRun !== 'function'
-    || typeof facade.readExecutionPlanItems !== 'function'
-    || typeof facade.finalizeRun !== 'function'
-    || typeof facade.advanceExecutionState !== 'function'
-    || typeof facade.appendReconciliation !== 'function') {
-    throw fail(409, 'STORAGE_RESTART_RECONCILER_FACADE_INVALID', 'An unmounted canonical durable Tenant repository facade with restart read support is required.');
+function assertComposition(composition) {
+  if (!isCanonicalHostingerStorageVerifiedSqlRuntimeComposition(composition)
+    || composition.composition_version !== HOSTINGER_STORAGE_VERIFIED_SQL_RUNTIME_COMPOSITION_VERSION
+    || composition.runtime_mounted !== false
+    || composition.route_mounted !== false
+    || composition.worker_mounted !== false
+    || composition.provider_dispatch_allowed !== false
+    || composition.production_ready !== false
+    || typeof composition.control_plane?.readAggregate !== 'function'
+    || typeof composition.control_plane?.transitionOperation !== 'function'
+    || typeof composition.execution_parents?.readRun !== 'function'
+    || typeof composition.execution_parents?.readPlanItems !== 'function'
+    || typeof composition.execution_parents?.finalizeRun !== 'function'
+    || typeof composition.child_evidence?.appendReconciliation !== 'function') {
+    throw fail(409, 'STORAGE_RESTART_RECONCILER_COMPOSITION_INVALID', 'An unmounted canonical verified SQL composition with restart read and CAS write support is required.');
   }
 }
 
@@ -184,6 +184,9 @@ function requireBindings({ aggregate, runRead, itemsRead, request }) {
   if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
     throw fail(409, 'STORAGE_RESTART_RECONCILER_PLAN_ITEM_ORDINAL_GAP', 'Durable plan-item ordinals are not contiguous.', { ordinals });
   }
+  if (runRead.database_fingerprint !== compositionFingerprint(itemsRead, runRead)) {
+    throw fail(409, 'STORAGE_RESTART_RECONCILER_DATABASE_PROVENANCE_MISMATCH', 'Restart reads do not share one durable database fingerprint.');
+  }
   if (!ACTIVE_RUN_STATES.has(run.state) && !TERMINAL_RUN_STATES.has(run.state)) {
     throw fail(409, 'STORAGE_RESTART_RECONCILER_RUN_STATE_INVALID', 'Durable run state cannot be reconciled.', { state: run.state });
   }
@@ -191,6 +194,11 @@ function requireBindings({ aggregate, runRead, itemsRead, request }) {
     throw fail(409, 'STORAGE_RESTART_RECONCILER_OPERATION_STATE_INVALID', 'Durable operation state cannot be reconciled.', { state: operation.state });
   }
   return { operation, plan, run, items };
+}
+
+function compositionFingerprint(itemsRead, runRead) {
+  if (!runRead?.database_fingerprint || runRead.database_fingerprint !== itemsRead?.database_fingerprint) return null;
+  return runRead.database_fingerprint;
 }
 
 function normalizeJournalRows(aggregate, request) {
@@ -233,7 +241,7 @@ function analyzeEvidence({ aggregate, items, plan, request }) {
     if (!PHASES.includes(phase)) {
       throw fail(409, 'STORAGE_RESTART_RECONCILER_JOURNAL_PHASE_INVALID', 'Unexpected durable journal phase.', { phase });
     }
-    const group = groups.get(parentId) || { parent, phases: new Map() };
+    const group = groups.get(parentId) || { phases: new Map() };
     if (group.phases.has(phase)) {
       throw fail(409, 'STORAGE_RESTART_RECONCILER_JOURNAL_PHASE_DUPLICATE', 'A plan item has duplicate durable journal phases.', { plan_item_id: parentId, phase });
     }
@@ -347,7 +355,7 @@ function analyzeEvidence({ aggregate, items, plan, request }) {
   return deepFreeze({ ...analysis, analysis_digest: digest(analysis) });
 }
 
-function runFinalization({ run, state, epoch, analysis, checkpointDigest, resultDigest = null }) {
+function runFinalization({ state, epoch, analysis, checkpointDigest, resultDigest = null }) {
   return {
     finished_at_epoch: epoch,
     state,
@@ -363,7 +371,6 @@ function runFinalization({ run, state, epoch, analysis, checkpointDigest, result
     unknown_outcome: state === 'unknown_outcome',
     readback_status: state === 'unknown_outcome' ? 'incomplete' : state === 'readback_pending' ? 'complete' : state,
     result_digest: resultDigest,
-    prior_run_record_digest: run.record_digest || null,
     secrets_included: false,
   };
 }
@@ -389,7 +396,6 @@ function reconciliationEnvelope({ request, aggregate, runRead, itemsRead, analys
   };
   const evidenceDigest = digest(core);
   return deepFreeze({
-    core,
     evidence_digest: evidenceDigest,
     input_evidence_hashes: {
       aggregate: hash(aggregate.aggregate_digest, 'aggregate.aggregate_digest'),
@@ -398,9 +404,14 @@ function reconciliationEnvelope({ request, aggregate, runRead, itemsRead, analys
       journal: analysis.journal_digest,
       analysis: analysis.analysis_digest,
     },
-    reconciliation_id: deterministicUuid(`${request.run_id}\0${evidenceDigest}\0restart-reconciliation`, 'e'),
+    reconciliation_id: deterministicUuid(`${request.run_id}\0${evidenceDigest}\0restart-reconciliation`),
     secrets_included: false,
   });
+}
+
+function matchingReconciliation(aggregate, runId, outcome) {
+  const rows = Array.isArray(aggregate?.reconciliations) ? aggregate.reconciliations : [];
+  return rows.find((row) => row.run_id === runId && row.outcome === outcome) || null;
 }
 
 export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
@@ -409,58 +420,72 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
   }
   const unsupported = Object.keys(options).filter((key) => !ALLOWED_OPTIONS.has(key));
   if (unsupported.length) {
-    throw fail(409, 'STORAGE_RESTART_RECONCILER_OVERRIDE_FORBIDDEN', 'Only the canonical durable facade may be supplied.', { unsupported_options: unsupported.sort() });
+    throw fail(409, 'STORAGE_RESTART_RECONCILER_OVERRIDE_FORBIDDEN', 'Only the canonical verified SQL composition may be supplied.', { unsupported_options: unsupported.sort() });
   }
-  const { facade } = options;
-  assertFacade(facade);
+  const { composition } = options;
+  assertComposition(composition);
 
   async function reconcile(input = {}) {
     const request = normalizeRequest(input);
-    const aggregate = await facade.readExecutionAggregate(request.operation_id);
-    const [runRead, itemsRead] = await Promise.all([
-      facade.readExecutionRun(request.run_id),
-      facade.readExecutionPlanItems(request.plan_id),
-    ]);
+    let aggregate = await composition.control_plane.readAggregate(request.operation_id);
+    let runRead = await composition.execution_parents.readRun({ run_id: request.run_id });
+    const itemsRead = await composition.execution_parents.readPlanItems({ plan_id: request.plan_id });
     const bindings = requireBindings({ aggregate, runRead, itemsRead, request });
+    if (runRead.database_fingerprint !== composition.schema_provenance.database_fingerprint
+      || itemsRead.database_fingerprint !== composition.schema_provenance.database_fingerprint) {
+      throw fail(409, 'STORAGE_RESTART_RECONCILER_COMPOSITION_PROVENANCE_MISMATCH', 'Restart reads do not match the verified SQL composition database fingerprint.');
+    }
     const analysis = analyzeEvidence({ aggregate, items: bindings.items, plan: bindings.plan, request });
     let operation = snapshot(bindings.operation, 'operation');
     let run = snapshot(bindings.run, 'run');
 
-    async function advanceOperation(desiredState, terminalReason = null) {
-      if (operation.state === desiredState) return;
-      const allowedPredecessors = {
-        readback_pending: new Set(['executing']),
-        reconciling: new Set(['readback_pending', 'unknown_outcome']),
-        unknown_outcome: new Set(['executing', 'readback_pending', 'reconciling']),
-        completed: new Set(['reconciling', 'unknown_outcome']),
-        blocked: new Set(['reconciling', 'unknown_outcome']),
-      };
-      if (!allowedPredecessors[desiredState]?.has(operation.state)) {
-        throw fail(409, 'STORAGE_RESTART_RECONCILER_OPERATION_STATE_DIVERGENCE', 'Operation state cannot be advanced to match durable restart evidence.', {
-          current_state: operation.state,
-          desired_state: desiredState,
-        });
-      }
-      const result = await facade.advanceExecutionState({
-        operation_id: request.operation_id,
-        expected_version: Number(operation.version),
-        expected_current_state: operation.state,
-        next_state: desiredState,
-        terminal_reason: terminalReason,
-        now_epoch: request.recovery_epoch,
-        secrets_included: false,
-      });
-      operation = snapshot(result.operation, 'advanced_operation');
+    async function refreshAggregate() {
+      aggregate = await composition.control_plane.readAggregate(request.operation_id);
+      operation = snapshot(aggregate.operation, 'operation');
     }
 
-    async function advanceRun(desiredState, checkpointDigest, resultDigest = null) {
-      if (run.state === desiredState) return;
-      const result = await facade.finalizeRun({
+    async function refreshRun() {
+      runRead = await composition.execution_parents.readRun({ run_id: request.run_id });
+      if (runRead?.found !== true || !runRead.run) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_RUN_DISAPPEARED', 'Durable run disappeared during restart reconciliation.');
+      }
+      run = snapshot(runRead.run, 'run');
+    }
+
+    async function advanceOperation(nextState, terminalReason = null) {
+      if (operation.state === nextState) return;
+      const decision = transitionHostingerStorageOperation({
+        current_state: operation.state,
+        next_state: nextState,
+        unknown_outcome_reconciled: operation.state === 'unknown_outcome',
+      });
+      if (decision.allowed !== true) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_OPERATION_TRANSITION_DENIED', 'Operation transition is denied by the canonical storage policy.', {
+          current_state: operation.state,
+          next_state: nextState,
+          reason_codes: decision.reason_codes || [],
+        });
+      }
+      await composition.control_plane.transitionOperation({
+        operation_id: request.operation_id,
+        expected_version: Number(operation.version),
+        next_state: nextState,
+        terminal_reason: terminalReason,
+        now_epoch: request.recovery_epoch,
+      });
+      await refreshAggregate();
+      if (operation.state !== nextState) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_OPERATION_READBACK_MISMATCH', 'Operation transition readback differs from the requested state.', { expected_state: nextState, observed_state: operation.state });
+      }
+    }
+
+    async function advanceRun(nextState, checkpointDigest, resultDigest = null) {
+      if (run.state === nextState) return;
+      await composition.execution_parents.finalizeRun({
         run_id: request.run_id,
         expected_checkpoint_digest: run.checkpoint_digest,
         finalization: runFinalization({
-          run,
-          state: desiredState,
+          state: nextState,
           epoch: request.recovery_epoch,
           analysis,
           checkpointDigest,
@@ -468,39 +493,17 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
         }),
         secrets_included: false,
       });
-      run = {
-        ...run,
-        state: desiredState,
-        checkpoint_digest: checkpointDigest,
-        journal_digest: analysis.journal_digest,
-        result_digest: resultDigest,
-        unknown_outcome: desiredState === 'unknown_outcome',
-        readback_status: desiredState === 'unknown_outcome' ? 'incomplete' : desiredState,
-        deleted_count: analysis.counts.deleted,
-        deleted_bytes: analysis.deleted_bytes,
-        skipped_count: analysis.counts.skipped_changed,
-        missing_count: analysis.counts.skipped_missing,
-        failed_count: analysis.counts.conflict,
-        finished_at_epoch: request.recovery_epoch,
-        finalize_result: result,
-        secrets_included: false,
-      };
+      await refreshRun();
+      if (run.state !== nextState || run.checkpoint_digest !== checkpointDigest) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_RUN_READBACK_MISMATCH', 'Run transition readback differs from the requested state.', {
+          expected_state: nextState,
+          observed_state: run.state,
+        });
+      }
     }
 
-    const checkpointReadback = digest({ phase: 'restart_readback_pending', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
-    const checkpointReconciling = digest({ phase: 'restart_reconciling', previous: checkpointReadback, analysis_digest: analysis.analysis_digest });
-    const recoveryOutcome = analysis.complete ? analysis.outcome : 'still_unknown';
-    const reconciliation = reconciliationEnvelope({ request, aggregate, runRead, itemsRead, analysis, outcome: recoveryOutcome });
-
-    if (!analysis.complete) {
-      const checkpointUnknown = digest({ phase: 'restart_unknown_outcome', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
-      if (ACTIVE_RUN_STATES.has(run.state) && run.state !== 'unknown_outcome') {
-        await advanceRun('unknown_outcome', checkpointUnknown);
-      } else if (TERMINAL_RUN_STATES.has(run.state)) {
-        throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_RUN_EVIDENCE_INCOMPLETE', 'Terminal durable run has incomplete restart evidence.', { run_state: run.state, blockers: analysis.blockers });
-      }
-      if (operation.state !== 'unknown_outcome') await advanceOperation('unknown_outcome');
-      await facade.appendReconciliation({
+    async function appendRestartReconciliation(reconciliation, outcome) {
+      return composition.child_evidence.appendReconciliation({
         reconciliation_id: reconciliation.reconciliation_id,
         operation_id: request.operation_id,
         run_id: request.run_id,
@@ -513,12 +516,77 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
           conflict: analysis.counts.conflict,
           secrets_included: false,
         },
-        outcome: 'still_unknown',
+        outcome,
         retry_permission: false,
         reviewed_at_epoch: request.recovery_epoch,
         evidence_digest: reconciliation.evidence_digest,
         secrets_included: false,
       });
+    }
+
+    if (TERMINAL_RUN_STATES.has(run.state)) {
+      if (!analysis.complete) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_RUN_EVIDENCE_INCOMPLETE', 'Terminal durable run has incomplete restart evidence.', { run_state: run.state, blockers: analysis.blockers });
+      }
+      const expectedRunState = analysis.outcome === 'conflict' ? 'failed' : 'completed';
+      const expectedOperationState = analysis.outcome === 'conflict' ? 'blocked' : 'completed';
+      if (run.state !== expectedRunState) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_RUN_STATE_MISMATCH', 'Terminal run state differs from durable child evidence.', { expected_state: expectedRunState, observed_state: run.state });
+      }
+      if (!matchingReconciliation(aggregate, request.run_id, analysis.outcome)) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_RECONCILIATION_REQUIRED', 'Terminal run requires existing durable reconciliation evidence.', { outcome: analysis.outcome });
+      }
+      if (!TERMINAL_OPERATION_STATES.has(operation.state)) {
+        if (!['reconciling', 'unknown_outcome'].includes(operation.state)) {
+          throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_STATE_DIVERGENCE', 'Terminal run is not paired with a reconcilable operation state.', { operation_state: operation.state });
+        }
+        await advanceOperation(expectedOperationState, expectedOperationState === 'blocked' ? 'crash_safe_restart_reconciliation_conflict' : null);
+      }
+      if (operation.state !== expectedOperationState) {
+        throw fail(409, 'STORAGE_RESTART_RECONCILER_TERMINAL_OPERATION_STATE_MISMATCH', 'Terminal operation state differs from durable child evidence.', { expected_state: expectedOperationState, observed_state: operation.state });
+      }
+      return deepFreeze({
+        ok: true,
+        reconciliation_key: 'hostinger_storage_crash_safe_restart_result_v1',
+        reconciliation_version: HOSTINGER_STORAGE_CRASH_SAFE_RESTART_RECONCILER_VERSION,
+        operation_id: request.operation_id,
+        plan_id: request.plan_id,
+        run_id: request.run_id,
+        outcome: analysis.outcome,
+        final_run_state: run.state,
+        final_operation_state: operation.state,
+        terminal_replay: true,
+        analysis,
+        mutation_replayed: false,
+        provider_called: false,
+        automatic_retry_allowed: false,
+        read_before_retry_required: false,
+        runtime_mounted: false,
+        route_mounted: false,
+        worker_mounted: false,
+        provider_dispatch_allowed: false,
+        production_ready: false,
+        secrets_included: false,
+      });
+    }
+
+    if (TERMINAL_OPERATION_STATES.has(operation.state)) {
+      throw fail(409, 'STORAGE_RESTART_RECONCILER_ACTIVE_RUN_TERMINAL_OPERATION_DIVERGENCE', 'Active durable run cannot be reconciled beneath a terminal operation.', {
+        run_state: run.state,
+        operation_state: operation.state,
+      });
+    }
+
+    const recoveryOutcome = analysis.complete ? analysis.outcome : 'still_unknown';
+    const reconciliation = reconciliationEnvelope({ request, aggregate, runRead, itemsRead, analysis, outcome: recoveryOutcome });
+
+    if (!analysis.complete) {
+      const checkpointIntermediate = digest({ phase: 'restart_incomplete_reconciling', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
+      if (run.state === 'readback_pending') await advanceRun('reconciling', checkpointIntermediate);
+      const checkpointUnknown = digest({ phase: 'restart_unknown_outcome', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
+      if (run.state !== 'unknown_outcome') await advanceRun('unknown_outcome', checkpointUnknown);
+      if (operation.state !== 'unknown_outcome') await advanceOperation('unknown_outcome');
+      await appendRestartReconciliation(reconciliation, 'still_unknown');
       return deepFreeze({
         ok: true,
         reconciliation_key: 'hostinger_storage_crash_safe_restart_result_v1',
@@ -529,6 +597,7 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
         outcome: 'still_unknown',
         final_run_state: 'unknown_outcome',
         final_operation_state: 'unknown_outcome',
+        terminal_replay: false,
         analysis,
         reconciliation_digest: reconciliation.evidence_digest,
         mutation_replayed: false,
@@ -563,44 +632,30 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
       secrets_included: false,
     };
     const resultDigest = digest(resultCore);
-    const checkpointTerminal = digest({ phase: finalRunState, previous: checkpointReconciling, result_digest: resultDigest });
 
     if (run.state === 'executing') {
+      const checkpointReadback = digest({ phase: 'restart_readback_pending', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
       await advanceRun('readback_pending', checkpointReadback);
     }
     if (operation.state === 'executing') await advanceOperation('readback_pending');
 
-    if (run.state === 'readback_pending') {
-      await advanceRun('reconciling', checkpointReconciling);
-    } else if (run.state === 'unknown_outcome') {
+    if (run.state === 'readback_pending' || run.state === 'unknown_outcome') {
+      const checkpointReconciling = digest({ phase: 'restart_reconciling', previous: run.checkpoint_digest, analysis_digest: analysis.analysis_digest });
       await advanceRun('reconciling', checkpointReconciling);
     }
     if (operation.state === 'readback_pending' || operation.state === 'unknown_outcome') await advanceOperation('reconciling');
 
-    await facade.appendReconciliation({
-      reconciliation_id: reconciliation.reconciliation_id,
-      operation_id: request.operation_id,
-      run_id: request.run_id,
-      input_evidence_hashes: reconciliation.input_evidence_hashes,
-      item_accounting: {
-        total: Number(bindings.plan.item_count),
-        prepared: analysis.prepared_count,
-        result: analysis.result_count,
-        readback: analysis.readback_count,
-        conflict: analysis.counts.conflict,
-        secrets_included: false,
-      },
-      outcome: analysis.outcome,
-      retry_permission: false,
-      reviewed_at_epoch: request.recovery_epoch,
-      evidence_digest: reconciliation.evidence_digest,
-      secrets_included: false,
-    });
-
-    if (!TERMINAL_RUN_STATES.has(run.state)) await advanceRun(finalRunState, checkpointTerminal, resultDigest);
-    if (!TERMINAL_OPERATION_STATES.has(operation.state)) {
-      await advanceOperation(finalOperationState, finalOperationState === 'blocked' ? 'crash_safe_restart_reconciliation_conflict' : null);
+    if (run.state !== 'reconciling' || operation.state !== 'reconciling') {
+      throw fail(409, 'STORAGE_RESTART_RECONCILER_RECONCILING_STATE_REQUIRED', 'Complete evidence must converge run and operation to reconciling before terminalization.', {
+        run_state: run.state,
+        operation_state: operation.state,
+      });
     }
+
+    await appendRestartReconciliation(reconciliation, analysis.outcome);
+    const checkpointTerminal = digest({ phase: finalRunState, previous: run.checkpoint_digest, result_digest: resultDigest });
+    await advanceRun(finalRunState, checkpointTerminal, resultDigest);
+    await advanceOperation(finalOperationState, finalOperationState === 'blocked' ? 'crash_safe_restart_reconciliation_conflict' : null);
 
     return deepFreeze({
       ok: true,
@@ -610,6 +665,7 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
       result_digest: resultDigest,
       final_run_state: finalRunState,
       final_operation_state: finalOperationState,
+      terminal_replay: false,
       analysis,
       mutation_replayed: false,
       provider_called: false,
@@ -627,12 +683,14 @@ export function createHostingerStorageCrashSafeRestartReconciler(options = {}) {
   const reconciler = {
     reconciler_key: 'hostinger_storage_crash_safe_restart_reconciler_v1',
     reconciler_version: HOSTINGER_STORAGE_CRASH_SAFE_RESTART_RECONCILER_VERSION,
-    facade_version: facade.facade_version,
+    composition_version: composition.composition_version,
+    database_fingerprint: composition.schema_provenance.database_fingerprint,
     async_only: true,
     evidence_only: true,
     mutation_replay_allowed: false,
     provider_calls_allowed: false,
     automatic_retry_allowed: false,
+    raw_composition_exposed: false,
     runtime_mounted: false,
     route_mounted: false,
     worker_mounted: false,
@@ -655,6 +713,7 @@ export function isCanonicalHostingerStorageCrashSafeRestartReconciler(value) {
     && value?.mutation_replay_allowed === false
     && value?.provider_calls_allowed === false
     && value?.automatic_retry_allowed === false
+    && value?.raw_composition_exposed === false
     && value?.runtime_mounted === false
     && value?.route_mounted === false
     && value?.worker_mounted === false
