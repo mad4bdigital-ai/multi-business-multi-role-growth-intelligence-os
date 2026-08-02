@@ -150,7 +150,7 @@ assert.throws(() => normalizeHostingerEvidence({
 }), /Successful workflow_run cannot publish a non-passed Hostinger outcome/u);
 
 const publisherWorkflow = fs.readFileSync(
-  new URL("../../.github/workflows/hostinger-ci-evidence-pr-publisher.yml", import.meta.url),
+  new URL("../../.github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml", import.meta.url),
   "utf8"
 );
 assert.match(publisherWorkflow, /^name: Hostinger CI Evidence PR Publisher$/mu);
