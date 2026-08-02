@@ -1,0 +1,113 @@
+# Shared schemas and responses for source-bound Support Ticket admin lifecycle contracts.
+schemas:
+  AdminSupportTicketActionRequest:
+    type: object
+    additionalProperties: true
+    description: Operation-specific governed input. Runtime validation, authority, approval, confirmation, provider, credential, and readback gates remain authoritative.
+    properties:
+      tenant_id: { type: string }
+      actor_id: { type: string }
+      reason: { type: string }
+      decision_note: { type: string }
+      evidence_json: { type: object, additionalProperties: true }
+      metadata_json: { type: object, additionalProperties: true }
+      brand_ref: { type: string }
+      brand_refs: { type: array, items: { type: string } }
+      selected_brand_ref: { type: string }
+      approval_hold_id: { type: string }
+      workflow_run_id: { type: string }
+      step_run_id: { type: string }
+      execution_plan_id: { type: string }
+      transition: { type: string }
+      status: { type: string }
+      assignee_id: { type: string }
+      event_type: { type: string }
+      summary: { type: string }
+      payload_json: { type: object, additionalProperties: true }
+      dry_run: { type: boolean }
+      apply: { type: boolean }
+      confirm: { type: string }
+
+  AdminSupportTicketActionResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, secrets_included]
+    properties:
+      ok: { type: boolean }
+      ticket_id: { type: string }
+      tenant_id: { type: string }
+      outcome: { type: string }
+      result: { type: object, additionalProperties: true }
+      readback: { type: object, additionalProperties: true }
+      repository_mutation_performed: { type: boolean }
+      provider_dispatch_performed: { type: boolean }
+      external_send_performed: { type: boolean }
+      secrets_included: { type: boolean, const: false }
+
+  AdminSupportTicketError:
+    type: object
+    additionalProperties: true
+    required: [ok, error, secrets_included]
+    properties:
+      ok: { type: boolean, const: false }
+      error:
+        type: object
+        additionalProperties: true
+        properties:
+          code: { type: string }
+          message: { type: string }
+      secrets_included: { type: boolean, const: false }
+
+parameters:
+  SupportTicketId:
+    name: ticket_id
+    in: path
+    required: true
+    schema: { type: string, minLength: 1 }
+
+responses:
+  Success:
+    description: Governed operation completed or returned readback.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketActionResponse' }
+  Created:
+    description: Governed lifecycle evidence or execution record created.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketActionResponse' }
+  BadRequest:
+    description: Invalid governed input.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  Unauthorized:
+    description: Admin bearer authentication or backend API key required.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  Forbidden:
+    description: Required authority is missing.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  NotFound:
+    description: Support ticket or linked governed resource not found.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  Conflict:
+    description: Lifecycle, approval, identity, or readback state conflicts with the request.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  Unprocessable:
+    description: A governed plan, approval, trusted reference, or execution precondition is unavailable.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }
+  InternalError:
+    description: The operation failed without exposing secret material.
+    content:
+      application/json:
+        schema: { $ref: '#/schemas/AdminSupportTicketError' }

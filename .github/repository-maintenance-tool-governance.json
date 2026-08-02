@@ -35,11 +35,12 @@
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     },
     "generated-artifact-refresh": {
-      "description": "Regenerate the bounded OpenAPI and frontend contract artifacts on an exact governed work-branch head after typed confirmation.",
+      "description": "Regenerate the bounded OpenAPI and frontend contract artifacts on an exact governed work-branch head after typed confirmation, including operation-level support-ticket auth parity without widening document defaults.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
         "^http-generic-api/openapi\\.yaml$",
+        "^http-generic-api/openapi/support-tickets\\.yaml$",
         "^http-generic-api/frontend-operation-governance\\.generated\\.json$",
         "^http-generic-api/frontend-surface-dispatch\\.generated\\.json$",
         "^http-generic-api/openapi/frontend-runtime-routes\\.generated\\.yaml$",

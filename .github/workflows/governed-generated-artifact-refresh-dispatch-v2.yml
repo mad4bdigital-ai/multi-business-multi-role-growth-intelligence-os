@@ -1,4 +1,4 @@
-name: Governed Generated Artifact Refresh Dispatch
+name: Governed Generated Artifact Refresh Dispatch V2
 
 on:
   issue_comment:

@@ -12,6 +12,7 @@ const PROTECTED_BRANCHES = new Set(["main", "Production"]);
 const MAX_DIAGNOSTIC_CHARS = 4000;
 const ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi.yaml",
+  "http-generic-api/openapi/support-tickets.yaml",
   "http-generic-api/frontend-operation-governance.generated.json",
   "http-generic-api/frontend-surface-dispatch.generated.json",
   "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
@@ -199,13 +200,17 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     assertExpectedHead({ target_ref: args.target_ref, expected_head_sha: args.expected_head_sha, phase: "preflight_expected_head" });
     run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
     run("fetch_main", "git", ["fetch", "origin", "main", "--depth=1"], { cwd: repoRoot });
+    run("sync_main_ref", "git", ["branch", "-f", "main", "origin/main"], { cwd: repoRoot });
+    run("verify_exact_operation_auth_repair", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"], { cwd: apiDir });
     run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
     run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
+    run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
     run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
     run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
 
     const verificationCommands = [
       ["verify_openapi_autofill", "node", ["test-openapi-autofill-missing-routes.mjs"]],
+      ["verify_openapi_auth_operation_insertion", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"]],
       ["verify_frontend_governance", "node", ["test-frontend-operation-governance-generator.mjs"]],
       ["verify_frontend_dispatch", "node", ["test-frontend-surface-dispatch.mjs"]],
       ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],

@@ -1,0 +1,43 @@
+{
+  "surface_key": "managed_execution_bindings",
+  "display_name": "Managed Execution Lifecycle",
+  "description": "Tenant-scoped managed execution linkage, approval, and customer-visible lifecycle state.",
+  "source_table": "managed_execution_bindings",
+  "result_key_column": "binding_id",
+  "result_label_column": "capability_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "lifecycle_state",
+  "active_status_values": [
+    "execution_ready",
+    "awaiting_approval",
+    "managed_handoff_required",
+    "executing",
+    "escalated",
+    "approval_expired",
+    "blocked",
+    "reconciliation_required"
+  ],
+  "result_columns": [
+    "binding_id",
+    "run_id",
+    "tenant_id",
+    "parent_ticket_id",
+    "task_ticket_id",
+    "capability_key",
+    "resource_type",
+    "resource_ref",
+    "effect_class",
+    "lifecycle_state",
+    "customer_status",
+    "approval_hold_id",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 95,
+  "status": "active",
+  "notes": "Repo-managed tenant-safe lifecycle surface. Excludes authority snapshots, input/output payloads, evidence payloads, idempotency keys, and secret-bearing data. Registry synchronization remains separately governed."
+}
