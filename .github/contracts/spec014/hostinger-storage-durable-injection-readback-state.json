@@ -1,0 +1,90 @@
+{
+  "contract_key": "spec014_hostinger_storage_durable_injection_readback_state",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-durable-injection-readback-state-v1",
+  "schema_contract": {
+    "tables": [
+      "storage_mount_injection_states",
+      "storage_mount_injection_events"
+    ],
+    "ddl_path": ".github/contracts/spec014/sql/hostinger-storage-durable-injection-readback-state.sql",
+    "contract_local_only": true,
+    "promoted_migration": false,
+    "migration_applied": false
+  },
+  "persist_verified_mount": {
+    "canonical_injection_receipt_required": true,
+    "canonical_mount_readback_required": true,
+    "exact_receipt_readback_parity": true,
+    "exact_mount_bundle_digest_required": true,
+    "same_transaction_state_and_event_write": true,
+    "same_transaction_readback_required": true,
+    "exact_replay_allowed": true,
+    "conflicting_replay_rejected": true,
+    "initial_generation": 1,
+    "initial_status": "readback_verified",
+    "active": true,
+    "resume_allowed": true
+  },
+  "recovery_snapshot": {
+    "serialized_receipt_and_readback_only": true,
+    "runtime_object_persisted": false,
+    "active_state_returns_resume_evidence": true,
+    "rolled_back_state_returns_resume_evidence": false,
+    "exact_mount_bundle_digest_returned": true,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false
+  },
+  "rollback": {
+    "exact_active_receipt_and_readback_binding": true,
+    "expected_generation_required": true,
+    "expected_row_version_required": true,
+    "generation_cas": true,
+    "row_version_cas": true,
+    "immutable_rollback_event": true,
+    "same_transaction_readback_required": true,
+    "result_generation": 2,
+    "result_status": "rolled_back",
+    "active": false,
+    "resume_allowed": false,
+    "exact_replay_allowed": true,
+    "conflicting_replay_rejected": true
+  },
+  "schema_verification": {
+    "signed_exact_contract_required": true,
+    "source_runtime_parity_required": true,
+    "database_fingerprint_required": true,
+    "readback_cycle_required": true,
+    "unexpired_evidence_required": true,
+    "authority_granted": false,
+    "migration_apply_authorized": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "repository_scope": {
+    "runtime_files_modified": 1,
+    "test_files_modified": 1,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "deployment_files_modified": 0,
+    "provider_files_modified": 0
+  },
+  "forbidden_authority": {
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "live_database_access": false,
+    "provider_dispatch": false,
+    "migration_authorization": false,
+    "migration_dry_run": false,
+    "migration_apply": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "secrets_included": false
+}
