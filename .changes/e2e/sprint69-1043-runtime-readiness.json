@@ -75,7 +75,7 @@
         {
           "id": "backfill-runtime-readiness-artifact-to-control-issue",
           "end_to_end": true,
-          "level": "repository_runtime",
+          "level": "synthetic_runtime",
           "actor": "Trusted main backfill publisher",
           "entrypoint": "Push of the reviewed backfill contract to main or an explicit workflow_dispatch retry",
           "terminal_outcome": "The publisher verifies authorization comment #5160291051, discovers the first matching issue_comment workflow run, downloads only its exact run-bound Artifact, publishes a bounded idempotent result to issue #4449, and fails closed when the run, Artifact, contract, or no-secret declaration is missing.",
