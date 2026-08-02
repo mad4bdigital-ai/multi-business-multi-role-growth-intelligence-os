@@ -1,0 +1,145 @@
+name: Hostinger Storage Durable Authorized Injection Schema DDL Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-authorized-injection-schema-ddl.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql'
+      - '.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml'
+      - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-authorized-injection-schema-ddl-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-authorized-injection-schema-ddl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      REPORT_DIR: .ci-evidence/spec014-durable-authorized-injection-schema-ddl
+      DDL_FILE: .github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql
+      CONTRACT_FILE: .github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json
+      MODULE_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+      TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check DDL parity test syntax
+        id: syntax
+        continue-on-error: true
+        run: node --check "${TEST_FILE}"
+
+      - name: Execute canonical Module to DDL parity contract
+        id: focused_test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node "${TEST_FILE}" \
+            > "${REPORT_DIR}/focused-test.stdout" \
+            2> "${REPORT_DIR}/focused-test.stderr"
+
+      - name: Preserve contract-local authority boundary
+        id: boundary
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          allowed='^(\.changes/e2e/spec014-durable-authorized-injection-schema-ddl\.json|\.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state\.json|\.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state\.sql|\.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard\.yml|http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl\.mjs)$'
+          unexpected="$(printf '%s\n' "${changed_files}" | grep -Ev "${allowed}" || true)"
+          [[ -z "${unexpected}" ]]
+          ! printf '%s\n' "${changed_files}" | grep -E '(^|/)(migrations?|deploy|production|provider)(/|$)'
+          ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/)'
+          grep -q 'CONTRACT-LOCAL DDL ONLY' "${DDL_FILE}"
+          grep -q 'not part of the promoted runtime migration sequence' "${DDL_FILE}"
+          grep -q '"contract_local_only": true' "${CONTRACT_FILE}"
+          grep -q '"governed_runtime_migration_promoted": false' "${CONTRACT_FILE}"
+          grep -q '"migration_apply_authorized": false' "${CONTRACT_FILE}"
+          ! grep -E '\b(DROP|TRUNCATE)[[:space:]]+TABLE\b' "${DDL_FILE}"
+          ! grep -E '\b(governed_migration_execute|bootstrapGovernedMigrationAuthorization|providerDispatch|dispatchProvider)\b' \
+            "${DDL_FILE}" "${TEST_FILE}"
+
+      - name: Build structured guard summary
+        if: always()
+        shell: bash
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          stages = {
+            'syntax': os.environ['SYNTAX_OUTCOME'],
+            'module_ddl_parity': os.environ['TEST_OUTCOME'],
+            'contract_local_boundary': os.environ['BOUNDARY_OUTCOME'],
+          }
+          failed = [name for name, outcome in stages.items() if outcome != 'success']
+          report = {
+            'contract': 'mad4b.spec014-durable-authorized-injection-schema-ddl-guard.v1',
+            'outcome': 'passed' if not failed else 'failed',
+            'candidate_kind': 'head',
+            'exact_candidate_sha': os.environ['CANDIDATE_SHA'],
+            'source_sha': os.environ['SOURCE_SHA'],
+            'stages': stages,
+            'first_failure': failed[0] if failed else None,
+            'canonical_registry_modified': False,
+            'ddl_contract_present': True,
+            'ddl_matches_registry_sql': not failed,
+            'contract_local_only': True,
+            'governed_runtime_migration_promoted': False,
+            'migration_apply_authorized': False,
+            'live_database_access': False,
+            'provider_dispatch_allowed': False,
+            'production_ready': False,
+            'repository_mutation_performed': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          Path(os.environ['REPORT_DIR'], 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+      - name: Upload structured DDL guard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-authorized-injection-schema-ddl-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/summary.json
+            ${{ env.REPORT_DIR }}/focused-test.stdout
+            ${{ env.REPORT_DIR }}/focused-test.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured guard decision
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ['REPORT_DIR'], 'summary.json').read_text())
+          if report.get('outcome') != 'passed':
+              raise SystemExit(f"durable authorized injection DDL guard failed: {report.get('first_failure')}")
+          PY
