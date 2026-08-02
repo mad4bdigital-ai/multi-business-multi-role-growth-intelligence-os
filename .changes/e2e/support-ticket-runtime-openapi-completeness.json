@@ -4,7 +4,7 @@
   "feature_key": "support-ticket-runtime-openapi-completeness",
   "title": "Support Ticket runtime and OpenAPI operation completeness",
   "delivery_mode": "single_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       ".changes/e2e/support-ticket-runtime-openapi-completeness.json",
@@ -95,8 +95,54 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Observe the governed generated-artifact writer refresh the exact OpenAPI and downstream indexes on a reviewed gpt branch without source-file mutation."
+      "status": "implemented",
+      "objective": "Prove that the governed generated-artifact writer refreshes the exact OpenAPI and downstream indexes on a reviewed gpt branch without source-file mutation.",
+      "e2e_journeys": [
+        {
+          "id": "governed-support-ticket-openapi-refresh",
+          "end_to_end": true,
+          "level": "repository_automation",
+          "actor": "trusted generated-artifact dispatcher and governed writer",
+          "entrypoint": "The trusted refresh command targets source head 7ab82718401b475d63bbc59d5458bb60d6ec1c3c on PR 4769.",
+          "terminal_outcome": "Generated commit b28c3fa86a335cc3a909d22b73fc428145afb772 updates exactly three allowlisted artifacts and leaves runtime source, migrations, workflows, protected branches, and Production unchanged.",
+          "steps": [
+            "Validate the same-repository PR, exact expected source head, work-branch target, label, and typed confirmation.",
+            "Run precise Support Ticket contract composition before missing-route autofill and downstream frontend generation.",
+            "Verify OpenAPI route coverage, authentication parity, schema guards, and deterministic frontend dispatch generation.",
+            "Commit and fast-forward push only the three registered generated artifact paths.",
+            "Dispatch exact-result-head read-only verification."
+          ],
+          "assertions": [
+            "The source head equals 7ab82718401b475d63bbc59d5458bb60d6ec1c3c.",
+            "The generated result head equals b28c3fa86a335cc3a909d22b73fc428145afb772.",
+            "The generated write-set is exactly openapi.yaml, frontend-surface-dispatch.generated.json, and openapi/frontend-runtime-routes.generated.yaml.",
+            "No runtime source, migration, workflow, credential, provider, deployment, protected branch, or Production path changes.",
+            "No force push is used and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-runtime-openapi-sync-operational",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-runtime-openapi-sync.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity-operational",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/support-ticket-runtime-openapi-completeness.json",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
