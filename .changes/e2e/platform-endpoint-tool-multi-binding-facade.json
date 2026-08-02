@@ -17,13 +17,13 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "resilient"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Project one public system-tool descriptor per visible tool_name and select one active endpoint binding by endpoint_key without weakening Catalog V2 collision protection.",
+      "objective": "Expose one descriptor per visible public tool name and dispatch only the endpoint binding selected by endpoint_key without weakening Catalog V2 collision protection.",
       "e2e_journeys": [
         {
           "id": "admin-and-tenant-multi-binding-discovery-and-call",
@@ -31,22 +31,20 @@
           "level": "synthetic_runtime",
           "actor": "authenticated platform admin or authenticated tenant member",
           "entrypoint": "GET /system/tools followed by POST /system/tools/call",
-          "terminal_outcome": "The caller receives one descriptor for the public tool name and the call reaches only the explicitly selected visible endpoint binding.",
+          "terminal_outcome": "The caller receives one descriptor for the public name and the existing dispatcher receives only the explicitly selected visible endpoint binding.",
           "steps": [
-            "Resolve the caller principal and derive the allowed platform endpoint scope classes.",
-            "Apply the tenant ownership clause and tenant blocked-tool policy before descriptor projection.",
-            "Group visible active rows by tool_name and expose one descriptor with a stable endpoint_key enum.",
-            "Require endpoint_key only when the visible public name has more than one active binding.",
-            "Select the exact matching endpoint row before passing path_params, query, body, headers, timeout, and readback context to the existing dispatcher.",
-            "Return the dispatcher result through the existing system-layer response contract."
+            "Resolve principal scope classes and tenant ownership restrictions.",
+            "Filter tenant-blocked tools before descriptor projection.",
+            "Group visible active rows by tool_name and expose a stable endpoint_key enum.",
+            "Require endpoint_key only when more than one visible binding exists.",
+            "Select the exact endpoint row before normalizing and dispatching call arguments."
           ],
           "assertions": [
-            "Catalog V2 receives exactly one descriptor for github_rest_endpoint_dispatch and does not encounter a descriptor-name collision.",
-            "The tenant descriptor excludes admin-only endpoint keys while the admin descriptor may include both shared and admin-only bindings.",
-            "The endpoint_key enum is sorted deterministically.",
-            "A single-binding public tool remains callable without endpoint_key.",
-            "The selected parent_action_key, endpoint_key, and method belong to the requested binding only.",
-            "SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION remains unchanged for genuinely conflicting descriptors."
+            "github_rest_endpoint_dispatch appears exactly once in the catalog.",
+            "Tenant projection excludes admin-only endpoint keys.",
+            "Admin projection may include shared and admin-only endpoint keys.",
+            "Single-binding tools remain callable without endpoint_key.",
+            "SYSTEM_TOOL_DESCRIPTOR_NAME_COLLISION remains fail-closed for genuinely conflicting descriptors."
           ],
           "tests": [
             {
@@ -76,30 +74,29 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Preserve deterministic bounded lookup, structured non-secret selection errors, generated frontend evidence, and explicit Admin/Tenant route guards.",
+      "objective": "Preserve bounded deterministic lookup, structured non-secret errors, current generated evidence, and explicit Admin and Tenant guards.",
       "e2e_journeys": [
         {
-          "id": "bounded-endpoint-selection-and-structured-errors",
+          "id": "bounded-selection-and-structured-errors",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "platform operator validating Admin and Tenant system-tool surfaces",
-          "entrypoint": "System-layer discovery and call handlers plus generated frontend dispatch governance",
-          "terminal_outcome": "Operational checks prove a bounded ordered candidate lookup, exact binding selection, current generated evidence, and structured errors with secrets_included=false.",
+          "entrypoint": "System-layer discovery and call handlers",
+          "terminal_outcome": "Operational checks prove ordered bounded candidate lookup, exact binding selection, principal-scoped visibility, and structured errors.",
           "steps": [
-            "Load at most 200 visible bindings ordered by endpoint_key and parent_action_key.",
-            "Validate that candidate rows resolve to exactly one public tool name.",
-            "Return allowed_endpoint_keys when a multi-binding call omits or misstates endpoint_key.",
+            "Load a bounded candidate set ordered by endpoint_key and parent_action_key.",
+            "Prove candidates resolve to one public tool name.",
+            "Return visible allowed_endpoint_keys for missing or unknown selection.",
             "Retain the explicit admin-required check after selection.",
-            "Expose error.details through the shared system-layer error envelope.",
-            "Regenerate frontend operation governance and surface-dispatch evidence from the exact candidate head."
+            "Expose error details through the shared system-layer envelope.",
+            "Regenerate frontend governance evidence from the exact candidate head."
           ],
           "assertions": [
-            "The runtime no longer uses LIMIT 2 as a proxy for public-name uniqueness.",
-            "The runtime does not select rows[0] without a cardinality proof.",
-            "Missing endpoint_key returns platform_endpoint_tool_endpoint_key_required with the visible allowed keys.",
+            "Runtime does not use LIMIT 2 as a proxy for public-name uniqueness.",
+            "Runtime does not use rows[0] without cardinality proof.",
+            "Missing endpoint_key returns platform_endpoint_tool_endpoint_key_required.",
             "Unknown endpoint_key returns platform_endpoint_tool_endpoint_key_unknown.",
-            "Admin-only selected bindings remain forbidden to non-admin principals.",
-            "Generated frontend evidence is byte-current for the changed route and test manifest."
+            "Generated frontend evidence is byte-current."
           ],
           "tests": [
             {
@@ -129,30 +126,28 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on missing, unknown, cross-name, or genuinely duplicate selected bindings while preserving tenant isolation and the existing catalog collision invariant.",
+      "objective": "Fail closed on missing, unknown, cross-name, or duplicate selected bindings while preserving tenant isolation and the catalog collision invariant.",
       "e2e_journeys": [
         {
-          "id": "multi-binding-selection-fail-closed-boundaries",
+          "id": "selection-fail-closed-boundaries",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "tenant or admin caller submitting incomplete or conflicting endpoint selection",
           "entrypoint": "POST /system/tools/call",
-          "terminal_outcome": "Invalid or ambiguous selection is rejected with a typed non-secret response and no provider or endpoint dispatch occurs.",
+          "terminal_outcome": "Invalid selection is rejected with a typed non-secret response before provider or endpoint dispatch.",
           "steps": [
-            "Attempt a multi-binding call without endpoint_key.",
-            "Attempt a call with an endpoint_key outside the visible principal-scoped set.",
-            "Attempt selection from candidate rows spanning more than one public tool name.",
-            "Attempt selection where the requested endpoint_key still resolves to duplicate active rows.",
-            "Verify tenant projection never includes an admin-only endpoint key.",
-            "Verify the catalog's genuine descriptor collision guard remains fail-closed."
+            "Call a multi-binding tool without endpoint_key.",
+            "Call with an endpoint_key outside the principal-visible set.",
+            "Evaluate candidates spanning more than one public tool name.",
+            "Evaluate a selected endpoint_key resolving to duplicate active rows.",
+            "Verify tenant projection excludes admin-only bindings."
           ],
           "assertions": [
-            "Missing selection is rejected with HTTP-compatible status 400 and platform_endpoint_tool_endpoint_key_required.",
-            "Unknown selection is rejected with HTTP-compatible status 400 and platform_endpoint_tool_endpoint_key_unknown.",
-            "Cross-name candidates are rejected with platform_endpoint_tool_name_ambiguous.",
-            "A duplicate selected binding is rejected with status 409 and platform_endpoint_tool_binding_ambiguous.",
-            "Every selection error includes secrets_included=false.",
-            "No database row deletion, tool-name rewrite, provider call, migration apply, or in-memory durability fallback occurs."
+            "Missing and unknown selection return status 400 typed errors.",
+            "Cross-name candidates return platform_endpoint_tool_name_ambiguous.",
+            "Duplicate selected bindings return platform_endpoint_tool_binding_ambiguous with status 409.",
+            "Selection errors include secrets_included=false.",
+            "No row deletion, tool-name rewrite, provider call, migration apply, or durability fallback occurs."
           ],
           "tests": [
             {
@@ -182,12 +177,12 @@
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Verify one descriptor and endpoint-key-selected dispatch against a non-production registry snapshot containing shared, tenant-visible, and admin-only bindings."
+      "objective": "Verify principal-scoped descriptor projection and endpoint-key-selected dispatch against a non-production registry snapshot."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "After governed promotion, verify the live Admin and Tenant /system/tools and /system/tools/call acceptance criteria against the exact deployed Production SHA."
+      "objective": "After governed promotion, verify live Admin and Tenant system-tool acceptance criteria against the exact deployed Production SHA."
     }
   ]
 }
