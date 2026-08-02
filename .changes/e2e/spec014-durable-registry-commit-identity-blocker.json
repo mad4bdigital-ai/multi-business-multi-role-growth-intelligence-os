@@ -1,8 +1,8 @@
 {
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
-  "feature_key": "spec014-durable-registry-commit-identity-blocker",
-  "title": "Reproduce the Durable Registry Git commit identity mismatch",
+  "feature_key": "spec014-durable-registry-commit-identity-repair",
+  "title": "Repair the Durable Registry Git commit identity contract",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -11,6 +11,7 @@
       ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
       ".github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json",
       ".github/workflows/hostinger-storage-durable-registry-commit-identity-blocker-guard.yml",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
       "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs"
     ]
   },
@@ -21,33 +22,35 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that the schema-verification v2 evidence is schema-compatible with the Durable Registry while the Registry still rejects the repository's 40-character Git object identity.",
+      "objective": "Replace SHA-256-only validation of schema source/runtime commits with an exact Git object identity validator while preserving all digest and authority boundaries.",
       "e2e_journeys": [
         {
-          "id": "reproduce-sha40-consumer-rejection",
+          "id": "accept-exact-git-identities-and-preserve-digest-validation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Spec 014 Durable Authorized Injection Registry constructor",
-          "entrypoint": "A secret-free successful schema-verification object using the current 40-character Integration commit SHA",
-          "terminal_outcome": "The exact consumer failure is reproduced before any database connection opens, while a 64-character control identity is accepted and the repair remains explicitly unperformed.",
+          "entrypoint": "Secret-free Schema Verification v2 evidence carrying exact Durable Injection schema binding and a 40- or 64-character lowercase Git object identity",
+          "terminal_outcome": "Both supported Git identity lengths construct the canonical Registry without database access, malformed identities fail with a commit-specific code, and SHA-256 digest plus source/runtime parity checks remain unchanged.",
           "steps": [
             "Build exact Durable Injection schema evidence with the canonical contract key, digest, and two-table set.",
-            "Pass the current 40-character Integration Git commit as source_commit and deployed_runtime_sha.",
-            "Assert the Registry rejects source_commit with STORAGE_DURABLE_INJECTION_HASH_INVALID.",
-            "Pass a 64-character control identity and assert the canonical Registry is constructed without database access.",
-            "Record that the producer accepts 40 or 64 characters while the consumer currently accepts only 64.",
-            "Keep runtime repair, authorization, migration execution, provider dispatch, deployment, and Production false."
+            "Construct the Registry with the current 40-character Integration Git commit and prove exact identity preservation.",
+            "Construct the Registry with a 64-character Git object identity and prove exact identity preservation.",
+            "Reject uppercase, non-hexadecimal, truncated, overlong, and unsupported identity lengths with STORAGE_DURABLE_INJECTION_COMMIT_INVALID.",
+            "Reject valid but different source/runtime identities with STORAGE_DURABLE_INJECTION_RUNTIME_PARITY_REQUIRED.",
+            "Retain SHA-256-only validation for evidence_digest and database_fingerprint.",
+            "Prove constructor-only validation opens no database connection and grants no migration, provider, deployment, or Production authority."
           ],
           "assertions": [
-            "The failure field is schema_verification.source_commit.",
-            "The schema contract binding succeeds before commit identity validation.",
-            "No SQL connection is opened by the constructor-only inspection.",
-            "The existing durable_registry_binding_ready claim is scoped to schema evidence only.",
-            "Durable Registry runtime acceptance remains false until a commit-specific validator accepts 40 or 64 lowercase hexadecimal characters."
+            "Exact lowercase 40- and 64-character Git object identities are accepted.",
+            "Lengths 39, 41, 63, and 65 are rejected without truncation.",
+            "Uppercase and non-hexadecimal identities are rejected.",
+            "Evidence digests and database fingerprints still require exact SHA-256 bindings.",
+            "Source and deployed-runtime identities must remain identical.",
+            "No SQL connection, live database access, migration Apply, Provider dispatch, deployment, main merge, or Production mutation occurs."
           ],
           "tests": [
             {
-              "id": "durable-registry-commit-identity-blocker",
+              "id": "durable-registry-commit-identity-repair",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs",
@@ -57,6 +60,7 @@
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json",
             ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
             "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs"
           ]
         }
@@ -65,25 +69,28 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Replace commit fields' SHA-256 validator with an exact Git object identity validator without weakening digest validation.",
+      "objective": "Use the repaired Registry only after separately governed live migration, same-cycle readback, and signed verification evidence exists.",
       "blockers": [
-        "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED"
+        "GOVERNED_MIGRATION_APPLY_LEDGER_REQUIRED",
+        "SAME_CYCLE_LIVE_READBACK_REQUIRED",
+        "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",
+        "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject malformed, mixed-length, uppercase, or parity-mismatched commit identities after the repair."
+      "objective": "Carry exact commit identity and parity checks through restart reconciliation and persisted durable state readback."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "No live canary is appropriate for a repository-only mismatch reproduction."
+      "objective": "No live canary is appropriate for this repository-only validator repair."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This blocker proof grants no deployment, main, or Production authority."
+      "objective": "This validator repair grants no deployment, main, or Production authority."
     }
   ],
   "secrets_included": false

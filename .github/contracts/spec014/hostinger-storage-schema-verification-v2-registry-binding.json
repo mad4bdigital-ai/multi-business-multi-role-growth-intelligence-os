@@ -3,6 +3,21 @@
   "contract": "spec014.hostinger-storage-schema-verification-v2-registry-binding.v1",
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "source_integration_commit": "6242c43b43eba3cb9e999b0daff36f24f0c63588",
+  "commit_identity_blocker_evidence": {
+    "pull_request": 4922,
+    "feature_head": "e34c80a5cfa3ecca8f140adc9e5bc3e9f976ecd7",
+    "integration_merge_sha": "be84a5bcdbfa933ab2ee3dc11dce3c1576730b2c"
+  },
+  "runtime_identity_repair": {
+    "pull_request": 4926,
+    "source_patch_commit": "97c719e04f430daf142cab83ed09a7877b93f0f9",
+    "validator": "commit",
+    "accepted_lengths": [40, 64],
+    "lowercase_required": true,
+    "truncation_allowed": false,
+    "source_runtime_parity_required": true,
+    "sha256_digest_validation_preserved": true
+  },
   "existing_four_wave_readback": {
     "contract_key": "spec014_hostinger_storage_migration_readback_v4",
     "path": ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
@@ -23,7 +38,7 @@
     "private_key_material_forbidden": true
   },
   "durable_injection_registry_binding": {
-    "binding_scope": "schema_evidence_only",
+    "binding_scope": "schema_and_runtime_identity",
     "contract_key": "hostinger_storage_durable_authorized_injection_state_schema_v1",
     "contract_digest": "652b2d50774944c4f21d92fd8a461c0e0cd18316e5875696223337eb2df5555a",
     "tables": [
@@ -35,13 +50,13 @@
     "schema_status": "ready_exact_contract",
     "verified_evidence_field": "evidence.authorized_injection_state_schema",
     "commit_identity_accepted_lengths": [40, 64],
-    "durable_registry_current_accepted_length": 64
+    "durable_registry_current_accepted_lengths": [40, 64]
   },
   "terminal_boundary": {
     "schema_verification_v2_ready": true,
     "durable_registry_binding_ready": true,
-    "durable_registry_binding_scope": "schema_evidence_only",
-    "durable_registry_runtime_acceptance_ready": false,
+    "durable_registry_binding_scope": "schema_and_runtime_identity",
+    "durable_registry_runtime_acceptance_ready": true,
     "live_database_access_performed": false,
     "signature_created": false,
     "schema_verified_in_live_environment": false,
@@ -56,7 +71,6 @@
     "secrets_included": false
   },
   "blockers": [
-    "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED",
     "GOVERNED_MIGRATION_APPLY_LEDGER_REQUIRED",
     "SAME_CYCLE_LIVE_READBACK_REQUIRED",
     "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",
