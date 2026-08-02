@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,15 @@ function push(findings, code, details = {}) {
   findings.push({ code, ...details });
 }
 
+function readExactCheckoutSha() {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+const exactCheckoutSha = readExactCheckoutSha();
 const manifest = readJson(MANIFEST_PATH);
 const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root: REPO_ROOT });
 const classification = validateSchemaClassification({ root: REPO_ROOT });
@@ -83,7 +93,8 @@ if (!Array.isArray(manifest.dimension_discovery?.unresolved)
 const report = {
   contract: "mad4b.spec014-final-work-map-readback.v1",
   generated_at: new Date().toISOString(),
-  candidate_sha: process.env.GITHUB_SHA || null,
+  candidate_sha: exactCheckoutSha,
+  workflow_event_sha: process.env.GITHUB_SHA || null,
   feature_key: FEATURE_KEY,
   manifest_path: MANIFEST_PATH,
   ok: findings.length === 0,
