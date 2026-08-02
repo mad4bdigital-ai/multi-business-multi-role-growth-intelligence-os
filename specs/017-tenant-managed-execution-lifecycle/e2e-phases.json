@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/activation-surfaces/managed_execution_bindings.json",
       "http-generic-api/managedExecutionCore.js",
       "http-generic-api/managedExecutionAuthority.js",
       "http-generic-api/managedExecutionPersistence.js",
@@ -49,6 +50,7 @@
             "Derive approval requirements from effect and access policy.",
             "Require active same-tenant membership and the hold's required role, or tenant owner/admin authority, before a non-admin approval decision.",
             "Revalidate authority before an idempotent managed step request.",
+            "Expose only tenant-safe lifecycle linkage through the repo-managed activation surface; registry synchronization remains separately governed.",
             "Compose managed enforcement before the preserved legacy router and expose legacy signatures through a non-runtime discovery bridge in the directly mounted builder.",
             "Reject secret-bearing payloads, approval bypass, cross-tenant access, authority tampering, invalid transitions, and contradictory terminal states."
           ],
@@ -61,6 +63,7 @@
             "Approval decisions reject inactive, cross-tenant, ambiguous, or under-privileged decision makers while allowing explicitly higher roles.",
             "Authority fingerprints detect payload tampering.",
             "Repeated run and step request boundaries are idempotent.",
+            "The activation surface excludes authority snapshots, input/output payloads, evidence payloads, idempotency keys, and secret-bearing data.",
             "Legacy workflow endpoints remain discoverable from the directly mounted builder without executing duplicate handlers.",
             "Migration 1043 is additive, unapplied, and contains a readiness view.",
             "No provider call, credential read, external send, deployment, or Production mutation occurs."
@@ -90,6 +93,7 @@
           ],
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/activation-surfaces/managed_execution_bindings.json",
             "http-generic-api/managedExecutionCore.js",
             "http-generic-api/managedExecutionAuthority.js",
             "http-generic-api/managedExecutionPersistence.js",
