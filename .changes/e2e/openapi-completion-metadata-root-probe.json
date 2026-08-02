@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "openapi-completion-metadata-root-probe",
+  "title": "OpenAPI Completion Metadata Root Probe",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/openapi-completion-metadata-root-probe.json",
+      ".changes/e2e/support-ticket-completion-certification-openapi-precision.json",
+      "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+      "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+      "http-generic-api/test-openapi-completion-metadata-root.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the exact completion-certification metadata upgrade against the repository root OpenAPI document without mutating repository state.",
+      "e2e_journeys": [
+        {
+          "id": "upgrade-completion-certification-root-openapi",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed OpenAPI precise-contract composer",
+          "entrypoint": "Run the patched precise registry writer against a temporary copy of the actual repository root OpenAPI document, registry, and Support Ticket route source.",
+          "terminal_outcome": "The completion-certification inline operation becomes the exact reviewed local path-item reference, check mode is idempotent, and the repository worktree remains unchanged.",
+          "steps": [
+            "Copy the actual root OpenAPI document, precise registry, and Support Ticket route source to an isolated temporary directory.",
+            "Run the exact patched precise-contract writer with write mode.",
+            "Verify the completion-certification path is the reviewed local reference and no registry or route source changes occur.",
+            "Run check mode against the migrated temporary document.",
+            "Verify the original repository root document digest is unchanged."
+          ],
+          "assertions": [
+            "The actual root completion-certification operation is eligible for the single allowlisted metadata-only upgrade.",
+            "The exact reviewed path-item reference is composed.",
+            "Write mode reports no conflict and check mode reports no drift.",
+            "Only the temporary OpenAPI document changes.",
+            "No repository mutation, provider dispatch, credential access, external send, or secret output occurs."
+          ],
+          "tests": [
+            {
+              "id": "completion-metadata-actual-root",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-completion-metadata-root.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-openapi-completion-metadata-root.mjs",
+            "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi-route-contracts.yaml",
+            "http-generic-api/routes/supportTicketRoutes.js"
+          ]
+        }
+      ]
+    }
+  ]
+}
