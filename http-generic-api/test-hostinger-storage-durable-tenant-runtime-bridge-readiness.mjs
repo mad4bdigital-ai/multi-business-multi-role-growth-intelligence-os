@@ -196,7 +196,7 @@ assert.throws(() => verifyHostingerStorageDurableTenantRuntimeBridgeReadiness({ 
 const routeSource = await readFile(new URL('./routes/hostingerStorageTenantRoutes.js', import.meta.url), 'utf8');
 const tenantRuntimeSource = await readFile(new URL('./hostingerStorageTenantRuntime.js', import.meta.url), 'utf8');
 const canarySource = await readFile(new URL('./hostingerStorageTenantCanaryBase.js', import.meta.url), 'utf8');
-const executorSource = await readFile(new URL('./hostingerStorageSyntheticExecutorBase.js', import.meta.url), 'utf8');
+const executorSource = await readFile(new URL('./hostingerStorageSyntheticExecutor.js', import.meta.url), 'utf8');
 const readinessSource = await readFile(new URL('./hostingerStorageDurableTenantRuntimeBridgeReadiness.js', import.meta.url), 'utf8');
 
 assert.match(routeSource, /router\.post\('\/tenant\/storage-operations\/apply-plan'/u);
@@ -206,7 +206,9 @@ assert.match(routeSource, /tenantStorageRuntime = null/u);
 assert.match(routeSource, /req\.auth\?\.mode !== 'user_jwt'/u);
 assert.match(canarySource, /tenantCanaryRepositories\.has\(repository\)/u);
 assert.match(canarySource, /CANONICAL_REPOSITORY_ADAPTER_KEY = 'hostinger_storage_memory_test_adapter_v1'/u);
-assert.match(executorSource, /'appendJournalEvent', 'recordReconciliation'/u);
+assert.match(executorSource, /requireFactoryOwnedAdapter\(options\.adapter\);/u);
+assert.match(executorSource, /return executeBaseSyntheticPlan\(options\);/u);
+assert.match(executorSource, /return reconcileBaseSyntheticOutcome\(options\);/u);
 assert.match(tenantRuntimeSource, /synthetic_only: true/u);
 assert.equal(/from ['"](?:mysql2|node:child_process|node:net|node:tls)['"]/u.test(readinessSource), false);
 assert.equal(/\b(?:exec|execFile|spawn|fork)\s*\(/u.test(readinessSource), false);
@@ -221,7 +223,8 @@ console.log(JSON.stringify({
   exact_route_path_bound: true,
   tenant_user_jwt_required: true,
   memory_only_canary_repository_detected: true,
-  legacy_executor_child_contract_detected: true,
+  parent_aware_translation_blockers_detected: true,
+  canonical_executor_wrapper_detected: true,
   semantic_packet_tamper_detection: true,
   digest_packet_tamper_detection: true,
   database_connections_during_evaluation: connectionCalls,

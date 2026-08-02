@@ -7,6 +7,7 @@ on:
       - 'http-generic-api/hostingerStorageSynthetic*.js'
       - 'http-generic-api/hostingerStorageReserveRelease*.js'
       - 'http-generic-api/test-hostinger-storage-executor*.mjs'
+      - 'http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs'
       - 'http-generic-api/test-hostinger-storage-unknown-outcome*.mjs'
       - 'http-generic-api/test-hostinger-storage-reserve-release*.mjs'
       - '.github/workflows/hostinger-storage-synthetic-executor-guard.yml'
@@ -35,12 +36,12 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-executor-fixtures.mjs
           node --check http-generic-api/test-hostinger-storage-executor.mjs
           node --check http-generic-api/test-hostinger-storage-executor-adapter-brand.mjs
+          node --check http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs
           node --check http-generic-api/test-hostinger-storage-unknown-outcome.mjs
           node --check http-generic-api/test-hostinger-storage-reserve-release.mjs
       - name: Enforce governed adapter factory and dispatch
         run: |
-          test "$(grep -R -l "hostingerStorageSyntheticAdapterBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageSyntheticAdapter.js"
-          test "$(grep -R -l "hostingerStorageSyntheticExecutorBase.js" http-generic-api --include='*.js' --include='*.mjs' | sort)" = "http-generic-api/hostingerStorageSyntheticExecutor.js"
+          node http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs
           grep -q "WeakSet" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "canonicalAdapters.add(adapter)" http-generic-api/hostingerStorageSyntheticAdapter.js
           grep -q "isCanonicalHostingerStorageSyntheticAdapter" http-generic-api/hostingerStorageSyntheticAdapter.js
