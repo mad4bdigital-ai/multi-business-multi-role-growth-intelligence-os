@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 export const PRODUCTION_RUNTIME_PARITY_CONTRACT = "mad4b.production-runtime-parity-evidence.v1";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const ENDPOINT_NAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/u;
-const ALLOWED_HOST_PATTERN = /(^|\.)mad4b\.com$/iu;
+const ALLOWED_HOSTS = new Set(["auth.mad4b.com", "connector.mad4b.com", "dev.mad4b.com"]);
 const DEFAULT_OUTPUT_DIR = path.join("artifacts", "production-runtime-parity-evidence");
 const DEFAULT_TIMEOUT_MS = 12_000;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -134,7 +134,7 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
     if (parsed.search || parsed.hash) throw new EvidenceError("endpoint_query_forbidden", `Endpoint ${endpoint.name} must not contain query or fragment data.`);
     if (parsed.pathname !== "/version") throw new EvidenceError("endpoint_path_invalid", `Endpoint ${endpoint.name} must target exactly /version.`);
     if (parsed.port && parsed.port !== "443") throw new EvidenceError("endpoint_port_forbidden", `Endpoint ${endpoint.name} must use port 443.`);
-    if (!ALLOWED_HOST_PATTERN.test(parsed.hostname)) throw new EvidenceError("endpoint_host_forbidden", `Endpoint ${endpoint.name} must use a mad4b.com host.`);
+    if (!ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) throw new EvidenceError("endpoint_host_forbidden", `Endpoint ${endpoint.name} must use an approved Production host.`);
     return {
       name: endpoint.name,
       url: parsed.toString(),
