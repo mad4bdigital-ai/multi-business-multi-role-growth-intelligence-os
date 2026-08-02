@@ -187,6 +187,16 @@ jobs:
           echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
           echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
 
+      - name: Reject protected target before API mutation
+        if: steps.candidate.outputs.eligible == 'true'
+        shell: bash
+        env:
+          TARGET_REF: ${{ steps.candidate.outputs.target_ref }}
+        run: |
+          set -euo pipefail
+          [[ "${TARGET_REF}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
+
       - name: Dispatch registered V2 decision workflow and observe its run
         if: steps.candidate.outputs.eligible == 'true'
         shell: bash
