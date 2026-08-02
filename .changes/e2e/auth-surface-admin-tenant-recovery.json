@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "auth-surface-admin-tenant-recovery",
+  "title": "Admin and Tenant auth-surface startup recovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "runtime-auth-secret-bootstrap.js",
+      "hostinger-entrypoint-runtime.js",
+      "http-generic-api/userJwtAuth.js",
+      "http-generic-api/routes/healthRoutes.js",
+      "http-generic-api/db.js",
+      "http-generic-api/package.json",
+      "http-generic-api/test-user-jwt-auth.mjs",
+      "http-generic-api/test-hostinger-startup-imports.mjs",
+      "http-generic-api/test-server-startup-smoke.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore one consistent JWT secret contract before any Admin or Tenant route module loads, and keep production liveness responsive while dependencies are degraded.",
+      "e2e_journeys": [
+        {
+          "id": "start-hostinger-runtime-with-consistent-admin-tenant-auth",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Hostinger production runtime, Admin caller, and Tenant caller",
+          "entrypoint": "The repository-root Hostinger entrypoint starts with BACKEND_API_KEY and without a separately configured JWT_SECRET",
+          "terminal_outcome": "The runtime derives and installs a backend-bound JWT secret before route imports, /health remains bounded, and Admin plus Tenant auth surfaces return governed authentication responses instead of verifier-unavailable 503 responses.",
+          "steps": [
+            "Resolve JWT_SECRET, USER_JWT_SECRET, or AUTH_JWT_SECRET in canonical precedence.",
+            "When no dedicated JWT secret exists, derive a deterministic non-exported JWT secret from BACKEND_API_KEY before importing the application.",
+            "Start the application through the repository-root entrypoint for both root and nested npm start commands.",
+            "Probe /version, /health, and /deployment-info.",
+            "Probe /admin/system/tools, /admin/control, /system/tools, and /tenant/docs without valid credentials.",
+            "Verify invalid Bearer tokens are rejected without user_jwt_verifier_unavailable.",
+            "Bound Redis, queue, and database health probes so dependency stalls do not block liveness."
+          ],
+          "assertions": [
+            "The canonical JWT secret is populated before any route module reads process.env.JWT_SECRET.",
+            "No secret value is logged or returned.",
+            "Admin and Tenant route probes are mounted and return 401 or 403 rather than 404, 500, or 503.",
+            "The health endpoint returns HTTP 200 with healthy or degraded dependency status within its bounded timeout.",
+            "Database health connections are released in a finally block.",
+            "No SQL, migration, provider call, credential read, external send, deployment command, protected-branch direct update, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "user-jwt-auth-secret-resolution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-user-jwt-auth.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-startup-auth-bootstrap",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-startup-imports.mjs",
+              "args": []
+            },
+            {
+              "id": "admin-tenant-runtime-surface-smoke",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "runtime-auth-secret-bootstrap.js",
+            "http-generic-api/test-user-jwt-auth.mjs",
+            "http-generic-api/test-hostinger-startup-imports.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Read back auth.mad4b.com health, deployment SHA, Admin catalog, and Tenant catalog after Production promotion."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise explicit JWT secret aliases, BACKEND_API_KEY rotation, dependency timeouts, invalid tokens, and missing-secret fail-closed startup."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run read-only Admin and Tenant canaries against the exact deployed Production SHA."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify Hostinger fresh build and exact-SHA parity without applying migrations."
+    }
+  ],
+  "secrets_included": false
+}
