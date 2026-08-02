@@ -25,7 +25,7 @@ jobs:
     env:
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
       SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
-      EVENT_CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      EVENT_SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       REPORT_DIR: ${{ runner.temp }}/frontend-parity-refresh-dispatch
       SOURCE_DIR: ${{ runner.temp }}/frontend-dispatch-source-evidence
     steps:
@@ -70,7 +70,8 @@ jobs:
             outcome: 'blocked',
             source_workflow: process.env.SOURCE_WORKFLOW,
             source_run_id: Number(process.env.SOURCE_RUN_ID),
-            candidate_sha: process.env.EVENT_CANDIDATE_SHA,
+            candidate_sha: null,
+            candidate_kind: null,
             source_head_sha: null,
             target_ref: null,
             pr_number: null,
@@ -101,8 +102,12 @@ jobs:
             }
 
             const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+            const candidateSha = source.identity?.candidate_sha || '';
+            const candidateKind = source.identity?.candidate_kind || '';
             const targetBranch = source.identity?.head_ref || '';
             const sourceHeadSha = source.identity?.source_head_sha || '';
+            state.candidate_sha = candidateSha || null;
+            state.candidate_kind = candidateKind || null;
             state.source_head_sha = sourceHeadSha || null;
             state.target_ref = targetBranch || null;
 
@@ -114,14 +119,16 @@ jobs:
 
             const identityValid = source.contract === 'mad4b.frontend-dispatch-verification-evidence.v1'
               && source.identity?.workflow === 'Frontend surface dispatch'
-              && source.identity?.candidate_sha === process.env.EVENT_CANDIDATE_SHA
+              && fullSha.test(candidateSha)
+              && (candidateKind === 'head' || candidateKind === 'merge_candidate')
               && fullSha.test(sourceHeadSha)
+              && sourceHeadSha === process.env.EVENT_SOURCE_HEAD_SHA
               && targetPattern.test(targetBranch)
               && source.identity?.base_ref === 'main'
               && source.routing?.consult_job_logs === false
               && source.secrets_included === false;
             if (!identityValid) {
-              fail('source_evidence_integrity_failure', 'Canonical identity, contract, routing, or no-secret assertions did not match the workflow_run event.');
+              fail('source_evidence_integrity_failure', 'Canonical identity, contract, source-head event binding, routing, or no-secret assertions did not match the workflow_run event.');
               persist();
               process.exit(1);
             }
@@ -158,6 +165,14 @@ jobs:
             state.pr_number = pr.number;
             if (pr.head?.sha !== sourceHeadSha) {
               fail('pull_request_head_mismatch', 'The PR head moved after the source evidence was produced.');
+              persist();
+              process.exit(1);
+            }
+            const candidateMatchesPullRequest = candidateKind === 'head'
+              ? candidateSha === sourceHeadSha
+              : pr.merge_commit_sha === candidateSha;
+            if (!candidateMatchesPullRequest) {
+              fail('pull_request_candidate_mismatch', 'The evidence candidate does not match the exact PR head or merge candidate.');
               persist();
               process.exit(1);
             }
@@ -219,7 +234,8 @@ jobs:
             `- Contract: \`${report.contract}\``,
             `- Outcome: **${report.outcome}**`,
             `- Source run: \`${report.source_run_id}\``,
-            `- Candidate SHA: \`${report.candidate_sha}\``,
+            `- Candidate kind: \`${report.candidate_kind || 'not-resolved'}\``,
+            `- Candidate SHA: \`${report.candidate_sha || 'not-resolved'}\``,
             `- Source head SHA: \`${report.source_head_sha || 'not-resolved'}\``,
             `- Target ref: \`${report.target_ref || 'not-resolved'}\``,
             `- PR: \`${report.pr_number ?? 'not-resolved'}\``,
