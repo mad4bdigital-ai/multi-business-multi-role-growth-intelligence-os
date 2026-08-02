@@ -1,4 +1,5 @@
 name: Spec 014 Authorized Injection Resume Binding Patch
+# Retrigger the bounded self-removing patch after the initial workflow-registration push.
 
 on:
   push:
