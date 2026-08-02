@@ -41,40 +41,58 @@ try {
   const repositoryRoot = process.env.REPOSITORY_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const workflowPath = path.join(repositoryRoot, ".github/workflows/production-runtime-parity-evidence.yml");
   const workflow = fs.readFileSync(workflowPath, "utf8");
+  const reporterSource = fs.readFileSync(fileURLToPath(new URL("./production-runtime-parity-evidence.mjs", import.meta.url)), "utf8");
   assert.match(workflow, /permissions:\n  contents: read/u);
   assert.match(workflow, /if: github\.event_name == 'workflow_dispatch'/u);
-  assert.match(workflow, /ref: main/u);
+  assert.match(workflow, /\[\[ "\$\{GITHUB_REF\}" == "refs\/heads\/main" \]\]/u);
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/u);
   assert.match(workflow, /fetch-depth: 0/u);
   assert.match(workflow, /persist-credentials: false/u);
   assert.match(workflow, /refs\/remotes\/origin\/Production/u);
+  assert.match(workflow, /requiredNames\.has\("auth"\)/u);
+  assert.match(workflow, /requiredNames\.has\("connector"\)/u);
   assert.match(workflow, /\[\[ "\$\{production_sha\}" == "\$\{EXPECTED_SHA\}" \]\]/u);
   assert.doesNotMatch(workflow, /^  (?:push|schedule|pull_request_target|issue_comment|deployment):/mu);
+  assert.match(reporterSource, /"dns_timeout"/u);
+  assert.match(reporterSource, /"http_timeout"/u);
+  assert.match(reporterSource, /body = await readBoundedBody\(response\)/u);
 
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [{ name: "bad", url: "http://auth.mad4b.com/version", required: true }]
+    endpoints: [{ name: "auth", url: "http://auth.mad4b.com/version", required: true }]
   }), /HTTPS/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [{ name: "bad", url: "https://user:pass@auth.mad4b.com/version", required: true }]
+    endpoints: [{ name: "auth", url: "https://user:pass@auth.mad4b.com/version", required: true }]
   }), /credentials/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [{ name: "bad", url: "https://example.com/version", required: true }]
-  }), /approved Production host/u);
+    endpoints: [{ name: "auth", url: "https://example.com/version", required: true }]
+  }), /auth\.mad4b\.com/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [{ name: "bad", url: "https://arbitrary.mad4b.com/version", required: true }]
-  }), /approved Production host/u);
+    endpoints: [{ name: "auth", url: "https://arbitrary.mad4b.com/version", required: true }]
+  }), /auth\.mad4b\.com/u);
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [{ name: "bad", url: "https://auth.mad4b.com:8443/version", required: true }]
+    endpoints: [{ name: "auth", url: "https://auth.mad4b.com:8443/version", required: true }]
   }), /port 443/u);
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [{ name: "connector", url: "https://auth.mad4b.com/version", required: true }]
+  }), /connector\.mad4b\.com/u);
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [{ name: "other", url: "https://dev.mad4b.com/version", required: true }]
+  }), /not an approved Production endpoint/u);
+
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "production",
@@ -151,6 +169,33 @@ try {
   assert.doesNotMatch(JSON.stringify(failed.report), /must-not-be-persisted/u);
   assert.equal(failed.report.endpoints[1].http.body_sha256.length, 64);
 
+  const untrustedIdentityFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [endpoint("auth")],
+    outputDir: path.join(root, "untrusted-identity-failed"),
+    lookup,
+    tlsProbe: successfulTls,
+    fetchImpl: async () => new Response(JSON.stringify({
+      service: "client_secret=swordfish",
+      deployment: {
+        deployed_commit_sha: "access_token=top-secret",
+        manifest: { branch: "Bearer visible-token" }
+      }
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    })
+  });
+  assert.equal(untrustedIdentityFailed.report.outcome, "failed");
+  assert.equal(untrustedIdentityFailed.report.first_failure.code, "service_identity_mismatch");
+  assert.deepEqual(untrustedIdentityFailed.report.endpoints[0].runtime, {
+    service: null,
+    deployed_commit_sha: null,
+    deployment_branch: null
+  });
+  assert.doesNotMatch(JSON.stringify(untrustedIdentityFailed.report), /swordfish|top-secret|visible-token/u);
+
   const privateDnsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
@@ -166,6 +211,24 @@ try {
   });
   assert.equal(privateDnsFailed.report.outcome, "failed");
   assert.equal(privateDnsFailed.report.first_failure.code, "dns_address_forbidden");
+
+  for (const address of ["192.0.2.10", "198.51.100.10", "203.0.113.10", "2001:db8::10"]) {
+    const documentationDnsFailed = await runProductionRuntimeParityEvidence({
+      expectedSha: SHA,
+      expectedBranch: "Production",
+      endpoints: [endpoint("auth")],
+      outputDir: path.join(root, `documentation-dns-${address.replaceAll(":", "-")}`),
+      lookup: async () => [{ address, family: address.includes(":") ? 6 : 4 }],
+      tlsProbe: async () => {
+        throw new Error("TLS must not run for a documentation DNS address");
+      },
+      fetchImpl: async () => {
+        throw new Error("HTTP must not run for a documentation DNS address");
+      }
+    });
+    assert.equal(documentationDnsFailed.report.outcome, "failed");
+    assert.equal(documentationDnsFailed.report.first_failure.code, "dns_address_forbidden");
+  }
 
   const tlsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
@@ -191,7 +254,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 6,
+  tests: 8,
   gate: "production_runtime_parity_structured_evidence",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false
