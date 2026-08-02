@@ -4,6 +4,10 @@
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "status": "governed_sequence_registered_apply_blocked",
   "source_contract": ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+  "extension_source_contracts": [
+    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json"
+  ],
   "migration_directory": "http-generic-api/migrations",
   "dependency_registry": "http-generic-api/config/governed-migration-dependencies.json",
   "migration_apply_authorized": false,
@@ -45,11 +49,24 @@
         "insert_without_ignore_or_on_duplicate"
       ],
       "dependency": "20260802_02_spec014_hostinger_storage_control_plane.sql"
+    },
+    {
+      "wave": 4,
+      "migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+      "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+      "statement_count": 2,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
+      "dependency": "20260802_03_spec014_hostinger_storage_execution_evidence.sql"
     }
   ],
   "apply_blockers": [
     "Wave 3 must prove all three target views are absent before apply; automatic replacement is intentionally forbidden.",
     "Wave 3 must prove all three tool keys are absent before apply; INSERT IGNORE and silent duplicate reconciliation are intentionally forbidden.",
+    "Wave 4 must prove both target tables are absent or exactly compatible before apply because CREATE TABLE IF NOT EXISTS must not hide incompatible live schema.",
+    "Wave 4 requires exact successful Wave 3 apply-ledger evidence before authorization or execution.",
+    "Signed schema verification and same-cycle readback contracts must be refreshed for the fourth wave before any apply can be considered.",
     "Every wave requires fresh checksum-bound authorization, governed dependency evidence, dry-run evidence, typed confirmation, and same-cycle live readback.",
     "Signed schema verification is required before mounting the SQL repository or setting production_ready=true."
   ],
