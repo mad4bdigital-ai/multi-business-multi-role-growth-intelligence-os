@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization.",
+      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization; the first governed refresh of this candidate produced bot commit df5335d190da46eff3bbce7b11d233058105e0c5 without direct dispatcher contents mutation.",
       "e2e_journeys": [
         {
           "id": "dispatch-exact-head-refresh-from-structured-frontend-parity-evidence",
