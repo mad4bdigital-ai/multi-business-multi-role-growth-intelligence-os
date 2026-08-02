@@ -26,6 +26,21 @@ function ensureInside(root, relativePath) {
   return { normalized, resolved };
 }
 
+function inspectFile(located) {
+  if (!located) return { exists: false, regular_file: false, symbolic_link: false };
+  try {
+    const stats = fs.lstatSync(located.resolved);
+    return {
+      exists: true,
+      regular_file: stats.isFile(),
+      symbolic_link: stats.isSymbolicLink(),
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") return { exists: false, regular_file: false, symbolic_link: false };
+    throw error;
+  }
+}
+
 function walkJson(root, relativeDirectory) {
   const start = path.join(root, relativeDirectory);
   if (!fs.existsSync(start)) return [];
@@ -49,7 +64,9 @@ export function discoverContractPaths(root = REPO_ROOT) {
     for (const entry of fs.readdirSync(specsRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const contractPath = normalize(path.posix.join("specs", entry.name, "e2e-phases.json"));
-      if (fs.existsSync(path.join(root, contractPath))) contracts.add(contractPath);
+      const located = ensureInside(root, contractPath);
+      const state = inspectFile(located);
+      if (state.regular_file && !state.symbolic_link) contracts.add(contractPath);
     }
   }
   return [...contracts].sort();
@@ -120,8 +137,17 @@ function implementedEvidence(contract, contractPath, findings) {
 
 function readContract(root, contractPath, findings) {
   const located = ensureInside(root, contractPath);
-  if (!located || !fs.existsSync(located.resolved)) {
+  const state = inspectFile(located);
+  if (!located || !state.exists) {
     findings.push({ code: "contract_not_found", contract_path: contractPath });
+    return null;
+  }
+  if (state.symbolic_link) {
+    findings.push({ code: "symbolic_link_contract_not_allowed", contract_path: contractPath });
+    return null;
+  }
+  if (!state.regular_file) {
+    findings.push({ code: "contract_not_regular_file", contract_path: contractPath });
     return null;
   }
   try {
@@ -152,10 +178,26 @@ export function evaluateEvidenceIntegrity({
 
   const changedContracts = new Set();
   const deletedPaths = new Set();
+  const deletedContracts = new Set();
   for (const entry of changedEntries) {
-    if (entry.status === "D") deletedPaths.add(normalize(entry.path));
-    if (entry.status === "R" && entry.old_path) deletedPaths.add(normalize(entry.old_path));
+    if (entry.status === "D") {
+      const deletedPath = normalize(entry.path);
+      deletedPaths.add(deletedPath);
+      if (isContractPath(deletedPath)) deletedContracts.add(deletedPath);
+    }
+    if (entry.status === "R" && entry.old_path) {
+      const oldPath = normalize(entry.old_path);
+      deletedPaths.add(oldPath);
+      if (isContractPath(oldPath)) deletedContracts.add(oldPath);
+    }
     if (entry.path && entry.status !== "D" && isContractPath(entry.path)) changedContracts.add(normalize(entry.path));
+  }
+
+  for (const contractPath of deletedContracts) {
+    findings.push({
+      code: "deleted_or_renamed_e2e_contract_requires_explicit_retirement",
+      contract_path: contractPath,
+    });
   }
 
   const affectedByDeletion = new Set();
@@ -184,14 +226,24 @@ export function evaluateEvidenceIntegrity({
     for (const item of evidenceByContract.get(contractPath) || []) {
       const located = ensureInside(root, item.path);
       const deleted = deletedPaths.has(item.path);
-      const exists = Boolean(located && fs.existsSync(located.resolved));
-      checkedEvidence.push({ ...item, exists, deleted_in_change: deleted });
+      const state = inspectFile(located);
+      checkedEvidence.push({
+        ...item,
+        exists: state.exists,
+        regular_file: state.regular_file,
+        symbolic_link: state.symbolic_link,
+        deleted_in_change: deleted,
+      });
       if (!located) {
         findings.push({ code: "invalid_evidence_path", ...item });
       } else if (deleted) {
         findings.push({ code: "deleted_evidence_still_referenced", ...item });
-      } else if (!exists) {
+      } else if (!state.exists) {
         findings.push({ code: "missing_implemented_journey_evidence", ...item });
+      } else if (state.symbolic_link) {
+        findings.push({ code: "symbolic_link_evidence_not_allowed", ...item });
+      } else if (!state.regular_file) {
+        findings.push({ code: "evidence_not_regular_file", ...item });
       }
     }
   }
@@ -205,6 +257,7 @@ export function evaluateEvidenceIntegrity({
     changed_entries: changedEntries,
     changed_contracts: [...changedContracts].sort(),
     deleted_paths: [...deletedPaths].sort(),
+    deleted_contracts: [...deletedContracts].sort(),
     deletion_affected_contracts: [...affectedByDeletion].sort(),
     targeted_contracts: [...targets].sort(),
     checked_evidence: checkedEvidence,
