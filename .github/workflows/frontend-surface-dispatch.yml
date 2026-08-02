@@ -40,7 +40,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   dispatch-plan:
@@ -139,94 +139,5 @@ jobs:
             http-generic-api/frontend-operation-governance.generated.json
             http-generic-api/frontend-surface-dispatch.generated.json
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          if-no-files-found: error
-          retention-days: 14
-
-  exact-head-refresh-bootstrap:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      OUTPUT_DIR: ${{ runner.temp }}/spec016-generated-artifact-refresh-bootstrap
-      WORKFLOW_PATH: .github/workflows/frontend-surface-dispatch.yml
-      RESTORE_SOURCE_SHA: 47f0bf7c261112cea0dd809ac9f61273f6dbe6f7
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Determine one-shot eligibility
-        id: guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          subject="$(git log -1 --pretty=%s)"
-          local_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          if [[ "${subject}" == "chore(ci): activate exact-head generated refresh via registered frontend workflow" && \
-                "${TARGET_REF}" == "gpt/016-remote-mcp-oauth21-main-recovery-20260802" && \
-                "${EXPECTED_HEAD_SHA}" == "${local_sha}" && \
-                "${EXPECTED_HEAD_SHA}" == "${remote_sha}" ]]; then
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "One-shot refresh is not eligible for subject=${subject} expected=${EXPECTED_HEAD_SHA} local=${local_sha} remote=${remote_sha}."
-          fi
-
-      - name: Set up Node.js 22
-        if: steps.guard.outputs.eligible == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Run registered exact-head refresh tool
-        if: steps.guard.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs \
-            --target-ref "${TARGET_REF}" \
-            --expected-head-sha "${EXPECTED_HEAD_SHA}" \
-            --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH" \
-            --output-dir "${OUTPUT_DIR}"
-          jq -e '.contract == "mad4b.governed-generated-artifact-refresh.v1" and .outcome == "passed"' \
-            "${OUTPUT_DIR}/generated-artifact-refresh-report.json" >/dev/null
-
-      - name: Restore registered read-only frontend workflow
-        if: steps.guard.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          report="${OUTPUT_DIR}/generated-artifact-refresh-report.json"
-          result_sha="$(jq -r '.commit_sha // .expected_head_sha' "${report}")"
-          [[ "${result_sha}" =~ ^[0-9a-f]{40}$ ]]
-          local_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          [[ "${local_sha}" == "${result_sha}" ]]
-          [[ "${remote_sha}" == "${result_sha}" ]]
-          git show "${RESTORE_SOURCE_SHA}:${WORKFLOW_PATH}" > "${WORKFLOW_PATH}"
-          git add -- "${WORKFLOW_PATH}"
-          git commit -m "chore(ci): restore read-only frontend dispatch workflow"
-          cleanup_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          [[ "${remote_sha}" == "${result_sha}" ]]
-          git push origin "HEAD:${TARGET_REF}"
-          jq --arg cleanup_sha "${cleanup_sha}" '. + {bootstrap_cleanup_sha:$cleanup_sha,workflow_restored:true}' \
-            "${report}" > "${report}.tmp"
-          mv "${report}.tmp" "${report}"
-
-      - name: Upload canonical bootstrap evidence
-        if: always() && steps.guard.outputs.eligible == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec016-generated-artifact-refresh-bootstrap-${{ github.run_id }}
-          path: ${{ env.OUTPUT_DIR }}/
           if-no-files-found: error
           retention-days: 14
