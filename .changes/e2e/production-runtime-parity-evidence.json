@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-runtime-parity-evidence",
+  "title": "Live Production runtime parity evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-runtime-parity-evidence.json",
+      ".github/workflows/production-runtime-parity-evidence.yml",
+      "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+      "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a workflow-dispatch-only live verifier that binds Production DNS, TLS, HTTP, service identity, branch identity, and deployed commit identity to one exact reviewed SHA without credentials or runtime mutation.",
+      "e2e_journeys": [
+        {
+          "id": "validate-production-runtime-parity-verifier",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and pull-request reviewer",
+          "entrypoint": "Production Runtime Parity Evidence pull-request contract job",
+          "terminal_outcome": "Synthetic DNS, TLS, HTTP, and runtime-identity regressions plus workflow-contract assertions prove the verifier rejects unsafe endpoints and mismatched runtime identity, persists only bounded secret-free evidence, and reserves real network probing for an explicit workflow_dispatch after the tooling is merged to trusted main.",
+          "steps": [
+            "Load the reporter and validate exact Production SHA, branch, endpoint-name-to-host mapping, timeout, and URL constraints.",
+            "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only and dispatches fail when GITHUB_REF is not refs/heads/main.",
+            "Prove trusted exact main-event checkout, full branch-ref availability, exact Production-ref equality, and required auth plus connector enforcement.",
+            "Exercise exact auth and connector parity with an explicitly optional additional endpoint.",
+            "Exercise required endpoint deployed-SHA drift and untrusted identity fields while proving raw or malformed identity values are not persisted.",
+            "Reject loopback, private, link-local, documentation, multicast, invalid, and over-cardinality DNS results before TLS or HTTP execution.",
+            "Inspect bounded DNS and full-response HTTP timeout enforcement, exercise TLS failure, and verify secret redaction.",
+            "Emit a bounded secret-free component result without performing a live request in pull-request context."
+          ],
+          "assertions": [
+            "The synthetic runtime report contract is mad4b.production-runtime-parity-evidence.v1.",
+            "The workflow has no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
+            "Live probing runs only for workflow_dispatch; the contract job fails unless GITHUB_REF is refs/heads/main.",
+            "The workflow uses contents: read and checkout persist-credentials=false.",
+            "The live job checks out exact github.sha from a main-ref dispatch with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
+            "Only the fixed auth, connector, and dev endpoint names are accepted, each bound to its matching mad4b.com host on HTTPS port 443 and path /version without credentials, queries, or fragments.",
+            "DNS fails closed on loopback, private, link-local, multicast, documentation, invalid, or more than 16 returned addresses, and accepted public addresses are hashed before persistence.",
+            "The checked implementation applies bounded timeout enforcement to DNS, TLS, and the complete HTTP response body.",
+            "HTTP redirects are not followed, application/json is required, and response bodies are bounded before parsing.",
+            "The raw response body, unknown JSON fields, malformed identity values, and error details are never written to the artifact.",
+            "Required endpoints pass only when service equals http_generic_api_connector, deployed_commit_sha equals the exact requested SHA, and deployment branch equals Production.",
+            "The report declares secrets_included=false and all mutation/effect flags false.",
+            "Workflow enforcement requires auth and connector as required passed endpoints, first_failure=null, and tooling_sha equal to the exact trusted main event SHA."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-parity-structured-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-production-runtime-parity-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-runtime-parity-evidence.yml",
+            "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+            "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Execute the first trusted-main live Production readback for c0f9d9fa84bfbf9edf4967a11a94758cb1491ad3, attach the run-bound artifact to issue 4948, and reconcile any host-topology exception explicitly.",
+      "planned_e2e_journey": {
+        "id": "verify-live-production-runtime-parity",
+        "required_level": "production_readback",
+        "actor": "authorized repository operator",
+        "entrypoint": "Production Runtime Parity Evidence workflow_dispatch with expected_sha equal to the current Production ref",
+        "terminal_outcome": "A run-bound structured artifact proves every required approved /version endpoint resolves only public DNS, completes authorized TLS, returns HTTP 200 application/json, identifies http_generic_api_connector, reports branch Production, and exposes the exact current Production commit; otherwise the dispatch fails closed.",
+        "steps": [
+          "Dispatch the trusted-main workflow for the exact current Production SHA and approved host topology.",
+          "Upload and enforce the structured JSON and Markdown artifact before consulting diagnostic logs.",
+          "Attach the run identity and bounded outcome to issue 4948 without secrets."
+        ]
+      }
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded retry policy, certificate-expiry thresholds, multi-address parity, and artifact publication to the canonical issue evidence path without weakening first-failure reporting."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the exact verifier against a non-production deployment before future protected promotions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require a successful run-bound live parity artifact after every Production promotion before declaring deployment complete."
+    }
+  ]
+}
