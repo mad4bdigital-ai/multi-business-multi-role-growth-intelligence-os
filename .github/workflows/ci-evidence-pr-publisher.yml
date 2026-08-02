@@ -7,6 +7,7 @@ on:
       - Branch Test Diagnostic Shards
       - Context Kernel Hardcoding Report
       - PR Generated Artifact Refresh
+      - Protected Promotion Generated Artifact Refresh
     types: [completed]
 
 permissions:
@@ -71,7 +72,9 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download generated-artifact canonical report
-        if: github.event.workflow_run.name == 'PR Generated Artifact Refresh'
+        if: >-
+          github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
+          github.event.workflow_run.name == 'Protected Promotion Generated Artifact Refresh'
         uses: actions/download-artifact@v4
         with:
           name: pr-generated-artifact-refresh-${{ github.event.workflow_run.id }}-summary
@@ -91,7 +94,7 @@ jobs:
             "E2E Phase Governance") report="${RUNNER_TEMP}/canonical/e2e-phase-summary.json" ;;
             "Branch Test Diagnostic Shards") report="${RUNNER_TEMP}/canonical/diagnostic-summary.json" ;;
             "Context Kernel Hardcoding Report") report="${RUNNER_TEMP}/canonical/context-kernel-hardcoding-summary.json" ;;
-            "PR Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/pr-generated-artifact-refresh-summary.json" ;;
+            "PR Generated Artifact Refresh"|"Protected Promotion Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/pr-generated-artifact-refresh-summary.json" ;;
             *) echo "Unsupported workflow: $WORKFLOW_NAME" >&2; exit 2 ;;
           esac
           test -f "$report"
@@ -123,7 +126,7 @@ jobs:
           if [[ -n "${HEAD_BRANCH:-}" ]]; then
             common_args+=(--head-branch "${HEAD_BRANCH}")
           fi
-          if [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" ]]; then
+          if [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" ]]; then
             node http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs "${common_args[@]}"
           else
             node http-generic-api/scripts/ci-evidence-pr-comment.mjs --workflow "${WORKFLOW_NAME}" "${common_args[@]}"
