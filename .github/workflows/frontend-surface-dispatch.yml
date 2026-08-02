@@ -40,9 +40,118 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  issues: write
+  pull-requests: read
 
 jobs:
+  exact-head-generated-refresh:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/016-remote-mcp-oauth21-main-recovery-20260802'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TARGET_REF: ${{ github.event.pull_request.head.ref }}
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      REPORT_DIR: ${{ runner.temp }}/one-shot-governed-generated-artifact-refresh
+      ORIGINAL_WORKFLOW: ${{ runner.temp }}/frontend-surface-dispatch.original.yml
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Gate one-shot bootstrap identity
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          subject="$(git log -1 --pretty=%s)"
+          if [[ "${subject}" == "chore(ci): bootstrap exact-head generated artifact refresh" ]]; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "One-shot writer skipped for non-bootstrap head: ${subject}"
+          fi
+
+      - name: Setup Node
+        if: steps.gate.outputs.eligible == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Save read-only workflow for cleanup
+        if: steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "${EXPECTED_HEAD_SHA}^:.github/workflows/frontend-surface-dispatch.yml" > "${ORIGINAL_WORKFLOW}"
+          test -s "${ORIGINAL_WORKFLOW}"
+
+      - name: Apply registered exact-head generated refresh
+        if: steps.gate.outputs.eligible == 'true'
+        env:
+          OUTPUT_DIR: ${{ env.REPORT_DIR }}
+        run: >-
+          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
+          --target-ref "${TARGET_REF}"
+          --expected-head-sha "${EXPECTED_HEAD_SHA}"
+          --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH"
+          --output-dir "${OUTPUT_DIR}"
+
+      - name: Publish canonical governed apply evidence
+        if: steps.gate.outputs.eligible == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        working-directory: http-generic-api
+        run: >-
+          node scripts/generated-artifact-refresh-pr-publisher.mjs
+          --repository "${GITHUB_REPOSITORY}"
+          --head-branch "${TARGET_REF}"
+          --workflow-conclusion success
+          --report "${REPORT_DIR}/generated-artifact-refresh-report.json"
+          --workflow-run-id "${GITHUB_RUN_ID}"
+          --source-head-sha "${EXPECTED_HEAD_SHA}"
+
+      - name: Restore read-only workflow and remove bootstrap
+        if: always() && steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "${ORIGINAL_WORKFLOW}"
+          remote_before="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          local_before="$(git rev-parse HEAD)"
+          if [[ "${remote_before}" != "${local_before}" ]]; then
+            echo "::error::branch moved before bootstrap cleanup"
+            exit 1
+          fi
+          cp "${ORIGINAL_WORKFLOW}" .github/workflows/frontend-surface-dispatch.yml
+          git add .github/workflows/frontend-surface-dispatch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(ci): remove one-shot generated refresh bootstrap"
+          remote_pre_push="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          if [[ "${remote_pre_push}" != "${local_before}" ]]; then
+            echo "::error::branch moved during bootstrap cleanup"
+            exit 1
+          fi
+          git push origin "HEAD:${TARGET_REF}"
+
+      - name: Upload one-shot governed apply evidence
+        if: always() && steps.gate.outputs.eligible == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-shot-governed-generated-artifact-refresh-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
   dispatch-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
