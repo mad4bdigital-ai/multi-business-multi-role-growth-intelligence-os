@@ -217,5 +217,6 @@ console.log(JSON.stringify({
   wrong_path_item_ref_blocked: true,
   unrelated_path_blocked: true,
   actual_root_regression_passed: true,
+  reconciled_actual_root_states: ["historical_inline", "registered_path_item_ref"],
   secrets_included: false,
 }, null, 2));
