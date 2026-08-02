@@ -21,12 +21,12 @@ A valid canonical report is the status authority. Job logs may never override it
 
 Every report must label the tested candidate:
 
-- `head`: the PR branch head itself. E2E Phase Governance, Context Kernel Hardcoding Report, and PR Generated Artifact Refresh explicitly checkout this SHA.
+- `head`: the PR branch head itself. E2E Phase Governance, Context Kernel Hardcoding Report, PR Generated Artifact Refresh, and Protected Promotion Generated Artifact Refresh explicitly checkout this SHA.
 - `merge_candidate`: GitHub's synthetic `refs/pull/<number>/merge` commit. Branch Test Diagnostic Shards use it to prove compatibility with the current base.
 
 A merge-candidate SHA must never be described as the PR head. The two evidence kinds may complement one another, but their SHA, run ID, artifact, and conclusion must remain separate.
 
-The pull-request generated-artifact evaluator is read-only. Its `candidate_sha` and `source_head_sha` must both equal the exact workflow-run head. It may not report or publish a generated commit.
+The pull-request generated-artifact evaluators are read-only. Their `candidate_sha` and `source_head_sha` must both equal the exact workflow-run head. They may not report or publish a generated commit.
 
 Repository mutation is a separate governed operation. The manually dispatched Generated Artifact Refresh tool records `target_ref`, `expected_head_sha`, and the resulting commit in its own maintenance-tool report; that report must not be substituted for PR workflow evidence.
 
@@ -112,11 +112,16 @@ The direct execution report therefore remains the normal diagnostic authority. J
 
 The canonical report is uploaded before enforcement, so a blocked guard remains diagnosable without opening its Job log.
 
-## PR Generated Artifact Refresh
+## Generated Artifact read-only evaluators
 
-`PR Generated Artifact Refresh` is a read-only pull-request evaluator. It uses `contents: read`, does not persist checkout credentials, and performs no commit or push.
+Two separately registered pull-request workflows use the same canonical report contract:
 
-It generates and verifies the bounded artifact set only inside the ephemeral runner workspace, then publishes `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing the decision.
+- `PR Generated Artifact Refresh` evaluates governed non-Production work branches and retains the explicit non-protected `workflow_dispatch` verification path.
+- `Protected Promotion Generated Artifact Refresh` evaluates same-repository pull requests targeting `Production` and has no manual-dispatch trigger.
+
+The distinct workflow names prevent registration ambiguity while `.github/ci-evidence-routing.json` and `CI Evidence PR Publisher` intentionally normalize both names to the same canonical evidence section.
+
+Both evaluators use `contents: read`, do not persist checkout credentials, and perform no commit or push. They generate and verify the bounded artifact set only inside the ephemeral runner workspace, then publish `mad4b.pr-generated-artifact-refresh-summary.v1` as `pr-generated-artifact-refresh-<run_id>-summary` before enforcing the decision.
 
 The report contains:
 
@@ -127,7 +132,7 @@ The report contains:
 - `secrets_included: false`;
 - `routing.job_logs_role: diagnostic_only`.
 
-If generated files differ, the canonical result is `generated_artifact_drift_detected`. The remediation is to run the registered governed mutation tool; the pull-request workflow itself never writes.
+If generated files differ, the canonical result is `generated_artifact_drift_detected`. The remediation is to run the registered governed mutation tool on an eligible work branch; neither pull-request evaluator writes to the repository.
 
 ## Governed Generated Artifact Refresh
 
@@ -145,7 +150,7 @@ The tool verifies both local and remote head identity before generation, before 
 
 Its canonical report contract is `mad4b.governed-generated-artifact-refresh.v1`. The JSON and Markdown report are uploaded before enforcement and declare `secrets_included: false` and `job_logs_role: diagnostic_only`.
 
-After the governed tool determines the resulting exact head, the workflow dispatches the read-only `PR Generated Artifact Refresh` evaluator for that SHA. This closes the GitHub Actions token boundary where a bot-authored generated commit would otherwise not start pull-request checks automatically.
+After the governed tool determines the resulting exact head, the workflow dispatches the work-branch `PR Generated Artifact Refresh` evaluator for that SHA. This closes the GitHub Actions token boundary where a bot-authored generated commit would otherwise not start pull-request checks automatically.
 
 ## Repository Tool Lifecycle Governance
 
@@ -162,7 +167,7 @@ Repository automation changes are governed by `mad4b.repository-tool-lifecycle-r
 
 `<!-- mad4b-ci-evidence-authority -->`
 
-Each workflow owns one section. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows do not receive comment-writing authority.
+The publisher listens to both generated-artifact workflow names but routes them through the same generated-artifact publisher and comment slug. A newer run replaces that section; an older run cannot overwrite newer evidence. PR-head workflows do not receive comment-writing authority.
 
 ## Agent response rule
 

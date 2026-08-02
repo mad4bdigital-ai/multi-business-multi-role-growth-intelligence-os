@@ -1,5 +1,5 @@
 # Evaluate bounded generated artifacts for same-repository promotions targeting Production.
-name: PR Generated Artifact Refresh
+name: Protected Promotion Generated Artifact Refresh
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-generated-artifact-refresh-${{ github.event.pull_request.number || github.ref }}
+  group: protected-promotion-generated-artifact-refresh-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
