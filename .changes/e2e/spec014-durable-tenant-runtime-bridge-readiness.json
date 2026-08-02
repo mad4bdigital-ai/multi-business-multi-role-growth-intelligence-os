@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-tenant-runtime-bridge-readiness",
+  "title": "Spec 014 Durable Tenant Runtime Bridge Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-tenant-runtime-bridge-readiness.json",
+      ".github/contracts/spec014/hostinger-storage-durable-tenant-runtime-bridge-readiness.json",
+      ".github/workflows/hostinger-storage-durable-tenant-runtime-bridge-readiness-guard.yml",
+      "http-generic-api/hostingerStorageDurableTenantRuntimeBridgeReadiness.js",
+      "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define and validate the exact missing contracts between the verified SQL composition and the currently memory-owned synthetic Tenant canary before any runtime dependency injection or mount authorization.",
+      "e2e_journeys": [
+        {
+          "id": "verified-sql-composition-to-durable-tenant-runtime-bridge-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 runtime release reviewer",
+          "entrypoint": "Hostinger Storage Durable Tenant Runtime Bridge Readiness Guard",
+          "terminal_outcome": "A provenance-bound packet reports whether every durable repository facade, parent orchestration, child translation, authority, enablement, projection, worker, fixed-dispatch, and restart requirement is complete while bridge creation, authorization, dependency injection, route mount, and provider dispatch remain false.",
+          "steps": [
+            "Require the canonical verified SQL runtime composition in its unmounted state.",
+            "Bind readiness evidence to the same source SHA, deployed runtime SHA, database fingerprint, signed schema-verification digest, and readback cycle.",
+            "Bind the exact Tenant route path, dependency key, HTTP 503 default, Tenant JWT requirement, and current component versions.",
+            "Detect that the current Tenant canary is restricted to a factory-owned memory repository and that the synthetic executor still expects legacy child-write methods.",
+            "Require a canonical durable repository facade plus plan-item and run parent orchestration before child writes.",
+            "Require parent-aware Journal and Reconciliation translation, durable authority and enablement stores, Tenant-safe durable projection, certified worker/fixed dispatch, and crash-safe restart reconciliation.",
+            "Return ready_for_separate_mount_authorization only when all eleven capabilities pass.",
+            "Keep bridge_created, authorization_created, dependency_injected, runtime_mounted, route_mounted, worker_mounted, and provider_dispatch_allowed false."
+          ],
+          "assertions": [
+            "The evaluator performs no database connection, database write, provider call, route mutation, server import, or worker registration.",
+            "Current memory-only canary and legacy executor contracts are detected from repository source rather than assumed.",
+            "Any missing capability produces a stable blocker code.",
+            "Runtime/database/schema/readback provenance mismatch, route drift, version drift, stale evidence, unsafe fields, semantic tampering, and digest tampering fail closed.",
+            "A passing packet is readiness for a separate authorization only and cannot create or mount a bridge."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-durable-tenant-runtime-bridge-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-tenant-runtime-bridge-readiness.json",
+            "http-generic-api/hostingerStorageDurableTenantRuntimeBridgeReadiness.js",
+            "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Implement and separately authorize the durable Tenant runtime bridge after all eleven readiness capabilities have canonical evidence.",
+      "blockers": [
+        "The canonical durable repository facade is not implemented.",
+        "Plan-item and run parent orchestration is not connected to the Tenant execution path.",
+        "Durable authority and enablement stores, worker certification, and crash-safe restart reconciliation are not complete.",
+        "No bridge mount authorization or runtime dependency injection has occurred."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove restart, stale authorization, partial parent creation, child replay, and dependency replacement behavior without duplicate write paths."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This readiness evaluator does not execute a live Tenant, database, worker, or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production mount and provider dispatch remain separately authorized and blocked."
+    }
+  ]
+}
