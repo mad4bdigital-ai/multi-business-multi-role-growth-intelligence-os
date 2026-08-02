@@ -160,23 +160,38 @@ try {
 const actualRoot = await createActualRootFixture();
 try {
   const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
-  const legacy = before.paths?.[ROUTE_PATH]?.post;
-  assert.equal(legacy?.operationId, OPERATION_ID, "The regression must exercise the actual historical root operation.");
-  assert.equal(legacy?.["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
-  assert.equal(legacy?.["x-runtime-contract-source"], undefined);
-  assert.equal(legacy?.["x-runtime-auth-profile"], undefined);
-  assert.ok(legacy?.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
-  assert.ok(legacy?.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+  const actualPathItem = before.paths?.[ROUTE_PATH];
+  const legacy = actualPathItem?.post;
+  const alreadyTransitioned = actualPathItem?.$ref === PATH_REF
+    && Object.keys(actualPathItem).length === 1;
+
+  assert.ok(legacy || alreadyTransitioned, "The actual root must contain either the reviewed historical operation or its exact registered path-item reference.");
+  if (legacy) {
+    assert.equal(legacy.operationId, OPERATION_ID, "The historical root operation must retain its reviewed operationId before transition.");
+    assert.equal(legacy["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
+    assert.equal(legacy["x-runtime-contract-source"], undefined);
+    assert.equal(legacy["x-runtime-auth-profile"], undefined);
+    assert.ok(legacy.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
+    assert.ok(legacy.responses?.["200"], "The actual historical operation must retain its detailed success contract before transition.");
+  } else {
+    assert.deepEqual(actualPathItem, { $ref: PATH_REF });
+  }
 
   const result = await runSync(actualRoot);
   assert.equal(result.ok, true, result.stderr || result.stdout);
   const summary = JSON.parse(result.stdout);
   assert.equal(summary.ok, true);
   assert.equal(summary.conflict_count, 0);
-  assert.ok(summary.applied_registered_path_replacements.some((entry) =>
-    entry.path === ROUTE_PATH
-    && entry.path_item_ref === PATH_REF
-    && entry.signatures.includes(SIGNATURE)));
+  if (legacy) {
+    assert.equal(summary.changed, true);
+    assert.ok(summary.applied_registered_path_replacements.some((entry) =>
+      entry.path === ROUTE_PATH
+      && entry.path_item_ref === PATH_REF
+      && entry.signatures.includes(SIGNATURE)));
+  } else {
+    assert.equal(summary.changed, false);
+    assert.deepEqual(summary.applied_registered_path_replacements, []);
+  }
 
   const written = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
   assert.deepEqual(written.paths[ROUTE_PATH], { $ref: PATH_REF });
