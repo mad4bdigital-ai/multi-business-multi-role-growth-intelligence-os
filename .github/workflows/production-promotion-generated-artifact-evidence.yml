@@ -27,8 +27,8 @@ jobs:
       CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
       PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
-      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
+      REPORT_PATH: .ci-evidence/production-promotion-generated-artifact-evidence/pr-generated-artifact-refresh-summary.json
+      REPORT_MARKDOWN_PATH: .ci-evidence/production-promotion-generated-artifact-evidence/pr-generated-artifact-refresh-summary.md
     steps:
       - name: Validate exact protected-promotion candidate
         shell: bash
@@ -71,8 +71,7 @@ jobs:
         run: node scripts/test-generated-artifact-refresh-maintenance-tool.mjs
 
       - name: Evaluate generated artifacts without repository mutation
-        working-directory: http-generic-api
-        run: node scripts/generated-artifact-refresh-runner.mjs
+        run: node http-generic-api/scripts/generated-artifact-refresh-runner.mjs
 
       - name: Upload canonical generated-artifact evidence
         if: always()
