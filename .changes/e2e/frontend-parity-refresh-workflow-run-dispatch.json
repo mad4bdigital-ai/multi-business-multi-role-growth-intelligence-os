@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization; the first governed refresh of this candidate produced bot commit df5335d190da46eff3bbce7b11d233058105e0c5 without direct dispatcher contents mutation.",
+      "objective": "Consume the exact structured Frontend surface dispatch artifact from a trusted workflow_run context, use only contexts available when the job is planned, and delegate the registered exact-head generated-artifact refresh only when committed deterministic parity is the sole reported failure and the pull request carries explicit refresh authorization.",
       "e2e_journeys": [
         {
           "id": "dispatch-exact-head-refresh-from-structured-frontend-parity-evidence",
@@ -28,10 +28,11 @@
           "level": "synthetic_runtime",
           "actor": "trusted repository automation and pull-request reviewer",
           "entrypoint": "A completed failed Frontend surface dispatch workflow with its exact structured evidence artifact",
-          "terminal_outcome": "The trusted dispatcher either skips unrelated failures, fails closed on malformed or stale evidence, or delegates the registered generated-artifact refresh for the exact labeled pull-request head without reading Job logs or mutating repository contents directly.",
+          "terminal_outcome": "The trusted dispatcher is registered with valid job-planning contexts and either skips unrelated failures, fails closed on malformed or stale evidence, or delegates the registered generated-artifact refresh for the exact labeled pull-request head without reading Job logs or mutating repository contents directly.",
           "steps": [
             "Receive only completed Frontend surface dispatch workflow_run events.",
             "Run from the trusted default-branch workflow definition with actions write, contents read, and pull-requests read permissions.",
+            "Use stable repository-relative REPORT_DIR and SOURCE_DIR values because runner.temp is unavailable in jobs.<job_id>.env during workflow planning.",
             "Download the run-bound frontend-dispatch-verification-evidence artifact.",
             "Validate the canonical contract, workflow identity, candidate kind and SHA, source-head SHA, main base, no-secret declaration, and consult_job_logs=false.",
             "Require workflow_run.head_sha to equal source_head_sha, while preserving the distinct merge-candidate SHA when the source workflow tested a pull-request merge candidate.",
@@ -44,6 +45,8 @@
           "assertions": [
             "The source evidence contract is mad4b.frontend-dispatch-verification-evidence.v1.",
             "The dispatch evidence contract is mad4b.frontend-parity-refresh-dispatch.v1.",
+            "jobs.<job_id>.env contains no runner context reference.",
+            "REPORT_DIR and SOURCE_DIR are stable repository-relative paths shared by download, evaluation, rendering, upload, and enforcement steps.",
             "workflow_run.head_sha equals source_head_sha; a head candidate equals source_head_sha, while a merge_candidate equals the pull request merge_commit_sha.",
             "Only committed_generated_parity is eligible for delegated refresh.",
             "Missing artifacts, malformed identity, ambiguous PR resolution, stale heads, candidate mismatches, and rejected dispatches fail closed with bounded structured diagnostics.",
@@ -78,7 +81,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise missing artifacts, malformed reports, cancelled source runs, stale PR heads, ambiguous PRs, label removal races, dispatch API rejection, and repeated workflow_run delivery."
+      "objective": "Exercise missing artifacts, malformed reports, unavailable-context regressions, cancelled source runs, stale PR heads, ambiguous PRs, label removal races, dispatch API rejection, and repeated workflow_run delivery."
     },
     {
       "id": "canary",
