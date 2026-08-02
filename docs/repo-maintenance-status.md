@@ -62,6 +62,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci-evidence-pr-publisher.yml`
 - `.github/workflows/ci.yml`
+- `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
 - `.github/workflows/docs-agent.yml`
@@ -72,7 +73,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
-- `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml`
+- `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
 - `.github/workflows/governed-generated-artifact-refresh.yml`
 - `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
@@ -96,6 +97,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
+- `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
@@ -106,6 +108,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`
+- `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
