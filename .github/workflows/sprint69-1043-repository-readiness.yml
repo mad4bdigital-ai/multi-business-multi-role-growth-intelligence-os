@@ -46,6 +46,7 @@ jobs:
         run: node test-sprint69-1043-repository-readiness.mjs
 
       - name: Generate no-secret repository readiness evidence
+        if: always()
         run: node .github/ops/sprint69-1043-repository-readiness.mjs
 
       - name: Upload repository readiness evidence
