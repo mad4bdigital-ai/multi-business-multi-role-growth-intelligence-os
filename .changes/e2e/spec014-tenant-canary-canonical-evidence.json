@@ -48,7 +48,7 @@
             "The workflow retains contents:read and receives no issue, pull-request, action, or repository write authority.",
             "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
             "repository_mutation_performed, provider_dispatch_performed, credential_access_performed, job_logs_consulted, and secrets_included remain false.",
-            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based Hostinger CI Evidence PR Publisher for the same exact head."
+            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based CI Evidence PR Publisher for the same exact head."
           ],
           "tests": [
             {
@@ -79,17 +79,13 @@
     },
     {
       "id": "operational",
-      "status": "blocked",
-      "objective": "Publish and consume the first run-bound Tenant Canary canonical Artifact through the trusted main-based publisher.",
-      "blockers": [
-        "A qualifying post-alignment pull-request event must schedule the canonical-path Hostinger Storage Tenant Canary Guard on the exact Integration head.",
-        "The trusted publisher must consume the same run-bound Artifact and update the shared authoritative PR comment before operational publication is claimed."
-      ]
+      "status": "implemented",
+      "objective": "Exact-head publication is proven on PR #4660 at SHA ec230596a071f1dad7857284d43b9d903f9204a5: Tenant Canary Run 30729924130 produced mad4b.hostinger-guard-summary.v1 with 8/8 passed and zero findings; E2E Run 30729924136 triggered the trusted fallback; the shared authoritative comment published both sections with the same SHA, Job logs diagnostic-only, and no secret, provider, credential, repository, SQL, migration, deployment, or Production action."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, duplicate workflow identity, and publisher retry behavior while preserving canonical-first diagnosis."
+      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, exact-head discovery absence, branch mismatch, and publisher retry behavior while preserving canonical-first diagnosis."
     },
     {
       "id": "canary",
