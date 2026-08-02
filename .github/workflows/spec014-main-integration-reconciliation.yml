@@ -60,6 +60,7 @@ jobs:
           allowed_conflicts=(
             '.changes/e2e/hostinger-tenant-canary-main-bootstrap.json'
             '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml'
+            'http-generic-api/frontend-operation-governance.generated.json'
             'http-generic-api/frontend-surface-dispatch.generated.json'
             'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'
           )
@@ -93,6 +94,7 @@ jobs:
           done
 
           for generated_path in \
+            'http-generic-api/frontend-operation-governance.generated.json' \
             'http-generic-api/frontend-surface-dispatch.generated.json' \
             'http-generic-api/openapi/frontend-runtime-routes.generated.yaml'; do
             if printf '%s\n' "${conflicts[@]}" | grep -Fxq "${generated_path}"; then
