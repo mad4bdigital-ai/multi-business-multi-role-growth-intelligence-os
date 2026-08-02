@@ -16,6 +16,7 @@
       "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
       "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
       "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
       "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
@@ -107,6 +108,13 @@
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
               "args": []
+            },
+            {
+              "id": "governed-generated-artifact-refresh-dispatch-workflow",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -119,6 +127,7 @@
             "http-generic-api/scripts/openapi-runtime-auth-sync.mjs",
             "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/scripts/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
             "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
             "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
             "http-generic-api/scripts/test-manifest.mjs"
