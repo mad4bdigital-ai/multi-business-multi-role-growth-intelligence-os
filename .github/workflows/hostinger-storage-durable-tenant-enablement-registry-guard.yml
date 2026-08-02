@@ -1,0 +1,74 @@
+name: Hostinger Storage Durable Tenant Enablement Registry Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-tenant-enablement-registry.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json'
+      - '.github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql'
+      - '.github/workflows/hostinger-storage-durable-tenant-enablement-registry-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-tenant-enablement-registry-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-tenant-enablement-registry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check enablement-registry syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          node --check http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs
+
+      - name: Validate one-shot durable lifecycle
+        run: node http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs
+
+      - name: Validate contract-local schema boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CONTRACT-LOCAL DDL ONLY' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql
+          grep -q 'storage_tenant_enablement_records' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql
+          grep -q 'storage_tenant_enablement_consumptions' .github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql
+          grep -q '"promoted_into_wave_sequence": false' .github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json
+          grep -q '"migration_apply_performed": false' .github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json
+          grep -q '"runtime_migration_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json
+
+      - name: Preserve unmounted one-shot boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js \
+            http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'legacy_tenant_canary_compatible: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'migration_apply_authorized: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js
