@@ -34,7 +34,7 @@
           "terminal_outcome": "The exact historical inline operation is replaced by `./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion`, check mode is idempotent, and all non-exact variants remain blocked without mutation.",
           "steps": [
             "Copy the current repository root OpenAPI document, precise route registry, and Support Ticket runtime route source into an isolated temporary repository.",
-            "Read back the historical operation and require operationId `issueSupportTicketExternalDeliveryCompletionCertification`, its detailed request body, success response, admin security alternatives, and consequential classification.",
+            "Read back the historical operation and require operationId `supportTicketExternalDeliveryCompletionCertify`, its detailed request body, success response, admin security alternatives, and consequential classification.",
             "Require the exact registered signature and exact reviewed path-item reference.",
             "Run the real precise registry synchronizer in write mode and require the root path to become the exact registered `$ref`.",
             "Run check mode against the written copy and require zero conflicts and zero further generated drift.",
@@ -42,7 +42,7 @@
           ],
           "assertions": [
             "Only `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification` is allowlisted.",
-            "The historical root operationId is exactly `issueSupportTicketExternalDeliveryCompletionCertification`.",
+            "The historical root operationId is exactly `supportTicketExternalDeliveryCompletionCertify`.",
             "The registered destination is exactly `./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion`.",
             "The operation remains consequential and requires the exact admin bearer/backend API key security alternatives before transition.",
             "Successful composition produces the exact registered `$ref`, zero conflicts, and an idempotent follow-up check.",
