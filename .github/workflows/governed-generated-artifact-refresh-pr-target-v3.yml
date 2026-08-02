@@ -1,87 +1,147 @@
-name: Governed Generated Artifact Refresh PR Target V3
+name: Governed Generated Artifact Refresh PR Target Request V3
+run-name: Governed Generated Artifact Refresh PR Target Request V3 · PR #${{ github.event.pull_request.number || inputs.pr_number }}
 
 on:
   pull_request_target:
     types: [labeled, synchronize, ready_for_review, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository pull request number
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character PR head SHA
+        required: true
+        type: string
 
 permissions:
-  actions: write
   contents: read
   pull-requests: read
 
 concurrency:
-  group: governed-generated-artifact-refresh-pr-target-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: governed-generated-artifact-refresh-request-v3-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
-  dispatch:
+  request:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.base.ref == 'main' &&
-      github.event.pull_request.draft == false &&
-      contains(github.event.pull_request.labels.*.name, 'generated-artifact-refresh') &&
-      (github.event.action != 'labeled' || github.event.label.name == 'generated-artifact-refresh')
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name != 'pull_request_target' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name == 'generated-artifact-refresh')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-      BASE_REF: ${{ github.event.pull_request.base.ref }}
-      IS_DRAFT: ${{ github.event.pull_request.draft }}
+      PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
+      REPORT_DIR: .ci-evidence/governed-generated-artifact-refresh-request-v3
     steps:
-      - name: Validate immutable pull-request candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "${HEAD_REPOSITORY}" == "${GITHUB_REPOSITORY}" ]]
-          [[ "${BASE_REF}" == "main" ]]
-          [[ "${IS_DRAFT}" == "false" ]]
-          [[ "${TARGET_REF}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "${TARGET_REF}" != "main" && "${TARGET_REF}" != "Production" ]]
-          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
-
-      - name: Dispatch registered V2 decision workflow and observe its run
+      - name: Evaluate exact same-repository refresh request
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
-          payload="$(jq -cn \
-            --arg ref "main" \
-            --arg target_ref "${TARGET_REF}" \
-            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
-            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
-          status="$(curl --silent --show-error \
-            --output /tmp/generated-refresh-v3-response.json \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header 'Accept: application/vnd.github+json' \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            --header 'X-GitHub-Api-Version: 2022-11-28' \
-            --header 'Content-Type: application/json' \
-            --data "${payload}" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml/dispatches")"
-          if [[ "${status}" != "204" ]]; then
-            body="$(cat /tmp/generated-refresh-v3-response.json 2>/dev/null || true)"
-            echo "::error::V2 workflow dispatch rejected with HTTP ${status}: ${body:0:1000}"
-            exit 1
+          mkdir -p "${REPORT_DIR}"
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+
+          pr="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          state="$(jq -r '.state' <<<"${pr}")"
+          draft="$(jq -r '.draft' <<<"${pr}")"
+          head_repo="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+          target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+          current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+          labels="$(jq -c '[.labels[].name]' <<<"${pr}")"
+
+          outcome="eligible"
+          reason=""
+          if [[ "${state}" != "open" ]]; then
+            outcome="blocked"
+            reason="pull_request_not_open"
+          elif [[ "${draft}" == "true" ]]; then
+            outcome="blocked"
+            reason="pull_request_is_draft"
+          elif [[ "${head_repo}" != "${GITHUB_REPOSITORY}" ]]; then
+            outcome="blocked"
+            reason="cross_repository_pull_request_forbidden"
+          elif [[ "${base_ref}" != "main" ]]; then
+            outcome="blocked"
+            reason="unexpected_base_branch"
+          elif [[ ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+            outcome="blocked"
+            reason="invalid_governed_work_branch"
+          elif [[ "${target_ref}" == "main" || "${target_ref}" == "Production" ]]; then
+            outcome="blocked"
+            reason="protected_branch_mutation_forbidden"
+          elif [[ "${current_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            outcome="blocked"
+            reason="pull_request_head_mismatch"
+          elif ! jq -e 'index("generated-artifact-refresh") != null' <<<"${labels}" >/dev/null; then
+            outcome="skipped"
+            reason="generated_artifact_refresh_label_absent"
           fi
 
-          observed_run_id=""
-          for attempt in $(seq 1 12); do
-            observed_run_id="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
-              --jq "[.workflow_runs[] | select(.created_at >= \"${started_at}\")] | sort_by(.created_at) | last | .id // empty")"
-            if [[ "${observed_run_id}" =~ ^[1-9][0-9]*$ ]]; then
-              echo "Observed V2 dispatcher run ${observed_run_id} for ${TARGET_REF}@${EXPECTED_HEAD_SHA}."
-              exit 0
-            fi
-            sleep 5
-          done
+          jq -n \
+            --arg contract "mad4b.governed-generated-artifact-refresh-request.v1" \
+            --arg bridge_version "v3" \
+            --arg outcome "${outcome}" \
+            --arg reason "${reason}" \
+            --arg target_ref "${target_ref}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg current_head_sha "${current_head_sha}" \
+            --arg head_repository "${head_repo}" \
+            --arg base_ref "${base_ref}" \
+            --arg source_event "${GITHUB_EVENT_NAME}" \
+            --argjson pr_number "${PR_NUMBER}" \
+            --argjson source_run_id "${GITHUB_RUN_ID}" \
+            '{contract:$contract,bridge_version:$bridge_version,outcome:$outcome,reason:($reason|select(length>0)),target_ref:$target_ref,expected_head_sha:$expected_head_sha,current_head_sha:$current_head_sha,head_repository:$head_repository,base_ref:$base_ref,pr_number:$pr_number,source_run_id:$source_run_id,source_event:$source_event,candidate_code_checkout:false,workflow_dispatch_performed:false,repository_mutation_performed:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+            > "${REPORT_DIR}/request.json"
 
-          echo "::error::GitHub accepted the V2 workflow_dispatch request but no V2 run was observed in the bounded window."
-          exit 1
+          node <<'NODE'
+          const fs = require('node:fs');
+          const request = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/request.json`, 'utf8'));
+          const lines = [
+            '# Governed generated-artifact refresh request V3',
+            '',
+            `- Contract: \`${request.contract}\``,
+            `- Outcome: **${request.outcome}**`,
+            `- Pull request: \`${request.pr_number}\``,
+            `- Target ref: \`${request.target_ref}\``,
+            `- Expected head SHA: \`${request.expected_head_sha}\``,
+            `- Reason: \`${request.reason ?? 'none'}\``,
+            '- Candidate code checkout: **no**',
+            '- Workflow dispatch: **no**',
+            '- Repository mutation: **no**',
+            '- Secrets included: **no**',
+          ];
+          fs.writeFileSync(`${process.env.REPORT_DIR}/request.md`, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Upload exact-head refresh request V3
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-request-v3-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce read-only request contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const request = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/request.json`, 'utf8'));
+          if (request.contract !== 'mad4b.governed-generated-artifact-refresh-request.v1') process.exit(1);
+          if (request.bridge_version !== 'v3') process.exit(1);
+          if (!['eligible', 'skipped', 'blocked'].includes(request.outcome)) process.exit(1);
+          if (request.candidate_code_checkout !== false || request.workflow_dispatch_performed !== false) process.exit(1);
+          if (request.repository_mutation_performed !== false || request.protected_branch_mutation !== false || request.force_push !== false) process.exit(1);
+          if (request.consult_job_logs !== false || request.secrets_included !== false) process.exit(1);
+          NODE
