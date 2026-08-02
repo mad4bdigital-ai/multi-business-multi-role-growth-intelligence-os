@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/managed-execution-recovery-operations.json",
+      "http-generic-api/context-kernel-hardcoding-scan.config.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/managedExecutionRecoveryService.js",
       "http-generic-api/managedExecutionLifecycleService.js",
@@ -59,6 +60,7 @@
             "Rollback finalization requires the `__managed_rollback__` managed_op step in completed state and no other active step.",
             "The run terminal enum remains cancelled after compensation while binding and task lifecycle state records rolled_back.",
             "All seven recovery endpoints are discoverable and remain behind the managed route authorization layer.",
+            "Context Kernel suppressions are limited to two scanner false positives whose functions reject zero and multiple candidates before selecting the sole result.",
             "No provider call, credential read, external send, deployment, migration Apply, registry sync, or Production mutation occurs."
           ],
           "tests": [
@@ -71,6 +73,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/context-kernel-hardcoding-scan.config.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/managedExecutionRecoveryService.js",
             "http-generic-api/managedExecutionLifecycleService.js",
