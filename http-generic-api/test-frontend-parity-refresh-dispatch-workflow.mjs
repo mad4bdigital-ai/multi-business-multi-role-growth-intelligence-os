@@ -15,6 +15,9 @@ assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /pull-requests:\s*read/u);
 assert.doesNotMatch(workflow, /contents:\s*write/u);
 assert.doesNotMatch(workflow, /\bgit\s+push\b/u);
+assert.match(workflow, /REPORT_DIR:\s*\.ci-evidence\/frontend-parity-refresh-dispatch/u);
+assert.match(workflow, /SOURCE_DIR:\s*\.ci-evidence\/frontend-dispatch-source-evidence/u);
+assert.doesNotMatch(workflow, /\$\{\{\s*runner\.temp\s*\}\}/u, "jobs-level env must not use unavailable runner context");
 assert.match(workflow, /frontend-dispatch-verification-evidence-\$\{\{ github\.event\.workflow_run\.id \}\}/u);
 assert.match(workflow, /mad4b\.frontend-dispatch-verification-evidence\.v1/u);
 assert.match(workflow, /committed_generated_parity/u);
@@ -43,7 +46,9 @@ console.log(JSON.stringify({
   ok: true,
   gate: "frontend_parity_refresh_dispatch_workflow",
   contract: "mad4b.frontend-parity-refresh-dispatch.v1",
-  cases: 32,
+  cases: 35,
+  context_availability_valid: true,
+  stable_evidence_directories: true,
   source_of_truth: "structured_report",
   job_logs_authoritative: false,
   direct_repository_mutation: false,
