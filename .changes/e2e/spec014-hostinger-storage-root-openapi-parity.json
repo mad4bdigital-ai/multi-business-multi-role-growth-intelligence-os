@@ -8,7 +8,9 @@
   "scope": {
     "include": [
       ".changes/e2e/spec014-hostinger-storage-root-openapi-parity.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/openapi/hostinger-storage-tenant-runtime.yaml",
       "http-generic-api/openapi-route-contracts.d/spec014-hostinger-storage.yaml",
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
@@ -41,6 +43,7 @@
             "Request generated output through the read-only exact-head refresh bridge and the registered sole writer; do not edit the root OpenAPI manually.",
             "Compose the registered path into the root OpenAPI through the precise contract sync writer.",
             "Verify the root path is one external path-item ref to the Hostinger tenant runtime fragment.",
+            "Verify the generated Frontend dispatch and runtime-route index remove the superseded operation-index-only entry in favor of the precise root contract.",
             "Verify the OpenAPI operation uses userJwtAuth, is consequential, and exposes bounded secret-free request and response schemas.",
             "Verify the 18 specification-only /admin/hosting/storage and /me/hosting/storage design routes are not added to the runtime OpenAPI.",
             "Run precise registry check mode and require zero missing paths and zero conflicts."
@@ -50,6 +53,7 @@
             "The runtime source is routes/hostingerStorageTenantRoutes.js and the auth profile is user_jwt.",
             "Only the mounted route is documented; specification-only Hostinger design surfaces remain absent.",
             "Registry fragments are loaded deterministically and duplicate signatures fail closed.",
+            "Generated Frontend and runtime-route-index outputs converge on the precise contract without a duplicate operation-index-only entry.",
             "The generated root update is produced by the governed sole writer from an exact-head read-only request and not by a manual root-file edit.",
             "No provider call, runtime mount, live database access, migration, deployment, main merge, or Production mutation occurs."
           ],
@@ -70,7 +74,9 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/openapi/hostinger-storage-tenant-runtime.yaml",
             "http-generic-api/openapi-route-contracts.d/spec014-hostinger-storage.yaml",
             "http-generic-api/routes/hostingerStorageTenantRoutes.js",
