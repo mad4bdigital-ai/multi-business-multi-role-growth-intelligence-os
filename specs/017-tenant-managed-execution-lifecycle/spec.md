@@ -14,11 +14,13 @@ The existing authenticated route boundary also does not make request-body tenant
 
 Long-running managed work also requires explicit recovery semantics. A failed step must not be retried without a bound, live authority, and idempotent request; cancellation must synchronize active steps and open holds; reassignment must prove same-tenant membership; and rollback must be represented by an auditable compensation step rather than by silently rewriting a terminal status.
 
+The read surface must also not expose raw workflow payloads or authority snapshots to tenant users. Run, binding, ticket, hold, and step state can drift after partial failure or older runtime behavior; the platform needs one deterministic, auditable reconciliation boundary that repairs only unambiguous status drift and leaves structural conflicts blocked for investigation.
+
 ## Objective
 
 Provide one fail-closed lifecycle connecting:
 
-`authenticated principal → parent ticket → managed task ticket → capability/resource authority → authorized approval hold → workflow run → idempotent step request → bounded recovery operation → lifecycle evidence`.
+`authenticated principal → parent ticket → managed task ticket → capability/resource authority → authorized approval hold → workflow run → idempotent step request → bounded recovery operation → role-safe projection → fingerprinted reconciliation evidence`.
 
 The implementation slices establish code and schema contracts. They do not apply Migration 1043, deploy Production, execute provider actions, or close #4449.
 
@@ -40,7 +42,7 @@ The implementation slices establish code and schema contracts. They do not apply
 - FR-014: Managed step requests require an idempotency key and reuse the existing step when repeated.
 - FR-015: Generic run, step, status, and approval routes cannot bypass managed lifecycle enforcement.
 - FR-016: Payloads reject secret-bearing keys and recognizable secret values.
-- FR-017: Tenant-safe readback reports approval state, next action, and contradictory linked states without exposing credentials or raw internal evidence.
+- FR-017: Tenant-safe readback reports approval state, progress, blocker, requested input, next action, and final status without exposing execution context, authority snapshots, raw inputs/outputs/errors, idempotency keys, or raw internal evidence.
 - FR-018: Preserved legacy workflow routes remain discoverable by repository route/OpenAPI generators through an explicit non-runtime discovery bridge after managed enforcement is composed before them.
 - FR-019: A failed step may be retried only while its run is paused or failed, with no open hold or other active step, and no more than three total attempts.
 - FR-020: Retry requests are idempotent and store only a SHA-256 hash of the request key in immutable recovery evidence.
@@ -48,19 +50,29 @@ The implementation slices establish code and schema contracts. They do not apply
 - FR-022: Cancellation atomically skips active steps, rejects open holds, and synchronizes run, binding, task ticket, and event state.
 - FR-023: A paused or failed run may be escalated only through an explicit supervisor approval hold, with duplicate and conflicting holds rejected or reused safely.
 - FR-024: Rollback is an idempotent managed compensation step; the lifecycle reaches `rolled_back` only after that compensation step is completed and all other linked steps are inactive.
+- FR-025: Admin readback exposes safe state summaries, authority metadata, evidence hashes, allowlisted intervention fields, linked-state matrix, contradiction details, and reconciliation plan without raw secret-bearing payloads.
+- FR-026: Contradiction detection covers missing/ambiguous bindings or tickets, tenant/link mismatch, multiple open holds, terminal runs with active or failed steps, approval-state conflicts, invalid rollback evidence, and run/binding/task status drift.
+- FR-027: Canonical state is derived deterministically from completed compensation rollback, open or decided approval evidence, or the existing workflow run status using the same lifecycle mapping as the decision service.
+- FR-028: Automatic reconciliation may update only workflow run status, binding lifecycle/customer/hold link, and task status/lifecycle/customer fields when no structural or ambiguous contradiction exists.
+- FR-029: Reconciliation dry-run is read-only and returns the exact actions, blocking contradiction codes, SHA-256 plan fingerprint, and required confirmation.
+- FR-030: Reconciliation Apply requires platform-admin authority and exact confirmation `RECONCILE_MANAGED_EXECUTION:<run_id>:<plan_fingerprint>` recalculated under row locks.
+- FR-031: Apply executes in one transaction, records immutable reconciliation evidence, and rolls back if post-write readback contains any contradiction.
 
 ## Safety boundaries
 
 - No Migration 1043 Apply in these implementation PRs.
 - No direct SQL outside repository migration and runtime parameterized queries.
 - No provider call, credential read, external send, deployment, restart, Production branch mutation, or force push.
-- Recovery operations create only repository-defined database state and immutable managed-execution events.
+- Recovery and reconciliation operations create only repository-defined database state and immutable managed-execution events.
+- Reconciliation never changes approval-hold decisions, step statuses, ticket relationships, tenant identifiers, authority evidence, or resource grants.
 - No issue closure before migration ledger, exact deployed SHA, runtime readback, and post-merge audit evidence.
 
 ## Acceptance for the implementation slices
 
 - Service and routes fail closed for missing capability/resource authority.
 - User JWT callers cannot override tenant/requester scope or access another user's managed run.
+- Tenant readback contains no raw execution context, authority snapshot, payload, raw idempotency key, or unfiltered intervention evidence.
+- Admin readback provides evidence hashes and allowlisted intervention summaries without secret-bearing values.
 - Approval decisions require platform-admin authority or active same-tenant membership with the required role, an explicitly higher role, or tenant owner/admin authority.
 - Grant revocation or authority drift prevents new or resumed executable work.
 - Approval-gated execution cannot create or resume a step before an approved hold.
@@ -70,6 +82,9 @@ The implementation slices establish code and schema contracts. They do not apply
 - Cancellation synchronizes active steps and open holds in one transaction.
 - Escalation creates or safely reuses a supervisor approval hold.
 - Rollback requires a completed managed compensation step before the run is finalized as rolled back.
+- Structural contradictions prevent reconciliation Apply and return exact investigation codes.
+- Repairable status drift produces a deterministic plan and requires the exact SHA-256-bound confirmation.
+- Reconciliation Apply is Admin-only, transactional, evidence-bearing, and validated by contradiction-free readback.
 - Legacy workflow routes remain present in generated route/OpenAPI evidence.
-- Regression tests exercise identity binding, approval authorization, authority, transition, projection, no-secret, idempotency, route composition, retry, reassignment, escalation, cancellation, and rollback contracts.
+- Regression tests exercise identity binding, approval authorization, authority, transition, projection, no-secret, idempotency, route composition, retry, reassignment, escalation, cancellation, rollback, contradiction detection, dry-run, confirmation, Apply, and readback contracts.
 - Migration remains additive and unapplied.

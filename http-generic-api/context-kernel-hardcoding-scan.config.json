@@ -48,6 +48,12 @@
       "rule_id": "first_candidate_selection",
       "line": 170,
       "reason": "assertActiveAssignee rejects multiple membership rows and then validates the sole tenant/user membership is active."
+    },
+    {
+      "path": "http-generic-api/managedExecutionProjectionService.js",
+      "rule_id": "first_candidate_selection",
+      "line": 40,
+      "reason": "oneOrNull returns a row only when the candidate count is exactly one; zero and multiple candidates return null and are surfaced as explicit structural contradictions."
     }
   ]
 }
