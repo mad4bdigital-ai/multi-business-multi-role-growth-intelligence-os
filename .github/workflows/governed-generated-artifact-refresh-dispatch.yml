@@ -37,7 +37,7 @@ jobs:
     env:
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || 'UNRESOLVED' }}
       EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || 'UNRESOLVED' }}
-      REPORT_DIR: ${{ runner.temp }}/governed-generated-artifact-refresh-dispatch
+      REPORT_DIR: .ci-evidence/governed-generated-artifact-refresh-dispatch
     steps:
       - name: Checkout trusted default branch publisher
         uses: actions/checkout@v5
