@@ -303,35 +303,47 @@ write(apiRoot, "frontend-operation-governance.generated.json", JSON.stringify({
   },
 }));
 
-const frontendDispatchWorkflow = fs.readFileSync(new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url), "utf8");
+const frontendDispatchWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url),
+  "utf8",
+);
+const governedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/governed-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
+const governedRefreshTool = fs.readFileSync(
+  new URL("./scripts/maintenance-tools/generated-artifact-refresh.mjs", import.meta.url),
+  "utf8",
+);
+
 assert.match(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.ref/);
 assert.doesNotMatch(frontendDispatchWorkflow, /github\.event\.pull_request\.base\.sha/);
-const boundedEvidenceFilter = frontendDispatchWorkflow.split("\n").find((line) => line.includes("UNEXPECTED=")) || "";
-assert.ok(
-  boundedEvidenceFilter.includes("(http-generic-api/)?"),
-  "bounded evidence filter must accept repository-root relative paths",
-);
-assert.ok(
-  boundedEvidenceFilter.includes("frontend-operation-governance\\.generated\\.json"),
-  "bounded evidence filter must include the generated operation-governance file",
-);
-assert.ok(
-  boundedEvidenceFilter.includes("frontend-surface-dispatch\\.generated\\.json"),
-  "bounded evidence filter must include the dispatch evidence file",
-);
-assert.ok(
-  boundedEvidenceFilter.includes("openapi/frontend-runtime-routes\\.generated\\.yaml"),
-  "bounded evidence filter must include the generated OpenAPI index",
-);
-assert.ok(
-  boundedEvidenceFilter.includes("yaml)" + "$" + "' || true)"),
-  "manual evidence refresh must use a closed and end-anchored bounded-file filter",
-);
-if (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
-  assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
-  assert.doesNotMatch(frontendDispatchWorkflow, /Commit generated evidence on manual dispatch/);
-  assert.doesNotMatch(frontendDispatchWorkflow, /baseline_ref:/);
+assert.match(frontendDispatchWorkflow, /permissions:\s*\n\s*contents:\s*read/);
+assert.match(frontendDispatchWorkflow, /persist-credentials:\s*false/);
+assert.doesNotMatch(frontendDispatchWorkflow, /contents:\s*write/);
+assert.doesNotMatch(frontendDispatchWorkflow, /refresh-generated:/);
+assert.doesNotMatch(frontendDispatchWorkflow, /git commit /);
+assert.doesNotMatch(frontendDispatchWorkflow, /git push /);
+
+assert.match(governedRefreshWorkflow, /workflow_dispatch:/);
+assert.match(governedRefreshWorkflow, /expected_head_sha:/);
+assert.match(governedRefreshWorkflow, /APPLY_GENERATED_ARTIFACT_REFRESH/);
+assert.match(governedRefreshWorkflow, /generated-artifact-refresh\.mjs/);
+assert.match(governedRefreshTool, /ALLOWED_CHANGED_FILES = new Set/);
+for (const generatedPath of [
+  "http-generic-api/frontend-operation-governance.generated.json",
+  "http-generic-api/frontend-surface-dispatch.generated.json",
+  "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+]) {
+  assert.ok(
+    governedRefreshTool.includes(`"${generatedPath}"`),
+    `governed refresh allowlist must include ${generatedPath}`,
+  );
 }
+assert.match(governedRefreshTool, /--baseline-ref=main/);
+assert.match(governedRefreshTool, /preflight_expected_head/);
+assert.match(governedRefreshTool, /prepush_expected_head/);
+assert.match(governedRefreshTool, /PROTECTED_BRANCHES = new Set\(\["main", "Production"\]\)/);
 
 const repositorySurfacePolicy = JSON.parse(fs.readFileSync(new URL("./frontend-surface-policy.json", import.meta.url), "utf8"));
 const repositoryDispatchSource = fs.readFileSync(new URL("./scripts/frontend-surface-dispatch.mjs", import.meta.url), "utf8");
