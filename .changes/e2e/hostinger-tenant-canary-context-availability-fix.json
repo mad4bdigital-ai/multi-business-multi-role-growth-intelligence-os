@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-tenant-canary-context-availability-fix",
+  "title": "Valid GitHub Actions context usage for Hostinger Tenant Canary registration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+      ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+      ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove an unavailable runner context from jobs.<job_id>.env so GitHub can register and schedule the canonical Tenant Canary workflow while preserving exact-head evidence and the read-only authority boundary.",
+      "e2e_journeys": [
+        {
+          "id": "register-tenant-canary-with-valid-context-availability",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow parser and repository reviewer",
+          "entrypoint": "The canonical Tenant Canary workflow and bootstrap regression",
+          "terminal_outcome": "The workflow contains only contexts allowed at job-env evaluation time, retains its candidate-owned runner and run-bound Artifact contract, and remains connected to the trusted publisher.",
+          "steps": [
+            "Detect that runner.temp was referenced from jobs.tenant-canary.env before a runner exists.",
+            "Replace that expression with a stable repository-relative evidence directory.",
+            "Require the runner, Artifact upload, and canonical enforcement steps to consume the same REPORT_DIR value.",
+            "Extend bootstrap regression coverage to reject runner.temp in the workflow and require the valid report directory.",
+            "Revalidate workflow identity, exact-head checkout, bounded permissions, publisher route, and no-secret declarations."
+          ],
+          "assertions": [
+            "jobs.<job_id>.env contains no runner context reference.",
+            "REPORT_DIR is stable and relative to the checked-out candidate workspace.",
+            "The workflow name, triggers, path filters, runner command, Artifact identity, and canonical report contract remain unchanged.",
+            "The PR-head workflow retains contents:read only and persist-credentials:false.",
+            "No runtime module, provider call, credential access, SQL, migration, deployment, Production action, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-tenant-canary-context-availability-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            ".github/workflows/hostinger-ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the first pull-request-triggered Tenant Canary run and trusted publication after the corrected workflow reaches main."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject future unavailable-context regressions and preserve fail-closed handling for missing or malformed canonical evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Record the first exact-head Tenant Canary Artifact and authoritative Hostinger comment section."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This registration fix grants no runtime, provider, migration, deployment, or Production authority."
+    }
+  ]
+}
