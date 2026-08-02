@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected_input='13829ae9cae9cfb4d2eb31dbe9fe63b6eee07ebb'
+          expected_input='8083750acc37fca01590bb58abb920d158024800'
           test "$(git rev-parse HEAD^)" = "$expected_input"
           mapfile -t launcher_delta < <(git diff --name-only HEAD^ HEAD)
           test "${#launcher_delta[@]}" = '1'
@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          expected_input='13829ae9cae9cfb4d2eb31dbe9fe63b6eee07ebb'
+          expected_input='8083750acc37fca01590bb58abb920d158024800'
           rm .github/workflows/spec014-frontend-baseline-ref-refresh-launcher.yml
           mapfile -t final_delta < <(git diff --name-only "$expected_input")
           test "${#final_delta[@]}" = '1'
