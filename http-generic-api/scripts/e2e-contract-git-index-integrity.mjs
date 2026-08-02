@@ -112,12 +112,17 @@ export function enforceGitIndexIntegrity({ root = REPO_ROOT, report }) {
   const pathIntegrity = [...requiredPaths].sort().map((relativePath) => inspectRequiredPath(root, relativePath));
   const findings = [];
   for (const item of pathIntegrity) {
-    if (!item.lexically_inside) findings.push({ code: "repository_path_escapes_root", path: item.path });
-    else if (!item.exists) findings.push({ code: "repository_path_missing", path: item.path });
-    else if (item.symbolic_link_components.length > 0) {
-      findings.push({ code: "repository_path_contains_symbolic_link", path: item.path, components: item.symbolic_link_components });
-    } else if (!item.realpath_inside) findings.push({ code: "repository_path_realpath_escapes_root", path: item.path });
-    else if (!item.regular_file) findings.push({ code: "repository_path_not_regular_file", path: item.path });
+    if (!item.lexically_inside) {
+      findings.push({ code: "repository_path_escapes_root", path: item.path });
+    } else if (!item.exists) {
+      findings.push({ code: "repository_path_missing", path: item.path });
+    } else {
+      if (item.symbolic_link_components.length > 0) {
+        findings.push({ code: "repository_path_contains_symbolic_link", path: item.path, components: item.symbolic_link_components });
+      }
+      if (!item.realpath_inside) findings.push({ code: "repository_path_realpath_escapes_root", path: item.path });
+      if (!item.regular_file) findings.push({ code: "repository_path_not_regular_file", path: item.path });
+    }
 
     if (!item.tracked) findings.push({ code: "repository_path_not_tracked", path: item.path });
     else if (!item.regular_git_blob) {
