@@ -147,7 +147,7 @@ export function buildHostingerStorageTenantRoutes({
 } = {}) {
   const router = Router();
 
-  router.post(ROUTE_PATH, requireTenantPrincipal, async (req, res) => {
+  router.post('/tenant/storage-operations/apply-plan', requireTenantPrincipal, async (req, res) => {
     try {
       const runtime = resolveTenantStorageRuntime({ tenantStorageRuntime, tenantStorageRuntimeMount });
       if (!validateTenantStorageRuntime(runtime)) {
