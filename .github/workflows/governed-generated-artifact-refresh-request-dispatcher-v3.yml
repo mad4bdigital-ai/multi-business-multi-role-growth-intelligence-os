@@ -1,0 +1,290 @@
+name: Governed Generated Artifact Refresh Request Dispatcher V3
+run-name: Governed Generated Artifact Refresh Request Dispatcher V3 · ${{ github.event.workflow_run.id || inputs.expected_head_sha }}
+
+on:
+  workflow_run:
+    workflows:
+      - Governed Generated Artifact Refresh PR Target Request V3
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository pull request number
+        required: true
+        type: string
+      target_ref:
+        description: Governed work branch to refresh
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character PR head SHA
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: governed-generated-artifact-refresh-request-dispatcher-v3-${{ github.event.workflow_run.id || inputs.target_ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request_target' &&
+       github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPORT_DIR: /tmp/governed-generated-artifact-refresh-request-dispatcher-v3
+      REQUEST_DIR: /tmp/governed-generated-artifact-refresh-request-v3
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+      MANUAL_PR_NUMBER: ${{ inputs.pr_number || '' }}
+      MANUAL_TARGET_REF: ${{ inputs.target_ref || '' }}
+      MANUAL_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+    steps:
+      - name: Resolve and revalidate exact-head V3 request
+        id: candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf "${REPORT_DIR}" "${REQUEST_DIR}"
+          mkdir -p "${REPORT_DIR}" "${REQUEST_DIR}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            [[ "${MANUAL_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+            [[ "${MANUAL_EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-request.v1" \
+              --arg bridge_version "v3" \
+              --arg target_ref "${MANUAL_TARGET_REF}" \
+              --arg expected_head_sha "${MANUAL_EXPECTED_HEAD_SHA}" \
+              --argjson pr_number "${MANUAL_PR_NUMBER}" \
+              --argjson source_run_id "${GITHUB_RUN_ID}" \
+              '{contract:$contract,bridge_version:$bridge_version,outcome:"eligible",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,source_run_id:$source_run_id,source_event:"workflow_dispatch",candidate_code_checkout:false,workflow_dispatch_performed:false,repository_mutation_performed:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REQUEST_DIR}/request.json"
+          else
+            [[ "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+            gh run download "${SOURCE_RUN_ID}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --name "governed-generated-artifact-refresh-request-v3-${SOURCE_RUN_ID}" \
+              --dir "${REQUEST_DIR}"
+          fi
+
+          request="${REQUEST_DIR}/request.json"
+          test -f "${request}"
+          contract="$(jq -r '.contract' "${request}")"
+          bridge_version="$(jq -r '.bridge_version' "${request}")"
+          request_outcome="$(jq -r '.outcome' "${request}")"
+          request_reason="$(jq -r '.reason // empty' "${request}")"
+          pr_number="$(jq -r '.pr_number' "${request}")"
+          target_ref="$(jq -r '.target_ref' "${request}")"
+          expected_head_sha="$(jq -r '.expected_head_sha' "${request}")"
+          request_source_run_id="$(jq -r '.source_run_id' "${request}")"
+          failure_code=""
+          failure_detail=""
+
+          if [[ "${contract}" != "mad4b.governed-generated-artifact-refresh-request.v1" || "${bridge_version}" != "v3" ]]; then
+            failure_code="invalid_v3_request_contract"
+            failure_detail="The request artifact contract or V3 identity is not recognized."
+          elif [[ ! "${pr_number}" =~ ^[1-9][0-9]*$ ]]; then
+            failure_code="invalid_pull_request_number"
+            failure_detail="The request must contain a positive pull request number."
+          elif [[ ! "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            failure_code="invalid_expected_head_sha"
+            failure_detail="The request must contain an exact expected head SHA."
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" && "${request_source_run_id}" != "${SOURCE_RUN_ID}" ]]; then
+            failure_code="request_source_run_mismatch"
+            failure_detail="The request source run differs from the triggering workflow run."
+          elif [[ "${request_outcome}" == "skipped" ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1" \
+              --arg target_ref "${target_ref}" \
+              --arg expected_head_sha "${expected_head_sha}" \
+              --arg reason "${request_reason:-request_skipped}" \
+              --argjson pr_number "${pr_number}" \
+              '{contract:$contract,outcome:"skipped",reason:$reason,target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,v2_dispatch_requested:false,v2_run_observed:false,candidate_code_checkout:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [[ "${request_outcome}" != "eligible" ]]; then
+            failure_code="${request_reason:-request_not_eligible}"
+            failure_detail="The read-only request evaluator did not authorize V2 dispatch."
+          fi
+
+          if [[ -z "${failure_code}" && ( "${target_ref}" == "main" || "${target_ref}" == "Production" ) ]]; then
+            failure_code="protected_branch_mutation_forbidden"
+            failure_detail="The V3 bridge cannot target main or Production."
+          fi
+
+          if [[ -z "${failure_code}" ]]; then
+            pr="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+            state="$(jq -r '.state' <<<"${pr}")"
+            draft="$(jq -r '.draft' <<<"${pr}")"
+            head_repository="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+            current_target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+            current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+            base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+            labels="$(jq -c '[.labels[].name]' <<<"${pr}")"
+
+            if [[ "${state}" != "open" ]]; then
+              failure_code="pull_request_not_open"
+              failure_detail="The associated pull request is no longer open."
+            elif [[ "${draft}" == "true" ]]; then
+              failure_code="pull_request_is_draft"
+              failure_detail="The associated pull request is a draft."
+            elif [[ "${head_repository}" != "${GITHUB_REPOSITORY}" ]]; then
+              failure_code="cross_repository_pull_request_forbidden"
+              failure_detail="The dispatcher accepts same-repository pull requests only."
+            elif [[ "${base_ref}" != "main" ]]; then
+              failure_code="unexpected_base_branch"
+              failure_detail="The associated pull request must target main."
+            elif [[ ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+              failure_code="invalid_governed_work_branch"
+              failure_detail="The target ref is not an approved governed work branch."
+            elif [[ "${current_target_ref}" != "${target_ref}" ]]; then
+              failure_code="pull_request_branch_mismatch"
+              failure_detail="The current PR branch differs from the request target ref."
+            elif [[ "${current_head_sha}" != "${expected_head_sha}" ]]; then
+              failure_code="pull_request_head_mismatch"
+              failure_detail="The current head SHA differs from expected_head_sha."
+            elif ! jq -e 'index("generated-artifact-refresh") != null' <<<"${labels}" >/dev/null; then
+              failure_code="generated_artifact_refresh_label_absent"
+              failure_detail="The generated-artifact-refresh label is no longer present."
+            fi
+          fi
+
+          if [[ -n "${failure_code}" ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1" \
+              --arg target_ref "${target_ref:-unresolved}" \
+              --arg expected_head_sha "${expected_head_sha:-unresolved}" \
+              --arg code "${failure_code}" \
+              --arg detail "${failure_detail}" \
+              --argjson pr_number "${pr_number:-0}" \
+              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,first_failure:{code:$code,diagnostic_tail:$detail},v2_dispatch_requested:false,v2_run_observed:false,candidate_code_checkout:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch registered V2 decision workflow and observe its run
+        if: steps.candidate.outputs.eligible == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.candidate.outputs.pr_number }}
+          TARGET_REF: ${{ steps.candidate.outputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ steps.candidate.outputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          workflow_state="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml" \
+            --jq '.state')"
+          if [[ "${workflow_state}" != "active" ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1" \
+              --arg target_ref "${TARGET_REF}" \
+              --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+              --argjson pr_number "${PR_NUMBER}" \
+              --arg workflow_state "${workflow_state}" \
+              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,workflow_state:$workflow_state,first_failure:{code:"v2_workflow_not_active",diagnostic_tail:"The registered V2 decision workflow is not active."},v2_dispatch_requested:false,v2_run_observed:false,candidate_code_checkout:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            exit 0
+          fi
+
+          started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          before_ids="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml/runs?event=workflow_dispatch&branch=main&per_page=50" \
+            --jq '[.workflow_runs[].id]')"
+          payload="$(jq -cn \
+            --arg ref "main" \
+            --arg target_ref "${TARGET_REF}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml/dispatches" \
+            --input - <<<"${payload}"
+
+          observed_run_id=""
+          observed_run_url=""
+          for attempt in $(seq 1 12); do
+            runs="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh-dispatch-v2.yml/runs?event=workflow_dispatch&branch=main&per_page=50")"
+            observed_run_id="$(jq -r --arg started "${started_at}" --argjson before "${before_ids}" \
+              '[.workflow_runs[] | select(.created_at >= $started and ((.id as $id | $before | index($id)) == null))] | sort_by(.created_at) | last | .id // empty' <<<"${runs}")"
+            if [[ "${observed_run_id}" =~ ^[1-9][0-9]*$ ]]; then
+              observed_run_url="$(jq -r --argjson run_id "${observed_run_id}" '.workflow_runs[] | select(.id == $run_id) | .html_url' <<<"${runs}")"
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ ! "${observed_run_id}" =~ ^[1-9][0-9]*$ ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1" \
+              --arg target_ref "${TARGET_REF}" \
+              --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+              --argjson pr_number "${PR_NUMBER}" \
+              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,v2_dispatch_requested:true,v2_run_observed:false,first_failure:{code:"v2_workflow_run_not_observed",diagnostic_tail:"GitHub accepted the V2 workflow_dispatch request but no new V2 run appeared within the bounded observation window."},candidate_code_checkout:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            exit 0
+          fi
+
+          jq -n \
+            --arg contract "mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1" \
+            --arg target_ref "${TARGET_REF}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --argjson pr_number "${PR_NUMBER}" \
+            --argjson v2_run_id "${observed_run_id}" \
+            --arg v2_run_url "${observed_run_url}" \
+            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,v2_dispatch_requested:true,v2_run_observed:true,v2_run_id:$v2_run_id,v2_run_url:$v2_run_url,candidate_code_checkout:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+            > "${REPORT_DIR}/dispatch.json"
+
+      - name: Upload V3 bridge dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-request-dispatcher-v3-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce V3 bridge dispatch decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${REPORT_DIR}/dispatch.json"
+          test -f "${report}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/dispatch.json`, 'utf8'));
+          if (report.contract !== 'mad4b.governed-generated-artifact-refresh-pr-target-v3-dispatch.v1') process.exit(1);
+          if (report.secrets_included !== false || report.consult_job_logs !== false) process.exit(1);
+          if (report.candidate_code_checkout !== false || report.direct_repository_mutation !== false) process.exit(1);
+          if (report.protected_branch_mutation !== false || report.force_push !== false) process.exit(1);
+          if (report.outcome === 'blocked') process.exit(1);
+          if (report.outcome === 'passed' && (!report.v2_run_observed || !Number.isInteger(report.v2_run_id))) process.exit(1);
+          NODE
