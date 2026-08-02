@@ -1,0 +1,173 @@
+name: Production Runtime Parity Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/production-runtime-parity-evidence.json'
+      - '.github/workflows/production-runtime-parity-evidence.yml'
+      - 'http-generic-api/scripts/production-runtime-parity-evidence.mjs'
+      - 'http-generic-api/scripts/test-production-runtime-parity-evidence.mjs'
+      - 'http-generic-api/config/deployment-branch-policy.json'
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact 40-character Production deployment SHA
+        required: true
+        type: string
+      expected_branch:
+        description: Exact deployment branch reported by /version
+        required: true
+        default: Production
+        type: string
+      auth_url:
+        description: Hostinger Production auth runtime /version endpoint
+        required: true
+        default: https://auth.mad4b.com/version
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-runtime-parity-evidence-${{ github.event.pull_request.number || inputs.expected_sha || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Structured Evidence Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Enforce trusted workflow dispatch ref
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+
+      - name: Validate production runtime parity reporter
+        working-directory: http-generic-api
+        run: node scripts/test-production-runtime-parity-evidence.mjs
+
+  live:
+    name: Live Production Runtime Parity
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate immutable dispatch identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "${production_sha}" == "${EXPECTED_SHA}" ]]
+
+      - name: Generate structured Hostinger Production parity evidence
+        id: parity
+        continue-on-error: true
+        shell: bash
+        working-directory: http-generic-api
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_BRANCH: ${{ inputs.expected_branch }}
+          AUTH_URL: ${{ inputs.auth_url }}
+          PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
+        run: |
+          set -euo pipefail
+          node scripts/production-runtime-parity-evidence.mjs \
+            --expected-sha "${EXPECTED_SHA}" \
+            --expected-branch "${EXPECTED_BRANCH}" \
+            --endpoint "auth=${AUTH_URL}" \
+            --output-dir "${PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR}"
+
+      - name: Upload structured live parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-parity-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-runtime-parity-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured Hostinger Production parity decision
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: ${{ runner.temp }}/production-runtime-parity-evidence/production-runtime-parity-evidence.json
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) {
+              console.error(JSON.stringify({ ok: false, error: "production_runtime_parity_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const effects = report.side_effects || {};
+            const endpoints = Array.isArray(report.endpoints) ? report.endpoints : [];
+            const auth = endpoints.find((endpoint) => endpoint.name === "auth");
+            const valid =
+              report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
+              report.identity?.expected_sha === process.env.EXPECTED_SHA &&
+              report.identity?.expected_branch === "Production" &&
+              report.identity?.tooling_sha === process.env.GITHUB_SHA &&
+              endpoints.length === 1 &&
+              auth?.required === true &&
+              auth?.status === "passed" &&
+              report.first_failure === null &&
+              report.secrets_included === false &&
+              report.routing?.consult_job_logs === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.credential_access_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.external_send_performed === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                first_failure: report.first_failure || { code: "invalid_structured_report" },
+                consult_job_logs: false,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              outcome: report.outcome,
+              expected_sha: report.identity.expected_sha,
+              passed_endpoint: "auth",
+              secrets_included: false
+            }));
+          '
