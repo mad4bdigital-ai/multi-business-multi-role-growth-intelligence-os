@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "spec014-durable-authorized-injection-schema-ddl-rollup-boundary",
-  "title": "Rollup-aware Durable Authorized Injection DDL guard",
+  "title": "Contract-governed Rollup-aware Durable Authorized Injection DDL guard",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -19,28 +19,30 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Preserve strict feature-PR scope enforcement while allowing the canonical Spec 014 Integration Rollup to validate contract-local DDL content without treating unrelated Rollup files as DDL authority violations.",
+      "objective": "Preserve strict feature-PR scope enforcement while allowing a governed Multi-PR E2E Rollup to validate contract-local DDL content without branch-specific workflow literals or unrelated-file false failures.",
       "e2e_journeys": [
         {
-          "id": "publish-exact-rollup-ddl-evidence",
+          "id": "publish-contract-governed-rollup-ddl-evidence",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Spec 014 durable authorized injection schema DDL guard",
           "entrypoint": "Hostinger Storage Durable Authorized Injection Schema DDL Guard",
-          "terminal_outcome": "The guard publishes a passing structured report for valid Rollup content, keeps the source SHA bound to the exact head, records the merge-candidate SHA separately, and continues to reject unsafe DDL or feature-scope expansion.",
+          "terminal_outcome": "The guard classifies candidate mode from the governed phase contract, publishes exact identity and parity evidence, and continues to reject unsafe DDL or focused-feature scope expansion.",
           "steps": [
+            "Read the governed Spec phase contract from the exact candidate tree.",
+            "Classify Integration mode only when the PR targets main and the contract declares multi_pr, enabled parallel work, workstream_commits_then_e2e_rollup, and no partial feature merge.",
             "Run the canonical Module-to-DDL parity test and consume its structured result.",
-            "Run a workflow regression that proves read-only permissions, exact identity routing, and separate Feature and Integration modes.",
+            "Run a workflow regression proving read-only permissions, branch-neutral classification, exact identity routing, and separate Feature and Integration modes.",
             "Enforce the narrow changed-file allowlist for focused Feature PRs.",
-            "Skip only the unrelated-file allowlist when the exact canonical Integration branch targets main.",
-            "Run contract-local, non-promotion, no-Apply, no-destructive-DDL, and no-provider checks in both modes.",
+            "Skip only the unrelated-file allowlist for a contract-governed Rollup while always enforcing contract-local, non-promotion, no-Apply, no-destructive-DDL, and no-provider checks.",
             "Publish exact head and merge-candidate identities as separate structured fields."
           ],
           "assertions": [
+            "The permanent Workflow embeds no work-branch name.",
+            "Rollup classification is derived from versioned phase-contract properties rather than branch, PR number, title, or changed-file-count heuristics.",
             "DDL parity is derived from the focused parity test rather than the aggregate stage list.",
-            "Unrelated Rollup files cannot make ddl_matches_registry_sql false.",
             "Feature PRs remain unable to modify Route, Server, migration, deployment, production, or provider paths.",
-            "The workflow remains contents-read-only with persist-credentials disabled and no git push.",
+            "The Workflow remains contents-read-only with persist-credentials disabled and no git push.",
             "No migration Apply, live database, provider, deployment, main mutation, or Production authority is granted."
           ],
           "tests": [
@@ -62,6 +64,7 @@
           "evidence_paths": [
             ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
             "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json",
             ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
             ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json"
           ]
