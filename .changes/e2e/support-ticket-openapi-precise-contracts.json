@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-openapi-precise-contracts",
+  "title": "Tenant authentication parity and source-bound Support Ticket admin contracts",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/support-ticket-openapi-precise-contracts.json",
+      "http-generic-api/openapi-route-contracts.yaml",
+      "http-generic-api/openapi/support-tickets.yaml",
+      "http-generic-api/openapi/support-ticket-admin-common.yaml",
+      "http-generic-api/openapi/support-ticket-admin-brand.yaml",
+      "http-generic-api/openapi/support-ticket-admin-execution.yaml",
+      "http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore tenant user-JWT parity and compose exact source-bound OpenAPI path items for the fifteen uncovered Support Ticket admin lifecycle routes without weakening runtime authority gates.",
+      "e2e_journeys": [
+        {
+          "id": "compose-support-ticket-tenant-and-admin-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant member, platform administrator, backend operator, and governed OpenAPI maintenance",
+          "entrypoint": "The precise-contract registry reads Support Ticket runtime route ownership and split OpenAPI path items.",
+          "terminal_outcome": "All four tenant operations resolve userJwtAuth, all fifteen previously uncovered admin operations resolve exact reviewed path-item references, the root OpenAPI composes those references, and the missing-route gate returns zero uncovered Support Ticket routes.",
+          "steps": [
+            "Require userJwtAuth on create, list, detail, and customer-event Support Ticket operations.",
+            "Bind every uncovered admin signature to routes/supportTicketRoutes.js and one exact split path-item reference.",
+            "Validate adminBearerAuth and backendApiKeyAuth on all admin operations.",
+            "Retain request and response envelopes that declare secrets_included=false while leaving operation-specific runtime validation authoritative.",
+            "Run precise registry composition before the missing-route coverage gate.",
+            "Regenerate bounded root OpenAPI and frontend dispatch/runtime-route evidence.",
+            "Reject generic TODO stubs, public admin security, unbound route ownership, or an uncovered support-ticket signature."
+          ],
+          "assertions": [
+            "Exactly fifteen new admin route signatures are registered.",
+            "Every signature exists in routes/supportTicketRoutes.js with normalized ticket_id path syntax.",
+            "Every registry entry is source-bound to routes/supportTicketRoutes.js.",
+            "Brand-reference and remediation operations use support-ticket-admin-brand.yaml.",
+            "Diagnostics, execution, lifecycle, assignment, and event operations use support-ticket-admin-execution.yaml.",
+            "Shared request, response, parameter, error, no-secret, and no-provider evidence lives in support-ticket-admin-common.yaml.",
+            "All four tenant operations declare userJwtAuth and no tenant operation is public.",
+            "All admin operations declare adminBearerAuth or backendApiKeyAuth and no admin operation is public.",
+            "The generated-artifact evaluator reports missing_count=0 after precise registry composition.",
+            "No migration, SQL/database mutation, runtime authorization change, provider call, credential access, external send, deployment, Production mutation, protected-branch bypass, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-admin-openapi-precise-contracts",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-admin-openapi-precise-contracts.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-missing-route-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-autofill-missing-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/supportTicketRoutes.js",
+            "http-generic-api/openapi-route-contracts.yaml",
+            "http-generic-api/openapi/support-tickets.yaml",
+            "http-generic-api/openapi/support-ticket-admin-common.yaml",
+            "http-generic-api/openapi/support-ticket-admin-brand.yaml",
+            "http-generic-api/openapi/support-ticket-admin-execution.yaml",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Exercise authenticated tenant reads and admin lifecycle operations against a non-production fixture while verifying typed failures and sanitized readback."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject stale approvals, missing trusted references, invalid transitions, cross-tenant ticket identifiers, absent credentials, and malformed evidence without leaking secrets."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This OpenAPI contract repair performs no provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No runtime, database, migration, provider, credential, external-send, deployment, or direct Production authority is granted."
+    }
+  ],
+  "secrets_included": false
+}

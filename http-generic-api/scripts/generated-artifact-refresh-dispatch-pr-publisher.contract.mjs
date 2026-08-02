@@ -93,7 +93,7 @@ assert.match(fallbackPublisherWorkflow, /governed-generated-artifact-refresh-dis
 assert.match(fallbackPublisherWorkflow, /canonical\/dispatch\.json/u);
 assert.match(fallbackPublisherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
 
-const dispatcherWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh-dispatch.yml", "utf8");
+const dispatcherWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml", "utf8");
 assert.match(dispatcherWorkflow, /^name: Governed Generated Artifact Refresh Dispatch$/mu);
 assert.match(dispatcherWorkflow, /^\s*issue_comment:\s*$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_dispatch:\s*$/mu);
