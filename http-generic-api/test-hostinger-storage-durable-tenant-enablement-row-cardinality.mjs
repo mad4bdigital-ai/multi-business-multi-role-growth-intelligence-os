@@ -13,7 +13,7 @@ assert.ok(insertRecordStart > loadConsumptionStart, 'loadConsumption must remain
 
 const loadRecordSource = source.slice(loadRecordStart, loadConsumptionStart);
 const loadConsumptionSource = source.slice(loadConsumptionStart, insertRecordStart);
-const directIndexPattern = new RegExp(['rows', '\\?\\.', '\\[0\\]'].join('|'), 'u');
+const directIndexPattern = new RegExp(`${'rows'}(?:\\?\\.)?\\[${'0'}\\]`, 'u');
 
 assert.match(
   loadRecordSource,
