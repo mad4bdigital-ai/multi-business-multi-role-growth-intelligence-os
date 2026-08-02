@@ -1,0 +1,279 @@
+name: Frontend Parity Refresh Dispatch
+
+on:
+  workflow_run:
+    workflows:
+      - Frontend surface dispatch
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: frontend-parity-refresh-dispatch-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+      EVENT_CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      REPORT_DIR: ${{ runner.temp }}/frontend-parity-refresh-dispatch
+      SOURCE_DIR: ${{ runner.temp }}/frontend-dispatch-source-evidence
+    steps:
+      - name: Download exact source structured evidence
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dispatch-verification-evidence-${{ github.event.workflow_run.id }}
+          path: ${{ env.SOURCE_DIR }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Evaluate canonical evidence and dispatch registered refresh
+        id: decision
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+        run: |
+          set -uo pipefail
+          mkdir -p "${REPORT_DIR}"
+          REPORT_FILE="${REPORT_DIR}/frontend-parity-refresh-dispatch.json"
+          SOURCE_REPORT="${SOURCE_DIR}/frontend-dispatch-verification-evidence.json"
+
+          emit_report() {
+            local outcome="$1"
+            local dispatch_requested="$2"
+            local code="${3:-}"
+            local diagnostic="${4:-}"
+            local pr_number="${5:-null}"
+            local source_head_sha="${6:-}"
+            local target_ref="${7:-}"
+            local http_status="${8:-null}"
+            OUTCOME="$outcome" \
+            DISPATCH_REQUESTED="$dispatch_requested" \
+            FAILURE_CODE="$code" \
+            FAILURE_DIAGNOSTIC="$diagnostic" \
+            PR_NUMBER="$pr_number" \
+            SOURCE_HEAD_SHA="$source_head_sha" \
+            TARGET_REF="$target_ref" \
+            HTTP_STATUS="$http_status" \
+            REPORT_FILE="$REPORT_FILE" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sanitize = (value) => String(value || '')
+            .replace(/\r/gu, '')
+            .replace(/\bBearer\s+[^\s]+/giu, 'Bearer [REDACTED]')
+            .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu, '[REDACTED_GITHUB_TOKEN]')
+            .replace(/\b(authorization|token|secret|password|cookie|api[_-]?key)\b(\s*[:=]\s*)([^\s,;]+)/giu, '$1$2[REDACTED]')
+            .slice(-2000);
+          const numberOrNull = (value) => /^\d+$/u.test(String(value || '')) ? Number(value) : null;
+          const report = {
+            contract: 'mad4b.frontend-parity-refresh-dispatch.v1',
+            outcome: process.env.OUTCOME,
+            source_workflow: process.env.SOURCE_WORKFLOW,
+            source_run_id: Number(process.env.SOURCE_RUN_ID),
+            candidate_sha: process.env.EVENT_CANDIDATE_SHA,
+            source_head_sha: process.env.SOURCE_HEAD_SHA || null,
+            target_ref: process.env.TARGET_REF || null,
+            pr_number: numberOrNull(process.env.PR_NUMBER),
+            dispatch_requested: process.env.DISPATCH_REQUESTED === 'true',
+            delegated_workflow: process.env.DISPATCH_REQUESTED === 'true'
+              ? 'governed-generated-artifact-refresh.yml'
+              : null,
+            typed_confirmation: process.env.DISPATCH_REQUESTED === 'true'
+              ? 'APPLY_GENERATED_ARTIFACT_REFRESH'
+              : null,
+            http_status: numberOrNull(process.env.HTTP_STATUS),
+            first_failure: process.env.FAILURE_CODE
+              ? {
+                  code: process.env.FAILURE_CODE,
+                  diagnostic_tail: sanitize(process.env.FAILURE_DIAGNOSTIC),
+                }
+              : null,
+            source_of_truth: 'structured_report',
+            job_logs_role: 'diagnostic_only',
+            consult_job_logs: false,
+            direct_repository_mutation: false,
+            protected_branch_mutation: false,
+            force_push: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(process.env.REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+          }
+
+          if [[ "${DOWNLOAD_OUTCOME}" != "success" || ! -f "${SOURCE_REPORT}" ]]; then
+            emit_report "blocked" "false" "source_structured_report_missing" "The exact Frontend surface dispatch artifact was unavailable; Job logs were not consulted."
+          else
+            contract="$(jq -r '.contract // empty' "${SOURCE_REPORT}")"
+            outcome="$(jq -r '.outcome // empty' "${SOURCE_REPORT}")"
+            source_workflow="$(jq -r '.identity.workflow // empty' "${SOURCE_REPORT}")"
+            candidate_sha="$(jq -r '.identity.candidate_sha // empty' "${SOURCE_REPORT}")"
+            source_head_sha="$(jq -r '.identity.source_head_sha // empty' "${SOURCE_REPORT}")"
+            target_ref="$(jq -r '.identity.head_ref // empty' "${SOURCE_REPORT}")"
+            base_ref="$(jq -r '.identity.base_ref // empty' "${SOURCE_REPORT}")"
+            failure_stage="$(jq -r '.first_failure.stage_id // empty' "${SOURCE_REPORT}")"
+            consult_logs="$(jq -r '.routing.consult_job_logs // false' "${SOURCE_REPORT}")"
+            secrets_included="$(jq -r '.secrets_included' "${SOURCE_REPORT}")"
+
+            if [[ "${contract}" != "mad4b.frontend-dispatch-verification-evidence.v1" ||
+                  "${source_workflow}" != "Frontend surface dispatch" ||
+                  "${candidate_sha}" != "${EVENT_CANDIDATE_SHA}" ||
+                  ! "${source_head_sha}" =~ ^[0-9a-f]{40}$ ||
+                  ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ||
+                  "${target_ref}" == "main" || "${target_ref}" == "Production" ||
+                  "${base_ref}" != "main" ||
+                  "${consult_logs}" != "false" ||
+                  "${secrets_included}" != "false" ]]; then
+              emit_report "blocked" "false" "source_evidence_integrity_failure" "Canonical identity, contract, routing, or no-secret assertions did not match the workflow_run event." "null" "${source_head_sha}" "${target_ref}"
+            elif [[ "${outcome}" != "failed" || "${failure_stage}" != "committed_generated_parity" ]]; then
+              emit_report "skipped" "false" "" "" "null" "${source_head_sha}" "${target_ref}"
+            else
+              prs="$(gh api \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                --method GET \
+                "repos/${GITHUB_REPOSITORY}/pulls" \
+                -f state=open \
+                -f head="${GITHUB_REPOSITORY_OWNER}:${target_ref}" \
+                -f per_page=10 2>"${REPORT_DIR}/pr-query.stderr")"
+              query_status=$?
+              if [[ ${query_status} -ne 0 ]]; then
+                diagnostic="$(cat "${REPORT_DIR}/pr-query.stderr" 2>/dev/null || true)"
+                emit_report "blocked" "false" "pull_request_resolution_failed" "${diagnostic}" "null" "${source_head_sha}" "${target_ref}"
+              else
+                count="$(jq 'length' <<<"${prs}")"
+                if [[ "${count}" != "1" ]]; then
+                  emit_report "blocked" "false" "associated_pull_request_cardinality_invalid" "Expected one open same-repository pull request; found ${count}." "null" "${source_head_sha}" "${target_ref}"
+                else
+                  pr_number="$(jq -r '.[0].number' <<<"${prs}")"
+                  observed_head="$(jq -r '.[0].head.sha' <<<"${prs}")"
+                  labels="$(jq -c '.[0].labels | map(.name)' <<<"${prs}")"
+                  if [[ "${observed_head}" != "${source_head_sha}" ]]; then
+                    emit_report "blocked" "false" "pull_request_head_mismatch" "The PR head moved after the source evidence was produced." "${pr_number}" "${source_head_sha}" "${target_ref}"
+                  elif ! jq -e 'index("generated-artifact-refresh") != null' <<<"${labels}" >/dev/null; then
+                    emit_report "skipped" "false" "" "" "${pr_number}" "${source_head_sha}" "${target_ref}"
+                  else
+                    payload="$(jq -cn \
+                      --arg ref "main" \
+                      --arg target_ref "${target_ref}" \
+                      --arg expected_head_sha "${source_head_sha}" \
+                      '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH"}}')"
+                    http_status="$(curl --silent --show-error \
+                      --output "${REPORT_DIR}/dispatch-response.json" \
+                      --write-out '%{http_code}' \
+                      --request POST \
+                      --header 'Accept: application/vnd.github+json' \
+                      --header "Authorization: Bearer ${GH_TOKEN}" \
+                      --header 'X-GitHub-Api-Version: 2022-11-28' \
+                      --header 'Content-Type: application/json' \
+                      --data "${payload}" \
+                      "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" 2>"${REPORT_DIR}/dispatch.stderr")"
+                    dispatch_status=$?
+                    if [[ ${dispatch_status} -ne 0 || "${http_status}" != "204" ]]; then
+                      diagnostic="$(cat "${REPORT_DIR}/dispatch.stderr" 2>/dev/null || true) $(cat "${REPORT_DIR}/dispatch-response.json" 2>/dev/null || true)"
+                      emit_report "blocked" "false" "workflow_dispatch_rejected" "HTTP ${http_status}: ${diagnostic}" "${pr_number}" "${source_head_sha}" "${target_ref}" "${http_status}"
+                    else
+                      emit_report "passed" "true" "" "" "${pr_number}" "${source_head_sha}" "${target_ref}" "204"
+                    fi
+                  fi
+                fi
+              fi
+            fi
+          fi
+
+      - name: Render bounded Markdown evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          REPORT_FILE="${REPORT_DIR}/frontend-parity-refresh-dispatch.json"
+          MARKDOWN_FILE="${REPORT_DIR}/frontend-parity-refresh-dispatch.md"
+          if [[ ! -f "${REPORT_FILE}" ]]; then
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = {
+            contract: 'mad4b.frontend-parity-refresh-dispatch.v1',
+            outcome: 'blocked',
+            source_workflow: process.env.SOURCE_WORKFLOW,
+            source_run_id: Number(process.env.SOURCE_RUN_ID),
+            candidate_sha: process.env.EVENT_CANDIDATE_SHA,
+            source_head_sha: null,
+            target_ref: null,
+            pr_number: null,
+            dispatch_requested: false,
+            delegated_workflow: null,
+            typed_confirmation: null,
+            http_status: null,
+            first_failure: { code: 'dispatch_report_missing', diagnostic_tail: 'Dispatcher did not emit its structured decision.' },
+            source_of_truth: 'structured_report',
+            job_logs_role: 'diagnostic_only',
+            consult_job_logs: false,
+            direct_repository_mutation: false,
+            protected_branch_mutation: false,
+            force_push: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(`${process.env.REPORT_DIR}/frontend-parity-refresh-dispatch.json`, `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+          fi
+          REPORT_FILE="${REPORT_FILE}" MARKDOWN_FILE="${MARKDOWN_FILE}" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT_FILE, 'utf8'));
+          const lines = [
+            '# Frontend parity refresh dispatch',
+            '',
+            `- Contract: \`${report.contract}\``,
+            `- Outcome: **${report.outcome}**`,
+            `- Source run: \`${report.source_run_id}\``,
+            `- Candidate SHA: \`${report.candidate_sha}\``,
+            `- Source head SHA: \`${report.source_head_sha || 'not-resolved'}\``,
+            `- Target ref: \`${report.target_ref || 'not-resolved'}\``,
+            `- PR: \`${report.pr_number ?? 'not-resolved'}\``,
+            `- Dispatch requested: **${report.dispatch_requested ? 'yes' : 'no'}**`,
+            '- Job logs: **diagnostic-only**',
+            '- Secrets included: **no**',
+          ];
+          if (report.first_failure) {
+            lines.push('', '## First blocking finding', '', `- Code: \`${report.first_failure.code}\``, `- Diagnostic: ${report.first_failure.diagnostic_tail}`);
+          }
+          fs.writeFileSync(process.env.MARKDOWN_FILE, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Upload canonical dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-parity-refresh-dispatch-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured dispatch decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(`${process.env.REPORT_DIR}/frontend-parity-refresh-dispatch.json`, 'utf8'));
+          const valid = report.contract === 'mad4b.frontend-parity-refresh-dispatch.v1'
+            && report.secrets_included === false
+            && report.consult_job_logs === false
+            && report.direct_repository_mutation === false
+            && report.protected_branch_mutation === false
+            && report.force_push === false;
+          if (!valid || report.outcome === 'blocked') process.exit(1);
+          process.exit(0);
+          NODE
