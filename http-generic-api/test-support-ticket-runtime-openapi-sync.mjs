@@ -39,6 +39,32 @@ try {
     "          description: Legacy runtime route index.",
     "      x-contract-completeness: operation-index-only",
     "      x-source-file: routes/supportTicketRoutes.js",
+    "  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:",
+    "    post:",
+    "      operationId: supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification",
+    "      summary: Certify the external delivery completion",
+    "      security:",
+    "        - adminBearerAuth: []",
+    "        - backendApiKeyAuth: []",
+    "      x-openai-isConsequential: true",
+    "      parameters:",
+    "        - name: ticket_id",
+    "          in: path",
+    "          required: true",
+    "          schema:",
+    "            type: string",
+    "      requestBody:",
+    "        required: true",
+    "        content:",
+    "          application/json:",
+    "            schema:",
+    "              type: object",
+    "              properties:",
+    "                evidence_id:",
+    "                  type: string",
+    "      responses:",
+    "        '202':",
+    "          description: Completion certification accepted.",
     "  /admin/automation/validation/sync-ticket:",
     "    post:",
     "      operationId: postAdminAutomationValidationSyncTicketExisting",
@@ -78,6 +104,7 @@ try {
     "router.get(\"/admin/activation/ticket-inbox\", ...adminGuards, async (req, res) => {});",
     "router.get(\"/admin/support/tickets\", ...adminGuards, async (req, res) => {});",
     "router.post(\"/admin/support/tickets/:ticket_id/actions\", ...adminGuards, async (req, res) => {});",
+    "router.post(\"/admin/support/tickets/:ticket_id/external-delivery/completion-certification\", ...adminGuards, async (req, res) => {});",
     "router.get(\"/tenants/:tenantId/requests\", requireTenantUserJwt, async (req, res) => {});",
     "router.get(\"/me/support/tickets/:ticket_id\", requireUserJwt, async (req, res) => {});",
     "router.post(\"/me/support/tickets\", requireUserJwt, async (req, res) => {});",
@@ -88,9 +115,9 @@ try {
   assert.equal(write.status, 0, write.stderr || write.stdout);
   const result = JSON.parse(write.stdout);
   assert.equal(result.ok, true);
-  assert.equal(result.support_ticket_runtime_operation_count, 6);
-  assert.equal(result.support_ticket_generated_operation_count, 5);
-  assert.equal(result.replaced_runtime_index_path_count, 1);
+  assert.equal(result.support_ticket_runtime_operation_count, 7);
+  assert.equal(result.support_ticket_generated_operation_count, 6);
+  assert.equal(result.replaced_runtime_index_path_count, 2);
   assert.equal(result.replaceable_runtime_path_count, 0);
 
   const doc = YAML.parse(readFileSync(join(tempRoot, "openapi.yaml"), "utf8"));
@@ -102,6 +129,17 @@ try {
   assert.equal(activationInbox["x-runtime-auth-profile"], "admin_backend");
   assert.equal(activationInbox["x-openai-isConsequential"], false);
   assert.equal(activationInbox["x-contract-completeness"], undefined);
+
+  const completionCertification = doc.paths["/admin/support/tickets/{ticket_id}/external-delivery/completion-certification"].post;
+  assert.equal(
+    completionCertification.operationId,
+    "supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryCompletionCertification",
+  );
+  assert.equal(completionCertification["x-runtime-contract-source"], "routes/supportTicketRoutes.js");
+  assert.equal(completionCertification["x-runtime-auth-profile"], "admin_backend");
+  assert.equal(completionCertification["x-openai-isConsequential"], true);
+  assert.equal(completionCertification.requestBody.content["application/json"].schema.properties.evidence_id.type, "string");
+  assert.equal(completionCertification.responses["202"].description, "Completion certification accepted.");
 
   const unrelatedContract = doc.paths["/admin/automation/validation/sync-ticket"].post;
   assert.equal(unrelatedContract.operationId, "postAdminAutomationValidationSyncTicketExisting");
@@ -128,6 +166,26 @@ try {
   const check = run(["--check"]);
   assert.equal(check.status, 0, check.stderr || check.stdout);
   assert.equal(JSON.parse(check.stdout).changed, false);
+
+  const impreciseDoc = YAML.parse(readFileSync(join(tempRoot, "openapi.yaml"), "utf8"));
+  impreciseDoc.paths["/admin/support/tickets/{ticket_id}/external-delivery/other-certification"] = {
+    post: {
+      operationId: "supportTicketRuntimePostAdminSupportTicketsByTicketIdExternalDeliveryOtherCertification",
+      summary: "Unapproved metadata-only migration candidate",
+      security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }],
+      "x-openai-isConsequential": true,
+      responses: { "200": { description: "Existing response." } },
+    },
+  };
+  writeFileSync(join(tempRoot, "openapi.yaml"), YAML.stringify(impreciseDoc, { lineWidth: 0 }));
+  writeFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), [
+    readFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), "utf8").trimEnd(),
+    "router.post(\"/admin/support/tickets/:ticket_id/external-delivery/other-certification\", ...adminGuards, async (req, res) => {});",
+    "",
+  ].join("\n"));
+  const unrelatedImprecise = run(["--write"]);
+  assert.notEqual(unrelatedImprecise.status, 0);
+  assert.match(unrelatedImprecise.stderr, /support_ticket_existing_contract_not_precise/);
 
   writeFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), [
     readFileSync(join(tempRoot, "routes/supportTicketRoutes.js"), "utf8").trimEnd(),
