@@ -75,10 +75,51 @@ const githubRows = [
   ]);
   assert.deepEqual(descriptor.inputSchema.required, ["endpoint_key"]);
   assert.equal(descriptor.x_platform_endpoint.selection_field, "endpoint_key");
+  assert.equal(descriptor.requires_admin, false, "tenant-visible shared bindings remain non-admin descriptors");
 
   const catalog = listSystemToolCatalog(descriptors, { limit: 10 });
   assert.equal(catalog.items.length, 1, "coalesced descriptors must not trigger catalog collision");
-  assert.equal(catalog.items[0].name, "github_rest_endpoint_dispatch");
+  const [catalogItem] = catalog.items;
+  assert.equal(catalogItem.name, "github_rest_endpoint_dispatch");
+}
+
+{
+  const adminOnlyBinding = {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_delete_repository_environment",
+    scope_class: "admin",
+    method: "DELETE",
+    input_schema_json: JSON.stringify({
+      type: "object",
+      properties: { path_params: { type: "object", additionalProperties: true } },
+      required: [],
+    }),
+  };
+
+  const [adminDescriptor] = buildPlatformEndpointToolDescriptors(
+    [...githubRows, adminOnlyBinding],
+    { normalizeInputSchema },
+  );
+  assert.deepEqual(adminDescriptor.inputSchema.properties.endpoint_key.enum, [
+    "github_add_issue_labels",
+    "github_delete_repository_environment",
+    "github_get_git_ref_head",
+    "github_list_issue_comments",
+  ], "admin projection includes both shared and admin-only active bindings");
+
+  const [tenantDescriptor] = buildPlatformEndpointToolDescriptors(githubRows, { normalizeInputSchema });
+  assert.equal(
+    tenantDescriptor.inputSchema.properties.endpoint_key.enum.includes("github_delete_repository_environment"),
+    false,
+    "tenant projection cannot expose an admin-only endpoint key",
+  );
+
+  const [adminOnlyDescriptor] = buildPlatformEndpointToolDescriptors([
+    adminOnlyBinding,
+    { ...adminOnlyBinding, endpoint_key: "github_delete_repository_secret" },
+  ], { normalizeInputSchema });
+  assert.equal(adminOnlyDescriptor.requires_admin, true, "all-admin binding groups remain admin-only");
 }
 
 {
@@ -144,14 +185,15 @@ const githubRows = [
 }
 
 {
+  const [githubRowTemplate] = githubRows;
   const duplicateRows = [
     {
-      ...githubRows[0],
+      ...githubRowTemplate,
       endpoint_key: "github_get_git_ref_head",
       parent_action_key: "github_api_mcp",
     },
     {
-      ...githubRows[0],
+      ...githubRowTemplate,
       endpoint_key: "github_get_git_ref_head",
       parent_action_key: "github_api_mcp_duplicate",
     },
@@ -168,6 +210,31 @@ const githubRows = [
       && error.details.endpoint_key === "github_get_git_ref_head"
       && error.details.candidate_count === 2,
     "a selected endpoint_key that still resolves to multiple rows must fail closed",
+  );
+}
+
+{
+  const mismatchedNames = [
+    ...githubRows,
+    {
+      tool_name: "another_public_tool",
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_other_endpoint",
+      scope_class: "both",
+      method: "GET",
+      input_schema_json: "{}",
+    },
+  ];
+  assert.throws(
+    () => selectPlatformEndpointToolBinding(
+      mismatchedNames,
+      { endpoint_key: "github_get_git_ref_head" },
+      "github_rest_endpoint_dispatch",
+    ),
+    (error) => error.code === "platform_endpoint_tool_name_ambiguous"
+      && error.status === 409
+      && error.details.candidate_tool_names.length === 2,
+    "candidate rows spanning more than one public name must fail closed",
   );
 }
 
