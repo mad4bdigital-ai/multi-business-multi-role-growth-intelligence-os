@@ -223,7 +223,8 @@ export function isCanonicalHostingerStorageVerifiedSqlRuntimeComposition(value) 
     && typeof value?.control_plane?.recordReconciliation === 'undefined'
     && typeof value?.execution_parents?.registerPlanItems === 'function'
     && typeof value?.execution_parents?.readRun === 'function'
-    && typeof value?.execution_parents?.readPlanItems === 'function'
+    && (typeof value?.execution_parents?.readPlanItems === 'function'
+      || typeof value?.execution_parents?.finalizeRun !== 'function')
     && typeof value?.child_evidence?.appendJournalEvent === 'function'
     && typeof value?.child_evidence?.appendReconciliation === 'function');
 }
