@@ -1,6 +1,9 @@
 import jwt from "jsonwebtoken";
+import runtimeAuthSecretBootstrap from "../runtime-auth-secret-bootstrap.js";
 
 export const USER_JWT_ALLOWED_ALGORITHMS = Object.freeze(["HS256"]);
+
+const { resolveRuntimeAuthSecret } = runtimeAuthSecretBootstrap;
 
 function authFailure(status, code, message) {
   return { ok: false, status, code, message };
@@ -12,7 +15,17 @@ function bearerToken(authorization) {
 }
 
 export function resolveUserJwtSecret(env = process.env) {
-  return String(env?.JWT_SECRET || "").trim();
+  return resolveRuntimeAuthSecret(env).secret;
+}
+
+export function resolveUserJwtSecretStatus(env = process.env) {
+  const resolved = resolveRuntimeAuthSecret(env);
+  return {
+    configured: resolved.configured,
+    source: resolved.source,
+    derived: resolved.derived,
+    secrets_included: false,
+  };
 }
 
 export function verifyUserJwtAuthorization(
