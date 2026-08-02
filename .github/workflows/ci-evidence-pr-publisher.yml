@@ -8,6 +8,7 @@ on:
       - Context Kernel Hardcoding Report
       - PR Generated Artifact Refresh
       - Protected Promotion Generated Artifact Refresh
+      - Governed Generated Artifact Refresh
     types: [completed]
 
 permissions:
@@ -26,7 +27,8 @@ jobs:
       github.event.workflow_run.head_sha != null &&
       (github.event.workflow_run.event == 'pull_request' ||
        (github.event.workflow_run.event == 'workflow_dispatch' &&
-        github.event.workflow_run.name == 'PR Generated Artifact Refresh'))
+        (github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
+         github.event.workflow_run.name == 'Governed Generated Artifact Refresh')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted default branch
@@ -71,13 +73,23 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
-      - name: Download generated-artifact canonical report
+      - name: Download generated-artifact read-only canonical report
         if: >-
           github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
           github.event.workflow_run.name == 'Protected Promotion Generated Artifact Refresh'
         uses: actions/download-artifact@v4
         with:
           name: pr-generated-artifact-refresh-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download governed generated-artifact apply report
+        if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh'
+        uses: actions/download-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/canonical
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
@@ -95,6 +107,7 @@ jobs:
             "Branch Test Diagnostic Shards") report="${RUNNER_TEMP}/canonical/diagnostic-summary.json" ;;
             "Context Kernel Hardcoding Report") report="${RUNNER_TEMP}/canonical/context-kernel-hardcoding-summary.json" ;;
             "PR Generated Artifact Refresh"|"Protected Promotion Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/pr-generated-artifact-refresh-summary.json" ;;
+            "Governed Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/generated-artifact-refresh-report.json" ;;
             *) echo "Unsupported workflow: $WORKFLOW_NAME" >&2; exit 2 ;;
           esac
           test -f "$report"
@@ -126,7 +139,7 @@ jobs:
           if [[ -n "${HEAD_BRANCH:-}" ]]; then
             common_args+=(--head-branch "${HEAD_BRANCH}")
           fi
-          if [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" ]]; then
+          if [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Governed Generated Artifact Refresh" ]]; then
             node http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs "${common_args[@]}"
           else
             node http-generic-api/scripts/ci-evidence-pr-comment.mjs --workflow "${WORKFLOW_NAME}" "${common_args[@]}"

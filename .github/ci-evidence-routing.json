@@ -37,6 +37,7 @@
       "PR Generated Artifact Refresh",
       "Protected Promotion Generated Artifact Refresh"
     ],
+    "governed_generated_artifact_workflow": "Governed Generated Artifact Refresh",
     "pr_resolution": {
       "event_pr_number_preferred": true,
       "fallback_query_state": "all",
@@ -119,6 +120,15 @@
       "source_head_may_precede_candidate": false,
       "candidate_rule": "candidate_sha must equal source_head_sha; commit_sha must be null; repository_mutation_performed must be false",
       "source_artifacts": ["pr-generated-artifact-refresh-summary.json"]
+    },
+    {
+      "workflow": "Governed Generated Artifact Refresh",
+      "candidate_kind": "head",
+      "canonical_contract": "mad4b.governed-generated-artifact-refresh.v1",
+      "canonical_artifact": "governed-generated-artifact-refresh-${run_id}",
+      "source_head_may_precede_candidate": true,
+      "candidate_rule": "target_ref must resolve exactly one same-repository PR; blocked reports bind expected_head_sha; successful mutating reports bind commit_sha; changed_files must remain inside the registered generated-artifact allowlist; consult_job_logs must be false",
+      "source_artifacts": ["generated-artifact-refresh-report.json"]
     },
     {
       "workflow": "Hostinger Storage Tenant Canary Guard",
