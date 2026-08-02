@@ -1,0 +1,77 @@
+name: Sprint 69 Migration 1043 Runtime Readiness Backfill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.changes/e2e/sprint69-1043-runtime-readiness.json'
+      - '.github/ops/sprint69-1043-runtime-readiness-backfill.mjs'
+      - '.github/workflows/sprint69-1043-runtime-readiness-backfill.yml'
+      - 'http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: sprint69-migration-1043-runtime-readiness-backfill
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Discover and publish Runtime Readiness Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      ISSUE_NUMBER: '4449'
+      AUTHORIZATION_COMMENT_ID: '5160291051'
+      REPORT_DIR: .artifacts/sprint69-1043-runtime-readiness-backfill
+      SOURCE_DIR: .artifacts/sprint69-1043-runtime-readiness-source
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact trusted main event
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Discover authorization-bound Runtime Readiness run
+        id: discover
+        run: node .github/ops/sprint69-1043-runtime-readiness-backfill.mjs discover
+
+      - name: Download exact Runtime Readiness Artifact
+        if: steps.discover.outputs.artifact_found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.discover.outputs.artifact_name }}
+          path: ${{ env.SOURCE_DIR }}
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.discover.outputs.run_id }}
+
+      - name: Publish bounded evidence to issue 4449
+        id: publish
+        if: always()
+        run: node .github/ops/sprint69-1043-runtime-readiness-backfill.mjs publish
+
+      - name: Upload backfill publication evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint69-1043-runtime-readiness-backfill-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce successful Runtime Readiness evidence
+        if: always()
+        shell: bash
+        run: test "${{ steps.publish.outputs.publication_ok }}" = "true"
