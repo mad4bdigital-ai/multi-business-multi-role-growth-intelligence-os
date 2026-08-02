@@ -1,0 +1,873 @@
+# Source-bound path items completing Support Ticket runtime OpenAPI coverage.
+# Runtime validation, authorization, approvals, confirmations, provider gates, credential gates, and readback remain authoritative.
+
+listAdminTenantRequests:
+  get:
+    operationId: listAdminTenantRequests
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+getAdminTenantRequest:
+  get:
+    operationId: getAdminTenantRequest
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listTenantRequests:
+  get:
+    operationId: listTenantRequests
+    security: [{ userJwtAuth: [] }]
+    x-registry-exposure: tenant_user
+    x-openai-isConsequential: false
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+getTenantRequest:
+  get:
+    operationId: getTenantRequest
+    security: [{ userJwtAuth: [] }]
+    x-registry-exposure: tenant_user
+    x-openai-isConsequential: false
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+      - name: ticketId
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+getAdminSupportTicketAuthEmailOutboxStatus:
+  get:
+    operationId: getAdminSupportTicketAuthEmailOutboxStatus
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+dryRunAdminSupportTicketAuthEmailOutbox:
+  post:
+    operationId: dryRunAdminSupportTicketAuthEmailOutbox
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+skipIneligibleAdminSupportTicketAuthEmailOutbox:
+  post:
+    operationId: skipIneligibleAdminSupportTicketAuthEmailOutbox
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+applyAdminSupportTicketAuthEmailOutbox:
+  post:
+    operationId: applyAdminSupportTicketAuthEmailOutbox
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+getAdminSupportTicketExternalDeliveryControlOverview:
+  get:
+    operationId: getAdminSupportTicketExternalDeliveryControlOverview
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+upsertAdminSupportTicketExternalDeliveryAllowlist:
+  post:
+    operationId: upsertAdminSupportTicketExternalDeliveryAllowlist
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+disableAdminSupportTicketExternalDeliveryAllowlist:
+  post:
+    operationId: disableAdminSupportTicketExternalDeliveryAllowlist
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+setAdminSupportTicketExternalDeliveryAdapterDispatch:
+  post:
+    operationId: setAdminSupportTicketExternalDeliveryAdapterDispatch
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+revokeAdminSupportTicketExternalDeliveryGmailConnection:
+  post:
+    operationId: revokeAdminSupportTicketExternalDeliveryGmailConnection
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+createAdminSupportTicketTenantUserSimulation:
+  post:
+    operationId: createAdminSupportTicketTenantUserSimulation
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+reconcileAdminSupportTickets:
+  post:
+    operationId: reconcileAdminSupportTickets
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+reconcileAdminSupportTicketSla:
+  post:
+    operationId: reconcileAdminSupportTicketSla
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalCredentialOrchestration:
+  post:
+    operationId: planAdminSupportTicketExternalCredentialOrchestration
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+approveActivateBindVerifyAdminSupportTicketExternalCredential:
+  post:
+    operationId: approveActivateBindVerifyAdminSupportTicketExternalCredential
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalCredentialActivation:
+  post:
+    operationId: planAdminSupportTicketExternalCredentialActivation
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+activateBindAdminSupportTicketExternalCredential:
+  post:
+    operationId: activateBindAdminSupportTicketExternalCredential
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalSecretIntake:
+  post:
+    operationId: planAdminSupportTicketExternalSecretIntake
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+registerAdminSupportTicketExternalSecretReference:
+  post:
+    operationId: registerAdminSupportTicketExternalSecretReference
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+activateAdminSupportTicketExternalSecretReference:
+  post:
+    operationId: activateAdminSupportTicketExternalSecretReference
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listAdminSupportTicketExternalCredentialCandidates:
+  get:
+    operationId: listAdminSupportTicketExternalCredentialCandidates
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+requestAdminSupportTicketExternalCredentialBinding:
+  post:
+    operationId: requestAdminSupportTicketExternalCredentialBinding
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+decideAdminSupportTicketExternalCredentialBinding:
+  post:
+    operationId: decideAdminSupportTicketExternalCredentialBinding
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalAdapterFuturePrScope:
+  post:
+    operationId: planAdminSupportTicketExternalAdapterFuturePrScope
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+recordAdminSupportTicketExternalAdapterFuturePrScope:
+  post:
+    operationId: recordAdminSupportTicketExternalAdapterFuturePrScope
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalAdapterReadiness:
+  post:
+    operationId: planAdminSupportTicketExternalAdapterReadiness
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+recordAdminSupportTicketExternalAdapterReadiness:
+  post:
+    operationId: recordAdminSupportTicketExternalAdapterReadiness
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+decideAdminSupportTicketExternalAdapterReadiness:
+  post:
+    operationId: decideAdminSupportTicketExternalAdapterReadiness
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listAdminSupportTicketExternalProviderEnablementCandidates:
+  post:
+    operationId: listAdminSupportTicketExternalProviderEnablementCandidates
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+proposeAdminSupportTicketExternalProviderAdapterEnablement:
+  post:
+    operationId: proposeAdminSupportTicketExternalProviderAdapterEnablement
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listAdminSupportTicketExternalProviderContracts:
+  get:
+    operationId: listAdminSupportTicketExternalProviderContracts
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalSendProviderGate:
+  post:
+    operationId: planAdminSupportTicketExternalSendProviderGate
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+recordAdminSupportTicketExternalSendProviderGateAttempt:
+  post:
+    operationId: recordAdminSupportTicketExternalSendProviderGateAttempt
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+planAdminSupportTicketExternalSendExecution:
+  post:
+    operationId: planAdminSupportTicketExternalSendExecution
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+recordAdminSupportTicketExternalSendExecution:
+  post:
+    operationId: recordAdminSupportTicketExternalSendExecution
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+checkAdminSupportTicketExternalDeliveryReadiness:
+  post:
+    operationId: checkAdminSupportTicketExternalDeliveryReadiness
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+requestAdminSupportTicketExternalDeliveryApproval:
+  post:
+    operationId: requestAdminSupportTicketExternalDeliveryApproval
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+decideAdminSupportTicketExternalDeliveryApproval:
+  post:
+    operationId: decideAdminSupportTicketExternalDeliveryApproval
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+certifyAdminSupportTicketExternalDeliveryCompletion:
+  post:
+    operationId: certifyAdminSupportTicketExternalDeliveryCompletion
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listAdminSupportTicketNotificationAdapters:
+  get:
+    operationId: listAdminSupportTicketNotificationAdapters
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+previewAdminSupportTicketNotificationDelivery:
+  post:
+    operationId: previewAdminSupportTicketNotificationDelivery
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+dispatchAdminSupportTicketNotificationDelivery:
+  post:
+    operationId: dispatchAdminSupportTicketNotificationDelivery
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+listAdminSupportTicketNotificationQueue:
+  get:
+    operationId: listAdminSupportTicketNotificationQueue
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+createAdminSupportTicketNotificationCycle:
+  post:
+    operationId: createAdminSupportTicketNotificationCycle
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }

@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-tenant-canary-main-bootstrap",
+  "title": "Main bootstrap for canonical Hostinger Tenant Canary evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+      ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+      ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Register the read-only Tenant Canary pull-request workflow on main and prove its exact-head producer-to-publisher handshake without promoting Spec 014 runtime modules or migrations.",
+      "e2e_journeys": [
+        {
+          "id": "bootstrap-main-registered-tenant-canary-evidence-route",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer and trusted evidence publisher",
+          "entrypoint": "The main-registered Hostinger Storage Tenant Canary Guard definition and static bootstrap contract",
+          "terminal_outcome": "A qualifying pull request can be checked out at its exact head, execute the candidate-owned canonical runner, upload one run-bound secret-free artifact, and hand the same exact-head evidence to the trusted main-based publisher.",
+          "steps": [
+            "Validate the permanent pull-request workflow is registered under the exact Hostinger Tenant Canary name.",
+            "Require narrow Tenant Canary path filters instead of repository-wide JavaScript or TypeScript globs.",
+            "Require contents:read only, exact candidate checkout, persisted credentials disabled, and local/remote SHA equality.",
+            "Require execution of the candidate-owned canonical Tenant Canary runner and upload of the run-bound JSON and Markdown artifact.",
+            "Validate fail-closed contract, candidate SHA, counts, integrity findings, no-secret declaration, no-log decision, and no-mutation/provider/credential declarations.",
+            "Validate the trusted workflow_run publisher and routing registry consume the same workflow name, artifact identity, canonical contract, and exact head."
+          ],
+          "assertions": [
+            "The bootstrap contains no Hostinger runtime module, provider adapter, migration, SQL, route mount, credential, or deployment implementation.",
+            "The PR-head workflow has contents:read only and no issue, pull-request, action, or repository write permission.",
+            "The workflow checks out and verifies the exact pull-request head before executing candidate-owned tests.",
+            "The artifact name is bound to github.run_id and missing files fail closed.",
+            "The trusted publisher remains checked out from main and is the only component with bounded comment-write authority.",
+            "The routing registry binds candidate_kind=head, mad4b.hostinger-guard-summary.v1, and the exact Hostinger publisher identity.",
+            "Job logs remain diagnostic-only and all structured evidence declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-tenant-canary-main-bootstrap-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the first real exact-head Tenant Canary run on the Spec 014 Integration pull request and verify run-bound artifact publication through the trusted publisher."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise missing runner output, malformed JSON, stale remote head, cancelled runs, artifact absence, and publisher retry behavior while preserving fail-closed decisions."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Record the first authoritative Hostinger Tenant Canary section on the shared canonical pull-request comment for the exact Integration head."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This CI bootstrap grants no Hostinger, provider, migration, deployment, Production, or protected-branch mutation authority."
+    }
+  ]
+}

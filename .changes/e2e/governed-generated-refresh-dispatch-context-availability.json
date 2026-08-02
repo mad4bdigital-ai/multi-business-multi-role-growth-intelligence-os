@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-refresh-dispatch-context-availability",
+  "title": "Valid GitHub Actions context for governed generated refresh dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-generated-refresh-dispatch-context-availability.json",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow GitHub to register and plan the trusted issue-comment dispatcher by removing the unavailable jobs-level runner.temp expression while preserving its exact-head, structured-evidence, and read-only repository boundary.",
+      "e2e_journeys": [
+        {
+          "id": "register-governed-generated-refresh-dispatch-with-valid-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository operator and GitHub Actions workflow planner",
+          "entrypoint": "A trusted /refresh-generated-artifacts <exact-sha> command on an open same-repository pull request",
+          "terminal_outcome": "GitHub plans the trusted default-branch dispatcher, validates the exact PR head and explicit label, emits bounded canonical dispatch evidence, and delegates only the registered exact-head writer without direct repository mutation.",
+          "steps": [
+            "Reject jobs-level use of the runner context before a runner exists.",
+            "Use one stable repository-relative evidence directory shared by report creation, upload, direct publication, and enforcement.",
+            "Resolve the exact same-repository open pull request and bind the typed command SHA to its current head.",
+            "Require the generated-artifact-refresh label and reject protected branches.",
+            "Dispatch the registered writer with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
+            "Publish mad4b.governed-generated-artifact-refresh-dispatch.v1 directly from trusted main before enforcing the result."
+          ],
+          "assertions": [
+            "jobs.dispatch.env contains no runner.temp expression.",
+            "REPORT_DIR is stable and repository-relative.",
+            "The workflow is issue_comment and workflow_dispatch only, with no push or pull-request trigger.",
+            "Permissions remain actions:write, contents:read, issues:write, and pull-requests:read, with no contents:write.",
+            "The dispatcher checks out trusted main with persist-credentials:false and never checks out candidate code.",
+            "Exact head, same-repository identity, explicit label, protected-branch rejection, and typed confirmation remain enforced.",
+            "Job logs remain diagnostic-only and secrets_included remains false.",
+            "No migration, deployment, Production mutation, provider call, credential access, external publication, direct contents write, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "governed-generated-refresh-dispatch-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one trusted exact-head issue-comment command publish a passed dispatch report and start the registered writer on a non-protected work branch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale heads, missing labels, ambiguous pull requests, malformed commands, dispatch rejection, repeated commands, and publisher failure without consulting Job logs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository automation repair does not execute a live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The dispatcher grants no migration, runtime, provider, credential, deployment, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

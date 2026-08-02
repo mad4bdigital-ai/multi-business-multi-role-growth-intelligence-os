@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: Remote MCP OAuth 2.1 API
+  version: 1.1.0
+  description: >-
+    Disabled-by-default OAuth 2.1 authorization, allowlisted dynamic registration,
+    signed consent request, token, and revocation contract for the shared remote
+    MCP resource used by approved ChatGPT, Claude, Codex, MCP Inspector, and
+    generic MCP clients.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: remote-mcp-oauth
+paths:
+  /.well-known/oauth-authorization-server/auth/mcp:
+    get:
+      tags: [remote-mcp-oauth]
+      operationId: getRemoteMcpOAuthAuthorizationServerMetadata
+      summary: Discover the path-scoped Remote MCP OAuth authorization server
+      security: []
+      responses:
+        '200':
+          description: OAuth authorization-server metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationServerMetadata'
+        '404':
+          $ref: '#/components/responses/FeatureDisabled'
+  /auth/mcp/oauth/register:
+    post:
+      tags: [remote-mcp-oauth]
+      operationId: registerRemoteMcpOAuthClient
+      summary: Register a bounded Remote MCP OAuth client while DCR is enabled
+      description: >-
+        Every non-loopback redirect URI requires an exact Origin match in the
+        server-controlled redirect allowlist. Development loopback redirects
+        require a separate feature flag.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRegistrationRequest'
+      responses:
+        '201':
+          description: Registered OAuth client metadata
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/OAuthBadRequest'
+        '404':
+          $ref: '#/components/responses/FeatureDisabled'
+        '503':
+          $ref: '#/components/responses/OAuthUnavailable'
+  /auth/mcp/oauth/authorize:
+    get:
+      tags: [remote-mcp-oauth]
+      operationId: authorizeRemoteMcpOAuthClient
+      summary: Render platform sign-in and explicit consent for an OAuth request
+      description: >-
+        Validates the registered client, exact redirect URI, state, resource,
+        scopes, and PKCE challenge, then embeds a short-lived signed authorization
+        request that binds those values before sign-in and consent.
+      security: []
+      parameters:
+        - { name: client_id, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+        - { name: response_type, in: query, required: true, schema: { type: string, const: code } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string, format: uri, maxLength: 2048 } }
+        - { name: state, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 512 } }
+        - { name: scope, in: query, required: false, schema: { type: string } }
+        - { name: resource, in: query, required: true, schema: { type: string, format: uri } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, const: S256 } }
+      responses:
+        '200':
+          description: Login and consent HTML containing a short-lived signed authorization request
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            text/html:
+              schema: { type: string }
+        '400':
+          description: Invalid client, redirect, resource, scope, state, or PKCE request
+          content:
+            text/plain:
+              schema: { type: string }
+        '404':
+          description: OAuth feature is disabled
+          content:
+            text/plain:
+              schema: { type: string }
+        '503':
+          description: Authorization dependency or signing configuration is unavailable
+          content:
+            text/plain:
+              schema: { type: string }
+  /auth/mcp/oauth/code:
+    post:
+      tags: [remote-mcp-oauth]
+      operationId: issueRemoteMcpOAuthAuthorizationCode
+      summary: Issue a short-lived code after authenticated explicit consent
+      description: >-
+        Accepts only the server-signed authorization request plus explicit consent.
+        Client, redirect, state, scope, resource, and PKCE values cannot be replaced
+        by raw request fields at this boundary.
+      security:
+        - platformUserBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationCodeRequest'
+      responses:
+        '200':
+          description: Single-use authorization code and exact redirect target
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationCodeResponse'
+        '400':
+          $ref: '#/components/responses/OAuthBadRequest'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '403':
+          $ref: '#/components/responses/UserForbidden'
+        '404':
+          $ref: '#/components/responses/FeatureDisabled'
+        '503':
+          $ref: '#/components/responses/OAuthUnavailable'
+  /auth/mcp/oauth/token:
+    post:
+      tags: [remote-mcp-oauth]
+      operationId: exchangeRemoteMcpOAuthToken
+      summary: Exchange a PKCE-bound code or rotate an active refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Resource-bound access token and rotating refresh token
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/OAuthBadRequest'
+        '401':
+          $ref: '#/components/responses/OAuthInvalidClient'
+        '404':
+          $ref: '#/components/responses/FeatureDisabled'
+        '503':
+          $ref: '#/components/responses/OAuthUnavailable'
+  /auth/mcp/oauth/revoke:
+    post:
+      tags: [remote-mcp-oauth]
+      operationId: revokeRemoteMcpOAuthToken
+      summary: Revoke an access-token grant or refresh-token grant
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RevocationRequest'
+      responses:
+        '200':
+          description: Revocation processed without revealing token state
+        '401':
+          $ref: '#/components/responses/OAuthInvalidClient'
+        '404':
+          $ref: '#/components/responses/FeatureDisabled'
+components:
+  securitySchemes:
+    platformUserBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Existing signed-in platform user token used only to approve the bounded signed OAuth request.
+  schemas:
+    AuthorizationServerMetadata:
+      type: object
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+        - revocation_endpoint
+        - response_types_supported
+        - grant_types_supported
+        - token_endpoint_auth_methods_supported
+        - code_challenge_methods_supported
+        - scopes_supported
+        - resource_parameter_supported
+      properties:
+        issuer: { type: string, format: uri }
+        authorization_endpoint: { type: string, format: uri }
+        token_endpoint: { type: string, format: uri }
+        registration_endpoint: { type: string, format: uri }
+        revocation_endpoint: { type: string, format: uri }
+        response_types_supported:
+          type: array
+          items: { type: string, const: code }
+        grant_types_supported:
+          type: array
+          items: { type: string, enum: [authorization_code, refresh_token] }
+        token_endpoint_auth_methods_supported:
+          type: array
+          items: { type: string, enum: [none, client_secret_basic, client_secret_post] }
+        code_challenge_methods_supported:
+          type: array
+          items: { type: string, const: S256 }
+        scopes_supported:
+          type: array
+          items: { type: string, enum: [workspaces.read, brands.read] }
+        resource_parameter_supported: { type: boolean, const: true }
+      additionalProperties: false
+    ClientRegistrationRequest:
+      type: object
+      required: [client_name, redirect_uris]
+      properties:
+        client_name: { type: string, minLength: 1, maxLength: 255 }
+        redirect_uris:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: Exact redirect URIs whose Origins must be server-allowlisted before DCR.
+          items: { type: string, format: uri, maxLength: 2048 }
+        token_endpoint_auth_method:
+          type: string
+          enum: [none, client_secret_basic, client_secret_post]
+          default: none
+        grant_types:
+          type: array
+          items: { type: string, enum: [authorization_code, refresh_token] }
+        response_types:
+          type: array
+          items: { type: string, const: code }
+        scope: { type: string }
+      additionalProperties: true
+    ClientRegistrationResponse:
+      type: object
+      required:
+        - client_id
+        - client_id_issued_at
+        - redirect_uris
+        - token_endpoint_auth_method
+        - grant_types
+        - response_types
+        - scope
+        - client_name
+      properties:
+        client_id: { type: string }
+        client_secret: { type: string }
+        client_secret_expires_at: { type: integer }
+        client_id_issued_at: { type: integer }
+        redirect_uris:
+          type: array
+          items: { type: string, format: uri }
+        token_endpoint_auth_method: { type: string }
+        grant_types:
+          type: array
+          items: { type: string }
+        response_types:
+          type: array
+          items: { type: string }
+        scope: { type: string }
+        client_name: { type: string }
+      additionalProperties: false
+    AuthorizationCodeRequest:
+      type: object
+      required: [authorization_request, consent]
+      properties:
+        authorization_request:
+          type: string
+          minLength: 1
+          maxLength: 8192
+          description: >-
+            Short-lived server-signed request binding client, redirect URI, state,
+            resource, scopes, and PKCE S256 challenge.
+        consent:
+          type: boolean
+          const: true
+          description: Explicit user consent submitted after the signed-in user reviews the requested read scopes.
+      additionalProperties: false
+    AuthorizationCodeResponse:
+      type: object
+      required: [ok, code, expires_in, redirect_to, secrets_included]
+      properties:
+        ok: { type: boolean, const: true }
+        code: { type: string }
+        expires_in: { type: integer, const: 300 }
+        redirect_to: { type: string, format: uri }
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+    TokenRequest:
+      type: object
+      required: [grant_type, client_id]
+      properties:
+        grant_type: { type: string, enum: [authorization_code, refresh_token] }
+        client_id: { type: string, maxLength: 128 }
+        client_secret: { type: string }
+        code: { type: string }
+        redirect_uri: { type: string, format: uri }
+        code_verifier: { type: string, minLength: 43, maxLength: 128 }
+        refresh_token: { type: string }
+        resource: { type: string, format: uri }
+      additionalProperties: false
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, refresh_token, scope]
+      properties:
+        access_token:
+          type: string
+          description: Dedicated-key JWT bound to exact issuer, audience, resource, client, user, tenant, subject, scopes, JTI, and active grant.
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, const: 3600 }
+        refresh_token: { type: string }
+        refresh_token_expires_in: { type: integer, const: 2592000 }
+        scope: { type: string }
+      additionalProperties: false
+    RevocationRequest:
+      type: object
+      required: [client_id, token]
+      properties:
+        client_id: { type: string, maxLength: 128 }
+        client_secret: { type: string }
+        token: { type: string }
+        token_type_hint: { type: string, enum: [access_token, refresh_token] }
+      additionalProperties: false
+    OAuthError:
+      type: object
+      required: [error, error_description]
+      properties:
+        error: { type: string }
+        error_description: { type: string }
+      additionalProperties: false
+    FeatureDisabledEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+          additionalProperties: false
+        secrets_included: { type: boolean, const: false }
+      additionalProperties: false
+  responses:
+    OAuthBadRequest:
+      description: Invalid OAuth request, consent, signed request, client, redirect, scope, resource, code, PKCE verifier, or grant
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/OAuthError' }
+    OAuthInvalidClient:
+      description: OAuth client authentication failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/OAuthError' }
+    OAuthUnavailable:
+      description: OAuth dependency or dedicated signing configuration is temporarily unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/OAuthError' }
+    FeatureDisabled:
+      description: The independently controlled feature flag is disabled
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/FeatureDisabledEnvelope' }
+    UserUnauthorized:
+      description: Platform user bearer is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+    UserForbidden:
+      description: Signed-in user is inactive or not eligible
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true

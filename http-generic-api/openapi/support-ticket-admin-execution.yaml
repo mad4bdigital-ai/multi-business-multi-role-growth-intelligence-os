@@ -1,0 +1,196 @@
+# Source-bound path items for governed Support Ticket diagnostics, workflow, lifecycle, assignment, and event operations.
+adminSupportTicketDiagnosticChain:
+  post:
+    operationId: runAdminSupportTicketDiagnosticChain
+    summary: Run the governed diagnostic chain
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '201': { $ref: './support-ticket-admin-common.yaml#/responses/Created' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketStepRunExecute:
+  post:
+    operationId: executeAdminSupportTicketStepRun
+    summary: Execute one governed diagnostic step
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '201': { $ref: './support-ticket-admin-common.yaml#/responses/Created' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketStepRunUpdate:
+  post:
+    operationId: updateAdminSupportTicketStepRun
+    summary: Update one support-ticket step run
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketRuntimeSync:
+  post:
+    operationId: syncAdminSupportTicketRuntimeStatus
+    summary: Synchronize support-ticket runtime status
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketWorkflowLink:
+  post:
+    operationId: linkAdminSupportTicketWorkflow
+    summary: Link a support ticket to a governed workflow
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '201': { $ref: './support-ticket-admin-common.yaml#/responses/Created' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketTransition:
+  post:
+    operationId: transitionAdminSupportTicket
+    summary: Transition support-ticket lifecycle state
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketAssign:
+  post:
+    operationId: assignAdminSupportTicket
+    summary: Assign a support ticket
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketEvents:
+  post:
+    operationId: appendAdminSupportTicketEvent
+    summary: Append an administrative support-ticket event
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '201': { $ref: './support-ticket-admin-common.yaml#/responses/Created' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
