@@ -10,6 +10,7 @@
       ".changes/e2e/spec014-authorized-route-resolution.json",
       ".github/contracts/spec014/hostinger-storage-authorized-route-resolution.json",
       ".github/workflows/hostinger-storage-authorized-route-resolution-guard.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/routes/hostingerStorageTenantRoutes.js",
       "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
     ]
@@ -58,6 +59,7 @@
           ],
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-authorized-route-resolution.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/hostingerStorageTenantRoutes.js",
             "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
           ]
@@ -103,6 +105,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/hostingerStorageTenantRoutes.js",
             "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
           ]
