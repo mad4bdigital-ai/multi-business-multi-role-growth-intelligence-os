@@ -1,10 +1,10 @@
--- spec014_hostinger_storage_readback.sql
--- DRAFT SAME-CYCLE READBACK v4; contract-local and not runnable by governed-migration-runner.
--- Task: T027 + Durable Authorized Injection State Wave 4 extension
+-- spec014_hostinger_storage_schema_verification_readback_v4.sql
+-- SIGNED-SCHEMA-VERIFICATION READBACK CONTRACT ONLY.
+-- Repository definition; not runnable by governed-migration-runner or owned by T027.
+-- Requires separately governed four-wave Apply evidence and same-cycle live execution.
 -- migration_apply_authorized=false
 -- schema_verified=false
 -- production_ready=false
--- signed_schema_verification_required=true
 -- no_provider_call
 -- no_credential_payload_read
 -- no_raw_secrets
