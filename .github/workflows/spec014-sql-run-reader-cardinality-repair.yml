@@ -45,6 +45,7 @@ jobs:
           source_path = Path('http-generic-api/hostingerStorageSqlRunReader.js')
           test_path = Path('http-generic-api/test-hostinger-storage-sql-run-reader.mjs')
           workflow_path = Path('.github/workflows/spec014-sql-run-reader-cardinality-repair.yml')
+          trigger_path = Path('.github/workflows/.spec014-sql-run-reader-cardinality-repair-trigger')
 
           source = source_path.read_text(encoding='utf-8')
           old = """      if ((rows || []).length > 1) {
@@ -89,6 +90,8 @@ assert.doesNotMatch(readerSource, /rows\\?\\.\\[0\\]|rows\\[0\\]/u);
           test_path.write_text(test, encoding='utf-8')
 
           workflow_path.unlink()
+          if trigger_path.exists():
+              trigger_path.unlink()
           PY
 
       - name: Validate bounded repair
