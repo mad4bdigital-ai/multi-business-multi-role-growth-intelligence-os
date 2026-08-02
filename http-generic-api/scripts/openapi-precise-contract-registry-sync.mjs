@@ -19,6 +19,7 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
     {
       operation_id: "supportTicketExternalDeliveryCompletionCertify",
       auth_profile: "admin_backend",
+      consequential: false,
       path_item_ref: "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion",
     },
   ],
@@ -106,7 +107,7 @@ function isKnownLegacyRegisteredOperation(operation, contract) {
     && operation.summary.length > 0
     && operation.responses
     && typeof operation.responses === "object"
-    && operation["x-openai-isConsequential"] === (contract.method !== "GET")
+    && operation["x-openai-isConsequential"] === transition.consequential
     && canonicalSecurity(operation.security) === canonicalSecurity(security)
     && operation["x-runtime-contract-source"] == null
     && operation["x-source-file"] == null
