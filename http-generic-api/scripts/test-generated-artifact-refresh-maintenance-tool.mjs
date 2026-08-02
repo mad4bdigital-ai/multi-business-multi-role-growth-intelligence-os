@@ -120,6 +120,20 @@ runCheck("governed-workflow-dispatch-only", () => {
   assert.match(workflowSource, /generated-artifact-refresh-verification-dispatch\.json/u);
   assert.match(workflowSource, /remote_sha[\s\S]*result_sha/u);
 });
+runCheck("governed-workflow-context-availability", () => {
+  assert.match(
+    workflowSource,
+    /OUTPUT_DIR:\s*\.ci-evidence\/governed-generated-artifact-refresh/u,
+    "workflow must use one stable repository-relative evidence directory",
+  );
+  assert.doesNotMatch(
+    workflowSource,
+    /\$\{\{\s*runner\.temp\s*\}\}/u,
+    "jobs-level environment must not reference the unavailable runner context",
+  );
+  assert.match(workflowSource, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
+  assert.match(workflowSource, /--output-dir "\$\{OUTPUT_DIR\}"/u);
+});
 
 const prWorkflowSource = fs.readFileSync("../.github/workflows/pr-generated-artifact-refresh.yml", "utf8");
 runCheck("read-only-verification-workflow", () => {
@@ -159,5 +173,6 @@ console.log(JSON.stringify({
   checks,
   exact_head_verification_dispatch: true,
   canonical_auth_repair_registered: true,
+  jobs_level_runner_context_used: false,
   secrets_included: false,
 }));
