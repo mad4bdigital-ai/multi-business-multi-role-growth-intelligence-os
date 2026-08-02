@@ -13,10 +13,13 @@ import {
 
 const contract = JSON.parse(fs.readFileSync(new URL('../.github/contracts/spec014/hostinger-storage-schema-verification.json', import.meta.url), 'utf8'));
 const attestationSchema = JSON.parse(fs.readFileSync(new URL('../.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json', import.meta.url), 'utf8'));
+const readbackContract = fs.readFileSync(new URL('../.github/contracts/spec014/migrations/readback.sql', import.meta.url), 'utf8');
 
 assert.equal(contract.status, 'verification_contract_ready_unsigned');
 assert.equal(contract.signature_algorithm, 'Ed25519');
 assert.equal(contract.private_key_material_forbidden, true);
+assert.equal(contract.expected_readback_contract_key, 'spec014_hostinger_storage_migration_readback_v4');
+assert.equal(contract.readback_contract_path, '.github/contracts/spec014/migrations/readback.sql');
 assert.equal(contract.live_database_access_performed, false);
 assert.equal(contract.signature_created, false);
 assert.equal(contract.schema_verified, false);
@@ -26,7 +29,14 @@ assert.equal(attestationSchema.additionalProperties, false);
 assert.equal(attestationSchema.properties.secrets_included.const, false);
 assert.equal(Object.hasOwn(attestationSchema.properties, 'private_key'), false);
 
-const sourceCommit = '7a96920eff2579321707d193a1d030e6454891b1';
+assert.match(readbackContract, /17 AS expected_table_count/u);
+assert.match(readbackContract, /storage_authorized_injection_states/u);
+assert.match(readbackContract, /storage_authorized_injection_rollbacks/u);
+assert.match(readbackContract, /uq_storage_authorized_injection_rollback_once/u);
+assert.match(readbackContract, /spec014_hostinger_storage_migration_readback_v4/u);
+assert.doesNotMatch(readbackContract, /spec014_hostinger_storage_migration_readback_v3/u);
+
+const sourceCommit = 'be93b1f98ec4e70655198df20d2d978f2565eb57';
 const databaseFingerprint = 'a'.repeat(64);
 const schemaIdentityDigest = 'b'.repeat(64);
 const objectInventoryDigest = 'c'.repeat(64);
@@ -40,18 +50,18 @@ const migrations = HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations.map((row, in
 }));
 
 const readback = {
-  contract_key: 'spec014_hostinger_storage_migration_readback_v3',
+  contract_key: 'spec014_hostinger_storage_migration_readback_v4',
   cycle_id: 'schema-readback-cycle-1',
-  started_at: '2026-08-01T23:35:00.000Z',
-  completed_at: '2026-08-01T23:38:00.000Z',
+  started_at: '2026-08-02T13:35:00.000Z',
+  completed_at: '2026-08-02T13:38:00.000Z',
   database_fingerprint: databaseFingerprint,
   schema_identity_digest: schemaIdentityDigest,
   object_inventory_digest: objectInventoryDigest,
   constraint_inventory_digest: constraintInventoryDigest,
-  compatible_table_count: 15,
+  compatible_table_count: 17,
   present_view_count: 3,
-  compatible_runtime_column_count: 52,
-  compatible_runtime_index_column_count: 22,
+  compatible_runtime_column_count: 68,
+  compatible_runtime_index_column_count: 31,
   observed_tool_count: 3,
   disabled_tool_count: 3,
   enabled_tool_count: 0,
@@ -70,17 +80,19 @@ const subject = buildHostingerStorageSchemaVerificationSubject({
   deployed_runtime_sha: sourceCommit,
   migrations,
   readback,
-  created_at: '2026-08-01T23:39:00.000Z',
+  created_at: '2026-08-02T13:39:00.000Z',
 });
 
 assert.equal(subject.ok, true);
 assert.equal(subject.payload.source_commit, sourceCommit);
 assert.equal(subject.payload.deployed_runtime_sha, sourceCommit);
-assert.equal(subject.payload.migrations.length, 3);
-assert.equal(subject.payload.readback.compatible_table_count, 15);
+assert.equal(subject.payload.migrations.length, 4);
+assert.equal(subject.payload.migrations[3].wave, 4);
+assert.equal(subject.payload.migrations[3].migration, '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql');
+assert.equal(subject.payload.readback.compatible_table_count, 17);
 assert.equal(subject.payload.readback.present_view_count, 3);
-assert.equal(subject.payload.readback.compatible_runtime_column_count, 52);
-assert.equal(subject.payload.readback.compatible_runtime_index_column_count, 22);
+assert.equal(subject.payload.readback.compatible_runtime_column_count, 68);
+assert.equal(subject.payload.readback.compatible_runtime_index_column_count, 31);
 assert.equal(subject.payload.readback.disabled_tool_count, 3);
 assert.equal(subject.payload.readback.protected_payload_reads, 0);
 assert.equal(subject.signing_allowed, false);
@@ -106,8 +118,8 @@ const unsignedAttestation = {
   key_id: 'spec014-schema-verifier-test',
   signer_identity: 'github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/actions/schema-verifier',
   issuer: 'github.com/actions',
-  signed_at: '2026-08-01T23:40:00.000Z',
-  expires_at: '2026-08-01T23:55:00.000Z',
+  signed_at: '2026-08-02T13:40:00.000Z',
+  expires_at: '2026-08-02T13:55:00.000Z',
   secrets_included: false,
 };
 const signaturePayload = hostingerStorageSchemaVerificationSignaturePayload(unsignedAttestation);
@@ -139,7 +151,7 @@ const verified = verifyHostingerStorageSchemaVerification({
   attestation,
   public_key_jwk: publicJwk,
   policy,
-  now: '2026-08-01T23:45:00.000Z',
+  now: '2026-08-02T13:45:00.000Z',
 });
 assert.equal(verified.ok, true);
 assert.equal(verified.ready, true);
@@ -164,7 +176,7 @@ const invalidSignature = verifyHostingerStorageSchemaVerification({
   attestation: { ...attestation, signature_b64url: corruptedSignatureB64Url },
   public_key_jwk: publicJwk,
   policy,
-  now: '2026-08-01T23:45:00.000Z',
+  now: '2026-08-02T13:45:00.000Z',
 });
 assert.equal(invalidSignature.ready, false);
 assert(invalidSignature.blockers.includes('STORAGE_SCHEMA_VERIFICATION_SIGNATURE_INVALID'));
@@ -183,7 +195,7 @@ const wrongSubject = verifyHostingerStorageSchemaVerification({
   attestation: wrongSubjectAttestation,
   public_key_jwk: publicJwk,
   policy,
-  now: '2026-08-01T23:45:00.000Z',
+  now: '2026-08-02T13:45:00.000Z',
 });
 assert.equal(wrongSubject.ready, false);
 assert(wrongSubject.blockers.includes('STORAGE_SCHEMA_VERIFICATION_SIGNATURE_SUBJECT_MISMATCH'));
@@ -193,7 +205,7 @@ const paritySubject = buildHostingerStorageSchemaVerificationSubject({
   deployed_runtime_sha: 'f'.repeat(40),
   migrations,
   readback,
-  created_at: '2026-08-01T23:39:00.000Z',
+  created_at: '2026-08-02T13:39:00.000Z',
 });
 const parityUnsigned = { ...unsignedAttestation, subject_digest: paritySubject.subject_digest };
 const parityAttestation = {
@@ -209,7 +221,7 @@ const parityFailure = verifyHostingerStorageSchemaVerification({
   attestation: parityAttestation,
   public_key_jwk: publicJwk,
   policy: { ...policy, expected_deployed_runtime_sha: null },
-  now: '2026-08-01T23:45:00.000Z',
+  now: '2026-08-02T13:45:00.000Z',
 });
 assert.equal(parityFailure.ready, false);
 assert(parityFailure.blockers.includes('STORAGE_SCHEMA_VERIFICATION_RUNTIME_PARITY_REQUIRED'));
@@ -219,7 +231,7 @@ const databaseFailure = verifyHostingerStorageSchemaVerification({
   attestation,
   public_key_jwk: publicJwk,
   policy: { ...policy, expected_database_fingerprint: '9'.repeat(64) },
-  now: '2026-08-01T23:45:00.000Z',
+  now: '2026-08-02T13:45:00.000Z',
 });
 assert.equal(databaseFailure.ready, false);
 assert(databaseFailure.blockers.includes('STORAGE_SCHEMA_VERIFICATION_DATABASE_FINGERPRINT_MISMATCH'));
@@ -229,7 +241,7 @@ const stale = verifyHostingerStorageSchemaVerification({
   attestation,
   public_key_jwk: publicJwk,
   policy,
-  now: '2026-08-02T00:00:00.000Z',
+  now: '2026-08-02T14:00:00.000Z',
 });
 assert.equal(stale.ready, false);
 assert(stale.blockers.includes('STORAGE_SCHEMA_VERIFICATION_EXPIRED'));
@@ -241,7 +253,7 @@ assert.throws(
     attestation,
     public_key_jwk: privateJwk,
     policy,
-    now: '2026-08-01T23:45:00.000Z',
+    now: '2026-08-02T13:45:00.000Z',
   }),
   (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_PRIVATE_KEY_REJECTED',
 );
@@ -252,7 +264,7 @@ assert.throws(
     deployed_runtime_sha: sourceCommit,
     migrations,
     readback: { ...readback, enabled_tool_count: 1, disabled_tool_count: 2 },
-    created_at: '2026-08-01T23:39:00.000Z',
+    created_at: '2026-08-02T13:39:00.000Z',
   }),
   (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_READBACK_NOT_READY'
     && error.details?.mismatches?.includes('enabled_tool_count'),
@@ -262,9 +274,45 @@ assert.throws(
   () => buildHostingerStorageSchemaVerificationSubject({
     source_commit: sourceCommit,
     deployed_runtime_sha: sourceCommit,
+    migrations,
+    readback: { ...readback, contract_key: 'spec014_hostinger_storage_migration_readback_v3' },
+    created_at: '2026-08-02T13:39:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_READBACK_CONTRACT_MISMATCH'
+    && error.details?.expected === 'spec014_hostinger_storage_migration_readback_v4',
+);
+
+assert.throws(
+  () => buildHostingerStorageSchemaVerificationSubject({
+    source_commit: sourceCommit,
+    deployed_runtime_sha: sourceCommit,
+    migrations: migrations.slice(0, 3),
+    readback,
+    created_at: '2026-08-02T13:39:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_SEQUENCE_INVALID',
+);
+
+assert.throws(
+  () => buildHostingerStorageSchemaVerificationSubject({
+    source_commit: sourceCommit,
+    deployed_runtime_sha: sourceCommit,
+    migrations: migrations.map((row, index) => index === 3 ? { ...row, ledger_mode: 'dry_run' } : row),
+    readback,
+    created_at: '2026-08-02T13:39:00.000Z',
+  }),
+  (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_EVIDENCE_MISMATCH'
+    && error.details?.wave === 4
+    && error.details?.mismatches?.includes('ledger_mode'),
+);
+
+assert.throws(
+  () => buildHostingerStorageSchemaVerificationSubject({
+    source_commit: sourceCommit,
+    deployed_runtime_sha: sourceCommit,
     migrations: migrations.map((row, index) => index === 1 ? { ...row, ledger_mode: 'dry_run' } : row),
     readback,
-    created_at: '2026-08-01T23:39:00.000Z',
+    created_at: '2026-08-02T13:39:00.000Z',
   }),
   (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_EVIDENCE_MISMATCH'
     && error.details?.wave === 2,
@@ -276,7 +324,7 @@ assert.throws(
     deployed_runtime_sha: sourceCommit,
     migrations,
     readback: { ...readback, password: 'forbidden' },
-    created_at: '2026-08-01T23:39:00.000Z',
+    created_at: '2026-08-02T13:39:00.000Z',
   }),
   (error) => error.code === 'STORAGE_SCHEMA_VERIFICATION_SECRET_FIELD_REJECTED'
     && error.details?.path === 'schema_verification_subject.readback.password',
@@ -290,7 +338,7 @@ assert.throws(
     attestation,
     public_key_jwk: publicJwk,
     policy,
-    now: '2026-08-01T23:45:00.000Z',
+    now: '2026-08-02T13:45:00.000Z',
   }),
   (error) => ['STORAGE_SCHEMA_VERIFICATION_READBACK_DIGEST_MISMATCH', 'STORAGE_SCHEMA_VERIFICATION_SUBJECT_TAMPERED'].includes(error.code),
 );
@@ -300,10 +348,10 @@ assert.deepEqual(
   HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations,
 );
 assert.deepEqual(contract.expected_counts, {
-  compatible_tables: 15,
+  compatible_tables: 17,
   present_views: 3,
-  compatible_runtime_columns: 52,
-  compatible_runtime_index_columns: 22,
+  compatible_runtime_columns: 68,
+  compatible_runtime_index_columns: 31,
   observed_tools: 3,
   disabled_tools: 3,
   enabled_tools: 0,
@@ -318,6 +366,11 @@ assert.deepEqual(contract.required_zero_activity, {
 console.log(JSON.stringify({
   ok: true,
   contract: contract.contract,
+  readback_contract_key: readback.contract_key,
+  migration_wave_count: migrations.length,
+  compatible_table_count: readback.compatible_table_count,
+  compatible_runtime_column_count: readback.compatible_runtime_column_count,
+  compatible_runtime_index_column_count: readback.compatible_runtime_index_column_count,
   subject_digest: subject.subject_digest,
   evidence_digest: verified.evidence_digest,
   synthetic_signature_verified: true,
