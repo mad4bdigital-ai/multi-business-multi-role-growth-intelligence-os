@@ -70,8 +70,8 @@ function hash(value, field) {
 }
 
 function commit(value, field) {
-  const normalized = text(value, 64).toLowerCase();
-  if (!COMMIT_RE.test(normalized)) {
+  const normalized = text(value, 64);
+  if (normalized !== normalized.toLowerCase() || !COMMIT_RE.test(normalized)) {
     throw fail(400, 'STORAGE_DURABLE_INJECTION_COMMIT_INVALID', 'A lowercase Git object identity with 40 or 64 hexadecimal characters is required.', { field });
   }
   return normalized;
