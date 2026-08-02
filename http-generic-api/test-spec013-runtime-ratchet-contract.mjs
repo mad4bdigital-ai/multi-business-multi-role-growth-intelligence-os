@@ -44,7 +44,7 @@ assert.match(facade, /if \(selected\.length !== 1\)/u);
 assert.match(facade, /if \(candidates\.length === 1\)/u);
 
 const errorBlock = routes.match(
-  /function sendError\(res, err, fallbackCode\)[\s\S]*?export function createSystemLayerRouter/u,
+  /function sendError\(res, err, fallbackCode\)[\s\S]*?export function buildSystemLayerRoutes/u,
 )?.[0] || "";
 assert(errorBlock, "system-layer structured error block must exist");
 assert.match(errorBlock, /err\?\.details !== undefined/u, "selection error details must reach Admin and Tenant callers");
