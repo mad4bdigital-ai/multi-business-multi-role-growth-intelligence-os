@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "registered-runtime-inline-ref-migration",
+  "title": "Migrate fully registered runtime-derived OpenAPI paths to reviewed references",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs",
+      "http-generic-api/openapi.yaml",
+      ".changes/e2e/registered-runtime-inline-ref-migration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace an existing inline Support Ticket runtime-derived path item with its reviewed registry reference only when the complete path and every method are source-bound, fully registered, and structurally safe to remove.",
+      "e2e_journeys": [
+        {
+          "id": "registered-runtime-inline-path-to-reviewed-ref",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed OpenAPI precise-contract composer",
+          "entrypoint": "Run the precise registry writer against a root OpenAPI document that still contains a fully registered runtime-derived inline Support Ticket path.",
+          "terminal_outcome": "The complete inline path becomes the exact reviewed local path-item reference, check mode is idempotent, and any partial or path-level-augmented contract remains blocked without mutation.",
+          "steps": [
+            "Create a root OpenAPI fixture with one precise runtime-derived Support Ticket operation.",
+            "Register the exact method and path to one reviewed local path-item reference.",
+            "Verify source, authorization profile, security alternatives, operation identity, response presence, and consequential classification.",
+            "Remove the complete inline path block and compose the reviewed reference without reformatting unrelated paths.",
+            "Run check mode and then submit a path-level-augmented variant to prove fail-closed behavior."
+          ],
+          "assertions": [
+            "Only paths whose complete method set equals the registry method set are replaceable.",
+            "Every replaceable registry entry is sourced from routes/supportTicketRoutes.js and maps to the same path-item reference.",
+            "Every current operation has canonical runtime provenance, recognized authorization metadata, matching security, a generated operation identity, responses, and the generator consequential classification.",
+            "Path-level keys, missing methods, extra methods, wrong sources, wrong security, and partial registration remain conflicts.",
+            "The governed writer reports the number and identities of runtime-derived registry paths replaced on the exact eligible PR head.",
+            "A second check reports no drift and the unsafe case leaves the source document unchanged."
+          ],
+          "tests": [
+            {
+              "id": "registered-runtime-inline-ref-migration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-contract-inline-ref-migration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs",
+            "http-generic-api/openapi.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Remove the compatibility migration once every supported root OpenAPI branch uses reviewed registry references."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Detect registry and root-path drift without widening replacement authority beyond complete source-bound Support Ticket paths."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-only OpenAPI composition repair has no external canary target."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production deployment and runtime verification remain outside this repository-only contract migration."
+    }
+  ],
+  "secrets_included": false
+}
