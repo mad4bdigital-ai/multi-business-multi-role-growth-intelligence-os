@@ -69,7 +69,8 @@ assert.match(routeSource, /runtime\.synthetic_only === true/u);
 assert.match(routeSource, /runtime\.provider_dispatch_allowed === false/u);
 assert.match(routeSource, /runtime\.production_ready === false/u);
 assert.match(routeSource, /secrets_included: false/u);
-assert.match(routeIndexSource, /app\.use\(createHostingerStorageTenantRoutes\(\)\)/u);
+assert.match(routeIndexSource, /import \{ buildHostingerStorageTenantRoutes \} from "\.\/hostingerStorageTenantRoutes\.js";/u);
+assert.match(routeIndexSource, /app\.use\(buildHostingerStorageTenantRoutes\(deps\)\);/u);
 
 assert.match(specOnlyOpenApiSource, /^  \/admin\/hosting\/storage:/mu);
 assert.match(specOnlyOpenApiSource, /^  \/me\/hosting\/storage:/mu);
