@@ -1,0 +1,97 @@
+name: Spec 014 Frontend Baseline Ref Refresh Launcher
+
+on:
+  push:
+    branches:
+      - gpt/reconcile-spec014-main-79cbbc63-20260802
+    paths:
+      - .github/workflows/spec014-frontend-baseline-ref-refresh-launcher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/reconcile-spec014-main-79cbbc63-20260802
+          fetch-depth: 0
+
+      - name: Verify immutable launcher input
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_input='13829ae9cae9cfb4d2eb31dbe9fe63b6eee07ebb'
+          test "$(git rev-parse HEAD^)" = "$expected_input"
+          mapfile -t launcher_delta < <(git diff --name-only HEAD^ HEAD)
+          test "${#launcher_delta[@]}" = '1'
+          test "${launcher_delta[0]}" = '.github/workflows/spec014-frontend-baseline-ref-refresh-launcher.yml'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify pinned pre-refresh identity
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = 'frontend-surface-dispatch.generated.json';
+          const document = JSON.parse(fs.readFileSync(path, 'utf8'));
+          if (document?.baseline?.ref !== '79cbbc634e690bf30ab2827144cb49c88b14f9a5') {
+            throw new Error(`unexpected_pre_refresh_baseline_ref:${document?.baseline?.ref}`);
+          }
+          if (!/^[0-9a-f]{64}$/u.test(document?.baseline?.source_digest || '')) {
+            throw new Error('invalid_pre_refresh_source_digest');
+          }
+          fs.writeFileSync(process.env.RUNNER_TEMP + '/spec014-frontend-source-digest.txt', `${document.baseline.source_digest}\n`);
+          NODE
+
+      - name: Regenerate bounded Frontend evidence
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+
+      - name: Verify exact generated delta and contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const document = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          const originalDigest = fs.readFileSync(process.env.RUNNER_TEMP + '/spec014-frontend-source-digest.txt', 'utf8').trim();
+          if (document?.baseline?.ref !== 'main') throw new Error('ref_refresh_failed');
+          if (document?.baseline?.source_digest !== originalDigest) throw new Error('source_digest_changed');
+          NODE
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Remove launcher and publish bounded refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_input='13829ae9cae9cfb4d2eb31dbe9fe63b6eee07ebb'
+          rm .github/workflows/spec014-frontend-baseline-ref-refresh-launcher.yml
+          mapfile -t final_delta < <(git diff --name-only "$expected_input")
+          test "${#final_delta[@]}" = '1'
+          test "${final_delta[0]}" = 'http-generic-api/frontend-surface-dispatch.generated.json'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(spec-014): refresh frontend baseline ref on reconciled tree'
+          git push origin 'HEAD:gpt/reconcile-spec014-main-79cbbc63-20260802'
