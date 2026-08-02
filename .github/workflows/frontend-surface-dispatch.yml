@@ -55,8 +55,7 @@ jobs:
     env:
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      REPORT_DIR: ${{ runner.temp }}/one-shot-governed-generated-artifact-refresh
-      ORIGINAL_WORKFLOW: ${{ runner.temp }}/frontend-surface-dispatch.original.yml
+      RESTORE_WORKFLOW_SHA: 0634ffc4b2846abe5fdddeb2af31f5788ae64b20
     steps:
       - name: Checkout exact pull-request head
         uses: actions/checkout@v4
@@ -91,19 +90,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git show "${EXPECTED_HEAD_SHA}^:.github/workflows/frontend-surface-dispatch.yml" > "${ORIGINAL_WORKFLOW}"
-          test -s "${ORIGINAL_WORKFLOW}"
+          git show "${RESTORE_WORKFLOW_SHA}:.github/workflows/frontend-surface-dispatch.yml" > "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
+          test -s "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
 
       - name: Apply registered exact-head generated refresh
         if: steps.gate.outputs.eligible == 'true'
-        env:
-          OUTPUT_DIR: ${{ env.REPORT_DIR }}
         run: >-
           node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
           --target-ref "${TARGET_REF}"
           --expected-head-sha "${EXPECTED_HEAD_SHA}"
           --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH"
-          --output-dir "${OUTPUT_DIR}"
+          --output-dir "$RUNNER_TEMP/one-shot-governed-generated-artifact-refresh"
 
       - name: Publish canonical governed apply evidence
         if: steps.gate.outputs.eligible == 'true'
@@ -115,7 +112,7 @@ jobs:
           --repository "${GITHUB_REPOSITORY}"
           --head-branch "${TARGET_REF}"
           --workflow-conclusion success
-          --report "${REPORT_DIR}/generated-artifact-refresh-report.json"
+          --report "$RUNNER_TEMP/one-shot-governed-generated-artifact-refresh/generated-artifact-refresh-report.json"
           --workflow-run-id "${GITHUB_RUN_ID}"
           --source-head-sha "${EXPECTED_HEAD_SHA}"
 
@@ -124,14 +121,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s "${ORIGINAL_WORKFLOW}"
+          test -s "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
           remote_before="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           local_before="$(git rev-parse HEAD)"
           if [[ "${remote_before}" != "${local_before}" ]]; then
             echo "::error::branch moved before bootstrap cleanup"
             exit 1
           fi
-          cp "${ORIGINAL_WORKFLOW}" .github/workflows/frontend-surface-dispatch.yml
+          cp "$RUNNER_TEMP/frontend-surface-dispatch.original.yml" .github/workflows/frontend-surface-dispatch.yml
           git add .github/workflows/frontend-surface-dispatch.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -148,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: one-shot-governed-generated-artifact-refresh-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/
+          path: ${{ runner.temp }}/one-shot-governed-generated-artifact-refresh/
           if-no-files-found: error
           retention-days: 30
 
