@@ -1,0 +1,70 @@
+name: Sprint 69 Migration 1043 Apply
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    name: Apply and certify Migration 1043 exactly once
+    if: >-
+      github.event.issue.number == 4449 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: sprint69-migration-1043-apply
+      cancel-in-progress: false
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4449'
+      EVIDENCE_DIR: .artifacts/sprint69-1043-apply
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Execute exact-once Migration 1043 Apply and certification
+        run: node .github/ops/sprint69-1043-apply.mjs
+
+      - name: Upload no-secret Apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint69-1043-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish Apply summary
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE' >>"${GITHUB_STEP_SUMMARY}"
+          const fs = require('node:fs');
+          const dir = process.env.EVIDENCE_DIR;
+          const summaryPath = `${dir}/summary.json`;
+          const failurePath = `${dir}/failure.json`;
+          if (fs.existsSync(summaryPath)) {
+            const s = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            process.stdout.write(`## Migration 1043 Apply: pass\n\n- Result: ${s.result}\n- Main SHA: \`${s.main_sha}\`\n- Production SHA: \`${s.production_sha}\`\n- Migration blob: \`${s.migration_blob_sha}\`\n- Checksum: \`${s.migration_checksum_sha256}\`\n- Statements: ${s.statement_count}\n- Readiness authorization: ${s.readiness_authorization || 'already_applied'}\n- Same-cycle dry-run: ${s.same_cycle_dry_run || 'not_required'}\n- Apply sent by this run: ${s.apply_sent_by_this_run}\n- Apply retried: ${s.apply_retried}\n- Exact ledger: ${s.exact_apply_ledger_verified}\n- Readiness view: ${s.readiness_view?.readiness_status || 'unverified'}\n- Activation registry sync: ${s.activation_registry_sync_executed}\n- Secrets included: ${s.secrets_included}\n`);
+          } else {
+            const f = fs.existsSync(failurePath) ? JSON.parse(fs.readFileSync(failurePath, 'utf8')) : {};
+            process.stdout.write(`## Migration 1043 Apply: fail\n\n- Stage: ${f.stage || 'unknown'}\n- Main SHA: \`${f.main_sha || 'unverified'}\`\n- Production SHA: \`${f.production_sha || 'unverified'}\`\n- Error code: ${f.error?.code || 'workflow_failed'}\n- Apply sent: ${f.apply_sent ?? false}\n- Apply retried: ${f.apply_retried ?? false}\n- Exact ledger verified: ${f.exact_apply_ledger_verified ?? false}\n- Activation registry sync: ${f.activation_registry_sync_executed ?? false}\n- Secrets included: ${f.secrets_included ?? false}\n`);
+          }
+          NODE
