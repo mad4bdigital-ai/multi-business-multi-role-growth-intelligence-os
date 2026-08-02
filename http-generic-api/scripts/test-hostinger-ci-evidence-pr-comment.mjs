@@ -6,6 +6,7 @@ import { normalizeHostingerEvidence } from "./hostinger-ci-evidence-pr-comment.m
 
 const HEAD = "a".repeat(40);
 const WORKFLOW = "Hostinger Storage Tenant Canary Guard";
+const PUBLISHER_WORKFLOW = "Hostinger Canonical Evidence PR Publisher";
 
 function passingReport(overrides = {}) {
   return {
@@ -153,7 +154,7 @@ const publisherWorkflow = fs.readFileSync(
   new URL("../../.github/workflows/hostinger-ci-evidence-pr-publisher-canonical.yml", import.meta.url),
   "utf8"
 );
-assert.match(publisherWorkflow, /^name: Hostinger CI Evidence PR Publisher$/mu);
+assert.match(publisherWorkflow, /^name: Hostinger Canonical Evidence PR Publisher$/mu);
 assert.match(publisherWorkflow, /^\s+- Hostinger Storage Tenant Canary Guard\s*$/mu);
 assert.match(publisherWorkflow, /^\s*actions:\s*read\s*$/mu);
 assert.match(publisherWorkflow, /^\s*issues:\s*write\s*$/mu);
@@ -172,12 +173,15 @@ assert.ok(route, "Hostinger Tenant Canary evidence route must exist.");
 assert.equal(route.candidate_kind, "head");
 assert.equal(route.canonical_contract, "mad4b.hostinger-guard-summary.v1");
 assert.equal(route.canonical_artifact, "hostinger-storage-tenant-canary-${run_id}-summary");
-assert.equal(route.publisher_workflow, "Hostinger CI Evidence PR Publisher");
+assert.equal(route.publisher_workflow, PUBLISHER_WORKFLOW);
+const specializedPublisher = routing.specialized_publishers.find((item) => item.workflow === PUBLISHER_WORKFLOW);
+assert.ok(specializedPublisher, "Unique Hostinger publisher workflow identity must be registered.");
+assert.deepEqual(specializedPublisher.routes, [WORKFLOW]);
 assert.equal(routing.secrets_included, false);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 31,
+  tests: 33,
   gate: "hostinger_tenant_canary_canonical_evidence_publisher",
   secrets_included: false
 }));

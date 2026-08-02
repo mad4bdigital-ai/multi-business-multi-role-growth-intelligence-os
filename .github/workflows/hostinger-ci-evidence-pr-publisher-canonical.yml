@@ -1,4 +1,4 @@
-name: Hostinger CI Evidence PR Publisher
+name: Hostinger Canonical Evidence PR Publisher
 
 on:
   workflow_run:
@@ -13,7 +13,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: hostinger-ci-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
+  group: hostinger-canonical-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
