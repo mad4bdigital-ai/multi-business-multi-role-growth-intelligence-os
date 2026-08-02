@@ -6,9 +6,19 @@ on:
       - gpt/014-hostinger/durable-injection-record-digest-hardening-20260802
     paths:
       - '.github/workflows/spec014-patch-durable-injection-record-digest.yml'
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '.github/workflows/spec014-patch-durable-injection-record-digest.yml'
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: spec014-patch-durable-injection-record-digest
@@ -16,11 +26,15 @@ concurrency:
 
 jobs:
   patch:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'gpt/014-hostinger/durable-injection-record-digest-hardening-20260802')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/014-hostinger/durable-injection-record-digest-hardening-20260802
-      EXPECTED_PARENT_SHA: b3d4c2a007d5eb13961a52657766863a4fb9f98a
+      EXPECTED_PARENT_SHA: 0444a3debc3894c1e46fb136500a720b95d12fe7
       IMPLEMENTATION_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
       TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
       LAUNCHER_FILE: .github/workflows/spec014-patch-durable-injection-record-digest.yml
