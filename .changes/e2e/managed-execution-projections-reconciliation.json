@@ -92,8 +92,8 @@
     },
     {
       "id": "resilient",
-      "status": "implemented",
-      "objective": "Keep structural contradictions fail-closed while allowing only fingerprinted, deterministic run/binding/task status repair with transactional readback."
+      "status": "planned",
+      "objective": "Validate structural contradiction blocking and fingerprinted transactional reconciliation against persistent non-production runtime data after Migration 1043 is available."
     },
     {
       "id": "canary",
