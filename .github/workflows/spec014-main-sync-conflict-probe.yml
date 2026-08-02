@@ -20,7 +20,7 @@ jobs:
       INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
       INTEGRATION_SHA: b2a5b50e39cd7290d031346f61e3e9d1bcf0e517
       MAIN_SHA: 2d43012b30b744354444b8dd9456bf7e91e192f1
-      REPORT_DIR: ${{ runner.temp }}/spec014-main-sync-conflict-probe
+      REPORT_DIR: /tmp/spec014-main-sync-conflict-probe
     steps:
       - name: Checkout probe definition
         uses: actions/checkout@v5
