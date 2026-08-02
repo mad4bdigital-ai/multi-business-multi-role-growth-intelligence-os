@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 
 const workflowPath = '.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml';
-const publisherPath = '.github/workflows/hostinger-ci-evidence-pr-publisher.yml';
+const publisherPath = '.github/workflows/ci-evidence-pr-publisher.yml';
+const retiredPublisherPath = '.github/workflows/hostinger-ci-evidence-pr-publisher.yml';
 const routingPath = '.github/ci-evidence-routing.json';
 
 const workflow = fs.readFileSync(workflowPath, 'utf8');
@@ -76,7 +77,10 @@ requireIncludes(workflow, 'report.identity.candidate_sha !== process.env.CI_SOUR
 requireIncludes(workflow, 'report.job_logs_consulted !== false', 'Tenant Canary no-log authority');
 requireIncludes(workflow, 'report.secrets_included !== false', 'Tenant Canary secret-free boundary');
 
-requireIncludes(publisher, 'name: Hostinger CI Evidence PR Publisher', 'Trusted publisher');
+if (fs.existsSync(retiredPublisherPath)) {
+  throw new Error('Trusted publisher: retired specialized Hostinger publisher must remain absent.');
+}
+requireIncludes(publisher, 'name: CI Evidence PR Publisher', 'Trusted publisher');
 requireIncludes(publisher, 'workflow_run:', 'Trusted publisher trigger');
 requireIncludes(publisher, '      - Hostinger Storage Tenant Canary Guard', 'Trusted publisher source workflow');
 requireIncludes(publisher, 'ref: main', 'Trusted publisher checkout');
@@ -86,19 +90,28 @@ for (const permission of ['actions: read', 'contents: read', 'issues: write', 'p
 }
 requireIncludes(publisher, 'hostinger-storage-tenant-canary-${{ github.event.workflow_run.id }}-summary', 'Trusted publisher artifact binding');
 requireIncludes(publisher, 'SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}', 'Trusted publisher source-head binding');
+requireIncludes(publisher, "github.event.workflow_run.name == 'Hostinger Storage Tenant Canary Guard'", 'Trusted publisher Hostinger routing');
+requireIncludes(publisher, 'node http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs', 'Trusted publisher Hostinger handler');
 
-const specializedPublisher = (routing.specialized_publishers || []).find(
-  (entry) => entry.workflow === 'Hostinger CI Evidence PR Publisher',
-);
-if (!specializedPublisher) throw new Error('Routing: specialized Hostinger publisher registration is missing.');
-if (specializedPublisher.trigger !== 'workflow_run') throw new Error('Routing: specialized publisher trigger must be workflow_run.');
-if (specializedPublisher.trusted_ref !== 'main') throw new Error('Routing: specialized publisher trusted_ref must be main.');
-if (specializedPublisher.exact_head_required !== true) throw new Error('Routing: exact-head enforcement is required.');
-if (specializedPublisher.pr_head_workflows_may_write_comments !== false) {
+const publisherRegistration = routing.pr_evidence_publisher;
+if (!publisherRegistration) throw new Error('Routing: canonical CI evidence publisher registration is missing.');
+if (publisherRegistration.workflow !== 'CI Evidence PR Publisher') {
+  throw new Error('Routing: canonical publisher workflow mismatch.');
+}
+if (publisherRegistration.trigger !== 'workflow_run') {
+  throw new Error('Routing: canonical publisher trigger must be workflow_run.');
+}
+if (publisherRegistration.trusted_ref !== 'main') {
+  throw new Error('Routing: canonical publisher trusted_ref must be main.');
+}
+if (publisherRegistration.hostinger_tenant_canary_workflow !== 'Hostinger Storage Tenant Canary Guard') {
+  throw new Error('Routing: Hostinger Tenant Canary publisher registration is missing.');
+}
+if (publisherRegistration.pr_head_workflows_may_write_comments !== false) {
   throw new Error('Routing: PR-head workflows must not write comments.');
 }
-if (!(specializedPublisher.routes || []).includes('Hostinger Storage Tenant Canary Guard')) {
-  throw new Error('Routing: Tenant Canary workflow route is missing.');
+if (!Array.isArray(routing.specialized_publishers) || routing.specialized_publishers.length !== 0) {
+  throw new Error('Routing: specialized publisher registry must remain empty.');
 }
 
 const route = (routing.routes || []).find((entry) => entry.workflow === 'Hostinger Storage Tenant Canary Guard');
@@ -107,7 +120,7 @@ if (route.candidate_kind !== 'head') throw new Error('Routing: candidate_kind mu
 if (route.canonical_contract !== 'mad4b.hostinger-guard-summary.v1') {
   throw new Error('Routing: canonical contract mismatch.');
 }
-if (route.publisher_workflow !== 'Hostinger CI Evidence PR Publisher') {
+if (route.publisher_workflow !== 'CI Evidence PR Publisher') {
   throw new Error('Routing: publisher workflow mismatch.');
 }
 if (route.canonical_artifact !== 'hostinger-storage-tenant-canary-${run_id}-summary') {
@@ -118,8 +131,9 @@ console.log(JSON.stringify({
   ok: true,
   contract: 'mad4b.hostinger-tenant-canary-main-bootstrap.v1',
   workflow: 'Hostinger Storage Tenant Canary Guard',
-  publisher: 'Hostinger CI Evidence PR Publisher',
+  publisher: 'CI Evidence PR Publisher',
   candidate_kind: 'head',
+  specialized_publisher_retired: true,
   report_directory_context_valid: true,
   bootstrap_self_trigger_blocked: true,
   repository_mutation_performed: false,

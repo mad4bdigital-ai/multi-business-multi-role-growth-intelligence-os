@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-tenant-canary-generic-publisher-bootstrap-contract",
+  "title": "Tenant Canary generic publisher bootstrap contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-tenant-canary-generic-publisher-bootstrap-contract.json",
+      ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align the Tenant Canary bootstrap regression with the canonical shared CI Evidence PR Publisher after retirement of the specialized Hostinger publisher workflow.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-canary-shared-publisher-bootstrap",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository contract maintainer",
+          "entrypoint": "Tenant Canary bootstrap regression",
+          "terminal_outcome": "The regression validates the current generic publisher, routing registry, exact artifact binding, bounded permissions, and retirement of the obsolete specialized workflow.",
+          "steps": [
+            "Load the Tenant Canary workflow and shared CI evidence publisher from the repository tree.",
+            "Verify exact-head checkout, read-only PR-head permissions, canonical artifact identity, and secret-free report enforcement.",
+            "Verify the shared publisher subscribes to Hostinger Storage Tenant Canary Guard and invokes the Hostinger evidence handler.",
+            "Verify routing points the Hostinger route to CI Evidence PR Publisher and specialized_publishers remains empty.",
+            "Reject restoration of the retired hostinger-ci-evidence-pr-publisher workflow."
+          ],
+          "assertions": [
+            "The canonical publisher identity is CI Evidence PR Publisher.",
+            "The publisher is triggered by completed workflow_run events and checks out trusted main without persisted credentials.",
+            "Permissions remain actions:read, contents:read, issues:write, and pull-requests:write.",
+            "Hostinger Tenant Canary artifacts remain bound to the exact workflow_run id and source head SHA.",
+            "The specialized publisher workflow remains absent and the specialized publisher registry remains empty.",
+            "No migration, SQL, deployment, Production mutation, provider dispatch, credential access, protected-branch bypass, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-generic-publisher-bootstrap-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This change repairs a repository regression contract and does not operate a live Hostinger runtime."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Failure and stale-evidence handling remain covered by the existing canonical publisher regressions."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live canary execution is performed by this test-only correction."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No deployment, migration, provider, or Production authority is introduced."
+    }
+  ]
+}
