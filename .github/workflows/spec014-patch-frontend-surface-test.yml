@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_BRANCH: gpt/014-fix-post-reconciliation-repository-governance-20260802
-      EXPECTED_PARENT_SHA: bbf69a1d3fd78d7a9d1e3ca224d5ddb659142474
+      EXPECTED_PARENT_SHA: 23709bf496079c12d162a49427c7d4ee776f368b
       TARGET_FILE: http-generic-api/test-frontend-surface-dispatch.mjs
       LAUNCHER_FILE: .github/workflows/spec014-patch-frontend-surface-test.yml
       EVIDENCE_DIR: .ci-evidence/spec014-patch-frontend-surface-test
@@ -52,6 +52,9 @@ jobs:
             STATUS="${status}" STAGE="${current_stage}" COMMAND="${BASH_COMMAND:-unknown}" python3 - <<'PY'
           import json, os
           from pathlib import Path
+          evidence_dir = Path(os.environ['EVIDENCE_DIR'])
+          diagnostic_path = evidence_dir / 'failure-output.txt'
+          diagnostic = diagnostic_path.read_text(errors='replace')[-6000:] if diagnostic_path.exists() else ''
           report = {
             'contract': 'mad4b.spec014-frontend-surface-contract-patch.v1',
             'outcome': 'blocked',
@@ -62,14 +65,14 @@ jobs:
               'stage': os.environ['STAGE'],
               'exit_status': int(os.environ['STATUS']),
               'command': os.environ['COMMAND'],
+              'diagnostic_tail': diagnostic,
             },
             'repository_push_performed': False,
             'force_push': False,
             'job_logs_consulted': False,
             'secrets_included': False,
           }
-          path = Path(os.environ['EVIDENCE_DIR']) / 'summary.json'
-          path.write_text(json.dumps(report, indent=2) + '\n')
+          (evidence_dir / 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
           PY
             exit "${status}"
           }
@@ -168,13 +171,19 @@ jobs:
           path.write_text(source.replace(old, new))
           PY
 
-          current_stage='validate_contracts'
-          node .github/tests/spec014/frontend-surface-dispatch-read-only.mjs
-          (
-            cd http-generic-api
-            node test-frontend-dispatch-workflow-baseline.mjs
-            node test-frontend-surface-dispatch.mjs
-          )
+          run_contract() {
+            local contract_id="$1"
+            shift
+            current_stage="validate_${contract_id}"
+            if ! "$@" > "${EVIDENCE_DIR}/failure-output.txt" 2>&1; then
+              false
+            fi
+            rm -f "${EVIDENCE_DIR}/failure-output.txt"
+          }
+
+          run_contract read_only node .github/tests/spec014/frontend-surface-dispatch-read-only.mjs
+          run_contract workflow_baseline bash -lc 'cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs'
+          run_contract surface_dispatch bash -lc 'cd http-generic-api && node test-frontend-surface-dispatch.mjs'
 
           current_stage='commit_patch'
           git rm "${LAUNCHER_FILE}"
