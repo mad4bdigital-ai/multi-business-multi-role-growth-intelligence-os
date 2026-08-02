@@ -29,7 +29,8 @@
     "lease_generation": true,
     "bridge_readiness_digest": true,
     "fixed_dispatch_certification_digest": true,
-    "worker_certification_digest": true
+    "worker_certification_digest": true,
+    "authorization_bundle_hash": true
   },
   "governance_bindings": {
     "approval_set_hash": true,
@@ -54,6 +55,7 @@
     "consumed": false,
     "default_off": true,
     "maximum_lifetime_minutes": 60,
+    "must_not_outlive_prerequisite_evidence": true,
     "successful_terminal": "ready_for_authorized_mount_execution"
   },
   "operational_boundary": {
