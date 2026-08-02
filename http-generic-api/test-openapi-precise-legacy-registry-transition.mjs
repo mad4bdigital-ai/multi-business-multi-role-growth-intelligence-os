@@ -20,7 +20,7 @@ function legacyOperation(overrides = {}) {
     operationId: OPERATION_ID,
     summary: "Certify external delivery completion",
     security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }],
-    "x-openai-isConsequential": true,
+    "x-openai-isConsequential": false,
     responses: {
       "200": { description: "Completion certification recorded." },
       "409": { description: "Completion certification conflicts with current state." },
@@ -117,6 +117,7 @@ for (const malformed of [
   legacyOperation({ operationId: `${OPERATION_ID}Unexpected` }),
   legacyOperation({ security: [{ backendApiKeyAuth: [] }] }),
   legacyOperation({ "x-runtime-contract-source": "routes/other.js" }),
+  legacyOperation({ "x-openai-isConsequential": true }),
 ]) {
   const blockedRoot = await createFixture({ operation: malformed });
   try {
@@ -161,6 +162,7 @@ try {
   const before = YAML.parse(await readFile(path.join(actualRoot, "openapi.yaml"), "utf8"));
   const legacy = before.paths?.[ROUTE_PATH]?.post;
   assert.equal(legacy?.operationId, OPERATION_ID, "The regression must exercise the actual historical root operation.");
+  assert.equal(legacy?.["x-openai-isConsequential"], false, "The actual no-send certification operation must remain non-consequential.");
   assert.equal(legacy?.["x-runtime-contract-source"], undefined);
   assert.equal(legacy?.["x-runtime-auth-profile"], undefined);
   assert.ok(legacy?.requestBody, "The actual historical operation must retain its detailed request contract before transition.");
@@ -194,8 +196,9 @@ console.log(JSON.stringify({
   contract: "openapi_precise_legacy_registered_path_transition.v2",
   exact_signature: SIGNATURE,
   exact_operation_id: OPERATION_ID,
+  exact_consequential: false,
   exact_path_item_ref: PATH_REF,
-  malformed_variants_blocked: 3,
+  malformed_variants_blocked: 4,
   wrong_path_item_ref_blocked: true,
   unrelated_path_blocked: true,
   actual_root_regression_passed: true,
