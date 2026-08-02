@@ -1,0 +1,193 @@
+name: Hostinger Storage Durable Injection Migration Candidate Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-authorized-injection-migration-candidate.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json'
+      - '.github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js'
+      - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
+      - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-injection-migration-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-injection-migration-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPORT_DIR: .ci-evidence/spec014-durable-injection-migration-candidate
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check candidate and test syntax
+        id: syntax
+        continue-on-error: true
+        run: |
+          node --check http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+
+      - name: Execute exact candidate inspection contract
+        id: focused_test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs \
+            > "${REPORT_DIR}/focused-test.stdout" \
+            2> "${REPORT_DIR}/focused-test.stderr"
+
+      - name: Verify checksum and unpromoted boundary
+        id: contract
+        continue-on-error: true
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const migration = '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql';
+          const expectedChecksum = 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981';
+          const sql = fs.readFileSync(`http-generic-api/migrations/${migration}`, 'utf8');
+          const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+          const contract = JSON.parse(fs.readFileSync(
+            '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json',
+            'utf8',
+          ));
+          const runtime = JSON.parse(fs.readFileSync(
+            '.github/contracts/spec014/hostinger-storage-runtime-migrations.json',
+            'utf8',
+          ));
+          const dependencies = JSON.parse(fs.readFileSync(
+            'http-generic-api/config/governed-migration-dependencies.json',
+            'utf8',
+          ));
+          if (checksum !== expectedChecksum
+            || contract.candidate.checksum_sha256 !== expectedChecksum
+            || contract.candidate.statement_count !== 2
+            || contract.candidate.candidate_created !== true
+            || contract.candidate.candidate_inspection_passed !== true
+            || contract.promotion_boundary.runtime_sequence_promoted !== false
+            || contract.promotion_boundary.dependency_registry_updated !== false
+            || contract.promotion_boundary.ready_for_promotion_review !== true
+            || contract.promotion_boundary.ready_for_authorization !== false
+            || contract.promotion_boundary.ready_for_apply !== false
+            || runtime.waves.some((wave) => wave.migration === migration)
+            || Object.hasOwn(dependencies.migrations, migration)
+            || contract.secrets_included !== false) {
+            process.exit(1);
+          }
+          NODE
+
+      - name: Preserve candidate-only authority boundary
+        id: boundary
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/)'
+          ! printf '%s\n' "${changed_files}" | grep -F 'http-generic-api/config/governed-migration-dependencies.json'
+          ! printf '%s\n' "${changed_files}" | grep -F '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+          ! printf '%s\n' "${changed_files}" | grep -E '^\.github/workflows/.*(?:production|deploy|provider|migration-apply)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls|node:http|node:https)['\"]|\b(exec|execFile|spawn|fork|fetch)\s*\(" \
+            http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-migration-candidate.mjs
+          grep -q "runtime_sequence_promoted: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "dependency_registry_updated: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+          grep -q "production_ready: false" http-generic-api/hostingerStorageDurableAuthorizedInjectionMigrationCandidate.js
+
+      - name: Build structured guard summary
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          CONTRACT_OUTCOME: ${{ steps.contract.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const checks = [
+            ['syntax', process.env.SYNTAX_OUTCOME],
+            ['focused_test', process.env.FOCUSED_TEST_OUTCOME],
+            ['contract', process.env.CONTRACT_OUTCOME],
+            ['boundary', process.env.BOUNDARY_OUTCOME],
+          ].map(([id, outcome]) => ({ id, outcome }));
+          const failed = checks.filter((check) => check.outcome !== 'success');
+          const report = {
+            contract: 'mad4b.hostinger-guard-summary.v1',
+            guard: 'hostinger_storage_durable_injection_migration_candidate',
+            candidate_kind: 'head',
+            candidate_sha: process.env.CANDIDATE_SHA,
+            source_head_sha: process.env.SOURCE_HEAD_SHA,
+            outcome: failed.length === 0 ? 'passed' : 'blocked',
+            checks,
+            first_failure: failed[0] || null,
+            repository_mutation_performed: false,
+            migration_candidate_created: true,
+            runtime_sequence_promoted: false,
+            dependency_registry_updated: false,
+            authorization_created: false,
+            migration_sql_executed: false,
+            live_database_access_performed: false,
+            provider_dispatch_performed: false,
+            credential_access_performed: false,
+            production_mutation_performed: false,
+            job_logs_consulted: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(
+            path.join(process.env.REPORT_DIR, 'summary.json'),
+            `${JSON.stringify(report, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Upload structured guard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-injection-migration-candidate-${{ github.run_id }}
+          path: .ci-evidence/spec014-durable-injection-migration-candidate/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured guard decision
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          FOCUSED_TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          CONTRACT_OUTCOME: ${{ steps.contract.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+        run: |
+          for outcome in "${SYNTAX_OUTCOME}" "${FOCUSED_TEST_OUTCOME}" "${CONTRACT_OUTCOME}" "${BOUNDARY_OUTCOME}"; do
+            [[ "${outcome}" == "success" ]] || exit 1
+          done
