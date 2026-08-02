@@ -69,6 +69,7 @@ assert.equal(composition.schema_provenance.evidence_digest, h('a'));
 assert.equal(composition.schema_provenance.database_fingerprint, h('d'));
 assert.equal(composition.schema_provenance.source_commit, h('1'));
 assert.equal(composition.schema_provenance.deployed_runtime_sha, h('1'));
+assert.equal(composition.component_versions.run_reader, 'spec014-hostinger-storage-sql-run-reader-v1');
 
 assert.deepEqual(Object.keys(composition.control_plane).sort(), [
   'acquireLease',
@@ -85,6 +86,7 @@ assert.deepEqual(Object.keys(composition.control_plane).sort(), [
 ]);
 assert.deepEqual(Object.keys(composition.execution_parents).sort(), [
   'finalizeRun',
+  'readRun',
   'registerPlanItems',
   'startRun',
 ]);
@@ -102,6 +104,7 @@ assert.equal('adapter' in composition, false);
 assert.equal('repository' in composition, false);
 assert.equal('parent_writer' in composition, false);
 assert.equal('child_writer' in composition, false);
+assert.equal('run_reader' in composition, false);
 assert.equal('schema_verification' in composition, false);
 
 for (const [field, expected] of Object.entries({
@@ -166,7 +169,7 @@ console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_verified_sql_runtime_composition',
   composition_version: HOSTINGER_STORAGE_VERIFIED_SQL_RUNTIME_COMPOSITION_VERSION,
-  canonical_components: 4,
+  canonical_components: 5,
   control_plane_methods: Object.keys(composition.control_plane).length,
   parent_writer_methods: Object.keys(composition.execution_parents).length,
   child_writer_methods: Object.keys(composition.child_evidence).length,
