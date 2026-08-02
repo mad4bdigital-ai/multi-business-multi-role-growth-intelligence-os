@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-separate-mount-authorization.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unpersisted_unexecuted",
+  "implementation": "http-generic-api/hostingerStorageSeparateMountAuthorization.js",
+  "test": "http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs",
+  "authorization_key": "hostinger_storage_separate_mount_authorization_v1",
+  "prerequisites": {
+    "durable_bridge_readiness_required": true,
+    "fixed_dispatch_certification_required": true,
+    "dedicated_worker_certification_transitively_required": true,
+    "all_nested_packets_must_reverify": true
+  },
+  "exact_runtime_bindings": {
+    "source_commit": true,
+    "deployed_runtime_sha": true,
+    "database_fingerprint": true,
+    "schema_verification_digest": true,
+    "readback_cycle_id": true,
+    "runtime_sha_parity_required": true
+  },
+  "exact_operation_bindings": {
+    "target_id": true,
+    "operation_id": true,
+    "plan_id": true,
+    "plan_hash": true,
+    "execution_lease_id": true,
+    "lease_generation": true,
+    "bridge_readiness_digest": true,
+    "fixed_dispatch_certification_digest": true,
+    "worker_certification_digest": true
+  },
+  "governance_bindings": {
+    "approval_set_hash": true,
+    "capability_envelope_digest": true,
+    "mount_policy_fingerprint": true,
+    "rollback_plan_digest": true,
+    "issuer_principal_id": true,
+    "authorization_revision": true,
+    "mount_generation": true
+  },
+  "route_boundary": {
+    "path": "/tenant/storage-operations/apply-plan",
+    "dependency_key": "tenantStorageRuntime",
+    "fail_closed_status": 503,
+    "currently_unmounted_required": true,
+    "tenant_user_jwt_required": true
+  },
+  "authorization_policy": {
+    "status": "approved",
+    "mode": "single_use_mount",
+    "one_shot": true,
+    "consumed": false,
+    "default_off": true,
+    "maximum_lifetime_minutes": 60,
+    "successful_terminal": "ready_for_authorized_mount_execution"
+  },
+  "operational_boundary": {
+    "authorization_packet_created": true,
+    "authorization_persisted": false,
+    "mount_performed": false,
+    "dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "dispatch_job_enqueued": false,
+    "credential_values_resolved": 0,
+    "database_writes": 0,
+    "provider_calls": 0,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}
