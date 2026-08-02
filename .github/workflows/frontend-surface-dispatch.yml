@@ -24,9 +24,6 @@ on:
       - "http-generic-api/package.json"
       - "http-generic-api/package-lock.json"
       - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
-      - "http-generic-api/scripts/frontend-dispatch-verification-evidence.mjs"
-      - "http-generic-api/scripts/test-frontend-dispatch-verification-evidence.mjs"
-      - "http-generic-api/scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"
       - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
       - "http-generic-api/scripts/openapi-route-coverage.mjs"
       - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
@@ -36,139 +33,12 @@ on:
       - "canonicals/openapi/custom-gpt-surfaces.yaml"
       - "specs/010-unified-platform-frontend/**"
       - ".github/workflows/frontend-surface-dispatch.yml"
-      - ".github/workflows/frontend-surface-dispatch-refresh.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: read
+  contents: read
 
 jobs:
-  exact-head-generated-refresh:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/016-remote-mcp-oauth21-main-recovery-20260802'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      TARGET_REF: ${{ github.event.pull_request.head.ref }}
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-    steps:
-      - name: Checkout exact pull-request head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Gate one-shot bootstrap identity
-        id: gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          subject="$(git log -1 --pretty=%s)"
-          if [[ "${subject}" == "chore(ci): bootstrap exact-head generated artifact refresh" ]]; then
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "One-shot writer skipped for non-bootstrap head: ${subject}"
-          fi
-
-      - name: Setup Node
-        if: steps.gate.outputs.eligible == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Save read-only workflow for cleanup
-        if: steps.gate.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git show "${EXPECTED_HEAD_SHA}^:.github/workflows/frontend-surface-dispatch.yml" > "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
-          test -s "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
-
-      - name: Apply registered exact-head generated refresh
-        id: apply
-        if: steps.gate.outputs.eligible == 'true'
-        continue-on-error: true
-        run: >-
-          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
-          --target-ref "${TARGET_REF}"
-          --expected-head-sha "${EXPECTED_HEAD_SHA}"
-          --confirmation "APPLY_GENERATED_ARTIFACT_REFRESH"
-          --output-dir "$RUNNER_TEMP/one-shot-governed-generated-artifact-refresh"
-
-      - name: Publish canonical governed apply evidence
-        if: always() && steps.gate.outputs.eligible == 'true'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          APPLY_OUTCOME: ${{ steps.apply.outcome }}
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          conclusion="failure"
-          if [[ "${APPLY_OUTCOME}" == "success" ]]; then
-            conclusion="success"
-          fi
-          node scripts/generated-artifact-refresh-pr-publisher.mjs \
-            --repository "${GITHUB_REPOSITORY}" \
-            --head-branch "${TARGET_REF}" \
-            --workflow-conclusion "${conclusion}" \
-            --report "$RUNNER_TEMP/one-shot-governed-generated-artifact-refresh/generated-artifact-refresh-report.json" \
-            --workflow-run-id "${GITHUB_RUN_ID}" \
-            --source-head-sha "${EXPECTED_HEAD_SHA}"
-
-      - name: Restore read-only workflow above current remote head
-        if: always() && steps.gate.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$RUNNER_TEMP/frontend-surface-dispatch.original.yml"
-          git fetch origin "${TARGET_REF}"
-          remote_head="$(git rev-parse "origin/${TARGET_REF}")"
-          git reset --hard "${remote_head}"
-          cp "$RUNNER_TEMP/frontend-surface-dispatch.original.yml" .github/workflows/frontend-surface-dispatch.yml
-          git add .github/workflows/frontend-surface-dispatch.yml
-          if git diff --cached --quiet; then
-            echo "Bootstrap workflow already absent at remote head ${remote_head}."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(ci): remove one-shot generated refresh bootstrap"
-          remote_pre_push="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          if [[ "${remote_pre_push}" != "${remote_head}" ]]; then
-            echo "::error::branch moved during bootstrap cleanup"
-            exit 1
-          fi
-          git push origin "HEAD:${TARGET_REF}"
-
-      - name: Upload one-shot governed apply evidence
-        if: always() && steps.gate.outputs.eligible == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: one-shot-governed-generated-artifact-refresh-${{ github.run_id }}
-          path: ${{ runner.temp }}/one-shot-governed-generated-artifact-refresh/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Enforce governed apply decision
-        if: always() && steps.gate.outputs.eligible == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          report="$RUNNER_TEMP/one-shot-governed-generated-artifact-refresh/generated-artifact-refresh-report.json"
-          test -f "$report"
-          test "$(jq -r '.contract' "$report")" = "mad4b.governed-generated-artifact-refresh.v1"
-          test "$(jq -r '.outcome' "$report")" = "passed"
-          test "$(jq -r '.secrets_included' "$report")" = "false"
-
   dispatch-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -177,93 +47,94 @@ jobs:
         working-directory: http-generic-api
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
       - run: npm ci
-      - name: Validate exact-operation OpenAPI auth repair
-        run: node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
-      - name: Generate source-pinned dispatch plan and bounded auth repair
+      - name: Generate source-pinned dispatch plan
         env:
           CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
           TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
         run: |
-          set -euo pipefail
-          echo "Synchronizing canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
-          git fetch origin "${CANONICAL_BASELINE_REF}" --depth=1
-          git branch -f "${CANONICAL_BASELINE_REF}" "origin/${CANONICAL_BASELINE_REF}"
-          node scripts/openapi-runtime-auth-sync.mjs --write
+          echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
           npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
-      - name: Guard bounded generated evidence set
-        shell: bash
+      - name: Verify generator contract
         run: |
-          set -euo pipefail
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(openapi\.yaml|openapi/support-tickets\.yaml|frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          if [[ -n "${UNEXPECTED}" ]]; then
-            echo "::error::generator changed files outside the bounded evidence set"
-            printf '%s\n' "${UNEXPECTED}"
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+      - name: Enforce committed deterministic output
+        run: |
+          if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
+            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
+            echo "::error::frontend operation governance/dispatch/OpenAPI generated evidence is missing or stale; regenerate and commit it."
             exit 1
           fi
-      - name: Verify generator contract evidence reporter
-        run: node scripts/test-frontend-dispatch-verification-evidence.mjs
-      - name: Generate structured frontend dispatch verification evidence
-        id: frontend_verification
-        continue-on-error: true
-        env:
-          CI_CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'merge_candidate' || 'head' }}
-          CI_CANDIDATE_SHA: ${{ github.sha }}
-          CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          FRONTEND_DISPATCH_EVIDENCE_DIR: ${{ runner.temp }}/frontend-dispatch-verification-evidence
-        run: node scripts/frontend-dispatch-verification-evidence.mjs --output-dir "$FRONTEND_DISPATCH_EVIDENCE_DIR"
-      - name: Upload structured frontend dispatch verification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dispatch-verification-evidence-${{ github.run_id }}
-          path: ${{ runner.temp }}/frontend-dispatch-verification-evidence/*
-          if-no-files-found: error
-          retention-days: 14
-      - name: Enforce structured frontend dispatch decision
-        if: always()
-        env:
-          REPORT_PATH: ${{ runner.temp }}/frontend-dispatch-verification-evidence/frontend-dispatch-verification-evidence.json
-        run: |
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const reportPath = process.env.REPORT_PATH;
-            if (!reportPath || !fs.existsSync(reportPath)) {
-              console.error(JSON.stringify({ ok: false, error: "frontend_dispatch_structured_report_missing", secrets_included: false }));
-              process.exit(1);
-            }
-            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-            const valid = report.contract === "mad4b.frontend-dispatch-verification-evidence.v1" && report.secrets_included === false;
-            if (!valid || report.outcome !== "passed") {
-              console.error(JSON.stringify({
-                ok: false,
-                outcome: report.outcome || "evidence_error",
-                first_failure: report.first_failure?.stage_id || "invalid_structured_report",
-                consult_job_logs: report.routing?.consult_job_logs === true,
-                secrets_included: false,
-              }));
-              process.exit(1);
-            }
-            console.log(JSON.stringify({ ok: true, outcome: report.outcome, candidate_sha: report.identity?.candidate_sha, secrets_included: false }));
-          '
-      - name: Upload bounded generated and canonical repair evidence
+      - name: Upload dispatch evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-surface-dispatch
           path: |
-            http-generic-api/openapi.yaml
-            http-generic-api/openapi/support-tickets.yaml
             http-generic-api/frontend-operation-governance.generated.json
             http-generic-api/frontend-surface-dispatch.generated.json
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           if-no-files-found: error
           retention-days: 14
+
+  refresh-generated:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.head_ref, 'gpt/'))
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - run: npm ci
+      - name: Generate and commit bounded dispatch evidence
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+        run: |
+          if [[ "${TARGET_BRANCH}" != gpt/* ]]; then
+            echo "::error::generated evidence refresh is restricted to gpt/* work branches"
+            exit 1
+          fi
+          git fetch origin main --depth=1
+          BASE_REF="main"
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
+          if git diff --quiet -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
+            echo "Generated evidence is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git commit -m "chore(ci): refresh frontend dispatch evidence"
+          git push origin "HEAD:${TARGET_BRANCH}"
