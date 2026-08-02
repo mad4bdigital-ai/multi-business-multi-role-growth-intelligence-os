@@ -48,7 +48,7 @@
             "The workflow retains contents:read and receives no issue, pull-request, action, or repository write authority.",
             "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
             "repository_mutation_performed, provider_dispatch_performed, credential_access_performed, job_logs_consulted, and secrets_included remain false.",
-            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based Hostinger Canonical Evidence PR Publisher for the same exact head."
+            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based CI Evidence PR Publisher for the same exact head."
           ],
           "tests": [
             {
@@ -80,9 +80,9 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Run 30728609514 on Integration head 8d4a04c81540abd5cea10558c56573bb13df0a2d produced a real exact-head run-bound Tenant Canary Artifact with eight selected, eight passed, zero failed, zero integrity findings, first_failure=null, and all repository/provider/credential/log/secret declarations false. Complete the operational phase by proving the unique Hostinger Canonical Evidence PR Publisher consumes a new exact-head Artifact and updates the shared authoritative PR comment.",
+      "objective": "Multiple exact-head runs already proved the run-bound Tenant Canary Artifact and 8/8 guard checks. CI Evidence PR Publisher gained the canonical Hostinger route on main at 525007fbc19048002e389818902737d208b555c3. Complete the operational phase by proving a post-convergence exact-head Artifact is consumed and written into the shared authoritative PR comment.",
       "blockers": [
-        "The unique Hostinger Canonical Evidence PR Publisher reached main at b783635a97128e356e0c8d4646c762c84f105095, but no post-identity-change exact-head Tenant Canary Artifact and matching Hostinger comment section have yet been observed together."
+        "No post-525007f exact-head Tenant Canary run and matching hostinger-storage-tenant-canary comment section have yet been observed together."
       ]
     },
     {
