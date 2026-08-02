@@ -40,7 +40,8 @@
       "registerPlanItems",
       "startRun",
       "finalizeRun",
-      "readRun"
+      "readRun",
+      "readPlanItems"
     ],
     "child_evidence": [
       "appendJournalEvent",
@@ -58,7 +59,8 @@
     "legacy_repository_recordReconciliation_exposed": false,
     "component_override_allowed": false,
     "child_evidence_has_one_public_write_path": true,
-    "run_read_has_one_public_path": true
+    "run_read_has_one_public_path": true,
+    "plan_item_read_has_one_public_path": true
   },
   "factory_boundary": {
     "database_connection_during_creation": false,

@@ -5,6 +5,7 @@ export const HOSTINGER_STORAGE_SQL_RUN_READER_VERSION = 'spec014-hostinger-stora
 const BRAND = Symbol.for('mad4b.spec014.hostinger-storage-sql-run-reader');
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 const SHA256_RE = /^[0-9a-f]{64}$/u;
+const UINT64_RE = /^(?:0|[1-9][0-9]{0,19})$/u;
 const ALLOWED_OPTIONS = new Set(['pool', 'schema_verification']);
 
 function fail(status, code, message, details = {}) {
@@ -62,8 +63,27 @@ function integer(value, field, minimum = 0) {
   return normalized;
 }
 
+function uint64(value, field, { nullable = false } = {}) {
+  if ((value === null || value === undefined || value === '') && nullable) return null;
+  const normalized = String(value ?? '');
+  if (!UINT64_RE.test(normalized) || BigInt(normalized) > 18446744073709551615n) {
+    throw fail(409, 'STORAGE_SQL_RUN_READER_UINT64_INVALID', 'An unsigned BIGINT-compatible value is required.', { field });
+  }
+  return normalized;
+}
+
 function bool(value) {
   return value === true || value === 1 || value === '1';
+}
+
+function pathRef(value, field, { nullable = false } = {}) {
+  const normalized = text(value, 512);
+  if (!normalized && nullable) return null;
+  if (!normalized || normalized.includes('\0') || normalized.startsWith('/') || normalized.startsWith('~')
+    || normalized.split(/[\\/]/u).includes('..')) {
+    throw fail(409, 'STORAGE_SQL_RUN_READER_PATH_REF_INVALID', 'Stored plan-item path reference is not a bounded root-relative reference.', { field });
+  }
+  return normalized;
 }
 
 function assertSecretFree(value, path = 'value', depth = 0) {
@@ -124,7 +144,7 @@ function normalizeDriverError(error) {
     return fail(503, 'STORAGE_SQL_RUN_READER_SCHEMA_UNAVAILABLE', 'Durable run schema is unavailable.', { mysql_code: error.code });
   }
   if (['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT'].includes(error?.code)) {
-    return fail(409, 'STORAGE_SQL_RUN_READER_CONFLICT', 'Durable run read conflicted with a concurrent transaction.', { mysql_code: error.code });
+    return fail(409, 'STORAGE_SQL_RUN_READER_CONFLICT', 'Durable execution-parent read conflicted with a concurrent transaction.', { mysql_code: error.code });
   }
   return error;
 }
@@ -145,7 +165,7 @@ function normalizeRun(row) {
     finished_at_epoch: row.finished_at_epoch == null ? null : integer(row.finished_at_epoch, 'run.finished_at_epoch'),
     state: identifier(row.state, 'run.state', { max: 32 }),
     deleted_count: integer(row.deleted_count, 'run.deleted_count'),
-    deleted_bytes: String(row.deleted_bytes ?? '0'),
+    deleted_bytes: uint64(row.deleted_bytes ?? '0', 'run.deleted_bytes'),
     skipped_count: integer(row.skipped_count, 'run.skipped_count'),
     missing_count: integer(row.missing_count, 'run.missing_count'),
     failed_count: integer(row.failed_count, 'run.failed_count'),
@@ -161,6 +181,39 @@ function normalizeRun(row) {
   };
   run.record_digest = digest(run);
   return deepFreeze(run);
+}
+
+function normalizePlanItem(row) {
+  const item = {
+    id: identifier(row.id, 'plan_item.id', { max: 36 }),
+    plan_id: identifier(row.plan_id, 'plan_item.plan_id', { max: 36 }),
+    ordinal: integer(row.ordinal, 'plan_item.ordinal', 1),
+    category: identifier(row.category, 'plan_item.category', { max: 64 }),
+    path_ref: pathRef(row.path_ref, 'plan_item.path_ref'),
+    tenant_safe_relative_path: pathRef(row.tenant_safe_relative_path, 'plan_item.tenant_safe_relative_path', { nullable: true }),
+    size_bytes: uint64(row.size_bytes, 'plan_item.size_bytes'),
+    device_id_digest: hash(row.device_id_digest, 'plan_item.device_id_digest', { nullable: true }),
+    inode_value: uint64(row.inode_value, 'plan_item.inode_value', { nullable: true }),
+    ctime_ns: uint64(row.ctime_ns, 'plan_item.ctime_ns', { nullable: true }),
+    mtime_ns: uint64(row.mtime_ns, 'plan_item.mtime_ns', { nullable: true }),
+    expected_file_type: identifier(row.expected_file_type, 'plan_item.expected_file_type', { max: 32 }),
+    eligibility_rule_key: identifier(row.eligibility_rule_key, 'plan_item.eligibility_rule_key', { max: 128 }),
+    eligibility_evidence_digest: hash(row.eligibility_evidence_digest, 'plan_item.eligibility_evidence_digest'),
+    ownership_evidence_ref: identifier(row.ownership_evidence_ref, 'plan_item.ownership_evidence_ref', { max: 191 }),
+    protected_classification: bool(row.protected_classification),
+    item_hash: hash(row.item_hash, 'plan_item.item_hash'),
+    planned_result_state: identifier(row.planned_result_state, 'plan_item.planned_result_state', { max: 32 }),
+    secrets_included: false,
+  };
+  if (item.protected_classification || item.planned_result_state !== 'pending') {
+    throw fail(409, 'STORAGE_SQL_RUN_READER_PLAN_ITEM_STATE_INVALID', 'Durable plan-item parent is protected or not in the immutable pending state.', {
+      plan_item_id: item.id,
+      protected_classification: item.protected_classification,
+      planned_result_state: item.planned_result_state,
+    });
+  }
+  item.record_digest = digest(item);
+  return deepFreeze(item);
 }
 
 export function createHostingerStorageSqlRunReader(options = {}) {
@@ -217,6 +270,63 @@ export function createHostingerStorageSqlRunReader(options = {}) {
     }
   }
 
+  async function readPlanItems(input = {}) {
+    assertSecretFree(input, 'read_plan_items');
+    const planId = identifier(input.plan_id ?? input.planId, 'plan_id', { max: 36 });
+    const connection = await pool.getConnection();
+    try {
+      const [rows] = await execute(connection, `/* spec014:run-reader:read-plan-items */ SELECT
+        id, plan_id, ordinal, category, path_ref, tenant_safe_relative_path, size_bytes,
+        device_id_digest, inode_value, ctime_ns, mtime_ns, expected_file_type,
+        eligibility_rule_key, eligibility_evidence_digest, ownership_evidence_ref,
+        protected_classification, item_hash, planned_result_state
+        FROM storage_cleanup_plan_items WHERE plan_id=? ORDER BY ordinal, id`, [planId]);
+      const items = (Array.isArray(rows) ? rows : []).map(normalizePlanItem);
+      const ids = new Set();
+      for (const [index, item] of items.entries()) {
+        if (item.plan_id !== planId) {
+          throw fail(409, 'STORAGE_SQL_RUN_READER_PLAN_ITEM_BINDING_MISMATCH', 'Plan-item parent belongs to another plan.', { plan_item_id: item.id });
+        }
+        if (ids.has(item.id)) {
+          throw fail(409, 'STORAGE_SQL_RUN_READER_PLAN_ITEM_AMBIGUOUS', 'Plan-item identity resolved more than once.', { plan_item_id: item.id });
+        }
+        ids.add(item.id);
+        if (item.ordinal !== index + 1) {
+          throw fail(409, 'STORAGE_SQL_RUN_READER_PLAN_ITEM_ORDINAL_GAP', 'Plan-item ordinals must be contiguous from one.', {
+            plan_id: planId,
+            observed_ordinal: item.ordinal,
+            expected_ordinal: index + 1,
+          });
+        }
+      }
+      const itemSetCore = items.map((item) => ({
+        id: item.id,
+        plan_id: item.plan_id,
+        ordinal: item.ordinal,
+        item_hash: item.item_hash,
+        size_bytes: item.size_bytes,
+        secrets_included: false,
+      }));
+      return deepFreeze({
+        found: items.length > 0,
+        plan_id: planId,
+        items,
+        item_count: items.length,
+        item_set_digest: digest(itemSetCore),
+        schema_verification_digest: verification.evidence_digest,
+        database_fingerprint: verification.database_fingerprint,
+        runtime_mounted: false,
+        provider_dispatch_allowed: false,
+        production_ready: false,
+        secrets_included: false,
+      });
+    } catch (error) {
+      throw normalizeDriverError(error);
+    } finally {
+      connection.release?.();
+    }
+  }
+
   const reader = {
     reader_key: 'hostinger_storage_sql_run_reader_v1',
     reader_version: HOSTINGER_STORAGE_SQL_RUN_READER_VERSION,
@@ -229,6 +339,7 @@ export function createHostingerStorageSqlRunReader(options = {}) {
     provider_dispatch_allowed: false,
     production_ready: false,
     readRun,
+    readPlanItems,
     secrets_included: false,
   };
   Object.defineProperty(reader, BRAND, { value: true, enumerable: false });
@@ -246,5 +357,6 @@ export function isCanonicalHostingerStorageSqlRunReader(value) {
     && value?.provider_dispatch_allowed === false
     && value?.production_ready === false
     && typeof value?.readRun === 'function'
+    && typeof value?.readPlanItems === 'function'
     && Object.isFrozen(value));
 }
