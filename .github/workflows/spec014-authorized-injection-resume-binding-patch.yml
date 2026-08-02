@@ -1,0 +1,318 @@
+name: Spec 014 Authorized Injection Resume Binding Patch
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/authorized-dependency-injection-readback-20260802
+    paths:
+      - .github/workflows/spec014-authorized-injection-resume-binding-patch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-authorized-injection-resume-binding-patch
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact launcher head
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/014-hostinger/authorized-dependency-injection-readback-20260802
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply, validate, self-delete, and push
+        id: patch
+        shell: bash
+        env:
+          EXPECTED_PARENT: 8bf17bde69fd54e01ac802c9ff975e37a18b7f58
+          BRANCH: gpt/014-hostinger/authorized-dependency-injection-readback-20260802
+          LAUNCHER: .github/workflows/spec014-authorized-injection-resume-binding-patch.yml
+        run: |
+          set -uo pipefail
+          mkdir -p .artifacts/spec014-authorized-injection-resume-binding-patch
+          summary=.artifacts/spec014-authorized-injection-resume-binding-patch/summary.json
+          status=0
+          failure_stage=''
+          failure_detail=''
+          final_sha=''
+
+          fail() {
+            status=1
+            failure_stage="$1"
+            failure_detail="$2"
+          }
+
+          actual_parent="$(git rev-parse HEAD^)"
+          if [[ "$actual_parent" != "$EXPECTED_PARENT" ]]; then
+            fail exact_parent "expected $EXPECTED_PARENT but found $actual_parent"
+          fi
+
+          changed_from_parent="$(git diff --name-only HEAD^ HEAD)"
+          if [[ "$changed_from_parent" != "$LAUNCHER" ]]; then
+            fail launcher_scope "launcher commit changed unexpected paths: ${changed_from_parent//$'\n'/,}"
+          fi
+
+          if [[ "$status" -eq 0 ]]; then
+            python - <<'PY' || fail patch_application "bounded source transformation failed"
+          from pathlib import Path
+
+          implementation = Path('http-generic-api/hostingerStorageAuthorizedDependencyInjection.js')
+          text = implementation.read_text(encoding='utf-8')
+
+          anchor = """function createInjectionReceipt(bundle, request) {
+            const dependencySnapshot = routeDependencySnapshotCore(bundle);
+          """
+          helper = """function expectedReceiptBundleBindings(bundle) {
+            return {
+              mount_bundle_digest: bundle.mount_bundle_digest,
+              authorization_id: bundle.authorization_id,
+              authorization_generation: bundle.authorization_generation,
+              authorization_consumption_digest: bundle.authorization_consumption_digest,
+              dependency_manifest_digest: bundle.dependency_manifest_digest,
+              expected_runtime_sha: bundle.expected_runtime_sha,
+              source_commit: bundle.source_commit,
+              database_fingerprint: bundle.database_fingerprint,
+              schema_verification_digest: bundle.schema_verification_digest,
+              readback_cycle_id: bundle.readback_cycle_id,
+              rollback_plan_digest: bundle.rollback_plan_digest,
+              route_dependency_snapshot_digest: digest(routeDependencySnapshotCore(bundle)),
+            };
+          }
+
+          function createInjectionReceipt(bundle, request) {
+            const dependencySnapshot = routeDependencySnapshotCore(bundle);
+          """
+          if text.count(anchor) != 1:
+              raise SystemExit(f'expected one receipt anchor, found {text.count(anchor)}')
+          text = text.replace(anchor, helper)
+
+          old_resume = """    const mismatches = [];
+              if (receipt.mount_bundle_digest !== bundle.mount_bundle_digest) mismatches.push('mount_bundle_digest');
+              if (receipt.authorization_id !== bundle.authorization_id) mismatches.push('authorization_id');
+              if (receipt.authorization_generation !== bundle.authorization_generation) mismatches.push('authorization_generation');
+              if (receipt.expected_runtime_sha !== bundle.expected_runtime_sha) mismatches.push('expected_runtime_sha');
+              if (receipt.dependency_manifest_digest !== bundle.dependency_manifest_digest) mismatches.push('dependency_manifest_digest');
+              if (readback.injection_id !== receipt.injection_id) mismatches.push('readback.injection_id');
+              if (readback.injection_receipt_digest !== receipt.injection_receipt_digest) mismatches.push('readback.injection_receipt_digest');
+              if (readback.mount_bundle_digest !== receipt.mount_bundle_digest) mismatches.push('readback.mount_bundle_digest');
+              if (readback.route_dependency_snapshot_digest !== receipt.route_dependency_snapshot_digest) mismatches.push('readback.route_dependency_snapshot_digest');
+          """
+          new_resume = """    const mismatches = [];
+              for (const [field, expectedValue] of Object.entries(expectedReceiptBundleBindings(bundle))) {
+                if (receipt[field] !== expectedValue) mismatches.push(`receipt.${field}`);
+              }
+              const expectedReadbackBindings = {
+                injection_id: receipt.injection_id,
+                injection_generation: receipt.injection_generation,
+                injection_receipt_digest: receipt.injection_receipt_digest,
+                mount_bundle_digest: receipt.mount_bundle_digest,
+                route_dependency_snapshot_digest: receipt.route_dependency_snapshot_digest,
+                expected_runtime_sha: receipt.expected_runtime_sha,
+                source_commit: receipt.source_commit,
+                database_fingerprint: receipt.database_fingerprint,
+                schema_verification_digest: receipt.schema_verification_digest,
+                readback_cycle_id: receipt.readback_cycle_id,
+              };
+              for (const [field, expectedValue] of Object.entries(expectedReadbackBindings)) {
+                if (readback[field] !== expectedValue) mismatches.push(`readback.${field}`);
+              }
+          """
+          if text.count(old_resume) != 1:
+              raise SystemExit(f'expected one resume binding block, found {text.count(old_resume)}')
+          text = text.replace(old_resume, new_resume)
+
+          old_receipt_contract = """    || receipt.dependency_injected !== true
+              || receipt.runtime_mounted !== true
+              || receipt.route_mounted !== true
+          """
+          new_receipt_contract = """    || receipt.injection_generation !== 1
+              || !Number.isSafeInteger(receipt.injected_at_epoch)
+              || receipt.injected_at_epoch < 1
+              || receipt.dependency_snapshot_created !== true
+              || receipt.dependency_injected !== true
+              || receipt.mount_performed !== true
+              || receipt.runtime_mounted !== true
+              || receipt.route_mounted !== true
+          """
+          if text.count(old_receipt_contract) != 1:
+              raise SystemExit(f'expected one receipt contract block, found {text.count(old_receipt_contract)}')
+          text = text.replace(old_receipt_contract, new_receipt_contract)
+
+          old_receipt_tail = """    || receipt.automatic_retry_allowed !== false
+              || receipt.secrets_included !== false) {
+          """
+          new_receipt_tail = """    || receipt.automatic_retry_allowed !== false
+              || receipt.reconciliation_state !== 'dependency_injected_pending_exact_readback'
+              || receipt.secrets_included !== false) {
+          """
+          if text.count(old_receipt_tail) != 1:
+              raise SystemExit(f'expected one receipt tail, found {text.count(old_receipt_tail)}')
+          text = text.replace(old_receipt_tail, new_receipt_tail, 1)
+
+          old_readback_contract = """    || readback.readback_verified !== true
+              || readback.dependency_descriptor_verified !== true
+          """
+          new_readback_contract = """    || readback.injection_generation !== 1
+              || readback.readback_verified !== true
+              || readback.dependency_descriptor_verified !== true
+          """
+          if text.count(old_readback_contract) != 1:
+              raise SystemExit(f'expected one readback contract block, found {text.count(old_readback_contract)}')
+          text = text.replace(old_readback_contract, new_readback_contract)
+
+          old_readback_tail = """    || readback.automatic_retry_allowed !== false
+              || readback.secrets_included !== false) {
+          """
+          new_readback_tail = """    || readback.automatic_retry_allowed !== false
+              || readback.reconciliation_state !== 'dependency_injection_readback_verified'
+              || readback.secrets_included !== false) {
+          """
+          if text.count(old_readback_tail) != 1:
+              raise SystemExit(f'expected one readback tail, found {text.count(old_readback_tail)}')
+          text = text.replace(old_readback_tail, new_readback_tail, 1)
+          implementation.write_text(text, encoding='utf-8')
+
+          test_path = Path('http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs')
+          test = test_path.read_text(encoding='utf-8')
+          import_anchor = """import assert from 'node:assert/strict';
+          import { once } from 'node:events';
+          """
+          import_replacement = """import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { once } from 'node:events';
+          """
+          if test.count(import_anchor) != 1:
+              raise SystemExit(f'expected one test import anchor, found {test.count(import_anchor)}')
+          test = test.replace(import_anchor, import_replacement)
+
+          constant_anchor = """const INJECTION_ID = 'authorized-injection-001';
+          const NOW = 1_786_000_100;
+          """
+          constant_replacement = """const INJECTION_ID = 'authorized-injection-001';
+          const NOW = 1_786_000_100;
+          const stable = (value) => Array.isArray(value)
+            ? value.map(stable)
+            : (!value || typeof value !== 'object'
+                ? value
+                : Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])));
+          const digest = (value) => createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
+          const rehash = (value, digestField) => {
+            const copy = structuredClone(value);
+            delete copy[digestField];
+            copy[digestField] = digest(copy);
+            return copy;
+          };
+          """
+          if test.count(constant_anchor) != 1:
+              raise SystemExit(f'expected one test constant anchor, found {test.count(constant_anchor)}')
+          test = test.replace(constant_anchor, constant_replacement)
+
+          resume_anchor = """const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+          const resumed = resumedCoordinator.resumeAuthorizedInjection({
+          """
+          regression = """const tamperedSnapshotDigest = 'e'.repeat(64);
+          const tamperedReceipt = rehash({
+            ...persistedReceipt,
+            route_dependency_snapshot_digest: tamperedSnapshotDigest,
+          }, 'injection_receipt_digest');
+          const tamperedReadback = rehash({
+            ...persistedReadback,
+            injection_receipt_digest: tamperedReceipt.injection_receipt_digest,
+            route_dependency_snapshot_digest: tamperedSnapshotDigest,
+          }, 'mount_readback_digest');
+          const tamperedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+          assert.throws(
+            () => tamperedCoordinator.resumeAuthorizedInjection({
+              bundle,
+              injection_receipt: tamperedReceipt,
+              mount_readback: tamperedReadback,
+            }),
+            (error) => error.code === 'STORAGE_AUTHORIZED_INJECTION_RESUME_BINDING_MISMATCH'
+              && error.details.mismatches.includes('receipt.route_dependency_snapshot_digest'),
+          );
+          assert.equal(tamperedCoordinator.readState().active, false);
+
+          const resumedCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
+          const resumed = resumedCoordinator.resumeAuthorizedInjection({
+          """
+          if test.count(resume_anchor) != 1:
+              raise SystemExit(f'expected one resume test anchor, found {test.count(resume_anchor)}')
+          test = test.replace(resume_anchor, regression)
+
+          output_anchor = """  restart_reconstruction_without_second_consumption: true,
+            rollback_restores_http_503: true,
+          """
+          output_replacement = """  restart_reconstruction_without_second_consumption: true,
+            rehashed_persisted_snapshot_tampering_rejected: true,
+            rollback_restores_http_503: true,
+          """
+          if test.count(output_anchor) != 1:
+              raise SystemExit(f'expected one output anchor, found {test.count(output_anchor)}')
+          test = test.replace(output_anchor, output_replacement)
+          test_path.write_text(test, encoding='utf-8')
+          PY
+          fi
+
+          if [[ "$status" -eq 0 ]]; then
+            node --check http-generic-api/hostingerStorageAuthorizedDependencyInjection.js \
+              || fail syntax_implementation "implementation syntax check failed"
+          fi
+          if [[ "$status" -eq 0 ]]; then
+            node --check http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs \
+              || fail syntax_test "test syntax check failed"
+          fi
+          if [[ "$status" -eq 0 ]]; then
+            (cd http-generic-api && npm ci && node test-hostinger-storage-authorized-dependency-injection.mjs) \
+              || fail focused_regression "focused restart-binding regression failed"
+          fi
+
+          if [[ "$status" -eq 0 ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm "$LAUNCHER"
+            git add http-generic-api/hostingerStorageAuthorizedDependencyInjection.js \
+              http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs
+            git commit -m "fix(spec-014): bind restart injection evidence to canonical bundle"
+            final_sha="$(git rev-parse HEAD)"
+            git push origin "HEAD:$BRANCH" || fail push "failed to push final patch commit"
+          fi
+
+          python - "$summary" "$status" "$failure_stage" "$failure_detail" "$EXPECTED_PARENT" "$final_sha" <<'PY'
+          import json, sys
+          path, status, stage, detail, parent, final_sha = sys.argv[1:]
+          payload = {
+              'ok': status == '0',
+              'contract': 'spec014.authorized-injection-resume-binding-patch.v1',
+              'expected_parent': parent,
+              'final_sha': final_sha or None,
+              'launcher_removed': status == '0',
+              'restart_receipt_bound_to_canonical_bundle': status == '0',
+              'rehashed_persisted_snapshot_tampering_rejected': status == '0',
+              'automatic_retry_allowed': False,
+              'provider_dispatch_allowed': False,
+              'production_ready': False,
+              'secrets_included': False,
+              'failure_stage': stage or None,
+              'failure_detail': detail or None,
+          }
+          with open(path, 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, indent=2, sort_keys=True)
+              handle.write('\n')
+          PY
+          cat "$summary"
+          exit "$status"
+
+      - name: Upload structured patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-authorized-injection-resume-binding-patch-${{ github.run_id }}
+          path: .artifacts/spec014-authorized-injection-resume-binding-patch/summary.json
+          if-no-files-found: error
+          retention-days: 14
