@@ -34,7 +34,9 @@
     "migration_sql_executed": false,
     "live_database_access_performed": false,
     "live_schema_readback_performed": false,
-    "signed_schema_verification_contract_refreshed": false,
+    "signed_schema_verification_contract_refreshed": true,
+    "same_cycle_readback_contract_refreshed": true,
+    "schema_verification_attestation_version": "spec014-hostinger-storage-schema-verification-v2",
     "schema_verified": false,
     "provider_dispatch_allowed": false,
     "worker_mounted": false,
@@ -49,7 +51,7 @@
     "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
     "SAME_CYCLE_DRY_RUN_REQUIRED",
     "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED",
-    "SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED",
+    "AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED",
     "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
   ],
   "forbidden_authority": {
