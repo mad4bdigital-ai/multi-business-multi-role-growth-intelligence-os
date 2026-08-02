@@ -30,6 +30,7 @@ try {
   const {
     buildHostingerStorageMigrationAuthorizationReadiness,
     HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
+    HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
   } = await import('./hostingerStorageMigrationAuthorizationReadiness.js');
 
   report.stage = 'build_readiness_packet';
@@ -46,7 +47,26 @@ try {
     result.promotion_merge_sha,
     HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA,
   );
-  assert.equal(result.wave_count, 3);
+  assert.equal(result.wave_4_promotion_pull_request, 4879);
+  assert.equal(
+    result.wave_4_promotion_merge_sha,
+    HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
+  );
+  assert.equal(result.promotion_sources.length, 4);
+  assert.deepEqual(
+    result.promotion_sources.map(({ wave, pull_request, merge_sha }) => ({
+      wave,
+      pull_request,
+      merge_sha,
+    })),
+    [
+      { wave: 1, pull_request: 4564, merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA },
+      { wave: 2, pull_request: 4564, merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA },
+      { wave: 3, pull_request: 4564, merge_sha: HOSTINGER_STORAGE_MIGRATION_PROMOTION_MERGE_SHA },
+      { wave: 4, pull_request: 4879, merge_sha: HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA },
+    ],
+  );
+  assert.equal(result.wave_count, 4);
   assert.equal(result.next_authorizable_wave, 1);
   assert.equal(result.authorization_created, false);
   assert.equal(result.authorization_registry_mutated, false);
@@ -60,7 +80,7 @@ try {
   assert.equal(result.secrets_included, false);
   completed('top_level_safety_boundary');
 
-  const [wave1, wave2, wave3] = result.waves;
+  const [wave1, wave2, wave3, wave4] = result.waves;
   assert.equal(wave1.candidate_inspection_passed, true);
   assert.equal(
     wave1.readiness_state,
@@ -108,6 +128,35 @@ try {
   );
   completed('wave_3_live_absence_boundary');
 
+  assert.equal(wave4.candidate_inspection_passed, true);
+  assert.equal(wave4.promotion_pull_request, 4879);
+  assert.equal(
+    wave4.promotion_merge_sha,
+    HOSTINGER_STORAGE_WAVE_4_PROMOTION_MERGE_SHA,
+  );
+  assert.equal(
+    wave4.readiness_state,
+    'candidate_inspection_ready_dependency_and_live_schema_readback_required',
+  );
+  assert.equal(
+    wave4.blockers.includes(
+      'DEPENDENCY_APPLY_LEDGER_REQUIRED:20260802_03_spec014_hostinger_storage_execution_evidence.sql',
+    ),
+    true,
+  );
+  assert.equal(
+    wave4.blockers.includes('LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED'),
+    true,
+  );
+  assert.equal(
+    wave4.blockers.includes('SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED'),
+    true,
+  );
+  assert.equal(wave4.authorization_created, false);
+  assert.equal(wave4.migration_sql_executed, false);
+  assert.equal(wave4.live_database_access_performed, false);
+  completed('wave_4_dependency_and_verification_refresh_boundary');
+
   const runtimeContract = JSON.parse(
     await readFile(
       new URL(
@@ -135,7 +184,7 @@ try {
       runtime_contract: {
         ...runtimeContract,
         waves: runtimeContract.waves.map((wave) =>
-          wave.wave === 1
+          wave.wave === 4
             ? { ...wave, checksum_sha256: '0'.repeat(64) }
             : wave,
         ),
@@ -143,22 +192,36 @@ try {
     }),
     (error) => error.code === 'STORAGE_MIGRATION_READINESS_WAVE_DRIFT',
   );
-  completed('reject_checksum_drift');
+  completed('reject_wave_4_checksum_drift');
 
   await assert.rejects(
     buildHostingerStorageMigrationAuthorizationReadiness({
       merge_sha: '0'.repeat(40),
     }),
     (error) =>
-      error.code === 'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH',
+      error.code === 'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH'
+      && error.details?.wave === 1,
   );
-  completed('reject_promotion_sha_drift');
+  completed('reject_primary_promotion_sha_drift');
+
+  await assert.rejects(
+    buildHostingerStorageMigrationAuthorizationReadiness({
+      wave_4_merge_sha: '0'.repeat(40),
+    }),
+    (error) =>
+      error.code === 'STORAGE_MIGRATION_READINESS_PROMOTION_SHA_MISMATCH'
+      && error.details?.wave === 4,
+  );
+  completed('reject_wave_4_promotion_sha_drift');
 
   report.outcome = 'passed';
   report.stage = 'completed';
   report.wave_1_candidate_inspection_ready = true;
   report.wave_2_dependency_apply_ledger_required = true;
   report.wave_3_live_absence_readback_required = true;
+  report.wave_4_candidate_inspection_ready = true;
+  report.wave_4_dependency_apply_ledger_required = true;
+  report.wave_4_signed_schema_verification_refresh_required = true;
   await persistReport();
   console.log(JSON.stringify(report));
 } catch (error) {
