@@ -1,0 +1,91 @@
+name: Spec014 Durable Authority Row Cardinality PR Repair
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - .github/workflows/spec014-durable-authority-row-cardinality-pr-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-durable-authority-row-cardinality-pr-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'gpt/014-fix-durable-authority-row-cardinality-20260802'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/014-fix-durable-authority-row-cardinality-20260802
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply deterministic cardinality proof
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('http-generic-api/hostingerStorageDurableTenantAuthorityStore.js')
+          workflow_paths = [
+              Path('.github/workflows/spec014-durable-authority-row-cardinality-repair.yml'),
+              Path('.github/workflows/spec014-durable-authority-row-cardinality-pr-repair.yml'),
+          ]
+
+          source = source_path.read_text(encoding='utf-8')
+          old = """  if ((rows || []).length > 1) {
+            throw fail(409, 'STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS', 'Authority identity resolved to multiple durable rows.', { authority_type: authorityType, authority_id: id });
+          }
+          return rows?.[0] ? { record: parseRecord(rows[0], table), row_version: Number(rows[0].row_version) } : null;
+          """
+          new = """  const boundedRows = Array.isArray(rows) ? rows : [];
+          if (boundedRows.length > 1) {
+            throw fail(409, 'STORAGE_DURABLE_AUTHORITY_ROW_AMBIGUOUS', 'Authority identity resolved to multiple durable rows.', { authority_type: authorityType, authority_id: id });
+          }
+          if (boundedRows.length === 0) return null;
+          const [row] = boundedRows;
+          return { record: parseRecord(row, table), row_version: Number(row.row_version) };
+          """
+
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one exact loadCurrent target, found {source.count(old)}')
+
+          source_path.write_text(source.replace(old, new), encoding='utf-8')
+          for workflow_path in workflow_paths:
+              if workflow_path.exists():
+                  workflow_path.unlink()
+          PY
+
+      - name: Validate bounded repair
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          node --check hostingerStorageDurableTenantAuthorityStore.js
+          node test-hostinger-storage-durable-tenant-authority-store.mjs
+          node test-hostinger-storage-durable-tenant-authority-row-cardinality.mjs
+
+      - name: Commit exact repair and remove temporary workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(spec-014): prove durable authority row cardinality'
+          git push origin HEAD:gpt/014-fix-durable-authority-row-cardinality-20260802
