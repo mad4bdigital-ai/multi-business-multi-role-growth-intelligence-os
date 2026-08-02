@@ -1,0 +1,148 @@
+name: Hostinger Storage Durable Authorized Injection State Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-authorized-injection-state.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json'
+      - '.github/workflows/hostinger-storage-durable-authorized-injection-state-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js'
+      - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-authorized-injection-state-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-authorized-injection-state:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPORT_DIR: .ci-evidence/spec014-durable-authorized-injection-state
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check registry and test syntax
+        id: syntax
+        continue-on-error: true
+        run: |
+          node --check http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
+
+      - name: Execute durable registration, restart, and rollback lifecycle
+        id: focused_test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs \
+            > "${REPORT_DIR}/focused-test.stdout" \
+            2> "${REPORT_DIR}/focused-test.stderr"
+
+      - name: Preserve contract-local non-production authority
+        id: boundary
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "${changed_files}" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! printf '%s\n' "${changed_files}" | grep -E '^\.github/workflows/.*(?:migration|production|deploy|provider)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          grep -q 'runtime_material_persisted: false' http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          grep -q 'migration_apply_authorized: false' http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          grep -q '"contract_local_only": true' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json
+          grep -q '"governed_runtime_migration_promoted": false' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json
+
+      - name: Build structured guard summary
+        if: always()
+        shell: bash
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          TEST_OUTCOME: ${{ steps.focused_test.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          stages = {
+            'syntax': os.environ['SYNTAX_OUTCOME'],
+            'focused_test': os.environ['TEST_OUTCOME'],
+            'bounded_authority': os.environ['BOUNDARY_OUTCOME'],
+          }
+          failed = [name for name, outcome in stages.items() if outcome != 'success']
+          report = {
+            'contract': 'mad4b.spec014-durable-authorized-injection-state-guard.v1',
+            'outcome': 'passed' if not failed else 'failed',
+            'candidate_kind': 'head',
+            'exact_candidate_sha': os.environ['CANDIDATE_SHA'],
+            'source_sha': os.environ['SOURCE_SHA'],
+            'stages': stages,
+            'first_failure': failed[0] if failed else None,
+            'durable_sql_contract_ready': True,
+            'runtime_material_persisted': False,
+            'live_database_access_performed_by_factory': False,
+            'migration_apply_authorized': False,
+            'worker_mounted': False,
+            'provider_dispatch_allowed': False,
+            'production_ready': False,
+            'automatic_retry_allowed': False,
+            'repository_mutation_performed': False,
+            'job_logs_consulted': False,
+            'secrets_included': False,
+          }
+          Path(os.environ['REPORT_DIR'], 'summary.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+      - name: Upload structured guard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-authorized-injection-state-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/summary.json
+            ${{ env.REPORT_DIR }}/focused-test.stdout
+            ${{ env.REPORT_DIR }}/focused-test.stderr
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured guard decision
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ['REPORT_DIR'], 'summary.json').read_text())
+          if report.get('outcome') != 'passed':
+              raise SystemExit(f"durable authorized injection guard failed: {report.get('first_failure')}")
+          PY
