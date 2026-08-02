@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-tenant-enablement-registry",
+  "title": "Spec 014 Durable Tenant One-shot Enablement Registry",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-tenant-enablement-registry.json",
+      ".github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json",
+      ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql",
+      ".github/workflows/hostinger-storage-durable-tenant-enablement-registry-guard.yml",
+      "http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js",
+      "http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement an unmounted async SQL registry that preserves exact registration replay and consumes each Tenant execution enablement at most once.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-enablement-register-consume-and-reject-retry",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable bridge reviewer",
+          "entrypoint": "Hostinger Storage Durable Tenant Enablement Registry Guard",
+          "terminal_outcome": "An exact authorization/operation/run-bound enablement transitions once from generation N and unconsumed to generation N+1 and consumed, with an immutable receipt, while replay, expiry, CAS, second-use, migration, mount, and provider boundaries remain fail-closed.",
+          "steps": [
+            "Require signed schema verification bound to the exact two-table enablement contract and exact deployed runtime parity.",
+            "Create the canonical registry without opening a database connection or exposing the raw pool.",
+            "Register an unconsumed enablement with positive generation, exact authorization digest, operation, run, and expiry bindings.",
+            "Replay the exact registration while rejecting the same ID with different evidence.",
+            "Reject consumption when authorization, operation, run, generation, or expiry no longer matches.",
+            "Consume the enablement using advisory lock, row lock, generation/consumed/row-version CAS, and generation increment by one.",
+            "Insert one immutable consumption receipt in the same transaction and verify current row plus receipt before commit.",
+            "Reject every second consumption and require an explicit fresh read rather than automatic retry.",
+            "Rollback a forced CAS miss without creating a consumption receipt.",
+            "Export secret-free current records and immutable receipts while route, worker, provider, migration, and production flags remain false."
+          ],
+          "assertions": [
+            "The current enablement row and immutable consumption receipt are changed in one transaction under the shared advisory lock.",
+            "The current row may transition exactly once from unconsumed generation N to consumed generation N+1.",
+            "Every successful insert or consumption requires exact same-transaction readback.",
+            "Duplicate, orphan, or disagreeing consumption receipts fail closed.",
+            "The contract-local DDL is not placed in the runtime migration directory or promoted into Wave 1 through Wave 3.",
+            "The current synchronous memory-only Tenant Canary is not modified and compatibility remains false.",
+            "No route, server, worker, provider, Hostinger, deployment, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-durable-tenant-enablement-registry",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-tenant-enablement-registry.json",
+            ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql",
+            "http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js",
+            "http-generic-api/test-hostinger-storage-durable-tenant-enablement-registry.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Promote and apply the schema through a separately authorized migration cycle, capture signed live readback, and connect the registry through the async Tenant runtime bridge.",
+      "blockers": [
+        "The contract-local DDL has not been promoted into a checksum-bound runtime migration sequence.",
+        "No live migration authorization, dry-run, apply, or same-cycle table/index/constraint readback exists.",
+        "No signed live enablement-registry schema verification exists.",
+        "The current Tenant Canary remains synchronous and memory-factory-owned.",
+        "No route or worker mount authorization exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove restart reconstruction, concurrent consumption attempts, interrupted receipt insertion, stale expiry evidence, and orphan-receipt detection."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This slice does not execute a live Tenant or database canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production schema apply, runtime mount, and provider dispatch remain separately governed and blocked."
+    }
+  ]
+}
