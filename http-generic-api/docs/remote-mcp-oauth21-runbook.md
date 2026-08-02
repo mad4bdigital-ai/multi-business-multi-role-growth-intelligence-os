@@ -8,6 +8,8 @@ The implementation is disabled by default. Merging source does not apply the mig
 
 Generated dispatch evidence is accepted only when it is committed on the current candidate and every exact-head check passes against that same source and evidence snapshot. Evidence generated for an earlier candidate is not authoritative.
 
+The `generated-artifact-refresh` pull-request label authorizes only the registered exact-head dispatcher to delegate the bounded generated-artifact refresh; it does not authorize deployment, migration, protected-branch mutation, or force push.
+
 ## Canonical resources
 
 ```text
