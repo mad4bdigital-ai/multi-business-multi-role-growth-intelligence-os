@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1043-apply-contract",
+  "title": "Exact-once checksum-bound Migration 1043 Apply contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1043-apply-contract.json",
+      ".github/ops/sprint69-1043-apply.mjs",
+      ".github/workflows/sprint69-1043-apply.yml",
+      "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a separately authorized, exact-once Migration 1043 Apply contract that requires pre-existing Runtime Readiness authorization, exact Production parity, readback-first duplicate prevention, a same-cycle zero-risk dry-run, one non-retriable Apply attempt, and exact ledger/readiness certification without synchronizing the activation registry.",
+      "e2e_journeys": [
+        {
+          "id": "validate-migration-1043-apply-boundary-without-invoking-it",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized repository operator reviewing the Migration 1043 Apply boundary",
+          "entrypoint": "Static Apply workflow, executor, and exact-trigger contract",
+          "terminal_outcome": "The repository exposes one exact issue-comment-gated Apply path that fails closed unless Runtime Readiness authorization already exists, revalidates the reviewed migration and exact Production runtime, performs readback and a same-cycle dry-run before one Apply request, never retries ambiguous execution, and requires exact ledger and readiness-view certification afterward.",
+          "steps": [
+            "Require the exact Apply comment on issue #4449 from an OWNER, MEMBER, or COLLABORATOR.",
+            "Reject push, pull_request, workflow_dispatch, and automatic Apply triggers.",
+            "Checkout trusted main and verify it contains repository readiness, runtime-readiness contract, recovery, and projection/reconciliation merges.",
+            "Verify the protected Production ref contains the managed-execution foundation and the exact reviewed Migration 1043 Git blob.",
+            "Require health, version, and deployment-info to converge on one stable protected Production SHA.",
+            "Perform governed migration ledger/schema readback before creating an execution envelope or sending Apply.",
+            "If the exact Apply ledger already exists and all expected objects/readiness checks pass, report already_applied and send no Apply.",
+            "Otherwise read the exact governed migration authorization registry row and prove Runtime Readiness already authorized the reviewed checksum, statement count, source PR, and source merge.",
+            "Never create or rotate readiness authorization from the Apply contract.",
+            "Repeat the zero-risk governed dry-run in the same workflow execution.",
+            "Create and apply-authorize one Production- and checksum-bound governed_migration_execute envelope with external writes disabled.",
+            "Send exactly one Apply request using the filename-derived confirmation and never retry an unsuccessful or ambiguous response.",
+            "Require exact Apply ledger, expected table/view objects, and a one-row readiness view reporting 3/3 tables, 15/15 binding columns, and readiness_status=ready.",
+            "Upload sanitized Artifact and Job Summary evidence without GitHub writes or activation registry synchronization."
+          ],
+          "assertions": [
+            "The workflow trigger is exactly APPLY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE on issue #4449 and differs from the Runtime Readiness trigger.",
+            "The workflow has contents:read only and no push, pull_request, workflow_dispatch, Issue write, PR write, or repository mutation permission.",
+            "The executor pins Migration 1043 blob 7f3e0152bcdfba36a659ff4a1df8e30d82024c8c, checksum a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9, four statements, source PR #4845, and source merge a1c1f3d4f4b36a3a5764d898194818e3e9ea1ce3.",
+            "The Apply contract never creates readiness authorization; it requires exactly one authorized governed_migration_authorization_registry row with matching policy, source, checksum, statement count, source PR, source merge, zero-risk preflight, and allow_apply=1.",
+            "Readback-first prevents duplicate Apply when the exact ledger and expected objects already exist.",
+            "The same-cycle dry-run reports mode=dry_run, applies_sql=false, exact checksum and statement count, preflight pass, and zero risks.",
+            "The execution envelope requires explicit apply authorization under governed_migration_execute_apply_v1 and external_write_allowed=false.",
+            "The executor contains exactly one mode=apply request and never retries Apply after an unsuccessful or ambiguous response.",
+            "An ambiguous Apply response records apply_sent=true, retry_permitted=false, and requires exact readback before any future operator decision.",
+            "Success requires exact Apply ledger metadata, all three tables, the readiness view, and readiness counts/status.",
+            "The contract never calls activation_authorized_surface_registry_sync and reports activation_registry_sync_executed=false.",
+            "No provider call, credential payload read, external business write, deployment, Production ref mutation, or secret evidence occurs during contract validation."
+          ],
+          "tests": [
+            {
+              "id": "migration-1043-apply-boundary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-apply-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/sprint69-1043-apply-contract.json",
+            ".github/ops/sprint69-1043-apply.mjs",
+            ".github/workflows/sprint69-1043-apply.yml",
+            "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After successful Runtime Readiness and a separate exact Apply comment, execute one Apply attempt and retain exact authorization, dry-run, ledger, object, and readiness-view Artifacts."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove ambiguous-response handling, duplicate-ledger reuse, stale authorization rejection, checksum drift rejection, Production drift rejection, and no-retry behavior against controlled non-production fixtures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Verify persistent managed execution tables and tenant/admin projection/reconciliation paths against a non-production database after the exact migration ledger is present."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote and verify the exact implementation SHA, separately synchronize the tenant-safe activation surface, execute protected tenant/admin canaries, and complete the final #4449 audit."
+    }
+  ]
+}
