@@ -30,7 +30,11 @@ export function getPool() {
 }
 
 export async function testConnection() {
-  const conn = await getPool().getConnection();
-  await conn.ping();
-  conn.release();
+  let conn = null;
+  try {
+    conn = await getPool().getConnection();
+    await conn.ping();
+  } finally {
+    conn?.release();
+  }
 }
