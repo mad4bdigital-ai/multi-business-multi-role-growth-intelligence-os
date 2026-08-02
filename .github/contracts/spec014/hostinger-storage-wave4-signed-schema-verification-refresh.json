@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "contract": "spec014.hostinger-storage-wave4-signed-schema-verification-refresh.v1",
   "feature_key": "014-governed-hostinger-storage-orchestration",
-  "source_integration_commit": "cc91bf1145f91fe052a9c3790afb28d1cd6cc282",
+  "source_integration_commit": "6242c43b43eba3cb9e999b0daff36f24f0c63588",
   "runtime_sequence": {
     "wave_count": 4,
     "wave_4_migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
