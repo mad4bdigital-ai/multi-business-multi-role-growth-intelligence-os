@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-dispatch-v2-identity",
+  "title": "Unique V2 identity for governed generated-artifact dispatcher",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+      "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+      ".changes/e2e/governed-generated-artifact-refresh-dispatch-v2-identity.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Assign a fresh unique GitHub Actions workflow identity while preserving the trusted comment command, exact-head writer delegation, direct canonical publication, permissions, and fail-closed behavior.",
+      "e2e_journeys": [
+        {
+          "id": "register-and-invoke-v2-dispatcher-identity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted repository collaborator and GitHub Actions workflow registry",
+          "entrypoint": "A trusted /refresh-generated-artifacts <exact-sha> comment after the V2 identity reaches main",
+          "terminal_outcome": "GitHub registers Governed Generated Artifact Refresh Dispatch V2 and the workflow directly publishes a structured decision containing an observed delegated writer run or a typed blocking reason.",
+          "steps": [
+            "Change only the workflow display identity to a unique V2 name.",
+            "Preserve issue_comment and workflow_dispatch triggers.",
+            "Preserve trusted-main checkout, exact PR head validation, explicit refresh label, protected-branch rejection, and typed writer confirmation.",
+            "Preserve direct canonical publication before enforcement.",
+            "After merge, issue one exact-head command and require an actual workflow run."
+          ],
+          "assertions": [
+            "The workflow name is exactly Governed Generated Artifact Refresh Dispatch V2.",
+            "The canonical report contract and artifact names remain unchanged.",
+            "Permissions remain actions:write, contents:read, issues:write, and pull-requests:read with no contents:write.",
+            "No candidate code checkout, direct repository mutation, force push, migration, deployment, provider call, credential access, or external send is introduced.",
+            "HTTP 204 alone remains insufficient; passed evidence requires delegated_run_observed=true and delegated_run_id."
+          ],
+          "tests": [
+            {
+              "id": "v2-dispatcher-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+              "args": []
+            },
+            {
+              "id": "v2-dispatcher-direct-publisher-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+            "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one exact-head issue-comment run under the V2 identity and its delegated writer run ID."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Continue fail-closed handling for stale heads, missing labels, untrusted authors, protected branches, rejected dispatch, and unobserved writer runs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow identity repair performs no provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no runtime, migration, provider, credential, deployment, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

@@ -7,7 +7,7 @@ const retiredWorkflowPath = "../.github/workflows/governed-generated-artifact-re
 assert.equal(fs.existsSync(retiredWorkflowPath), false, "retired dispatcher path must remain absent");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
-assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch$/mu);
+assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch V2$/mu);
 assert.doesNotMatch(workflow, /^\s*push:\s*$/mu, "dispatcher must not run from work-branch pushes");
 assert.match(workflow, /^\s*issue_comment:\s*$/mu, "dispatcher must expose a trusted comment command from main");
 assert.match(workflow, /types:\s*\[created\]/u, "comment dispatcher must use newly created comments only");
@@ -58,6 +58,7 @@ console.log(JSON.stringify({
   tests: 46,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
+  unique_workflow_identity: "Governed Generated Artifact Refresh Dispatch V2",
   trusted_comment_command: true,
   trusted_main_checkout: true,
   direct_canonical_publication: true,

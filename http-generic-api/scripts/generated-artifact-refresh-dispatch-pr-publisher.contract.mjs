@@ -94,7 +94,7 @@ assert.match(fallbackPublisherWorkflow, /canonical\/dispatch\.json/u);
 assert.match(fallbackPublisherWorkflow, /generated-artifact-refresh-dispatch-pr-publisher\.mjs/u);
 
 const dispatcherWorkflow = readFileSync("../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml", "utf8");
-assert.match(dispatcherWorkflow, /^name: Governed Generated Artifact Refresh Dispatch$/mu);
+assert.match(dispatcherWorkflow, /^name: Governed Generated Artifact Refresh Dispatch V2$/mu);
 assert.match(dispatcherWorkflow, /^\s*issue_comment:\s*$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_dispatch:\s*$/mu);
 assert.doesNotMatch(dispatcherWorkflow, /^\s*push:\s*$/mu);
@@ -120,6 +120,7 @@ console.log(JSON.stringify({
   contract: "mad4b.generated-artifact-refresh-dispatch-pr-publisher-contract.v1",
   cases: 36,
   exact_head_bound: true,
+  unique_dispatcher_identity: "Governed Generated Artifact Refresh Dispatch V2",
   trusted_direct_publication: true,
   push_trigger_removed: true,
   job_logs_authoritative: false,
