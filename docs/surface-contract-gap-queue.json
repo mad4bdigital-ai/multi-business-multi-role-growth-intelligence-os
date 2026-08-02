@@ -698,7 +698,7 @@
     },
     {
       "migration_file": "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
-      "score": 730,
+      "score": 731,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": true,

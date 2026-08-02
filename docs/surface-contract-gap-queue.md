@@ -202,7 +202,7 @@
 ### 15. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
 
 - Queue class: critical_review
-- Score: 730
+- Score: 731
 - Gap severity: high
 - Missing docs: none
 - Missing OpenAPI routes: none

@@ -420,7 +420,7 @@
     },
     {
       "migration_file": "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
-      "score": 730,
+      "score": 731,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",
