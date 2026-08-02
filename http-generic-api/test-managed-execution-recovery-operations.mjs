@@ -248,7 +248,7 @@ const lifecycleSource = readFileSync("managedExecutionLifecycleService.js", "utf
 
 for (const contract of [
   "assertManagedExecutionAuthorityStillEffective",
-  "managed_execution_step_retry_requested",
+  "managed_step_retry_requested",
   "idempotency_key_sha256",
   "managed_execution_assignee_active_membership_required",
   "supervisor_approval",
