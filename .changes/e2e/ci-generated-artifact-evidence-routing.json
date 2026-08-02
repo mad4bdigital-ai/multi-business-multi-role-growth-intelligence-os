@@ -10,7 +10,7 @@
       ".github/ci-evidence-routing.json",
       ".github/repository-maintenance-tool-governance.json",
       ".github/workflows/ci-evidence-pr-publisher.yml",
-      ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       "docs/ci-evidence-routing.md",
@@ -155,7 +155,7 @@
           "evidence_paths": [
             ".github/ci-evidence-routing.json",
             ".github/workflows/ci-evidence-pr-publisher.yml",
-            ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
             "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.contract.mjs",
             "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
