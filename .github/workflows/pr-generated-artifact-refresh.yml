@@ -13,7 +13,7 @@ on:
       - ".github/workflows/ci-evidence-pr-publisher.yml"
       - ".github/workflows/governed-generated-artifact-refresh.yml"
       - ".github/workflows/pr-generated-artifact-refresh.yml"
-      - ".github/workflows/protected-promotion-generated-artifact-refresh.yml"
+      - ".github/workflows/production-promotion-generated-artifact-evidence.yml"
       - ".github/workflows/frontend-surface-dispatch.yml"
       - ".github/workflows/custom-gpt-contract-guard.yml"
       - "docs/**"
