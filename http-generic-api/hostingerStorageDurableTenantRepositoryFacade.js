@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { transitionHostingerStorageOperation } from './hostingerStorageOrchestrationPolicy.js';
 import {
   HOSTINGER_STORAGE_VERIFIED_SQL_RUNTIME_COMPOSITION_VERSION,
   isCanonicalHostingerStorageVerifiedSqlRuntimeComposition,
@@ -258,6 +259,7 @@ export function createHostingerStorageDurableTenantRepositoryFacade(options = {}
     const evidence = {
       preparation_key: 'hostinger_storage_durable_tenant_execution_preparation_v1',
       operation_id: preparation.operation_id,
+      operation_version: Number(afterOperation.version),
       plan_id: preparation.plan_id,
       run_id: preparation.run_id,
       transitioned_to_executing: operationTransition !== null,
@@ -281,6 +283,76 @@ export function createHostingerStorageDurableTenantRepositoryFacade(options = {}
       secrets_included: false,
     };
     return deepFreeze({ ok: true, evidence, evidence_digest: digest(evidence), secrets_included: false });
+  }
+
+  async function advanceExecutionState(input = {}) {
+    const copy = snapshot(input, 'advance_execution_state');
+    const operationId = identifier(copy.operation_id ?? copy.operationId, 'operation_id', 36);
+    const expectedVersion = integer(copy.expected_version ?? copy.expectedVersion, 'expected_version', 1);
+    const expectedCurrentState = identifier(copy.expected_current_state ?? copy.expectedCurrentState, 'expected_current_state', 64);
+    const nextState = identifier(copy.next_state ?? copy.nextState, 'next_state', 64);
+    const nowEpoch = integer(copy.now_epoch ?? copy.nowEpoch, 'now_epoch', 1);
+    const unknownOutcomeReconciled = copy.unknown_outcome_reconciled === true || copy.unknownOutcomeReconciled === true;
+    const terminalReasonRaw = copy.terminal_reason ?? copy.terminalReason ?? null;
+    const terminalReason = terminalReasonRaw === null ? null : identifier(terminalReasonRaw, 'terminal_reason', 256);
+
+    const before = await composition.control_plane.readAggregate(operationId);
+    const current = before?.operation;
+    if (!current) throw fail(404, 'STORAGE_DURABLE_TENANT_FACADE_OPERATION_NOT_FOUND', 'Durable operation aggregate was not found.', { operation_id: operationId });
+    if (Number(current.version) !== expectedVersion) {
+      throw fail(409, 'STORAGE_DURABLE_TENANT_FACADE_OPERATION_VERSION_CONFLICT', 'Operation version changed before governed state advancement.', {
+        expected_version: expectedVersion,
+        observed_version: Number(current.version),
+      });
+    }
+    if (current.state !== expectedCurrentState) {
+      throw fail(409, 'STORAGE_DURABLE_TENANT_FACADE_OPERATION_STATE_CONFLICT', 'Operation state changed before governed state advancement.', {
+        expected_state: expectedCurrentState,
+        observed_state: current.state,
+      });
+    }
+    const decision = transitionHostingerStorageOperation({
+      current_state: expectedCurrentState,
+      next_state: nextState,
+      unknown_outcome_reconciled: unknownOutcomeReconciled,
+    });
+    if (decision.allowed !== true) {
+      throw fail(409, 'STORAGE_DURABLE_TENANT_FACADE_OPERATION_TRANSITION_DENIED', 'Operation transition is not allowed by the canonical storage policy.', {
+        reason_codes: decision.reason_codes || [],
+        current_state: expectedCurrentState,
+        next_state: nextState,
+      });
+    }
+
+    await composition.control_plane.transitionOperation({
+      operation_id: operationId,
+      expected_version: expectedVersion,
+      next_state: nextState,
+      terminal_reason: terminalReason,
+      now_epoch: nowEpoch,
+    });
+    const after = await composition.control_plane.readAggregate(operationId);
+    const observed = after?.operation;
+    if (!observed || observed.state !== nextState || Number(observed.version) !== expectedVersion + 1) {
+      throw fail(409, 'STORAGE_DURABLE_TENANT_FACADE_OPERATION_TRANSITION_READBACK_MISMATCH', 'Operation transition readback differs from the governed request.');
+    }
+    return deepFreeze({
+      ok: true,
+      operation: snapshot(observed, 'operation'),
+      aggregate_digest: after.aggregate_digest,
+      transition: {
+        current_state: expectedCurrentState,
+        next_state: nextState,
+        previous_version: expectedVersion,
+        current_version: Number(observed.version),
+        unknown_outcome_reconciled: unknownOutcomeReconciled,
+        secrets_included: false,
+      },
+      provider_dispatch_allowed: false,
+      runtime_mounted: false,
+      production_ready: false,
+      secrets_included: false,
+    });
   }
 
   async function appendJournalEvent(input = {}) {
@@ -311,6 +383,7 @@ export function createHostingerStorageDurableTenantRepositoryFacade(options = {}
     consume_plan_exposed: false,
     readExecutionAggregate,
     prepareExecution,
+    advanceExecutionState,
     appendJournalEvent,
     appendReconciliation,
     finalizeRun,
@@ -343,6 +416,7 @@ export function isCanonicalHostingerStorageDurableTenantRepositoryFacade(value) 
     && value?.production_ready === false
     && typeof value?.readExecutionAggregate === 'function'
     && typeof value?.prepareExecution === 'function'
+    && typeof value?.advanceExecutionState === 'function'
     && typeof value?.appendJournalEvent === 'function'
     && typeof value?.appendReconciliation === 'function'
     && typeof value?.finalizeRun === 'function'
