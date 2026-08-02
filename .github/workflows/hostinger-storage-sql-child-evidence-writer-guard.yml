@@ -1,0 +1,54 @@
+name: Hostinger Storage SQL Child Evidence Writer Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-sql-child-evidence-writer.json'
+      - '.github/contracts/spec014/hostinger-storage-sql-child-evidence-writer.json'
+      - '.github/workflows/hostinger-storage-sql-child-evidence-writer-guard.yml'
+      - 'http-generic-api/hostingerStorageSqlChildEvidenceWriter.js'
+      - 'http-generic-api/hostingerStorageSqlParentWriter.js'
+      - 'http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-sql-child-evidence-writer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sql-child-evidence-writer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check child writer syntax
+        run: |
+          node --check http-generic-api/hostingerStorageSqlChildEvidenceWriter.js
+          node --check http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs
+
+      - name: Validate parent-aware child transaction contract
+        run: node http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs
+
+      - name: Preserve unmounted non-apply boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -E "from ['\"](?:node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" http-generic-api/hostingerStorageSqlChildEvidenceWriter.js
+          grep -q "runtime_mounted: false" http-generic-api/hostingerStorageSqlChildEvidenceWriter.js
+          grep -q "foreign_keys_enabled: false" http-generic-api/hostingerStorageSqlChildEvidenceWriter.js
+          grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageSqlChildEvidenceWriter.js
+          grep -q '"migration_applied": false' .github/contracts/spec014/hostinger-storage-sql-child-evidence-writer.json
+          grep -q '"live_database_access_performed": false' .github/contracts/spec014/hostinger-storage-sql-child-evidence-writer.json
