@@ -48,7 +48,7 @@
             "The workflow retains contents:read and receives no issue, pull-request, action, or repository write authority.",
             "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
             "repository_mutation_performed, provider_dispatch_performed, credential_access_performed, job_logs_consulted, and secrets_included remain false.",
-            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based Hostinger CI Evidence PR Publisher for the same exact head."
+            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based Hostinger Canonical Evidence PR Publisher for the same exact head."
           ],
           "tests": [
             {
@@ -80,9 +80,9 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Runs 30727534285 and 30727714577 proved real run-bound Tenant Canary Artifacts before publisher re-registration. The specialized Hostinger CI Evidence PR Publisher reached main at 606545e7aaa07c580d28174bb1e6db52e2b6c53c. Complete the operational phase by proving a new post-registration exact-head Artifact is consumed and published into the shared authoritative PR comment.",
+      "objective": "Runs 30727534285, 30727714577, 30728203790, and 30728283325 proved real run-bound Tenant Canary Artifacts. Path-only publisher registration did not publish the Hostinger section. The unique Hostinger Canonical Evidence PR Publisher identity reached main at b783635a97128e356e0c8d4646c762c84f105095. Complete the operational phase by proving a new exact-head Artifact is consumed under the unique identity and published into the shared authoritative PR comment.",
       "blockers": [
-        "A post-registration Hostinger Storage Tenant Canary Guard run and its trusted Hostinger comment section have not yet been observed together for the exact current Probe head."
+        "A post-unique-identity Hostinger Storage Tenant Canary Guard run and its Hostinger Canonical Evidence PR Publisher comment section have not yet been observed together for the exact current Probe head."
       ]
     },
     {
