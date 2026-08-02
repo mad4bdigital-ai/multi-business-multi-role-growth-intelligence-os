@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "support-ticket-completion-certification-openapi-precision",
+  "title": "Support Ticket completion certification OpenAPI precision migration",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+      "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+      "http-generic-api/openapi.yaml",
+      ".changes/e2e/support-ticket-completion-certification-openapi-precision.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Upgrade only the known completion-certification legacy OpenAPI operation with canonical runtime metadata while preserving its request and response schemas and rejecting every non-allowlisted imprecise operation.",
+      "e2e_journeys": [
+        {
+          "id": "support-ticket-completion-certification-metadata-upgrade",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository OpenAPI contract automation",
+          "entrypoint": "Run the precise contract registry writer against a root OpenAPI document containing the known legacy completion-certification operation",
+          "terminal_outcome": "The exact operation gains canonical runtime provenance and authorization metadata without losing its existing schemas, the resulting document is idempotent, and an unrelated imprecise operation remains blocked.",
+          "steps": [
+            "Create a synthetic root OpenAPI document with the exact legacy completion-certification operation and its existing request and response details.",
+            "Discover the matching runtime route and exact admin/backend authorization profile.",
+            "Apply the allowlisted metadata upgrade through the precise contract registry writer.",
+            "Read the written OpenAPI document and verify preserved schemas plus canonical runtime metadata.",
+            "Run check mode for idempotence and submit a structurally similar non-allowlisted operation to prove fail-closed behavior."
+          ],
+          "assertions": [
+            "Only POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification is eligible for the metadata-only legacy migration.",
+            "The operation ID, security alternatives, consequential classification, parameters, request body, responses, and descriptions are preserved or reasserted exactly.",
+            "Canonical x-runtime-contract-source and x-runtime-auth-profile metadata are present after composition.",
+            "A second check reports no generated drift.",
+            "Any non-allowlisted imprecise Support Ticket operation fails with support_ticket_existing_contract_not_precise.",
+            "Structured repository-automation artifacts and canonical PR evidence, rather than Job logs, are the status authority."
+          ],
+          "tests": [
+            {
+              "id": "support-ticket-runtime-openapi-sync",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-support-ticket-runtime-openapi-sync.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/support-ticket-runtime-openapi-contracts.mjs",
+            "http-generic-api/test-support-ticket-runtime-openapi-sync.mjs",
+            "http-generic-api/openapi.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Remove the one-time legacy allowlist after the generated root OpenAPI contract is merged and no supported branch requires migration."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Extend contract provenance drift detection without permitting generic metadata-only upgrades."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-only OpenAPI metadata migration has no external canary target."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production deployment and runtime verification remain outside this repository-only contract migration."
+    }
+  ]
+}
