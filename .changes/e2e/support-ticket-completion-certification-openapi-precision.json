@@ -41,7 +41,8 @@
             "The operation ID, security alternatives, consequential classification, parameters, request body, responses, and descriptions are preserved or reasserted exactly.",
             "Canonical x-runtime-contract-source and x-runtime-auth-profile metadata are present after composition.",
             "A second check reports no generated drift.",
-            "Any non-allowlisted imprecise Support Ticket operation fails with support_ticket_existing_contract_not_precise."
+            "Any non-allowlisted imprecise Support Ticket operation fails with support_ticket_existing_contract_not_precise.",
+            "Structured repository-automation artifacts and canonical PR evidence, rather than Job logs, are the status authority."
           ],
           "tests": [
             {
