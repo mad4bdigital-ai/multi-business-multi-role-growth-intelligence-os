@@ -25,7 +25,7 @@ assert.match(workflow, /main.*Production/u);
 assert.match(workflow, /expected_head_sha/u);
 assert.match(workflow, /persist-credentials:\s*true/u);
 assert.match(workflow, /maintenance-tools\/generated-artifact-refresh\.mjs/u);
-assert.match(workflow, /--output-dir \"\$\{OUTPUT_DIR\}\"/u);
+assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
 assert.match(workflow, /pr-generated-artifact-refresh\.yml\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
