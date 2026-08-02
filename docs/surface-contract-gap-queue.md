@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 24
+- Total queue items: 25
 - Critical review: 20
 - High review: 1
-- Medium review: 3
+- Medium review: 4
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -202,7 +202,7 @@
 ### 15. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
 
 - Queue class: critical_review
-- Score: 730
+- Score: 731
 - Gap severity: high
 - Missing docs: none
 - Missing OpenAPI routes: none
@@ -320,7 +320,21 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 24. `20260728_governed_response_chunk_ownership.sql`
+### 24. `1043_sprint69_tenant_managed_execution_lifecycle.sql`
+
+- Queue class: medium_review
+- Score: 324
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_managed_execution_lifecycle_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 25. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318
