@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: main
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Node.js 22
@@ -95,6 +95,8 @@ jobs:
           set -euo pipefail
           [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${EXPECTED_BRANCH}" == "Production" ]]
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "${production_sha}" == "${EXPECTED_SHA}" ]]
 
       - name: Generate structured live parity evidence
         id: parity
