@@ -1,0 +1,121 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-record-integrity",
+  "title": "Durable Authorized Injection stored-record digest recomputation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-record-integrity.json",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recompute every stored state and rollback record SHA-256 from the parsed JSON core instead of trusting equality between the embedded digest and SQL digest column.",
+      "e2e_journeys": [
+        {
+          "id": "reject-rewritten-state-with-matching-fake-digest-fields",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "durable Authorized Injection state reader",
+          "entrypoint": "A previously valid persisted state row whose JSON content and both digest fields are modified together",
+          "terminal_outcome": "The reader recomputes SHA-256 from the stored JSON core and rejects the row with STORAGE_DURABLE_INJECTION_RECORD_DIGEST_MISMATCH before returning recovery evidence.",
+          "steps": [
+            "Persist a canonical Receipt and Mount Readback through the existing durable registry.",
+            "Modify a provenance field inside the stored JSON record.",
+            "Set both the JSON record_digest and SQL record_digest column to the same attacker-chosen lowercase SHA-256-shaped value.",
+            "Read the state through a restarted canonical registry.",
+            "Recompute the digest after removing record_digest from the JSON core.",
+            "Reject when the recomputed digest differs, even though the two stored digest fields match.",
+            "Restore the original row and complete restart reconstruction and rollback regressions unchanged."
+          ],
+          "assertions": [
+            "Both SQL-column and embedded record digests must be valid lowercase SHA-256 values.",
+            "The embedded digest must equal the SQL-column digest.",
+            "The SHA-256 recomputed from the stored JSON core must equal both stored digests.",
+            "Rewritten content with matching fake digest fields is rejected.",
+            "Valid registration, replay, restart reconstruction, rollback CAS, and no-runtime-material boundaries remain unchanged.",
+            "No schema, migration, Route, Server, provider, live DB, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-record-integrity",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This is a repository read-integrity correction and introduces no live operation."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed for malformed, mismatched, or content-invalid state and rollback records while preserving all current restart and rollback behavior.",
+      "e2e_journeys": [
+        {
+          "id": "preserve-valid-lifecycle-after-integrity-rejection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "restart reconciliation and rollback controller",
+          "entrypoint": "The original untampered durable row restored after the integrity probe",
+          "terminal_outcome": "Restart reconstruction returns the exact original readback and rollback remains CAS-bound, while runtime material and live authority remain absent.",
+          "steps": [
+            "Restore the original canonical state row.",
+            "Read and reconstruct the Authorized Injection coordinator.",
+            "Verify exact Mount Readback digest continuity.",
+            "Record rollback through the existing row-version CAS path.",
+            "Verify rolled-back reactivation and rollback replay remain rejected."
+          ],
+          "assertions": [
+            "The hardening does not change valid record digests or lifecycle output.",
+            "No runtime material is persisted.",
+            "Provider dispatch, migration Apply, Production readiness, and automatic retry remain false."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-lifecycle-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live environment or provider canary is authorized."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No deployment, migration, main merge, or Production authority is introduced."
+    }
+  ],
+  "secrets_included": false
+}
