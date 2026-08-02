@@ -190,10 +190,15 @@ export function createHostingerStorageSqlRunReader(options = {}) {
         before_snapshot_id, after_snapshot_id, provider_response_classification,
         unknown_outcome, readback_status, result_digest
         FROM storage_cleanup_runs WHERE id=?`, [runId]);
-      if ((rows || []).length > 1) {
+      const boundedRows = Array.isArray(rows) ? rows : [];
+      if (boundedRows.length > 1) {
         throw fail(409, 'STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS', 'Run identity resolved to multiple durable rows.', { run_id: runId });
       }
-      const run = rows?.[0] ? normalizeRun(rows[0]) : null;
+      let run = null;
+      if (boundedRows.length === 1) {
+        const [row] = boundedRows;
+        run = normalizeRun(row);
+      }
       return deepFreeze({
         found: run !== null,
         run,
