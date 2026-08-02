@@ -14,12 +14,14 @@ import {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const API_ROOT = resolve(SCRIPT_DIR, "..");
 const REPO_ROOT = resolve(API_ROOT, "..");
+const GIT_MAX_BUFFER = 64 * 1024 * 1024;
 
 function git(args) {
   return execFileSync("git", args, {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: GIT_MAX_BUFFER,
   }).trim();
 }
 
