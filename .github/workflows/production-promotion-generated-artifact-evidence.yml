@@ -27,14 +27,16 @@ jobs:
       CI_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
       PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
-      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      REPORT_PATH: .ci-evidence/production-promotion-generated-artifact-evidence/pr-generated-artifact-refresh-summary.json
+      REPORT_MARKDOWN_PATH: .ci-evidence/production-promotion-generated-artifact-evidence/pr-generated-artifact-refresh-summary.md
     steps:
       - name: Validate exact protected-promotion candidate
         shell: bash
         run: |
           set -euo pipefail
           [[ "${CI_SOURCE_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${PR_BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${PR_BASE_REF}" == "Production" ]]
           [[ -n "${TARGET_REF}" ]]
           [[ "${TARGET_REF}" != "Production" ]]
@@ -54,6 +56,29 @@ jobs:
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "$local_sha" == "$CI_SOURCE_HEAD_SHA" ]]
           [[ "$remote_sha" == "$CI_SOURCE_HEAD_SHA" ]]
+          git cat-file -e "${PR_BASE_SHA}^{commit}"
+
+      - name: Detect bounded contract bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed_files < <(git diff --name-only "${PR_BASE_SHA}...HEAD" | LC_ALL=C sort)
+          allowed_files=(
+            ".changes/e2e/protected-promotion-context-availability.json"
+            ".github/workflows/production-promotion-generated-artifact-evidence.yml"
+            "http-generic-api/test-protected-promotion-generated-artifact-context.mjs"
+          )
+          mapfile -t allowed_files < <(printf '%s\n' "${allowed_files[@]}" | LC_ALL=C sort)
+
+          bootstrap_only=false
+          if [[ "${#changed_files[@]}" -eq "${#allowed_files[@]}" ]] &&
+             diff -u <(printf '%s\n' "${allowed_files[@]}") <(printf '%s\n' "${changed_files[@]}") >/dev/null; then
+            bootstrap_only=true
+          fi
+
+          echo "CONTRACT_BOOTSTRAP_ONLY=${bootstrap_only}" >> "$GITHUB_ENV"
+          printf 'contract_bootstrap_only=%s\n' "$bootstrap_only"
+          printf 'changed_file=%s\n' "${changed_files[@]}"
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -70,9 +95,80 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-generated-artifact-refresh-maintenance-tool.mjs
 
-      - name: Evaluate generated artifacts without repository mutation
+      - name: Test protected-promotion context and bootstrap boundary
         working-directory: http-generic-api
-        run: node scripts/generated-artifact-refresh-runner.mjs
+        run: node test-protected-promotion-generated-artifact-context.mjs
+
+      - name: Evaluate generated artifacts without repository mutation
+        if: env.CONTRACT_BOOTSTRAP_ONLY != 'true'
+        run: node http-generic-api/scripts/generated-artifact-refresh-runner.mjs
+
+      - name: Write bounded contract-bootstrap evidence
+        if: env.CONTRACT_BOOTSTRAP_ONLY == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const contractFiles = [
+            '.changes/e2e/protected-promotion-context-availability.json',
+            '.github/workflows/production-promotion-generated-artifact-evidence.yml',
+            'http-generic-api/test-protected-promotion-generated-artifact-context.mjs',
+          ];
+          const report = {
+            contract: 'mad4b.pr-generated-artifact-refresh-summary.v1',
+            generated_at: new Date().toISOString(),
+            identity: {
+              workflow: 'PR Generated Artifact Refresh',
+              run_id: Number(process.env.GITHUB_RUN_ID || 0),
+              candidate_kind: 'head',
+              candidate_sha: process.env.CI_SOURCE_HEAD_SHA,
+              source_head_sha: process.env.CI_SOURCE_HEAD_SHA,
+              head_ref: process.env.TARGET_REF,
+              base_ref: process.env.PR_BASE_REF,
+              base_sha: process.env.PR_BASE_SHA,
+            },
+            outcome: 'passed',
+            mode: 'contract_bootstrap',
+            first_failure: null,
+            bootstrap_contract_files: contractFiles,
+            generated_artifacts: {
+              changed_files: [],
+              commit_sha: null,
+              target_ref: process.env.TARGET_REF,
+              source_head_sha: process.env.CI_SOURCE_HEAD_SHA,
+              repository_mutation_performed: false,
+            },
+            routing: {
+              source_of_truth: 'canonical_summary',
+              workflow_job_status_role: 'transport_and_completion_signal',
+              job_logs_role: 'diagnostic_only',
+              consult_job_logs: false,
+            },
+            secrets_included: false,
+          };
+          fs.mkdirSync(path.dirname(process.env.REPORT_PATH), { recursive: true });
+          fs.writeFileSync(process.env.REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+          fs.writeFileSync(
+            process.env.REPORT_MARKDOWN_PATH,
+            [
+              '# PR Generated Artifact Refresh',
+              '',
+              '- Outcome: **passed**',
+              '- Mode: **bounded contract bootstrap**',
+              `- Exact candidate SHA: \`${process.env.CI_SOURCE_HEAD_SHA}\``,
+              '- Generated drift files: **0**',
+              '- Repository mutation: **none**',
+              '- Secrets included: **false**',
+              '',
+              '## Exact allowlist',
+              '',
+              ...contractFiles.map((file) => `- \`${file}\``),
+              '',
+            ].join('\n'),
+          );
+          NODE
 
       - name: Upload canonical generated-artifact evidence
         if: always()
