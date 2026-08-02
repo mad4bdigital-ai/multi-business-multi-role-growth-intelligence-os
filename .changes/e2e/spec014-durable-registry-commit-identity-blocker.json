@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-registry-commit-identity-blocker",
+  "title": "Reproduce the Durable Registry Git commit identity mismatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-registry-commit-identity-blocker.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
+      ".github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json",
+      ".github/workflows/hostinger-storage-durable-registry-commit-identity-blocker-guard.yml",
+      "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the schema-verification v2 evidence is schema-compatible with the Durable Registry while the Registry still rejects the repository's 40-character Git object identity.",
+      "e2e_journeys": [
+        {
+          "id": "reproduce-sha40-consumer-rejection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 Durable Authorized Injection Registry constructor",
+          "entrypoint": "A secret-free successful schema-verification object using the current 40-character Integration commit SHA",
+          "terminal_outcome": "The exact consumer failure is reproduced before any database connection opens, while a 64-character control identity is accepted and the repair remains explicitly unperformed.",
+          "steps": [
+            "Build exact Durable Injection schema evidence with the canonical contract key, digest, and two-table set.",
+            "Pass the current 40-character Integration Git commit as source_commit and deployed_runtime_sha.",
+            "Assert the Registry rejects source_commit with STORAGE_DURABLE_INJECTION_HASH_INVALID.",
+            "Pass a 64-character control identity and assert the canonical Registry is constructed without database access.",
+            "Record that the producer accepts 40 or 64 characters while the consumer currently accepts only 64.",
+            "Keep runtime repair, authorization, migration execution, provider dispatch, deployment, and Production false."
+          ],
+          "assertions": [
+            "The failure field is schema_verification.source_commit.",
+            "The schema contract binding succeeds before commit identity validation.",
+            "No SQL connection is opened by the constructor-only inspection.",
+            "The existing durable_registry_binding_ready claim is scoped to schema evidence only.",
+            "Durable Registry runtime acceptance remains false until a commit-specific validator accepts 40 or 64 lowercase hexadecimal characters."
+          ],
+          "tests": [
+            {
+              "id": "durable-registry-commit-identity-blocker",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json",
+            "http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Replace commit fields' SHA-256 validator with an exact Git object identity validator without weakening digest validation.",
+      "blockers": [
+        "DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject malformed, mixed-length, uppercase, or parity-mismatched commit identities after the repair."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live canary is appropriate for a repository-only mismatch reproduction."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This blocker proof grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}
