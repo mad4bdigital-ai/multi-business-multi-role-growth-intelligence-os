@@ -31,6 +31,19 @@ assert.match(
   /const \[row\] = boundedRows;[\s\S]*parseRecord\(row, table\)[\s\S]*Number\(row\.row_version\)/u,
   'loadCurrent must destructure the sole proven row instead of selecting an arbitrary candidate',
 );
+
+const normalizeIndex = loadCurrentSource.indexOf('const boundedRows = Array.isArray(rows) ? rows : [];');
+const ambiguityIndex = loadCurrentSource.indexOf('if (boundedRows.length > 1)');
+const emptyIndex = loadCurrentSource.indexOf('if (boundedRows.length === 0) return null;');
+const destructureIndex = loadCurrentSource.indexOf('const [row] = boundedRows;');
+assert.ok(
+  normalizeIndex >= 0
+    && ambiguityIndex > normalizeIndex
+    && emptyIndex > ambiguityIndex
+    && destructureIndex > emptyIndex,
+  'loadCurrent must prove normalization, ambiguity rejection, empty result, then sole-row selection in that order',
+);
+
 assert.doesNotMatch(
   loadCurrentSource,
   /rows\?\.\[0\]|rows\[0\]|boundedRows\[0\]/u,
