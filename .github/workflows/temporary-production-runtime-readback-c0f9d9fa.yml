@@ -1,0 +1,288 @@
+name: Temporary Production Runtime Readback c0f9d9fa
+
+on:
+  push:
+    branches:
+      - gpt/production-runtime-readback-c0f9d9fa-20260802
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_PRODUCTION_SHA: c0f9d9fa84bfbf9edf4967a11a94758cb1491ad3
+      EXPECTED_SOURCE_SHA: 79cbbc634e690bf30ab2827144cb49c88b14f9a5
+      EXPECTED_BRANCH: Production
+      PRODUCTION_MERGED_AT: 2026-08-02T17:11:49Z
+      PRODUCTION_HOST: auth.mad4b.com
+      REPORT_DIR: production-runtime-readback
+    steps:
+      - name: Probe DNS TLS health version and deployment manifest
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          python3 <<'PY'
+          import datetime as dt
+          import hashlib
+          import json
+          import os
+          import re
+          import socket
+          import ssl
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          host = os.environ["PRODUCTION_HOST"]
+          expected_sha = os.environ["EXPECTED_PRODUCTION_SHA"]
+          expected_source_sha = os.environ["EXPECTED_SOURCE_SHA"]
+          expected_branch = os.environ["EXPECTED_BRANCH"]
+          merged_at = os.environ["PRODUCTION_MERGED_AT"]
+          report_dir = Path(os.environ["REPORT_DIR"])
+          sensitive = re.compile(r"secret|token|password|authorization|private[_-]?key|api[_-]?key|cookie", re.I)
+          sha40 = re.compile(r"^[0-9a-f]{40}$", re.I)
+
+          def redact(value):
+              if isinstance(value, dict):
+                  return {str(k): ("[REDACTED]" if sensitive.search(str(k)) else redact(v)) for k, v in value.items()}
+              if isinstance(value, list):
+                  return [redact(v) for v in value[:200]]
+              if isinstance(value, str):
+                  return value[:4096]
+              return value
+
+          def collect_shas(value, out=None):
+              out = out if out is not None else set()
+              if isinstance(value, dict):
+                  for v in value.values():
+                      collect_shas(v, out)
+              elif isinstance(value, list):
+                  for v in value:
+                      collect_shas(v, out)
+              elif isinstance(value, str) and sha40.fullmatch(value.strip()):
+                  out.add(value.strip().lower())
+              return sorted(out)
+
+          def parse_iso(value):
+              if not isinstance(value, str) or not value.strip():
+                  return None
+              try:
+                  return dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+              except ValueError:
+                  return None
+
+          report = {
+              "contract": "mad4b.production-runtime-readback.v1",
+              "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+              "target": {
+                  "hostname": host,
+                  "expected_branch": expected_branch,
+                  "expected_production_sha": expected_sha,
+                  "expected_source_sha": expected_source_sha,
+                  "production_merged_at": merged_at,
+              },
+              "authority": {
+                  "probe_kind": "public_read_only",
+                  "repository_checkout": False,
+                  "credential_access": False,
+                  "provider_mutation": False,
+                  "repository_mutation": False,
+                  "protected_branch_mutation": False,
+                  "secrets_included": False,
+              },
+              "dns": {},
+              "tls": {},
+              "endpoints": {},
+          }
+
+          try:
+              infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+              addresses = sorted({item[4][0] for item in infos})
+              report["dns"] = {"ok": bool(addresses), "addresses": addresses[:20]}
+          except Exception as exc:
+              report["dns"] = {"ok": False, "error_type": type(exc).__name__, "error": str(exc)[:500]}
+
+          try:
+              context = ssl.create_default_context()
+              with socket.create_connection((host, 443), timeout=15) as raw:
+                  with context.wrap_socket(raw, server_hostname=host) as tls:
+                      cert = tls.getpeercert()
+                      report["tls"] = {
+                          "ok": True,
+                          "version": tls.version(),
+                          "cipher": list(tls.cipher() or ()),
+                          "not_before": cert.get("notBefore"),
+                          "not_after": cert.get("notAfter"),
+                          "subject_alt_names": [v for k, v in cert.get("subjectAltName", []) if k == "DNS"][:30],
+                      }
+          except Exception as exc:
+              report["tls"] = {"ok": False, "error_type": type(exc).__name__, "error": str(exc)[:500]}
+
+          def request_path(path):
+              url = f"https://{host}{path}"
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": "application/json",
+                      "User-Agent": "mad4b-production-runtime-readback/1.0",
+                  },
+                  method="GET",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      status = response.status
+                      raw = response.read(262144)
+                      headers = response.headers
+              except urllib.error.HTTPError as exc:
+                  status = exc.code
+                  raw = exc.read(262144)
+                  headers = exc.headers
+              except Exception as exc:
+                  return {
+                      "ok": False,
+                      "url": url,
+                      "error_type": type(exc).__name__,
+                      "error": str(exc)[:500],
+                  }
+
+              result = {
+                  "ok": 200 <= status < 300,
+                  "url": url,
+                  "status": status,
+                  "content_type": str(headers.get("content-type") or "")[:200],
+                  "content_length": len(raw),
+                  "body_sha256": hashlib.sha256(raw).hexdigest(),
+                  "safe_headers": {
+                      "date": str(headers.get("date") or "")[:200] or None,
+                      "server": str(headers.get("server") or "")[:200] or None,
+                      "cache_control": str(headers.get("cache-control") or "")[:200] or None,
+                  },
+              }
+              try:
+                  parsed = json.loads(raw.decode("utf-8"))
+                  result["json"] = redact(parsed)
+                  result["observed_commit_shas"] = collect_shas(parsed)
+              except Exception:
+                  result["json"] = None
+                  result["non_json_body_recorded"] = False
+              return result
+
+          for path in ["/health", "/version", "/deployment-info", "/connector-agent/version"]:
+              report["endpoints"][path] = request_path(path)
+
+          deployment_endpoint = report["endpoints"].get("/deployment-info", {})
+          deployment = deployment_endpoint.get("json") if isinstance(deployment_endpoint.get("json"), dict) else {}
+          version_endpoint = report["endpoints"].get("/version", {})
+          version_shas = set(version_endpoint.get("observed_commit_shas") or [])
+          deployment_shas = set(deployment_endpoint.get("observed_commit_shas") or [])
+          evidence = deployment.get("evidence") if isinstance(deployment.get("evidence"), dict) else {}
+          deployed_at = parse_iso(deployment.get("deployed_at"))
+          merged_at_value = parse_iso(merged_at)
+
+          checks = {
+              "dns_resolved": report["dns"].get("ok") is True,
+              "tls_verified": report["tls"].get("ok") is True,
+              "health_http_success": report["endpoints"].get("/health", {}).get("ok") is True,
+              "version_http_success": version_endpoint.get("ok") is True,
+              "deployment_info_http_success": deployment_endpoint.get("ok") is True,
+              "deployment_branch_exact": deployment.get("branch") == expected_branch,
+              "deployment_commit_exact": str(deployment.get("commit_sha") or deployment.get("commit") or "").lower() == expected_sha,
+              "deployment_sha_observed": expected_sha in deployment_shas,
+              "version_sha_observed": expected_sha in version_shas,
+              "branch_source_explicit": str(deployment.get("branch_source") or "") not in {"", "unavailable", "dev_hostname_fallback"},
+              "commit_source_explicit": str(deployment.get("commit_source") or "") not in {"", "unavailable"},
+              "canonical_manifest_detected": evidence.get("canonical_manifest_detected") is True,
+              "manifest_detected": evidence.get("manifest_detected") is True,
+              "manifest_secret_free": evidence.get("secrets_included") is False,
+              "deployment_timestamp_after_merge": bool(deployed_at and merged_at_value and deployed_at >= merged_at_value),
+          }
+          required = [
+              "dns_resolved",
+              "tls_verified",
+              "health_http_success",
+              "version_http_success",
+              "deployment_info_http_success",
+              "deployment_branch_exact",
+              "deployment_commit_exact",
+              "deployment_sha_observed",
+              "version_sha_observed",
+              "branch_source_explicit",
+              "commit_source_explicit",
+              "canonical_manifest_detected",
+              "manifest_detected",
+              "manifest_secret_free",
+              "deployment_timestamp_after_merge",
+          ]
+          production_current = all(checks[name] for name in required)
+          if production_current:
+              classification = "production_current"
+          elif checks["deployment_info_http_success"] and deployment.get("commit_sha") and not checks["deployment_commit_exact"]:
+              classification = "runtime_reload_pending"
+          elif not checks["deployment_info_http_success"] or not checks["health_http_success"]:
+              classification = "runtime_parity_incomplete"
+          else:
+              classification = "hostinger_build_pending_or_runtime_parity_incomplete"
+
+          report["checks"] = checks
+          report["required_checks"] = required
+          report["outcome"] = "passed" if production_current else "blocked"
+          report["classification"] = classification
+          report["production_current"] = production_current
+          report["first_failure"] = next((name for name in required if not checks[name]), None)
+
+          report_path = report_dir / "readback.json"
+          report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          markdown = [
+              "# Production runtime readback",
+              "",
+              f"- Outcome: **{report['outcome']}**",
+              f"- Classification: `{classification}`",
+              f"- Expected Production SHA: `{expected_sha}`",
+              f"- Expected branch: `{expected_branch}`",
+              f"- First failure: `{report['first_failure'] or 'none'}`",
+              "- Credentials accessed: **no**",
+              "- Repository/provider mutation: **no**",
+              "- Secrets included: **no**",
+              "",
+              "## Checks",
+              "",
+          ]
+          markdown.extend(f"- {name}: **{'passed' if value else 'failed'}**" for name, value in checks.items())
+          (report_dir / "readback.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"production_current={'true' if production_current else 'false'}\n")
+              output.write(f"classification={classification}\n")
+          print(json.dumps({
+              "outcome": report["outcome"],
+              "classification": classification,
+              "first_failure": report["first_failure"],
+              "secrets_included": False,
+          }, sort_keys=True))
+          PY
+
+      - name: Upload bounded runtime readback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-readback-${{ github.run_id }}
+          path: production-runtime-readback/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce exact Production runtime parity
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("production-runtime-readback/readback.json").read_text(encoding="utf-8"))
+          if report.get("production_current") is not True:
+              raise SystemExit(f"Production runtime parity blocked: {report.get('classification')} / {report.get('first_failure')}")
+          PY
