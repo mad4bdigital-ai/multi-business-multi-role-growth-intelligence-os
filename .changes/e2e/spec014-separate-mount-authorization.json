@@ -33,12 +33,12 @@
             "Independently verify the fixed dispatch certificate and nested worker certificate.",
             "Require exact source/deployed SHA parity, database fingerprint, schema verification, and readback cycle.",
             "Bind the Tenant route seam, dependency key, target, operation, plan, and execution lease.",
-            "Bind approval set, capability envelope, mount policy, rollback plan, issuer, revision, and generation.",
-            "Require approved, single-use, unconsumed, default-off authorization with at most one-hour lifetime.",
+            "Bind the exact dispatch authorization-bundle hash plus approval set, capability envelope, mount policy, rollback plan, issuer, revision, and generation.",
+            "Require approved, single-use, unconsumed, default-off authorization with at most one-hour lifetime that cannot outlive Bridge, Dispatch, or Worker evidence.",
             "Recompute nested blockers and the authorization digest during independent verification."
           ],
           "assertions": [
-            "A tampered or not-ready bridge or dispatch certificate cannot authorize mounting.",
+            "A tampered, expired, or not-ready bridge, dispatch, or worker certificate cannot authorize mounting.",
             "The Tenant route remains fail-closed and unmounted.",
             "The authorization is created only as a packet; it is not persisted or consumed.",
             "No dependency is injected, no worker is mounted, no job is enqueued, and no credential or provider is accessed.",
