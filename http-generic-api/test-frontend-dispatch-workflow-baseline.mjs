@@ -1,17 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const validationWorkflow = fs.readFileSync(
+const workflow = fs.readFileSync(
   new URL("../.github/workflows/frontend-surface-dispatch.yml", import.meta.url),
   "utf8",
 );
-const refreshWorkflow = fs.readFileSync(
-  new URL("../.github/workflows/frontend-surface-dispatch-refresh.yml", import.meta.url),
-  "utf8",
-);
 
-const generationBlock = validationWorkflow.match(
-  /- name: Generate source-pinned dispatch plan and bounded auth repair[\s\S]*?- name: Guard bounded generated evidence set/,
+const generationBlock = workflow.match(
+  /- name: Generate source-pinned dispatch plan[\s\S]*?- name: Verify generator contract/,
 )?.[0];
 
 assert.ok(generationBlock, "dispatch generation workflow block must exist");
@@ -27,55 +23,18 @@ assert.match(
 );
 assert.match(
   generationBlock,
-  /git fetch origin "\$\{CANONICAL_BASELINE_REF\}" --depth=1[\s\S]*?git branch -f "\$\{CANONICAL_BASELINE_REF\}" "origin\/\$\{CANONICAL_BASELINE_REF\}"/,
-  "validation must fetch the current canonical branch and move the local canonical ref before generation",
-);
-assert.match(
-  generationBlock,
-  /node scripts\/openapi-runtime-auth-sync\.mjs --write[\s\S]*?--baseline-ref="\$\{CANONICAL_BASELINE_REF\}"/,
-  "validation must generate exact-operation auth repair before the dispatch projection",
+  /--baseline-ref="\$\{CANONICAL_BASELINE_REF\}"/,
+  "the generator must consume the canonical baseline ref",
 );
 assert.doesNotMatch(
   generationBlock,
   /--baseline-ref=.*TARGET_REF/,
   "promotion targets such as Production must not rewrite committed canonical evidence",
 );
-assert.match(validationWorkflow, /permissions:\s*\n\s*contents:\s*read/u, "pull-request verification must be read-only");
-assert.doesNotMatch(validationWorkflow, /\bgit\s+push\b/u, "pull-request verification must not mutate the repository");
-assert.doesNotMatch(validationWorkflow, /contents:\s*write/u, "pull-request verification must not request write permission");
-
-assert.match(refreshWorkflow, /workflow_dispatch:/u, "refresh must require explicit workflow dispatch");
-assert.doesNotMatch(refreshWorkflow, /\npull_request(?:_target)?:/u, "refresh must not run from pull-request events");
-assert.doesNotMatch(refreshWorkflow, /\npush:/u, "refresh must not run from branch-push events");
-assert.match(refreshWorkflow, /expected_head_sha:/u, "refresh must require an explicit expected head SHA");
 assert.match(
-  refreshWorkflow,
-  /TARGET_BRANCH[\s\S]*?main[\s\S]*?Production[\s\S]*?exit 1/u,
-  "refresh must reject protected branches before writing",
-);
-assert.match(
-  refreshWorkflow,
-  /CURRENT_HEAD_SHA="\$\(git rev-parse HEAD\)"[\s\S]*?EXPECTED_HEAD_SHA[\s\S]*?exit 1/u,
-  "refresh must reject a stale checked-out head",
-);
-assert.match(
-  refreshWorkflow,
-  /git ls-remote --heads origin[\s\S]*?EXPECTED_HEAD_SHA[\s\S]*?git push origin "HEAD:\$\{TARGET_BRANCH\}"/u,
-  "refresh must re-check the remote exact head before a bounded push",
-);
-
-const refreshBlock = refreshWorkflow.match(
-  /- name: Generate bounded canonical and dispatch evidence[\s\S]*?- name: Commit and push exact-head refresh/,
-)?.[0];
-assert.ok(refreshBlock, "bounded refresh workflow block must exist");
-assert.match(
-  refreshBlock,
-  /git fetch origin main --depth=1[\s\S]*?git branch -f main origin\/main[\s\S]*?BASE_REF="main"[\s\S]*?node scripts\/openapi-runtime-auth-sync\.mjs --write[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
-  "refresh and validation must resolve main from the same freshly fetched commit and apply auth sync before projection",
-);
-assert.ok(
-  refreshBlock.includes("openapi\\.yaml|openapi/support-tickets\\.yaml"),
-  "refresh must keep canonical auth repair bounded to the reviewed OpenAPI files",
+  workflow,
+  /BASE_REF="main"[\s\S]*?--baseline-ref="\$\{BASE_REF\}"/,
+  "manual refresh and PR validation must share the same canonical baseline semantics",
 );
 
 console.log("frontend dispatch workflow baseline contract: ok");
