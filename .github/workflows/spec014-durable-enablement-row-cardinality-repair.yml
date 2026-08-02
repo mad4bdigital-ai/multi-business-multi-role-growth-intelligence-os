@@ -1,0 +1,111 @@
+name: Spec014 Durable Enablement Row Cardinality Repair
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - .github/workflows/spec014-durable-enablement-row-cardinality-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-durable-enablement-row-cardinality-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'gpt/014-fix-durable-enablement-row-cardinality-20260802'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/014-fix-durable-enablement-row-cardinality-20260802
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply deterministic cardinality proofs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('http-generic-api/hostingerStorageDurableTenantEnablementRegistry.js')
+          workflow_path = Path('.github/workflows/spec014-durable-enablement-row-cardinality-repair.yml')
+          lines = source_path.read_text(encoding='utf-8').splitlines()
+
+          def replace_guarded_return(return_target, guard_target, error_target, replacement):
+              indexes = [index for index, line in enumerate(lines) if line.strip() == return_target]
+              if len(indexes) != 1:
+                  raise SystemExit(f'expected one exact return target, found {len(indexes)}: {return_target}')
+              return_index = indexes[0]
+              guard_index = return_index - 3
+              if guard_index < 0 or lines[guard_index].strip() != guard_target:
+                  raise SystemExit(f'guard not found at reviewed location: {guard_target}')
+              if lines[guard_index + 1].strip() != error_target or lines[guard_index + 2].strip() != '}':
+                  raise SystemExit(f'guard body no longer matches reviewed contract: {guard_target}')
+              lines[guard_index:return_index + 1] = replacement
+
+          replace_guarded_return(
+              "return rows?.[0] ? { record: normalizeStoredRecord(rows[0]), row_version: Number(rows[0].row_version) } : null;",
+              "if ((rows || []).length > 1) {",
+              "throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_ROW_AMBIGUOUS', 'Enablement identity resolved to multiple durable rows.', { enablement_id: enablementId });",
+              [
+                  '  const boundedRows = Array.isArray(rows) ? rows : [];',
+                  '  if (boundedRows.length > 1) {',
+                  "    throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_ROW_AMBIGUOUS', 'Enablement identity resolved to multiple durable rows.', { enablement_id: enablementId });",
+                  '  }',
+                  '  if (boundedRows.length === 0) return null;',
+                  '  const [row] = boundedRows;',
+                  '  return { record: normalizeStoredRecord(row), row_version: Number(row.row_version) };',
+              ],
+          )
+
+          replace_guarded_return(
+              "return rows?.[0] ? normalizeStoredConsumption(rows[0]) : null;",
+              "if ((rows || []).length > 1) {",
+              "throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_CONSUMPTION_AMBIGUOUS', 'Enablement resolved to multiple consumption receipts.', { enablement_id: enablementId });",
+              [
+                  '  const boundedConsumptionRows = Array.isArray(rows) ? rows : [];',
+                  '  if (boundedConsumptionRows.length > 1) {',
+                  "    throw fail(409, 'STORAGE_DURABLE_ENABLEMENT_CONSUMPTION_AMBIGUOUS', 'Enablement resolved to multiple consumption receipts.', { enablement_id: enablementId });",
+                  '  }',
+                  '  if (boundedConsumptionRows.length === 0) return null;',
+                  '  const [row] = boundedConsumptionRows;',
+                  '  return normalizeStoredConsumption(row);',
+              ],
+          )
+
+          source_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          workflow_path.unlink()
+          PY
+
+      - name: Validate bounded repair
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          node --check hostingerStorageDurableTenantEnablementRegistry.js
+          node test-hostinger-storage-durable-tenant-enablement-registry.mjs
+          node test-hostinger-storage-durable-tenant-enablement-row-cardinality.mjs
+
+      - name: Commit exact repair and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(spec-014): prove durable enablement row cardinality'
+          git push origin HEAD:gpt/014-fix-durable-enablement-row-cardinality-20260802
