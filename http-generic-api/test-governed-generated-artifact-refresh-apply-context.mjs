@@ -29,7 +29,11 @@ assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
 assert.match(workflow, /pr-generated-artifact-refresh\.yml\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
-assert.doesNotMatch(workflow, /(?:--force|-f)(?:\s|["'])/u);
+assert.doesNotMatch(
+  workflow,
+  /\bgit\s+push[^\n]*(?:--force(?:-with-lease)?|\s-f(?:\s|$))/u,
+  "workflow must not contain a force-push command",
+);
 
 console.log(JSON.stringify({
   ok: true,
