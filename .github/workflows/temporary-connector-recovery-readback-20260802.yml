@@ -1,0 +1,85 @@
+name: Temporary Connector Recovery Readback 20260802
+
+on:
+  pull_request:
+    branches:
+      - gpt/connector-recovery-readback-base-20260802
+    paths:
+      - '.github/workflows/temporary-connector-recovery-readback-20260802.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temporary-connector-recovery-readback-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: connector-readback
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Generate bounded public connector evidence
+        id: evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          CONNECTOR_RECOVERY_EVIDENCE_DIR: ${{ runner.temp }}/connector-recovery-evidence
+        run: |
+          node scripts/connector-recovery-evidence.mjs \
+            --connector-url "https://connector.mad4b.com/health" \
+            --output-dir "${CONNECTOR_RECOVERY_EVIDENCE_DIR}"
+
+      - name: Upload bounded connector evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connector-recovery-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/connector-recovery-evidence/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce structured connector decision
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/connector-recovery-evidence/connector-recovery-evidence.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const path = process.env.REPORT_PATH;
+            if (!path || !fs.existsSync(path)) process.exit(1);
+            const report = JSON.parse(fs.readFileSync(path, "utf8"));
+            const effects = report.side_effects || {};
+            const bounded =
+              report.contract === "mad4b.connector-recovery-evidence.v1" &&
+              report.secrets_included === false &&
+              report.routing?.consult_job_logs === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.credential_access_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.external_send_performed === false;
+            if (!bounded) process.exit(1);
+            console.log(JSON.stringify({
+              outcome: report.outcome,
+              first_failure: report.first_failure,
+              endpoint_status: report.endpoint?.status,
+              consult_job_logs: false,
+              secrets_included: false
+            }));
+            if (report.outcome !== "passed" || report.first_failure !== null) process.exit(1);
+          '
