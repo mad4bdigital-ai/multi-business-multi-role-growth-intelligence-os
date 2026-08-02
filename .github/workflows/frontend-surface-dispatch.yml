@@ -151,7 +151,7 @@ jobs:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       OUTPUT_DIR: ${{ runner.temp }}/spec016-generated-artifact-refresh-bootstrap
       WORKFLOW_PATH: .github/workflows/frontend-surface-dispatch.yml
-      TEMP_BOOTSTRAP_PATH: .github/workflows/spec016-generated-artifact-refresh-bootstrap.yml
+      RESTORE_SOURCE_SHA: 47f0bf7c261112cea0dd809ac9f61273f6dbe6f7
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
@@ -168,7 +168,7 @@ jobs:
           subject="$(git log -1 --pretty=%s)"
           local_sha="$(git rev-parse HEAD)"
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          if [[ "${subject}" == "chore(ci): activate exact-head generated refresh bootstrap" && \
+          if [[ "${subject}" == "chore(ci): activate exact-head generated refresh via registered frontend workflow" && \
                 "${TARGET_REF}" == "gpt/016-remote-mcp-oauth21-main-recovery-20260802" && \
                 "${EXPECTED_HEAD_SHA}" == "${local_sha}" && \
                 "${EXPECTED_HEAD_SHA}" == "${remote_sha}" ]]; then
@@ -199,7 +199,7 @@ jobs:
           jq -e '.contract == "mad4b.governed-generated-artifact-refresh.v1" and .outcome == "passed"' \
             "${OUTPUT_DIR}/generated-artifact-refresh-report.json" >/dev/null
 
-      - name: Restore read-only workflow and remove temporary bootstrap
+      - name: Restore registered read-only frontend workflow
         if: steps.guard.outputs.eligible == 'true'
         shell: bash
         run: |
@@ -211,16 +211,14 @@ jobs:
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "${local_sha}" == "${result_sha}" ]]
           [[ "${remote_sha}" == "${result_sha}" ]]
-          bootstrap_parent="$(git rev-parse "${EXPECTED_HEAD_SHA}^")"
-          git show "${bootstrap_parent}:${WORKFLOW_PATH}" > "${WORKFLOW_PATH}"
-          git rm -- "${TEMP_BOOTSTRAP_PATH}"
+          git show "${RESTORE_SOURCE_SHA}:${WORKFLOW_PATH}" > "${WORKFLOW_PATH}"
           git add -- "${WORKFLOW_PATH}"
-          git commit -m "chore(ci): remove Spec 016 generated refresh bootstrap"
+          git commit -m "chore(ci): restore read-only frontend dispatch workflow"
           cleanup_sha="$(git rev-parse HEAD)"
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "${remote_sha}" == "${result_sha}" ]]
           git push origin "HEAD:${TARGET_REF}"
-          jq --arg cleanup_sha "${cleanup_sha}" '. + {bootstrap_cleanup_sha:$cleanup_sha,bootstrap_removed:true,workflow_restored:true}' \
+          jq --arg cleanup_sha "${cleanup_sha}" '. + {bootstrap_cleanup_sha:$cleanup_sha,workflow_restored:true}' \
             "${report}" > "${report}.tmp"
           mv "${report}.tmp" "${report}"
 
