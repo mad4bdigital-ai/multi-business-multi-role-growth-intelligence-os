@@ -82,6 +82,16 @@ const preInjectionRoute = await probeRoute(preInjectionDependencies);
 assert.equal(preInjectionRoute.status, 503);
 assert.equal(preInjectionRoute.body.error.code, 'storage_tenant_runtime_unavailable');
 
+const invalidDigestDependencies = coordinator.resolveRouteDependencies({
+  expected_mount_readback_digest: 'not-a-sha256-digest',
+});
+assert.equal(Object.isFrozen(invalidDigestDependencies), true);
+assert.equal('tenantStorageRuntime' in invalidDigestDependencies, false);
+
+const missingDigestDependencies = coordinator.resolveRouteDependencies({});
+assert.equal(Object.isFrozen(missingDigestDependencies), true);
+assert.equal('tenantStorageRuntime' in missingDigestDependencies, false);
+
 const unsafeCoordinator = createHostingerStorageAuthorizedDependencyInjectionCoordinator();
 assert.throws(
   () => unsafeCoordinator.injectAuthorizedDependency({
@@ -250,6 +260,7 @@ console.log(JSON.stringify({
   route_available_after_exact_readback: true,
   restart_reconstruction_without_second_consumption: true,
   rollback_restores_http_503: true,
+  invalid_or_missing_readback_digest_fail_closed: true,
   live_server_modified: false,
   live_route_registration_performed: false,
   worker_mounted: false,
