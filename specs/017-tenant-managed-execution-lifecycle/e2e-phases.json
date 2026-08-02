@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "017-tenant-managed-execution-lifecycle",
-  "title": "Tenant managed execution authority, approval, and recovery lifecycle",
+  "title": "Tenant managed execution authority, approval, recovery, projection, and reconciliation lifecycle",
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
@@ -16,12 +16,14 @@
       "http-generic-api/managedExecutionRunService.js",
       "http-generic-api/managedExecutionDecisionService.js",
       "http-generic-api/managedExecutionRecoveryService.js",
+      "http-generic-api/managedExecutionProjectionService.js",
       "http-generic-api/managedExecutionLifecycleService.js",
       "http-generic-api/managedExecutionApprovalAuthorization.js",
       "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
       "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
       "http-generic-api/test-managed-execution-approval-role-hierarchy.mjs",
       "http-generic-api/test-managed-execution-recovery-operations.mjs",
+      "http-generic-api/test-managed-execution-projections-reconciliation.mjs",
       "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
       "http-generic-api/routes/managedExecutionRouteAuthorization.js",
       "http-generic-api/routes/managedExecutionRoutes.js",
@@ -36,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove the code and additive schema contract for principal-bound, capability-bound, resource-grant-bound, role-authorized, approval-gated, idempotent, and bounded-recovery managed execution without applying the migration or performing external operations.",
+      "objective": "Prove the code and additive schema contract for principal-bound, capability-bound, resource-grant-bound, role-authorized, approval-gated, idempotent, bounded-recovery, role-safe, and fingerprint-reconciled managed execution without applying the migration or performing external operations.",
       "e2e_journeys": [
         {
           "id": "create-and-gate-tenant-managed-execution",
@@ -59,7 +61,7 @@
           ],
           "assertions": [
             "Authenticated non-admin tenant and requester identifiers cannot be overridden by request payloads.",
-            "Managed run reads, steps, status updates, and recovery operations reject a principal outside the original tenant/requester scope.",
+            "Managed run reads, steps, status updates, recovery operations, and tenant projections reject a principal outside the original tenant/requester scope.",
             "Missing or inactive capability authority fails closed.",
             "Insufficient, revoked, expired, or changed resource authority fails closed.",
             "Approval-required runs cannot create steps without approved evidence.",
@@ -163,6 +165,51 @@
             "http-generic-api/test-managed-execution-recovery-operations.mjs",
             "specs/017-tenant-managed-execution-lifecycle/implementation/pr-recovery-operations.md"
           ]
+        },
+        {
+          "id": "project-and-reconcile-managed-execution-without-leaking-internal-payloads",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant requester reading safe progress and platform admin inspecting or reconciling linked state",
+          "entrypoint": "GET /managed-execution-runs/:id and POST /managed-execution-runs/:id/reconcile",
+          "terminal_outcome": "Tenant users receive only safe progress and action guidance; admins receive safe evidence summaries and contradiction details; structural conflicts remain blocked; unambiguous run/binding/task status drift can be reconciled only with the exact current plan fingerprint and contradiction-free transactional readback.",
+          "steps": [
+            "Load the managed workflow run, all bindings, linked task and parent tickets, approval holds, steps, and recent intervention events.",
+            "Return role-safe tenant or admin projection without raw execution or authority payloads.",
+            "Detect structural, relationship, tenant, approval, step, terminal, rollback, and status-drift contradictions.",
+            "Derive canonical state from completed rollback compensation, open or decided approval evidence, or workflow run status.",
+            "Generate deterministic repair actions only when every contradiction is status drift and no structural or ambiguous conflict exists.",
+            "Return dry-run actions, SHA-256 plan fingerprint, and exact confirmation without writes.",
+            "Require platform-admin authority and exact confirmation before Apply.",
+            "Recalculate under row locks, update only run/binding/task status fields, append digest evidence, and require zero-contradiction readback."
+          ],
+          "assertions": [
+            "Tenant projection contains no raw execution context, authority snapshot, input, output, error, idempotency, credential, or unknown event evidence.",
+            "Admin projection contains evidence hashes and allowlisted summaries but no raw execution or authority payloads.",
+            "Structural and ambiguous contradictions block Apply.",
+            "Dry-run performs no writes and returns exact contradiction codes, actions, fingerprint, and confirmation.",
+            "Non-admin reconciliation is rejected before database access.",
+            "Stale or incorrect confirmation cannot Apply.",
+            "Apply changes only run/binding/task status fields, appends digest evidence, and requires contradiction-free readback.",
+            "No hold decision, step state, relationship, tenant, authority, grant, provider, credential, external system, deployment, migration, registry, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "managed-execution-projections-reconciliation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-managed-execution-projections-reconciliation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/managedExecutionLifecycleService.js",
+            "http-generic-api/managedExecutionProjectionService.js",
+            "http-generic-api/routes/managedExecutionRoutes.js",
+            "http-generic-api/test-managed-execution-projections-reconciliation.mjs",
+            "specs/017-tenant-managed-execution-lifecycle/implementation/pr-projections-reconciliation.md"
+          ]
         }
       ]
     },
@@ -173,18 +220,18 @@
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Add complete tenant/admin projections and automated contradiction reconciliation as T019."
+      "status": "implemented",
+      "objective": "Provide bounded recovery, role-safe projections, structural contradiction detection, and fingerprinted transactional status reconciliation."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run tenant/admin recovery canary paths against an exact deployed non-production candidate."
+      "objective": "Run tenant/admin recovery, projection, dry-run, blocked-conflict, stale-confirmation, and successful reconciliation canary paths against an exact deployed non-production candidate."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Verify exact Production SHA, migration ledger, runtime readback, protected tenant path, recovery evidence, and post-merge audit before closing #4449."
+      "objective": "Verify exact Production SHA, migration ledger, runtime readback, protected tenant/admin paths, recovery/reconciliation evidence, and post-merge audit before closing #4449."
     }
   ]
 }
