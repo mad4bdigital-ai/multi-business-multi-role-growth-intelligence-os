@@ -10,17 +10,17 @@ export const HOSTINGER_STORAGE_SCHEMA_PREDICATE_TYPE = 'https://mad4b.com/attest
 export const HOSTINGER_STORAGE_SCHEMA_SUBJECT_TYPE = 'application/vnd.in-toto+json';
 
 const SUBJECT_KEY = 'hostinger_storage_schema_verification_v1';
-const READBACK_CONTRACT_KEY = 'spec014_hostinger_storage_migration_readback_v3';
+const READBACK_CONTRACT_KEY = 'spec014_hostinger_storage_migration_readback_v4';
 const SHA256_RE = /^[0-9a-f]{64}$/u;
 const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/u;
 const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/u;
 
 export const HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS = Object.freeze({
-  table_count: 15,
+  table_count: 17,
   view_count: 3,
-  runtime_column_count: 52,
-  runtime_index_column_count: 22,
+  runtime_column_count: 68,
+  runtime_index_column_count: 31,
   default_off_tool_count: 3,
   migrations: Object.freeze([
     Object.freeze({
@@ -40,6 +40,12 @@ export const HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS = Object.freeze({
       migration: '20260802_03_spec014_hostinger_storage_execution_evidence.sql',
       checksum_sha256: 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096',
       statement_count: 9,
+    }),
+    Object.freeze({
+      wave: 4,
+      migration: '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql',
+      checksum_sha256: 'fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981',
+      statement_count: 2,
     }),
   ]),
 });
@@ -126,7 +132,7 @@ function assertSecretFree(value, at) {
 
 function normalizeMigrations(rows) {
   if (!Array.isArray(rows) || rows.length !== HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations.length) {
-    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_SEQUENCE_INVALID', 'All three governed migration waves are required.');
+    throw fail(409, 'STORAGE_SCHEMA_VERIFICATION_MIGRATION_SEQUENCE_INVALID', 'All four governed migration waves are required.');
   }
   return HOSTINGER_STORAGE_SCHEMA_EXPECTATIONS.migrations.map((expected, index) => {
     const row = rows[index] || {};

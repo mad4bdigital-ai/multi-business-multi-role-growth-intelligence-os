@@ -6,6 +6,7 @@ on:
       - '.changes/e2e/spec014-signed-schema-verification.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification.json'
       - '.github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
       - '.github/workflows/hostinger-storage-schema-verification-guard.yml'
       - 'http-generic-api/hostingerStorageSchemaVerification.js'
       - 'http-generic-api/test-hostinger-storage-schema-verification.mjs'
@@ -39,6 +40,24 @@ jobs:
           mkdir -p .artifacts
           node http-generic-api/test-hostinger-storage-schema-verification.mjs 2>&1 \
             | tee .artifacts/hostinger-storage-schema-verification.log
+      - name: Require exact Wave 4 readback bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          readback='.github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql'
+          grep -q 'spec014_hostinger_storage_migration_readback_v4' \
+            .github/contracts/spec014/hostinger-storage-schema-verification.json \
+            "$readback" \
+            http-generic-api/hostingerStorageSchemaVerification.js \
+            http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q '20260802_04_spec014_hostinger_storage_authorized_injection_state.sql' \
+            .github/contracts/spec014/hostinger-storage-schema-verification.json \
+            http-generic-api/hostingerStorageSchemaVerification.js
+          grep -q 'storage_authorized_injection_states' "$readback"
+          grep -q 'storage_authorized_injection_rollbacks' "$readback"
+          grep -q '17 AS expected_table_count' "$readback"
+          grep -q 'compatible_runtime_column_count: 68' http-generic-api/test-hostinger-storage-schema-verification.mjs
+          grep -q 'compatible_runtime_index_column_count: 31' http-generic-api/test-hostinger-storage-schema-verification.mjs
       - name: Preserve public-key-only non-live boundary
         run: |
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
