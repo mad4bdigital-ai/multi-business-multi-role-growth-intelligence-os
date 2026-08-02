@@ -5,8 +5,8 @@ on:
     paths:
       - '.changes/e2e/spec014-deferred-child-fk-readiness.json'
       - '.github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json'
-      - '.github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql'
-      - '.github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql'
+      - '.github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql'
+      - '.github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql'
       - '.github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml'
       - 'http-generic-api/hostingerStorageDeferredChildFkReadiness.js'
       - 'http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs'
@@ -48,6 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           test ! -e http-generic-api/migrations/deferred-child-parent-foreign-keys.sql
+          test ! -e .github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql
+          test ! -e .github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql
           ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
           grep -q "authorization_created: false" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
           grep -q "migration_apply_authorized: false" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
