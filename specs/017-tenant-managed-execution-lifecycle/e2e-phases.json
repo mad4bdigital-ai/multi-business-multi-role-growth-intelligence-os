@@ -7,15 +7,22 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/managedExecutionCore.js",
       "http-generic-api/managedExecutionAuthority.js",
       "http-generic-api/managedExecutionPersistence.js",
       "http-generic-api/managedExecutionRunService.js",
       "http-generic-api/managedExecutionDecisionService.js",
       "http-generic-api/managedExecutionLifecycleService.js",
-      "http-generic-api/routes/workflowOrchestrationRoutes.js",
+      "http-generic-api/managedExecutionApprovalAuthorization.js",
       "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
-      "http-generic-api/test-tenant-managed-execution-lifecycle.mjs"
+      "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+      "http-generic-api/test-managed-execution-approval-role-hierarchy.mjs",
+      "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
+      "http-generic-api/routes/managedExecutionRouteAuthorization.js",
+      "http-generic-api/routes/managedExecutionRoutes.js",
+      "http-generic-api/routes/workflowOrchestrationRoutes.js",
+      "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js"
     ]
   },
   "merge_contract": {
@@ -25,31 +32,38 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove code and additive schema contracts for capability-bound, resource-grant-bound, approval-gated, idempotent managed execution without applying the migration or performing an external operation.",
+      "objective": "Prove the code and additive schema contract for principal-bound, capability-bound, resource-grant-bound, role-authorized, approval-gated, idempotent managed execution without applying the migration or performing external operations.",
       "e2e_journeys": [
         {
           "id": "create-and-gate-tenant-managed-execution",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authorized tenant requester and managed execution approver",
-          "entrypoint": "Managed execution service and workflow orchestration routes",
-          "terminal_outcome": "The linked task and run contain immutable authority evidence, approval cannot be bypassed, insufficient approver roles are rejected, authority drift blocks new steps, and repeated step requests remain idempotent.",
+          "actor": "Authorized tenant requester, authorized approval decision maker, and managed execution operator",
+          "entrypoint": "Managed execution service and composite workflow orchestration routes",
+          "terminal_outcome": "An authenticated principal can create and operate only an in-scope managed run; a parent-linked task and run contain immutable authority evidence; only an authorized same-tenant decision maker can resolve a hold; approvals cannot be bypassed; live authority drift blocks steps; repeated step requests reuse one step; legacy routes remain discoverable.",
           "steps": [
-            "Validate explicit tenant, requester, parent ticket, capability, resource, effect, and idempotency scope.",
-            "Resolve active capability authority and effective resource grant.",
-            "Build a fingerprinted authority snapshot and derive approval policy.",
-            "Create or reuse the linked task, run, hold, binding, and event contract.",
-            "Verify approver role authority and revalidate live authority before a managed step.",
-            "Reject secret-bearing payloads, generic-route bypass, invalid transitions, and contradictory terminal states."
+            "Bind non-admin tenant and requester identity to authenticated claims and reject request-body overrides.",
+            "Validate explicit tenant, requester, parent ticket, capability, resource, effect class, and idempotency scope.",
+            "Resolve capability runtime authority and an effective exact or workspace resource grant.",
+            "Create a fingerprinted authority snapshot and parent-linked managed task/run contract.",
+            "Derive approval requirements from effect and access policy.",
+            "Require active same-tenant membership and the hold's required role, or tenant owner/admin authority, before a non-admin approval decision.",
+            "Revalidate authority before an idempotent managed step request.",
+            "Compose managed enforcement before the preserved legacy router and expose legacy signatures through a non-runtime discovery bridge in the directly mounted builder.",
+            "Reject secret-bearing payloads, approval bypass, cross-tenant access, authority tampering, invalid transitions, and contradictory terminal states."
           ],
           "assertions": [
+            "Authenticated non-admin tenant and requester identifiers cannot be overridden by request payloads.",
+            "Managed run reads, steps, and status updates reject a principal outside the original tenant/requester scope.",
             "Missing or inactive capability authority fails closed.",
             "Insufficient, revoked, expired, or changed resource authority fails closed.",
-            "Approval-required execution cannot create a managed step before an approved hold exists.",
-            "A principal below the hold required_role cannot decide the approval.",
-            "Repeated run and step requests reuse existing objects.",
-            "Migration 1043 is additive and contains no destructive table operation.",
-            "No provider call, credential read, external send, deployment, Production mutation, or SQL Apply occurs."
+            "Approval-required runs cannot create steps without approved evidence.",
+            "Approval decisions reject inactive, cross-tenant, ambiguous, or under-privileged decision makers while allowing explicitly higher roles.",
+            "Authority fingerprints detect payload tampering.",
+            "Repeated run and step request boundaries are idempotent.",
+            "Legacy workflow endpoints remain discoverable from the directly mounted builder without executing duplicate handlers.",
+            "Migration 1043 is additive, unapplied, and contains a readiness view.",
+            "No provider call, credential read, external send, deployment, or Production mutation occurs."
           ],
           "tests": [
             {
@@ -58,16 +72,39 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-managed-execution-lifecycle.mjs",
               "args": []
+            },
+            {
+              "id": "workflow-orchestration-route-discovery-bridge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workflow-orchestration-route-discovery-bridge.mjs",
+              "args": []
+            },
+            {
+              "id": "managed-execution-approval-role-hierarchy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-managed-execution-approval-role-hierarchy.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/managedExecutionCore.js",
             "http-generic-api/managedExecutionAuthority.js",
+            "http-generic-api/managedExecutionPersistence.js",
             "http-generic-api/managedExecutionRunService.js",
             "http-generic-api/managedExecutionDecisionService.js",
-            "http-generic-api/routes/workflowOrchestrationRoutes.js",
+            "http-generic-api/managedExecutionLifecycleService.js",
+            "http-generic-api/managedExecutionApprovalAuthorization.js",
             "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
-            "http-generic-api/test-tenant-managed-execution-lifecycle.mjs"
+            "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+            "http-generic-api/test-managed-execution-approval-role-hierarchy.mjs",
+            "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
+            "http-generic-api/routes/managedExecutionRouteAuthorization.js",
+            "http-generic-api/routes/managedExecutionRoutes.js",
+            "http-generic-api/routes/workflowOrchestrationRoutes.js",
+            "http-generic-api/routes/workflowOrchestrationLegacyRoutes.js"
           ]
         }
       ]
@@ -75,7 +112,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Apply Migration 1043 through a separately authorized governed migration and verify ledger and readiness evidence."
+      "objective": "Apply Migration 1043 through the governed migration boundary and verify exact ledger and readiness evidence."
     },
     {
       "id": "resilient",
@@ -85,12 +122,12 @@
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run tenant and admin canary paths against an exact deployed non-production candidate."
+      "objective": "Run tenant/admin canary paths against an exact deployed non-production candidate."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Verify exact Production SHA, migration ledger, protected tenant path, runtime readback, and post-merge audit before closing Issue 4449."
+      "objective": "Verify exact Production SHA, migration ledger, runtime readback, protected tenant path, and post-merge audit before closing #4449."
     }
   ]
 }
