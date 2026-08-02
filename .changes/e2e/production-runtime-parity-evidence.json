@@ -30,28 +30,29 @@
           "entrypoint": "Production Runtime Parity Evidence pull-request contract job",
           "terminal_outcome": "Synthetic DNS, TLS, HTTP, and runtime-identity regressions plus workflow-contract assertions prove the verifier rejects unsafe endpoints and mismatched runtime identity, persists only bounded secret-free evidence, and reserves real network probing for an explicit workflow_dispatch after the tooling is merged to trusted main.",
           "steps": [
-            "Load the reporter and validate exact Production SHA, branch, endpoint, timeout, and host constraints.",
-            "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only.",
-            "Prove trusted main checkout, full branch-ref availability, and exact Production-ref equality enforcement.",
+            "Load the reporter and validate exact Production SHA, branch, endpoint-name-to-host mapping, timeout, and URL constraints.",
+            "Inspect the checked-in workflow and prove live probing is workflow_dispatch-only and dispatches fail when GITHUB_REF is not refs/heads/main.",
+            "Prove trusted exact main-event checkout, full branch-ref availability, exact Production-ref equality, and required auth plus connector enforcement.",
             "Exercise exact auth and connector parity with an explicitly optional additional endpoint.",
-            "Exercise required endpoint deployed-SHA drift and verify the raw response body is not persisted.",
-            "Reject loopback/private DNS before TLS or HTTP execution.",
-            "Exercise TLS failure and secret redaction.",
+            "Exercise required endpoint deployed-SHA drift and untrusted identity fields while proving raw or malformed identity values are not persisted.",
+            "Reject loopback, private, link-local, documentation, multicast, and invalid DNS before TLS or HTTP execution.",
+            "Inspect bounded DNS and full-response HTTP timeout enforcement, exercise TLS failure, and verify secret redaction.",
             "Emit a bounded secret-free component result without performing a live request in pull-request context."
           ],
           "assertions": [
             "The synthetic runtime report contract is mad4b.production-runtime-parity-evidence.v1.",
             "The workflow has no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
-            "Live probing runs only for workflow_dispatch and never for pull_request.",
+            "Live probing runs only for workflow_dispatch; the contract job fails unless GITHUB_REF is refs/heads/main.",
             "The workflow uses contents: read and checkout persist-credentials=false.",
-            "The live job checks out trusted main with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
-            "Only auth.mad4b.com, connector.mad4b.com, and dev.mad4b.com are accepted, on HTTPS port 443 and path /version without credentials, queries, or fragments.",
+            "The live job checks out exact github.sha from a main-ref dispatch with full remote branch history and requires expected_sha to equal refs/remotes/origin/Production.",
+            "Only the fixed auth, connector, and dev endpoint names are accepted, each bound to its matching mad4b.com host on HTTPS port 443 and path /version without credentials, queries, or fragments.",
             "DNS fails closed on loopback, private, link-local, multicast, documentation, or invalid addresses, and accepted public addresses are hashed before persistence.",
-            "TLS verification uses rejectUnauthorized=true and fails closed on handshake, authorization, or timeout errors.",
+            "The checked implementation applies bounded timeout enforcement to DNS, TLS, and the complete HTTP response body.",
             "HTTP redirects are not followed, application/json is required, and response bodies are bounded before parsing.",
-            "The raw response body and unknown JSON fields are never written to the artifact.",
+            "The raw response body, unknown JSON fields, malformed identity values, and error details are never written to the artifact.",
             "Required endpoints pass only when service equals http_generic_api_connector, deployed_commit_sha equals the exact requested SHA, and deployment branch equals Production.",
-            "The report declares secrets_included=false and all mutation/effect flags false."
+            "The report declares secrets_included=false and all mutation/effect flags false.",
+            "Workflow enforcement requires auth and connector as required passed endpoints, first_failure=null, and tooling_sha equal to the exact trusted main event SHA."
           ],
           "tests": [
             {
