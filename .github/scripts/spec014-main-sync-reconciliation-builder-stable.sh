@@ -189,12 +189,38 @@ while IFS= read -r changed; do
   test "$allowed" = 'true'
 done < "$REPORT_DIR/generator-changed-files.txt"
 
-stage='verify_generated_artifacts'
-npm --prefix http-generic-api run frontend:dispatch:check
-node http-generic-api/test-frontend-operation-governance-generator.mjs
-node http-generic-api/test-frontend-surface-dispatch.mjs
-node http-generic-api/test-frontend-auth-openapi-parity.mjs
-node http-generic-api/test-openapi-route-coverage.mjs
+stage='verify_frontend_dispatch_check'
+npm --prefix http-generic-api run frontend:dispatch:check \
+  >"$REPORT_DIR/frontend-dispatch-check.stdout.txt" \
+  2>"$REPORT_DIR/frontend-dispatch-check.stderr.txt"
+
+stage='verify_operation_governance_generator'
+(
+  cd http-generic-api
+  node test-frontend-operation-governance-generator.mjs
+) >"$REPORT_DIR/operation-governance-generator.stdout.txt" \
+  2>"$REPORT_DIR/operation-governance-generator.stderr.txt"
+
+stage='verify_frontend_surface_dispatch'
+(
+  cd http-generic-api
+  node test-frontend-surface-dispatch.mjs
+) >"$REPORT_DIR/frontend-surface-dispatch.stdout.txt" \
+  2>"$REPORT_DIR/frontend-surface-dispatch.stderr.txt"
+
+stage='verify_frontend_auth_openapi_parity'
+(
+  cd http-generic-api
+  node test-frontend-auth-openapi-parity.mjs
+) >"$REPORT_DIR/frontend-auth-openapi-parity.stdout.txt" \
+  2>"$REPORT_DIR/frontend-auth-openapi-parity.stderr.txt"
+
+stage='verify_openapi_route_coverage'
+(
+  cd http-generic-api
+  node test-openapi-route-coverage.mjs
+) >"$REPORT_DIR/openapi-route-coverage.stdout.txt" \
+  2>"$REPORT_DIR/openapi-route-coverage.stderr.txt"
 
 stage='stage_generated_resolution'
 git add "${ALLOWED_GENERATED[@]}"
