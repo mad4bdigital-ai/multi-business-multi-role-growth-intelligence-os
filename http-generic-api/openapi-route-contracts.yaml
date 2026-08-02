@@ -244,3 +244,333 @@ contracts:
     owner: support_ticket_runtime
     exposure: admin_tool
     notes: Source-bound new brand-reference approval request contract.
+
+# Complete Support Ticket runtime route coverage discovered from routes/supportTicketRoutes.js.
+  GET /admin/tenant-requests:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminTenantRequests'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  GET /admin/tenant-requests/{ticketId}:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/getAdminTenantRequest'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  GET /tenants/{tenantId}/requests:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listTenantRequests'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Source-bound tenant request read contract; authenticated tenant scope remains authoritative.
+
+  GET /tenants/{tenantId}/requests/{ticketId}:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/getTenantRequest'
+    owner: support_ticket_runtime
+    exposure: tenant_user
+    notes: Source-bound tenant request read contract; authenticated tenant scope remains authoritative.
+
+  GET /admin/support/tickets/auth-email-outbox/status:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/getAdminSupportTicketAuthEmailOutboxStatus'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/auth-email-outbox/dry-run:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/dryRunAdminSupportTicketAuthEmailOutbox'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/auth-email-outbox/skip-ineligible:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/skipIneligibleAdminSupportTicketAuthEmailOutbox'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/auth-email-outbox/apply:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/applyAdminSupportTicketAuthEmailOutbox'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  GET /admin/support/tickets/external-delivery/control/overview:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/getAdminSupportTicketExternalDeliveryControlOverview'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/external-delivery/control/allowlist/upsert:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/upsertAdminSupportTicketExternalDeliveryAllowlist'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-delivery/control/allowlist/disable:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/disableAdminSupportTicketExternalDeliveryAllowlist'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-delivery/control/adapter/dispatch:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/setAdminSupportTicketExternalDeliveryAdapterDispatch'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-delivery/control/gmail/revoke:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/revokeAdminSupportTicketExternalDeliveryGmailConnection'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/tenant-user/create-simulation:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/createAdminSupportTicketTenantUserSimulation'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/reconcile:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/reconcileAdminSupportTickets'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/sla/reconcile:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/reconcileAdminSupportTicketSla'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalCredentialOrchestration'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/approveActivateBindVerifyAdminSupportTicketExternalCredential'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-credential/activation-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalCredentialActivation'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-credential/activate-and-bind:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/activateBindAdminSupportTicketExternalCredential'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-secret/intake-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSecretIntake'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-secret/reference/register:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/registerAdminSupportTicketExternalSecretReference'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-secret/reference/activate:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/activateAdminSupportTicketExternalSecretReference'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  GET /admin/support/tickets/external-delivery/credential-candidates:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalCredentialCandidates'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/requestAdminSupportTicketExternalCredentialBinding'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalCredentialBinding'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalAdapterFuturePrScope'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/external-send/provider-adapter-future-pr-scope/record:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalAdapterFuturePrScope'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-send/provider-adapter-readiness/plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalAdapterReadiness'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/external-send/provider-adapter-readiness/record:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalAdapterReadiness'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-send/provider-adapter-readiness/decision:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalAdapterReadiness'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/external-send/provider-adapter-enablement/candidates:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalProviderEnablementCandidates'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/external-send/provider-adapter-enablement/propose:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/proposeAdminSupportTicketExternalProviderAdapterEnablement'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  GET /admin/support/tickets/external-send/provider-contracts:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalProviderContracts'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSendProviderGate'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalSendProviderGateAttempt'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-send/execution-plan:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSendExecution'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-send/execution-record:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalSendExecution'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/readiness:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/checkAdminSupportTicketExternalDeliveryReadiness'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/approval/request:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/requestAdminSupportTicketExternalDeliveryApproval'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/approval/decision:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalDeliveryApproval'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  GET /admin/support/tickets/notifications/adapters:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketNotificationAdapters'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/notification-delivery/preview:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/previewAdminSupportTicketNotificationDelivery'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/notification-delivery/dispatch:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/dispatchAdminSupportTicketNotificationDelivery'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
+
+  GET /admin/support/tickets/notifications/queue:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketNotificationQueue'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative read or planning contract; no apply, provider dispatch, credential activation, or external send authority is granted.
+
+  POST /admin/support/tickets/{ticket_id}/notification-cycle:
+    route_file: 'routes/supportTicketRoutes.js'
+    path_item_ref: './openapi/support-ticket-runtime-completion.yaml#/createAdminSupportTicketNotificationCycle'
+    owner: support_ticket_runtime
+    exposure: admin_tool
+    notes: Source-bound administrative mutation contract; runtime approval, confirmation, credential, provider, idempotency, and readback gates remain authoritative.
