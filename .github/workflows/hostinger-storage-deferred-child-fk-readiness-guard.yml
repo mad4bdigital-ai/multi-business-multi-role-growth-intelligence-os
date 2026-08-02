@@ -1,0 +1,58 @@
+name: Hostinger Storage Deferred Child FK Readiness Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-deferred-child-fk-readiness.json'
+      - '.github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json'
+      - '.github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql'
+      - '.github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql'
+      - '.github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml'
+      - 'http-generic-api/hostingerStorageDeferredChildFkReadiness.js'
+      - 'http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-deferred-child-fk-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deferred-child-fk-readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check readiness syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDeferredChildFkReadiness.js
+          node --check http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs
+
+      - name: Validate candidate and fail-closed readiness contract
+        run: node http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs
+
+      - name: Preserve repository-only non-apply boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e http-generic-api/migrations/deferred-child-parent-foreign-keys.sql
+          test ! -e .github/contracts/spec014/migrations/deferred-child-parent-foreign-keys.sql
+          test ! -e .github/contracts/spec014/migrations/deferred-child-parent-fk-readback.sql
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
+          grep -q "authorization_created: false" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
+          grep -q "migration_apply_authorized: false" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
+          grep -q "foreign_keys_enabled: false" http-generic-api/hostingerStorageDeferredChildFkReadiness.js
+          grep -q '"promoted_to_runtime_migrations": false' .github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json
+          grep -q '"foreign_keys_enabled": false' .github/contracts/spec014/hostinger-storage-deferred-child-fk-readiness.json
