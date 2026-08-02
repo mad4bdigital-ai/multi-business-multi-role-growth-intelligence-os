@@ -16,6 +16,7 @@
       "http-generic-api/managedExecutionApprovalAuthorization.js",
       "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
       "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+      "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
       "http-generic-api/routes/managedExecutionRouteAuthorization.js",
       "http-generic-api/routes/managedExecutionRoutes.js",
       "http-generic-api/routes/workflowOrchestrationRoutes.js",
@@ -46,7 +47,7 @@
             "Derive approval requirements from effect and access policy.",
             "Require active same-tenant membership and the hold's required role, or tenant owner/admin authority, before a non-admin approval decision.",
             "Revalidate authority before an idempotent managed step request.",
-            "Compose managed enforcement before the preserved legacy router without removing legacy route discovery.",
+            "Compose managed enforcement before the preserved legacy router and expose legacy signatures through a non-runtime discovery bridge in the directly mounted builder.",
             "Reject secret-bearing payloads, approval bypass, cross-tenant access, authority tampering, invalid transitions, and contradictory terminal states."
           ],
           "assertions": [
@@ -58,7 +59,7 @@
             "Approval decisions reject inactive, cross-tenant, ambiguous, or under-privileged decision makers.",
             "Authority fingerprints detect payload tampering.",
             "Repeated run and step request boundaries are idempotent.",
-            "Legacy workflow endpoints remain discoverable from a `*Routes.js` source after composition.",
+            "Legacy workflow endpoints remain discoverable from the directly mounted builder without executing duplicate handlers.",
             "Migration 1043 is additive, unapplied, and contains a readiness view.",
             "No provider call, credential read, external send, deployment, or Production mutation occurs."
           ],
@@ -68,6 +69,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-tenant-managed-execution-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "workflow-orchestration-route-discovery-bridge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workflow-orchestration-route-discovery-bridge.mjs",
               "args": []
             }
           ],
@@ -81,6 +89,7 @@
             "http-generic-api/managedExecutionApprovalAuthorization.js",
             "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql",
             "http-generic-api/test-tenant-managed-execution-lifecycle.mjs",
+            "http-generic-api/test-workflow-orchestration-route-discovery-bridge.mjs",
             "http-generic-api/routes/managedExecutionRouteAuthorization.js",
             "http-generic-api/routes/managedExecutionRoutes.js",
             "http-generic-api/routes/workflowOrchestrationRoutes.js",

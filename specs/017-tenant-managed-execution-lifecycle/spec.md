@@ -39,7 +39,7 @@ The first implementation slice establishes code and schema contracts only. It do
 - FR-015: Generic run, step, status, and approval routes cannot bypass managed lifecycle enforcement.
 - FR-016: Payloads reject secret-bearing keys and recognizable secret values.
 - FR-017: Tenant-safe readback reports approval state, next action, and contradictory linked states without exposing credentials or raw internal evidence.
-- FR-018: Preserved legacy workflow routes remain discoverable by repository route/OpenAPI generators after managed enforcement is composed before them.
+- FR-018: Preserved legacy workflow routes remain discoverable by repository route/OpenAPI generators through an explicit non-runtime discovery bridge after managed enforcement is composed before them.
 
 ## Safety boundaries
 

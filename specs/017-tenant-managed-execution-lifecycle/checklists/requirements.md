@@ -10,7 +10,7 @@
 - [x] Revoked or drifted authority blocks step creation.
 - [x] Repeated step requests reuse one step.
 - [x] Generic orchestration routes cannot bypass managed enforcement.
-- [x] Preserved legacy workflow routes remain discoverable by generated route/OpenAPI evidence.
+- [x] Preserved legacy workflow routes remain discoverable through an explicit non-runtime source bridge in the directly mounted builder.
 - [x] Secret-bearing payload fields and recognizable secret values are rejected.
 - [x] Migration is additive and remains unapplied in this PR.
 - [ ] Migration ledger and readiness evidence recorded.

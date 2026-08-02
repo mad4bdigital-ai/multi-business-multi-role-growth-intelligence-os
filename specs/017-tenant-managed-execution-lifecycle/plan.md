@@ -8,7 +8,7 @@
 - Reuse `v_workspace_resource_grant_effective` as resource authority.
 - Reuse `v_platform_capabilities_effective_evidence` as capability runtime authority.
 - Preserve the existing workflow orchestration implementation byte-for-byte as `workflowOrchestrationLegacyRoutes.js`.
-- Keep `workflowOrchestrationRoutes.js` as a small composite that mounts managed enforcement before the legacy router; both filenames remain discoverable by repository route generators.
+- Keep `workflowOrchestrationRoutes.js` as a small composite that mounts managed enforcement before the legacy router and carries an uninvoked source-discovery bridge because the generator scans only builders imported directly by `routes/index.js`.
 
 ## Slice 1 — code and additive schema
 
