@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_durable_tenant_enablement_registry_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "durable_enablement_registry",
+  "capability_status": "implemented_unmounted_schema_unapplied",
+  "purpose": "Persist one-shot Tenant execution enablements with exact registration replay, authorization/operation/run binding, generation and row-version CAS, immutable consumption receipts, and no automatic retry.",
+  "registry": {
+    "adapter_key": "hostinger_storage_mysql_tenant_enablement_v1",
+    "registry_version": "spec014-hostinger-storage-durable-tenant-enablement-registry-v1",
+    "durable_sql": true,
+    "async_only": true,
+    "one_shot": true,
+    "generation_cas": true,
+    "automatic_retry_allowed": false,
+    "legacy_tenant_canary_compatible": false,
+    "factory_database_connections": 0,
+    "raw_pool_exposed": false
+  },
+  "schema_contract": {
+    "contract_key": "hostinger_storage_durable_tenant_enablement_registry_schema_v1",
+    "ddl_path": ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-enablement-registry.sql",
+    "runtime_migration_path": false,
+    "promoted_into_wave_sequence": false,
+    "migration_authorization_created": false,
+    "migration_dry_run_performed": false,
+    "migration_apply_performed": false,
+    "tables": [
+      "storage_tenant_enablement_records",
+      "storage_tenant_enablement_consumptions"
+    ],
+    "requires_separate_checksum_bound_promotion": true,
+    "requires_same_cycle_live_readback": true,
+    "requires_signed_schema_verification": true
+  },
+  "registration": {
+    "initial_state": "unconsumed",
+    "positive_generation_required": true,
+    "authorization_digest_bound": true,
+    "operation_id_bound": true,
+    "run_id_bound": true,
+    "expiry_bound": true,
+    "exact_replay_requires_record_digest_match": true,
+    "id_collision_with_different_evidence_rejected": true,
+    "same_transaction_readback_required": true
+  },
+  "consumption": {
+    "maximum_successful_consumptions": 1,
+    "current_row_lock_required": true,
+    "authorization_digest_match_required": true,
+    "operation_id_match_required": true,
+    "run_id_match_required": true,
+    "expected_generation_required": true,
+    "expiry_must_be_in_future": true,
+    "current_row_cas_fields": ["generation", "consumed", "row_version"],
+    "generation_increment": 1,
+    "consumed_by_run_id_must_equal_bound_run_id": true,
+    "immutable_receipt_required": true,
+    "same_transaction_current_and_receipt_readback_required": true,
+    "second_consumption_rejected": true,
+    "automatic_retry_allowed": false
+  },
+  "transactional_guarantees": [
+    "shared_advisory_lock",
+    "current_row_for_update",
+    "generation_and_row_version_compare_and_swap",
+    "immutable_consumption_receipt_insert",
+    "same_transaction_exact_readback",
+    "rollback_on_any_mismatch",
+    "orphan_or_duplicate_receipt_rejected"
+  ],
+  "public_methods": [
+    "register",
+    "read",
+    "readConsumption",
+    "consume",
+    "exportState"
+  ],
+  "signed_schema_verification": {
+    "exact_source_runtime_parity_required": true,
+    "database_fingerprint_required": true,
+    "readback_cycle_required": true,
+    "expiry_required": true,
+    "exact_schema_contract_digest_required": true,
+    "authority_granted": false,
+    "migration_apply_authorized": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "remaining_bridge_capabilities": [
+    "tenant_safe_durable_projection",
+    "dedicated_worker_certification",
+    "fixed_dispatch_certification",
+    "crash_safe_restart_reconciliation",
+    "separate_mount_authorization"
+  ],
+  "integration_boundary": {
+    "tenant_canary_changed": false,
+    "tenant_runtime_changed": false,
+    "route_dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "non_goals": {
+    "live_database_access": false,
+    "hostinger_access": false,
+    "migration_promotion": false,
+    "migration_authorization": false,
+    "migration_apply": false,
+    "route_mount": false,
+    "worker_mount": false,
+    "provider_dispatch": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "database_calls_during_factory_creation": 0,
+    "provider_calls": 0,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "runtime_migration_files_modified": 0,
+    "secrets_included": false
+  }
+}
