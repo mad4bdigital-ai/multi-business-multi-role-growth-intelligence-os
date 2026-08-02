@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1043-runtime-readiness",
+  "title": "Migration 1043 checksum-bound runtime readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1043-runtime-readiness.json",
+      ".github/ops/sprint69-1043-runtime-readiness.mjs",
+      ".github/workflows/sprint69-1043-runtime-readiness.yml",
+      "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide an explicitly authorized, checksum-bound runtime-readiness path that verifies exact Production parity, performs readback-first duplicate prevention, records governed migration authorization when required, and executes a zero-risk dry-run without exposing or executing Migration Apply.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-and-prove-migration-1043-runtime-readiness-without-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized repository operator and governed Migration 1043 readiness workflow",
+          "entrypoint": "Exact OWNER, MEMBER, or COLLABORATOR comment on control issue #4449",
+          "terminal_outcome": "The workflow proves the current Production SHA and runtime parity, binds Migration 1043 to the reviewed blob and checksum, uses readback-first duplicate prevention, creates only the authorization-bootstrap control-plane evidence when needed, completes a governed dry-run with applies_sql=false, uploads sanitized evidence, and never authorizes or executes Apply.",
+          "steps": [
+            "Require the exact checksum-derived authorization comment on issue #4449 from an OWNER, MEMBER, or COLLABORATOR.",
+            "Checkout trusted main and verify it contains the merged repository-readiness contract.",
+            "Read the protected Production ref and prove it contains the managed-execution foundation merge.",
+            "Verify the Production copy of Migration 1043 has the reviewed Git blob and the runtime reports the same exact Production SHA through health, version, and deployment evidence.",
+            "Perform governed migration schema and ledger readback before creating any new authorization evidence.",
+            "If the exact apply ledger already exists, report already_applied without creating authorization or dry-run evidence.",
+            "Otherwise create and approve only a checksum- and Production-bound capability envelope for governed_migration_authorization_bootstrap.",
+            "Bootstrap the exact migration authorization with one bounded previous-checksum rotation path when required.",
+            "Execute governed_migration_execute in dry_run mode and require applies_sql=false, the exact checksum and statement count, and a zero-risk preflight.",
+            "Upload sanitized Artifact and Job Summary evidence without repository writes, provider calls, business-data mutation, registry synchronization, Apply authorization, or Apply execution."
+          ],
+          "assertions": [
+            "The workflow requires the exact issue #4449 confirmation and an allowed repository association.",
+            "The workflow never exposes an Apply job and has no push, pull_request, workflow_dispatch, or automatic runtime trigger.",
+            "The current main branch must contain repository-readiness merge 0cd5e8c894f2877db9de1e1942ff9db25d9ecc5e.",
+            "Production must contain foundation merge a1c1f3d4f4b36a3a5764d898194818e3e9ea1ce3 and expose Migration 1043 blob 7f3e0152bcdfba36a659ff4a1df8e30d82024c8c.",
+            "Health, version, and deployment-info must converge on one stable protected Production SHA.",
+            "Readback occurs before authorization creation and prevents a duplicate readiness mutation when the exact apply ledger is already present.",
+            "Authorization bootstrap is bound to Migration 1043, checksum a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9, four statements, source PR #4845, and its exact merge SHA.",
+            "The dry-run reports mode=dry_run, applies_sql=false, exact checksum and statement count, preflight status pass, and zero risks.",
+            "The implementation contains no mode=apply request, no capability_resolution_envelope_apply_authorize call, and no activation authorized-surface registry synchronization.",
+            "Managed control-plane authorization evidence may be written only after the explicit operator comment; migration SQL, business data, providers, external business systems, and Production refs remain unmodified.",
+            "Artifacts redact sensitive keys and report apply_authorized=false, apply_sent=false, migration_apply_executed=false, activation_registry_sync_executed=false, and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "migration-1043-runtime-readiness-boundary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-runtime-readiness-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/sprint69-1043-runtime-readiness.json",
+            ".github/ops/sprint69-1043-runtime-readiness.mjs",
+            ".github/workflows/sprint69-1043-runtime-readiness.yml",
+            "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After explicit operator authorization, execute the runtime-readiness workflow and retain exact Production, authorization-bootstrap, dry-run, and no-secret Artifact evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep Production drift, migration blob drift, runtime parity failure, authorization ambiguity, checksum rotation, and dry-run preflight risks fail-closed with bounded evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Use the successful checksum- and Production-bound readiness Artifact as a prerequisite for any separately reviewed Migration 1043 Apply contract."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This contract grants no Migration Apply, activation registry synchronization, deployment, provider call, external business write, or Production ref mutation authority."
+    }
+  ]
+}

@@ -5,6 +5,9 @@ export const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
 const METHOD_ORDER = new Map(["GET", "POST", "PUT", "PATCH", "DELETE"].map((method, index) => [method, index]));
 const HTTP_METHOD_KEYS = new Set([...METHOD_ORDER.keys()].map((method) => method.toLowerCase()));
 const ROUTE_RE = /router\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)["'`]/g;
+const LEGACY_METADATA_UPGRADE_SIGNATURES = new Set([
+  "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
+]);
 
 function normalizePath(routePath) {
   let value = String(routePath || "").trim();
@@ -94,6 +97,17 @@ function response(description) {
 }
 
 function buildOperation(operation) {
+  if (operation.legacy_contract) {
+    return {
+      ...operation.legacy_contract,
+      operationId: operationIdFor(operation),
+      security: securityFor(operation.auth_profile),
+      "x-openai-isConsequential": operation.method !== "GET",
+      "x-runtime-contract-source": SUPPORT_TICKET_ROUTE_FILE,
+      "x-runtime-auth-profile": operation.auth_profile,
+    };
+  }
+
   const verb = { GET: "Read", POST: "Execute", PUT: "Replace", PATCH: "Update", DELETE: "Delete" }[operation.method];
   const parameters = [...operation.path.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map((match) => ({
     name: match[1],
@@ -145,6 +159,27 @@ function isReplaceableRuntimeIndex(current, operation) {
     && canonicalSecurity(current.security) === canonicalSecurity(securityFor(operation.auth_profile));
 }
 
+function isReplaceableKnownLegacyMetadataContract(current, operation) {
+  return current
+    && LEGACY_METADATA_UPGRADE_SIGNATURES.has(operation.signature)
+    && current.operationId === operationIdFor(operation)
+    && typeof current.summary === "string"
+    && current.summary.length > 0
+    && current.responses
+    && typeof current.responses === "object"
+    && canonicalSecurity(current.security) === canonicalSecurity(securityFor(operation.auth_profile))
+    && current["x-openai-isConsequential"] === (operation.method !== "GET")
+    && current["x-runtime-contract-source"] == null
+    && current["x-source-file"] == null
+    && current["x-runtime-auth-profile"] == null
+    && current["x-contract-completeness"] == null;
+}
+
+function isReplaceableRuntimeContract(current, operation) {
+  return isReplaceableRuntimeIndex(current, operation)
+    || isReplaceableKnownLegacyMetadataContract(current, operation);
+}
+
 export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, staticContracts, staticPathRefs) {
   const staticSignatures = new Set(staticContracts.map((contract) => contract.signature));
   const expectedOperationIds = new Map();
@@ -173,9 +208,11 @@ export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, sta
     if (current) {
       if (isPreciseRuntimeContract(current, operation)) {
         synced.push({ signature: operation.signature, source: "existing_openapi" });
-      } else if (isReplaceableRuntimeIndex(current, operation)) {
+      } else if (isReplaceableRuntimeContract(current, operation)) {
         const operations = replaceableByPath.get(operation.path) || [];
-        operations.push(operation);
+        operations.push(isReplaceableKnownLegacyMetadataContract(current, operation)
+          ? { ...operation, legacy_contract: current }
+          : operation);
         replaceableByPath.set(operation.path, operations);
       } else {
         conflicts.push({
@@ -206,7 +243,7 @@ export function inspectSupportTicketRuntimeContracts(doc, runtimeOperations, sta
       if (!HTTP_METHOD_KEYS.has(key)) return true;
       const signature = `${key.toUpperCase()} ${routePath}`;
       const operation = runtimeBySignature.get(signature);
-      return !operation || !replacementSignatures.has(signature) || !isReplaceableRuntimeIndex(pathItem[key], operation);
+      return !operation || !replacementSignatures.has(signature) || !isReplaceableRuntimeContract(pathItem[key], operation);
     });
     if (unsafeKeys.length > 0) {
       conflicts.push({
