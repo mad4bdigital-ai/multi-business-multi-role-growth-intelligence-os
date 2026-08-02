@@ -5,9 +5,11 @@ on:
     paths:
       - '.changes/e2e/spec014-migration-authorization-readiness.json'
       - '.changes/e2e/spec014-durable-authorized-injection-wave4-runtime-promotion.json'
+      - '.changes/e2e/spec014-wave4-signed-schema-verification-v2.json'
       - '.github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json'
       - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
       - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json'
+      - '.github/contracts/spec014/hostinger-storage-wave4-signed-schema-verification-refresh.json'
       - '.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml'
       - 'http-generic-api/governedMigrationAuthorizationBootstrap.js'
       - 'http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js'
@@ -62,11 +64,19 @@ jobs:
           grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
           grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
           grep -q "HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR = 4879" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "HOSTINGER_STORAGE_READBACK_CONTRACT_KEY" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "HOSTINGER_STORAGE_SCHEMA_VERIFICATION_VERSION" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
           grep -q '"wave_4_promotion_pull_request": 4879' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"signed_schema_verification_contract_refreshed": true' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'spec014_hostinger_storage_migration_readback_v4' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'spec014-hostinger-storage-schema-verification-v2' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'AUTHORIZED_EXTERNAL_ED25519_SIGNER_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          ! grep -q 'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"authorization_created": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"migration_sql_executed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
           grep -q '"live_database_access_performed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
-          grep -q 'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"signature_created": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
 
       - name: Execute readiness contract regression
         env:
