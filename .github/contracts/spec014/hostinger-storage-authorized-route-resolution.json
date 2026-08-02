@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-authorized-route-resolution.v1",
+  "feature_key": "spec014-authorized-route-resolution",
+  "route_path": "/tenant/storage-operations/apply-plan",
+  "dependency_key": "tenantStorageRuntime",
+  "resolution_source": "canonical_authorized_dependency_injection_coordinator",
+  "expected_readback_digest_required": true,
+  "route_resolution_per_request": true,
+  "coordinator_precedes_direct_runtime_fallback": true,
+  "direct_runtime_fallback_preserved": true,
+  "dependency_snapshot_must_be_frozen": true,
+  "dependency_descriptor": {
+    "enumerable": false,
+    "configurable": false,
+    "writable": false
+  },
+  "fail_closed_states": [
+    "missing_coordinator",
+    "invalid_coordinator",
+    "before_injection",
+    "before_readback",
+    "missing_readback_digest",
+    "invalid_readback_digest",
+    "mismatched_readback_digest",
+    "after_rollback"
+  ],
+  "success_boundary": {
+    "synthetic_only": true,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "modified_surfaces": {
+    "tenant_route_builder_files": 1,
+    "server_files": 0,
+    "route_registry_files": 0,
+    "migration_files": 0
+  },
+  "live_server_bootstrap_modified": false,
+  "live_route_registration_performed": false,
+  "hostinger_access_performed": false,
+  "ssh_access_performed": false,
+  "credential_access_performed": false,
+  "database_access_performed": false,
+  "provider_dispatch_performed": false,
+  "deployment_performed": false,
+  "production_mutation_performed": false,
+  "automatic_retry_allowed": false,
+  "secrets_included": false
+}
