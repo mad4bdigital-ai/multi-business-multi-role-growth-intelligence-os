@@ -60,31 +60,32 @@ jobs:
             exit 1
           fi
 
-          allowed_conflicts=(
-            '.changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json'
-            '.changes/e2e/governed-generated-artifact-refresh-request-reregistration-v2.json'
-            '.changes/e2e/openapi-auto-sync-generated-contract-review.json'
-            '.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml'
-            '.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml'
-            'docs/repo-maintenance-status.md'
-            'docs/surface-contract-discovery-status.json'
-            'docs/surface-contract-discovery-status.md'
-            'docs/surface-contract-gap-queue.json'
-            'docs/surface-contract-gap-queue.md'
-            'docs/surface-contract-gap-trends.json'
-            'docs/surface-contract-gap-trends.md'
-            'docs/surface-contract-gap-triage.json'
-            'docs/surface-contract-gap-triage.md'
-            'docs/surface-contract-governance-compact.json'
-            'docs/surface-contract-governance-compact.md'
-            'docs/surface-contract-governance-dashboard.json'
-            'docs/surface-contract-governance-dashboard.md'
-            'http-generic-api/frontend-surface-dispatch.generated.json'
-            'http-generic-api/openapi.yaml'
-            'http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs'
-            'http-generic-api/test-openapi-precise-legacy-registry-transition.mjs'
-          )
-          printf '%s\n' "${allowed_conflicts[@]}" | sort -u > /tmp/allowed-conflicts
+          cat > /tmp/allowed-conflicts <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json
+          .changes/e2e/governed-generated-artifact-refresh-request-reregistration-v2.json
+          .changes/e2e/openapi-auto-sync-generated-contract-review.json
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          docs/repo-maintenance-status.md
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-gap-trends.json
+          docs/surface-contract-gap-trends.md
+          docs/surface-contract-gap-triage.json
+          docs/surface-contract-gap-triage.md
+          docs/surface-contract-governance-compact.json
+          docs/surface-contract-governance-compact.md
+          docs/surface-contract-governance-dashboard.json
+          docs/surface-contract-governance-dashboard.md
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi.yaml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          http-generic-api/test-openapi-precise-legacy-registry-transition.mjs
+          EOF
+          sed -i 's/^          //' /tmp/allowed-conflicts
+          sort -u -o /tmp/allowed-conflicts /tmp/allowed-conflicts
           printf '%s\n' "${conflicts[@]}" | sort -u > /tmp/actual-conflicts
           comm -23 /tmp/actual-conflicts /tmp/allowed-conflicts > /tmp/unexpected-conflicts
           if [[ -s /tmp/unexpected-conflicts ]]; then
@@ -118,14 +119,37 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Rebuild repository maintenance and generated contracts
+      - name: Rebuild precise OpenAPI registry
         working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/repo-maintenance-sync.mjs --write --skip-work-maps
-          npm run frontend:dispatch:generate -- --baseline-ref=79cbbc634e690bf30ab2827144cb49c88b14f9a5
-          node scripts/generate-custom-gpt-schemas.mjs --write
+        run: node scripts/openapi-precise-contract-registry-sync.mjs --write
+
+      - name: Rebuild missing-route OpenAPI coverage
+        working-directory: http-generic-api
+        run: node scripts/openapi-autofill-missing-routes.mjs --write
+
+      - name: Rebuild repository planning status
+        working-directory: http-generic-api
+        run: node scripts/update-repo-planning-docs.mjs
+
+      - name: Rebuild surface contract discovery
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs --write
+
+      - name: Rebuild and enforce surface gap triage
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-gap-triage.mjs --write --enforce-new-gaps
+
+      - name: Rebuild frontend operation governance
+        working-directory: http-generic-api
+        run: node scripts/frontend-operation-governance-generator.mjs --write
+
+      - name: Rebuild frontend dispatch
+        working-directory: http-generic-api
+        run: node scripts/frontend-surface-dispatch.mjs --write --baseline-ref=79cbbc634e690bf30ab2827144cb49c88b14f9a5
+
+      - name: Rebuild Custom GPT schemas
+        working-directory: http-generic-api
+        run: node scripts/generate-custom-gpt-schemas.mjs --write
 
       - name: Verify reconciled OpenAPI and generated evidence
         working-directory: http-generic-api
