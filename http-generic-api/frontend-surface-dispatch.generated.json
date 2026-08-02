@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b9287a82403c1a12cb824ba490d937ee65d6fc4e7d975daafe9dbab7e749f2af",
+    "source_digest": "754d5c248bff8e0aedcdd1b5e67979d5cb5a326e1def52734c82fb9f986a8ab8",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ae3852af191ebdb41d8a7f7a86ec93b58b692d60efd46ae0dac59e839b77bf0e",
+        "sha256": "6aa6229475e760ba096abb4c76e23ca47292f3021280b8c4a7f8f60fd09dbc8b",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/workflowOrchestrationRoutes.js",
-        "sha256": "41371defd77f6ada99be681d13f41fa63b0264674792b7690ffc01c76b215ed5",
+        "sha256": "a4bcde7f0f03a3654325334228d3bfbdf10a236498c04125cc6d6035e015ca23",
         "present": true
       },
       {
@@ -1046,34 +1046,34 @@
     "issues": []
   },
   "coverage": {
-    "mounted_family_count": 174,
+    "mounted_family_count": 173,
     "mounted_route_file_count": 139,
     "mixed_scope_route_file_count": 27,
-    "operation_count": 1043,
-    "openapi_documented_count": 1027,
-    "openapi_canonical_documented_count": 639,
-    "openapi_generated_index_count": 388,
+    "operation_count": 1036,
+    "openapi_documented_count": 1020,
+    "openapi_canonical_documented_count": 637,
+    "openapi_generated_index_count": 383,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 388,
+    "openapi_detail_gap_count": 383,
     "auth_parity_counts": {
-      "equivalent": 1027,
+      "equivalent": 1020,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 631,
-    "unresolved_operation_class_count": 571,
+    "non_get_candidate_count": 627,
+    "unresolved_operation_class_count": 567,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
-    "unresolved_surface_decision_count": 159,
+    "unresolved_surface_decision_count": 158,
     "test_owned_family_count": 0,
-    "untested_family_count": 174,
+    "untested_family_count": 173,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1040,
+    "untested_operation_count": 1033,
     "ready_task_count": 0,
-    "blocked_task_count": 174,
+    "blocked_task_count": 173,
     "coverage_complete": false
   },
   "waves": [
@@ -75125,576 +75125,6 @@
       "wave": "F3-admin-workspaces"
     },
     {
-      "family_key": "workflow-orchestration",
-      "label": "workflow orchestration",
-      "source_file": "routes/workflowOrchestrationRoutes.js",
-      "source_digest": "41371defd77f6ada99be681d13f41fa63b0264674792b7690ffc01c76b215ed5",
-      "mount_prefix": "/",
-      "mount_order": 21155,
-      "split_from_mixed_scope_file": false,
-      "split_from_surface_policy": false,
-      "surface_policy_partition": "default",
-      "group": "developer-evidence",
-      "scope": "admin",
-      "operations": [
-        {
-          "method": "POST",
-          "path": "/workflow-runs",
-          "signature": "POST /workflow-runs",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/workflow-runs/{id}",
-          "signature": "GET /workflow-runs/{id}",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/tenants/{id}/workflow-runs",
-          "signature": "GET /tenants/{id}/workflow-runs",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        },
-        {
-          "method": "PATCH",
-          "path": "/workflow-runs/{id}/status",
-          "signature": "PATCH /workflow-runs/{id}/status",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": true,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/workflow-runs/{id}/steps",
-          "signature": "POST /workflow-runs/{id}/steps",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "POST",
-          "path": "/approval-holds/{id}/decide",
-          "signature": "POST /approval-holds/{id}/decide",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": false,
-          "openapi_exempt": false,
-          "openapi_contract_level": "operation-index-only",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
-            "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
-          },
-          "mutation_candidate": true,
-          "mutation": false
-        },
-        {
-          "method": "GET",
-          "path": "/approval-holds",
-          "signature": "GET /approval-holds",
-          "source_file": "routes/workflowOrchestrationRoutes.js",
-          "scope": "admin",
-          "runtime_auth": {
-            "state": "resolved",
-            "profile": "backend_or_user",
-            "alternatives": [
-              [
-                "backendBearerAuth"
-              ],
-              [
-                "backendApiKeyAuth"
-              ]
-            ],
-            "principal": "authenticated",
-            "guard_chain": [
-              "requireBackendApiKey"
-            ],
-            "evidence": [
-              "route:requireBackendApiKey"
-            ],
-            "configuration_dependencies": [
-              "BACKEND_API_KEY",
-              "JWT_SECRET"
-            ]
-          },
-          "openapi_auth": {
-            "source_file": "openapi.yaml",
-            "security_declared": true,
-            "security_alternatives": [
-              [
-                "backendApiKeyAuth"
-              ],
-              [
-                "backendBearerAuth"
-              ]
-            ],
-            "unknown_security_schemes": []
-          },
-          "auth_parity": {
-            "state": "equivalent",
-            "reasons": []
-          },
-          "openapi_documented": true,
-          "openapi_canonical_documented": true,
-          "openapi_exempt": false,
-          "openapi_contract_level": "canonical",
-          "evidence_candidate": false,
-          "embedded_ui": false,
-          "embedded_ui_evidence": [],
-          "delivery_kind": "api",
-          "tests": [],
-          "governance": {
-            "classification": "read",
-            "classification_source": "http_method",
-            "mutation_candidate": false,
-            "governed": true,
-            "controls": null,
-            "blockers": [],
-            "rule_id": null
-          },
-          "mutation_candidate": false,
-          "mutation": false
-        }
-      ],
-      "openapi_gaps": [],
-      "openapi_exemptions": [],
-      "openapi_detail_gaps": [
-        "GET /workflow-runs/{id}",
-        "GET /tenants/{id}/workflow-runs",
-        "PATCH /workflow-runs/{id}/status",
-        "POST /workflow-runs/{id}/steps",
-        "POST /approval-holds/{id}/decide"
-      ],
-      "auth_contract_gaps": [],
-      "evidence_routes": [
-        "PATCH /workflow-runs/{id}/status"
-      ],
-      "tests": [],
-      "untested_operations": [
-        "POST /workflow-runs",
-        "GET /workflow-runs/{id}",
-        "GET /tenants/{id}/workflow-runs",
-        "PATCH /workflow-runs/{id}/status",
-        "POST /workflow-runs/{id}/steps",
-        "POST /approval-holds/{id}/decide",
-        "GET /approval-holds"
-      ],
-      "resources": [],
-      "embedded_ui": false,
-      "embedded_ui_operations": [],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/workflowOrchestrationRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "surface_decision": {
-        "decision": "requires_review",
-        "rationale": "No repository policy decision covers this route family.",
-        "owner": null
-      },
-      "operation_blockers": [
-        {
-          "signature": "POST /workflow-runs",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "PATCH /workflow-runs/{id}/status",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /workflow-runs/{id}/steps",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        },
-        {
-          "signature": "POST /approval-holds/{id}/decide",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
-      "risk": {
-        "score": 12,
-        "class": "critical"
-      },
-      "wave": "F3-admin-workspaces"
-    },
-    {
       "family_key": "n8n-workflow-runtime",
       "label": "n8n workflow runtime",
       "source_file": "routes/n8nWorkflowRuntimeRoutes.js",
@@ -92968,51 +92398,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/uploadRoutes.js",
-        "scripts/test-manifest.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
-      ]
-    },
-    {
-      "task_key": "frontend.workflow-orchestration",
-      "title": "Resolve and deliver workflow orchestration",
-      "wave": "F3-admin-workspaces",
-      "state": "blocked",
-      "blockers": [
-        "openapi_detail_contract_gap",
-        "test_ownership_gap",
-        "surface_policy_decision_required",
-        "operation_classification_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/workflowOrchestrationRoutes.js",
         "scripts/test-manifest.mjs"
       ],
       "acceptance_gates": [
