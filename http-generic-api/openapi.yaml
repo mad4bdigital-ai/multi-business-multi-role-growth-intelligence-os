@@ -22314,3 +22314,63 @@ paths:
     $ref: ./openapi/support-tickets.yaml#/mySupportTicketById
   /me/support/tickets/{ticket_id}/events:
     $ref: ./openapi/support-tickets.yaml#/mySupportTicketEvents
+  /admin/activation/ticket-inbox:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminActivationTicketInbox
+  /admin/support/tickets:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTickets
+  /admin/support/tickets/{ticket_id}:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketById
+  /admin/support/tickets/{ticket_id}/admin-feedback:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketFeedback
+  /admin/support/tickets/{ticket_id}/approval-hold:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHold
+  /admin/support/tickets/{ticket_id}/approval-hold/decision:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHoldDecision
+  /admin/support/tickets/{ticket_id}/assign:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketAssign
+  /admin/support/tickets/{ticket_id}/auto-resolve/propose:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolvePropose
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationApply
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/complete:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandMappingRemediationComplete
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/finalize:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationFinalize
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/verified-apply:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationVerifiedApply
+  /admin/support/tickets/{ticket_id}/brand-ref-resolution:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefResolution
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApprove
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApproveAndComplete
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/request:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandRefSelectionRequest
+  /admin/support/tickets/{ticket_id}/diagnostic-chain:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketDiagnosticChain
+  /admin/support/tickets/{ticket_id}/events:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketEvents
+  /admin/support/tickets/{ticket_id}/execution-plan:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketExecutionPlan
+  /admin/support/tickets/{ticket_id}/link-workflow:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketWorkflowLink
+  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/approve:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketNewBrandRefApprovalApprove
+  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/request:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNewBrandRefApprovalRequest
+  /admin/support/tickets/{ticket_id}/notification-ack:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNotificationAck
+  /admin/support/tickets/{ticket_id}/runtime-sync:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketRuntimeSync
+  /admin/support/tickets/{ticket_id}/step-run:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunUpdate
+  /admin/support/tickets/{ticket_id}/step-run/execute:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunExecute
+  /admin/support/tickets/{ticket_id}/step-runs:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketStepRuns
+  /admin/support/tickets/{ticket_id}/transition:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketTransition
+  /admin/support/tickets/{ticket_id}/workflow-run:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketWorkflowRun
+  /admin/support/tickets/auto-resolve/candidates:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolveCandidates
