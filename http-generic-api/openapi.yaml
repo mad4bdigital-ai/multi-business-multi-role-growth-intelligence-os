@@ -17175,73 +17175,7 @@ paths:
                       will_publish: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
   /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
-    post:
-      x-openai-isConsequential: false
-      tags: [platform-plugins]
-      security:
-        - adminBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: supportTicketExternalDeliveryCompletionCertify
-      summary: Certify Support Ticket external delivery completion gates
-      description: >
-        Admin-only completion certification surface for Support Ticket external delivery.
-        It runs AM-1 through AM-16 readback/certification for one ticket and returns
-        a no-send/no-secret certification envelope. The route does not perform SMTP,
-        webhook, provider network dispatch, live external send, or raw credential readback.
-        Sandbox mode returns mock provider evidence only; live_send remains gated.
-      parameters:
-        - name: ticket_id
-          in: path
-          required: true
-          schema: { type: string, minLength: 1, maxLength: 128 }
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                tenant_id: { type: string }
-                channel: { type: string, enum: [email, webhook], default: email }
-                audience: { type: string, enum: [admin, customer, both], default: admin }
-                provider_key: { type: string }
-                send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send], default: dry_run }
-                approval_hold_id: { type: string }
-                credential_ref: { type: string }
-                idempotency_key: { type: string }
-                subject: { type: string }
-                body: { type: string }
-                payload_json: { type: object, additionalProperties: true }
-      responses:
-        '200':
-          description: Completion certification envelope. Live dispatch remains gated and external sends are not performed.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok: { type: boolean, enum: [true] }
-                  mode: { type: string, enum: [completion_certification] }
-                  tenant_id: { type: string }
-                  ticket_id: { type: string }
-                  channel: { type: string, enum: [email, webhook] }
-                  audience: { type: string, enum: [admin, customer, both] }
-                  provider_key: { type: string, nullable: true }
-                  send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send] }
-                  summary: { $ref: '#/components/schemas/JsonValue' }
-                  phases: { type: array, items: { type: object, additionalProperties: true } }
-                  live_external_send_enabled: { type: boolean, enum: [false] }
-                  external_send_performed: { type: boolean, enum: [false] }
-                  secret_value_included: { type: boolean, enum: [false] }
-                  secrets_included: { type: boolean, enum: [false] }
-        '400': { description: Invalid certification request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { description: Not authorized for the admin certification route, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
-        '404': { description: Support Ticket not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
-        '500': { description: Completion certification failed unexpectedly, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
-
+    $ref: './openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion'
   /platform/orchestration/support-ticket/snapshot-record:
     post:
       x-openai-isConsequential: true
@@ -22314,3 +22248,155 @@ paths:
     $ref: ./openapi/support-tickets.yaml#/mySupportTicketById
   /me/support/tickets/{ticket_id}/events:
     $ref: ./openapi/support-tickets.yaml#/mySupportTicketEvents
+  /admin/support/tickets/{ticket_id}/assign:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketAssign
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationApply
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/finalize:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationFinalize
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/verified-apply:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandMappingRemediationVerifiedApply
+  /admin/support/tickets/{ticket_id}/brand-ref-resolution:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefResolution
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApprove
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/approve-and-complete:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketBrandRefSelectionApproveAndComplete
+  /admin/support/tickets/{ticket_id}/diagnostic-chain:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketDiagnosticChain
+  /admin/support/tickets/{ticket_id}/events:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketEvents
+  /admin/support/tickets/{ticket_id}/link-workflow:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketWorkflowLink
+  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/approve:
+    $ref: ./openapi/support-ticket-admin-brand.yaml#/adminSupportTicketNewBrandRefApprovalApprove
+  /admin/support/tickets/{ticket_id}/runtime-sync:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketRuntimeSync
+  /admin/support/tickets/{ticket_id}/step-run:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunUpdate
+  /admin/support/tickets/{ticket_id}/step-run/execute:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketStepRunExecute
+  /admin/support/tickets/{ticket_id}/transition:
+    $ref: ./openapi/support-ticket-admin-execution.yaml#/adminSupportTicketTransition
+  /admin/activation/ticket-inbox:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminActivationTicketInbox
+  /admin/support/tickets:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTickets
+  /admin/support/tickets/{ticket_id}:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketById
+  /admin/support/tickets/{ticket_id}/admin-feedback:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketFeedback
+  /admin/support/tickets/{ticket_id}/approval-hold:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHold
+  /admin/support/tickets/{ticket_id}/approval-hold/decision:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketApprovalHoldDecision
+  /admin/support/tickets/{ticket_id}/auto-resolve/propose:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolvePropose
+  /admin/support/tickets/{ticket_id}/brand-mapping-remediation/complete:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandMappingRemediationComplete
+  /admin/support/tickets/{ticket_id}/brand-ref-selection/request:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketBrandRefSelectionRequest
+  /admin/support/tickets/{ticket_id}/execution-plan:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketExecutionPlan
+  /admin/support/tickets/{ticket_id}/external-credential/activate-and-bind:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/activateBindAdminSupportTicketExternalCredential
+  /admin/support/tickets/{ticket_id}/external-credential/activation-plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalCredentialActivation
+  /admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/approveActivateBindVerifyAdminSupportTicketExternalCredential
+  /admin/support/tickets/{ticket_id}/external-credential/orchestration-plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalCredentialOrchestration
+  /admin/support/tickets/{ticket_id}/external-delivery/approval/decision:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalDeliveryApproval
+  /admin/support/tickets/{ticket_id}/external-delivery/approval/request:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/requestAdminSupportTicketExternalDeliveryApproval
+  /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalCredentialBinding
+  /admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/requestAdminSupportTicketExternalCredentialBinding
+  /admin/support/tickets/{ticket_id}/external-delivery/readiness:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/checkAdminSupportTicketExternalDeliveryReadiness
+  /admin/support/tickets/{ticket_id}/external-secret/intake-plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSecretIntake
+  /admin/support/tickets/{ticket_id}/external-secret/reference/activate:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/activateAdminSupportTicketExternalSecretReference
+  /admin/support/tickets/{ticket_id}/external-secret/reference/register:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/registerAdminSupportTicketExternalSecretReference
+  /admin/support/tickets/{ticket_id}/external-send/execution-plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSendExecution
+  /admin/support/tickets/{ticket_id}/external-send/execution-record:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalSendExecution
+  /admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalSendProviderGateAttempt
+  /admin/support/tickets/{ticket_id}/external-send/provider-gate-plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalSendProviderGate
+  /admin/support/tickets/{ticket_id}/new-brand-ref-approval/request:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNewBrandRefApprovalRequest
+  /admin/support/tickets/{ticket_id}/notification-ack:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketNotificationAck
+  /admin/support/tickets/{ticket_id}/notification-cycle:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/createAdminSupportTicketNotificationCycle
+  /admin/support/tickets/{ticket_id}/notification-delivery/dispatch:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/dispatchAdminSupportTicketNotificationDelivery
+  /admin/support/tickets/{ticket_id}/notification-delivery/preview:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/previewAdminSupportTicketNotificationDelivery
+  /admin/support/tickets/{ticket_id}/step-runs:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketStepRuns
+  /admin/support/tickets/{ticket_id}/workflow-run:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketWorkflowRun
+  /admin/support/tickets/auth-email-outbox/apply:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/applyAdminSupportTicketAuthEmailOutbox
+  /admin/support/tickets/auth-email-outbox/dry-run:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/dryRunAdminSupportTicketAuthEmailOutbox
+  /admin/support/tickets/auth-email-outbox/skip-ineligible:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/skipIneligibleAdminSupportTicketAuthEmailOutbox
+  /admin/support/tickets/auth-email-outbox/status:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/getAdminSupportTicketAuthEmailOutboxStatus
+  /admin/support/tickets/auto-resolve/candidates:
+    $ref: ./openapi/support-ticket-admin-remaining.yaml#/adminSupportTicketAutoResolveCandidates
+  /admin/support/tickets/external-delivery/control/adapter/dispatch:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/setAdminSupportTicketExternalDeliveryAdapterDispatch
+  /admin/support/tickets/external-delivery/control/allowlist/disable:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/disableAdminSupportTicketExternalDeliveryAllowlist
+  /admin/support/tickets/external-delivery/control/allowlist/upsert:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/upsertAdminSupportTicketExternalDeliveryAllowlist
+  /admin/support/tickets/external-delivery/control/gmail/revoke:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/revokeAdminSupportTicketExternalDeliveryGmailConnection
+  /admin/support/tickets/external-delivery/control/overview:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/getAdminSupportTicketExternalDeliveryControlOverview
+  /admin/support/tickets/external-delivery/credential-candidates:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalCredentialCandidates
+  /admin/support/tickets/external-send/provider-adapter-enablement/candidates:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalProviderEnablementCandidates
+  /admin/support/tickets/external-send/provider-adapter-enablement/propose:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/proposeAdminSupportTicketExternalProviderAdapterEnablement
+  /admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalAdapterFuturePrScope
+  /admin/support/tickets/external-send/provider-adapter-future-pr-scope/record:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalAdapterFuturePrScope
+  /admin/support/tickets/external-send/provider-adapter-readiness/decision:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/decideAdminSupportTicketExternalAdapterReadiness
+  /admin/support/tickets/external-send/provider-adapter-readiness/plan:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/planAdminSupportTicketExternalAdapterReadiness
+  /admin/support/tickets/external-send/provider-adapter-readiness/record:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/recordAdminSupportTicketExternalAdapterReadiness
+  /admin/support/tickets/external-send/provider-contracts:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketExternalProviderContracts
+  /admin/support/tickets/notifications/adapters:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketNotificationAdapters
+  /admin/support/tickets/notifications/queue:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminSupportTicketNotificationQueue
+  /admin/support/tickets/reconcile:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/reconcileAdminSupportTickets
+  /admin/support/tickets/sla/reconcile:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/reconcileAdminSupportTicketSla
+  /admin/support/tickets/tenant-user/create-simulation:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/createAdminSupportTicketTenantUserSimulation
+  /admin/tenant-requests:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listAdminTenantRequests
+  /admin/tenant-requests/{ticketId}:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/getAdminTenantRequest
+  /tenants/{tenantId}/requests:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/listTenantRequests
+  /tenants/{tenantId}/requests/{ticketId}:
+    $ref: ./openapi/support-ticket-runtime-completion.yaml#/getTenantRequest

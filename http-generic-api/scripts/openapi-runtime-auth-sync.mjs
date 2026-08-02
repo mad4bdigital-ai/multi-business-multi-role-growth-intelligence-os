@@ -97,6 +97,22 @@ function operationSecurityPath(operation) {
   return ["paths", pathParts.join(" "), method.toLowerCase(), "security"];
 }
 
+export function operationSecurityInsertion(source, document, securityPath, alternatives) {
+  const operationPath = securityPath.slice(0, -1);
+  const operationNode = document.getIn(operationPath, true);
+  if (!operationNode?.range) throw new Error(`Operation node is required before auth sync: ${operationPath.join("/")}`);
+  const lineStart = source.lastIndexOf("\n", operationNode.range[0] - 1) + 1;
+  const prefix = source.slice(lineStart, operationNode.range[0]);
+  if (prefix.trim()) {
+    throw new Error(`Block operation mapping is required before auth sync: ${operationPath.join("/")}`);
+  }
+  const indent = prefix;
+  const replacement = alternatives.length === 0
+    ? `${indent}security: []\n`
+    : `${indent}security:\n${alternatives.map(([scheme]) => `${indent}  - ${scheme}: []`).join("\n")}\n`;
+  return { start: lineStart, end: lineStart, replacement };
+}
+
 function securitySchemeInsertion(source, document, requiredSchemes, primarySchemes) {
   if (!document.get("openapi")) return null;
   const existing = document.toJS()?.components?.securitySchemes || {};
@@ -118,29 +134,33 @@ function securitySchemeInsertion(source, document, requiredSchemes, primarySchem
   return { start: insertionPoint, end: insertionPoint, replacement };
 }
 
-function patchSecurity(source, drift, { primarySchemes }) {
+export function patchSecurity(source, drift, { primarySchemes }) {
   const document = YAML.parseDocument(source, { keepSourceTokens: true, prettyErrors: true });
   if (document.errors.length) throw document.errors[0];
   const edits = [];
-  const inherited = drift.filter((operation) => operation.openapi_auth.security_declared === false);
-  if (inherited.length) {
-    const expectedProfiles = new Map(inherited.map((operation) => [JSON.stringify(operation.expected), operation.expected]));
-    if (expectedProfiles.size !== 1) throw new Error("A canonical document cannot inherit multiple runtime auth profiles");
-    const securityNode = document.getIn(["security"], true);
-    if (!securityNode?.range) throw new Error("Inherited canonical auth requires a root security declaration");
-    const expected = [...expectedProfiles.values()][0];
-    edits.push({
-      start: securityNode.range[0],
-      end: securityNode.range[2],
-      replacement: serializedSecurity(source, securityNode, expected),
-    });
-  }
-  for (const operation of drift.filter((entry) => entry.openapi_auth.security_declared !== false)) {
+
+  // Never widen or replace a document-level default merely because one routed
+  // operation inherited it. Canonical documents commonly mix public, user,
+  // and admin operations. Inserting exact operation-level security preserves
+  // every unrelated path and makes the generated repair safe for mixed files.
+  for (const operation of drift) {
     const securityPath = operationSecurityPath(operation);
     const securityNode = document.getIn(securityPath, true);
-    if (!securityNode?.range) throw new Error(`Explicit security declaration is required before auth sync: ${operation.signature}`);
-    edits.push({ start: securityNode.range[0], end: securityNode.range[2], replacement: serializedSecurity(source, securityNode, operation.expected) });
+    if (securityNode?.range) {
+      edits.push({
+        start: securityNode.range[0],
+        end: securityNode.range[2],
+        replacement: serializedSecurity(source, securityNode, operation.expected),
+      });
+      continue;
+    }
+    if (operation.openapi_auth.security_declared === false) {
+      edits.push(operationSecurityInsertion(source, document, securityPath, operation.expected));
+      continue;
+    }
+    throw new Error(`Explicit security declaration is required before auth sync: ${operation.signature}`);
   }
+
   const requiredSchemes = new Set(drift.flatMap((operation) => operation.expected.flat()));
   const schemeEdit = securitySchemeInsertion(source, document, requiredSchemes, primarySchemes);
   if (schemeEdit) edits.push(schemeEdit);

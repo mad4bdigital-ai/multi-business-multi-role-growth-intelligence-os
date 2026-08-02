@@ -8,7 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/governed-generated-artifact-refresh-run-observation.json",
-      ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
     ]
   },
@@ -59,7 +59,7 @@
             }
           ],
           "evidence_paths": [
-            ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs"
           ]
         }

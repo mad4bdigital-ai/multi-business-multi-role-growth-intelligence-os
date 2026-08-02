@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "feature_key": "017-tenant-managed-execution-lifecycle",
+  "title": "Tenant Managed Execution Lifecycle",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "protected_user_path_smoke": true,
+    "rollback_verification": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": "current",
+      "branch": "gpt/017-tenant-managed-execution-current-main-v4-20260802",
+      "role": "specification_and_foundation",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "status": "foundation_candidate",
+      "authenticated_principal_binding": true,
+      "approval_role_authorization": true,
+      "legacy_route_discovery_preserved": true,
+      "runtime_authority": false,
+      "migration_applied": false,
+      "production_deployed": false,
+      "issue_closed": false,
+      "secrets_included": false
+    },
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_applied",
+      "path": "http-generic-api/migrations/1043_sprint69_tenant_managed_execution_lifecycle.sql"
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "secrets_included": false
+}

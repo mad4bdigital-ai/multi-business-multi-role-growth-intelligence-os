@@ -89,6 +89,10 @@ import {
 } from "../capabilityEnablementBroker.js";
 import * as CapabilityEnablementBrokerRuntime from "../capabilityEnablementBroker.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import {
+  buildPlatformEndpointToolDescriptors,
+  selectPlatformEndpointToolBinding,
+} from "../platformEndpointToolFacade.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -831,24 +835,17 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
         WHERE x.status = 'active'
           AND x.scope_class IN (?, ?)
           ${tenantClause.sql}
-        ORDER BY x.tool_name`,
+        ORDER BY x.tool_name, x.endpoint_key, x.parent_action_key`,
       [...scopeClasses, ...tenantClause.params]
     );
 
-    return rows
+    const visibleRows = rows
       .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
-      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name))
-      .map((row) => ({
-        name: row.tool_name,
-        description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
-        requires_admin: row.scope_class === "admin",
-        inputSchema: normalizePlatformEndpointInputSchema(row.input_schema_json),
-        x_platform_endpoint: {
-          parent_action_key: row.parent_action_key,
-          endpoint_key: row.endpoint_key,
-          source: "platform_endpoint_tool_exports",
-        },
-      }));
+      .filter((row) => isAdminPrincipal(auth) || !TENANT_BLOCKED_SYSTEM_TOOL_NAMES.has(row.tool_name));
+
+    return buildPlatformEndpointToolDescriptors(visibleRows, {
+      normalizeInputSchema: normalizePlatformEndpointInputSchema,
+    });
   } catch (err) {
     console.error("[systemLayerTools] Failed to list platform endpoint exports:", err?.message || err);
     return [];
@@ -1323,7 +1320,8 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
         AND x.status = 'active'
         AND x.scope_class IN (?, ?)
         ${tenantClause.sql}
-      LIMIT 2`,
+      ORDER BY x.endpoint_key, x.parent_action_key
+      LIMIT 200`,
     [name, ...scopeClasses, ...tenantClause.params]
   );
 
@@ -1331,19 +1329,7 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     return { handled: false };
   }
 
-  if (rows.length > 1) {
-    const err = new Error("The visible platform endpoint tool name resolves to more than one active binding.");
-    err.status = 409;
-    err.code = "platform_endpoint_tool_binding_ambiguous";
-    err.details = {
-      tool_name: String(name || ""),
-      candidate_count: rows.length,
-      secrets_included: false,
-    };
-    throw err;
-  }
-
-  const [row] = rows;
+  const row = selectPlatformEndpointToolBinding(rows, args, name);
 
   if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
     const err = new Error("This platform endpoint tool requires admin access.");
@@ -2408,6 +2394,7 @@ function sendError(res, err, fallbackCode) {
     error: {
       code: err.code || fallbackCode,
       message: err.message,
+      ...(err?.details !== undefined ? { details: err.details } : {}),
     },
   });
 }

@@ -1,0 +1,7 @@
+{
+  "surface_key": "remote_mcp_oauth_authorization_codes",
+  "source_table": "remote_mcp_oauth_authorization_codes",
+  "reason": "Excluded because this table is an internal short-lived code exchange ledger used by the Remote MCP OAuth boundary. It is not a tenant or admin discovery surface, does not define platform tenant, workspace, Brand, resource, capability, or operation authority, and is accessed only through the bounded authorization service.",
+  "owner": "identity-security",
+  "review_after": "2026-12-31"
+}
