@@ -1,0 +1,168 @@
+# Source-bound path items for governed Support Ticket brand-reference and remediation operations.
+adminSupportTicketNewBrandRefApprovalApprove:
+  post:
+    operationId: approveAdminSupportTicketNewBrandRef
+    summary: Approve a proposed new brand reference for remediation
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandRefSelectionApproveAndComplete:
+  post:
+    operationId: approveAndCompleteAdminSupportTicketBrandRefSelection
+    summary: Approve the selected brand reference and complete remediation
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandRefSelectionApprove:
+  post:
+    operationId: approveAdminSupportTicketBrandRefSelection
+    summary: Approve a selected brand reference
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandRefResolution:
+  post:
+    operationId: resolveAdminSupportTicketBrandRefs
+    summary: Resolve trusted brand references for a support ticket
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: false
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandMappingRemediationFinalize:
+  post:
+    operationId: finalizeAdminSupportTicketBrandMappingRemediation
+    summary: Finalize brand-mapping remediation with governed readback
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandMappingRemediationVerifiedApply:
+  post:
+    operationId: applyVerifiedAdminSupportTicketBrandMappingRemediation
+    summary: Apply verified brand-mapping remediation
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
+
+adminSupportTicketBrandMappingRemediationApply:
+  post:
+    operationId: applyAdminSupportTicketBrandMappingRemediation
+    summary: Apply brand-mapping remediation
+    tags: [support-tickets, admin-control]
+    security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
+    x-registry-exposure: admin_tool
+    x-openai-isConsequential: true
+    parameters: [{ $ref: './support-ticket-admin-common.yaml#/parameters/SupportTicketId' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: './support-ticket-admin-common.yaml#/schemas/AdminSupportTicketActionRequest' }
+    responses:
+      '200': { $ref: './support-ticket-admin-common.yaml#/responses/Success' }
+      '400': { $ref: './support-ticket-admin-common.yaml#/responses/BadRequest' }
+      '401': { $ref: './support-ticket-admin-common.yaml#/responses/Unauthorized' }
+      '403': { $ref: './support-ticket-admin-common.yaml#/responses/Forbidden' }
+      '404': { $ref: './support-ticket-admin-common.yaml#/responses/NotFound' }
+      '409': { $ref: './support-ticket-admin-common.yaml#/responses/Conflict' }
+      '422': { $ref: './support-ticket-admin-common.yaml#/responses/Unprocessable' }
+      '500': { $ref: './support-ticket-admin-common.yaml#/responses/InternalError' }
