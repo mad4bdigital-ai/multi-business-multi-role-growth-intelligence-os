@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: spec014-main-integration-reconciliation
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reconcile:
@@ -48,6 +48,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch --no-tags origin "${MAIN_SHA}"
           git update-ref refs/heads/main "${MAIN_SHA}"
           integration_parent="$(git rev-parse HEAD)"
