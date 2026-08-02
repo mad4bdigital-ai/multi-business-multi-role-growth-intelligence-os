@@ -10,7 +10,8 @@
       ".changes/e2e/hostinger-retired-publisher-evidence-reference-cleanup.json",
       ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
       ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
-      ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json"
+      ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+      ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs"
     ]
   },
   "merge_contract": {
@@ -20,7 +21,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove stale evidence references to the retired specialized Hostinger publisher and bind the three historical Tenant Canary journeys to the canonical shared CI Evidence PR Publisher.",
+      "objective": "Remove stale evidence references to the retired specialized Hostinger publisher, bind the three historical Tenant Canary journeys to the canonical shared CI Evidence PR Publisher, and prevent future producer/publisher parity drift.",
       "e2e_journeys": [
         {
           "id": "align-retired-hostinger-publisher-evidence-references",
@@ -28,18 +29,21 @@
           "level": "synthetic_runtime",
           "actor": "repository evidence contract maintainer",
           "entrypoint": "The three historical Tenant Canary E2E journey manifests and the current shared publisher bootstrap contract",
-          "terminal_outcome": "No selected journey requests structured evidence from the deleted specialized publisher; all three journeys point to the registered shared publisher while the retired workflow remains absent.",
+          "terminal_outcome": "No selected journey requests structured evidence from the deleted specialized publisher; all three journeys point to the registered shared publisher, whose trusted-main and run-bound artifact route remains verified, while the retired workflow remains absent.",
           "steps": [
             "Identify the three Tenant Canary journeys whose evidence paths still reference the retired specialized publisher workflow.",
             "Replace only that retired evidence path with the registered CI Evidence PR Publisher path.",
             "Preserve the canonical Tenant Canary producer, routing registry, test paths, assertions, and authority boundaries.",
-            "Run the existing Tenant Canary bootstrap regression that requires the shared publisher and rejects restoration of the retired workflow."
+            "Run the existing Tenant Canary bootstrap regression that requires the shared publisher and rejects restoration of the retired workflow.",
+            "Run the publisher parity regression that verifies the exact workflow subscription, run-bound artifact name, trusted-main checkout, non-persisted checkout credentials, bounded Hostinger renderer, and every declared journey evidence file."
           ],
           "assertions": [
             "The three corrected manifests reference .github/workflows/ci-evidence-pr-publisher.yml.",
             "No corrected manifest references .github/workflows/hostinger-ci-evidence-pr-publisher.yml.",
             "The retired specialized publisher workflow remains absent.",
-            "The shared publisher remains the sole bounded comment-writing workflow for Hostinger Tenant Canary evidence.",
+            "The shared publisher remains subscribed to Hostinger Storage Tenant Canary Guard and downloads the artifact bound to github.event.workflow_run.id.",
+            "The shared publisher checks out trusted main with persisted credentials disabled and invokes the bounded Hostinger evidence renderer.",
+            "Every evidence path declared by the three corrected journeys resolves to a repository file.",
             "No runtime code, provider call, credential access, SQL, migration, deployment, Production mutation, protected-branch bypass, or force push occurs."
           ],
           "tests": [
@@ -49,15 +53,24 @@
               "working_directory": ".",
               "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-canary-shared-publisher-reference-parity",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
             ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
             ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
             ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/ci-evidence-routing.json",
-            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs"
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs"
           ]
         }
       ]
@@ -69,8 +82,56 @@
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Keep the bootstrap regression fail closed against future restoration of the retired publisher or stale evidence-path reintroduction."
+      "status": "implemented",
+      "objective": "Keep both regressions fail closed against restoration of the retired publisher, stale evidence-path reintroduction, loss of exact workflow subscription, unbound artifact selection, untrusted checkout, or bypass of the bounded Hostinger renderer.",
+      "e2e_journeys": [
+        {
+          "id": "prevent-hostinger-publisher-reference-regression",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository evidence governance evaluator",
+          "entrypoint": "Exact repository contracts, canonical Tenant Canary workflow, shared CI evidence publisher, routing registry, and regression tests",
+          "terminal_outcome": "Any reintroduction of the retired publisher or drift in the canonical producer-to-publisher evidence route fails on the originating pull request.",
+          "steps": [
+            "Resolve the current implemented journey evidence through the repository-wide E2E Contract Reference Integrity workflow.",
+            "Execute the bootstrap and publisher parity regressions against the exact pull-request head.",
+            "Reject missing, symbolic, untracked, non-regular, renamed, stale, or semantically drifted publisher evidence."
+          ],
+          "assertions": [
+            "The repository-wide integrity ratchet validates this contract and all declared evidence as tracked regular stage-zero blobs.",
+            "The specialized publisher remains absent while the shared publisher route remains exact and bounded.",
+            "The regression grants no provider, credential, deployment, database, Production, or protected-branch authority."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-shared-publisher-bootstrap-contract-resilient",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-canary-shared-publisher-reference-parity-resilient",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-retired-publisher-evidence-reference-cleanup.json",
+            ".changes/e2e/hostinger-tenant-canary-context-availability-fix.json",
+            ".changes/e2e/hostinger-tenant-canary-main-bootstrap.json",
+            ".changes/e2e/hostinger-tenant-canary-workflow-reregistration.json",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            ".github/ci-evidence-routing.json",
+            ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
+            ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
