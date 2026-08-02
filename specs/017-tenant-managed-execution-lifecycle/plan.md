@@ -8,7 +8,7 @@
 - Reuse ticket parent/capability integrity and serialized dedupe from Migration 1042 and `supportTicketLifecycleIntegrityCreationService.js`.
 - Reuse `v_workspace_resource_grant_effective` as resource authority.
 - Reuse `v_platform_capabilities_effective_evidence` as capability runtime authority.
-- Reuse `managed_execution_step_requests` and `managed_execution_events` for rollback request idempotency and immutable recovery evidence.
+- Reuse `managed_execution_step_requests` and `managed_execution_events` for rollback request idempotency, reconciliation evidence, and immutable intervention history.
 - Preserve the existing workflow orchestration implementation byte-for-byte as `workflowOrchestrationLegacyRoutes.js`.
 - Keep `workflowOrchestrationRoutes.js` as a small composite that mounts managed enforcement before the legacy router and carries an uninvoked source-discovery bridge because the generator scans only builders imported directly by `routes/index.js`.
 
@@ -34,10 +34,22 @@
 6. Model rollback as an idempotent managed compensation step followed by explicit finalization only after the compensation step completes and all other steps are inactive.
 7. Preserve all recovery evidence in `managed_execution_events`; do not call providers, read credentials, or create external writes.
 
+## Slice 3 — safe projections and contradiction reconciliation
+
+1. Replace the raw managed-run read response with a role-aware projection so tenant users never receive execution context, authority snapshots, raw inputs/outputs/errors, idempotency keys, or unfiltered event evidence.
+2. Provide a tenant projection with progress, approval need, blocker, requested input, next action, and terminal result status only.
+3. Provide an admin projection with safe run/binding/task/parent/step/hold summaries, authority metadata, evidence hashes, allowlisted intervention details, and a linked-state matrix.
+4. Detect structural contradictions across run, binding, task, parent, hold, and step records, including tenant/link mismatches, multiple open holds, terminal runs with active steps, invalid rollback evidence, and approval-state conflicts.
+5. Derive one canonical state from approval evidence, completed rollback compensation, or the workflow run status using the same state mappings as the existing decision service.
+6. Generate deterministic repair actions only for run/binding/task status drift. Structural or ambiguous contradictions are never auto-repaired.
+7. Bind every reconciliation plan to a SHA-256 fingerprint and require `RECONCILE_MANAGED_EXECUTION:<run_id>:<fingerprint>` before Apply.
+8. Restrict reconciliation Apply to platform admins, execute it in one transaction, append immutable reconciliation evidence, and reject the transaction if final readback still contains any contradiction.
+9. Keep dry-run read-only and expose the exact blocking contradiction codes and required confirmation.
+
 ## Later governed slices
 
-- Authorize and apply Migration 1043 exactly once.
-- Register tenant/admin tool schemas only after runtime and authority review.
-- Add customer/admin projections and full contradiction remediation.
-- Promote through current-main Production candidate and verify exact runtime SHA.
+- Obtain the exact checksum-bound Runtime Readiness authorization and run the no-Apply readiness workflow.
+- Add and review a separate Migration 1043 Apply contract only after successful readiness evidence.
+- Apply Migration 1043 exactly once, verify its ledger/readiness view, and separately synchronize the activation registry.
+- Promote through a current-main Production candidate and verify exact runtime SHA and protected tenant/admin paths.
 - Complete post-merge audit and close #4449 only after runtime evidence.
