@@ -116,6 +116,7 @@ jobs:
           }
           NODE
           git diff --check
+          git status --short | tee -a surface-materialization.log
           python3 - <<'PY'
           import re
           import subprocess
@@ -127,6 +128,7 @@ jobs:
               if ' -> ' in path:
                   path = path.split(' -> ', 1)[1]
               changed.append(path)
+          print({'changed_files': changed})
 
           exact = {
               'Updating Registry Patch Index.md',
@@ -142,6 +144,8 @@ jobs:
               'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
               'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
               'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/test-tenant-database-query-readonly.mjs',
+              'http-generic-api/test-tenant-ssh-cli-allowlisted-execute.mjs',
               'http-generic-api/resource-api-surface-callability.manifest.json',
               'http-generic-api/test-surface-callability-full-closure.mjs',
               'http-generic-api/scripts/test-manifest.mjs',
@@ -171,7 +175,7 @@ jobs:
           missing = sorted(required.difference(changed))
           if missing:
               raise SystemExit('missing_surface_closure_writes:' + ','.join(missing))
-          print({'changed_files': len(changed), 'unexpected': 0, 'queue_items': 0})
+          print({'changed_files_count': len(changed), 'unexpected': 0, 'queue_items': 0})
           PY
 
       - name: Remove one-time migration helpers
