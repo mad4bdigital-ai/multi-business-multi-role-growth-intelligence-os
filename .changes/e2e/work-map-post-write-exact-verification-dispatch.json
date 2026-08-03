@@ -10,6 +10,8 @@
       ".github/workflows/ci.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       ".github/workflows/spec-kit-work-map-integration.yml",
+      ".specify/pipeline-connectivity-contract.json",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
       "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
       ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
     ]
@@ -18,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind governed Work Map post-write verification to the exact committed branch head, preserve dispatch stderr, and require observable CI and Work Map integration run identities.",
+      "objective": "Bind governed Work Map post-write verification to the exact committed branch head, preserve dispatch stderr, require observable CI and Work Map integration run identities, and align pipeline connectivity governance with the V3 REST dispatch contract.",
       "e2e_journeys": [
         {
           "id": "writer-dispatches-observable-exact-post-write-verification",
@@ -36,10 +38,13 @@
             "Poll bounded workflow-run listings for workflow_dispatch runs on the target branch whose head_sha equals result_head_sha.",
             "Fail closed unless both dispatches succeed and both numeric verification run IDs are observed.",
             "CI verifies the selected SHA in all load-bearing jobs and binds test/deployment evidence to it.",
-            "Work Map integration verifies local checkout identity and current remote work-branch identity."
+            "Work Map integration verifies local checkout identity and current remote work-branch identity.",
+            "Pipeline connectivity requires V3 REST dispatch and exact-head run identity signatures while forbidding legacy opaque V2 dispatch signatures."
           ],
           "assertions": [
             "The writer does not use opaque gh workflow run calls for post-write verification.",
+            "The pipeline connectivity registry requires REST dispatch endpoints, V3 diagnostics, dispatch exit codes, exact-head filtering, and numeric run identity fields.",
+            "The pipeline connectivity registry forbids legacy gh workflow run and V2 writer signatures.",
             "Writer-supplied workflow_dispatch inputs are explicitly declared by both receiving workflows.",
             "A disabled verification workflow is enabled and read back as active before dispatch.",
             "Dispatch errors remain available in the writer diagnostic Artifact.",
@@ -51,12 +56,18 @@
             {
               "path": "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
               "command": "node test-work-map-post-write-exact-verification-dispatch.mjs"
+            },
+            {
+              "path": "http-generic-api/test-pipeline-connectivity-check.mjs",
+              "command": "node test-pipeline-connectivity-check.mjs"
             }
           ],
           "evidence_paths": [
             ".github/workflows/ci.yml",
             ".github/workflows/spec-kit-work-map-autofix.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
+            ".specify/pipeline-connectivity-contract.json",
+            "http-generic-api/test-pipeline-connectivity-check.mjs",
             "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
             ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
           ]
