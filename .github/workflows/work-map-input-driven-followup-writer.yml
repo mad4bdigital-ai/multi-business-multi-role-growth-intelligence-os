@@ -27,7 +27,7 @@ jobs:
       EXPECTED_HEAD_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
       TARGET_BRANCH: gpt/work-map-input-driven-branch-governance-20260804
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
-      SCRIPT_COMMIT_SHA: 205ee3dc3f1149d3575f6cb0edcf92ed3bbcc8a6
+      SCRIPT_COMMIT_SHA: b68cf2cd4ea365d813bdc5cdf06e5c031c431cc5
     steps:
       - name: Checkout exact clean branch
         uses: actions/checkout@v5
@@ -56,6 +56,8 @@ jobs:
           cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
           .changes/e2e/work-map-autofix-validation-diagnostics.json
           .github/workflows/spec-kit-work-map-autofix.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
           http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           EOF
 
@@ -68,11 +70,19 @@ jobs:
           git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-work-map-lifecycle-fix.py" > /tmp/apply-work-map-lifecycle-fix.py
           python -m py_compile /tmp/apply-work-map-lifecycle-fix.py
 
-      - name: Apply bounded three-file repair
+      - name: Apply repair regenerate maps and prove idempotency
         shell: bash
         run: |
           set -euo pipefail
           python /tmp/apply-work-map-lifecycle-fix.py
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          printf '%s\n' "${first_hash}" > "${DIAGNOSTIC_ROOT}/generated-diff-sha256.txt"
+
           git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
           diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
           git diff --check "${EXPECTED_MAIN_SHA}"
@@ -125,7 +135,12 @@ jobs:
           test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- .changes/e2e/work-map-autofix-validation-diagnostics.json .github/workflows/spec-kit-work-map-autofix.yml http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          git add -- \
+            .changes/e2e/work-map-autofix-validation-diagnostics.json \
+            .github/workflows/spec-kit-work-map-autofix.yml \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md \
+            http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           git commit -m "fix(ci): make Work Map branch governance input-driven"
           new_head="$(git rev-parse HEAD)"
           printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
@@ -134,9 +149,11 @@ jobs:
           test -z "$(git status --porcelain)"
 
           payload="${DIAGNOSTIC_ROOT}/validated-payload"
-          mkdir -p "${payload}/.changes/e2e" "${payload}/.github/workflows" "${payload}/http-generic-api"
+          mkdir -p "${payload}/.changes/e2e" "${payload}/.github/workflows" "${payload}/docs/work-maps" "${payload}/http-generic-api"
           cp .changes/e2e/work-map-autofix-validation-diagnostics.json "${payload}/.changes/e2e/"
           cp .github/workflows/spec-kit-work-map-autofix.yml "${payload}/.github/workflows/"
+          cp docs/work-maps/README.md "${payload}/docs/work-maps/"
+          cp docs/work-maps/repository-automation-map.md "${payload}/docs/work-maps/"
           cp http-generic-api/test-work-map-autofix-validation-diagnostics.mjs "${payload}/http-generic-api/"
           printf '%s\n' "${new_head}" > "${payload}/local-commit-sha.txt"
           git show -s --format=%T "${new_head}" > "${payload}/local-tree-sha.txt"
@@ -145,6 +162,8 @@ jobs:
           sha256sum \
             "${payload}/.changes/e2e/work-map-autofix-validation-diagnostics.json" \
             "${payload}/.github/workflows/spec-kit-work-map-autofix.yml" \
+            "${payload}/docs/work-maps/README.md" \
+            "${payload}/docs/work-maps/repository-automation-map.md" \
             "${payload}/http-generic-api/test-work-map-autofix-validation-diagnostics.mjs" \
             > "${payload}/sha256sums.txt"
 
