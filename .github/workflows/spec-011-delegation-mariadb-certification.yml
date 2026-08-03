@@ -11,11 +11,14 @@ on:
       - "http-generic-api/delegationGrantRepositoryMutationService.js"
       - "http-generic-api/delegationGrantMariaDbValidationService.js"
       - "http-generic-api/spec011Phase5ValidationCi.js"
+      - "http-generic-api/spec011Phase5MigrationPreflight.js"
       - "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql"
       - "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs"
       - "http-generic-api/scripts/delegation-mariadb-production-cycle.mjs"
+      - "http-generic-api/scripts/spec011-phase5-migration-preflight.mjs"
       - "http-generic-api/scripts/spec011-phase5-validation-lab.mjs"
       - "http-generic-api/test-delegation-grant-mariadb-*.mjs"
+      - "http-generic-api/test-spec011-phase5-migration-preflight.mjs"
       - "http-generic-api/test-spec011-phase5-validation-ci.mjs"
       - ".github/workflows/spec-011-delegation-mariadb-certification.yml"
       - "specs/011-durable-governed-execution-and-agent-delegation/**"
@@ -66,7 +69,75 @@ jobs:
           node test-delegation-grant-mariadb-adapter-contract.mjs
           node test-delegation-grant-mariadb-readiness-collector.mjs
           node test-delegation-grant-mariadb-runtime-binding.mjs
+          node test-spec011-phase5-migration-preflight.mjs
           node test-spec011-phase5-validation-ci.mjs
+
+      - name: Validate disposable engine before migration apply
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: spec011_delegation_cert_ci
+          DB_USER: spec011
+          DB_PASSWORD: spec011
+          DB_CONNECT_TIMEOUT_MS: 10000
+          DELEGATION_MARIADB_CERTIFICATION_MODE: disposable
+        run: node scripts/spec011-phase5-migration-preflight.mjs
+
+      - name: Require pre-apply authorization evidence
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'artifacts/spec011-phase5-migration-preflight.json';
+          if (!fs.existsSync(path)) {
+            fs.mkdirSync('artifacts', { recursive: true });
+            fs.writeFileSync(path, JSON.stringify({
+              ok: false,
+              report_type: 'spec011_phase5_migration_preflight_report',
+              schema_version: 'spec011-structured-ci-diagnosis-v1',
+              status: 'failed',
+              diagnosis: {
+                schema_version: 'spec011-structured-ci-diagnosis-v1',
+                gate_id: 'migration_engine_preflight',
+                status: 'fail',
+                code: 'MIGRATION_PREFLIGHT_ARTIFACT_MISSING',
+                summary: 'The engine preflight stopped before its authorization artifact was produced.',
+                blockers: ['MIGRATION_PREFLIGHT_ARTIFACT_MISSING'],
+                evidence_refs: ['workflow://spec-011-delegation-mariadb-certification'],
+                remediation: ['Inspect bootstrap and engine preflight logs before any migration apply.'],
+                metadata: { failure_stage: 'pre_apply_engine_validation' },
+                observed_at: new Date().toISOString(),
+                secrets_included: false
+              },
+              production_authorized: false,
+              secrets_included: false
+            }, null, 2) + '\n');
+          }
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const diagnosis = report.diagnosis;
+          const valid = diagnosis
+            && diagnosis.schema_version === 'spec011-structured-ci-diagnosis-v1'
+            && diagnosis.gate_id === 'migration_engine_preflight'
+            && ['pass', 'fail', 'blocked'].includes(diagnosis.status)
+            && Array.isArray(diagnosis.blockers)
+            && Array.isArray(diagnosis.remediation)
+            && diagnosis.secrets_included === false
+            && (diagnosis.status === 'pass' || (diagnosis.blockers.length > 0 && diagnosis.remediation.length > 0));
+          if (!valid || report.secrets_included !== false) {
+            console.error('Migration preflight structured diagnosis is invalid.');
+            process.exit(1);
+          }
+          if (report.ok !== true
+              || report.status !== 'pass'
+              || report.preflight?.status !== 'pass'
+              || report.preflight?.apply_prerequisites_satisfied !== true
+              || report.migration_apply_authorization?.decision !== 'authorized'
+              || report.migration_apply_authorization?.apply_authorized !== true) {
+            console.error('Migration apply remains blocked by engine preflight.');
+            process.exit(1);
+          }
+          NODE
 
       - name: Certify governed migration and lifecycle on disposable MariaDB
         env:
@@ -156,6 +227,15 @@ jobs:
             process.exit(1);
           }
           NODE
+
+      - name: Upload migration preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-phase5-migration-preflight
+          path: http-generic-api/artifacts/spec011-phase5-migration-preflight.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload bounded certification evidence
         if: always()
