@@ -34,6 +34,27 @@
         "deploys": false,
         "secrets_included": false
       }
+    },
+    {
+      "migration_file": "20260730_hostinger_production_resync_policy.sql",
+      "source_git_blob_sha": "553e0ab987e04009ddced67c3ef986a2669a0f8b",
+      "classification_status": "verified_evidence_only",
+      "classification_reason": "Checksum-bound Hostinger Production resynchronization policy seed. It creates policy/readback authority but no public runtime route or provider execution surface.",
+      "route_literals": [],
+      "documentation_targets": [
+        "docs/hostinger-node-deploy.md",
+        "http-generic-api/docs/hostinger-runtime-sync-runbook.md",
+        "deployment_parity_checklist.md"
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
     }
   ]
 }

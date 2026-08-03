@@ -515,3 +515,13 @@ Changes to `governedToolResponseChunkStore.js`, the `response_chunk_read` contra
 
 - `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
 - Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
+
+<!-- SURFACE_CONTRACT: 20260730_hostinger_production_resync_policy.sql -->
+## Hostinger production resynchronization policy contract
+
+- Migration: `20260730_hostinger_production_resync_policy.sql`.
+- Policy authority: `repository_main_moved_trigger_policy_v1`.
+- Readiness evidence: the migration inserts or updates an active, blocking policy with a valid JSON policy payload and a same-cycle SQL readback for `active` and `blocking`.
+- Execution boundary: the migration is additive and idempotent; it does not deploy, restart, enqueue execution, call a provider, read credential payloads, send externally, or perform an external write.
+- Release requirement: a main-branch movement requires a governed synchronization plan, a fresh Hostinger build, exact Production merge-SHA readback, and healthy same-cycle runtime evidence before readiness.
+- Secrets: `secrets_included=false`.
