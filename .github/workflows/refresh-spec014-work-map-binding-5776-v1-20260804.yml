@@ -1,4 +1,4 @@
-name: Refresh Spec014 Work Map Binding 5776 V1 20260804
+name: Diagnose Spec014 Work Map Binding 5776 V1 20260804
 
 on:
   pull_request:
@@ -8,16 +8,16 @@ on:
       - .github/workflows/refresh-spec014-work-map-binding-5776-v1-20260804.yml
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 concurrency:
-  group: refresh-spec014-work-map-binding-5776-v1-20260804
+  group: diagnose-spec014-work-map-binding-5776-v1-20260804
   cancel-in-progress: false
 
 jobs:
-  refresh:
-    name: Refresh exact Spec014 Work Map binding
+  diagnose:
+    name: Diagnose exact Spec014 binding refresh
     if: >-
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -37,7 +37,7 @@ jobs:
       TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
 
     steps:
-      - name: Verify one-file Builder and exact target
+      - name: Verify one-file diagnostic and exact target
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,78 +53,123 @@ jobs:
           test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
 
-      - name: Checkout exact target head
+      - name: Checkout exact target head read-only
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Refresh with official tool and validate readback
-        id: refresh
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs > "${RUNNER_TEMP}/refresh.json"
-
-          mapfile -t changed < <(git diff --name-only | sort)
-          test "${#changed[@]}" -ge 1
-          for path in "${changed[@]}"; do
-            [[ "${path}" == "${MANIFEST}" || "${path}" == "${TASKS}" ]]
-          done
-          printf '%s\n' "${changed[@]}" | grep -Fxq "${MANIFEST}"
-
-          report_dir="${RUNNER_TEMP}/readback"
-          mkdir -p "${report_dir}"
-          REPORT_PATH="${report_dir}/summary.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${report_dir}/stdout.json"
-          jq -e '.ok == true and .findings == []' "${report_dir}/summary.json"
-          current_fingerprint="$(jq -r '.current_registry.fingerprint' "${report_dir}/summary.json")"
-          manifest_fingerprint="$(jq -r '.manifest_registry.fingerprint' "${report_dir}/summary.json")"
-          test "${current_fingerprint}" = "${manifest_fingerprint}"
-          test "${current_fingerprint}" = 'f81e65d2452c2c04a1281d1537f2aec58a5a2228d6faa06f72faaa454d963fda'
-
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-          git diff --check
-          echo "fingerprint=${current_fingerprint}" >> "${GITHUB_OUTPUT}"
-
-      - name: Commit and push refreshed binding with lease readback
-        id: push
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${TARGET_SHA}"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "${MANIFEST}" "${TASKS}"
-          git commit -m 'docs(spec014): refresh final Work Map binding'
-          result_sha="$(git rev-parse HEAD)"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
-          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
-
-      - name: Publish exact binding evidence
+      - name: Execute labeled binding diagnostic
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
+          diagnostic_dir="${RUNNER_TEMP}/spec014-binding-diagnostic"
+          mkdir -p "${diagnostic_dir}/readback"
+          log="${diagnostic_dir}/diagnostic.log"
+
+          set +e
+          (
+            checkpoint() { printf '\n===== %s =====\n' "$1"; }
+
+            checkpoint 'exact target and initial status'
+            printf 'HEAD=%s\n' "$(git rev-parse HEAD)"
+            git status --short
+            test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+
+            checkpoint 'generated Work Map currentness before refresh'
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            printf 'generator_status=%s\n' "$?"
+
+            checkpoint 'official Spec014 binding refresh tool'
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+              > "${diagnostic_dir}/refresh.stdout.json" \
+              2> "${diagnostic_dir}/refresh.stderr.txt"
+            refresh_status=$?
+            printf 'refresh_status=%s\n' "${refresh_status}"
+            printf '%s\n' '--- refresh stdout ---'
+            cat "${diagnostic_dir}/refresh.stdout.json" 2>/dev/null || true
+            printf '%s\n' '--- refresh stderr ---'
+            cat "${diagnostic_dir}/refresh.stderr.txt" 2>/dev/null || true
+
+            checkpoint 'changed paths after refresh attempt'
+            git status --short
+            git diff --name-only | sort
+            printf '%s\n' '--- diff stat ---'
+            git diff --stat
+
+            checkpoint 'manifest binding after refresh attempt'
+            node --input-type=module <<'NODE'
+            import { readFileSync } from 'node:fs';
+            const manifest = JSON.parse(readFileSync(process.env.MANIFEST, 'utf8'));
+            const registry = manifest.work_map_registry || manifest.registry || {};
+            const metadata = manifest.generated_work_map_metadata || {};
+            console.log(JSON.stringify({
+              registry_fingerprint: registry.fingerprint ?? null,
+              registry_total_objects: registry.total_objects ?? null,
+              registry_unresolved_objects: registry.unresolved_objects ?? null,
+              generated_work_map_metadata: metadata,
+            }, null, 2));
+            NODE
+
+            checkpoint 'official final Work Map readback after refresh attempt'
+            REPORT_PATH="${diagnostic_dir}/readback/summary.json" \
+              node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+              > "${diagnostic_dir}/readback/stdout.json" \
+              2> "${diagnostic_dir}/readback/stderr.txt"
+            readback_status=$?
+            printf 'readback_status=%s\n' "${readback_status}"
+            printf '%s\n' '--- readback summary ---'
+            cat "${diagnostic_dir}/readback/summary.json" 2>/dev/null || true
+            printf '%s\n' '--- readback stdout ---'
+            cat "${diagnostic_dir}/readback/stdout.json" 2>/dev/null || true
+            printf '%s\n' '--- readback stderr ---'
+            cat "${diagnostic_dir}/readback/stderr.txt" 2>/dev/null || true
+
+            checkpoint 'changed-scope Work Map governance after refresh attempt'
+            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+            governance_status=$?
+            printf 'governance_status=%s\n' "${governance_status}"
+
+            checkpoint 'final diagnostic status'
+            git diff --check
+            diff_check_status=$?
+            printf 'diff_check_status=%s\n' "${diff_check_status}"
+            printf 'refresh_status=%s readback_status=%s governance_status=%s diff_check_status=%s\n' \
+              "${refresh_status}" "${readback_status}" "${governance_status}" "${diff_check_status}"
+            exit 0
+          ) >"${log}" 2>&1
+          diagnostic_status=$?
+          set -e
+          cat "${log}"
+
+          current_fingerprint="$(jq -r '.current_registry.fingerprint // "unresolved"' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo unresolved)"
+          manifest_fingerprint="$(jq -r '.manifest_registry.fingerprint // "unresolved"' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo unresolved)"
+          findings="$(jq -c '.findings // []' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo '[]')"
+          changed_paths="$(git diff --name-only | sort | paste -sd ',' -)"
+
           {
-            echo '## Spec 014 Work Map binding refreshed'
+            echo '## Spec 014 binding refresh diagnostic'
             echo
-            echo '- Source generated-map head: `${{ env.TARGET_SHA }}`'
-            echo '- Result head: `${{ steps.push.outputs.result_sha }}`'
-            echo '- Current and manifest fingerprint: `${{ steps.refresh.outputs.fingerprint }}`'
-            echo '- Official refresh tool and final readback: passed'
-            echo '- Changed paths restricted to the Spec 014 manifest/tasks binding'
-            echo '- No protected-ref mutation, force push, SQL, migration, database, provider, deployment, credential, or external-send action occurred'
-          } > "${RUNNER_TEMP}/evidence.md"
-          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/evidence.md"
-          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/evidence.md"
+            echo "- Target head: \`${TARGET_SHA}\`"
+            echo "- Protected main: \`${EXPECTED_MAIN_SHA}\`"
+            echo "- Current fingerprint after refresh attempt: \`${current_fingerprint}\`"
+            echo "- Manifest fingerprint after refresh attempt: \`${manifest_fingerprint}\`"
+            echo "- Changed paths after refresh attempt: \`${changed_paths:-none}\`"
+            echo "- Readback findings: \`${findings}\`"
+            echo '- No commit, push, repository write, protected-ref mutation, SQL, migration, database, provider, deployment, credential, or external-send action occurred.'
+            echo
+            echo '```text'
+            tail -n 320 "${log}"
+            echo '```'
+          } > "${diagnostic_dir}/comment.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${diagnostic_dir}/comment.md"
+          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${diagnostic_dir}/comment.md"
+          exit "${diagnostic_status}"
