@@ -21,6 +21,8 @@ assert.match(request, /types: \[labeled, synchronize, ready_for_review, reopened
 assert.match(request, /^  workflow_dispatch:$/m);
 assert.match(request, /^  contents: read$/m);
 assert.match(request, /^  pull-requests: read$/m);
+assert.match(request, /^    runs-on: ubuntu-24\.04$/m);
+assert.doesNotMatch(request, /^    runs-on: ubuntu-latest$/m);
 assert.doesNotMatch(request, /^  actions: write$/m);
 assert.doesNotMatch(request, /^  contents: write$/m);
 assert.doesNotMatch(request, /^  issues: write$/m);
@@ -43,6 +45,8 @@ assert.doesNotMatch(dispatcher, /^  push:$/m);
 assert.match(dispatcher, /^  actions: write$/m);
 assert.match(dispatcher, /^  contents: read$/m);
 assert.match(dispatcher, /^  pull-requests: read$/m);
+assert.match(dispatcher, /^    runs-on: ubuntu-24\.04$/m);
+assert.doesNotMatch(dispatcher, /^    runs-on: ubuntu-latest$/m);
 assert.doesNotMatch(dispatcher, /^  contents: write$/m);
 assert.doesNotMatch(dispatcher, /^  issues: write$/m);
 assert.doesNotMatch(dispatcher, /actions\/checkout/);
