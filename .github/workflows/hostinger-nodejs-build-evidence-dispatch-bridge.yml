@@ -235,11 +235,15 @@ jobs:
           const [reportPath, expectedSha, mergedAt, domain] = process.argv.slice(2);
           const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
           const effects = report.side_effects || {};
+          const reportMergedAtMs = Date.parse(report.identity?.production_merged_at ?? '');
+          const expectedMergedAtMs = Date.parse(mergedAt);
           const valid =
             report.contract === 'mad4b.hostinger-nodejs-build-evidence.v1' &&
             report.identity?.expected_sha === expectedSha &&
             report.identity?.expected_branch === 'Production' &&
-            report.identity?.production_merged_at === mergedAt &&
+            Number.isFinite(reportMergedAtMs) &&
+            Number.isFinite(expectedMergedAtMs) &&
+            reportMergedAtMs === expectedMergedAtMs &&
             report.identity?.domain === domain &&
             report.request?.method === 'GET' &&
             report.request?.token_returned === false &&
