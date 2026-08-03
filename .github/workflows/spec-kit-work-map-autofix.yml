@@ -38,9 +38,10 @@ jobs:
         id: initialize
         run: |
           set -euo pipefail
-          diagnostic_root="${GITHUB_WORKSPACE}/.work-map-autofix-diagnostics"
+          diagnostic_root="${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}"
           echo "DIAGNOSTIC_ROOT=${diagnostic_root}" >> "$GITHUB_ENV"
           mkdir -p "${diagnostic_root}"
+          : > "${diagnostic_root}/validation-results.tsv"
 
           git check-ref-format --branch "${TARGET_BRANCH}"
           [[ "${TARGET_BRANCH}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
@@ -101,17 +102,62 @@ jobs:
         id: validate
         run: |
           set -euo pipefail
-          node --check http-generic-api/scripts/platform-work-map-generator.mjs
-          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          validation_results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          failed_contract_file="${DIAGNOSTIC_ROOT}/failed-validation-contract.txt"
+          failed_exit_code_file="${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt"
+
+          run_contract() {
+            local contract_name="$1"
+            shift
+
+            echo "::group::${contract_name}"
+            set +e
+            "$@"
+            local exit_code=$?
+            set -e
+            echo "::endgroup::"
+
+            if [[ "${exit_code}" -ne 0 ]]; then
+              printf '%s\tfailed\t%s\n' "${contract_name}" "${exit_code}" >> "${validation_results}"
+              printf '%s\n' "${contract_name}" > "${failed_contract_file}"
+              printf '%s\n' "${exit_code}" > "${failed_exit_code_file}"
+              cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
+
+          ## Validation failure
+
+          | Field | Value |
+          |---|---|
+          | Contract | \`${contract_name}\` |
+          | Exit code | \`${exit_code}\` |
+          EOF
+              return "${exit_code}"
+            fi
+
+            printf '%s\tpassed\t0\n' "${contract_name}" >> "${validation_results}"
+          }
+
+          run_contract "syntax-platform-work-map-generator" \
+            node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          run_contract "syntax-platform-work-map-schema-intelligence" \
+            node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          run_contract "syntax-work-map-schema-classification" \
+            node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          run_contract "syntax-work-map-schema-classification-contract" \
+            node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_contract "syntax-pipeline-connectivity-check" \
+            node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_contract "pipeline-connectivity-check" \
+            node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_contract "pipeline-connectivity-regression" \
+            node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_contract "schema-classification-contract" \
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_contract "schema-classification" \
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+          run_contract "schema-classification-regression" \
+            node http-generic-api/test-work-map-schema-classification.mjs
+          run_contract "schema-classification-contract-regression" \
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
 
       - name: Regenerate and prove idempotency
         id: generate
@@ -185,6 +231,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${DIAGNOSTIC_ROOT}"
+
+          failed_validation_contract="none"
+          failed_validation_exit_code="none"
+          if [[ -s "${DIAGNOSTIC_ROOT}/failed-validation-contract.txt" ]]; then
+            failed_validation_contract="$(tr -d '\r\n' < "${DIAGNOSTIC_ROOT}/failed-validation-contract.txt")"
+          fi
+          if [[ -s "${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt" ]]; then
+            failed_validation_exit_code="$(tr -d '\r\n' < "${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt")"
+          fi
+
           cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
 
           ## Result
@@ -192,6 +248,8 @@ jobs:
           | Field | Value |
           |---|---|
           | Job status | \`${JOB_STATUS}\` |
+          | Failed validation contract | \`${failed_validation_contract}\` |
+          | Failed validation exit code | \`${failed_validation_exit_code}\` |
           | Generated changes | \`${CHANGED:-unknown}\` |
           | Result head | \`${RESULT_HEAD_SHA:-unresolved}\` |
           | Protected branch mutation | \`false\` |
@@ -203,13 +261,15 @@ jobs:
             --arg outcome "${JOB_STATUS}" \
             --arg target_branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg failed_validation_contract "${failed_validation_contract}" \
+            --arg failed_validation_exit_code "${failed_validation_exit_code}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             --arg changed "${CHANGED:-unknown}" \
-            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 
@@ -218,6 +278,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: work-map-autofix-diagnostics-${{ github.run_id }}
-          path: .work-map-autofix-diagnostics
-          if-no-files-found: warn
+          path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}
+          if-no-files-found: error
           retention-days: 14

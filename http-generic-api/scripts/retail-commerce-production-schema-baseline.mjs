@@ -10,6 +10,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(HERE, "..");
 const MIGRATIONS_ROOT = path.join(API_ROOT, "migrations");
 const DEFAULT_REPORT_PATH = path.resolve(process.cwd(), "retail-commerce-production-schema-baseline.json");
+const CANONICAL_RUNTIME_BASE_URL = "https://auth.mad4b.com";
 const MIGRATIONS = Object.freeze([
   "029_sprint32_tenant_commercials.sql",
   "319_sprint69_dynamic_container_authority_foundation.sql",
@@ -24,14 +25,79 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
 }
 
-function extractCreatedTables(sql) {
-  const tables = [...String(sql).matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/giu)]
-    .map((match) => match[1]);
-  const normalized = unique(tables);
-  if (!normalized.length || normalized.some((table) => !IDENTIFIER.test(table))) {
-    throw new Error("Unable to derive a bounded table allowlist from the repository migration.");
+function splitTopLevelDefinitions(body) {
+  const definitions = [];
+  let current = "";
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (const char of String(body)) {
+    if (quote) {
+      current += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+    if (char === "," && depth === 0) {
+      if (current.trim()) definitions.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
   }
-  return normalized;
+  if (quote || depth !== 0) throw new Error("Unbalanced CREATE TABLE definition body.");
+  if (current.trim()) definitions.push(current.trim());
+  return definitions;
+}
+
+function extractCreatedTableDefinitions(sql) {
+  const definitions = [];
+  const pattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?\s*\(([\s\S]*?)\)\s*ENGINE\s*=/giu;
+  for (const match of String(sql).matchAll(pattern)) {
+    const table = match[1];
+    const columns = [];
+    const indexes = [];
+    for (const definition of splitTopLevelDefinitions(match[2])) {
+      const column = definition.match(/^`([A-Za-z0-9_]+)`\s+/u);
+      if (column) {
+        columns.push(column[1]);
+        continue;
+      }
+      if (/^PRIMARY\s+KEY\s*\(/iu.test(definition)) {
+        indexes.push("PRIMARY");
+        continue;
+      }
+      const namedIndex = definition.match(/^(?:UNIQUE\s+)?(?:KEY|INDEX)\s+`([A-Za-z0-9_]+)`\s*\(/iu);
+      if (namedIndex) indexes.push(namedIndex[1]);
+    }
+    definitions.push({ table, columns: unique(columns), indexes: unique(indexes) });
+  }
+  if (!definitions.length || definitions.some((entry) => !IDENTIFIER.test(entry.table))) {
+    throw new Error("Unable to derive bounded table definitions from the repository migration.");
+  }
+  return definitions;
 }
 
 function placeholders(values) {
@@ -53,11 +119,14 @@ async function queryRows(pool, sql, params = [], audit = []) {
 async function loadMigrationContract(migration, readFile = fs.readFile) {
   const file = path.join(MIGRATIONS_ROOT, migration);
   const sql = await readFile(file, "utf8");
+  const definitions = extractCreatedTableDefinitions(sql);
   return {
     migration_file: migration,
     repository_checksum_sha256: sha256(sql),
     repository_statement_count: splitGovernedMigrationStatements(sql).length,
-    expected_tables: extractCreatedTables(sql),
+    expected_tables: definitions.map((entry) => entry.table),
+    expected_columns: definitions.flatMap((entry) => entry.columns.map((column) => ({ table: entry.table, column }))),
+    expected_indexes: definitions.flatMap((entry) => entry.indexes.map((index) => ({ table: entry.table, index }))),
   };
 }
 
@@ -96,8 +165,20 @@ function mapLedger(row) {
     preflight_status: row.preflight_status || null,
     preflight_risk_count: Number(row.preflight_risk_count || 0),
     secrets_included: Boolean(Number(row.secrets_included || 0)),
-    capability_envelope_id_present: Boolean(row.capability_envelope_id),
+    capability_envelope_id_present: Boolean(row.capability_envelope_id || row.capability_envelope_id_present),
   };
+}
+
+function migrationGaps(entry, ledgerTablePresent = true) {
+  const items = [];
+  if (entry.schema.missing_tables.length) items.push({ migration_file: entry.migration_file, code: "missing_expected_tables", tables: entry.schema.missing_tables });
+  if (entry.schema.missing_columns?.length) items.push({ migration_file: entry.migration_file, code: "missing_expected_columns", columns: entry.schema.missing_columns });
+  if (entry.schema.missing_indexes?.length) items.push({ migration_file: entry.migration_file, code: "missing_expected_indexes", indexes: entry.schema.missing_indexes });
+  if (!entry.ledger.found) items.push({ migration_file: entry.migration_file, code: ledgerTablePresent ? "migration_ledger_entry_missing" : "migration_ledger_table_missing" });
+  if (entry.ledger.found && !entry.checks.ledger_checksum_matches_repository) items.push({ migration_file: entry.migration_file, code: "ledger_checksum_mismatch" });
+  if (entry.ledger.found && !entry.checks.ledger_statement_count_matches_repository) items.push({ migration_file: entry.migration_file, code: "ledger_statement_count_mismatch" });
+  if (entry.ledger.found && !entry.checks.ledger_secrets_flag_safe) items.push({ migration_file: entry.migration_file, code: "ledger_secrets_flag_unsafe" });
+  return items;
 }
 
 export async function collectRetailCommerceProductionSchemaBaseline(options = {}) {
@@ -147,8 +228,12 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
       )
       : [];
 
-    const presentTables = unique(tableRows.map((row) => row.TABLE_NAME));
-    const missingTables = contract.expected_tables.filter((table) => !presentTables.includes(table));
+    const presentTables = new Set(tableRows.map((row) => row.TABLE_NAME));
+    const presentColumns = new Set(columnRows.map((row) => `${row.TABLE_NAME}.${row.COLUMN_NAME}`));
+    const presentIndexes = new Set(indexRows.map((row) => `${row.TABLE_NAME}.${row.INDEX_NAME}`));
+    const missingTables = contract.expected_tables.filter((table) => !presentTables.has(table));
+    const missingColumns = contract.expected_columns.filter((entry) => !presentColumns.has(`${entry.table}.${entry.column}`));
+    const missingIndexes = contract.expected_indexes.filter((entry) => !presentIndexes.has(`${entry.table}.${entry.index}`));
     const ledger = mapLedger(ledgerRows[0]);
     const checksumMatches = ledger.found && ledger.migration_checksum_sha256 === contract.repository_checksum_sha256;
     const statementCountMatches = ledger.found && ledger.statement_count === contract.repository_statement_count;
@@ -162,12 +247,16 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
           collation: row.TABLE_COLLATION || null,
         })),
         missing_tables: missingTables,
+        missing_columns: missingColumns,
+        missing_indexes: missingIndexes,
         columns: mapColumns(columnRows),
         indexes: mapIndexes(indexRows),
       },
       ledger,
       checks: {
         all_expected_tables_present: missingTables.length === 0,
+        all_expected_columns_present: missingColumns.length === 0,
+        all_expected_indexes_present: missingIndexes.length === 0,
         ledger_table_present: ledgerTablePresent,
         ledger_entry_found: ledger.found,
         ledger_checksum_matches_repository: checksumMatches,
@@ -177,20 +266,13 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
     });
   }
 
-  const gaps = migrations.flatMap((entry) => {
-    const items = [];
-    if (entry.schema.missing_tables.length) items.push({ migration_file: entry.migration_file, code: "missing_expected_tables", tables: entry.schema.missing_tables });
-    if (!entry.ledger.found) items.push({ migration_file: entry.migration_file, code: ledgerTablePresent ? "migration_ledger_entry_missing" : "migration_ledger_table_missing" });
-    if (entry.ledger.found && !entry.checks.ledger_checksum_matches_repository) items.push({ migration_file: entry.migration_file, code: "ledger_checksum_mismatch" });
-    if (entry.ledger.found && !entry.checks.ledger_statement_count_matches_repository) items.push({ migration_file: entry.migration_file, code: "ledger_statement_count_mismatch" });
-    if (entry.ledger.found && !entry.checks.ledger_secrets_flag_safe) items.push({ migration_file: entry.migration_file, code: "ledger_secrets_flag_unsafe" });
-    return items;
-  });
+  const gaps = migrations.flatMap((entry) => migrationGaps(entry, ledgerTablePresent));
 
   return {
     contract: "mad4b.retail-commerce-production-schema-baseline.v1",
     generated_at: now().toISOString(),
     source_repository_sha: process.env.GITHUB_SHA || null,
+    collection_source: "direct_database_metadata",
     environment: process.env.GITHUB_ACTIONS === "true" ? "github_actions_production_environment" : "direct_read_only_client",
     database_identity_sha256: databaseName ? sha256(databaseName) : null,
     authoritative_database_connection_succeeded: true,
@@ -206,13 +288,207 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
       migration_ledger_metadata_only: true,
       row_data_read: false,
       freeform_sql_accepted: false,
-      sql_execution: false,
+      sql_execution: true,
+      mutation_sql_execution: false,
       migration_dry_run: false,
       migration_apply: false,
       database_mutation: false,
+      runtime_api_request_executed: false,
       provider_call: false,
       credential_values_returned: false,
       external_send: false,
+      external_write: false,
+      secrets_included: false,
+    },
+  };
+}
+
+function normalizeRuntimeBaseUrl(value = CANONICAL_RUNTIME_BASE_URL) {
+  const url = new URL(String(value || CANONICAL_RUNTIME_BASE_URL));
+  if (url.origin !== CANONICAL_RUNTIME_BASE_URL || !["", "/"].includes(url.pathname) || url.search || url.hash || url.username || url.password) {
+    throw new Error("Retail Commerce Production schema runtime readback requires the canonical https://auth.mad4b.com origin.");
+  }
+  return CANONICAL_RUNTIME_BASE_URL;
+}
+
+function parsedJson(value) {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!text || (!text.startsWith("{") && !text.startsWith("["))) return value;
+  try { return JSON.parse(text); } catch { return value; }
+}
+
+function findObject(value, predicate, seen = new Set()) {
+  value = parsedJson(value);
+  if (!value || typeof value !== "object" || seen.has(value)) return null;
+  seen.add(value);
+  if (predicate(value)) return value;
+  for (const child of Object.values(value)) {
+    const found = findObject(child, predicate, seen);
+    if (found) return found;
+  }
+  return null;
+}
+
+async function runtimeToolCall({ runtimeBaseUrl, backendApiKey, body, fetchFn, timeoutMs = 180000 }) {
+  const response = await fetchFn(`${runtimeBaseUrl}/gpt/tools/call`, {
+    method: "POST",
+    redirect: "error",
+    headers: {
+      Authorization: `Bearer ${backendApiKey}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const text = await response.text();
+  let payload;
+  try { payload = text ? JSON.parse(text) : null; }
+  catch { payload = { non_json_response: true }; }
+  const authoritativeReadback = findObject(
+    payload,
+    (entry) => typeof entry?.readback_status === "string" && typeof entry?.migration === "string",
+  );
+  if ((!response.ok || payload?.ok === false) && !authoritativeReadback) {
+    const error = new Error(`Governed runtime schema readback failed with HTTP ${response.status}.`);
+    error.code = findObject(payload, (entry) => typeof entry?.code === "string")?.code || "runtime_schema_readback_failed";
+    throw error;
+  }
+  if (findObject(payload, (entry) => entry?.response_chunked === true)) {
+    const error = new Error("Governed runtime schema readback unexpectedly returned a chunked response.");
+    error.code = "runtime_schema_readback_chunked_response";
+    throw error;
+  }
+  return payload;
+}
+
+function normalizeRuntimeMigration(contract, readback) {
+  if (!readback || readback.migration !== contract.migration_file) {
+    throw new Error(`Runtime schema readback did not return the expected migration ${contract.migration_file}.`);
+  }
+  if (readback.migration_checksum_sha256 !== contract.repository_checksum_sha256) {
+    throw new Error(`Runtime schema readback checksum mismatch for ${contract.migration_file}.`);
+  }
+  if (Number(readback.statement_count) !== contract.repository_statement_count) {
+    throw new Error(`Runtime schema readback statement-count mismatch for ${contract.migration_file}.`);
+  }
+  for (const [key, expected] of [
+    ["provider_call_executed", false],
+    ["external_write_executed", false],
+    ["row_data_read", false],
+    ["freeform_sql_accepted", false],
+    ["secrets_included", false],
+  ]) {
+    if (readback[key] !== expected) throw new Error(`Runtime schema readback safety marker ${key} is invalid.`);
+  }
+
+  const missing = readback.expectations?.missing || {};
+  const ledger = mapLedger(readback.ledger?.found ? readback.ledger : null);
+  const schema = readback.schema || {};
+  const checksumMatches = ledger.found && ledger.migration_checksum_sha256 === contract.repository_checksum_sha256;
+  const statementCountMatches = ledger.found && ledger.statement_count === contract.repository_statement_count;
+  const missingTables = Array.isArray(missing.tables) ? missing.tables : [];
+  const missingColumns = Array.isArray(missing.columns) ? missing.columns : [];
+  const missingIndexes = Array.isArray(missing.indexes) ? missing.indexes : [];
+
+  return {
+    ...contract,
+    runtime_readback_status: readback.readback_status,
+    schema: {
+      present_tables: (schema.tables || []).map((row) => ({ table_name: row.TABLE_NAME, engine: null, collation: null })),
+      missing_tables: missingTables,
+      missing_columns: missingColumns,
+      missing_indexes: missingIndexes,
+      columns: mapColumns(schema.columns || []),
+      indexes: mapIndexes(schema.indexes || []),
+    },
+    ledger,
+    checks: {
+      all_expected_tables_present: missingTables.length === 0,
+      all_expected_columns_present: missingColumns.length === 0,
+      all_expected_indexes_present: missingIndexes.length === 0,
+      ledger_table_present: ledger.found,
+      ledger_entry_found: ledger.found,
+      ledger_checksum_matches_repository: checksumMatches,
+      ledger_statement_count_matches_repository: statementCountMatches,
+      ledger_secrets_flag_safe: !ledger.found || ledger.secrets_included === false,
+    },
+  };
+}
+
+export async function collectRetailCommerceProductionSchemaRuntimeBaseline(options = {}) {
+  const readFile = options.readFile || fs.readFile;
+  const now = options.now || (() => new Date());
+  const fetchFn = options.fetchFn || globalThis.fetch;
+  const runtimeBaseUrl = normalizeRuntimeBaseUrl(options.runtimeBaseUrl || process.env.RUNTIME_BASE_URL || CANONICAL_RUNTIME_BASE_URL);
+  const backendApiKey = String(options.backendApiKey || process.env.BACKEND_API_KEY || "").trim();
+  if (!backendApiKey) {
+    const error = new Error("BACKEND_API_KEY is required for the governed runtime schema readback source.");
+    error.code = "missing_backend_api_key";
+    throw error;
+  }
+  if (typeof fetchFn !== "function") throw new Error("A fetch implementation is required for governed runtime schema readback.");
+
+  const contracts = [];
+  for (const migration of MIGRATIONS) contracts.push(await loadMigrationContract(migration, readFile));
+  const migrations = [];
+  for (const contract of contracts) {
+    const payload = await runtimeToolCall({
+      runtimeBaseUrl,
+      backendApiKey,
+      fetchFn,
+      body: {
+        name: "governed_migration_schema_readback",
+        tool_args: {
+          migration: contract.migration_file,
+          expected_checksum_sha256: contract.repository_checksum_sha256,
+          expected_statement_count: contract.repository_statement_count,
+          expected_tables: contract.expected_tables,
+          expected_columns: contract.expected_columns,
+          expected_indexes: contract.expected_indexes,
+          _response: { max_chars: 150000 },
+        },
+      },
+    });
+    const readback = findObject(payload, (entry) => entry?.readback_status && entry?.migration === contract.migration_file);
+    migrations.push(normalizeRuntimeMigration(contract, readback));
+  }
+
+  const gaps = migrations.flatMap((entry) => migrationGaps(entry, true));
+  return {
+    contract: "mad4b.retail-commerce-production-schema-baseline.v1",
+    generated_at: now().toISOString(),
+    source_repository_sha: process.env.GITHUB_SHA || null,
+    collection_source: "governed_production_runtime_schema_readback",
+    environment: "canonical_production_runtime",
+    runtime_base_url: runtimeBaseUrl,
+    database_identity_sha256: null,
+    database_identity_disclosed: false,
+    authoritative_database_connection_succeeded: true,
+    baseline_collected: true,
+    parity_status: gaps.length ? "gaps_detected" : "pass",
+    migrations,
+    gaps,
+    safety: {
+      runtime_tool_calls: migrations.length,
+      runtime_tool_name: "governed_migration_schema_readback",
+      select_only: true,
+      information_schema_only_for_schema: true,
+      migration_ledger_metadata_only: true,
+      row_data_read: false,
+      freeform_sql_accepted: false,
+      sql_execution: true,
+      local_sql_execution: false,
+      mutation_sql_execution: false,
+      migration_dry_run: false,
+      migration_apply: false,
+      database_mutation: false,
+      runtime_api_request_executed: true,
+      provider_call: false,
+      credential_values_returned: false,
+      external_send: false,
+      external_write: false,
       secrets_included: false,
     },
   };
@@ -220,16 +496,21 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
 
 async function runCli() {
   const reportPathArg = process.argv.find((arg) => arg.startsWith("--report="));
+  const sourceArg = process.argv.find((arg) => arg.startsWith("--source="));
+  const sourceMode = sourceArg ? sourceArg.slice("--source=".length) : "direct_db";
   const reportPath = path.resolve(reportPathArg ? reportPathArg.slice("--report=".length) : DEFAULT_REPORT_PATH);
   let report;
   let exitCode = 0;
   try {
-    report = await collectRetailCommerceProductionSchemaBaseline();
+    if (sourceMode === "runtime_api") report = await collectRetailCommerceProductionSchemaRuntimeBaseline();
+    else if (sourceMode === "direct_db") report = await collectRetailCommerceProductionSchemaBaseline();
+    else throw new Error(`Unsupported Retail Commerce schema baseline source: ${sourceMode}`);
   } catch (error) {
     report = {
       contract: "mad4b.retail-commerce-production-schema-baseline.v1",
       generated_at: new Date().toISOString(),
       source_repository_sha: process.env.GITHUB_SHA || null,
+      collection_source: sourceMode === "runtime_api" ? "governed_production_runtime_schema_readback" : "direct_database_metadata",
       authoritative_database_connection_succeeded: false,
       baseline_collected: false,
       parity_status: "collection_failed",
@@ -239,12 +520,15 @@ async function runCli() {
         row_data_read: false,
         freeform_sql_accepted: false,
         sql_execution: false,
+        mutation_sql_execution: false,
         migration_dry_run: false,
         migration_apply: false,
         database_mutation: false,
+        runtime_api_request_executed: sourceMode === "runtime_api",
         provider_call: false,
         credential_values_returned: false,
         external_send: false,
+        external_write: false,
         secrets_included: false,
       },
     };
@@ -252,7 +536,7 @@ async function runCli() {
   }
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ ok: report.baseline_collected === true, report_path: reportPath, parity_status: report.parity_status, secrets_included: false }));
+  console.log(JSON.stringify({ ok: report.baseline_collected === true, report_path: reportPath, collection_source: report.collection_source, parity_status: report.parity_status, secrets_included: false }));
   process.exitCode = exitCode;
 }
 
