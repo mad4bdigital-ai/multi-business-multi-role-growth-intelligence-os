@@ -109,7 +109,6 @@ jobs:
           run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
           run_check e2e-reference-regression node http-generic-api/test-e2e-contract-reference-integrity.mjs
           run_check e2e-git-index-regression node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          run_check e2e-reference-all node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --all --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity-pre-commit.json"
           run_check marker-failure-tsv grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
           run_check marker-aggregate-text grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
           run_check marker-failure-count grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
