@@ -1,0 +1,260 @@
+name: Incident 5021 approval builder diagnostic v7
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/draft-merge-guard-v2-20260803
+    paths:
+      - .github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v7.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: incident-5021-approval-builder-diagnostic-v7
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose semantic exact-head approval candidate without publishing
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-20260803
+      EXPECTED_TARGET_SHA: 2c89cc14d8a38a09034f0306eccff273234046e2
+      SOURCE_DIAGNOSTIC: .github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v6.yml
+      REPORT_PATH: incident-5021-builder-diagnostic-v7.json
+    steps:
+      - name: Checkout immutable target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify target and fetch diagnostic source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$BUILDER_BRANCH"
+
+      - name: Build and run semantic structured diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYBUILD'
+          from pathlib import Path
+          import subprocess
+          import textwrap
+
+          branch = "gpt/incident-5021/exact-head-approval-guard-builder-20260803"
+          path = ".github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v6.yml"
+          raw = subprocess.check_output(["git", "show", f"origin/{branch}:{path}"], text=True)
+          start_marker = "          python - <<'PYDIAG'\n"
+          end_marker = "\n          PYDIAG\n"
+          start = raw.find(start_marker)
+          if start < 0:
+              raise SystemExit("V6 diagnostic start marker missing")
+          start += len(start_marker)
+          end = raw.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("V6 diagnostic end marker missing")
+          source = textwrap.dedent(raw[start:end])
+
+          marker = '    script = replace_ast_node(script, success_node, success_replacement)\n'
+          if source.count(marker) != 1:
+              raise SystemExit(f"V6 success injection marker mismatch: {source.count(marker)}")
+
+          injection = r'''
+
+              enforcement_node = find_labelled_assignment(script, "explicit envelope enforcement")
+              enforcement_replacement = r'''enforcement_anchor = '  if (!renewalAllowed(input)) {\n    throw lifecycleError(\n'
+          enforcement_value = '''  if (protectedFinalizationRequiresExplicitEnvelope(operationKey, input)) {
+            throw lifecycleError(
+              409,
+              "OPERATION_CAPABILITY_ENVELOPE_REQUIRED",
+              "Protected pull-request finalization requires a separately issued capability envelope; automatic renewal is disabled.",
+              {
+                operation_key: operationKey,
+                previous_envelope_id: existingEnvelopeId || null,
+                automatic_renewal_enabled: false,
+                next_action: "supply_explicit_approved_capability_envelope",
+                secrets_included: false,
+              },
+            );
+          }
+
+            if (!renewalAllowed(input)) {
+            throw lifecycleError(
+          '''
+          if capability.count(enforcement_anchor) != 1:
+              raise SystemExit(f"explicit enforcement anchor: expected one match, found {capability.count(enforcement_anchor)}")
+          capability = capability.replace(enforcement_anchor, enforcement_value, 1)
+          '''
+              script = replace_ast_node(script, enforcement_node, enforcement_replacement)
+
+              testing_export_node = find_labelled_assignment(script, "testing export")
+              testing_export_replacement = r'''testing_export_anchor = '  renewalProfile,\n  renewalAllowed,\n  publicFailure,\n};\n'
+          testing_export_value = '  renewalProfile,\n  renewalAllowed,\n  protectedFinalizationRequiresExplicitEnvelope,\n  publicFailure,\n};\n'
+          if capability.count(testing_export_anchor) != 1:
+              raise SystemExit(f"testing export anchor: expected one match, found {capability.count(testing_export_anchor)}")
+          capability = capability.replace(testing_export_anchor, testing_export_value, 1)
+          '''
+              script = replace_ast_node(script, testing_export_node, testing_export_replacement)
+
+              expired_node = find_labelled_assignment(script, "expired renewal safe recipe")
+              expired_replacement = r'''expired_anchor = '        operation_key: "repo.change.execute",\n        capability_envelope_id: "env-expired",\n'
+          expired_value = '        operation_key: "repo.change.execute",\n        automation_key: "branch_cleanup",\n        capability_envelope_id: "env-expired",\n'
+          if capability_test.count(expired_anchor) != 1:
+              raise SystemExit(f"expired renewal anchor: expected one match, found {capability_test.count(expired_anchor)}")
+          capability_test = capability_test.replace(expired_anchor, expired_value, 1)
+          '''
+              script = replace_ast_node(script, expired_node, expired_replacement)
+
+              approval_node = find_labelled_assignment(script, "approval renewal safe recipe")
+              approval_replacement = r'''approval_anchor = '      input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },\n      operationKey: "repo.change.execute",\n      createEnvelope: async () => ({\n'
+          approval_value = '      input: { operation_key: "repo.change.execute", automation_key: "branch_cleanup", owner: "owner", repo: "repo" },\n      operationKey: "repo.change.execute",\n      createEnvelope: async () => ({\n'
+          if capability_test.count(approval_anchor) != 1:
+              raise SystemExit(f"approval renewal anchor: expected one match, found {capability_test.count(approval_anchor)}")
+          capability_test = capability_test.replace(approval_anchor, approval_value, 1)
+          '''
+              script = replace_ast_node(script, approval_node, approval_replacement)
+
+              capability_tests_node = find_labelled_assignment(script, "capability explicit envelope tests")
+              capability_tests_replacement = r'''capability_tests_anchor = '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.repositoryResourceUri({
+              owner: "owner",
+              repo: "repo",
+            }),
+            "github://owner/repo",
+          );
+          '''
+          capability_tests_addition = capability_tests_anchor + '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "repo.change.execute",
+              {},
+            ),
+            true,
+          );
+            assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "repo.change.execute",
+              { automation_key: "branch_cleanup" },
+            ),
+            false,
+          );
+            assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "operation.resume",
+              {},
+            ),
+            true,
+          );
+
+            {
+            let createCalls = 0;
+            await assert.rejects(
+              () => prepareOperationCapabilityLifecycle({
+                pool: {},
+                auth: { tenant_id: "tenant-a", user_id: "user-a" },
+                input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },
+                operationKey: "repo.change.execute",
+                createEnvelope: async () => { createCalls += 1; return {}; },
+              }),
+              (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+                && error.details?.automatic_renewal_enabled === false,
+            );
+            assert.equal(createCalls, 0);
+          }
+          '''
+          if capability_test.count(capability_tests_anchor) != 1:
+              raise SystemExit(f"capability test insertion anchor: expected one match, found {capability_test.count(capability_tests_anchor)}")
+          capability_test = capability_test.replace(capability_tests_anchor, capability_tests_addition, 1)
+          '''
+              script = replace_ast_node(script, capability_tests_node, capability_tests_replacement)
+
+              openapi_assertion_node = find_labelled_assignment(script, "OpenAPI explicit envelope assertion")
+              openapi_assertion_replacement = r'''openapi_assertion_anchor = '  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL/);\n'
+          openapi_assertion_value = '  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL/);\n  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_ENVELOPE_REQUIRED/);\n'
+          if capability_test.count(openapi_assertion_anchor) != 1:
+              raise SystemExit(f"OpenAPI assertion anchor: expected one match, found {capability_test.count(openapi_assertion_anchor)}")
+          capability_test = capability_test.replace(openapi_assertion_anchor, openapi_assertion_value, 1)
+          '''
+              script = replace_ast_node(script, openapi_assertion_node, openapi_assertion_replacement)
+
+              lifecycle_description_node = find_labelled_assignment(script, "OpenAPI lifecycle description")
+              lifecycle_description_replacement = r'''description_anchor = '    envelope. Missing or expired envelopes may be recreated from a governed\n    dry-run, but approval is never granted automatically.\n'
+          description_value = '    envelope. Missing or expired envelopes may be recreated from a governed\n    dry-run for lower-risk recipes, but protected pull-request finalization and\n    operation resume require a separately issued explicit envelope.\n'
+          if openapi.count(description_anchor) != 1:
+              raise SystemExit(f"OpenAPI lifecycle description anchor: expected one match, found {openapi.count(description_anchor)}")
+          openapi = openapi.replace(description_anchor, description_value, 1)
+          '''
+              script = replace_ast_node(script, lifecycle_description_node, lifecycle_description_replacement)
+
+              renewal_description_node = find_labelled_assignment(script, "OpenAPI renewal field description")
+              renewal_description_replacement = r'''renewal_description_anchor = '            Allows creation of a fresh dry-run envelope when none exists or the\n            supplied envelope expired. It never grants approval automatically.\n'
+          renewal_description_value = '            Allows creation of a fresh dry-run envelope when none exists or the\n            supplied envelope expired for lower-risk recipes. It is ignored for protected\n            pull-request finalization and operation resume, which require an explicit envelope.\n'
+          if openapi.count(renewal_description_anchor) != 1:
+              raise SystemExit(f"OpenAPI renewal description anchor: expected one match, found {openapi.count(renewal_description_anchor)}")
+          openapi = openapi.replace(renewal_description_anchor, renewal_description_value, 1)
+          '''
+              script = replace_ast_node(script, renewal_description_node, renewal_description_replacement)
+
+              error_enum_node = find_labelled_assignment(script, "OpenAPI error enum")
+              error_enum_replacement = r'''error_enum_anchor = '                - OPERATION_CAPABILITY_ENVELOPE_REJECTED\n'
+          error_enum_value = '                - OPERATION_CAPABILITY_ENVELOPE_REJECTED\n                - OPERATION_CAPABILITY_ENVELOPE_REQUIRED\n'
+          if openapi.count(error_enum_anchor) != 1:
+              raise SystemExit(f"OpenAPI error enum anchor: expected one match, found {openapi.count(error_enum_anchor)}")
+          openapi = openapi.replace(error_enum_anchor, error_enum_value, 1)
+          '''
+              script = replace_ast_node(script, error_enum_node, error_enum_replacement)
+          '''
+
+          source = source.replace(marker, marker + textwrap.dedent(injection), 1)
+          source = source.replace("incident-5021-builder-diagnostic-v6.json", "incident-5021-builder-diagnostic-v7.json")
+          source = source.replace("incident_5021_exact_head_approval_builder_v6", "incident_5021_exact_head_approval_builder_v7")
+          source = source.replace("incident-5021-builder-diagnostic-v6.py", "incident-5021-builder-diagnostic-v7.py")
+          compile(source, "/tmp/incident-5021-diagnostic-driver-v7.py", "exec")
+          Path("/tmp/incident-5021-diagnostic-driver-v7.py").write_text(source)
+          PYBUILD
+          python /tmp/incident-5021-diagnostic-driver-v7.py
+
+      - name: Upload semantic structured diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-builder-diagnostic-v7-${{ github.sha }}
+          path: incident-5021-builder-diagnostic-v7.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail unless semantic candidate is fully clean
+        shell: bash
+        run: |
+          python - <<'PYCHECK'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("incident-5021-builder-diagnostic-v7.json").read_text())
+          checks = [
+              report.get("diagnostic_completed") is True,
+              report.get("patch_returncode") == 0,
+              report.get("all_tests_passed") is True,
+              report.get("diff_check_returncode") == 0,
+              report.get("exact_six_file_boundary") is True,
+          ]
+          if not all(checks):
+              raise SystemExit("semantic candidate diagnostic is not fully clean; inspect structured artifact")
+          print("semantic candidate diagnostic fully clean")
+          PYCHECK
