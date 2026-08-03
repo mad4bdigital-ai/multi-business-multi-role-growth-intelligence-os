@@ -50,6 +50,12 @@ assert.match(workflow, /persist-credentials: false/);
 assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
+assert.match(workflow, /^\s+EVIDENCE_DIR:\s*\/tmp\/hostinger-production-release-evidence-r6\s*$/m);
+assert.doesNotMatch(
+  workflow,
+  /^\s+EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/m,
+  "runner context is unavailable in job-level env and would prevent workflow registration",
+);
 
 for (const marker of [
   "repository_write_performed:false",
