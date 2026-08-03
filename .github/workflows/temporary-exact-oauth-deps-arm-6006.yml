@@ -1,4 +1,4 @@
-name: Exact OAuth Dependency Baseline ARM 6006
+name: Exact OAuth Dependency Atomic ARM 6016
 
 on:
   pull_request:
@@ -10,22 +10,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-oauth-deps-arm-6006
+  group: exact-oauth-deps-atomic-arm-6016
   cancel-in-progress: false
 
 jobs:
   validate:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804' &&
-      github.event.pull_request.head.sha == '8c6c0eb74de5ac233af8854f85a654c002cc4fdd'
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804' &&
+      github.event.pull_request.head.sha == 'd4d43f7754e273e25226095d9a105a72fa05b754'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
       - name: Checkout immutable candidate head
         uses: actions/checkout@v5
         with:
-          ref: gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804
+          ref: gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804
           fetch-depth: 0
           persist-credentials: false
 
@@ -34,9 +34,10 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          test "$(git rev-parse HEAD)" = "8c6c0eb74de5ac233af8854f85a654c002cc4fdd"
+          test "$(git rev-parse HEAD)" = "d4d43f7754e273e25226095d9a105a72fa05b754"
           test "$(git rev-parse origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
           test "$(git merge-base origin/main HEAD)" = "a61cd9e83070618001676bbc679bc937f0551875"
+          test "$(git rev-list --count origin/main..HEAD)" = "1"
           test -z "$(git status --porcelain)"
           git diff --check origin/main...HEAD
           git diff --name-only origin/main...HEAD | sort > "$RUNNER_TEMP/changed-files.txt"
@@ -46,10 +47,14 @@ jobs:
           http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           EOF
           diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/changed-files.txt"
+          test "$(git rev-parse HEAD:http-generic-api/routes/index.js)" = "07f5966079784e8a18df69559976753362c8f00e"
+          test "$(git rev-parse HEAD:http-generic-api/test-auth-oauth-routes.mjs)" = "6fd2e0854c8739b646d5a51de837153c4167bd7c"
+          test "$(git rev-parse HEAD:http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs)" = "c7fc6db09585a86f6b4b0d53ab7b62f9d0a0b6dd"
           {
             echo "main_sha=$(git rev-parse origin/main)"
             echo "candidate_sha=$(git rev-parse HEAD)"
             echo "merge_base=$(git merge-base origin/main HEAD)"
+            echo "candidate_commits=$(git rev-list --count origin/main..HEAD)"
             echo "changed_files:"
             sed 's/^/  - /' "$RUNNER_TEMP/changed-files.txt"
           } > "$RUNNER_TEMP/oauth-deps-arm-metadata.txt"
@@ -91,8 +96,8 @@ jobs:
         working-directory: http-generic-api
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
-          DEPLOYMENT_BRANCH: "gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804"
-          DEPLOYMENT_COMMIT_SHA: "8c6c0eb74de5ac233af8854f85a654c002cc4fdd"
+          DEPLOYMENT_BRANCH: "gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804"
+          DEPLOYMENT_COMMIT_SHA: "d4d43f7754e273e25226095d9a105a72fa05b754"
         run: |
           set -euo pipefail
           node test-deployment-manifest-generator.mjs
@@ -137,7 +142,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-oauth-deps-arm-6006-${{ github.event.pull_request.head.sha }}
+          name: exact-oauth-deps-atomic-arm-6016-${{ github.event.pull_request.head.sha }}
           path: |
             ${{ runner.temp }}/oauth-deps-arm-metadata.txt
             ${{ runner.temp }}/oauth-deps-arm-final-state.txt
