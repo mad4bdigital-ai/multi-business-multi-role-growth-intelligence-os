@@ -28,6 +28,7 @@ jobs:
       SCRIPT_COMMIT_SHA: 61e37a39e648f26259545d56da30f7873ca909ae
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       TARGET_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
+      DIAGNOSTIC_ROOT: ${{ runner.temp }}/work-map-full-failure-writer-${{ github.run_id }}
     steps:
       - name: Checkout exact clean feature head
         uses: actions/checkout@v5
@@ -50,6 +51,7 @@ jobs:
           test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")"
           test -z "$(git status --porcelain)"
           test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          mkdir -p "${DIAGNOSTIC_ROOT}"
 
       - name: Load immutable transformer from ARM base
         shell: bash
@@ -66,30 +68,69 @@ jobs:
         run: |
           set -euo pipefail
           python /tmp/apply-work-map-full-failure-set.py
-          git diff --name-only | LC_ALL=C sort > /tmp/actual-files.txt
-          cat > /tmp/expected-files.txt <<'EOF'
+          git diff --name-only | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
           .changes/e2e/work-map-autofix-validation-diagnostics.json
           .github/workflows/spec-kit-work-map-autofix.yml
           http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           EOF
-          LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
-          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          LC_ALL=C sort -o "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/expected-files.txt"
+          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
           test -z "$(git status --porcelain | awk '{print $2}' | grep -Ev '^(.changes/e2e/work-map-autofix-validation-diagnostics.json|.github/workflows/spec-kit-work-map-autofix.yml|http-generic-api/test-work-map-autofix-validation-diagnostics.mjs)$' || true)"
+          git diff --stat > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
+          git diff --check > "${DIAGNOSTIC_ROOT}/diff-check.log" 2>&1
 
-      - name: Validate workflow contract and E2E payload
+      - name: Run every validation and capture results
+        shell: bash
+        run: |
+          set -uo pipefail
+          results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          : > "${results}"
+
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/${name}.log"
+            set +e
+            "$@" >"${log}" 2>&1
+            local status=$?
+            set -e
+            printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
+            cat "${log}"
+          }
+
+          run_check git-diff-check git diff --check
+          run_check workflow-yaml ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check diagnostics-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          run_check e2e-reference-integrity node http-generic-api/scripts/validate-e2e-contract-references.mjs
+          run_check e2e-phase-contracts node http-generic-api/scripts/validate-e2e-phase-contracts.mjs
+          run_check marker-failure-tsv grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check marker-aggregate-text grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check marker-failure-count grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check marker-failure-set grep -q 'failed_validation_contracts' .github/workflows/spec-kit-work-map-autofix.yml
+
+          {
+            echo 'check\texit_code\tlog'
+            cat "${results}"
+          } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+
+      - name: Upload bounded validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-full-failure-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-full-failure-writer-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce validation success
         shell: bash
         run: |
           set -euo pipefail
-          git diff --check
-          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
-          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
-          node http-generic-api/scripts/validate-e2e-contract-references.mjs
-          node http-generic-api/scripts/validate-e2e-phase-contracts.mjs
-          grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
-          grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
-          grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
-          grep -q 'failed_validation_contracts' .github/workflows/spec-kit-work-map-autofix.yml
+          test -s "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
 
       - name: Commit and push without force
         shell: bash
