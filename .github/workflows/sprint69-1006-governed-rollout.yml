@@ -3,6 +3,16 @@ name: Sprint 69 Migration 1006 Governed Rollout
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      confirmation_comment_id:
+        description: Fresh exact readiness authorization comment ID on Issue #4122
+        required: true
+        type: string
+      expected_main_sha:
+        description: Exact main SHA authorized for this readiness run
+        required: true
+        type: string
   push:
     branches: [main]
     paths:
@@ -22,6 +32,11 @@ jobs:
         github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE' &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       ) || (
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        inputs.confirmation_comment_id != '' &&
+        inputs.expected_main_sha != ''
+      ) || (
         github.event_name == 'push' &&
         github.ref == 'refs/heads/main'
       )
@@ -39,6 +54,8 @@ jobs:
       CONTROL_ISSUE: '4122'
       EVIDENCE_DIR: .artifacts/sprint69-1006-readiness
       READINESS_TRIGGER_PATH: .github/ops/triggers/sprint69-1006-readiness-trigger.json
+      DISPATCH_CONFIRMATION_COMMENT_ID: ${{ inputs.confirmation_comment_id }}
+      DISPATCH_EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5
@@ -53,6 +70,12 @@ jobs:
 
       - name: Validate push fallback operator authorization
         if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/ops/validate-sprint69-1006-readiness-trigger.mjs
+
+      - name: Validate manual dispatch operator authorization
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: node .github/ops/validate-sprint69-1006-readiness-trigger.mjs
