@@ -64,15 +64,40 @@ function extractSnapshots(input) {
   throw new Error("Input must contain an array of source snapshots.");
 }
 
-function resolveRepositoryOutput(repositoryRoot, relativePath, label) {
+function resolveRepositoryOutput(repositoryRoot, relativePath, label, expectedKind) {
   const root = fs.realpathSync(path.resolve(repositoryRoot));
   const declared = String(relativePath || "").trim().replaceAll("\\", "/");
-  if (!declared || declared.startsWith("/") || declared.split("/").some((segment) => !segment || segment === "..")) {
+  const segments = declared.split("/");
+  if (!declared || declared.startsWith("/") || segments.some((segment) => !segment || segment === "..")) {
     throw new Error(`${label} must be a safe repository-relative path.`);
   }
   const absolute = path.resolve(root, declared);
   const relative = path.relative(root, absolute).replaceAll("\\", "/");
   if (relative !== declared) throw new Error(`${label} escaped the repository root.`);
+
+  let current = root;
+  for (let index = 0; index < segments.length; index += 1) {
+    current = path.join(current, segments[index]);
+    if (!fs.existsSync(current)) break;
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) throw new Error(`${label} contains a symbolic-link path component.`);
+    const final = index === segments.length - 1;
+    if (!final && !stat.isDirectory()) throw new Error(`${label} contains a non-directory path component.`);
+    if (final && expectedKind === "directory" && !stat.isDirectory()) {
+      throw new Error(`${label} must resolve to a directory.`);
+    }
+    if (final && expectedKind === "file" && !stat.isFile()) {
+      throw new Error(`${label} must resolve to a regular file when it already exists.`);
+    }
+  }
+
+  let nearestExisting = expectedKind === "file" ? path.dirname(absolute) : absolute;
+  while (!fs.existsSync(nearestExisting)) nearestExisting = path.dirname(nearestExisting);
+  const realExisting = fs.realpathSync(nearestExisting);
+  const realRelative = path.relative(root, realExisting).replaceAll("\\", "/");
+  if (realRelative === ".." || realRelative.startsWith("../")) {
+    throw new Error(`${label} escaped the repository real path.`);
+  }
   return { root, declared, absolute };
 }
 
@@ -95,15 +120,30 @@ export function runAuthorityEvidenceRepositoryCandidates(argv = process.argv.sli
     source_directory: options.sourceDirectory,
   });
 
-  const sourceDirectory = resolveRepositoryOutput(repositoryRoot, options.sourceDirectory, "source directory");
-  const indexOutput = resolveRepositoryOutput(repositoryRoot, options.indexOutput, "index output");
+  const sourceDirectory = resolveRepositoryOutput(
+    repositoryRoot,
+    options.sourceDirectory,
+    "source directory",
+    "directory",
+  );
+  const indexOutput = resolveRepositoryOutput(repositoryRoot, options.indexOutput, "index output", "file");
   if (indexOutput.declared.startsWith(`${sourceDirectory.declared}/`) === false) {
     throw new Error("index output must remain inside the source directory.");
   }
 
+  const documentOutputs = result.documents.map((document) => ({
+    document,
+    output: resolveRepositoryOutput(
+      repositoryRoot,
+      `${sourceDirectory.declared}/${document.file_name}`,
+      `source output ${document.source_family}`,
+      "file",
+    ),
+  }));
+
   if (options.write) {
-    for (const document of result.documents) {
-      writeAtomic(path.join(sourceDirectory.absolute, document.file_name), document.content);
+    for (const { document, output } of documentOutputs) {
+      writeAtomic(output.absolute, document.content);
     }
     writeAtomic(indexOutput.absolute, `${JSON.stringify(result.index, null, 2)}\n`);
   }
