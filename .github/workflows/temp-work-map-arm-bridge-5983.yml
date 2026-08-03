@@ -1,4 +1,4 @@
-name: TEMP Work Map ARM Bridge 5983 V2
+name: TEMP Work Map ARM Preflight 5983
 
 on:
   pull_request:
@@ -7,18 +7,14 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  actions: write
+  actions: read
   contents: read
   issues: write
-  pull-requests: write
-
-concurrency:
-  group: temp-work-map-arm-bridge-5983-v2-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  pull-requests: read
 
 jobs:
-  dispatch:
-    name: Validate current PR 5983 and dispatch candidate writer
+  preflight:
+    name: Read exact PR 5983 bridge preconditions
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
@@ -28,8 +24,8 @@ jobs:
       EXPECTED_HEAD_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
     steps:
-      - name: Validate identity, consume marker, and dispatch candidate writer
-        id: bridge
+      - name: Read all bridge preconditions without mutation
+        id: readback
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -39,80 +35,40 @@ jobs:
           test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-arm-bridge-5983"
 
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
-          test "$(jq -r '.state' <<<"${pr}")" = 'open'
-          test "$(jq -r '.draft' <<<"${pr}")" = 'false'
-          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
-          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
-          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
-          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          state="$(jq -r '.state' <<<"${pr}")"
+          draft="$(jq -r '.draft' <<<"${pr}")"
+          base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+          base_sha="$(jq -r '.base.sha' <<<"${pr}")"
+          head_repo="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+          head_ref="$(jq -r '.head.ref' <<<"${pr}")"
+          head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          body="$(jq -r '.body // ""' <<<"${pr}")"
+          marker_present=false
+          if grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"; then marker_present=true; fi
 
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
           comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}")"
-          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
-          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+          behind_by="$(jq -r '.behind_by' <<<"${comparison}")"
+          merge_base="$(jq -r '.merge_base_commit.sha' <<<"${comparison}")"
 
-          body="$(jq -r '.body // ""' <<<"${pr}")"
-          grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
+          autofix_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml" --jq '.state' 2>&1 || true)"
+          integration_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml" --jq '.state' 2>&1 || true)"
+          ci_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml" --jq '.state' 2>&1 || true)"
 
-          for workflow in spec-kit-work-map-autofix.yml spec-kit-work-map-integration.yml ci.yml; do
-            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
-            if [[ "${state}" != 'active' ]]; then
-              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
-            fi
-            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = 'active'
-          done
+          body_out="WORK_MAP_ARM_PREFLIGHT_5983 state=${state} draft=${draft} base_ref=${base_ref} base_sha=${base_sha} head_repo=${head_repo} head_ref=${head_ref} head_sha=${head_sha} current_main=${current_main} behind_by=${behind_by} merge_base=${merge_base} marker_present=${marker_present} autofix_state=${autofix_state} integration_state=${integration_state} ci_state=${ci_state} expected_main=${EXPECTED_MAIN_SHA} expected_head=${EXPECTED_HEAD_SHA} mutation=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body_out}"
 
-          current_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
-          test "$(jq -r '.head.sha' <<<"${current_pr}")" = "${EXPECTED_HEAD_SHA}"
-          current_body="$(jq -r '.body // ""' <<<"${current_pr}")"
-          grep -Fq "${AUTHORIZATION_MARKER}" <<<"${current_body}"
-          next_body="${current_body//${AUTHORIZATION_MARKER}/}"
-          payload_file="${RUNNER_TEMP}/consume-marker.json"
-          jq -n --arg body "${next_body}" '{body:$body}' > "${payload_file}"
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --input "${payload_file}" >/dev/null
-          if gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.body // ""' | grep -Fq "${AUTHORIZATION_MARKER}"; then
-            echo 'Authorization marker removal readback failed.'
-            exit 1
-          fi
-
-          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
-          dispatch_payload="${RUNNER_TEMP}/writer-dispatch.json"
-          jq -n \
-            --arg ref "${EXPECTED_HEAD_REF}" \
-            --arg branch "${EXPECTED_HEAD_REF}" \
-            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
-            '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}' \
-            > "${dispatch_payload}"
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/dispatches" \
-            --input "${dispatch_payload}"
-
-          delegated_run_id=''
-          for _ in $(seq 1 30); do
-            delegated_run_id="$(gh api \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&branch=${EXPECTED_HEAD_REF}&per_page=30" \
-              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${EXPECTED_HEAD_SHA}\")] | sort_by(.created_at) | last | .id // empty")"
-            if [[ -n "${delegated_run_id}" ]]; then
-              break
-            fi
-            sleep 2
-          done
-          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
-          echo "delegated_run_id=${delegated_run_id}" >> "$GITHUB_OUTPUT"
-
-      - name: Publish canonical PR evidence
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DELEGATED_RUN_ID: ${{ steps.bridge.outputs.delegated_run_id }}
-        run: |
-          set -euo pipefail
-          outcome='passed'
-          if [[ "${{ steps.bridge.outcome }}" != 'success' ]]; then
-            outcome='blocked'
-          fi
-          body="WORK_MAP_ARM_BRIDGE_5983_V2 outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} target_ref=${EXPECTED_HEAD_REF} authorization_consumed=$([[ '${{ steps.bridge.outcome }}' == 'success' ]] && echo true || echo false) delegated_run_id=${DELEGATED_RUN_ID:-none} writer_ref=candidate direct_generated_edit=false protected_branch_mutation=false force_push=false"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}"
+          test "${state}" = 'open'
+          test "${draft}" = 'false'
+          test "${base_ref}" = 'main'
+          test "${base_sha}" = "${EXPECTED_MAIN_SHA}"
+          test "${head_repo}" = "${GITHUB_REPOSITORY}"
+          test "${head_ref}" = "${EXPECTED_HEAD_REF}"
+          test "${head_sha}" = "${EXPECTED_HEAD_SHA}"
+          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${behind_by}" = '0'
+          test "${merge_base}" = "${EXPECTED_MAIN_SHA}"
+          test "${marker_present}" = 'true'
+          test "${autofix_state}" = 'active'
+          test "${integration_state}" = 'active'
+          test "${ci_state}" = 'active'
