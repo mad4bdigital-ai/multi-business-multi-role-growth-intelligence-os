@@ -332,6 +332,28 @@ try {
   assert.equal(applied.body.readback.provider_dispatch_allowed, false);
   assert.equal(applied.body.readback.production_ready, false);
   assert.equal(appliedScenario.executionPackage.enablementRegistry.exportState()[0].consumed, true);
+
+  const mountedAggregate = appliedScenario.executionPackage.repository.readAggregate(
+    appliedScenario.operation.operation_id,
+  );
+  assert.equal(mountedAggregate.operation.state, 'completed');
+  assert.equal(mountedAggregate.plans[0].consumed, true);
+  assert.equal(mountedAggregate.plans[0].consumed_run_id, appliedScenario.fixture.run_id);
+  assert.deepEqual(
+    mountedAggregate.journals.map((row) => row.phase),
+    ['prepared', 'result', 'readback'],
+  );
+  assert.equal(
+    mountedAggregate.journals.find((row) => row.phase === 'result').result,
+    'deleted',
+  );
+  assert.equal(mountedAggregate.reconciliations.length, 1);
+  assert.equal(mountedAggregate.reconciliations[0].outcome, 'applied');
+  assert.equal(appliedScenario.fixture.adapter.exportState().items[0].exists, false);
+  assert.equal(appliedScenario.fixture.adapter.exportState().receipts.length, 1);
+  assert.equal(applied.body.readback.operation_id, mountedAggregate.operation.operation_id);
+  assert.equal(applied.body.readback.run_id, mountedAggregate.reconciliations[0].run_id);
+
   const serialized = JSON.stringify(applied.body);
   for (const forbidden of ['path_ref', 'root_ref', 'protocol_digest', 'canary_authorization', 'capsule', 'private_key', 'credential']) {
     assert.equal(serialized.includes(forbidden), false, `response leaked ${forbidden}`);
@@ -404,6 +426,16 @@ console.log(JSON.stringify({
   expected_sha_mismatch_rejected_before_canary_dispatch: true,
   cross_tenant_context_rejected: true,
   tenant_safe_readback: true,
+  mounted_request_shared_repository_state: true,
+  same_operation_completed_after_http: true,
+  immutable_plan_consumed_by_http_run: true,
+  journal_phases_persisted_after_http: true,
+  reconciliation_persisted_after_http: true,
+  adapter_receipt_persisted_after_http: true,
+  http_readback_bound_to_repository_aggregate: true,
+  shared_canonical_memory_state: true,
+  durable_sql_state: false,
+  parent_mvp_promoted: false,
   provider_dispatch_allowed: false,
   production_ready: false,
   secrets_included: false,
