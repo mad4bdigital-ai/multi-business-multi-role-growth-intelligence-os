@@ -1,0 +1,147 @@
+name: Production Topology Readback 5E5178BB
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/dispatch-production-runtime-parity-5e5178bb.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    name: Public GET-only topology readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
+      REPORT_DIR: ${{ runner.temp }}/production-topology-readback
+    steps:
+      - name: Verify protected Production identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Collect and redact public responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import ssl
+          import urllib.request
+          from datetime import datetime, timezone
+
+          out_dir = os.environ["REPORT_DIR"]
+          expected_sha = os.environ["EXPECTED_PRODUCTION_SHA"]
+          sensitive = re.compile(r"authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential", re.I)
+          endpoints = {
+              "health": "https://auth.mad4b.com/health",
+              "version": "https://auth.mad4b.com/version",
+              "deployment_info": "https://auth.mad4b.com/deployment-info",
+              "connector_agent_version": "https://auth.mad4b.com/connector-agent/version",
+          }
+
+          def sanitize(value, depth=0):
+              if depth > 8:
+                  return "[MAX_DEPTH]"
+              if isinstance(value, dict):
+                  return {
+                      str(key): "[REDACTED]" if sensitive.search(str(key)) else sanitize(item, depth + 1)
+                      for key, item in list(value.items())[:200]
+                  }
+              if isinstance(value, list):
+                  return [sanitize(item, depth + 1) for item in value[:100]]
+              if isinstance(value, str):
+                  value = re.sub(r"\bBearer\s+\S+", "Bearer [REDACTED]", value, flags=re.I)
+                  return value[:12000]
+              return value
+
+          results = {}
+          context = ssl.create_default_context()
+          for name, url in endpoints.items():
+              try:
+                  request = urllib.request.Request(url, headers={"Accept": "application/json"}, method="GET")
+                  with urllib.request.urlopen(request, timeout=20, context=context) as response:
+                      raw = response.read(65537)
+                      if len(raw) > 65536:
+                          raise RuntimeError("response_too_large")
+                      status = int(response.status)
+                      content_type = response.headers.get("content-type")
+                  parsed = json.loads(raw.decode("utf-8"))
+                  safe = sanitize(parsed)
+                  results[name] = {
+                      "url": url,
+                      "http_status": status,
+                      "content_type": content_type,
+                      "body_bytes": len(raw),
+                      "body_sha256": hashlib.sha256(raw).hexdigest(),
+                      "body": safe,
+                      "error": None,
+                  }
+              except Exception as exc:
+                  results[name] = {
+                      "url": url,
+                      "http_status": 0,
+                      "content_type": None,
+                      "body_bytes": 0,
+                      "body_sha256": None,
+                      "body": None,
+                      "error": str(exc)[:1000],
+                  }
+
+          report = {
+              "contract": "mad4b.production-topology-public-readback.v1",
+              "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+              "expected_production_sha": expected_sha,
+              "endpoints": results,
+              "side_effects": {
+                  "repository_mutation_performed": False,
+                  "provider_dispatch_performed": False,
+                  "credential_access_performed": False,
+                  "provider_mutation_performed": False,
+                  "deployment_performed": False,
+                  "restart_performed": False,
+                  "sql_execution_performed": False,
+                  "migration_apply_performed": False,
+                  "database_mutation_performed": False,
+                  "external_send_performed": False,
+              },
+              "secrets_included": False,
+          }
+          with open(os.path.join(out_dir, "production-topology-readback.json"), "w", encoding="utf-8") as handle:
+              json.dump(report, handle, indent=2, ensure_ascii=False)
+          PY
+
+      - name: Upload structured public topology evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-topology-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-topology-readback/production-topology-readback.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce no-mutation evidence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="${REPORT_DIR}/production-topology-readback.json"
+          test "$(jq -r '.contract' "${REPORT}")" = "mad4b.production-topology-public-readback.v1"
+          test "$(jq -r '.expected_production_sha' "${REPORT}")" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(jq -r '.secrets_included' "${REPORT}")" = "false"
+          jq -e '.side_effects | all(.[]; . == false)' "${REPORT}" >/dev/null
