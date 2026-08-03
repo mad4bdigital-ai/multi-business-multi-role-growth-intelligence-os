@@ -45,6 +45,7 @@ jobs:
           set -o pipefail
           {
             python3 scripts/surface-callability-closure/patch_validator_auth.py
+            python3 scripts/surface-callability-closure/patch_validator_manifest_scope.py
             python3 scripts/surface-callability-closure/patch_generator_policy.py
             python3 scripts/surface-callability-closure/patch_openapi_authority_v3.py
             python3 scripts/surface-callability-closure/patch_workspace.py
