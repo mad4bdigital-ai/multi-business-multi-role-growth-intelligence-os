@@ -49,6 +49,8 @@ assert.match(workflow, /persist-credentials: false/);
 assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
+assert.doesNotMatch(workflow, /EVIDENCE_DIR:\s+\$\{\{\s*runner\.temp\s*\}\}/);
+assert.match(workflow, /name: Initialize runner-scoped evidence directory[\s\S]*echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/);
 
 for (const marker of [
   "repository_write_performed:false",
