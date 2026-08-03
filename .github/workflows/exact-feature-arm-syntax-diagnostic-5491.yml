@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  coverage-with-pr-context:
-    name: Resource Coverage With Exact PR Context
+  coverage-canonical-working-directory:
+    name: Resource Coverage From Canonical Working Directory
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/validate-e2e-production-baseline-current-main-44ed1522-20260803' &&
@@ -39,14 +39,15 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 'c01155fb50808068642f9a8bd82b61a1e171be80'
           test "$(git rev-parse HEAD^1)" = '44ed152286be85c4573c584cbe786fb2faf94c91'
-      - name: Run Resource API coverage with canonical PR context
+      - name: Run canonical Resource API coverage command
+        working-directory: http-generic-api
         env:
           GITHUB_EVENT_NAME: pull_request
           GITHUB_BASE_REF: main
           GITHUB_HEAD_REF: gpt/validate-e2e-production-baseline-current-main-44ed1522-20260803
           GITHUB_BASE_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
           GITHUB_HEAD_SHA: c01155fb50808068642f9a8bd82b61a1e171be80
-        run: node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
 
   architecture-with-dependencies:
     name: Resource Architecture With Dependencies
