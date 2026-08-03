@@ -1,28 +1,32 @@
-name: Build Repository Write Workflow Prerequisite V2
+name: Validate Repository Write Workflow Prerequisite V3
 
 on:
   pull_request:
     branches:
       - gpt/diag/repository-write-prerequisite-builder-94f9d786-v2
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: repository-write-prerequisite-builder-v2-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  group: repository-write-prerequisite-validator-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   EXPECTED_MAIN_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
+  EXPECTED_CANDIDATE_SHA: 8f77e01e5c6ee5363b036ce9c8003b046268a64a
+  EXPECTED_CANDIDATE_REF: gpt/ci/repository-write-workflow-prerequisite-94f9d786-20260804
   EXPECTED_BASE_REF: gpt/diag/repository-write-prerequisite-builder-94f9d786-v2
-  EXPECTED_HEAD_REF: gpt/diag/trigger-repository-write-prerequisite-94f9d786-v2
-  CANDIDATE_BRANCH: gpt/ci/repository-write-workflow-prerequisite-94f9d786-20260804
+  EXPECTED_TRIGGER_REF: gpt/diag/trigger-validate-repository-write-prerequisite-94f9d786-v3
+  REPORT_DIR: ${{ runner.temp }}/repository-write-prerequisite-v3
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+  validate:
+    name: Exact Repository Write Prerequisite ARM Validation
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+
     steps:
       - name: Validate immutable trigger identity
         shell: bash
@@ -32,55 +36,249 @@ jobs:
           ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
-          test "${ACTUAL_BASE_REF}" = "${EXPECTED_BASE_REF}"
-          test "${ACTUAL_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
-          test "${ACTUAL_HEAD_REPO}" = "${GITHUB_REPOSITORY}"
+          test "$ACTUAL_BASE_REF" = "$EXPECTED_BASE_REF"
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_TRIGGER_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
 
-      - name: Checkout trusted builder
+      - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_BASE_REF }}
-          path: builder
-          fetch-depth: 1
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Checkout exact protected-main snapshot
-        uses: actions/checkout@v5
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
         with:
-          ref: ${{ env.EXPECTED_MAIN_SHA }}
-          path: candidate
-          fetch-depth: 0
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
 
-      - name: Verify protected main has not moved
+      - name: Verify protected refs, topology, and exact scope
         shell: bash
         run: |
           set -euo pipefail
-          current_main_sha="$(git -C candidate ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
-          test "${current_main_sha}" = "${EXPECTED_MAIN_SHA}"
-          test "$(git -C candidate rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$EXPECTED_CANDIDATE_REF:refs/remotes/origin/$EXPECTED_CANDIDATE_REF"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_CANDIDATE_REF)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git rev-parse "$EXPECTED_CANDIDATE_SHA^1")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_CANDIDATE_SHA")" -eq 1
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" | wc -l)" -eq 10
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" > "$RUNNER_TEMP/repository-tool-changes.tsv"
 
-      - name: Build and validate exact candidate
+      - name: Install deterministic dependencies
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/repository-write-prerequisite"
-          base64 --decode builder/.github/builders/repository-write-prerequisite.py.gz.b64 \
-            | gzip --decompress > "${RUNNER_TEMP}/repository-write-prerequisite.py"
-          python3 -m py_compile "${RUNNER_TEMP}/repository-write-prerequisite.py"
-          python3 "${RUNNER_TEMP}/repository-write-prerequisite.py" \
-            --repo candidate \
-            --main-sha "${EXPECTED_MAIN_SHA}" \
-            --candidate-branch "${CANDIDATE_BRANCH}" \
-            --report-file "${RUNNER_TEMP}/repository-write-prerequisite/report.json" \
-            2>&1 | tee "${RUNNER_TEMP}/repository-write-prerequisite-builder.log"
+          npm ci
+          npm ci --prefix http-generic-api
 
-      - name: Upload bounded builder evidence
+      - name: Run focused workflow separation regressions
+        id: focused
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-fanout-relocation-ci.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+
+      - name: Run canonical syntax and governance checks
+        id: canonical
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        id: unit
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_CANDIDATE_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Verify exact test report provenance
+        id: provenance
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in \
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = passed
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = null
+            test "$(jq -r '.secretsIncluded' "$report")" = false
+          done
+
+      - name: Run runtime startup evidence
+        id: runtime
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-server-startup-smoke.mjs
+          node test-hostinger-root-entrypoint.mjs
+          node test-root-cause-activation-runtime-repair.mjs
+
+      - name: Evaluate changed-range repository lifecycle and reference integrity
+        id: integrity
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR/repository-tool-lifecycle"
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$EXPECTED_CANDIDATE_SHA" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "$RUNNER_TEMP/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "$REPORT_DIR/repository-tool-lifecycle"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$REPORT_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$REPORT_DIR/e2e-contract-reference-integrity.json"
+
+      - name: Run Execution Resolver and Architecture gates
+        id: architecture
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+          (cd http-generic-api && npm run validate)
+
+      - name: Run exact E2E phase evaluation and execution
+        id: e2e
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$REPORT_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$REPORT_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$REPORT_DIR/e2e-phase-execution.json"
+
+      - name: Build structured exact-head summary
+        if: always()
+        shell: bash
+        env:
+          FOCUSED: ${{ steps.focused.outcome }}
+          CANONICAL: ${{ steps.canonical.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          PROVENANCE: ${{ steps.provenance.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          INTEGRITY: ${{ steps.integrity.outcome }}
+          ARCHITECTURE: ${{ steps.architecture.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg candidate_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg focused "$FOCUSED" \
+            --arg canonical "$CANONICAL" \
+            --arg unit "$UNIT" \
+            --arg provenance "$PROVENANCE" \
+            --arg runtime "$RUNTIME" \
+            --arg integrity "$INTEGRITY" \
+            --arg architecture "$ARCHITECTURE" \
+            --arg e2e "$E2E" \
+            '{
+              contract: "mad4b.repository-write-prerequisite-exact-validation.v3",
+              base_sha: $base_sha,
+              candidate_sha: $candidate_sha,
+              run_id: $run_id,
+              exact_one_commit_topology: true,
+              changed_file_count: 10,
+              stages: {
+                focused_regressions: $focused,
+                canonical_governance: $canonical,
+                unit_integration: $unit,
+                report_provenance: $provenance,
+                runtime_startup: $runtime,
+                changed_range_integrity: $integrity,
+                resolver_architecture: $architecture,
+                e2e: $e2e
+              },
+              repository_only: true,
+              repository_write_executed: false,
+              production_mutated: false,
+              deployment_executed: false,
+              provider_call_executed: false,
+              credential_payload_read: false,
+              sql_executed: false,
+              migration_apply: false,
+              database_mutated: false,
+              work_map_publication_executed: false,
+              external_send: false,
+              secrets_included: false
+            }' > "$REPORT_DIR/summary.json"
+
+      - name: Upload exact validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: repository-write-prerequisite-v2-${{ github.run_id }}
+          name: repository-write-prerequisite-validation-v3-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/repository-write-prerequisite/
-            ${{ runner.temp }}/repository-write-prerequisite-builder.log
-          if-no-files-found: error
+            ${{ env.REPORT_DIR }}/
+            ${{ runner.temp }}/test-suite-reports/*.json
+            ${{ runner.temp }}/repository-tool-changes.tsv
+          if-no-files-found: warn
           retention-days: 14
+
+      - name: Enforce every exact-head stage
+        if: always()
+        shell: bash
+        env:
+          FOCUSED: ${{ steps.focused.outcome }}
+          CANONICAL: ${{ steps.canonical.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          PROVENANCE: ${{ steps.provenance.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          INTEGRITY: ${{ steps.integrity.outcome }}
+          ARCHITECTURE: ${{ steps.architecture.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          for outcome in "$FOCUSED" "$CANONICAL" "$UNIT" "$PROVENANCE" "$RUNTIME" "$INTEGRITY" "$ARCHITECTURE" "$E2E"; do
+            test "$outcome" = success
+          done
