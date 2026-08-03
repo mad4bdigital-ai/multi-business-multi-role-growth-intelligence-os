@@ -1,0 +1,282 @@
+name: T016 Runtime Readiness Artifact Inspector
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: t016-readiness-artifact-inspector-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Inspect exact Runtime Readiness Artifact
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      ISSUE_NUMBER: '4449'
+      AUTHORIZATION_COMMENT_ID: '5169156192'
+      AUTHORIZATION_COMMENT: AUTHORIZE_GOVERNED_MIGRATION_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE
+      WORKFLOW_FILE: sprint69-1043-runtime-readiness.yml
+      WORKFLOW_NAME: Sprint 69 Migration 1043 Runtime Readiness
+      REPORT_DIR: ${{ runner.temp }}/t016-runtime-readiness-inspector-${{ github.run_id }}
+      SOURCE_DIR: ${{ runner.temp }}/t016-runtime-readiness-source-${{ github.run_id }}
+    steps:
+      - name: Discover authorization-bound Runtime Readiness run
+        id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const api = 'https://api.github.com';
+          const token = process.env.GH_TOKEN;
+          const repository = process.env.REPOSITORY;
+          const issueNumber = Number(process.env.ISSUE_NUMBER);
+          const commentId = Number(process.env.AUTHORIZATION_COMMENT_ID);
+          const expectedBody = process.env.AUTHORIZATION_COMMENT;
+          const workflowFile = process.env.WORKFLOW_FILE;
+          const workflowName = process.env.WORKFLOW_NAME;
+          const reportDir = process.env.REPORT_DIR;
+          const outputPath = process.env.GITHUB_OUTPUT;
+          const allowedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+
+          async function githubJson(pathname) {
+            const response = await fetch(`${api}${pathname}`, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+              },
+              signal: AbortSignal.timeout(30000),
+            });
+            const text = await response.text();
+            const payload = text ? JSON.parse(text) : null;
+            assert.ok(response.ok, `GitHub request failed for ${pathname}: HTTP ${response.status}`);
+            return payload;
+          }
+
+          function isoMs(value) {
+            const ms = Date.parse(String(value || ''));
+            assert.ok(Number.isFinite(ms), `Invalid timestamp: ${value}`);
+            return ms;
+          }
+
+          function setOutput(name, value) {
+            fs.appendFileSync(outputPath, `${name}=${String(value)}\n`, 'utf8');
+          }
+
+          const comment = await githubJson(`/repos/${repository}/issues/comments/${commentId}`);
+          assert.equal(String(comment?.body || '').trim(), expectedBody);
+          assert.equal(Number(String(comment?.issue_url || '').split('/').pop()), issueNumber);
+          assert.equal(comment?.user?.login, 'mad4bdigital-ai');
+          assert.ok(allowedAssociations.has(String(comment?.author_association || '').toUpperCase()));
+
+          const list = await githubJson(
+            `/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?event=issue_comment&per_page=100`,
+          );
+          const commentMs = isoMs(comment.created_at);
+          const candidates = (list?.workflow_runs || [])
+            .filter((run) => run?.name === workflowName)
+            .filter((run) => run?.event === 'issue_comment')
+            .filter((run) => run?.head_branch === 'main')
+            .filter((run) => run?.actor?.login === comment.user.login)
+            .filter((run) => isoMs(run.created_at) >= commentMs)
+            .sort((left, right) => isoMs(left.created_at) - isoMs(right.created_at));
+
+          const run = candidates[0] || null;
+          let artifact = null;
+          if (run?.status === 'completed') {
+            const artifacts = await githubJson(`/repos/${repository}/actions/runs/${run.id}/artifacts?per_page=100`);
+            const expectedName = `sprint69-1043-runtime-readiness-${run.id}`;
+            artifact = (artifacts?.artifacts || []).find((item) => item?.name === expectedName && item?.expired === false) || null;
+          }
+
+          const outcome = !run
+            ? 'run_not_found'
+            : run.status !== 'completed'
+              ? 'run_not_completed'
+              : !artifact
+                ? 'artifact_missing'
+                : 'artifact_ready';
+
+          const report = {
+            contract: 't016_runtime_readiness_artifact_inspector_discovery.v1',
+            outcome,
+            authorization_comment_id: commentId,
+            authorization_verified: true,
+            authorization_actor: comment.user.login,
+            authorization_association: comment.author_association,
+            authorization_created_at: comment.created_at,
+            candidate_count: candidates.length,
+            run_id: run?.id || null,
+            run_url: run?.html_url || null,
+            run_status: run?.status || null,
+            run_conclusion: run?.conclusion || null,
+            run_created_at: run?.created_at || null,
+            run_updated_at: run?.updated_at || null,
+            artifact_id: artifact?.id || null,
+            artifact_name: artifact?.name || null,
+            artifact_expired: artifact?.expired ?? null,
+            runtime_contacted_by_inspector: false,
+            issue_write_executed: false,
+            repository_write_executed: false,
+            migration_apply_executed: false,
+            provider_call_executed: false,
+            credential_payload_accessed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          };
+
+          fs.writeFileSync(path.join(reportDir, 'discovery.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+          setOutput('outcome', outcome);
+          setOutput('run_id', run?.id || '');
+          setOutput('run_conclusion', run?.conclusion || '');
+          setOutput('artifact_found', artifact ? 'true' : 'false');
+          setOutput('artifact_name', artifact?.name || '');
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Download exact Runtime Readiness Artifact
+        if: steps.discover.outputs.artifact_found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.discover.outputs.artifact_name }}
+          path: ${{ env.SOURCE_DIR }}
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.discover.outputs.run_id }}
+
+      - name: Inspect bounded Artifact result
+        id: inspect
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const reportDir = process.env.REPORT_DIR;
+          const sourceDir = process.env.SOURCE_DIR;
+          const outputPath = process.env.GITHUB_OUTPUT;
+          const discovery = JSON.parse(fs.readFileSync(path.join(reportDir, 'discovery.json'), 'utf8'));
+
+          function readJsonIfPresent(name) {
+            const file = path.join(sourceDir, name);
+            return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+          }
+
+          function setOutput(name, value) {
+            fs.appendFileSync(outputPath, `${name}=${String(value)}\n`, 'utf8');
+          }
+
+          const summary = readJsonIfPresent('summary.json');
+          const failure = readJsonIfPresent('failure.json');
+          assert.ok(!(summary && failure), 'Artifact cannot contain both summary.json and failure.json');
+
+          let result;
+          if (summary) {
+            assert.equal(summary.contract, 'sprint69_1043_runtime_readiness.v1');
+            assert.equal(summary.secrets_included, false);
+            result = {
+              status: 'pass',
+              source_contract: summary.contract,
+              result: summary.result,
+              main_sha: summary.main_sha || null,
+              production_sha: summary.production_sha || null,
+              migration_checksum_sha256: summary.migration_checksum_sha256 || null,
+              statement_count: summary.statement_count ?? null,
+              runtime_parity: summary.runtime_parity || null,
+              authorization_created: summary.authorization_created ?? false,
+              authorization_bootstrap: summary.authorization_bootstrap || null,
+              dry_run: summary.dry_run || null,
+              apply_authorized: summary.apply_authorized ?? false,
+              apply_sent: summary.apply_sent ?? false,
+              migration_apply_executed: summary.migration_apply_executed ?? false,
+              activation_registry_sync_executed: summary.activation_registry_sync_executed ?? false,
+              secrets_included: false,
+            };
+          } else if (failure) {
+            assert.equal(failure.contract, 'sprint69_1043_runtime_readiness_failure.v1');
+            assert.equal(failure.secrets_included, false);
+            result = {
+              status: 'fail',
+              source_contract: failure.contract,
+              result: 'runtime_readiness_failed',
+              stage: failure.stage || 'unknown',
+              error_code: failure.error?.code || 'runtime_readiness_failed',
+              main_sha: failure.main_sha || null,
+              production_sha: failure.production_sha || null,
+              migration_checksum_sha256: failure.migration_checksum_sha256 || null,
+              statement_count: failure.statement_count ?? null,
+              authorization_created: failure.authorization_created ?? false,
+              apply_authorized: failure.apply_authorized ?? false,
+              apply_sent: failure.apply_sent ?? false,
+              migration_apply_executed: failure.migration_apply_executed ?? false,
+              activation_registry_sync_executed: failure.activation_registry_sync_executed ?? false,
+              secrets_included: false,
+            };
+          } else {
+            result = {
+              status: 'incomplete',
+              source_contract: null,
+              result: discovery.outcome,
+              error_code: discovery.outcome,
+              authorization_created: false,
+              apply_authorized: false,
+              apply_sent: false,
+              migration_apply_executed: false,
+              activation_registry_sync_executed: false,
+              secrets_included: false,
+            };
+          }
+
+          const finalReport = {
+            contract: 't016_runtime_readiness_artifact_inspector.v1',
+            discovery,
+            artifact_result: result,
+            inspector_head_sha: process.env.GITHUB_HEAD_SHA || null,
+            runtime_contacted_by_inspector: false,
+            issue_write_executed: false,
+            repository_write_executed: false,
+            migration_apply_executed_by_inspector: false,
+            provider_call_executed: false,
+            credential_payload_accessed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          };
+
+          fs.writeFileSync(path.join(reportDir, 'report.json'), `${JSON.stringify(finalReport, null, 2)}\n`, 'utf8');
+          setOutput('inspection_status', result.status);
+          setOutput('inspection_ok', result.status === 'pass' ? 'true' : 'false');
+          console.log(JSON.stringify(finalReport, null, 2));
+          NODE
+
+      - name: Upload bounded inspector evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t016-runtime-readiness-artifact-inspector-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce complete successful Runtime Readiness evidence
+        if: always()
+        shell: bash
+        run: test "${{ steps.inspect.outputs.inspection_ok }}" = "true"
