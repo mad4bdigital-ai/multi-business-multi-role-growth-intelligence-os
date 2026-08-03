@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_observability_samples",
+  "source_table": "growth_control_observability_samples",
+  "reason": "Excluded because this table is an internal append-only SLO sample ledger used for bounded operational health evaluation. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; dashboards remain read-only and scope-filtered.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}

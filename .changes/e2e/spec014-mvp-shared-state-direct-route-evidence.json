@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-mvp-shared-state-direct-route-evidence",
+  "title": "Spec 014 direct mounted-route shared-state evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-mvp-shared-state-direct-route-evidence.json",
+      "http-generic-api/test-hostinger-storage-e2e.mjs",
+      "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace source-rewritten temporary test execution with a direct mounted Tenant route journey that reads the same canonical repository object before and after the exact successful request.",
+      "e2e_journeys": [
+        {
+          "id": "direct-mounted-route-shared-operation-state",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_workspace_owner",
+          "entrypoint": "POST /tenant/storage-operations/apply-plan",
+          "terminal_outcome": "The direct mounted request completes the same operation in the same repository with immutable-plan consumption, append-only approvals, prepared/result/readback journals, reconciliation, and Tenant-safe readback without source rewriting or temporary test files.",
+          "steps": [
+            "Create one synthetic Tenant operation, immutable plan, approval evidence, one-shot enablement, adapter, and canonical in-memory repository.",
+            "Mount the Tenant route with Context Kernel and effective-authority resolution bound to that exact operation.",
+            "Capture immutable plan bindings and approval digests from the canonical repository before the request.",
+            "Submit one expected-SHA-bound request to the mounted apply-plan endpoint.",
+            "Read the exact operation from the same repository object after the request and verify completion, plan consumption, journal phases, reconciliation, and Tenant-safe response binding.",
+            "Require the aggregate convergence gate to reject source-text rewriting and temporary generated test files.",
+            "Keep provider dispatch, live mutation, migration Apply, schema verification, deployment, Production readiness, and secrets disabled."
+          ],
+          "assertions": [
+            "The shared-state gate executes the mounted route directly.",
+            "The repository object read before the request is the repository object read after the request.",
+            "Immutable plan bindings and append-only approval digests remain unchanged while single-use consumption advances.",
+            "Prepared, result, and readback journals and one reconciliation record bind to the same operation, run, plan, outcome, and result digest.",
+            "source_text_rewriting_used is false and temporary_test_file_created is false.",
+            "Provider dispatch, migration Apply, schema verification, Production readiness, and secrets remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-mvp-shared-state-direct-route",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-e2e.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-e2e.mjs",
+            "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
+            "http-generic-api/hostingerStorageTenantRuntime.js",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This bounded test refactor changes no operational runtime behavior or authority."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Unknown-outcome and restart resilience remain governed by their existing child contracts."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live or non-production provider target is accessed by this test-only change."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only synthetic proof grants no Production authority."
+    }
+  ],
+  "secrets_included": false
+}

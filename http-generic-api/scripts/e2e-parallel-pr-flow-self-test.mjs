@@ -91,12 +91,30 @@ fs.writeFileSync(path.join(root, contractPath), `${JSON.stringify(contract, null
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "declare ready workstream"], root);
 const headSha = run("git", ["rev-parse", "HEAD"], root).trim();
+run("git", ["update-ref", "refs/heads/main", headSha], root);
+run("git", ["update-ref", "refs/remotes/origin/main", headSha], root);
 
 const gatePass = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "gpt/001-example/integration-a"], root));
 assert.equal(gatePass.ok, true, JSON.stringify(gatePass.findings));
 assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
 assert.equal(gatePass.production_promotion, false);
+assert.equal(gatePass.production_promotion_identity, null);
+
+const defaultBranchDispatchEnv = { ...process.env };
+for (const name of ["GITHUB_BASE_REF", "GITHUB_HEAD_REF", "GITHUB_BASE_SHA", "GITHUB_HEAD_SHA"]) delete defaultBranchDispatchEnv[name];
+const defaultBranchDispatch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main"], { cwd: root, encoding: "utf8", env: defaultBranchDispatchEnv });
+assert.equal(defaultBranchDispatch.status, 0, JSON.stringify({ status: defaultBranchDispatch.status, signal: defaultBranchDispatch.signal, stdout: defaultBranchDispatch.stdout, stderr: defaultBranchDispatch.stderr }));
+const defaultBranchDispatchReport = JSON.parse(defaultBranchDispatch.stdout);
+assert.equal(defaultBranchDispatchReport.ok, true, JSON.stringify(defaultBranchDispatchReport.findings));
+assert.equal(defaultBranchDispatchReport.pr_mode, "standard");
+assert.equal(defaultBranchDispatchReport.base_ref, null);
+assert.equal(defaultBranchDispatchReport.production_promotion, false);
+
+const undeclaredBranch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/undeclared-a", "--base-ref", "gpt/001-example/integration-a"], { cwd: root, encoding: "utf8" });
+assert.notEqual(undeclaredBranch.status, 0);
+const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
+assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
@@ -107,11 +125,32 @@ const productionPromotion = JSON.parse(run(process.execPath, [GATE, "--root", ro
 assert.equal(productionPromotion.ok, true, JSON.stringify(productionPromotion.findings));
 assert.equal(productionPromotion.pr_mode, "standard");
 assert.equal(productionPromotion.production_promotion, true);
+assert.equal(productionPromotion.production_promotion_identity, "protected_main");
+
+const immutableRef = `release/production-candidate-20260803-${headSha.slice(0, 8)}-v1`;
+const immutablePromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", immutableRef, "--base-ref", "Production"], root));
+assert.equal(immutablePromotion.ok, true, JSON.stringify(immutablePromotion.findings));
+assert.equal(immutablePromotion.pr_mode, "standard");
+assert.equal(immutablePromotion.production_promotion, true);
+assert.equal(immutablePromotion.production_promotion_identity, "immutable_main_snapshot");
+
+const legacyImmutableRef = `release/production-candidate-${headSha.slice(0, 8)}`;
+const legacyImmutablePromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", legacyImmutableRef, "--base-ref", "Production"], root));
+assert.equal(legacyImmutablePromotion.ok, true, JSON.stringify(legacyImmutablePromotion.findings));
+assert.equal(legacyImmutablePromotion.production_promotion_identity, "immutable_main_snapshot");
+
+const mismatchedImmutable = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/production-candidate-20260803-deadbeef-v1", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+assert.notEqual(mismatchedImmutable.status, 0);
+const mismatchedImmutableReport = JSON.parse(mismatchedImmutable.stdout);
+assert.equal(mismatchedImmutableReport.production_promotion, false);
+assert.equal(mismatchedImmutableReport.production_promotion_identity, null);
+assert(mismatchedImmutableReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
 const spoofedPromotion = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/main", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
 assert.notEqual(spoofedPromotion.status, 0);
 const spoofedPromotionReport = JSON.parse(spoofedPromotion.stdout);
 assert.equal(spoofedPromotionReport.production_promotion, false);
+assert.equal(spoofedPromotionReport.production_promotion_identity, null);
 assert(spoofedPromotionReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
 const workstreamRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root, "--contract", contractPath, "--mode", "workstream", "--workstream-id", "runtime"], root));
@@ -122,4 +161,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 17, flow: "parallel_workstream_to_integration_and_protected_production_promotion", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 38, flow: "parallel_workstream_to_integration_default_branch_and_governed_production_promotions", secrets_included: false }));

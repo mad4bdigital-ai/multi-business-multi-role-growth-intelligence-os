@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-completed-build-log-evidence-r3-dispatch",
+  "title": "Hostinger completed-build log evidence R3 dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-completed-build-log-evidence-r3-dispatch.json",
+      ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3.yml",
+      ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml",
+      "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-dispatch-r3.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Dispatch the merged completed Hostinger build-log evidence workflow once from trusted main through an immutable issue authorization and exact-head guard.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-completed-build-log-evidence-r3",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and GitHub Actions",
+          "entrypoint": "R3 bridge contract workflow or exact Issue #4953 trigger comment",
+          "terminal_outcome": "The bridge dispatches one trusted-main GET-only target run, validates its secret-free artifact, and records a bounded classification while leaving the incident open.",
+          "steps": [
+            "Resolve an explicit full expected main SHA from a typed dispatch input or exact owner issue comment.",
+            "Verify Issue #4953 is open and authorization comment 5162358174 has the exact owner, token, target workflow blob, Hostinger account, domain, build UUID, Production SHA, and no-mutation boundary.",
+            "Require current main, target workflow blob, active workflow state, and protected Production to equal their immutable bindings before the first metadata write.",
+            "Reject any prior claiming or dispatched marker for the same R3 binding.",
+            "Record a bounded claim and dispatch the unchanged completed-build log workflow on trusted main.",
+            "Resolve only the newer target run bound to the exact authorized main SHA.",
+            "Wait for completion, download the exact run artifact, and validate the completed-build log evidence contract and false side effects.",
+            "Publish only bounded outcome, classification, SHA/branch booleans, source SHA candidates, and safety flags to Issue #4953."
+          ],
+          "assertions": [
+            "The bridge is secret-blind and never references HOSTINGER_API_TOKEN as a secret expression.",
+            "Authorization, exact main head, workflow blob, Production SHA, and one-time duplicate guards occur before the first write.",
+            "The bridge dispatches Actions and writes issue metadata only; it does not mutate repository contents or protected refs.",
+            "No Hostinger build creation, deployment, release activation, restart, provider mutation, SQL, migration Apply, database mutation, or external send occurs.",
+            "The target artifact contract requires GET, token_returned false, secrets_included false, and all mutation side effects false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-r3-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-completed-build-log-evidence-dispatch-r3.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3.yml",
+            ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml",
+            "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-dispatch-r3.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the bridge, post one exact R3 trigger using the then-current main SHA, and inspect the resulting bounded artifact for build source provenance."
+    }
+  ],
+  "secrets_included": false
+}
