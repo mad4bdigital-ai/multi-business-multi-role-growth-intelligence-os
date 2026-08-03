@@ -191,6 +191,34 @@ function expectCode(fn, code) {
 }
 
 {
+  const fixture = createFixture();
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-evidence-external-"));
+  try {
+    const sourceFile = fixture.manifest.sources[0].source_file;
+    const sourcePath = path.join(fixture.root, sourceFile);
+    const externalPath = path.join(externalRoot, "outside.json");
+    fs.writeFileSync(externalPath, "{}\n");
+    fs.unlinkSync(sourcePath);
+    fs.symlinkSync(externalPath, sourcePath, "file");
+    expectCode(() => collect(fixture), "authority_evidence_repository_unsafe_source_file_type");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
+  try {
+    const sourcePath = path.join(fixture.root, fixture.manifest.sources[0].source_file);
+    fs.writeFileSync(sourcePath, Buffer.alloc((8 * 1024 * 1024) + 1, 0x20));
+    expectCode(() => collect(fixture), "authority_evidence_repository_source_file_too_large");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+{
   const fixture = createFixture((document, family) => {
     if (family === "provider_binding_catalog") document.records[0].access_token = "forbidden";
     return document;
