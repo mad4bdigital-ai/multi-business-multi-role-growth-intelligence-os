@@ -1,0 +1,64 @@
+name: Exact Local Connector Closure ARM Smoke 5496
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-local-connector-closure-arm-base-5496-44ed1522
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-local-connector-closure-arm-smoke-5496-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Exact Candidate ARM Preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate with read-only token
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable candidate and retirement self-test
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/ci/retire-local-connector-closure-final-one-commit-20260803
+          EXPECTED_HEAD_SHA: 8d6251cc9e63dd4579e4aa5c1e0b731e67b4a2eb
+          EXPECTED_MAIN_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_HEAD_REF})" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "1"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA" | wc -l)" = "9"
+
+          node --check http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
+          (cd http-generic-api && node scripts/local-connector-closure-automation-retirement-self-test.mjs)
+
+          printf '%s\n' \
+            'candidate_sha=8d6251cc9e63dd4579e4aa5c1e0b731e67b4a2eb' \
+            'main_sha=44ed152286be85c4573c584cbe786fb2faf94c91' \
+            'commit_count=1' \
+            'changed_files=9' \
+            'runner=ubuntu-24.04-arm' \
+            'secrets_included=false' >> "$GITHUB_STEP_SUMMARY"
