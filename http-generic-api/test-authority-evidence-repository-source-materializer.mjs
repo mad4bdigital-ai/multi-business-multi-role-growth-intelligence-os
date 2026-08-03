@@ -246,6 +246,21 @@ try {
   }
   assert.equal(fs.existsSync(path.join(writerRoot, "unlink-rollback", "one.json")), false);
 
+  const originalManifestLinkSync = fs.linkSync;
+  fs.linkSync = (_temporary, destination) => {
+    fs.writeFileSync(destination, "raced\n", { flag: "wx" });
+    throw Object.assign(new Error("simulated destination race"), { code: "EEXIST" });
+  };
+  try {
+    assert.throws(
+      () => manifestFinalizeCli.writeNewFile(writerRoot, "race/manifest.json", "ours\n"),
+      /simulated destination race/,
+    );
+  } finally {
+    fs.linkSync = originalManifestLinkSync;
+  }
+  assert.equal(fs.readFileSync(path.join(writerRoot, "race", "manifest.json"), "utf8"), "raced\n");
+
   sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
     { relativePath: "success/one.json", content: "one\n" },
     { relativePath: "success/two.json", content: "two\n" },
