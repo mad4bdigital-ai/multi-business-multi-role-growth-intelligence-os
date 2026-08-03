@@ -178,37 +178,39 @@ export function buildTenantGptOAuthTokenRequestBindingGuard(options = {}) {
   const createId = typeof options.randomUUID === "function" ? options.randomUUID : randomUUID;
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), (req, res, next) => {
-    const requestId = createId();
-    const redirectUri = String(req.body?.redirect_uri || "").trim();
+    const grantType = String(req.body?.grant_type || "").trim();
     const code = String(req.body?.code || "").trim();
+    if (grantType !== "authorization_code" || !code) return next();
 
-    delete req.headers.cookie;
-    res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("x-request-id", requestId);
+    const redirectUri = String(req.body?.redirect_uri || "").trim();
+    const fail = (input) => {
+      const requestId = createId();
+      delete req.headers.cookie;
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("x-request-id", requestId);
+      return requestFailure(res, { requestId, ...input });
+    };
 
+    if (code.length > BINDING_LIMITS.code) {
+      return fail({
+        description: "code exceeds its bounded length.",
+        code: "oauth_code_too_long",
+        retrySameCode: false,
+      });
+    }
     if (!redirectUri) {
-      return requestFailure(res, {
-        requestId,
+      return fail({
         description: "redirect_uri is required for this authorization code.",
         code: "oauth_redirect_uri_required",
         retrySameCode: true,
       });
     }
     if (redirectUri.length > BINDING_LIMITS.redirect_uri || !validRedirectUri(redirectUri)) {
-      return requestFailure(res, {
-        requestId,
+      return fail({
         description: "redirect_uri is invalid or exceeds its bounded length.",
         code: "oauth_redirect_uri_invalid",
         retrySameCode: true,
-      });
-    }
-    if (code.length > BINDING_LIMITS.code) {
-      return requestFailure(res, {
-        requestId,
-        description: "code exceeds its bounded length.",
-        code: "oauth_code_too_long",
-        retrySameCode: false,
       });
     }
     return next();
