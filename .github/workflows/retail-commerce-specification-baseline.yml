@@ -1,0 +1,53 @@
+name: Retail Commerce Specification Baseline
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "specs/014-retail-commerce-operations-growth-os/**"
+      - "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+      - ".github/workflows/retail-commerce-specification-baseline.yml"
+  push:
+    branches: [main]
+    paths:
+      - "specs/014-retail-commerce-operations-growth-os/**"
+      - "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+      - ".github/workflows/retail-commerce-specification-baseline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retail-commerce-specification-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  specification-baseline:
+    name: Validate specification-only contract baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate tree
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate Retail Commerce specification baseline
+        working-directory: http-generic-api
+        run: node test-retail-commerce-specification-baseline.mjs
