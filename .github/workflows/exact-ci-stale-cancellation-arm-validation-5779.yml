@@ -19,12 +19,12 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/ci-pr-stale-head-cancellation-20260804' &&
-      github.event.pull_request.head.sha == 'c0b02b02629e02d1fe5bac1593d01c0e488de597'
+      github.event.pull_request.head.sha == '7cd2eed499f3ee57223a1ac9fd730ff7af3f427e'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     env:
       EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
-      EXPECTED_HEAD_SHA: c0b02b02629e02d1fe5bac1593d01c0e488de597
+      EXPECTED_HEAD_SHA: 7cd2eed499f3ee57223a1ac9fd730ff7af3f427e
       EXPECTED_HEAD_REF: gpt/ci-pr-stale-head-cancellation-20260804
     steps:
       - name: Checkout exact candidate
@@ -53,7 +53,7 @@ jobs:
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 4
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 6
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
           printf '%s\n' "${files[@]}"
           test "${#files[@]}" -eq 4
