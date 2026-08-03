@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "local-connector-production-closure-automation-retirement",
+  "title": "Retire completed Local Connector Production closure automation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/local-connector-production-closure-automation-retirement.json",
+      ".github/local-connector-closure/trigger-3945-792ff63a.txt",
+      ".github/scripts/governed-local-connector-production-closure.mjs",
+      ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/governed-local-connector-production-closure-pr-target.yml",
+      ".github/workflows/governed-local-connector-production-closure-push.yml",
+      ".github/workflows/governed-local-connector-production-closure.yml",
+      ".github/workflows/local-connector-closure-v8-trigger.txt",
+      "http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove every live repository automation path for the completed PR #3945 Local Connector Production closure and keep Automation Overlap Guard read-only.",
+      "e2e_journeys": [
+        {
+          "id": "retire-completed-local-connector-production-closure-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository workflow registrar and governance runner",
+          "entrypoint": "A pull request removes the completed one-shot Local Connector closure workflows, executor, and trigger markers from current main-derived automation.",
+          "terminal_outcome": "Only the read-only Automation Overlap Guard remains, all historical PR #3945 execution and repository-write authority is absent, and the retirement regression passes on the exact candidate head.",
+          "steps": [
+            "Remove the issue-comment, marker-push, and pull-request-target closure workflows.",
+            "Remove the embedded closure job, runtime secret, write permissions, and historical concurrency suffix from Automation Overlap Guard.",
+            "Remove the closure executor and both one-shot trigger marker files.",
+            "Scan live GitHub workflow and script directories for the retired command tokens, executor path, trigger marker, and job identifier.",
+            "Execute the focused retirement self-test and publish exact-head E2E evidence."
+          ],
+          "assertions": [
+            "The six historical closure workflow, executor, and marker paths do not exist.",
+            "Automation Overlap Guard retains contents: read and contains no issue or pull-request write permission.",
+            "Automation Overlap Guard contains no BACKEND_API_KEY or completed PR #3945 closure job.",
+            "No live GitHub automation file retains a RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE token, retired executor reference, trigger marker, or closure job identifier.",
+            "No provider call, deployment, Production mutation, credential use, SQL, migration Apply, database mutation, external send, protected-ref mutation, or force push is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "local-connector-closure-automation-retirement-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/local-connector-closure-automation-retirement-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/automation-overlap-guard.yml",
+            "http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs",
+            ".changes/e2e/local-connector-production-closure-automation-retirement.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Verify workflow registration and lifecycle governance after all retired closure paths are absent from main."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject future reintroduction of completed one-shot runtime and repository-write authority into permanent workflows."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Prove Draft and Ready exact-head cycles with CI, E2E, lifecycle, reference integrity, and overlap analysis visible."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Confirm current main contains no live PR #3945 closure automation and no historical trigger can execute."
+    }
+  ],
+  "secrets_included": false
+}
