@@ -7,15 +7,15 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  frontend-parity:
-    name: Exact Frontend Parity Diagnostic
+  refresh-frontend-digests:
+    name: Generate bounded Frontend digest refresh
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
@@ -23,15 +23,22 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
-      EXPECTED_MAIN_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
-      EXPECTED_HEAD_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
+      EXPECTED_BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      TARGET_BRANCH: gpt/frontend-dispatch-digest-refresh-20260803
+      GENERATED_FILE: http-generic-api/frontend-surface-dispatch.generated.json
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact prerequisite branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: gpt/frontend-dispatch-digest-refresh-20260803
           fetch-depth: 0
-          persist-credentials: false
+
+      - name: Verify immutable branch identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_BASE_SHA}"
+          test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -40,90 +47,43 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify immutable identity and clean tracked tree
-        shell: bash
-        run: |
-          set -uo pipefail
-          report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
-          : > "${report}"
-          : > "${RUNNER_TEMP}/frontend-generated.diff"
-          : > "${RUNNER_TEMP}/frontend-all.diff"
-          failed=0
-
-          actual_head="$(git rev-parse HEAD)"
-          echo "expected_head=${EXPECTED_HEAD_SHA}" | tee -a "${report}"
-          echo "actual_head=${actual_head}" | tee -a "${report}"
-          if [ "${actual_head}" != "${EXPECTED_HEAD_SHA}" ]; then failed=1; fi
-
-          if git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"; then
-            echo "expected_main_object=present" | tee -a "${report}"
-          else
-            echo "expected_main_object=missing" | tee -a "${report}"
-            failed=1
-          fi
-
-          merge_base="$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" 2>/dev/null || true)"
-          echo "expected_main=${EXPECTED_MAIN_SHA}" | tee -a "${report}"
-          echo "merge_base=${merge_base}" | tee -a "${report}"
-          if [ "${merge_base}" != "${EXPECTED_MAIN_SHA}" ]; then failed=1; fi
-
-          echo '===== TRACKED STATUS BEFORE INSTALL =====' | tee -a "${report}"
-          tracked_status="$(git status --porcelain --untracked-files=no)"
-          printf '%s\n' "${tracked_status}" | tee -a "${report}"
-          if [ -n "${tracked_status}" ]; then failed=1; fi
-
-          exit "${failed}"
-
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run isolated Frontend parity with bounded diagnostics
-        working-directory: http-generic-api
+      - name: Regenerate and verify bounded Frontend artifact
         shell: bash
         run: |
-          set -uo pipefail
-          report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
-          failed=0
+          set -euo pipefail
+          cd http-generic-api
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          cd ..
 
-          run_check() {
-            local label="$1"
-            shift
-            echo "===== ${label} =====" | tee -a "${report}"
-            "$@" 2>&1 | tee -a "${report}"
-            local rc=${PIPESTATUS[0]}
-            echo "exit_code=${rc}" | tee -a "${report}"
-            if [ "${rc}" -ne 0 ]; then failed=1; fi
-            git status --porcelain | tee -a "${report}"
-          }
+          changed="$(git diff --name-only)"
+          test "${changed}" = "${GENERATED_FILE}"
 
-          run_check generate env CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
-          run_check dispatch-baseline node test-frontend-dispatch-workflow-baseline.mjs
-          run_check operation-governance-generator node test-frontend-operation-governance-generator.mjs
-          run_check surface-dispatch node test-frontend-surface-dispatch.mjs
-          run_check auth-openapi-parity node test-frontend-auth-openapi-parity.mjs
-          run_check openapi-route-coverage node test-openapi-route-coverage.mjs
-          run_check openapi-auth-check npm run openapi:auth:check
+          read -r additions deletions path <<EOF
+          $(git diff --numstat -- "${GENERATED_FILE}")
+          EOF
+          test "${path}" = "${GENERATED_FILE}"
+          test "${additions}" = "3"
+          test "${deletions}" = "3"
 
-          echo '===== FINAL TRACKED STATUS =====' | tee -a "${report}"
-          git status --porcelain --untracked-files=no | tee -a "${report}"
-          git diff --stat | tee -a "${report}"
-          git diff -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml > "${RUNNER_TEMP}/frontend-generated.diff"
-          git diff > "${RUNNER_TEMP}/frontend-all.diff"
+          test -z "$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -vFx "${GENERATED_FILE}" || true)"
 
-          unexpected="$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -Ev '^(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          generated="$(git status --porcelain --untracked-files=no -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
-          if [ -n "${unexpected}" ] || [ -n "${generated}" ]; then failed=1; fi
-          exit "${failed}"
-
-      - name: Upload Frontend parity diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: exact-phase-g-frontend-parity-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/frontend-parity-diagnostic.txt
-            ${{ runner.temp }}/frontend-generated.diff
-            ${{ runner.temp }}/frontend-all.diff
-          if-no-files-found: error
-          retention-days: 14
+      - name: Commit and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${GENERATED_FILE}"
+          git diff --cached --quiet && { echo 'No bounded refresh to commit'; exit 1; }
+          git commit -m "chore(frontend): refresh dispatch source digests"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
