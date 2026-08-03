@@ -1,4 +1,4 @@
-name: CI Cancellation Work Map Refresh
+name: CI Cancellation Work Map Refresh Revision 2
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ci-cancellation-work-map-refresh-${{ github.ref }}
+  group: ci-cancellation-work-map-refresh-v2-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -27,11 +27,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify exact launcher and focused regression
+      - name: Verify bounded relaunch and focused regression
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "5964e3fa499f24b29edf16c5e5975a60ee5b446a"
+          test "$(git rev-parse HEAD^)" = "690b3f84f31fc9f09b7887dc3256b8dedbda0f59"
           test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/ci-cancellation-work-map-refresh.yml"
           node http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs
 
