@@ -14,6 +14,7 @@ requireFragment('persist-credentials: false', 'credential-free checkout');
 requireFragment('fetch-depth: 0', 'full ancestry checkout');
 requireFragment('Classify governed candidate mode', 'governed candidate-mode classifier');
 requireFragment('PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'phase contract input');
+requireFragment('BASE_SHA: ${{ github.event.pull_request.base.sha }}', 'Production base SHA classifier input');
 requireFragment('HEAD_REF: ${{ github.event.pull_request.head.ref }}', 'head ref classifier input');
 requireFragment('HEAD_SHA: ${{ github.event.pull_request.head.sha }}', 'head SHA classifier input');
 requireFragment('HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}', 'head repository classifier input');
@@ -30,20 +31,28 @@ requireFragment("process.env.HEAD_SHA?.startsWith(immutableReleaseMatch[1])", 'b
 requireFragment("['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef]", 'protected main ancestry requirement');
 requireFragment("'refs/remotes/origin/main'", 'canonical remote main ref');
 requireFragment('process.env.HEAD_REPOSITORY === process.env.REPOSITORY', 'same-repository release requirement');
-requireFragment('(directMainRelease || immutableMainSnapshot)', 'direct or immutable release classification');
+requireFragment('(directMainRelease || immutableMainSnapshot || historyPreservingMainReconciliation)', 'governed release identity classification');
+requireFragment("parents.length === 2", 'exact two-parent reconciliation requirement');
+requireFragment("parents[0] === mainSha", 'current main first-parent requirement');
+requireFragment("parents[1] === process.env.BASE_SHA", 'exact Production base second-parent requirement');
+requireFragment("resolveTree(process.env.HEAD_SHA) === resolveTree(mainRef)", 'candidate tree equals current main requirement');
 requireFragment('const releaseIdentity = isGovernedRelease', 'accepted-release identity gating');
-requireFragment("? 'immutable_main_snapshot'", 'immutable release identity');
-requireFragment('const modeSource = isGovernedRelease && immutableMainSnapshot', 'ancestry source gating');
+requireFragment("? 'history_preserving_main_reconciliation'", 'history-preserving reconciliation identity');
+requireFragment(": 'immutable_main_snapshot'", 'immutable release identity');
+requireFragment('const modeSource = historyPreservingMainReconciliation', 'reconciliation source gating');
+requireFragment("? 'governed_phase_contract_and_history_preserving_reconciliation'", 'history-preserving classification source');
 requireFragment("? 'governed_phase_contract_and_git_ancestry'", 'ancestry-backed classification source');
 requireFragment("isGovernedRelease ? 'release' : 'feature'", 'governed release classification');
 requireFragment('CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}', 'candidate mode output binding');
 requireFragment('CANDIDATE_MODE_SOURCE: ${{ steps.candidate_mode.outputs.candidate_mode_source }}', 'candidate mode source output binding');
 requireFragment('RELEASE_IDENTITY: ${{ steps.candidate_mode.outputs.release_identity }}', 'release identity output binding');
 requireFragment('IMMUTABLE_RELEASE_SOURCE_IN_MAIN: ${{ steps.candidate_mode.outputs.immutable_release_source_in_main }}', 'immutable ancestry output binding');
+requireFragment('HISTORY_PRESERVING_RECONCILIATION: ${{ steps.candidate_mode.outputs.history_preserving_reconciliation }}', 'reconciliation output binding');
 requireFragment('MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}', 'candidate mode outcome binding');
 requireFragment("'candidate_mode_source': os.environ.get('CANDIDATE_MODE_SOURCE') or 'unknown'", 'candidate mode evidence source');
 requireFragment("'release_identity': os.environ.get('RELEASE_IDENTITY') or 'none'", 'release identity evidence');
 requireFragment("'immutable_release_source_in_main'", 'immutable source ancestry evidence');
+requireFragment("'history_preserving_reconciliation'", 'history-preserving reconciliation evidence');
 requireFragment("'governed_phase_contract_digest'", 'phase contract digest evidence');
 requireFragment('Validate rollup-aware workflow contract', 'workflow regression step');
 requireFragment('WORKFLOW_CONTRACT_OUTCOME: ${{ steps.workflow_contract.outcome }}', 'workflow contract outcome binding');
@@ -71,11 +80,13 @@ assert.equal(source.includes('git push'), false, 'workflow must not mutate repos
 
 const classification = source.indexOf('Classify governed candidate mode');
 const ancestryCheck = source.indexOf("['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef]");
+const reconciliationTreeCheck = source.indexOf('resolveTree(process.env.HEAD_SHA) === resolveTree(mainRef)');
 const releaseIdentityGate = source.indexOf('const releaseIdentity = isGovernedRelease');
 const featureScopeGate = source.indexOf('if [[ "${candidate_mode}" == "feature" ]]');
 const contentBoundary = source.indexOf("grep -q 'CONTRACT-LOCAL DDL ONLY'");
 assert(classification >= 0 && ancestryCheck > classification, 'Git ancestry proof must remain inside candidate classification');
-assert(releaseIdentityGate > ancestryCheck, 'Release identity must be derived after accepted release classification');
+assert(reconciliationTreeCheck > ancestryCheck, 'Reconciliation verification must follow immutable ancestry verification');
+assert(releaseIdentityGate > reconciliationTreeCheck, 'Release identity must be derived after reconciliation verification');
 assert(featureScopeGate > releaseIdentityGate, 'Contract classification must precede scope enforcement');
 assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in feature, Integration, and Release modes');
 
@@ -85,7 +96,9 @@ console.log(JSON.stringify({
   feature_scope_allowlist_preserved: true,
   contract_governed_integration_mode: true,
   contract_governed_release_mode: true,
-  release_requires_main_to_production_or_immutable_main_snapshot: true,
+  release_requires_protected_main_immutable_snapshot_or_exact_reconciliation: true,
+  reconciliation_requires_exact_two_parent_identity: true,
+  reconciliation_requires_current_main_tree: true,
   immutable_release_branch_bound_to_head_sha: true,
   immutable_release_requires_main_ancestry: true,
   rejected_release_identity_is_none: true,
