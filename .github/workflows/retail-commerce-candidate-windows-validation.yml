@@ -5,7 +5,7 @@ on:
     branches:
       - gpt/validate-retail-commerce-candidate-windows-20260803
     paths:
-      - .changes/e2e/retail-commerce-candidate-windows-validation.json
+      - .changes/e2e/retail-commerce-candidate-windows-validation-v2.json
 
 permissions:
   contents: read
@@ -20,9 +20,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      EXPECTED_CANDIDATE_SHA: b8074af9bc24b9e1f009f169ddd5577d1e0d4082
+      EXPECTED_BASE_SHA: 118c25118f4eb89a5975f9a5d4787549c6da544d
+      EXPECTED_CANDIDATE_SHA: 69e32d69c818101016d84d355097e10bc260a413
       EXPECTED_CANDIDATE_BRANCH: gpt/retail-commerce-reference-package-cleanroom-20260803
-      GITHUB_BASE_REF: main
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -39,10 +39,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
-          git fetch --no-tags origin main
+          git fetch --no-tags origin main "${EXPECTED_CANDIDATE_BRANCH}"
           test "$(git rev-parse origin/${EXPECTED_CANDIDATE_BRANCH})" = "${EXPECTED_CANDIDATE_SHA}"
-          git diff --name-only origin/main...HEAD > candidate-files.txt
-          test "$(wc -l < candidate-files.txt | tr -d ' ')" = "48"
+          git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" "${EXPECTED_CANDIDATE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}...${EXPECTED_CANDIDATE_SHA}" > candidate-files.txt
+          test "$(wc -l < candidate-files.txt | tr -d ' ')" = "49"
           test -z "$(grep -v '^specs/014-retail-commerce-operations-growth-os/' candidate-files.txt || true)"
       - name: Parse all Retail Commerce JSON contracts
         shell: bash
@@ -70,12 +71,12 @@ jobs:
           set -euo pipefail
           node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
           node http-generic-api/scripts/spec-kit-completion-gate.mjs
-      - name: Validate JavaScript syntax for governance scripts
+      - name: Evaluate and execute exact E2E phase contract
         shell: bash
         run: |
           set -euo pipefail
-          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
-          node --check http-generic-api/scripts/spec-kit-completion-gate.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_BASE_SHA}" --head "${EXPECTED_CANDIDATE_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_BASE_SHA}" --head "${EXPECTED_CANDIDATE_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
       - name: Record bounded validation summary
         if: always()
         shell: bash
@@ -83,6 +84,7 @@ jobs:
           node --input-type=module - <<'NODE'
           console.log(JSON.stringify({
             candidate_sha: process.env.EXPECTED_CANDIDATE_SHA,
+            base_sha: process.env.EXPECTED_BASE_SHA,
             candidate_branch: process.env.EXPECTED_CANDIDATE_BRANCH,
             repository_mutation: false,
             provider_mutation: false,
