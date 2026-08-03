@@ -25,6 +25,7 @@ fs.writeFileSync(path.join(root, "README.md"), "baseline\n");
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "baseline"], root);
 const baseSha = run("git", ["rev-parse", "HEAD"], root).trim();
+run("git", ["update-ref", "refs/remotes/origin/main", baseSha], root);
 
 fs.mkdirSync(path.join(root, "http-generic-api", "example", "runtime"), { recursive: true });
 fs.mkdirSync(path.join(root, "specs", "001-example"), { recursive: true });
@@ -97,7 +98,7 @@ assert.equal(gatePass.ok, true, JSON.stringify(gatePass.findings));
 assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
 
-const defaultBranchDispatch = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main"], root));
+const defaultBranchDispatch = JSON.parse(run(process.execPath, [GATE, "--root", root, "--head", headSha, "--head-ref", "main"], root));
 assert.equal(defaultBranchDispatch.ok, true, JSON.stringify(defaultBranchDispatch.findings));
 assert.equal(defaultBranchDispatch.pr_mode, "standard");
 
