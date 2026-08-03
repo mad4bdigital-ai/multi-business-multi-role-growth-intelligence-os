@@ -58,6 +58,22 @@ function requireTenantUserJwt(req, res, next) {
   return next();
 }
 
+function requireBackendServicePrincipal(req, res, next) {
+  const auth = req.auth || {};
+  if (auth.mode !== "backend_api_key" || auth.is_admin !== true) {
+    return res.status(403).json({
+      error: {
+        code: "BACKEND_SERVICE_AUTH_REQUIRED",
+        message: "Backend service authentication is required for internal Growth Control writes.",
+        details: [],
+        requestId: requestId(req)
+      },
+      secretsIncluded: false
+    });
+  }
+  return next();
+}
+
 function booleanQuery(value) {
   if (value == null || value === "") return false;
   return String(value).trim().toLowerCase() === "true";
@@ -101,6 +117,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
   const analyticsOperations = analyticsObservabilityService
     || createGrowthControlAnalyticsObservabilityService({ repository: analyticsRepository });
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal];
+  const requireInternalBackend = [requireBackendApiKey, requireBackendServicePrincipal];
 
   // frontend-surface-operation: GET /admin/control-plane/configurations
   router.get("/admin/control-plane/configurations", ...requireAdmin, async (req, res) => {
@@ -290,7 +307,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
     } catch (error) { return errorResponse(req, res, error); }
   });
 
-  router.post("/internal/control-plane/analytics/observations", requireBackendApiKey, async (req, res) => {
+  router.post("/internal/control-plane/analytics/observations", ...requireInternalBackend, async (req, res) => {
     try {
       assertAllowedKeys(req.body, new Set(["observationId","tenantId","workspaceId","brandKey","activityBindingId","nativeKpiKey","nativeValue","weight","periodStart","periodEnd","observedAt","confidence","sourceSystemKey","sourceObservationId","sourceEventId","now"]));
       const result = await analyticsOperations.recordMetricObservation({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
@@ -298,7 +315,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
     } catch (error) { return errorResponse(req, res, error); }
   });
 
-  router.post("/internal/control-plane/operations/samples", requireBackendApiKey, async (req, res) => {
+  router.post("/internal/control-plane/operations/samples", ...requireInternalBackend, async (req, res) => {
     try {
       assertAllowedKeys(req.body, new Set(["sampleId","metricKey","tenantId","workspaceId","brandKey","environment","value","weight","observedAt","sourceEvidenceSha256"]));
       const result = await analyticsOperations.recordObservabilitySample({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
@@ -306,7 +323,7 @@ export function buildDynamicGrowthControlPlaneRoutes({
     } catch (error) { return errorResponse(req, res, error); }
   });
 
-  router.post("/internal/control-plane/operations/decision-evidence", requireBackendApiKey, async (req, res) => {
+  router.post("/internal/control-plane/operations/decision-evidence", ...requireInternalBackend, async (req, res) => {
     try {
       assertAllowedKeys(req.body, new Set(["requestId","traceId","tenantId","workspaceId","brandKey","activityBindingId","planId","runId","capabilityKey","workflowVersion","configSnapshotId","policySnapshotId","selectedAdapterKey","gateResults","reasonCodes","durationMs","resultClassification","readbackStatus"]));
       const result = await analyticsOperations.recordDecisionEvidence({ ...(req.body || {}), idempotencyKey: idempotencyKey(req) });
@@ -317,4 +334,4 @@ export function buildDynamicGrowthControlPlaneRoutes({
   return router;
 }
 
-export const _testingDynamicGrowthControlPlaneRoutes = Object.freeze({ requestId, actorId, assertAllowedKeys, idempotencyKey, requireTenantUserJwt, booleanQuery, errorResponse });
+export const _testingDynamicGrowthControlPlaneRoutes = Object.freeze({ requestId, actorId, assertAllowedKeys, idempotencyKey, requireTenantUserJwt, requireBackendServicePrincipal, booleanQuery, errorResponse });
