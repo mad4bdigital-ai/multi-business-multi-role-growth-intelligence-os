@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_CLOCK_SKEW_MS,
+  MAX_CLOCK_SKEW_MS,
   TENANT_GPT_AUDIENCE_COMPATIBILITY_METRIC,
   classifyTenantGptAudienceCompatibility,
   recordTenantGptAudienceCompatibilityEvidence,
@@ -25,6 +26,9 @@ function classify(overrides = {}) {
     ...overrides,
   });
 }
+
+assert.equal(DEFAULT_CLOCK_SKEW_MS, 5 * 60 * 1000);
+assert.equal(MAX_CLOCK_SKEW_MS, DEFAULT_CLOCK_SKEW_MS);
 
 const strict = classify();
 assert.equal(strict.accepted, true);
@@ -65,14 +69,20 @@ assert.equal(classify({
 }).classification, "legacy_audience_rejected_iat_invalid");
 assert.equal(classify({
   audience: LEGACY,
-  issuedAtSeconds: Math.floor((NOW_MS + DEFAULT_CLOCK_SKEW_MS + 1) / 1000),
+  issuedAtSeconds: Math.floor((NOW_MS + DEFAULT_CLOCK_SKEW_MS + 1000) / 1000),
 }).classification, "legacy_audience_rejected_iat_future");
 assert.equal(classify({
   audience: LEGACY,
   nowMs: CUTOFF_MS,
   issuedAtSeconds: Math.floor((CUTOFF_MS + 1000) / 1000),
-  clockSkewMs: CUTOFF_MS,
+  clockSkewMs: 2000,
 }).classification, "legacy_audience_rejected_issued_after_cutoff");
+assert.equal(classify({
+  audience: LEGACY,
+  issuedAtSeconds: Math.floor((NOW_MS + MAX_CLOCK_SKEW_MS + 1000) / 1000),
+  clockSkewMs: Number.MAX_SAFE_INTEGER,
+}).classification, "legacy_audience_rejected_iat_future",
+"caller-provided clock skew must be capped at the governed maximum");
 
 const exactBoundary = classify({
   audience: LEGACY,
