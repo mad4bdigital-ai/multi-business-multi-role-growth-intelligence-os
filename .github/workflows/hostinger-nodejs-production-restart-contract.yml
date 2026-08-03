@@ -8,6 +8,7 @@ on:
       - '.github/workflows/hostinger-nodejs-production-restart.yml'
       - '.github/workflows/hostinger-nodejs-production-restart-contract.yml'
       - 'http-generic-api/scripts/hostinger-nodejs-production-restart.mjs'
+      - 'http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs'
       - 'http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs'
 
 permissions:
