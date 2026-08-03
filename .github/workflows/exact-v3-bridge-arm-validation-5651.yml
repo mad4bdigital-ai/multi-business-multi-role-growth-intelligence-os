@@ -19,12 +19,12 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
-      github.event.pull_request.head.sha == '81f8a6e8766550a7d205b9c5178f830f75f03379'
+      github.event.pull_request.head.sha == 'f27868eb8d10dae117e3628a9950d6722eda1a02'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     env:
       EXPECTED_MAIN_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
-      EXPECTED_HEAD_SHA: 81f8a6e8766550a7d205b9c5178f830f75f03379
+      EXPECTED_HEAD_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
       EXPECTED_HEAD_REF: gpt/governed-generated-refresh-pr-target-v3-20260802
       TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
     steps:
