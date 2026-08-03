@@ -48,9 +48,9 @@ jobs:
           set -Eeuo pipefail
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = "${WORKFLOW_PATH}"
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
+          test "$changed" = "${WORKFLOW_PATH}"
 
       - name: Download official Frontend artifact
         shell: bash
@@ -133,11 +133,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           rm "${WORKFLOW_PATH}"
-          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /' | sort -u)
-          printf '%s\n' "${changed[@]}"
-          test "${#changed[@]}" -eq 2
-          printf '%s\n' "${changed[@]}" | grep -Fxq "${WORKFLOW_PATH}"
-          printf '%s\n' "${changed[@]}" | grep -Fxq "${TARGET_FILE}"
+          changed="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /' | sort -u)"
+          printf '%s\n' "$changed"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 2
+          printf '%s\n' "$changed" | grep -Fxq "${WORKFLOW_PATH}"
+          printf '%s\n' "$changed" | grep -Fxq "${TARGET_FILE}"
 
       - name: Commit product-only result
         shell: bash
