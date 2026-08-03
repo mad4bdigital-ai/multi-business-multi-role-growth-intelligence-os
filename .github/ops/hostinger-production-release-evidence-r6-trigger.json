@@ -1,0 +1,23 @@
+{
+  "contract": "mad4b.hostinger-production-release-evidence-r6-trigger.v2",
+  "authorization_comment_id": 5166235807,
+  "binding_id": "2669991a882c7f7939510fbbace17f462a42517c:6134c0f8a454a5f8f1533f3f2a29ed6af77aa020:5166235807:R6",
+  "expected_trigger_branch": "gpt/trigger-hostinger-production-release-evidence-r6-20260803-a9660046",
+  "trigger_nonce": "r6-a9660046-2669991a-20260803-7f3c9e2b5d814a60",
+  "expected_tooling_sha": "a9660046e9d7169d90a418752c4045edae469516",
+  "expected_production_sha": "2669991a882c7f7939510fbbace17f462a42517c",
+  "production_merged_at": "2026-08-03T10:14:37Z",
+  "reporter_blob_sha": "6134c0f8a454a5f8f1533f3f2a29ed6af77aa020",
+  "reporter_test_blob_sha": "6e37c838129d38d6aee0ffe77d522dcf1d00d0cc",
+  "provider_method": "GET",
+  "provider_mutation": false,
+  "build_creation": false,
+  "deployment": false,
+  "release_activation": false,
+  "restart": false,
+  "sql": false,
+  "migration_apply": false,
+  "database_mutation": false,
+  "external_send": false,
+  "secrets_included": false
+}
