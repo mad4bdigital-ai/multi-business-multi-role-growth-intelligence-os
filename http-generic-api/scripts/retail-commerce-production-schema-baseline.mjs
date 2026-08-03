@@ -25,17 +25,74 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
 }
 
+function splitTopLevelDefinitions(body) {
+  const definitions = [];
+  let current = "";
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (const char of String(body)) {
+    if (quote) {
+      current += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+    if (char === "," && depth === 0) {
+      if (current.trim()) definitions.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (quote || depth !== 0) throw new Error("Unbalanced CREATE TABLE definition body.");
+  if (current.trim()) definitions.push(current.trim());
+  return definitions;
+}
+
 function extractCreatedTableDefinitions(sql) {
   const definitions = [];
   const pattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?\s*\(([\s\S]*?)\)\s*ENGINE\s*=/giu;
   for (const match of String(sql).matchAll(pattern)) {
     const table = match[1];
-    const body = match[2];
-    const columns = unique([...body.matchAll(/^\s*`([A-Za-z0-9_]+)`\s+/gmu)].map((entry) => entry[1]));
+    const columns = [];
     const indexes = [];
-    if (/^\s*PRIMARY\s+KEY\s*\(/imu.test(body)) indexes.push("PRIMARY");
-    for (const entry of body.matchAll(/^\s*(?:UNIQUE\s+)?KEY\s+`([A-Za-z0-9_]+)`\s*\(/gimu)) indexes.push(entry[1]);
-    definitions.push({ table, columns, indexes: unique(indexes) });
+    for (const definition of splitTopLevelDefinitions(match[2])) {
+      const column = definition.match(/^`([A-Za-z0-9_]+)`\s+/u);
+      if (column) {
+        columns.push(column[1]);
+        continue;
+      }
+      if (/^PRIMARY\s+KEY\s*\(/iu.test(definition)) {
+        indexes.push("PRIMARY");
+        continue;
+      }
+      const namedIndex = definition.match(/^(?:UNIQUE\s+)?(?:KEY|INDEX)\s+`([A-Za-z0-9_]+)`\s*\(/iu);
+      if (namedIndex) indexes.push(namedIndex[1]);
+    }
+    definitions.push({ table, columns: unique(columns), indexes: unique(indexes) });
   }
   if (!definitions.length || definitions.some((entry) => !IDENTIFIER.test(entry.table))) {
     throw new Error("Unable to derive bounded table definitions from the repository migration.");
