@@ -26,6 +26,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: spec011-delegation-mariadb-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   disposable-mariadb-certification:
     runs-on: ubuntu-latest
