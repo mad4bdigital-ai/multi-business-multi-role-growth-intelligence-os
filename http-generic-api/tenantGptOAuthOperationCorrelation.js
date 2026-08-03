@@ -15,8 +15,8 @@ const STAGE_INDEX = new Map(
 );
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/i;
-const FORBIDDEN_KEY_PATTERN = /^(authorization|cookie|credential|password|secret|token|raw|email|display_name)$/i;
-const ALLOWED_KEYS = new Set([
+const SENSITIVE_INPUT_KEY_PATTERN = /(^|_)(authorization|cookie|credential|password|secret|token|raw|email|display_name)(_|$)/i;
+const ALLOWED_ENVELOPE_KEYS = new Set([
   "schema_version",
   "operation_id",
   "correlation_id",
@@ -34,6 +34,23 @@ const ALLOWED_KEYS = new Set([
   "issued_at",
   "updated_at",
   "secrets_included",
+]);
+const CREATE_INPUT_KEYS = new Set([
+  "operation_id",
+  "correlation_id",
+  "parent_operation_id",
+  "stage",
+  "protected_resource",
+  "client_id",
+  "request_id",
+]);
+const ADVANCE_INPUT_KEYS = new Set([
+  "stage",
+  "user_id",
+  "tenant_id",
+  "oauth_code_jti",
+  "access_token_jti",
+  "request_id",
 ]);
 
 function failure(code, message, status = 400) {
@@ -97,6 +114,23 @@ function timestamp(value, field) {
   return new Date(milliseconds).toISOString();
 }
 
+function assertObject(value, path) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    failure("oauth_correlation_shape_invalid", `${path} must be an object.`);
+  }
+}
+
+function assertAllowedKeys(value, allowed, path) {
+  assertObject(value, path);
+  for (const key of Object.keys(value)) {
+    if (allowed.has(key)) continue;
+    const code = SENSITIVE_INPUT_KEY_PATTERN.test(key)
+      ? "oauth_correlation_sensitive_field_forbidden"
+      : "oauth_correlation_field_not_allowed";
+    failure(code, `${path}.${key} is not an allowed correlation field.`);
+  }
+}
+
 function stableObject(value) {
   if (value === null || value === undefined) return null;
   if (Array.isArray(value)) return value.map(stableObject);
@@ -117,22 +151,8 @@ function envelopeDigest(input) {
   return sha256(JSON.stringify(stableObject(material)));
 }
 
-function assertAllowedShape(value, path = "correlation") {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    failure("oauth_correlation_shape_invalid", `${path} must be an object.`);
-  }
-  for (const key of Object.keys(value)) {
-    if (!ALLOWED_KEYS.has(key)) {
-      const code = FORBIDDEN_KEY_PATTERN.test(key)
-        ? "oauth_correlation_sensitive_field_forbidden"
-        : "oauth_correlation_field_not_allowed";
-      failure(code, `${path}.${key} is not an allowed correlation field.`);
-    }
-  }
-}
-
 function normalizeEnvelope(input = {}, { verifyDigest = true } = {}) {
-  assertAllowedShape(input);
+  assertAllowedKeys(input, ALLOWED_ENVELOPE_KEYS, "correlation");
   if (Number(input.schema_version) !== TENANT_GPT_OAUTH_CORRELATION_SCHEMA_VERSION) {
     failure("oauth_correlation_schema_version_invalid", "Unsupported OAuth correlation schema version.");
   }
@@ -162,6 +182,15 @@ function normalizeEnvelope(input = {}, { verifyDigest = true } = {}) {
       "secrets_included must be false.",
     ),
   };
+  if (normalized.operation_id === normalized.correlation_id) {
+    failure("oauth_correlation_identity_collision", "operation_id and correlation_id must be distinct.");
+  }
+  if (
+    normalized.parent_operation_id &&
+    [normalized.operation_id, normalized.correlation_id].includes(normalized.parent_operation_id)
+  ) {
+    failure("oauth_correlation_parent_identity_collision", "parent_operation_id must be distinct.");
+  }
   if (Date.parse(normalized.updated_at) < Date.parse(normalized.issued_at)) {
     failure("oauth_correlation_timestamp_order_invalid", "updated_at cannot precede issued_at.");
   }
@@ -171,24 +200,47 @@ function normalizeEnvelope(input = {}, { verifyDigest = true } = {}) {
   return Object.freeze(normalized);
 }
 
+function rejectDrift(previousHash, nextValue, field, driftCode) {
+  if (!nextValue) return previousHash;
+  const nextHash = hashReference(nextValue, field, { required: true });
+  if (previousHash && previousHash !== nextHash) {
+    failure(driftCode, `${field} cannot change after it is bound.`, 409);
+  }
+  return nextHash;
+}
+
 export function createTenantGptOAuthOperationCorrelation(input = {}, {
   idFactory = randomUUID,
   nowMs = Date.now(),
 } = {}) {
+  assertAllowedKeys(input, CREATE_INPUT_KEYS, "create_input");
   if (typeof idFactory !== "function") {
     failure("oauth_correlation_id_factory_invalid", "idFactory must be a function.", 500);
+  }
+  const initialStage = stage(input.stage || "oauth_authorize");
+  if (initialStage !== "oauth_authorize") {
+    failure("oauth_correlation_initial_stage_invalid", "A correlation envelope must begin at oauth_authorize.");
   }
   const protectedResource = normalizeTenantGptOAuthResource(input.protected_resource);
   if (!protectedResource) {
     failure("oauth_correlation_resource_invalid", "protected_resource must be a registered Tenant GPT resource.");
   }
+  const operationId = uuid(input.operation_id || idFactory(), "operation_id");
+  const correlationId = uuid(input.correlation_id || idFactory(), "correlation_id");
+  const parentOperationId = uuid(input.parent_operation_id, "parent_operation_id", { required: false });
+  if (operationId === correlationId) {
+    failure("oauth_correlation_identity_collision", "operation_id and correlation_id must be distinct.");
+  }
+  if (parentOperationId && [operationId, correlationId].includes(parentOperationId)) {
+    failure("oauth_correlation_parent_identity_collision", "parent_operation_id must be distinct.");
+  }
   const issuedAt = new Date(nowMs).toISOString();
   const envelope = {
     schema_version: TENANT_GPT_OAUTH_CORRELATION_SCHEMA_VERSION,
-    operation_id: uuid(input.operation_id || idFactory(), "operation_id"),
-    correlation_id: uuid(input.correlation_id || idFactory(), "correlation_id"),
-    parent_operation_id: uuid(input.parent_operation_id, "parent_operation_id", { required: false }),
-    stage: stage(input.stage || "oauth_authorize"),
+    operation_id: operationId,
+    correlation_id: correlationId,
+    parent_operation_id: parentOperationId,
+    stage: initialStage,
     protected_resource: protectedResource,
     client_id_sha256: hashReference(input.client_id, "client_id", { required: true }),
     subject_user_sha256: null,
@@ -209,6 +261,7 @@ export function createTenantGptOAuthOperationCorrelation(input = {}, {
 export function advanceTenantGptOAuthOperationCorrelation(current, input = {}, {
   nowMs = Date.now(),
 } = {}) {
+  assertAllowedKeys(input, ADVANCE_INPUT_KEYS, "advance_input");
   const previous = normalizeEnvelope(current);
   const nextStage = stage(input.stage);
   const currentIndex = STAGE_INDEX.get(previous.stage);
@@ -224,21 +277,54 @@ export function advanceTenantGptOAuthOperationCorrelation(current, input = {}, {
   if (Date.parse(updatedAt) < Date.parse(previous.updated_at)) {
     failure("oauth_correlation_clock_regression", "Correlation time cannot move backwards.", 409);
   }
+
+  const subjectInputPresent = Boolean(input.user_id || input.tenant_id);
+  if (subjectInputPresent && nextStage !== "identity_verify") {
+    failure("oauth_correlation_subject_binding_stage_invalid", "Subject binding is only allowed at identity_verify.", 409);
+  }
+  if (nextStage === "identity_verify" && (!input.user_id || !input.tenant_id)) {
+    failure("oauth_correlation_subject_binding_required", "identity_verify requires user_id and tenant_id.", 409);
+  }
+  if (input.oauth_code_jti && nextStage !== "oauth_code_issue") {
+    failure("oauth_correlation_code_binding_stage_invalid", "OAuth code binding is only allowed at oauth_code_issue.", 409);
+  }
+  if (nextStage === "oauth_code_issue" && !input.oauth_code_jti) {
+    failure("oauth_correlation_code_binding_required", "oauth_code_issue requires oauth_code_jti.", 409);
+  }
+  if (input.access_token_jti && nextStage !== "oauth_token_exchange") {
+    failure("oauth_correlation_access_binding_stage_invalid", "Access-token binding is only allowed at oauth_token_exchange.", 409);
+  }
+  if (nextStage === "oauth_token_exchange" && !input.access_token_jti) {
+    failure("oauth_correlation_access_binding_required", "oauth_token_exchange requires access_token_jti.", 409);
+  }
+
   const envelope = {
     ...previous,
     stage: nextStage,
-    subject_user_sha256: input.user_id
-      ? hashReference(input.user_id, "user_id", { required: true })
-      : previous.subject_user_sha256,
-    subject_tenant_sha256: input.tenant_id
-      ? hashReference(input.tenant_id, "tenant_id", { required: true })
-      : previous.subject_tenant_sha256,
-    oauth_code_jti_sha256: input.oauth_code_jti
-      ? hashReference(input.oauth_code_jti, "oauth_code_jti", { required: true })
-      : previous.oauth_code_jti_sha256,
-    access_token_jti_sha256: input.access_token_jti
-      ? hashReference(input.access_token_jti, "access_token_jti", { required: true })
-      : previous.access_token_jti_sha256,
+    subject_user_sha256: rejectDrift(
+      previous.subject_user_sha256,
+      input.user_id,
+      "user_id",
+      "oauth_correlation_user_drift",
+    ),
+    subject_tenant_sha256: rejectDrift(
+      previous.subject_tenant_sha256,
+      input.tenant_id,
+      "tenant_id",
+      "oauth_correlation_tenant_drift",
+    ),
+    oauth_code_jti_sha256: rejectDrift(
+      previous.oauth_code_jti_sha256,
+      input.oauth_code_jti,
+      "oauth_code_jti",
+      "oauth_correlation_code_jti_drift",
+    ),
+    access_token_jti_sha256: rejectDrift(
+      previous.access_token_jti_sha256,
+      input.access_token_jti,
+      "access_token_jti",
+      "oauth_correlation_access_jti_drift",
+    ),
     stage_request_id_sha256: input.request_id
       ? hashReference(input.request_id, "request_id", { required: true })
       : null,
@@ -269,7 +355,7 @@ export function verifyTenantGptOAuthOperationCorrelation(value, {
 }
 
 export function tenantGptOAuthOperationCorrelationClaim(value) {
-  return { ...verifyTenantGptOAuthOperationCorrelation(value) };
+  return Object.freeze({ ...verifyTenantGptOAuthOperationCorrelation(value) });
 }
 
 export function safeTenantGptOAuthOperationCorrelationEvidence(value) {
