@@ -1,6 +1,9 @@
 import express, { Router } from "express";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
+import {
+  resolveTenantGptAccessTokenTtlSeconds,
+} from "./tenantGptAccessTokenProfile.js";
 import { TENANT_GPT_OAUTH_CLIENT_ID, TENANT_GPT_SCOPE } from "./tenantGptOAuthPreset.js";
 import {
   TENANT_GPT_AUTHORIZATION_SERVER,
@@ -131,6 +134,7 @@ function issueTenantGptAccessToken(payload, {
 }
 
 export function buildTenantGptOAuthTokenExchangeDeps(deps = {}, env = deps.env || process.env) {
+  const accessTokenTtlSeconds = resolveTenantGptAccessTokenTtlSeconds(env);
   const injectedVerifyCode = typeof deps.verifyCode === "function" ? deps.verifyCode : null;
   const injectedIssueAccessToken = typeof deps.issueAccessToken === "function" ? deps.issueAccessToken : null;
   const verifyCode = injectedVerifyCode || ((code) => {
@@ -142,11 +146,17 @@ export function buildTenantGptOAuthTokenExchangeDeps(deps = {}, env = deps.env |
   });
   const issueAccessToken = injectedIssueAccessToken || ((payload, options = {}) => issueTenantGptAccessToken(
     payload,
-    { ...options, jwtSecret: requireJwtSecret(env) },
+    {
+      ...options,
+      expiresIn: accessTokenTtlSeconds,
+      jwtSecret: requireJwtSecret(env),
+    },
   ));
 
   return {
     ...deps,
+    env,
+    accessTokenTtlSeconds,
     verifyCode(code) {
       return validateTenantGptOAuthAuthorizationCodeBindings(verifyCode(code));
     },
