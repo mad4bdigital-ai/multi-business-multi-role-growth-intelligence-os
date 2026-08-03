@@ -299,7 +299,8 @@ function resolveObservationBinding(observation, bindingsByKey, bindingsByBaseKey
     return bindingsByKey.get(bindingVersionKey(activityBindingId, nativeKpiKey, definitionVersion)) || null;
   }
   const candidates = bindingsByBaseKey.get(baseKey) || [];
-  if (candidates.length > 1) {
+  if (candidates.length === 0) return null;
+  if (candidates.length !== 1) {
     throw new GrowthControlPlaneError(
       "GROWTH_CONTROL_KPI_BINDING_VERSION_REQUIRED",
       "definitionVersion is required when multiple governed KPI mapping versions exist for an observation.",
@@ -307,7 +308,8 @@ function resolveObservationBinding(observation, bindingsByKey, bindingsByBaseKey
       [{ field: "definitionVersion", issue: "required_for_versioned_mapping" }],
     );
   }
-  return candidates[0] || null;
+  const [binding] = candidates;
+  return binding;
 }
 
 export function buildGrowthControlKpiCatalogProjection({ definitions = [], bindings = [], activityBindingIds = null } = {}) {
