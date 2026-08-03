@@ -90,6 +90,17 @@ function digest(value, field) {
   return normalized;
 }
 
+function nonNegativeInteger(value, field) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_invalid_count",
+      `${field} must be a non-negative safe integer.`,
+      { field },
+    );
+  }
+  return value;
+}
+
 function safeRelativePath(value, field, { directory = false } = {}) {
   const normalized = String(value ?? "").trim().replaceAll("\\", "/").replace(/\/$/, "");
   const segments = normalized.split("/");
@@ -264,6 +275,29 @@ function resolveSafeRegularFile(repositoryRoot, sourceFile) {
   return realPath;
 }
 
+function assertReportSafety(report) {
+  const expected = {
+    manifest_finalized: false,
+    repository_mutation_performed: false,
+    read_only: true,
+    applies_sql: false,
+    runtime_authority_changed: false,
+    provider_calls: false,
+    credential_payload_read: false,
+    external_writes: false,
+    secrets_included: false,
+  };
+  for (const [field, expectedValue] of Object.entries(expected)) {
+    if (report[field] !== expectedValue) {
+      throw new AuthorityEvidenceRepositorySourceMaterializationError(
+        "authority_evidence_repository_materialization_invalid_report_safety",
+        `materialization_report.${field} must equal ${String(expectedValue)}.`,
+        { field, expected: expectedValue },
+      );
+    }
+  }
+}
+
 function normalizeMaterializationReport(report) {
   if (!report || typeof report !== "object" || Array.isArray(report)) {
     throw new AuthorityEvidenceRepositorySourceMaterializationError(
@@ -277,38 +311,155 @@ function normalizeMaterializationReport(report) {
       "The canonical source materialization report contract is required.",
     );
   }
-  if (report.status !== "ready_for_repository_review" || report.secrets_included !== false) {
+  if (report.status !== "ready_for_repository_review") {
     throw new AuthorityEvidenceRepositorySourceMaterializationError(
       "authority_evidence_repository_materialization_report_not_ready",
-      "Only a passing no-secret source materialization report may be finalized.",
+      "Only a ready source materialization report may be finalized.",
     );
   }
+  assertReportSafety(report);
+
+  const sourceDirectory = safeRelativePath(report.source_directory, "source_directory", { directory: true });
+  const requiredFamilies = [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort();
+  const sourceDocumentCount = nonNegativeInteger(report.source_document_count, "source_document_count");
+  if (sourceDocumentCount !== requiredFamilies.length) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_invalid_source_count",
+      "The materialization report source-document count must match the registered family count.",
+      { observed: sourceDocumentCount, required: requiredFamilies.length },
+    );
+  }
+  const sourceBundleSha256 = digest(report.source_bundle_sha256, "source_bundle_sha256");
+  const inventorySha256 = digest(report.inventory_sha256, "inventory_sha256");
+  const materializationSha256 = digest(report.materialization_sha256, "materialization_sha256");
+
   if (!Array.isArray(report.source_files)) {
     throw new AuthorityEvidenceRepositorySourceMaterializationError(
       "authority_evidence_repository_materialization_invalid_source_files",
       "materialization_report.source_files must be an array.",
     );
   }
-  const requiredFamilies = [...AUTHORITY_EVIDENCE_SOURCE_FAMILIES].sort();
-  const normalized = report.source_files.map((entry, index) => ({
-    source_family: token(entry?.source_family, `source_files[${index}].source_family`),
-    source_file: safeRelativePath(entry?.source_file, `source_files[${index}].source_file`),
-    content_sha256: digest(entry?.content_sha256, `source_files[${index}].content_sha256`),
-  })).sort((left, right) => left.source_family.localeCompare(right.source_family));
+  const normalized = report.source_files.map((entry, index) => {
+    const sourceFamily = token(entry?.source_family, `source_files[${index}].source_family`);
+    const sourceFile = safeRelativePath(entry?.source_file, `source_files[${index}].source_file`);
+    const expectedSourceFile = `${sourceDirectory}/${sourceFileName(sourceFamily)}`;
+    if (sourceFile !== expectedSourceFile) {
+      throw new AuthorityEvidenceRepositorySourceMaterializationError(
+        "authority_evidence_repository_materialization_noncanonical_source_path",
+        "Every source document must use its canonical family path beneath source_directory.",
+        { source_family: sourceFamily, source_file: sourceFile, expected_source_file: expectedSourceFile },
+      );
+    }
+    return {
+      source_family: sourceFamily,
+      source_file: sourceFile,
+      record_count: nonNegativeInteger(entry?.record_count, `source_files[${index}].record_count`),
+      records_sha256: digest(entry?.records_sha256, `source_files[${index}].records_sha256`),
+      content_sha256: digest(entry?.content_sha256, `source_files[${index}].content_sha256`),
+    };
+  }).sort((left, right) => left.source_family.localeCompare(right.source_family));
   const families = normalized.map((entry) => entry.source_family);
   const uniqueFamilies = [...new Set(families)].sort();
+  const uniqueFiles = new Set(normalized.map((entry) => entry.source_file));
   if (
     normalized.length !== requiredFamilies.length
     || uniqueFamilies.length !== requiredFamilies.length
+    || uniqueFiles.size !== requiredFamilies.length
     || JSON.stringify(uniqueFamilies) !== JSON.stringify(requiredFamilies)
   ) {
     throw new AuthorityEvidenceRepositorySourceMaterializationError(
       "authority_evidence_repository_materialization_incomplete_report",
-      "The materialization report must contain exactly one source document for every registered family.",
+      "The materialization report must contain exactly one canonical source document for every registered family.",
       { observed_families: uniqueFamilies, required_families: requiredFamilies },
     );
   }
-  return normalized;
+
+  const { materialization_sha256: _declaredDigest, ...unsignedReport } = report;
+  const computedMaterializationSha256 = sha256Json(unsignedReport);
+  if (computedMaterializationSha256 !== materializationSha256) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_report_digest_mismatch",
+      "The materialization report no longer matches its canonical digest.",
+      { declared: materializationSha256, computed: computedMaterializationSha256 },
+    );
+  }
+
+  return {
+    source_directory: sourceDirectory,
+    source_document_count: sourceDocumentCount,
+    source_bundle_sha256: sourceBundleSha256,
+    inventory_sha256: inventorySha256,
+    materialization_sha256: materializationSha256,
+    source_files: normalized,
+  };
+}
+
+function parseCanonicalSourceDocument(text, entry) {
+  let document;
+  try {
+    document = JSON.parse(text);
+  } catch (error) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_invalid_source_json",
+      "A source document contains invalid JSON.",
+      { source_file: entry.source_file, error: error.message },
+    );
+  }
+  if (
+    document?.contract !== AUTHORITY_EVIDENCE_REPOSITORY_SOURCE_CONTRACT
+    || document?.source_family !== entry.source_family
+  ) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_source_contract_mismatch",
+      "A source document contract or family differs from its reviewed report entry.",
+      { source_file: entry.source_file },
+    );
+  }
+  if (!Array.isArray(document.records) || document.records.length !== entry.record_count) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_source_record_count_mismatch",
+      "A source document record count differs from its reviewed report entry.",
+      { source_file: entry.source_file, expected: entry.record_count },
+    );
+  }
+  return document;
+}
+
+function reconstructReviewedSourceBundle(documents, normalizedReport) {
+  const sources = documents.map(({ document, entry }) => ({
+    source_family: document.source_family,
+    source_key: document.source_key,
+    source_identity: document.source_identity,
+    observed_at: document.source_observed_at,
+    pagination: {
+      expected_count: entry.record_count,
+      observed_count: entry.record_count,
+      page_count: 1,
+      complete: true,
+      next_cursor: null,
+    },
+    evidence_refs: document.evidence_refs,
+    records: document.records,
+    safety: document.safety,
+    content_sha256: entry.records_sha256,
+  }));
+  const bundle = buildAuthorityEvidenceSourceBundle({ sources });
+  assertReadyBundle(bundle);
+  if (bundle.bundle_sha256 !== normalizedReport.source_bundle_sha256) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_source_bundle_mismatch",
+      "The reviewed source documents no longer reproduce the materialized source bundle.",
+      { declared: normalizedReport.source_bundle_sha256, computed: bundle.bundle_sha256 },
+    );
+  }
+  if (bundle.inventory.inventory_sha256 !== normalizedReport.inventory_sha256) {
+    throw new AuthorityEvidenceRepositorySourceMaterializationError(
+      "authority_evidence_repository_materialization_inventory_mismatch",
+      "The reviewed source documents no longer reproduce the materialized authority inventory.",
+      { declared: normalizedReport.inventory_sha256, computed: bundle.inventory.inventory_sha256 },
+    );
+  }
+  return bundle;
 }
 
 export function finalizeAuthorityEvidenceRepositoryManifest({
@@ -319,12 +470,14 @@ export function finalizeAuthorityEvidenceRepositoryManifest({
 } = {}) {
   const normalizedRepository = token(repository, "repository");
   const normalizedObservedRef = commitSha(observedRef, "observed_ref");
-  const sourceFiles = normalizeMaterializationReport(materializationReport);
+  const normalizedReport = normalizeMaterializationReport(materializationReport);
+  const sourceFiles = normalizedReport.source_files;
   const root = canonicalRepositoryRoot(repositoryRoot);
 
   runGit(root, ["cat-file", "-e", `${normalizedObservedRef}^{commit}`], "Observed ref validation");
   runGit(root, ["merge-base", "--is-ancestor", normalizedObservedRef, "HEAD"], "Observed ref ancestry validation");
 
+  const reviewedDocuments = [];
   const bindings = sourceFiles.map((entry) => {
     const sourcePath = resolveSafeRegularFile(root, entry.source_file);
     const currentText = fs.readFileSync(sourcePath, "utf8");
@@ -337,27 +490,7 @@ export function finalizeAuthorityEvidenceRepositoryManifest({
       );
     }
 
-    let document;
-    try {
-      document = JSON.parse(currentText);
-    } catch (error) {
-      throw new AuthorityEvidenceRepositorySourceMaterializationError(
-        "authority_evidence_repository_materialization_invalid_source_json",
-        "A source document contains invalid JSON.",
-        { source_file: entry.source_file, error: error.message },
-      );
-    }
-    if (
-      document?.contract !== AUTHORITY_EVIDENCE_REPOSITORY_SOURCE_CONTRACT
-      || document?.source_family !== entry.source_family
-    ) {
-      throw new AuthorityEvidenceRepositorySourceMaterializationError(
-        "authority_evidence_repository_materialization_source_contract_mismatch",
-        "A source document contract or family differs from its reviewed report entry.",
-        { source_file: entry.source_file },
-      );
-    }
-
+    parseCanonicalSourceDocument(currentText, entry);
     const reviewedText = runGit(
       root,
       ["show", `${normalizedObservedRef}:${entry.source_file}`],
@@ -370,6 +503,9 @@ export function finalizeAuthorityEvidenceRepositoryManifest({
         { source_file: entry.source_file },
       );
     }
+    const reviewedDocument = parseCanonicalSourceDocument(reviewedText, entry);
+    reviewedDocuments.push({ document: reviewedDocument, entry });
+
     const blobSha = commitSha(
       runGit(root, ["rev-parse", `${normalizedObservedRef}:${entry.source_file}`], `Blob resolution for ${entry.source_file}`).trim(),
       `blob_sha:${entry.source_file}`,
@@ -382,6 +518,8 @@ export function finalizeAuthorityEvidenceRepositoryManifest({
     };
   }).sort((left, right) => left.source_family.localeCompare(right.source_family));
 
+  reconstructReviewedSourceBundle(reviewedDocuments, normalizedReport);
+
   const manifest = {
     contract: AUTHORITY_EVIDENCE_REPOSITORY_MANIFEST_CONTRACT,
     repository: normalizedRepository,
@@ -391,6 +529,9 @@ export function finalizeAuthorityEvidenceRepositoryManifest({
   return deepFreeze({
     manifest,
     manifest_sha256: sha256Json(manifest),
+    materialization_sha256: normalizedReport.materialization_sha256,
+    source_bundle_sha256: normalizedReport.source_bundle_sha256,
+    inventory_sha256: normalizedReport.inventory_sha256,
     source_document_count: bindings.length,
     repository_mutation_performed: false,
     secrets_included: false,
