@@ -8,14 +8,14 @@ on:
       - .github/workflows/surface-callability-current-main-v2-finalizer.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: surface-callability-current-main-v2-finalizer-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  diagnose-generation:
+  finalize:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
       github.event.pull_request.number == 5685 &&
@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/surface-current-main-clean-v2-20260803' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       TARGET_BRANCH: gpt/surface-current-main-clean-v2-20260803
       BASE_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
@@ -35,11 +35,13 @@ jobs:
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Verify exact bounded trigger
         shell: bash
         run: |
           set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           git merge-base --is-ancestor "${BASE_SHA}" HEAD
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
@@ -57,43 +59,229 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Discovery before closure
-        working-directory: http-generic-api
-        run: node scripts/surface-contract-discovery.mjs --write
-
-      - name: Generate closure contracts
-        id: closure-generator
-        working-directory: http-generic-api
-        continue-on-error: true
+      - name: Make closure generation idempotent after queue closure
         shell: bash
         run: |
-          set +e
-          diagnostic="../surface-closure-generator.log"
-          NO_COLOR=1 node scripts/surface-callability-closure/generate_closure_contracts.mjs > "$diagnostic" 2>&1
-          status=$?
-          printf '%s\n' "$status" > ../surface-closure-generator-status.txt
-          cat "$diagnostic"
-          exit "$status"
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Upload closure generator diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surface-closure-generator-diagnostic-${{ github.run_id }}
-          path: |
-            surface-closure-generator.log
-            surface-closure-generator-status.txt
-          if-no-files-found: error
-          retention-days: 1
+          path = Path('http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs')
+          source = path.read_text(encoding='utf-8')
+          start_marker = 'const sourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));'
+          end_marker = 'if (sourceItems.length !== 20) throw new Error(`surface_queue_expected_20_scoped_callable_items_actual_${sourceItems.length}`);'
+          if source.count(start_marker) != 1 or source.count(end_marker) != 1:
+              raise SystemExit('surface_idempotency_patch_scope_mismatch')
+          start = source.index(start_marker)
+          end = source.index(end_marker, start) + len(end_marker)
+          replacement = r'''function certifiedSourceItemsFromManifest() {
+            if (!fs.existsSync(MANIFEST_PATH)) throw new Error("surface_certified_manifest_missing");
+            const manifest = readJson(MANIFEST_PATH);
+            if (manifest.schema_version !== "resource-api-surface-callability-v1") throw new Error("surface_certified_manifest_schema_mismatch");
+            if (manifest.source_queue_item_count !== 20) throw new Error(`surface_certified_manifest_item_count_mismatch:${manifest.source_queue_item_count}`);
+            if (!Array.isArray(manifest.source_queue_tool_keys) || !Array.isArray(manifest.contracts)) throw new Error("surface_certified_manifest_shape_invalid");
+            const expectedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].sort();
+            const manifestToolKeys = unique(manifest.source_queue_tool_keys);
+            if (manifestToolKeys.length !== manifest.source_queue_tool_keys.length) throw new Error("surface_certified_manifest_duplicate_tool_keys");
+            if (JSON.stringify(manifestToolKeys) !== JSON.stringify(expectedToolKeys)) throw new Error("surface_certified_manifest_tool_scope_mismatch");
 
-      - name: Enforce closure generator
-        if: steps.closure-generator.outcome != 'success'
-        run: exit 1
+            const itemsByMigration = new Map();
+            const seenToolKeys = new Set();
+            for (const contract of manifest.contracts) {
+              if (!Array.isArray(contract.tool_bindings)) throw new Error("surface_certified_manifest_bindings_invalid");
+              for (const binding of contract.tool_bindings) {
+                const toolKey = binding?.tool_key;
+                const migrationPath = binding?.migration_file;
+                if (!SURFACE_CLOSURE_TOOL_KEYS.has(toolKey)) throw new Error(`surface_certified_manifest_unexpected_tool:${toolKey}`);
+                if (seenToolKeys.has(toolKey)) throw new Error(`surface_certified_manifest_duplicate_binding:${toolKey}`);
+                seenToolKeys.add(toolKey);
+                if (typeof migrationPath !== "string" || !migrationPath.startsWith("migrations/")) throw new Error(`surface_certified_manifest_migration_path_invalid:${toolKey}`);
+                const migrationFile = migrationPath.slice("migrations/".length);
+                if (!migrationFile || migrationFile.includes("/") || migrationFile.includes("\\")) throw new Error(`surface_certified_manifest_migration_file_invalid:${toolKey}`);
+                const keys = itemsByMigration.get(migrationFile) || [];
+                keys.push(toolKey);
+                itemsByMigration.set(migrationFile, keys);
+              }
+            }
+            const recoveredToolKeys = unique([...seenToolKeys]);
+            if (JSON.stringify(recoveredToolKeys) !== JSON.stringify(expectedToolKeys)) throw new Error("surface_certified_manifest_binding_scope_mismatch");
+            if (itemsByMigration.size !== 20) throw new Error(`surface_certified_manifest_migration_count_mismatch:${itemsByMigration.size}`);
+            return [...itemsByMigration.entries()]
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([migration_file, targets]) => ({
+                migration_file,
+                remediation: [{ action_key: "verify_tool_registry_binding", targets: unique(targets) }],
+              }));
+          }
 
-      - name: Discovery after closure
+          const liveSourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
+          let sourceItems = liveSourceItems;
+          let sourceEvidenceMode = "live_queue";
+          let sourceQueueTotalItemCount = queue.total_items;
+          if (sourceItems.length === 0) {
+            sourceItems = certifiedSourceItemsFromManifest();
+            sourceEvidenceMode = "certified_manifest_revalidation";
+            sourceQueueTotalItemCount = queue.total_items + sourceItems.length;
+          }
+          const scopedToolKeys = unique(sourceItems.flatMap((item) => queueToolTargets(item).filter((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key))));
+          const missingScopedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].filter((key) => !scopedToolKeys.includes(key)).sort();
+          const unexpectedScopedToolKeys = scopedToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
+          if (missingScopedToolKeys.length || unexpectedScopedToolKeys.length) {
+            throw new Error(`surface_queue_scope_mismatch:missing=${missingScopedToolKeys.join(",")}:unexpected=${unexpectedScopedToolKeys.join(",")}`);
+          }
+          if (sourceItems.length !== 20) throw new Error(`surface_queue_expected_20_scoped_callable_items_actual_${sourceItems.length}`);'''
+          source = source[:start] + replacement + source[end:]
+
+          old_manifest = '  source_queue_total_item_count: queue.total_items,\n  source_queue_excluded_item_count: queue.total_items - sourceItems.length,'
+          new_manifest = '  source_queue_total_item_count: sourceQueueTotalItemCount,\n  source_queue_excluded_item_count: sourceQueueTotalItemCount - sourceItems.length,\n  source_queue_evidence_mode: sourceEvidenceMode,'
+          if source.count(old_manifest) != 1:
+              raise SystemExit('surface_manifest_totals_patch_marker_mismatch')
+          source = source.replace(old_manifest, new_manifest)
+
+          old_console = 'repository_queue_items: queue.total_items, excluded_repository_queue_items: queue.total_items - sourceItems.length,'
+          new_console = 'source_evidence_mode: sourceEvidenceMode, source_queue_total_items: sourceQueueTotalItemCount, repository_queue_items: queue.total_items, excluded_repository_queue_items: sourceQueueTotalItemCount - sourceItems.length,'
+          if source.count(old_console) != 1:
+              raise SystemExit('surface_console_totals_patch_marker_mismatch')
+          source = source.replace(old_console, new_console)
+          path.write_text(source, encoding='utf-8')
+          PY
+          node --check http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Generate and persist closure evidence
         working-directory: http-generic-api
-        run: node scripts/surface-contract-discovery.mjs --write
+        run: |
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
 
-      - name: Generate frontend dispatch
+      - name: Reject temporary exporter tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for path in http-generic-api/test-frontend-surface-dispatch.mjs http-generic-api/test-frontend-auth-openapi-parity.mjs; do
+            ! grep -Fq 'surface_artifact_export_complete_intentional_test_failure' "$path"
+          done
+
+      - name: Syntax contracts
         working-directory: http-generic-api
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+        run: |
+          node --check routes/tenantLifecycleRoutes.js
+          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node --check scripts/resource-api-callability-contracts.mjs
+          node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: Workspace invitation controls
+        working-directory: http-generic-api
+        run: node test-workspace-invitation-controls.mjs
+
+      - name: SQL registry extractor
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Surface contract classification
+        working-directory: http-generic-api
+        run: node test-surface-contract-classification.mjs
+
+      - name: Resource effect classes
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Resource API coverage
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Surface full closure
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
+
+      - name: Frontend Surface dispatch
+        working-directory: http-generic-api
+        run: node test-frontend-surface-dispatch.mjs
+
+      - name: Frontend auth OpenAPI parity
+        working-directory: http-generic-api
+        run: node test-frontend-auth-openapi-parity.mjs
+
+      - name: OpenAPI route coverage
+        working-directory: http-generic-api
+        run: node test-openapi-route-coverage.mjs
+
+      - name: Hostinger full-closure safety
+        working-directory: http-generic-api
+        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: OpenAPI auth parity
+        working-directory: http-generic-api
+        run: npm run openapi:auth:check
+
+      - name: Prove scoped queue closure
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
+          const scoped = new Set(manifest.source_queue_tool_keys || []);
+          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
+            action.action_key === 'verify_tool_registry_binding' &&
+            (action.targets || []).some((key) => scoped.has(key))
+          ));
+          if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
+          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_queue_item_count_mismatch:${manifest.source_queue_item_count}`);
+          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
+          if (manifest.source_queue_evidence_mode !== 'certified_manifest_revalidation') throw new Error(`surface_revalidation_evidence_mode_mismatch:${manifest.source_queue_evidence_mode}`);
+          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,evidence_mode:manifest.source_queue_evidence_mode,secrets_included:false}));
+          NODE
+
+      - name: Remove finalizer and enforce bounded outputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm "${WORKFLOW_PATH}"
+          cat > /tmp/allowed.txt <<'EOF'
+          .github/workflows/surface-callability-current-main-v2-finalizer.yml
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-safety-attestations.json
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          http-generic-api/resource-api-surface-callability.manifest.json
+          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+          http-generic-api/scripts/test-manifest.mjs
+          http-generic-api/surface-contract-classification-evidence.json
+          http-generic-api/test-frontend-auth-openapi-parity.mjs
+          http-generic-api/test-frontend-surface-dispatch.mjs
+          http-generic-api/test-surface-callability-full-closure.mjs
+          EOF
+          sort -u /tmp/allowed.txt -o /tmp/allowed.txt
+          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
+          unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
+          test -z "$unexpected" || { printf 'unexpected finalizer outputs:\n%s\n' "$unexpected"; exit 1; }
+          for path in \
+            "${WORKFLOW_PATH}" \
+            http-generic-api/resource-api-surface-callability.manifest.json \
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
+            http-generic-api/test-surface-callability-full-closure.mjs; do
+            grep -Fxq "$path" /tmp/changed.txt || { echo "missing required output: $path"; exit 1; }
+          done
+
+      - name: Commit product-only result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$before" = "$(git rev-parse HEAD)"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(surface): make certified closure regeneration idempotent'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$after" = "$(git rev-parse HEAD)"
+          test ! -e "${WORKFLOW_PATH}"
