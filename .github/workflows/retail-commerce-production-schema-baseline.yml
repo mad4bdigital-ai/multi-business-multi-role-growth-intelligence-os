@@ -33,7 +33,6 @@ jobs:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_CONNECTION_LIMIT: "1"
       DB_CONNECT_TIMEOUT_MS: "10000"
-      REPORT_PATH: ${{ runner.temp }}/retail-commerce-production-schema-baseline/retail-commerce-production-schema-baseline.json
 
     steps:
       - name: Reject non-main or unconfirmed execution
@@ -53,6 +52,14 @@ jobs:
           ref: ${{ env.EXPECTED_MAIN_SHA }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Initialize runtime report directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/retail-commerce-production-schema-baseline"
+          echo "REPORT_PATH=${report_dir}/retail-commerce-production-schema-baseline.json" >> "${GITHUB_ENV}"
+          mkdir -p "${report_dir}"
 
       - name: Verify protected main did not move
         shell: bash
@@ -92,7 +99,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$(dirname "${REPORT_PATH}")"
           node scripts/retail-commerce-production-schema-baseline.mjs --report="${REPORT_PATH}"
 
       - name: Publish bounded evidence summary
