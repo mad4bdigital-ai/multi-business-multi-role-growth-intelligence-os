@@ -1,4 +1,4 @@
-name: Temporary Certified Release ARM Validation d5e380fd
+name: Temporary Certified Release Windows Validation d5e380fd
 
 on:
   push:
@@ -17,11 +17,11 @@ permissions:
   issues: write
 
 concurrency:
-  group: tmp-certified-release-arm-validation-d5e380fd
+  group: tmp-certified-release-portable-validation-d5e380fd
   cancel-in-progress: true
 
 jobs:
-  certified-release-arm-validation:
+  certified-release-windows-validation:
     if: >-
       (github.event_name == 'push' &&
        github.ref_name == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1') ||
@@ -29,7 +29,7 @@ jobs:
        github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.pull_request.head.ref == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1' &&
        github.event.pull_request.base.ref == 'main')
-    runs-on: ubuntu-24.04-arm
+    runs-on: windows-latest
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
@@ -39,12 +39,12 @@ jobs:
       EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
       CANDIDATE_BRANCH: gpt/validate-certified-release-candidate-20260803-d5e380fd-f5c1ae88-v1
       CERTIFIED_BASE_BRANCH: gpt/validate-certified-release-base-20260803-d5e380fd-v1
-      REPORT_DIR: ${{ runner.temp }}/certified-release-arm-validation
+      REPORT_DIR: ${{ runner.temp }}/certified-release-windows-validation
     steps:
-      - name: Record ARM certification start
+      - name: Record Windows certification start
         shell: bash
         run: |
-          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_ARM_ONE_SHOT phase=started run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} runner_pool=ubuntu-24.04-arm code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_WINDOWS_ONE_SHOT phase=started run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} runner_pool=windows-latest code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
       - name: Checkout exact immutable candidate
         uses: actions/checkout@v5
@@ -99,10 +99,12 @@ jobs:
           done
 
       - name: Install HTTP API dependencies
+        shell: bash
         working-directory: http-generic-api
         run: npm ci
 
       - name: Run HTTP API unit integration and architecture validation
+        shell: bash
         working-directory: http-generic-api
         env:
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
@@ -122,9 +124,11 @@ jobs:
           node test-openapi-split-regeneration-parity.mjs
 
       - name: Install root dependencies
+        shell: bash
         run: npm ci
 
       - name: Validate execution resolver
+        shell: bash
         run: |
           set -Eeuo pipefail
           npm run typecheck
@@ -140,11 +144,11 @@ jobs:
           mkdir -p "$REPORT_DIR"
           cat > "$REPORT_DIR/summary.json" <<EOF
           {
-            "contract": "mad4b.certified-release-arm-one-shot.v1",
+            "contract": "mad4b.certified-release-windows-one-shot.v1",
             "candidate_sha": "$CANDIDATE_SHA",
             "certified_cut_sha": "$CERTIFIED_CUT_SHA",
             "expected_production_sha": "$EXPECTED_PRODUCTION_SHA",
-            "runner_pool": "ubuntu-24.04-arm",
+            "runner_pool": "windows-latest",
             "tree_policy": "exact_certified_cut_tree",
             "repository_mutation_performed": false,
             "production_merge_executed": false,
@@ -157,21 +161,21 @@ jobs:
           }
           EOF
 
-      - name: Upload certified release ARM evidence
+      - name: Upload certified release Windows evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: certified-release-arm-d5e380fd-${{ github.run_id }}-${{ github.run_attempt }}
+          name: certified-release-windows-d5e380fd-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ env.REPORT_DIR }}/summary.json
             ${{ runner.temp }}/test-suite-reports/*.json
           if-no-files-found: error
           retention-days: 30
 
-      - name: Record ARM certification completion
+      - name: Record Windows certification completion
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         shell: bash
         run: |
-          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_ARM_ONE_SHOT phase=completed run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} job_status=${JOB_STATUS} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} artifact=certified-release-arm-d5e380fd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT} code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_WINDOWS_ONE_SHOT phase=completed run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} job_status=${JOB_STATUS} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} artifact=certified-release-windows-d5e380fd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT} code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
