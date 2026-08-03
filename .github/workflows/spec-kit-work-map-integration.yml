@@ -2,6 +2,15 @@ name: Spec Kit Work Map Integration
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: Governed work branch whose exact head is being verified
+        required: false
+        type: string
+      expected_head_sha:
+        description: Exact commit SHA to check out and verify
+        required: false
+        type: string
   pull_request:
     branches: [main]
     paths:
@@ -29,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: spec-kit-work-map-integration-${{ github.ref }}
+  group: spec-kit-work-map-integration-${{ github.event.pull_request.number || inputs.branch || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,12 +47,23 @@ jobs:
     runs-on: ubuntu-latest
     env:
       WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
-      EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+      EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
+
+      - name: Verify exact Work Map checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CHECKED_OUT_SHA}"
+          if [[ "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' && -n "${TARGET_BRANCH}" ]]; then
+            git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            test "$(git rev-parse "refs/remotes/origin/${TARGET_BRANCH}")" = "${EXPECTED_CHECKED_OUT_SHA}"
+          fi
 
       - uses: actions/setup-node@v6
         with:
@@ -120,6 +140,7 @@ jobs:
             run_attempt: process.env.GITHUB_RUN_ATTEMPT,
             event_name: process.env.GITHUB_EVENT_NAME,
             event_sha: process.env.GITHUB_SHA,
+            target_branch: process.env.TARGET_BRANCH,
             expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA,
             tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA,
             source_hash_sha256: sourceHash,
@@ -138,7 +159,7 @@ jobs:
         if: steps.work_map_currentness.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
+          name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.branch || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
           path: ${{ runner.temp }}/work-map-repair-candidate
           if-no-files-found: error
           retention-days: 14

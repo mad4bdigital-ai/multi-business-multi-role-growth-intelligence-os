@@ -245,8 +245,93 @@ jobs:
           [[ "${RESULT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
           remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head_sha}" = "${RESULT_HEAD_SHA}"
-          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
-          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+
+          for workflow in ci.yml spec-kit-work-map-integration.yml; do
+            workflow_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
+            if [[ "${workflow_state}" != "active" ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            fi
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = "active"
+          done
+
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          ci_payload_file="${RUNNER_TEMP}/work-map-ci-verification-dispatch.json"
+          integration_payload_file="${RUNNER_TEMP}/work-map-integration-verification-dispatch.json"
+          jq -n \
+            --arg ref "${TARGET_BRANCH}" \
+            --arg expected_head_sha "${RESULT_HEAD_SHA}" \
+            '{ref:$ref,inputs:{expected_head_sha:$expected_head_sha}}' \
+            > "${ci_payload_file}"
+          jq -n \
+            --arg ref "${TARGET_BRANCH}" \
+            --arg branch "${TARGET_BRANCH}" \
+            --arg expected_head_sha "${RESULT_HEAD_SHA}" \
+            '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}' \
+            > "${integration_payload_file}"
+
+          ci_stdout="${DIAGNOSTIC_ROOT}/dispatch-ci.stdout"
+          ci_stderr="${DIAGNOSTIC_ROOT}/dispatch-ci.stderr"
+          integration_stdout="${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.stdout"
+          integration_stderr="${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.stderr"
+
+          set +e
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+            --input "${ci_payload_file}" >"${ci_stdout}" 2>"${ci_stderr}"
+          ci_dispatch_exit_code=$?
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/dispatches" \
+            --input "${integration_payload_file}" >"${integration_stdout}" 2>"${integration_stderr}"
+          integration_dispatch_exit_code=$?
+          set -e
+
+          printf '%s\n' "${ci_dispatch_exit_code}" > "${DIAGNOSTIC_ROOT}/dispatch-ci.exit-code"
+          printf '%s\n' "${integration_dispatch_exit_code}" > "${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.exit-code"
+          cat "${ci_stdout}" || true
+          cat "${ci_stderr}" || true
+          cat "${integration_stdout}" || true
+          cat "${integration_stderr}" || true
+
+          ci_run_id=""
+          integration_run_id=""
+          if [[ "${ci_dispatch_exit_code}" -eq 0 ]]; then
+            for _ in $(seq 1 30); do
+              ci_run_id="$(gh api --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+                -f event=workflow_dispatch \
+                -f branch="${TARGET_BRANCH}" \
+                -f per_page=30 \
+                --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${RESULT_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${ci_run_id}" ]]; then
+                break
+              fi
+              sleep 2
+            done
+          fi
+          if [[ "${integration_dispatch_exit_code}" -eq 0 ]]; then
+            for _ in $(seq 1 30); do
+              integration_run_id="$(gh api --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/runs" \
+                -f event=workflow_dispatch \
+                -f branch="${TARGET_BRANCH}" \
+                -f per_page=30 \
+                --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${RESULT_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${integration_run_id}" ]]; then
+                break
+              fi
+              sleep 2
+            done
+          fi
+
+          echo "ci_dispatch_exit_code=${ci_dispatch_exit_code}" >> "$GITHUB_OUTPUT"
+          echo "integration_dispatch_exit_code=${integration_dispatch_exit_code}" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=${ci_run_id}" >> "$GITHUB_OUTPUT"
+          echo "integration_run_id=${integration_run_id}" >> "$GITHUB_OUTPUT"
+
+          [[ "${ci_dispatch_exit_code}" -eq 0 ]]
+          [[ "${integration_dispatch_exit_code}" -eq 0 ]]
+          [[ "${ci_run_id}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${integration_run_id}" =~ ^[1-9][0-9]*$ ]]
 
       - name: Finalize diagnostic evidence
         id: diagnostics
@@ -256,6 +341,10 @@ jobs:
           PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
           CHANGED: ${{ steps.publish.outputs.changed }}
           RESULT_HEAD_SHA: ${{ steps.publish.outputs.result_head_sha }}
+          CI_DISPATCH_EXIT_CODE: ${{ steps.verify.outputs.ci_dispatch_exit_code }}
+          INTEGRATION_DISPATCH_EXIT_CODE: ${{ steps.verify.outputs.integration_dispatch_exit_code }}
+          CI_VERIFICATION_RUN_ID: ${{ steps.verify.outputs.ci_run_id }}
+          WORK_MAP_VERIFICATION_RUN_ID: ${{ steps.verify.outputs.integration_run_id }}
           JOB_STATUS: ${{ job.status }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -290,12 +379,16 @@ jobs:
           | Failed validation contracts | \`${failed_validation_contracts}\` |
           | Generated changes | \`${CHANGED:-unknown}\` |
           | Result head | \`${RESULT_HEAD_SHA:-unresolved}\` |
+          | CI dispatch exit code | \`${CI_DISPATCH_EXIT_CODE:-unresolved}\` |
+          | Work Map integration dispatch exit code | \`${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved}\` |
+          | CI verification run | \`${CI_VERIFICATION_RUN_ID:-unresolved}\` |
+          | Work Map integration verification run | \`${WORK_MAP_VERIFICATION_RUN_ID:-unresolved}\` |
           | Protected branch mutation | \`false\` |
           | Force push | \`false\` |
           EOF
 
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-autofix.v2" \
+            --arg contract "mad4b.spec-kit-work-map-autofix.v3" \
             --arg outcome "${JOB_STATUS}" \
             --arg target_branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
@@ -305,11 +398,15 @@ jobs:
             --arg failed_validation_contracts "${failed_validation_contracts}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             --arg changed "${CHANGED:-unknown}" \
-            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            --arg ci_dispatch_exit_code "${CI_DISPATCH_EXIT_CODE:-unresolved}" \
+            --arg integration_dispatch_exit_code "${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved}" \
+            --arg ci_verification_run_id "${CI_VERIFICATION_RUN_ID:-unresolved}" \
+            --arg work_map_verification_run_id "${WORK_MAP_VERIFICATION_RUN_ID:-unresolved}" \
+            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,ci_dispatch_exit_code:$ci_dispatch_exit_code,integration_dispatch_exit_code:$integration_dispatch_exit_code,ci_verification_run_id:$ci_verification_run_id,work_map_verification_run_id:$work_map_verification_run_id,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V3 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 

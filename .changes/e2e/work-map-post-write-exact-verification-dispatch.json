@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-post-write-exact-verification-dispatch",
+  "title": "Work Map post-write exact verification dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+      ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
+    ]
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind governed Work Map post-write verification to the exact committed branch head, preserve dispatch stderr, and require observable CI and Work Map integration run identities.",
+      "e2e_journeys": [
+        {
+          "id": "writer-dispatches-observable-exact-post-write-verification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Work Map writer and CI evidence reviewer",
+          "entrypoint": "The governed writer completes generation, idempotency proof, commit, push, and branch-head readback.",
+          "terminal_outcome": "CI and Work Map integration are active, accept explicit branch/SHA inputs, check out the committed SHA, and expose verification run IDs whose head SHA equals the writer result head.",
+          "steps": [
+            "Verify the pushed work-branch head still equals result_head_sha.",
+            "Read and, when necessary, enable CI and Work Map integration before dispatch.",
+            "Dispatch CI through the Actions REST endpoint with expected_head_sha.",
+            "Dispatch Work Map integration through the Actions REST endpoint with branch and expected_head_sha.",
+            "Persist independent stdout, stderr, and exit-code evidence for both dispatches.",
+            "Poll bounded workflow-run listings for workflow_dispatch runs on the target branch whose head_sha equals result_head_sha.",
+            "Fail closed unless both dispatches succeed and both numeric verification run IDs are observed.",
+            "CI verifies the selected SHA in all load-bearing jobs and binds test/deployment evidence to it.",
+            "Work Map integration verifies local checkout identity and current remote work-branch identity."
+          ],
+          "assertions": [
+            "The writer does not use opaque gh workflow run calls for post-write verification.",
+            "Writer-supplied workflow_dispatch inputs are explicitly declared by both receiving workflows.",
+            "A disabled verification workflow is enabled and read back as active before dispatch.",
+            "Dispatch errors remain available in the writer diagnostic Artifact.",
+            "No verification evidence is accepted without an exact matching head SHA and numeric run ID.",
+            "Push and pull-request CI execution retain their existing event SHA semantics when no manual expected_head_sha is supplied.",
+            "No protected-ref mutation, provider call, deployment, database action, migration Apply, credential payload read, external send, or secret inclusion is introduced."
+          ],
+          "tests": [
+            {
+              "path": "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+              "command": "node test-work-map-post-write-exact-verification-dispatch.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+            ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish typed linkage between writer, CI, and Work Map integration run identities across repository evidence families."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove exact identity preservation across dispatch retries, concurrent branch movement, delayed run registration, and workflow re-enablement."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository CI dispatch correction grants no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository CI dispatch correction grants no Production or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
