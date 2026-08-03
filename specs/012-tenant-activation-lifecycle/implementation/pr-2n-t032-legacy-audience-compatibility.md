@@ -11,9 +11,10 @@ It implements repository-level policy and evidence for:
 - deterministic rejection after cutoff, when compatibility is disabled, when the cutoff is absent, when `iat` is invalid or future, and when the token was issued after cutoff;
 - rejection of zero-audience and multi-audience tokens;
 - stable no-secret metric classification for every audience decision;
-- resource-claim mismatch classification without recording a false accepted decision.
+- resource-claim mismatch classification without recording a false accepted decision;
+- fail-closed token verification when the governed JWT secret is absent or unbounded.
 
-This slice does **not** close T032. Repository policy, verifier wiring, tests, deployment, and live metric readback are separate completion gates.
+This slice does **not** close T032. Repository policy, verifier wiring, tests, deployment, and live legacy compatibility evidence are separate completion gates.
 
 ## Audience decision
 
@@ -34,6 +35,12 @@ A legacy token is accepted only when all of the following are true:
 The five-minute skew is a governed maximum. A caller cannot widen it by injecting a larger option.
 
 The exact cutoff instant is inclusive. The first millisecond after cutoff rejects the legacy audience. This implementation does not extend or mutate the configured cutoff.
+
+## Verification dependency
+
+The verifier no longer accepts a known development fallback when `JWT_SECRET` is absent. It reads the governed secret at verification time and fails closed with `tenant_gpt_verifier_unavailable` and HTTP `503` when the secret is missing or exceeds 4096 characters.
+
+This dependency failure occurs before signature or audience evaluation. It cannot be misclassified as an invalid user token and does not expose secret material.
 
 ## Stable classifications
 
@@ -59,9 +66,9 @@ The metric contract is:
 
 `tenant_gpt_audience_compatibility_total{classification,outcome,audience_mode,cutoff_state}`
 
-Each decision increments by one. The labels do not include tenant ID, user ID, token ID, token contents, authorization headers, raw claims, or other unbounded values.
+Each decision has a value of one. The labels do not include tenant ID, user ID, token ID, token contents, authorization headers, raw claims, or other unbounded values.
 
-The default recorder suppresses ordinary strict-acceptance logs to avoid request-volume logging. It records legacy acceptance at `info` and compatibility rejection at `warn`. A caller-supplied metrics sink receives strict and legacy decisions.
+The default recorder suppresses ordinary strict-acceptance logs to avoid request-volume logging. Strict classification remains attached to the verified request context and is available to a caller-supplied metrics sink. The default recorder logs legacy acceptance at `info` and compatibility rejection at `warn`.
 
 Telemetry is best effort. Failure of the metrics callback does not deny an otherwise valid token and does not convert a rejection into acceptance.
 
@@ -77,6 +84,7 @@ The deterministic regressions cover:
 - a caller attempting to widen clock skew;
 - zero and multiple audiences;
 - wrong audience and wrong resource;
+- missing and oversized verifier secrets;
 - stable metric name and label set;
 - no-secret default logging;
 - verifier propagation into `req.auth`;
@@ -86,14 +94,13 @@ The deterministic regressions cover:
 
 T032 remains open until all of the following are complete:
 
-1. policy, verifier, and readiness regressions pass on the reviewed head;
+1. policy, verifier, and readiness regressions pass on the hardened reviewed head;
 2. remaining repository CI gates complete without failure;
 3. the reviewed merge SHA is deployed through the governed release path;
-4. strict single-audience evidence is read back from the deployed runtime;
-5. bounded legacy acceptance evidence is read back before cutoff when an authorized test token exists;
-6. legacy rejection after cutoff or explicit disablement is read back without extending the cutoff;
-7. multi-audience rejection is read back;
-8. live evidence confirms the labels contain no tenant, user, token, authorization header, or raw claims.
+4. bounded legacy acceptance evidence is read back before cutoff when an authorized test token exists;
+5. legacy rejection after cutoff or explicit disablement is read back without extending the cutoff;
+6. multi-audience rejection is read back;
+7. live evidence confirms the labels contain no tenant, user, token, authorization header, or raw claims.
 
 ## Non-effects
 
