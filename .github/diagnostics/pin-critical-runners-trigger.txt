@@ -1,0 +1,11 @@
+critical_runner_label_pinning_trigger
+baseline=b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
+allowlisted_workflows=9
+requested_label=ubuntu-24.04
+production_mutation=false
+provider_mutation=false
+credential_access=false
+sql_execution=false
+migration_apply=false
+database_mutation=false
+external_send=false
