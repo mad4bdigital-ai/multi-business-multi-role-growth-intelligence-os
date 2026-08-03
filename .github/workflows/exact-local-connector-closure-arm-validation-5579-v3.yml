@@ -1,0 +1,159 @@
+name: Exact Local Connector Closure ARM Validation 5579 V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-local-connector-closure-arm-base-5579-52802460
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-local-connector-closure-arm-validation-5579-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Exact Candidate Full ARM Validation 5579 V3
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      EVIDENCE_DIR: ${{ runner.temp }}/local-connector-closure-5579-v3-${{ github.run_id }}
+    steps:
+      - name: Checkout exact immutable snapshot
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Execute exact read-only validation
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/validation-snapshot-local-connector-closure-5579-b647271c
+          EXPECTED_HEAD_SHA: b647271c1a177abaabe52ea529244fc3e5330f6e
+          EXPECTED_MAIN_SHA: 52802460dd9d229be3e946689fd49cc2f35a37dc
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR/reference-integrity" "$EVIDENCE_DIR/repository-tool-lifecycle"
+
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_HEAD_REF})" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}^")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "1"
+
+          git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF_FILES'
+          .changes/e2e/local-connector-production-closure-automation-retirement.json
+          .github/local-connector-closure/trigger-3945-792ff63a.txt
+          .github/scripts/governed-local-connector-production-closure.mjs
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/governed-local-connector-production-closure-pr-target.yml
+          .github/workflows/governed-local-connector-production-closure-push.yml
+          .github/workflows/governed-local-connector-production-closure.yml
+          .github/workflows/local-connector-closure-v8-trigger.txt
+          http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
+          EOF_FILES
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" > "$EVIDENCE_DIR/name-status.tsv"
+
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          GITHUB_BASE_REF=main GITHUB_SHA="$EXPECTED_HEAD_SHA" node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+          node http-generic-api/test-resource-api-architecture.mjs
+          node http-generic-api/test-resource-api-service.mjs
+          GITHUB_BASE_REF=main GITHUB_SHA="$EXPECTED_HEAD_SHA" node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+
+          for path in \
+            .github/local-connector-closure/trigger-3945-792ff63a.txt \
+            .github/scripts/governed-local-connector-production-closure.mjs \
+            .github/workflows/governed-local-connector-production-closure-pr-target.yml \
+            .github/workflows/governed-local-connector-production-closure-push.yml \
+            .github/workflows/governed-local-connector-production-closure.yml \
+            .github/workflows/local-connector-closure-v8-trigger.txt
+          do
+            test ! -e "$path"
+          done
+
+          workflow=.github/workflows/automation-overlap-guard.yml
+          grep -F 'contents: read' "$workflow"
+          ! grep -E 'issues:[[:space:]]*write|pull-requests:[[:space:]]*write|contents:[[:space:]]*write|BACKEND_API_KEY|RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE|governed-local-connector-production-closure' "$workflow"
+          node --check http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
+          (cd http-generic-api && node scripts/local-connector-closure-automation-retirement-self-test.mjs)
+
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "$EVIDENCE_DIR/name-status.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+
+          (
+            cd http-generic-api
+            npm ci
+            GITHUB_SHA="$EXPECTED_HEAD_SHA" \
+              TEST_SUITE_REPORT_DIR="$EVIDENCE_DIR/test-suite-reports" \
+              npm test
+            npm run validate
+          )
+
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+          printf '{"ok":true,"candidate_pr":5579,"candidate_sha":"%s","main_sha":"%s","commit_count":1,"changed_files":9,"runner":"ubuntu-24.04-arm","provider_mutation":false,"production_mutation":false,"credential_access":false,"database_mutation":false,"secrets_included":false}\n' \
+            "$EXPECTED_HEAD_SHA" "$EXPECTED_MAIN_SHA" > "$EVIDENCE_DIR/result.json"
+
+      - name: Upload exact ARM validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-local-connector-closure-5579-arm-v3-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
