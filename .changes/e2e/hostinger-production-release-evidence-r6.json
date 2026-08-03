@@ -19,39 +19,86 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events while preserving exact Production, provider GET-only, secret, and no-mutation boundaries.",
+      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events, cancels stale same-PR evidence runs before provider-capable work, classifies unrelated pull requests before any provider-capable work, uses only step-valid runner context, and preserves the complete immutable Production evidence, provider GET-only, secret, and no-mutation contract.",
       "e2e_journeys": [
+        {
+          "id": "skip-unrelated-pull-request-before-r6-provider-access",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted main R6 trigger-scope classifier",
+          "entrypoint": "Any pull request targeting main that is not the exact same-repository owner Draft pull request changing only the governed R6 trigger JSON.",
+          "terminal_outcome": "The newest PR event supersedes stale runs for the same PR, then the read-only classifier emits eligible=false and completes successfully; the provider-capable collector is skipped before checkout, credential access, authenticated Hostinger GET, public runtime GET, Artifact creation, or evidence summary.",
+          "steps": [
+            "Use a PR-number concurrency group with cancel-in-progress enabled so the newest event cancels stale runs before classification or provider access.",
+            "Run a GitHub-read-only classifier before the provider-capable evidence collector.",
+            "Reject non-matching repository identity, repository-owner user ID, or Draft state without querying pull-request files.",
+            "For an otherwise eligible internal Draft pull request, read changed filenames through GitHub GET only.",
+            "Require exactly one changed filename equal to .github/ops/hostinger-production-release-evidence-r6-trigger.json.",
+            "Emit eligible=false and a notice for every other scope.",
+            "Skip the entire evidence collector through a job dependency and exact eligibility output."
+          ],
+          "assertions": [
+            "R6 concurrency is scoped by pull-request number and cancel-in-progress is true.",
+            "A newer opened, reopened, or synchronize event cancels stale same-PR runs before any provider-capable job can execute.",
+            "The classifier precedes the collector and exposes one eligible output.",
+            "The classifier contains no actions/checkout, HOSTINGER_API_TOKEN, Hostinger endpoint, reporter invocation, public runtime endpoint, Artifact upload, or GitHub Step Summary.",
+            "The classifier has read-only contents and pull-request permissions and performs no GitHub mutation.",
+            "Unrelated pull requests complete the R6 workflow without entering or failing the provider-capable collector.",
+            "Unrelated pull requests perform no credential access, authenticated provider GET, public runtime GET, repository mutation, or external send.",
+            "The collector runs only when needs.classify-trigger-scope.outputs.eligible equals true."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-release-evidence-r6-unrelated-pr-skip-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-release-evidence-r6.yml",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
+          ]
+        },
         {
           "id": "collect-current-production-build-and-runtime-evidence-r6-via-read-only-internal-pr",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted main GitHub Actions workflow",
           "entrypoint": "same-repository Draft PR opened, reopened, or synchronized while changing only the governed trigger JSON, with its exact trigger branch and nonce supplied by the authorization-bound trigger contract rather than embedded in the permanent workflow",
-          "terminal_outcome": "Trusted main verifies the exact PR actor, one-file trigger scope, current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence before collecting GET-only Hostinger and public runtime evidence, uploading a secret-free Artifact, and writing only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
+          "terminal_outcome": "The newest exact PR event cancels stale same-PR evidence runs, then trusted main classifies the exact one-file trigger as eligible, registers the collector without job-level runner context evaluation, verifies current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence, writes an immutable execution-context record, then collects GET-only Hostinger and public runtime evidence, uploads one scrubbed Artifact, and writes only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
           "steps": [
-            "Load the workflow only from protected main on an internal pull_request opened, reopened, or synchronize event targeting main.",
-            "Require the trigger pull request to originate from the same repository, repository owner user ID, and remain Draft.",
+            "Load the workflow only from protected main on internal pull_request opened, reopened, or synchronize events targeting main, without an outer paths filter.",
+            "Group runs by pull-request number and cancel stale in-progress runs when a newer PR event supersedes their head.",
+            "Classify exact same-repository owner Draft one-file trigger scope before enabling the provider-capable collector.",
             "Checkout the exact pull request base SHA with persisted credentials disabled and require it to remain current main.",
-            "Initialize the evidence directory at step runtime through RUNNER_TEMP and GITHUB_ENV; never reference runner.temp from job-level env evaluation.",
-            "Require the trigger pull request to change exactly .github/ops/hostinger-production-release-evidence-r6-trigger.json and no other path, replacing the unreliable outer paths filter with an explicit in-job fail-closed check.",
+            "Initialize the evidence directory at step runtime from RUNNER_TEMP through GITHUB_ENV and use runner.temp only in step-valid expression contexts.",
+            "Repeat the exact one-file trigger-scope check inside the collector as defense in depth.",
             "Read the trigger JSON by exact head SHA and validate its contract, dynamic exact trigger branch, nonce, current tooling SHA, Production SHA, Production merge timestamp, reporter blobs, authorization comment ID, and all no-mutation flags.",
-            "Verify the authorization comment owner, R6 token, read-only internal Draft PR trigger mode, exact identities, dynamic trigger branch, nonce, and provider GET-only boundary.",
-            "Reject an existing R6 claim or completion for the immutable binding using a read-only Issue lookup.",
-            "Run the canonical Hostinger build reporter contract and collect provider build-history evidence using authenticated GET only.",
-            "Read /health, /version, /deployment-info, and /connector-agent/version through bounded public HTTPS GET requests.",
-            "Redact credential-like values, upload one Artifact, and publish a repository-read-only GitHub Step Summary without mutating Issue metadata."
+            "Read the authorization comment once, verify its owner and exact R6 binding, and reject an existing R6 claim or completion using a read-only Issue lookup.",
+            "Write an immutable execution-context record containing authorization, binding, nonce, trigger branch and SHA, tooling SHA, Production identity, run identity, PR identity, and all no-effect markers.",
+            "Run the canonical Hostinger build reporter contract and collect provider build-history evidence using authenticated GET only into the same step-resolved evidence directory.",
+            "Read /health, /version, /deployment-info, and /connector-agent/version through bounded public HTTPS GET requests and retain exact SHA, branch provenance, canonical-manifest, and deployed-at observations.",
+            "Preserve the exact secrets_included boolean safety marker during scrubbing while redacting credential-like keys and values.",
+            "Create complete secret-free build and topology fallback reports when a source report is absent.",
+            "Upload one scrubbed Artifact and publish a repository-read-only GitHub Step Summary without mutating Issue metadata."
           ],
           "assertions": [
             "R6 has no issue_comment or workflow_dispatch trigger.",
-            "R6 observes opened, reopened, and synchronize pull-request events without a paths filter, then enforces the exact one-file trigger scope inside the trusted job.",
-            "The workflow contains no job-level runner.temp expression; runtime-only runner context is consumed inside a step and the Artifact path uses step-level runner.temp.",
+            "R6 concurrency is grouped by pull-request number with cancel-in-progress true, so only the newest event can progress to classification and collection.",
+            "A synchronize event that changes the trigger head invalidates and cancels the older run; the replacement authorization remains bound to its exact immutable head.",
+            "R6 observes opened, reopened, and synchronize pull-request events without a paths filter, classifies exact scope before provider access, then repeats the one-file check inside the trusted collector.",
+            "No job-level environment value references runner context; EVIDENCE_DIR is initialized from RUNNER_TEMP at step runtime, and reporter and Artifact paths use step-valid runner.temp expressions.",
             "The pull_request workflow has no write permission and performs no GitHub API mutation.",
-            "The trigger PR must originate from the same repository, be owned by the repository owner ID, and remain Draft.",
+            "The trigger PR must originate from the same repository, be owned by the repository owner ID, remain Draft, and change only the governed trigger JSON.",
             "The permanent workflow embeds no work-branch literal; the exact trigger branch and nonce are supplied by the governed trigger JSON and matched against the authorization comment.",
-            "Only the governed trigger JSON may differ from current main.",
             "The workflow fails closed if current main or protected Production moves before evidence collection.",
             "The workflow is bound to Production 2669991a882c7f7939510fbbace17f462a42517c and merge time 2026-08-03T10:14:37Z.",
             "The canonical reporter and reporter-test blobs are verified before HOSTINGER_API_TOKEN is used.",
+            "The Artifact contains immutable execution context, complete build timing and fallback evidence, detailed deployment topology including deployed_at, and a distinct branch-provenance mismatch classification.",
+            "The scrubber preserves only an exact boolean secrets_included safety marker and still redacts authorization, cookie, password, secret, token, API key, private key, and credential values.",
+            "The preserved boolean allows manifest_secret_free to evaluate true without exposing a secret value.",
             "Hostinger provider method is GET only and public runtime responses are bounded and recursively redacted.",
             "The workflow writes no claim or completion comment; the Artifact is reviewed and the bounded decision is posted through an authenticated administrative channel.",
             "No generated artifact path is in R6 scope, so the generated-artifact refresh label is intentionally absent and the governed refresh request must resolve as skipped rather than dispatching a writer.",
@@ -79,7 +126,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the R6 runner-context registration repair to main, create a fresh authorization and one internal Draft trigger PR, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
+      "objective": "Merge the complete registration-safe and stale-run-cancelling R6 contract to main, prove one unrelated Draft pull request completes with the collector skipped and no provider access, record a fresh immutable read-only authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
     }
   ],
   "secrets_included": false
