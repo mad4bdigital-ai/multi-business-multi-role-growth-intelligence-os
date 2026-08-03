@@ -14,6 +14,7 @@ on:
       - '.github/workflows/supervisor-runtime-assurance-alert.yml'
       - '.specify/pipeline-connectivity-contract.json'
       - 'docs/runbooks/supervisor-runtime-assurance.md'
+      - 'http-generic-api/scripts/pipeline-connectivity-check.mjs'
       - 'http-generic-api/test-fanout-relocation-ci.mjs'
       - 'http-generic-api/test-pipeline-connectivity-check.mjs'
       - 'http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
@@ -55,6 +56,7 @@ jobs:
         working-directory: http-generic-api
         run: |
           set -euo pipefail
+          node --check scripts/pipeline-connectivity-check.mjs
           node --check test-pipeline-connectivity-check.mjs
           node --check test-fanout-relocation-ci.mjs
           node --check test-supervisor-runtime-assurance-automation.mjs
