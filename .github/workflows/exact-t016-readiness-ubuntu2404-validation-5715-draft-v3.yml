@@ -19,13 +19,13 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/ops/t016-readiness-current-main-clean-20260803' &&
-      github.event.pull_request.head.sha == '2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11'
+      github.event.pull_request.head.sha == 'bb6dcde51cab9d0bce18095e15b35fec072bfee2'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
       TARGET_BRANCH: gpt/ops/t016-readiness-current-main-clean-20260803
-      EXPECTED_HEAD: 2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11
-      EXPECTED_BASELINE: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      EXPECTED_HEAD: bb6dcde51cab9d0bce18095e15b35fec072bfee2
+      EXPECTED_BASELINE: 773179a2dee3523c8af25262475ac83b92e46f21
       GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
       CONTRACT_PATH: .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
       EVIDENCE_DIR: /tmp/t016-frontend-parity-refresh-${{ github.run_id }}
@@ -50,7 +50,7 @@ jobs:
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${EXPECTED_HEAD}"
           git merge-base --is-ancestor "${EXPECTED_BASELINE}" "${EXPECTED_HEAD}"
-          test "$(git rev-list --count "${EXPECTED_BASELINE}..${EXPECTED_HEAD}")" = '2'
+          test "$(git rev-list --count "${EXPECTED_BASELINE}..${EXPECTED_HEAD}")" = '3'
           test -z "$(git status --porcelain)"
 
       - name: Generate deterministic frontend dispatch artifact
@@ -135,7 +135,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-list --count "${EXPECTED_BASELINE}..${NEW_HEAD}")" = '3'
+          test "$(git rev-list --count "${EXPECTED_BASELINE}..${NEW_HEAD}")" = '4'
           git diff --name-only "${EXPECTED_BASELINE}" "${NEW_HEAD}" | sort > "${EVIDENCE_DIR}/actual-scope.txt"
           cat <<'EOF' | sort > "${EVIDENCE_DIR}/expected-scope.txt"
           .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
