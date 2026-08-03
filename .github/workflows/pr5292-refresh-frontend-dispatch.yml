@@ -1,4 +1,4 @@
-name: PR 5292 Refresh Frontend Dispatch
+name: PR 5292 Reconcile Generated Dispatch
 
 on:
   push:
@@ -6,38 +6,27 @@ on:
       - gpt/pr5210-surface-source-clean-20260803
     paths:
       - .github/workflows/pr5292-refresh-frontend-dispatch.yml
-  pull_request:
-    branches: [main]
-    types: [synchronize]
-    paths:
-      - .github/workflows/pr5292-refresh-frontend-dispatch.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: pr5292-refresh-frontend-dispatch
+  group: pr5292-reconcile-generated-dispatch
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  reconcile:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
-      (
-        (github.event_name == 'push' && github.ref == 'refs/heads/gpt/pr5210-surface-source-clean-20260803') ||
-        (
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.number == 5292 &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
-          github.event.pull_request.base.ref == 'main'
-        )
-      )
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/gpt/pr5210-surface-source-clean-20260803'
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD: ${{ github.sha }}
+      EXPECTED_MAIN: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
+      GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
       WORKFLOW_PATH: .github/workflows/pr5292-refresh-frontend-dispatch.yml
       OLD_WORKFLOW_PATH: .github/workflows/pr5292-exact-head-core-ci.yml
       OLD_WORKFLOW_V2_PATH: .github/workflows/pr5292-exact-head-core-ci-v2.yml
@@ -50,68 +39,59 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify bounded trigger
+      - name: Verify exact bounded trigger
         shell: bash
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = "${WORKFLOW_PATH}"
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
+          test "$changed" = "${WORKFLOW_PATH}"
 
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Regenerate Frontend dispatch from source
-        working-directory: http-generic-api
+      - name: Restore generated dispatch from pinned main object
         shell: bash
         run: |
           set -Eeuo pipefail
-          git fetch origin main --depth=1
-          git branch -f main origin/main
-          npm run frontend:dispatch:generate -- --baseline-ref=main
+          git fetch --no-tags origin "${EXPECTED_MAIN}" --depth=1
+          test "$(git rev-parse FETCH_HEAD)" = "${EXPECTED_MAIN}"
+          git checkout "${EXPECTED_MAIN}" -- "${GENERATED_PATH}"
+          expected_blob="$(git rev-parse "${EXPECTED_MAIN}:${GENERATED_PATH}")"
+          actual_blob="$(git hash-object "${GENERATED_PATH}")"
+          test "$actual_blob" = "$expected_blob"
+          changed="$(git diff --name-only)"
+          test "$changed" = "${GENERATED_PATH}"
 
-      - name: Verify bounded generated changes
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /')
-          for path in "${changed[@]}"; do
-            case "$path" in
-              http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json) ;;
-              *) echo "Unexpected generated change: $path" >&2; exit 1 ;;
-            esac
-          done
-          test "${#changed[@]}" -ge 1
-          npm --prefix http-generic-api run frontend:dispatch:check
-
-      - name: Remove temporary workflows
+      - name: Remove all PR 5292 temporary workflows
         shell: bash
         run: |
           set -Eeuo pipefail
           rm -f "${WORKFLOW_PATH}" "${OLD_WORKFLOW_PATH}" "${OLD_WORKFLOW_V2_PATH}"
-
-      - name: Commit clean regenerated product tree
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$before" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
-          git add -A
-          git commit -m 'chore(frontend): regenerate Surface dispatch from current source'
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
           test ! -e "${WORKFLOW_PATH}"
           test ! -e "${OLD_WORKFLOW_PATH}"
           test ! -e "${OLD_WORKFLOW_V2_PATH}"
+          changed="$(git diff --name-only)"
+          count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
+          test "$count" -eq 4
+          while IFS= read -r path; do
+            case "$path" in
+              "${GENERATED_PATH}"|"${WORKFLOW_PATH}"|"${OLD_WORKFLOW_PATH}"|"${OLD_WORKFLOW_V2_PATH}") ;;
+              *) echo "Unexpected working-tree change: $path" >&2; exit 1 ;;
+            esac
+          done <<EOF
+          $changed
+          EOF
+
+      - name: Commit bounded reconciliation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$(git rev-parse HEAD)"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -- "${GENERATED_PATH}" "${WORKFLOW_PATH}" "${OLD_WORKFLOW_PATH}" "${OLD_WORKFLOW_V2_PATH}"
+          git diff --cached --quiet && { echo 'Expected bounded reconciliation changes are missing' >&2; exit 1; }
+          git commit -m 'chore(surface): reconcile generated dispatch with current main'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
