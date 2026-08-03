@@ -1,4 +1,4 @@
-name: T016 Candidate Main Synchronization
+name: T016 Exact Head Validation
 
 on:
   pull_request:
@@ -7,53 +7,60 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: t016-candidate-main-sync-${{ github.event.pull_request.number }}
+  group: t016-exact-head-validation-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  sync:
-    name: Merge exact current main into T016 candidate
+  validate:
+    name: Validate synchronized T016 candidate
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
-      github.event.pull_request.head.sha == '52c855aaca1bdc976dfd6350b6f77c33489d1449'
+      github.event.pull_request.head.sha == '5ddda760d310c45ce051fc69e5aefc1a99e8c674'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
-      TARGET_BRANCH: agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2
-      EXPECTED_HEAD: 52c855aaca1bdc976dfd6350b6f77c33489d1449
+      EXPECTED_HEAD: 5ddda760d310c45ce051fc69e5aefc1a99e8c674
       EXPECTED_MAIN: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
-      EVIDENCE_DIR: /tmp/t016-main-sync-${{ github.run_id }}
+      EVIDENCE_DIR: /tmp/t016-exact-head-validation-${{ github.run_id }}
     steps:
-      - name: Checkout exact candidate branch
+      - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: ${{ env.EXPECTED_HEAD }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Verify immutable heads
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact composition and scope
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
           git fetch origin main
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
-          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${EXPECTED_HEAD}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
+          expected="$(cat <<'EOF'
+.github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+.github/ops/sprint69-1043-runtime-readiness.mjs
+.github/workflows/sprint69-1043-runtime-readiness-backfill.yml
+http-generic-api/routes/adminCliRoutes.js
+http-generic-api/test-capability-envelope-create-alias-path.mjs
+http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
+EOF
+)"
+          actual="$(git diff --name-only "${EXPECTED_MAIN}...HEAD" | sort)"
+          test "${actual}" = "${expected}"
+          git diff --check "${EXPECTED_MAIN}...HEAD"
 
-      - name: Merge exact main without force
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'mad4bdigital-ai'
-          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
-          git merge --no-ff --no-edit "${EXPECTED_MAIN}"
-
-      - name: Validate synchronized candidate
+      - name: Run exact focused validation
         shell: bash
         run: |
           set -euo pipefail
@@ -62,22 +69,59 @@ jobs:
           node --check http-generic-api/routes/adminCliRoutes.js
           node http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
-          git diff --check "${EXPECTED_MAIN}...HEAD"
-          mkdir -p "${EVIDENCE_DIR}"
-          git log --oneline --decorate -8 > "${EVIDENCE_DIR}/log.txt"
-          git diff --stat "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/stat.txt"
-          printf '%s\n' "$(git rev-parse HEAD)" > "${EVIDENCE_DIR}/candidate.txt"
-          printf '%s\n' "${EXPECTED_MAIN}" > "${EVIDENCE_DIR}/main.txt"
+          node http-generic-api/test-capability-envelope-approval-alias-path.mjs
+          node http-generic-api/test-capability-envelope-apply-authorization-tool.mjs
 
-      - name: Push synchronized candidate
+      - name: Verify safety boundaries
         shell: bash
-        run: git push origin "HEAD:${TARGET_BRANCH}"
+        run: |
+          set -euo pipefail
+          ! grep -R --line-number --fixed-strings "mode: 'apply'" \
+            .github/ops/sprint69-1043-runtime-readiness.mjs \
+            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          ! grep -R --line-number --fixed-strings 'activation_authorized_surface_registry_sync' \
+            .github/ops/sprint69-1043-runtime-readiness.mjs \
+            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          grep -q "mode: 'dry_run'" .github/ops/sprint69-1043-runtime-readiness.mjs
+          grep -q 'applies_sql, false' .github/ops/sprint69-1043-runtime-readiness.mjs
+          grep -q 'secrets_included: false' .github/ops/sprint69-1043-runtime-readiness.mjs
 
-      - name: Upload bounded synchronization evidence
-        if: always()
+      - name: Write bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          printf '%s\n' "${EXPECTED_HEAD}" > "${EVIDENCE_DIR}/head.txt"
+          printf '%s\n' "${EXPECTED_MAIN}" > "${EVIDENCE_DIR}/main.txt"
+          git diff --name-status "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/scope.txt"
+          git diff --stat "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/stat.txt"
+          cat > "${EVIDENCE_DIR}/summary.json" <<EOF
+          {
+            "contract": "t016_exact_head_validation.v1",
+            "head_sha": "${EXPECTED_HEAD}",
+            "main_sha": "${EXPECTED_MAIN}",
+            "scope_file_count": 6,
+            "runtime_readiness_contract_passed": true,
+            "cwd_alias_regression_passed": true,
+            "approval_alias_regression_passed": true,
+            "apply_authorization_tool_test_passed": true,
+            "runtime_contacted": false,
+            "authorization_created": false,
+            "apply_authorized": false,
+            "apply_sent": false,
+            "migration_apply_executed": false,
+            "database_write_executed": false,
+            "provider_call_executed": false,
+            "credential_payload_accessed": false,
+            "external_write_executed": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload exact-head evidence
         uses: actions/upload-artifact@v4
         with:
-          name: t016-main-sync-${{ github.run_id }}
+          name: t016-exact-head-validation-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
