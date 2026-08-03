@@ -1,0 +1,200 @@
+name: Exact Spec 014 Surface Command Diagnostic 5714 v1
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-surface-ubuntu2404-base-5634-5db9-v1
+    types: [reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-surface-command-diagnostic-5714-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Exact frozen-candidate Surface command diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Initialize bounded diagnostic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/spec014-surface-command-diagnostic-$GITHUB_RUN_ID"
+          mkdir -p "$evidence_dir"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+          echo "EXPECTED_HEAD_SHA=c2cdd1b0b748ceeb31a84648f448129a5da60701" >> "$GITHUB_ENV"
+          echo "EXPECTED_MAIN_SHA=5db9f992ff42b136fbac88f9191949a7e31ffbf0" >> "$GITHUB_ENV"
+
+      - name: Verify immutable candidate identity and scope
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "gpt/014-hostinger/surface-contract-generated-evidence-v5-final-20260803"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "8"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" | wc -l | tr -d ' ')" = "18"
+
+      - name: Diagnose exact Surface evidence command
+        id: surface_diagnostic
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          mark() { printf '%s\n' "$1" | tee -a "$EVIDENCE_DIR/surface-progress.txt"; }
+
+          mark node-check-discovery:start
+          node --check scripts/surface-contract-discovery.mjs
+          mark node-check-discovery:pass
+
+          mark node-check-gap-triage:start
+          node --check scripts/surface-contract-gap-triage.mjs
+          mark node-check-gap-triage:pass
+
+          mark discovery-tests:start
+          node test-surface-contract-discovery.mjs
+          mark discovery-tests:pass
+
+          mark governance-loop-tests:start
+          node test-surface-contract-governance-loop.mjs
+          mark governance-loop-tests:pass
+
+          mark auto-remediation-tests:start
+          node test-surface-contract-auto-remediation.mjs
+          mark auto-remediation-tests:pass
+
+          mark generated-parity-check:start
+          node scripts/surface-contract-discovery.mjs --check
+          mark generated-parity-check:pass
+
+          mark checksum-attestation:start
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const migrationFile = '20260802_03_spec014_hostinger_storage_execution_evidence.sql';
+          const checksum = 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const attestations = JSON.parse(fs.readFileSync('../docs/surface-contract-safety-attestations.json', 'utf8'));
+          const item = attestations.items.find((entry) => entry.migration_file === migrationFile);
+
+          fs.writeFileSync(
+            process.env.EVIDENCE_DIR + '/surface-inputs.json',
+            JSON.stringify({
+              queue: {
+                ok: queue.ok,
+                schema_version: queue.schema_version,
+                total_items: queue.total_items,
+                migration_absent: !JSON.stringify(queue).includes(migrationFile)
+              },
+              attestation: item ? {
+                migration_file: item.migration_file,
+                migration_sha256: item.migration_sha256,
+                checksum_canonicalization: item.checksum_canonicalization,
+                attestation_status: item.attestation_status,
+                evidence_mode: item.evidence_mode,
+                review_status: item.review_status,
+                reviewed_by: item.reviewed_by,
+                reviewed_at: item.reviewed_at,
+                execution_authorized: item.execution_authorized,
+                safety: item.safety,
+                safety_markers: item.safety_markers
+              } : null,
+              provider_mutation: false,
+              production_mutation: false,
+              credential_access: false,
+              database_mutation: false,
+              external_write: false,
+              secrets_included: false
+            }, null, 2) + '\n'
+          );
+
+          assert.equal(queue.ok, true);
+          assert.equal(queue.schema_version, 'surface-contract-gap-queue-v1');
+          assert.equal(queue.total_items, 24);
+          assert.equal(JSON.stringify(queue).includes(migrationFile), false, 'Spec 014 migration returned to the gap queue');
+          assert(item, 'Spec 014 checksum-bound safety attestation is missing');
+          assert.equal(item.migration_sha256, checksum);
+          assert.equal(item.checksum_canonicalization, 'utf8_lf_v1');
+          assert.equal(item.attestation_status, 'verified_static_no_external_side_effects');
+          assert.equal(item.evidence_mode, 'checksum_bound_human_review');
+          assert.equal(item.review_status, 'approved_checksum_bound_internal_sql');
+          assert.equal(item.reviewed_by, 'platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4');
+          assert.equal(item.reviewed_at, '2026-08-03T11:31:00Z');
+          assert.equal(item.execution_authorized, false);
+          for (const [key, value] of Object.entries(item.safety || {})) {
+            assert.equal(value, false, `Safety authority must remain false: ${key}`);
+          }
+          for (const [key, value] of Object.entries(item.safety_markers || {})) {
+            assert.equal(value, true, `Safety marker must remain true: ${key}`);
+          }
+
+          fs.writeFileSync(
+            process.env.EVIDENCE_DIR + '/surface-evidence.json',
+            JSON.stringify({
+              ok: true,
+              queue_total_items: queue.total_items,
+              migration_file: migrationFile,
+              migration_absent_from_gap_queue: true,
+              migration_sha256: item.migration_sha256,
+              attestation_status: item.attestation_status,
+              execution_authorized: item.execution_authorized,
+              provider_mutation: false,
+              production_mutation: false,
+              credential_access: false,
+              database_mutation: false,
+              external_write: false,
+              secrets_included: false
+            }, null, 2) + '\n'
+          );
+          NODE
+          mark checksum-attestation:pass
+
+          mark clean-worktree-check:start
+          git diff --exit-code
+          mark clean-worktree-check:pass
+          mark surface-diagnostic:complete
+
+      - name: Upload bounded command diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-surface-command-diagnostic-5714-v1-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce diagnostic result
+        if: always()
+        shell: bash
+        env:
+          SURFACE_DIAGNOSTIC_OUTCOME: ${{ steps.surface_diagnostic.outcome }}
+        run: |
+          set -euo pipefail
+          test "$SURFACE_DIAGNOSTIC_OUTCOME" = "success"
+          test -f "$EVIDENCE_DIR/surface-inputs.json"
+          test -f "$EVIDENCE_DIR/surface-evidence.json"
+          grep -Fx 'surface-diagnostic:complete' "$EVIDENCE_DIR/surface-progress.txt"
