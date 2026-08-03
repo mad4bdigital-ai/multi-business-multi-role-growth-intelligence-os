@@ -93,18 +93,47 @@ jobs:
           test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
-          duplicate_count="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[]
-              | select(.body | contains(\"HOSTINGER_PRODUCTION_NODEJS_RESTART status=\"))
-              | select(.body | contains(\"binding=${BINDING_ID}\"))
-              | select(
-                  (.body | contains(\"status=completed\")) or
-                  (.body | contains(\"restart_attempted=true\")) or
-                  (.body | contains(\"restart_performed=true\"))
-                )
-              | .id" \
-            | wc -l | tr -d ' ')"
-          test "${duplicate_count}" = "0"
+
+          gh api --paginate --slurp "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" > "${RUNNER_TEMP}/restart-comments.json"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const pages = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/restart-comments.json`, 'utf8'));
+          const comments = pages.flat().filter((comment) => typeof comment?.body === 'string');
+          const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
+          const binding = `binding=${process.env.BINDING_ID}`;
+          const relevant = comments
+            .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
+            .sort((left, right) => Number(left.id) - Number(right.id));
+
+          const consumed = relevant.some((comment) =>
+            comment.body.includes('status=completed') ||
+            comment.body.includes('restart_attempted=true') ||
+            comment.body.includes('restart_performed=true'));
+          if (consumed) {
+            console.error('Exact Hostinger restart binding is already consumed.');
+            process.exit(1);
+          }
+
+          const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
+          const lastRetryableRelease = relevant.filter((comment) =>
+            comment.body.includes('status=failed') &&
+            comment.body.includes('restart_attempted=false') &&
+            comment.body.includes('retryable_without_provider_mutation=true')).at(-1);
+          if (lastClaim && (!lastRetryableRelease || Number(lastRetryableRelease.id) < Number(lastClaim.id))) {
+            console.error('An unresolved Hostinger restart claim already exists.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Claim exact restart binding before execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          claim="HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=${BINDING_ID} expected_head_sha=${EXPECTED_HEAD_SHA} restart_attempted=false restart_performed=false provider_mutation_attempted=false retryable_without_provider_mutation=false run_id=${GITHUB_RUN_ID} provider_method=POST build_created=false deployment=false sql=false migration_apply=false protected_ref_mutation=false secrets_included=false issue_remains_open=true"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${claim}" >/dev/null
 
       - name: Checkout trusted main tooling
         uses: actions/checkout@v5
