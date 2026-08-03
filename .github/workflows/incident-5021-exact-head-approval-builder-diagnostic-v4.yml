@@ -1,0 +1,187 @@
+name: Incident 5021 approval builder diagnostic v4
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/draft-merge-guard-v2-20260803
+    paths:
+      - .github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v4.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: incident-5021-approval-builder-diagnostic-v4
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose exact-head approval patch without publishing
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-20260803
+      EXPECTED_TARGET_SHA: 2c89cc14d8a38a09034f0306eccff273234046e2
+      SOURCE_WORKFLOW: .github/workflows/incident-5021-exact-head-approval-builder.yml
+      REPORT_PATH: incident-5021-builder-diagnostic-v4.json
+    steps:
+      - name: Checkout immutable target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Verify target and fetch builder source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$BUILDER_BRANCH"
+
+      - name: Generate structured patch diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYDIAG'
+          from pathlib import Path
+          import json
+          import subprocess
+          import sys
+          import textwrap
+          import traceback
+
+          builder_branch = "gpt/incident-5021/exact-head-approval-guard-builder-20260803"
+          workflow_path = ".github/workflows/incident-5021-exact-head-approval-builder.yml"
+          report_path = Path("incident-5021-builder-diagnostic-v4.json")
+          lifecycle_path = Path("http-generic-api/githubRepositoryLifecycle.js")
+          report = {
+              "schema_version": 1,
+              "diagnostic": "incident_5021_exact_head_approval_builder",
+              "expected_target_sha": "2c89cc14d8a38a09034f0306eccff273234046e2",
+              "actual_target_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "source_workflow": workflow_path,
+              "source_branch": builder_branch,
+              "secrets_included": False,
+              "target_published": False,
+          }
+
+          try:
+              raw = subprocess.check_output(
+                  ["git", "show", f"origin/{builder_branch}:{workflow_path}"],
+                  text=True,
+                  stderr=subprocess.STDOUT,
+              )
+              start_marker = "          python - <<'PY'\n"
+              end_marker = "\n          PY\n"
+              start_count = raw.count(start_marker)
+              report["source_start_marker_count"] = start_count
+              start = raw.find(start_marker)
+              if start < 0:
+                  raise RuntimeError("original builder python start marker missing")
+              start += len(start_marker)
+              end = raw.find(end_marker, start)
+              report["source_end_marker_found"] = end >= 0
+              if end < 0:
+                  raise RuntimeError("original builder python end marker missing")
+
+              script = textwrap.dedent(raw[start:end])
+              report["extracted_script_bytes"] = len(script.encode("utf-8"))
+              replacement_call = 'lifecycle = replace_once(lifecycle, old_finalize, new_finalize, "finalizer approval gate")'
+              report["replacement_call_count"] = script.count(replacement_call)
+              if report["replacement_call_count"] != 1:
+                  raise RuntimeError("finalizer replacement call count mismatch")
+
+              function_anchor = "export async function finalizeGithubPullRequest(options = {}) {"
+              lifecycle = lifecycle_path.read_text()
+              report["finalize_function_anchor_count"] = lifecycle.count(function_anchor)
+              function_start = lifecycle.find(function_anchor)
+              if function_start < 0:
+                  raise RuntimeError("finalize function anchor missing")
+              next_export = lifecycle.find("\nexport ", function_start + len(function_anchor))
+              function_end = len(lifecycle) if next_export < 0 else next_export
+              function_text = lifecycle[function_start:function_end]
+
+              start_anchor = '  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;\n'
+              merge_anchor = '  const merge = await githubLifecycleRequest({\n'
+              report["global_pr_read_anchor_count"] = lifecycle.count(start_anchor)
+              report["scoped_pr_read_anchor_count"] = function_text.count(start_anchor)
+              report["scoped_merge_anchor_count"] = function_text.count(merge_anchor)
+
+              anchor_safe_call = r'''function_anchor = "export async function finalizeGithubPullRequest(options = {}) {"
+          function_start = lifecycle.find(function_anchor)
+          if function_start < 0:
+              raise SystemExit("finalize function anchor missing")
+          next_export = lifecycle.find("\nexport ", function_start + len(function_anchor))
+          function_end = len(lifecycle) if next_export < 0 else next_export
+          function_text = lifecycle[function_start:function_end]
+          finalizer_start_anchor = '  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;\n'
+          finalizer_merge_anchor = '  const merge = await githubLifecycleRequest({\n'
+          if function_text.count(finalizer_start_anchor) != 1:
+              raise SystemExit(f"scoped finalizer start anchor: expected exactly one match, found {function_text.count(finalizer_start_anchor)}")
+          if function_text.count(finalizer_merge_anchor) != 1:
+              raise SystemExit(f"scoped finalizer merge anchor: expected exactly one match, found {function_text.count(finalizer_merge_anchor)}")
+          relative_start = function_text.index(finalizer_start_anchor)
+          relative_merge = function_text.index(finalizer_merge_anchor, relative_start + len(finalizer_start_anchor))
+          finalizer_start = function_start + relative_start
+          finalizer_merge = function_start + relative_merge
+          old_finalize = lifecycle[finalizer_start:finalizer_merge + len(finalizer_merge_anchor)]
+          lifecycle = replace_once(lifecycle, old_finalize, new_finalize, "finalizer approval gate")'''
+              patched_script = script.replace(replacement_call, anchor_safe_call, 1)
+              report["patched_replacement_call_remaining"] = patched_script.count(replacement_call)
+
+              try:
+                  compile(script, "/tmp/incident-5021-original-builder.py", "exec")
+                  report["original_script_compiles"] = True
+              except Exception as exc:
+                  report["original_script_compiles"] = False
+                  report["original_compile_error"] = f"{type(exc).__name__}: {exc}"
+
+              compile(patched_script, "/tmp/incident-5021-builder-diagnostic-v4.py", "exec")
+              report["patched_script_compiles"] = True
+              Path("/tmp/incident-5021-builder-diagnostic-v4.py").write_text(patched_script)
+
+              result = subprocess.run(
+                  [sys.executable, "/tmp/incident-5021-builder-diagnostic-v4.py"],
+                  text=True,
+                  capture_output=True,
+                  check=False,
+              )
+              report["execution_returncode"] = result.returncode
+              report["execution_stdout_tail"] = result.stdout.splitlines()[-60:]
+              report["execution_stderr_tail"] = result.stderr.splitlines()[-100:]
+              report["changed_files_after_execution"] = subprocess.check_output(
+                  ["git", "diff", "--name-only"], text=True
+              ).splitlines()
+              report["diagnostic_completed"] = True
+          except Exception as exc:
+              report["diagnostic_completed"] = False
+              report["diagnostic_error"] = f"{type(exc).__name__}: {exc}"
+              report["diagnostic_traceback_tail"] = traceback.format_exc().splitlines()[-30:]
+
+          report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+          print(report_path.read_text())
+          PYDIAG
+
+      - name: Upload structured diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-builder-diagnostic-v4-${{ github.sha }}
+          path: incident-5021-builder-diagnostic-v4.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail when patch execution is not clean
+        shell: bash
+        run: |
+          python - <<'PYCHECK'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("incident-5021-builder-diagnostic-v4.json").read_text())
+          if not report.get("diagnostic_completed"):
+              raise SystemExit(report.get("diagnostic_error", "diagnostic did not complete"))
+          if report.get("execution_returncode") != 0:
+              raise SystemExit("patch execution failed; inspect structured artifact")
+          print("structured diagnostic passed")
+          PYCHECK
