@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
+const workMapRecoveryBridge = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
@@ -51,31 +52,92 @@ assert.doesNotMatch(followupJob, /docs\/work-maps/);
 assert.doesNotMatch(followupJob, /gh pr merge/);
 
 for (const marker of [
+  "work-map-recovery-bridge:",
+  "Validate immutable PR snapshot and dispatch sole writer",
   "work-map-autofix:authorized",
-  "Bootstrap Work Map diagnostic envelope",
-  "work-map-autofix-diagnostics.mjs",
-  "regenerate-and-verify-idempotency",
-  "commit-push-and-dispatch",
-  "work-map-autofix-diagnostic-report",
-  "GITHUB_STEP_SUMMARY",
-  "expected_head_sha",
+  "event_snapshot_behind_by",
+  "event_snapshot_merge_base",
+  "authorization_consumed=true",
+  "spec-kit-work-map-autofix.yml/dispatches",
+  "delegated_run_id",
+  "Publish Work Map writer dispatch evidence",
+  "direct_repository_content_mutation=false",
+  "protected_branch_mutation=false",
+  "force_push=false",
+]) {
+  assert.ok(workMapRecoveryBridge.includes(marker), `Work Map recovery bridge missing ${marker}`);
+}
+assert.match(workMapRecoveryBridge, /gh api --method PATCH/);
+assert.match(workMapRecoveryBridge, /github\.event\.pull_request\.head\.sha/);
+assert.match(workMapRecoveryBridge, /github\.actor != 'github-actions\[bot\]'/);
+assert.doesNotMatch(workMapRecoveryBridge, /platform-work-map-generator\.mjs --write/);
+assert.doesNotMatch(workMapRecoveryBridge, /git add docs\/work-maps/);
+assert.doesNotMatch(workMapRecoveryBridge, /git push origin/);
+assert.doesNotMatch(workMapRecoveryBridge, /git commit/);
+assert.doesNotMatch(workMapRecoveryBridge, /--force(?:-with-lease)?/);
+
+const writerTriggerBlock = workMapAutofix.slice(
+  workMapAutofix.indexOf("on:"),
+  workMapAutofix.indexOf("permissions:"),
+);
+for (const marker of [
+  "workflow_dispatch:",
+  "branch:",
+  "expected_head_sha:",
+]) {
+  assert.ok(writerTriggerBlock.includes(marker), `Work Map Autofix trigger block missing ${marker}`);
+}
+assert.doesNotMatch(writerTriggerBlock, /pull_request:/);
+assert.doesNotMatch(writerTriggerBlock, /push:/);
+assert.doesNotMatch(writerTriggerBlock, /schedule:/);
+assert.doesNotMatch(writerTriggerBlock, /workflow_run:/);
+
+for (const marker of [
+  "Initialize diagnostics and validate inputs",
+  "Checkout exact authorized head",
+  "Pin branch and pull request identity",
+  "Validate generator and governance contracts",
+  "Regenerate and prove idempotency",
+  "Commit and push governed Work Maps",
+  "Dispatch exact-head verification",
+  "Finalize diagnostic evidence",
+  "Upload Work Map diagnostic evidence",
+  "EXPECTED_HEAD_SHA",
+  "test \"${actual_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+  "test \"${remote_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+  "test \"${pr_count}\" = \"1\"",
+  "head=\"${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}\"",
+  "platform-work-map-generator.mjs --write",
+  "platform-work-map-generator.mjs --check",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
-  "Direct autofix writes to main are forbidden",
-  "Refusing stale autofix",
-  "Autofix push readback mismatch",
   "gh workflow run ci.yml",
   "gh workflow run spec-kit-work-map-integration.yml",
+  "WORK_MAP_AUTOFIX_V2",
 ]) {
   assert.ok(workMapAutofix.includes(marker), `Work Map Autofix missing ${marker}`);
 }
-assert.match(workMapAutofix, /types: \[reopened\]/);
-assert.match(workMapAutofix, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
-assert.match(workMapAutofix, /github\.actor != 'github-actions\[bot\]'/);
+assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
 assert.match(workMapAutofix, /git diff --name-only \| grep -v '\^docs\/work-maps\/'/);
+assert.doesNotMatch(workMapAutofix, /work-map-autofix:authorized/);
+assert.doesNotMatch(workMapAutofix, /gh api --method PATCH/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
+
+const writerStepOrder = [
+  "Initialize diagnostics and validate inputs",
+  "Checkout exact authorized head",
+  "Pin branch and pull request identity",
+  "Validate generator and governance contracts",
+  "Regenerate and prove idempotency",
+  "Commit and push governed Work Maps",
+  "Dispatch exact-head verification",
+  "Finalize diagnostic evidence",
+  "Upload Work Map diagnostic evidence",
+].map((marker) => workMapAutofix.indexOf(marker));
+assert.ok(writerStepOrder.every((index) => index >= 0), "all Work Map writer v2 steps are required");
+assert.deepEqual(writerStepOrder, [...writerStepOrder].sort((left, right) => left - right));
 
 for (const marker of [
   "Generate exact-head Work Map repair candidate",
@@ -96,8 +158,17 @@ assert.ok(writerPolicy, "platform Work Map writer policy is required");
 assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
 assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
+  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
 );
+
+const bridgePipeline = pipelineContract.pipelines.find((row) => row.key === "work-map-recovery-bridge");
+const writerPipeline = pipelineContract.pipelines.find((row) => row.key === "spec-kit-work-map-autofix");
+assert.ok(bridgePipeline, "Work Map recovery bridge pipeline contract is required");
+assert.ok(writerPipeline, "Work Map writer pipeline contract is required");
+assert.deepEqual(writerPipeline.required_triggers, ["workflow_dispatch"]);
+assert.ok(writerPipeline.forbidden_triggers.includes("pull_request"));
+assert.ok(bridgePipeline.required_commands.includes("authorization_consumed=true"));
+assert.ok(bridgePipeline.forbidden_commands.includes("git push origin"));
 
 for (const marker of [
   "schedule:",
