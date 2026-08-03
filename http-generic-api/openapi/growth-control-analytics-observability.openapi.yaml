@@ -176,6 +176,7 @@ paths:
               schema: { $ref: '#/components/schemas/MetricObservationWriteResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
@@ -204,6 +205,7 @@ paths:
               schema: { $ref: '#/components/schemas/ObservabilitySampleWriteResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
         '500': { $ref: '#/components/responses/InternalError' }
@@ -231,6 +233,7 @@ paths:
               schema: { $ref: '#/components/schemas/DecisionEvidenceWriteResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
         '500': { $ref: '#/components/responses/InternalError' }
