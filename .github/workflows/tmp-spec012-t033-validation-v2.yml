@@ -1,0 +1,52 @@
+name: Temporary Spec 012 T033 Validation V2
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tmp-spec012-t033-validation-v2.yml'
+      - 'http-generic-api/tenantGptAccessTokenProfile.js'
+      - 'http-generic-api/tenantGptAccessTokenVerifier.js'
+      - 'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js'
+      - 'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js'
+      - 'http-generic-api/test-tenant-gpt-access-token-profile.mjs'
+      - 'http-generic-api/test-tenant-gpt-access-token-verifier.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs'
+      - 'http-generic-api/test-spec012-t032-legacy-audience-compatibility.mjs'
+      - 'http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.json'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md'
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/tenantGptAccessTokenProfile.js
+          node --check http-generic-api/tenantGptAccessTokenVerifier.js
+          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          node --check http-generic-api/test-tenant-gpt-access-token-profile.mjs
+          node --check http-generic-api/test-tenant-gpt-access-token-verifier.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node --check http-generic-api/test-spec012-t032-legacy-audience-compatibility.mjs
+          node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
+      - name: Validate T032 compatibility regression
+        working-directory: http-generic-api
+        run: node test-spec012-t032-legacy-audience-compatibility.mjs
+      - name: Validate T033 bearer issuance and verification
+        working-directory: http-generic-api
+        run: node test-spec012-t033-short-lived-bearer-profile.mjs
