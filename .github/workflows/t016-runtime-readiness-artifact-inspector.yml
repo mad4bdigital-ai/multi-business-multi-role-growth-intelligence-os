@@ -2,6 +2,8 @@ name: T016 Runtime Readiness Artifact Inspector
 
 on:
   pull_request:
+    branches:
+      - agent/validate-t016-readiness-artifact-base-435c001
     types: [opened, reopened, synchronize]
 
 permissions:
@@ -10,13 +12,14 @@ permissions:
 
 concurrency:
   group: t016-readiness-artifact-inspector-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   inspect:
     name: Inspect exact Runtime Readiness Artifact
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
       github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
@@ -30,6 +33,7 @@ jobs:
       WORKFLOW_NAME: Sprint 69 Migration 1043 Runtime Readiness
       REPORT_DIR: ${{ runner.temp }}/t016-runtime-readiness-inspector-${{ github.run_id }}
       SOURCE_DIR: ${{ runner.temp }}/t016-runtime-readiness-source-${{ github.run_id }}
+      INSPECTOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Discover authorization-bound Runtime Readiness run
         id: discover
@@ -37,10 +41,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${REPORT_DIR}"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const assert = require('node:assert/strict');
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
 
           const api = 'https://api.github.com';
           const token = process.env.GH_TOKEN;
@@ -69,15 +73,12 @@ jobs:
             return payload;
           }
 
-          function isoMs(value) {
+          const isoMs = (value) => {
             const ms = Date.parse(String(value || ''));
             assert.ok(Number.isFinite(ms), `Invalid timestamp: ${value}`);
             return ms;
-          }
-
-          function setOutput(name, value) {
-            fs.appendFileSync(outputPath, `${name}=${String(value)}\n`, 'utf8');
-          }
+          };
+          const setOutput = (name, value) => fs.appendFileSync(outputPath, `${name}=${String(value)}\n`, 'utf8');
 
           const comment = await githubJson(`/repos/${repository}/issues/comments/${commentId}`);
           assert.equal(String(comment?.body || '').trim(), expectedBody);
@@ -102,7 +103,9 @@ jobs:
           if (run?.status === 'completed') {
             const artifacts = await githubJson(`/repos/${repository}/actions/runs/${run.id}/artifacts?per_page=100`);
             const expectedName = `sprint69-1043-runtime-readiness-${run.id}`;
-            artifact = (artifacts?.artifacts || []).find((item) => item?.name === expectedName && item?.expired === false) || null;
+            artifact = (artifacts?.artifacts || []).find(
+              (item) => item?.name === expectedName && item?.expired === false,
+            ) || null;
           }
 
           const outcome = !run
@@ -112,7 +115,6 @@ jobs:
               : !artifact
                 ? 'artifact_missing'
                 : 'artifact_ready';
-
           const report = {
             contract: 't016_runtime_readiness_artifact_inspector_discovery.v1',
             outcome,
@@ -140,11 +142,8 @@ jobs:
             external_write_executed: false,
             secrets_included: false,
           };
-
-          fs.writeFileSync(path.join(reportDir, 'discovery.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-          setOutput('outcome', outcome);
+          fs.writeFileSync(path.join(reportDir, 'discovery.json'), `${JSON.stringify(report, null, 2)}\n`);
           setOutput('run_id', run?.id || '');
-          setOutput('run_conclusion', run?.conclusion || '');
           setOutput('artifact_found', artifact ? 'true' : 'false');
           setOutput('artifact_name', artifact?.name || '');
           console.log(JSON.stringify(report, null, 2));
@@ -166,25 +165,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${REPORT_DIR}"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const assert = require('node:assert/strict');
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
 
           const reportDir = process.env.REPORT_DIR;
           const sourceDir = process.env.SOURCE_DIR;
           const outputPath = process.env.GITHUB_OUTPUT;
           const discovery = JSON.parse(fs.readFileSync(path.join(reportDir, 'discovery.json'), 'utf8'));
-
-          function readJsonIfPresent(name) {
+          const readJsonIfPresent = (name) => {
             const file = path.join(sourceDir, name);
             return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
-          }
-
-          function setOutput(name, value) {
-            fs.appendFileSync(outputPath, `${name}=${String(value)}\n`, 'utf8');
-          }
-
+          };
           const summary = readJsonIfPresent('summary.json');
           const failure = readJsonIfPresent('failure.json');
           assert.ok(!(summary && failure), 'Artifact cannot contain both summary.json and failure.json');
@@ -234,7 +227,6 @@ jobs:
           } else {
             result = {
               status: 'incomplete',
-              source_contract: null,
               result: discovery.outcome,
               error_code: discovery.outcome,
               authorization_created: false,
@@ -250,7 +242,7 @@ jobs:
             contract: 't016_runtime_readiness_artifact_inspector.v1',
             discovery,
             artifact_result: result,
-            inspector_head_sha: process.env.GITHUB_HEAD_SHA || null,
+            inspector_head_sha: process.env.INSPECTOR_HEAD_SHA,
             runtime_contacted_by_inspector: false,
             issue_write_executed: false,
             repository_write_executed: false,
@@ -260,10 +252,8 @@ jobs:
             external_write_executed: false,
             secrets_included: false,
           };
-
-          fs.writeFileSync(path.join(reportDir, 'report.json'), `${JSON.stringify(finalReport, null, 2)}\n`, 'utf8');
-          setOutput('inspection_status', result.status);
-          setOutput('inspection_ok', result.status === 'pass' ? 'true' : 'false');
+          fs.writeFileSync(path.join(reportDir, 'report.json'), `${JSON.stringify(finalReport, null, 2)}\n`);
+          fs.appendFileSync(outputPath, `inspection_ok=${result.status === 'pass' ? 'true' : 'false'}\n`);
           console.log(JSON.stringify(finalReport, null, 2));
           NODE
 
