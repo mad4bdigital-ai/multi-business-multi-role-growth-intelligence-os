@@ -44,22 +44,23 @@ Docs Agent is preview-only for pull requests.
 
 The sole remote writer is `Spec Kit Work Map Autofix`.
 
-A write may start only through one of these exact-head paths:
+A write may start only through `workflow_dispatch` with:
 
-1. `workflow_dispatch` with an existing same-repository pull-request branch and its full current `expected_head_sha`.
-2. A one-time reopened pull request whose body temporarily contains `<!-- work-map-autofix:authorized -->`.
+- an existing same-repository pull-request branch targeting `main`;
+- the branch's full current `expected_head_sha`;
+- one exact open pull request whose head repository, branch, head SHA, and base are re-read before generation.
 
 The writer must:
 
-- reject `main` as a target branch;
+- reject `main` and `Production` as target branches;
 - verify local and remote heads equal the authorized SHA before generation and again before push;
-- consume one-time authorization before branch mutation;
+- require exactly one open same-repository pull request targeting `main`;
 - generate twice and prove idempotency;
 - reject changes outside `docs/work-maps/**`;
 - avoid force push and protected-branch bypass;
 - verify the remote pushed SHA;
 - dispatch CI and the Work Map Integration Gate after a successful commit;
-- publish a bounded diagnostic artifact and sticky pull-request report.
+- publish a bounded diagnostic artifact and pull-request report.
 
 The Work Map Integration Gate remains read-only. When maps are stale, it produces an exact-head repair candidate artifact, records the tested SHA and source hash, and then fails closed. That artifact is evidence for the governed writer; it is not itself a branch mutation.
 
@@ -141,4 +142,4 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Apply authorization failure: inspect capability registration, policy matching, expiry, and blocking gaps; never bypass the policy.
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
 - Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
-- Work Map Autofix without an exact authorized head, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.
+- Work Map Autofix without an exact authorized head, without exactly one same-repository pull request targeting `main`, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.
