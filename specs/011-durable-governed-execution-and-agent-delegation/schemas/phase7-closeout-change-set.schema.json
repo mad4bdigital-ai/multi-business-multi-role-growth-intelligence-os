@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec011/phase7-closeout-change-set.schema.json",
+  "title": "Spec 011 Phase 7 Semantic Closeout Change Set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "subject",
+    "evidence_fingerprint_sha256",
+    "changes",
+    "total_bytes",
+    "force_push_allowed",
+    "protected_branch_write_allowed",
+    "secrets_included",
+    "change_set_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "version": { "const": "spec011-evidence-auto-closeout-v1" },
+    "subject": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "evidence_fingerprint_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/change" }
+    },
+    "total_bytes": { "type": "integer", "minimum": 1, "maximum": 2097152 },
+    "force_push_allowed": { "const": false },
+    "protected_branch_write_allowed": { "const": false },
+    "secrets_included": { "const": false },
+    "change_set_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "kind": {
+      "enum": [
+        "manifest_json",
+        "completion_json",
+        "checklist_markdown",
+        "tasks_markdown",
+        "delivery_state_json"
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "evidence_ids"],
+      "properties": {
+        "type": {
+          "enum": [
+            "json_pointer_set",
+            "markdown_task_complete",
+            "markdown_checklist_complete"
+          ]
+        },
+        "pointer": { "type": "string", "pattern": "^/", "maxLength": 1000 },
+        "anchor": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "evidence_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 191 }
+        }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "expected_blob_sha",
+        "before_sha256",
+        "after_sha256",
+        "after_content",
+        "operations",
+        "semantic_mutation",
+        "parse_ok",
+        "bounded",
+        "completion_contract_valid",
+        "secrets_included"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/kind" },
+        "path": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "expected_blob_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "before_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "after_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "after_content": { "type": "string", "minLength": 1, "maxLength": 786432 },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/operation" }
+        },
+        "semantic_mutation": { "const": true },
+        "parse_ok": { "const": true },
+        "bounded": { "const": true },
+        "completion_contract_valid": { "type": "boolean" },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
