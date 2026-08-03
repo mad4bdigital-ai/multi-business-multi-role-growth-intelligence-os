@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-workflow-registration-context-fix",
+  "title": "Canonical CI read-only registration repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/ci-workflow-registration-context-fix.json",
+      ".github/workflows/ci.yml",
+      "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore registration of the canonical CI workflow and make its pull-request surface read-only by retiring the completed PR #3945 one-shot Production closure from the permanent workflow.",
+      "e2e_journeys": [
+        {
+          "id": "register-read-only-canonical-ci-after-retiring-obsolete-closure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow registrar and pull-request runner",
+          "entrypoint": "A same-repository pull request targets main after the unavailable runner context and completed one-shot mutation job are removed from ci.yml.",
+          "terminal_outcome": "GitHub materializes the workflow named CI, its four permanent validation jobs remain available, and the pull-request workflow contains no repository-write permission, runtime mutation secret, or historical Production closure path.",
+          "steps": [
+            "Read the canonical CI workflow and verify its name and main/Production pull-request trigger.",
+            "Verify the syntax, unit and integration, execution resolver, and architecture drift jobs remain registered.",
+            "Reject the historical local-connector-production-closure job from the permanent workflow.",
+            "Reject issue-write and pull-request-write permissions from canonical pull-request CI.",
+            "Reject the historical BACKEND_API_KEY binding, closure script invocation, and one-shot PR #3945 token.",
+            "Observe creation of both CI and CI Pull Request Recovery on the exact pull-request head and execute the complete E2E and registration regression checks."
+          ],
+          "assertions": [
+            "The canonical workflow remains named CI and continues targeting main and Production pull requests.",
+            "All four permanent CI validation jobs remain present.",
+            "The completed PR #3945 one-shot Production closure is absent from canonical CI.",
+            "The workflow contains no issue-write or pull-request-write permission and no runtime mutation secret.",
+            "No trigger broadening, deployment, Hostinger/provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, or external business send is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "ci-workflow-registration-context-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/ci-workflow-registration-context-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci.yml",
+            "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs",
+            ".changes/e2e/ci-workflow-registration-context-fix.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Verify canonical CI registration across opened, synchronize, and ready-for-review pull-request events."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject future unavailable workflow contexts and embedded pull-request mutation jobs before they suppress or invalidate CI registration."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Prove Draft and Ready exact-head cycles with both canonical CI and CI Pull Request Recovery visible."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Retire the temporary recovery workflow only after canonical CI registration remains stable across governed pull requests."
+    }
+  ],
+  "secrets_included": false
+}
