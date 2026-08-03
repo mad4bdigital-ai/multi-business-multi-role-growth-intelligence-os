@@ -1,0 +1,185 @@
+name: Apply Spec 012 OAuth Harness Repair
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec012-auth-oauth-harness-base-97e4ee7e-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec012-auth-oauth-harness-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Patch and validate current-main OAuth harness
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-spec012-auth-oauth-harness-repair-97e4ee7e-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      TARGET_BRANCH: gpt/spec012-auth-oauth-harness-repair-97e4ee7e-20260804
+      TARGET_FILE: http-generic-api/test-auth-oauth-routes.mjs
+      REPORT_DIR: ${{ runner.temp }}/spec012-auth-oauth-harness-repair
+
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable starting identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$EXPECTED_MAIN_SHA"
+          test "$(git status --porcelain)" = ""
+
+      - name: Apply bounded test-harness repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-auth-oauth-routes.mjs")
+          text = path.read_text()
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '        status: "issued",\n',
+              '        status: "issued",\n        expires_at: params[5],\n        consumed_at: null,\n',
+              "persist replay-readback fields",
+          )
+          replace_once(
+              '      if (canConsume) record.status = "consumed";\n',
+              '      if (canConsume) {\n        record.status = "consumed";\n        record.consumed_at = new Date();\n      }\n',
+              "record consumed timestamp",
+          )
+          replace_once(
+              '    if (sql.includes("INSERT INTO `execution_log`")) {\n',
+              '''    if (sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
+      const record = durableOAuthCodes.get(params[2]);
+      if (!record) return [[]];
+      return [[{
+        status: record.status,
+        expires_at: record.expires_at,
+        consumed_at: record.consumed_at,
+        client_matches: record.client_id === params[0] ? 1 : 0,
+        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+        expired_by_store: 0,
+      }]];
+    }
+    if (sql.includes("INSERT INTO `execution_log`")) {
+''',
+              "add replay state readback",
+          )
+          replace_once(
+              'app.use(buildTenantGptOAuthMetadataRoutes());\n',
+              'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));\n',
+              "inject governed token-route pool",
+          )
+          replace_once(
+              '  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));\n',
+              '  assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));\n',
+              "update diagnostic action contract",
+          )
+          replace_once(
+              '''  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+''',
+              '''  assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds) && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds > 0 && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds <= 300, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+''',
+              "update bounded code evidence contract",
+          )
+          replace_once(
+              '''  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
+''',
+              '''  assert("success diagnostic records response-commit phase", successDiagnostic?.runtime_evidence_json?.phase === "response_committed", JSON.stringify(successDiagnostic));
+  assert("success diagnostic records committed-token classification", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));
+  assert("success diagnostic records token preparation without token payload", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true && !Object.prototype.hasOwnProperty.call(successDiagnostic.runtime_evidence_json, "access_token"), JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+''',
+              "update success evidence contract",
+          )
+
+          path.write_text(text)
+          PY
+
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = "$TARGET_FILE"
+          git diff --check
+
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check test-auth-oauth-routes.mjs
+          node test-auth-oauth-routes.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+
+      - name: Commit and push bounded repair
+        id: push
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = "$TARGET_FILE"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- "$TARGET_FILE"
+          git commit -m "test(spec-012): align OAuth route harness with governed token exchange"
+          repaired_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_MAIN_SHA"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          remote_sha="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$remote_sha" = "$repaired_sha"
+          echo "repaired_sha=$repaired_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded repair evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg repaired_sha "${{ steps.push.outputs.repaired_sha || 'unresolved' }}" \
+            --arg target_branch "$TARGET_BRANCH" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{contract:"mad4b.spec012-auth-oauth-harness-repair.v1",base_sha:$base_sha,repaired_sha:$repaired_sha,target_branch:$target_branch,run_id:$run_id,changed_files:["http-generic-api/test-auth-oauth-routes.mjs"],focused_tests_executed:true,production_mutated:false,protected_ref_mutated:false,provider_call:false,credential_access:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,force_push:false,secrets_included:false}' > "$REPORT_DIR/summary.json"
+
+      - name: Upload bounded repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-auth-oauth-harness-repair-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
