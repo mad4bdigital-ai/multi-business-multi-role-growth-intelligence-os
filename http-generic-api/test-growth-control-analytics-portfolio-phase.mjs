@@ -109,11 +109,10 @@ const observations = Object.freeze([
     sourceObservationId: "commerce-row-1",
   }),
 ]);
-const persistedObservations = observations.map(({ sourceSystemKey, sourceObservationId, sourceEventId = null, ...item }) => Object.freeze({
-  ...item,
-  lineage: Object.freeze({
-    source: Object.freeze({ sourceSystemKey, sourceObservationId, sourceEventId }),
-  }),
+const persistedObservations = observations.map((item, index) => normalizeGrowthControlMetricObservation(item, {
+  definition,
+  binding: bindings[index],
+  now,
 }));
 
 const typedDefinition = validateGrowthControlKpiDefinition(definition);
@@ -173,6 +172,48 @@ assert.throws(
     now,
   }),
   (error) => error?.code === "GROWTH_CONTROL_KPI_BINDING_VERSION_REQUIRED" && error?.status === 422,
+);
+
+const historicalNormalized = normalizeGrowthControlMetricObservation({
+  ...observations[1],
+  observationId: "historical-commerce-v1",
+  definitionVersion: 1,
+  sourceObservationId: "historical-commerce-row-v1",
+}, { definition, binding: bindings[1], now });
+const historicalObservation = Object.freeze({
+  ...historicalNormalized,
+  sourceSystemKey: historicalNormalized.lineage.source.sourceSystemKey,
+  sourceObservationId: historicalNormalized.lineage.source.sourceObservationId,
+  sourceEventId: historicalNormalized.lineage.source.sourceEventId,
+});
+const activeHistoricalProjection = buildGrowthControlPortfolioProjection({
+  tenantId: "tenant-1",
+  definitions: [definition],
+  bindings: [bindings[1]],
+  observations: [historicalObservation],
+  now,
+});
+const deprecatedHistoricalProjection = buildGrowthControlPortfolioProjection({
+  tenantId: "tenant-1",
+  definitions: [{ ...definition, status: "deprecated", revision: 2 }],
+  bindings: [commerceBindingV1],
+  observations: [historicalObservation],
+  now,
+});
+assert.equal(
+  activeHistoricalProjection.series[0].brandPoints[0].lineageSha256,
+  deprecatedHistoricalProjection.series[0].brandPoints[0].lineageSha256,
+);
+assert.equal(activeHistoricalProjection.projectionSha256, deprecatedHistoricalProjection.projectionSha256);
+assert.throws(
+  () => buildGrowthControlPortfolioProjection({
+    tenantId: "tenant-1",
+    definitions: [definition],
+    bindings: [bindings[1]],
+    observations: [{ ...historicalObservation, normalizedValue: 999 }],
+    now,
+  }),
+  (error) => error?.code === "GROWTH_CONTROL_KPI_PERSISTED_OBSERVATION_MISMATCH" && error?.status === 422,
 );
 
 const projection = buildGrowthControlPortfolioProjection({ tenantId: "tenant-1", definitions: [definition], bindings, observations, now });
