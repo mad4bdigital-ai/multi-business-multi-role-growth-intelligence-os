@@ -13,23 +13,31 @@ requireFragment('permissions:\n  contents: read', 'read-only permissions');
 requireFragment('persist-credentials: false', 'credential-free checkout');
 requireFragment('Classify governed candidate mode', 'governed candidate-mode classifier');
 requireFragment('PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'phase contract input');
+requireFragment('REPOSITORY: ${{ github.repository }}', 'trusted repository binding');
+requireFragment('HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}', 'head repository binding');
 requireFragment('BASE_REF: ${{ github.event.pull_request.base.ref }}', 'base ref binding');
 requireFragment('HEAD_REF: ${{ github.event.pull_request.head.ref }}', 'head ref binding');
+requireFragment('const sameRepository = process.env.HEAD_REPOSITORY === process.env.REPOSITORY', 'same-repository classifier');
 requireFragment("contract.delivery_mode === 'multi_pr'", 'multi-PR contract requirement');
 requireFragment('contract.parallel_work?.enabled === true', 'parallel work requirement');
 requireFragment("contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'", 'Rollup merge policy requirement');
 requireFragment('contract.parallel_work?.no_partial_feature_merge === true', 'no-partial-merge requirement');
+requireFragment('const isGovernedRollup = sameRepository', 'same-repository Rollup requirement');
+requireFragment('const isProductionPromotion = sameRepository', 'same-repository Production promotion requirement');
 requireFragment("process.env.BASE_REF === 'Production'", 'Production base classification');
 requireFragment("process.env.HEAD_REF === 'main'", 'main promotion head classification');
 requireFragment("process.env.HEAD_REF.startsWith('release/production-')", 'release promotion head classification');
 requireFragment("? 'production_promotion'", 'Production promotion mode');
 requireFragment("? 'integration'", 'Integration mode');
 requireFragment("'feature'", 'feature mode');
+requireFragment('same_repository=${sameRepository}', 'same-repository classifier output');
 requireFragment('production_promotion=${isProductionPromotion}', 'promotion classifier output');
 requireFragment('CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}', 'candidate mode output binding');
+requireFragment('SAME_REPOSITORY: ${{ steps.candidate_mode.outputs.same_repository }}', 'same-repository output binding');
 requireFragment('PRODUCTION_PROMOTION: ${{ steps.candidate_mode.outputs.production_promotion }}', 'promotion output binding');
 requireFragment('MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}', 'candidate mode outcome binding');
-requireFragment("'candidate_mode_source': 'governed_phase_contract_and_pr_refs'", 'candidate mode evidence source');
+requireFragment("'candidate_mode_source': 'same_repository_governed_phase_contract_and_pr_refs'", 'candidate mode evidence source');
+requireFragment("'same_repository_head': os.environ.get('SAME_REPOSITORY') == 'true'", 'same-repository evidence');
 requireFragment("'governed_phase_contract_digest'", 'phase contract digest evidence');
 requireFragment('Validate promotion-aware workflow contract', 'workflow regression step');
 requireFragment('WORKFLOW_CONTRACT_OUTCOME: ${{ steps.workflow_contract.outcome }}', 'workflow contract outcome binding');
@@ -57,9 +65,15 @@ assert.equal(source.includes('contents: write'), false, 'workflow must remain re
 assert.equal(source.includes('git push'), false, 'workflow must not mutate repository state');
 
 const classification = source.indexOf('Classify governed candidate mode');
+const sameRepositoryCheck = source.indexOf('const sameRepository = process.env.HEAD_REPOSITORY === process.env.REPOSITORY');
+const rollupClassification = source.indexOf('const isGovernedRollup = sameRepository');
+const promotionClassification = source.indexOf('const isProductionPromotion = sameRepository');
 const featureScopeGate = source.indexOf('if [[ "${candidate_mode}" == "feature" ]]');
 const contentBoundary = source.indexOf("grep -q 'CONTRACT-LOCAL DDL ONLY'");
-assert(classification >= 0 && featureScopeGate > classification, 'Contract classification must precede scope enforcement');
+assert(classification >= 0 && sameRepositoryCheck > classification, 'Repository trust classification must occur inside candidate classification');
+assert(rollupClassification > sameRepositoryCheck, 'Rollup mode must depend on same-repository trust');
+assert(promotionClassification > sameRepositoryCheck, 'Production promotion mode must depend on same-repository trust');
+assert(featureScopeGate > promotionClassification, 'Scope enforcement must follow bounded mode classification');
 assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in feature, Integration, and Production promotion modes');
 
 console.log(JSON.stringify({
@@ -68,6 +82,8 @@ console.log(JSON.stringify({
   feature_scope_allowlist_preserved: true,
   contract_governed_integration_mode: true,
   contract_governed_production_promotion_mode: true,
+  same_repository_required_for_governed_modes: true,
+  untrusted_heads_fall_back_to_feature_mode: true,
   production_base_and_head_refs_verified: true,
   branch_specific_workflow_literals: false,
   integration_rollup_scope_supported: true,
