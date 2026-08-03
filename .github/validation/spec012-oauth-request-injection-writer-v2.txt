@@ -1,0 +1,6 @@
+issue=5937
+expected_main=a61cd9e83070618001676bbc679bc937f0551875
+scope=three_file_product_repair
+writer_version=2
+production=false
+secrets_included=false
