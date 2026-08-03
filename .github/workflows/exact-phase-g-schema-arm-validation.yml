@@ -10,23 +10,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: spec012-oauth-final-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: spec012-oauth-suite-diagnostic-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Exact Spec 012 OAuth Final Validation
+  diagnose:
+    name: Exact Spec 012 OAuth Full Suite Diagnostic
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     env:
       EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       EXPECTED_HEAD_SHA: 3b8885cb8c75bfe93809ce39f7c66bf8bdeb0732
-      GITHUB_BASE_REF: main
-      CANDIDATE_SHA: 3b8885cb8c75bfe93809ce39f7c66bf8bdeb0732
-      CI_CANDIDATE_KIND: head
-      CI_CANDIDATE_SHA: 3b8885cb8c75bfe93809ce39f7c66bf8bdeb0732
-      CI_SOURCE_HEAD_SHA: 3b8885cb8c75bfe93809ce39f7c66bf8bdeb0732
     steps:
       - name: Verify event identity
         shell: bash
@@ -52,21 +47,20 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify exact scope and install dependencies
+      - name: Verify exact scope and install API dependencies
         shell: bash
         run: |
           set -euo pipefail
-          EVIDENCE_ROOT="${RUNNER_TEMP}/spec012-oauth-final-${GITHUB_RUN_ID}"
-          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
-          mkdir -p "${EVIDENCE_ROOT}"
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-suite-diagnostic-${GITHUB_RUN_ID}"
+          REPORT_ROOT="${RUNNER_TEMP}/spec012-oauth-suite-reports-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
+          printf 'REPORT_ROOT=%s\n' "${REPORT_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${DIAGNOSTIC_ROOT}" "${REPORT_ROOT}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          git update-ref refs/remotes/origin/main "${EXPECTED_MAIN_SHA}"
-          cat > /tmp/expected-files.txt <<'EOF'
+          cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
           .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
           docs/work-maps/README.md
           docs/work-maps/repository-automation-map.md
@@ -75,116 +69,61 @@ jobs:
           http-generic-api/test-auth-oauth-routes.mjs
           http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
-          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
           git diff --check "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
           test -z "$(git status --porcelain --untracked-files=no)"
-          npm ci
-          npm ci --prefix http-generic-api
+          npm ci --prefix http-generic-api > "${DIAGNOSTIC_ROOT}/npm-ci.log" 2>&1
 
-      - name: Run targeted OAuth and governance regressions
+      - name: Run Context Kernel and full API suite with durable logs
         shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
-          node http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
-          node http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
-          node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-          node http-generic-api/test-auth-oauth-routes.mjs
-          node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          node http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs
-          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref="${EXPECTED_MAIN_SHA}")
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          ! grep -Fq 'from "jsonwebtoken"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          ! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-
-      - name: Run Syntax repository governance and canonical gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree)
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
-          (cd http-generic-api && shopt -s nullglob && for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f"; done)
-
-      - name: Run Context Kernel and full API test suite
         working-directory: http-generic-api
-        shell: bash
         env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/spec012-oauth-suite-reports-${{ github.run_id }}
         run: |
-          set -euo pipefail
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/changed-files.txt"
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/changed-files.txt"
-          npm test
+          set -uo pipefail
+          results="${DIAGNOSTIC_ROOT}/results.tsv"
+          : > "${results}"
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${DIAGNOSTIC_ROOT}/changed-files.txt"
 
-      - name: Prove Runtime Startup and contract parity
-        working-directory: http-generic-api
-        shell: bash
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: gpt/spec012-oauth-token-route-test-parity-20260804
-          DEPLOYMENT_COMMIT_SHA: 3b8885cb8c75bfe93809ce39f7c66bf8bdeb0732
-        run: |
-          set -euo pipefail
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
-          node test-custom-gpt-schemas.mjs
-          node test-openapi-split-governance.mjs
-          node test-openapi-split-regeneration-parity.mjs
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/${name}.log"
+            set +e
+            "$@" >"${log}" 2>&1
+            local status=$?
+            set -e
+            printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
+            cat "${log}"
+          }
 
-      - name: Run Execution Resolver and Architecture gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run typecheck
-          npm test -- --runInBand
-          (cd http-generic-api && npm run validate)
-          test "$(wc -l < http-generic-api/server.js)" -le 6000
-          node -e "import('./http-generic-api/wordpress/index.js').then(m => { if (Object.keys(m).length < 545) process.exit(1); })"
+          run_check context-kernel \
+            node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${DIAGNOSTIC_ROOT}/changed-files.txt"
+          run_check api-npm-test npm test
 
-      - name: Run exact E2E and Repository Tool Lifecycle gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
-          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${EVIDENCE_ROOT}/e2e-phase-evaluation.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${EVIDENCE_ROOT}/e2e-phase-evaluation.json" --execution-report-file "${EVIDENCE_ROOT}/e2e-phase-execution.json"
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${EVIDENCE_ROOT}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "${EVIDENCE_ROOT}/e2e-contract-reference-integrity.json"
-          git diff --name-status "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > /tmp/repository-tool-changes.tsv
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files /tmp/repository-tool-changes.tsv --policy .github/repository-maintenance-tool-governance.json --output-dir "${EVIDENCE_ROOT}/repository-tool-lifecycle"
-          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.EVIDENCE_ROOT + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
+          {
+            printf 'check\texit_code\tlog\n'
+            cat "${results}"
+          } > "${DIAGNOSTIC_ROOT}/summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/summary.tsv"
+          find "${REPORT_ROOT}" -maxdepth 3 -type f -print | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/report-files.txt" || true
+          git status --porcelain --untracked-files=all > "${DIAGNOSTIC_ROOT}/worktree-status.txt"
 
-      - name: Run deterministic Frontend parity
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          test -z "$(git status --porcelain --untracked-files=no)"
-
-      - name: Upload exact-head evidence
+      - name: Upload exact suite diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-final-${{ github.run_id }}
+          name: spec012-oauth-suite-diagnostic-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/spec012-oauth-final-${{ github.run_id }}/
-            ${{ runner.temp }}/test-suite-reports/*.json
-          if-no-files-found: warn
+            ${{ runner.temp }}/spec012-oauth-suite-diagnostic-${{ github.run_id }}/
+            ${{ runner.temp }}/spec012-oauth-suite-reports-${{ github.run_id }}/
+          if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce suite success
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "${DIAGNOSTIC_ROOT}/results.tsv"
+          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/results.tsv"
