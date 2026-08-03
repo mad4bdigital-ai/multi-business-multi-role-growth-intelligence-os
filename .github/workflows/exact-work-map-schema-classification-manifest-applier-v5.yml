@@ -1,0 +1,283 @@
+name: Exact Work Map Schema Classification Manifest Applier v5
+
+on:
+  pull_request:
+    branches:
+      - gpt/apply-work-map-schema-classification-v5-base-b991e0ae
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-work-map-schema-classification-manifest-v5-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply and validate signed schema repair manifest
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/work-map-schema-classification-repair-20260803
+      EXPECTED_HEAD_SHA: befefeb50e16b35025e6397065ea1f38f7d24e39
+      EXPECTED_BASE_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+      MANIFEST_PATH: .changes/patches/work-map-schema-classification-repair.json
+      MANIFEST_SHA256: 3dee2018072ad3e6354f582147e584e7beaff35677c6ef5cc6a7f6346e74ad47
+    steps:
+      - name: Initialize durable evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/work-map-schema-classification-manifest-v5"
+          mkdir -p "$root"
+          printf 'EVIDENCE_ROOT=%s\n' "$root" >> "$GITHUB_ENV"
+          cat > "$root/report.md" <<EOF_REPORT
+          # Exact Work Map schema classification manifest v5
+
+          | Field | Value |
+          |---|---|
+          | Expected base | \`${EXPECTED_BASE_SHA}\` |
+          | Expected candidate | \`${EXPECTED_HEAD_SHA}\` |
+          | Target branch | \`${TARGET_BRANCH}\` |
+          | Manifest SHA-256 | \`${MANIFEST_SHA256}\` |
+          EOF_REPORT
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable candidate and ancestral base
+        id: authority
+        shell: bash
+        env:
+          EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          log="$EVIDENCE_ROOT/01-authority.log"
+          {
+            echo "event_repo=${EVENT_HEAD_REPOSITORY}"
+            echo "event_ref=${EVENT_HEAD_REF}"
+            echo "event_sha=${EVENT_HEAD_SHA}"
+            test "$EVENT_HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+            test "$EVENT_HEAD_REF" = "$TARGET_BRANCH"
+            test "$EVENT_HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+            test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+            git fetch --no-tags origin \
+              "+refs/heads/main:refs/remotes/origin/main" \
+              "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            current_main="$(git rev-parse refs/remotes/origin/main)"
+            remote_head="$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})"
+            actual_digest="$(sha256sum "$MANIFEST_PATH" | awk '{print $1}')"
+            echo "current_main=${current_main}"
+            echo "remote_head=${remote_head}"
+            echo "actual_manifest_sha256=${actual_digest}"
+            test "$remote_head" = "$EXPECTED_HEAD_SHA"
+            git merge-base --is-ancestor "$EXPECTED_BASE_SHA" "$current_main"
+            git merge-base --is-ancestor "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA"
+            test "$(git rev-list --count "${EXPECTED_BASE_SHA}..${EXPECTED_HEAD_SHA}")" = "4"
+            test "$(git diff --name-only "${EXPECTED_BASE_SHA}...${EXPECTED_HEAD_SHA}")" = "$MANIFEST_PATH"
+            test "$actual_digest" = "$MANIFEST_SHA256"
+          } 2>&1 | tee "$log"
+
+      - name: Apply deterministic manifest transformation
+        id: transform
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/02-transform.log"
+          set +e
+          node >"$log" 2>&1 <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const manifestPath = process.env.MANIFEST_PATH;
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          assert.equal(manifest.schema_version, 1);
+          assert.equal(manifest.contract, 'mad4b.work-map-schema-classification-repair.v1');
+          assert.equal(manifest.registry.rules.length, 3);
+
+          const registryPath = manifest.registry.path;
+          const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+          assert.ok(Array.isArray(registry.rules));
+          const anchors = registry.rules
+            .map((rule, index) => rule.rule_key === manifest.registry.insert_after_rule_key ? index : -1)
+            .filter((index) => index >= 0);
+          assert.equal(anchors.length, 1, 'registry anchor must exist exactly once');
+
+          const newRuleKeys = manifest.registry.rules.map((rule) => rule.rule_key);
+          const newExactNames = manifest.registry.rules.flatMap((rule) => rule.match.exact_names);
+          assert.equal(new Set(newRuleKeys).size, 3, 'manifest rule keys must be unique');
+          assert.equal(newExactNames.length, 6);
+          assert.equal(new Set(newExactNames).size, 6, 'manifest exact names must be unique');
+
+          const existingRuleKeys = new Set(registry.rules.map((rule) => rule.rule_key));
+          const existingExactNames = new Set(
+            registry.rules.flatMap((rule) => Array.isArray(rule.match?.exact_names) ? rule.match.exact_names : [])
+          );
+          for (const rule of manifest.registry.rules) {
+            assert.equal(rule.scope, 'bounded_exact');
+            assert.ok(!existingRuleKeys.has(rule.rule_key), `rule already exists: ${rule.rule_key}`);
+            for (const name of rule.match.exact_names) {
+              assert.ok(!existingExactNames.has(name), `object already has exact rule: ${name}`);
+            }
+          }
+
+          registry.rules.splice(anchors[0] + 1, 0, ...manifest.registry.rules);
+          fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+
+          const testPath = manifest.test_replacement.path;
+          const testSource = fs.readFileSync(testPath, 'utf8');
+          const occurrences = testSource.split(manifest.test_replacement.old).length - 1;
+          assert.equal(occurrences, 1, 'stale test expectation must occur exactly once');
+          fs.writeFileSync(testPath, testSource.replace(manifest.test_replacement.old, manifest.test_replacement.new));
+
+          const e2ePath = manifest.e2e_contract.path;
+          assert.ok(!fs.existsSync(e2ePath), `E2E contract already exists: ${e2ePath}`);
+          fs.mkdirSync(path.dirname(e2ePath), {recursive: true});
+          fs.writeFileSync(e2ePath, `${JSON.stringify(manifest.e2e_contract.content, null, 2)}\n`);
+          fs.unlinkSync(manifestPath);
+
+          console.log(JSON.stringify({rule_keys: newRuleKeys, exact_names: newExactNames, manifest_removed: true}, null, 2));
+          NODE
+          status=$?
+          set -e
+          cat "$log"
+          printf '\ntransform_status=%s\n' "$status" >> "$EVIDENCE_ROOT/report.md"
+          exit "$status"
+
+      - name: Validate exact transformed candidate
+        id: validate
+        if: steps.transform.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/03-validation.log"
+          set +e
+          {
+            set -euxo pipefail
+            actual="$RUNNER_TEMP/actual-files.txt"
+            expected="$RUNNER_TEMP/expected-files.txt"
+            {
+              git diff --name-only
+              git ls-files --others --exclude-standard
+            } | sort -u > "$actual"
+            printf '%s\n' \
+              '.changes/e2e/work-map-schema-classification-growth-control.json' \
+              '.changes/patches/work-map-schema-classification-repair.json' \
+              '.specify/work-map-schema-classification-registry.json' \
+              'http-generic-api/test-work-map-schema-classification.mjs' \
+              | sort > "$expected"
+            diff -u "$expected" "$actual"
+            test -z "$(cat "$actual" | grep '^docs/work-maps/' || true)"
+            git diff --check
+            node -e "JSON.parse(require('node:fs').readFileSync('.specify/work-map-schema-classification-registry.json','utf8'))"
+            node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-schema-classification-growth-control.json','utf8'))"
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/pipeline-connectivity-check.mjs
+            node http-generic-api/test-pipeline-connectivity-check.mjs
+          } >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf '\nvalidation_status=%s\n' "$status" >> "$EVIDENCE_ROOT/report.md"
+          exit "$status"
+
+      - name: Aggregate pre-commit gate
+        id: aggregate
+        if: always() && steps.authority.outcome == 'success'
+        shell: bash
+        env:
+          TRANSFORM: ${{ steps.transform.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+        run: |
+          set -euo pipefail
+          cat >> "$EVIDENCE_ROOT/report.md" <<EOF_RESULT
+
+          ## Pre-commit outcomes
+
+          | Gate | Outcome |
+          |---|---|
+          | Transform | \`${TRANSFORM}\` |
+          | Validation | \`${VALIDATE}\` |
+          EOF_RESULT
+          test "$TRANSFORM" = "success"
+          test "$VALIDATE" = "success"
+
+      - name: Create local exact repair commit
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(work-maps): classify Growth Control analytics schema"
+          result_sha="$(git rev-parse HEAD)"
+          test "$(git diff --name-only "${EXPECTED_BASE_SHA}...${result_sha}" | wc -l | tr -d ' ')" = "3"
+          test -z "$(git diff --name-only "${EXPECTED_BASE_SHA}...${result_sha}" | grep -vE '^(\.changes/e2e/work-map-schema-classification-growth-control\.json|\.specify/work-map-schema-classification-registry\.json|http-generic-api/test-work-map-schema-classification\.mjs)$' || true)"
+          printf 'result_sha=%s\n' "$result_sha" >> "$GITHUB_OUTPUT"
+          printf '\n- Local result SHA: `%s`\n' "$result_sha" >> "$EVIDENCE_ROOT/report.md"
+
+      - name: Validate E2E phase governance on local result
+        id: e2e
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.commit.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_BASE_SHA" \
+            --head "$RESULT_SHA" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_BASE_SHA" \
+            --head "$RESULT_SHA" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_ROOT/e2e-phase-execution.json"
+
+      - name: Push non-force after exact remote-head readback
+        id: push
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.commit.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$RESULT_SHA"
+          cat >> "$EVIDENCE_ROOT/report.md" <<'EOF_SAFETY'
+
+          - Direct protected-branch mutation: `false`
+          - Force push: `false`
+          - Generated Work Map mutation: `false`
+          - Database/runtime/provider/deployment mutation: `false`
+          EOF_SAFETY
+
+      - name: Upload exact manifest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-schema-classification-manifest-v5-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-schema-classification-manifest-v5
+          if-no-files-found: error
+          retention-days: 14
