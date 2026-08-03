@@ -53,6 +53,7 @@ jobs:
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
+      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
     steps:
       - name: Resolve explicit authorization binding
         id: authorization
@@ -172,6 +173,7 @@ jobs:
           const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
           const binding = `binding=${process.env.BINDING_ID}`;
           const runBinding = `run_id=${process.env.GITHUB_RUN_ID}`;
+          const expectedHead = `expected_head_sha=${process.env.EXPECTED_HEAD_SHA}`;
           const relevant = pages.flat()
             .filter((comment) => typeof comment?.body === 'string')
             .filter((comment) => comment?.user?.login === 'github-actions[bot]' && comment?.user?.type === 'Bot')
@@ -187,7 +189,8 @@ jobs:
           }
           const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
           const lastRelevant = relevant.at(-1);
-          if (!lastClaim || !lastClaim.body.includes(runBinding) || Number(lastRelevant?.id) !== Number(lastClaim.id)) {
+          if (!lastClaim || !lastClaim.body.includes(runBinding) || !lastClaim.body.includes(expectedHead)
+            || Number(lastRelevant?.id) !== Number(lastClaim.id)) {
             console.error('Current run no longer owns the latest unresolved Hostinger restart claim.');
             process.exit(1);
           }
@@ -206,7 +209,14 @@ jobs:
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
           HOSTINGER_RESTART_POLL_ATTEMPTS: '12'
           HOSTINGER_RESTART_POLL_INTERVAL_MS: '10000'
-          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
+          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}
+          GITHUB_AUTH_TOKEN: ${{ github.token }}
+          GITHUB_AUTH_REPOSITORY: ${{ env.REPOSITORY }}
+          GITHUB_AUTH_CONTROL_ISSUE: ${{ env.CONTROL_ISSUE }}
+          GITHUB_AUTH_EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+          GITHUB_AUTH_EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
+          GITHUB_AUTH_BINDING_ID: ${{ env.BINDING_ID }}
+          GITHUB_AUTH_RUN_ID: ${{ github.run_id }}
         run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
 
       - name: Upload structured restart evidence
@@ -214,7 +224,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-nodejs-production-restart-${{ github.run_id }}
-          path: ${{ runner.temp }}/hostinger-nodejs-production-restart/*
+          path: ${{ env.EVIDENCE_DIR }}/*
           if-no-files-found: error
           retention-days: 30
 
@@ -223,8 +233,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
-          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
-          ATTEMPT_JOURNAL_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart-attempt.json
+          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
+          ATTEMPT_JOURNAL_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart-attempt.json
         shell: bash
         run: |
           set -euo pipefail
@@ -257,6 +267,7 @@ jobs:
                 : (reportParseFailed ? 'restart_report_invalid_attempt_unknown' : 'restart_report_missing_before_provider_attempt') },
               post_runtime: null,
               pre_runtime: null,
+              pre_mutation_authority: null,
               runtime_identity_authority: null,
               secrets_included: false,
             };
@@ -286,6 +297,8 @@ jobs:
             `report_parse_failed=${reportParseFailed}`,
             `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
+            `pre_mutation_authority=${report.pre_mutation_authority?.status || 'not_required'}`,
+            `pre_mutation_claim_id=${report.pre_mutation_authority?.claim_comment_id || 'none'}`,
             `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
             `identity_scope=${report.runtime_identity_authority?.schema_scope || 'missing'}`,
             `cross_endpoint_composition=${report.runtime_identity_authority?.cross_endpoint_composition_allowed === true}`,
@@ -310,15 +323,29 @@ jobs:
       - name: Enforce exact post-restart Production parity
         if: always() && steps.claim.outputs.claimed == 'true'
         env:
-          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
         run: |
           node --input-type=module -e '
             import fs from "node:fs";
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
             const effects = report.side_effects || {};
             const authority = report.runtime_identity_authority || {};
+            const preMutationAuthority = report.pre_mutation_authority || {};
             const attempted = report.restart?.attempted === true;
             const performed = report.restart?.performed === true;
+            const preMutationAuthorityValid = !attempted || (
+              preMutationAuthority.contract === "mad4b.hostinger-pre-mutation-authority.v1" &&
+              preMutationAuthority.status === "passed" &&
+              preMutationAuthority.issue_open === true &&
+              preMutationAuthority.main_sha === process.env.EXPECTED_HEAD_SHA &&
+              preMutationAuthority.production_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
+              preMutationAuthority.binding === "f5c1ae8840b4d4452f2908bb0f23051880bb6896:019fc51c-3947-7255-aa4d-f55cb8df7658" &&
+              String(preMutationAuthority.run_id) === String(process.env.GITHUB_RUN_ID) &&
+              preMutationAuthority.claim_is_latest === true &&
+              preMutationAuthority.later_marker_count === 0 &&
+              preMutationAuthority.secrets_included === false
+            );
             const valid =
               report.contract === "mad4b.hostinger-nodejs-production-restart.v1" &&
               report.identity?.expected_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
@@ -331,6 +358,7 @@ jobs:
               authority.cross_object_composition_allowed === false &&
               authority.version_endpoint_authoritative === false &&
               authority.mode === "deployment_info_coherent_pair" &&
+              preMutationAuthorityValid &&
               effects.provider_mutation_attempted === attempted &&
               (!performed || attempted) &&
               report.secrets_included === false &&
@@ -348,6 +376,7 @@ jobs:
                 classification: report.classification || "invalid_report",
                 restart_attempted: attempted,
                 restart_performed: performed,
+                pre_mutation_authority: preMutationAuthority.status || "missing",
                 runtime_identity_authority: authority.mode || "missing",
                 runtime_identity_scope: authority.schema_scope || "missing",
                 first_failure: report.first_failure || null,
@@ -362,6 +391,7 @@ jobs:
               restart_attempted: attempted,
               restart_performed: performed,
               runtime_current: report.post_runtime?.current === true || report.pre_runtime?.current === true,
+              pre_mutation_authority: preMutationAuthority.status || "not_required",
               runtime_identity_authority: authority.mode,
               runtime_identity_scope: authority.schema_scope,
               secrets_included: false,
