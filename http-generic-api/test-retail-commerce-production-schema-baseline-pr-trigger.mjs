@@ -73,7 +73,9 @@ assert.match(verify.run, /\.merge_base_commit\.sha == \$base/u);
 assert.match(verify.run, /\.behind_by == 0/u);
 assert.match(verify.run, /\.ahead_by >= 1 and \.ahead_by <= 20/u);
 assert.match(verify.run, /\.total_commits >= 1 and \.total_commits <= 20/u);
+assert.match(verify.run, /\.files \| type == "array"/u);
 assert.match(verify.run, /all\(\.files\[\]\.filename; \. == "docs\/repo-maintenance-status\.md"\)/u);
+assert.doesNotMatch(verify.run, /\.files \| type == "array" and length >= 1/u, "Zero-net tree drift must remain accepted");
 assert.match(verify.run, /accepted_drift_files/u);
 assert.match(verify.run, /non_executable_main_drift_accepted/u);
 assert.doesNotMatch(verify.run, /docs\/\*\*/u, "Main drift allowlist must not use a docs wildcard");
@@ -110,6 +112,7 @@ console.log(JSON.stringify({
   test: "retail_commerce_production_schema_baseline_pr_trigger",
   initialized_before_preflight: true,
   artifact_uploaded_before_fail_closed: true,
+  zero_net_tree_drift_accepted: true,
   exact_non_executable_main_drift_allowlist: ["docs/repo-maintenance-status.md"],
   main_drift_commit_limit: 20,
   missing_binding_names_only: true,
