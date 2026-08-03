@@ -1,0 +1,258 @@
+name: Exact OAuth Full-Suite V2 Repair Writer
+
+on:
+  pull_request:
+    branches:
+      - gpt/write-oauth-fullsuite-v2-base-a61cd9e8
+    types: [opened, reopened, synchronize]
+    paths:
+      - .changes/probes/oauth-fullsuite-v2-repair-a61cd9e8.txt
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-oauth-fullsuite-v2-repair-a61cd9e8
+  cancel-in-progress: false
+
+jobs:
+  patch-test-publish:
+    name: Apply and validate OAuth full-suite V2 repair
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-fullsuite-v2-a61cd9e8-20260804' &&
+      github.event.pull_request.head.sha == 'fa01a9fd42d23015ab47acab40abd905b381b7be'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: fa01a9fd42d23015ab47acab40abd905b381b7be
+      TARGET_BRANCH: gpt/spec012-oauth-fullsuite-v2-a61cd9e8-20260804
+      TRIGGER_FILE: .changes/probes/oauth-fullsuite-v2-repair-a61cd9e8.txt
+      ROUTE_INDEX: http-generic-api/routes/index.js
+      OAUTH_FIXTURE: http-generic-api/test-auth-oauth-routes.mjs
+      T031_TEST: http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+
+    steps:
+      - name: Verify exact authorization and current main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.ref }}" = 'gpt/write-oauth-fullsuite-v2-base-a61cd9e8'
+          test "${{ github.event.pull_request.head.ref }}" = "$TARGET_BRANCH"
+          test "${{ github.event.pull_request.head.sha }}" = "$EXPECTED_HEAD_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/$EXPECTED_HEAD_SHA" --jq '.parents | length')" -eq 1
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/$EXPECTED_HEAD_SHA" --jq '.parents[0].sha')" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(gh api --paginate "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "$TRIGGER_FILE"
+
+      - name: Checkout exact authorized head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply exact bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one anchor, found {count}')
+              if new in text:
+                  raise SystemExit(f'{path}: replacement already present')
+              target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'http-generic-api/routes/index.js',
+              'app.use(buildTenantGptOAuthMetadataRoutes());',
+              'app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+          )
+          replace_once(
+              'http-generic-api/test-auth-oauth-routes.mjs',
+              'app.use(buildTenantGptOAuthMetadataRoutes());',
+              'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));',
+          )
+          replace_once(
+              'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+              'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");',
+              'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");',
+          )
+
+          fixture = Path('http-generic-api/test-auth-oauth-routes.mjs')
+          text = fixture.read_text(encoding='utf-8')
+          readback_anchor = '''      return [{ affectedRows: canConsume ? 1 : 0 }];
+              }
+              if (sql.includes("INSERT INTO `execution_log`")) {'''.replace('              ', '    ')
+          readback_insert = '''      return [{ affectedRows: canConsume ? 1 : 0 }];
+              }
+              if (sql.includes("SELECT status, expires_at, consumed_at") && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
+                const record = durableOAuthCodes.get(params[2]);
+                if (!record) return [[]];
+                return [[{
+                  status: record.status,
+                  expires_at: new Date(Date.now() + 300000),
+                  consumed_at: record.status === "consumed" ? new Date() : null,
+                  client_matches: record.client_id === params[0] ? 1 : 0,
+                  redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+                  expired_by_store: 0,
+                }]];
+              }
+              if (sql.includes("INSERT INTO `execution_log`")) {'''.replace('              ', '    ')
+          if text.count(readback_anchor) != 1:
+              raise SystemExit(f'fixture readback anchor count: {text.count(readback_anchor)}')
+          text = text.replace(readback_anchor, readback_insert, 1)
+
+          replacements = [
+              (
+                  'assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));',
+                  'assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));',
+              ),
+              (
+                  'assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));',
+                  'assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds) && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds > 0 && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds <= 300, JSON.stringify(invalidClientDiagnostic));',
+              ),
+              (
+                  'assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+                  'assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+              ),
+              (
+                  'assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));',
+                  'assert("success diagnostic omits token type evidence", !Object.prototype.hasOwnProperty.call(successDiagnostic?.runtime_evidence_json || {}, "access_token"), JSON.stringify(successDiagnostic));',
+              ),
+              (
+                  'assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));',
+                  'assert("success diagnostic omits token length evidence", !JSON.stringify(successDiagnostic?.runtime_evidence_json || {}).includes(String(exchange.body.access_token.length)), JSON.stringify(successDiagnostic));',
+              ),
+              (
+                  'assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));',
+                  'assert("success diagnostic omits requested scope cardinality", !Object.prototype.hasOwnProperty.call(successDiagnostic?.runtime_evidence_json || {}, "requested_scope"), JSON.stringify(successDiagnostic));',
+              ),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'fixture assertion anchor count {count}: {old[:80]}')
+              text = text.replace(old, new, 1)
+          fixture.write_text(text, encoding='utf-8')
+
+          trigger = Path('.changes/probes/oauth-fullsuite-v2-repair-a61cd9e8.txt')
+          if not trigger.is_file():
+              raise SystemExit('authorization trigger missing')
+          trigger.unlink()
+          PY
+
+          mapfile -t status < <(git status --short)
+          printf '%s\n' "${status[@]}"
+          test "${#status[@]}" -eq 4
+          printf '%s\n' "${status[@]}" | grep -Fxq " D ${TRIGGER_FILE}"
+          printf '%s\n' "${status[@]}" | grep -Fxq " M ${ROUTE_INDEX}"
+          printf '%s\n' "${status[@]}" | grep -Fxq " M ${OAUTH_FIXTURE}"
+          printf '%s\n' "${status[@]}" | grep -Fxq " M ${T031_TEST}"
+          git diff --check
+          node --check "$ROUTE_INDEX"
+          node --check "$OAUTH_FIXTURE"
+          node --check "$T031_TEST"
+
+      - name: Run bounded OAuth regressions with evidence
+        id: tests
+        shell: bash
+        run: |
+          set -uo pipefail
+          REPORT_DIR="$RUNNER_TEMP/oauth-fullsuite-v2"
+          mkdir -p "$REPORT_DIR"
+          npm --prefix http-generic-api ci >"$REPORT_DIR/npm-ci.log" 2>&1
+          npm_code=$?
+          if [ "$npm_code" -eq 0 ]; then
+            (cd http-generic-api && node test-tenant-gpt-oauth-token-exchange-routes.mjs) >"$REPORT_DIR/token-route.log" 2>&1
+            token_code=$?
+            (cd http-generic-api && node test-spec012-t031-oauth-token-route-wiring.mjs) >"$REPORT_DIR/t031-wiring.log" 2>&1
+            t031_code=$?
+            (cd http-generic-api && node test-auth-oauth-routes.mjs) >"$REPORT_DIR/integrated-oauth.log" 2>&1
+            integrated_code=$?
+            (cd http-generic-api && node test-chatgpt-mcp-metadata-routing.mjs) >"$REPORT_DIR/metadata-routing.log" 2>&1
+            metadata_code=$?
+          else
+            token_code=125
+            t031_code=125
+            integrated_code=125
+            metadata_code=125
+          fi
+          jq -n \
+            --arg contract 'mad4b.oauth-fullsuite-v2-repair-writer.v1' \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg source_head_sha "$EXPECTED_HEAD_SHA" \
+            --argjson npm_exit "$npm_code" \
+            --argjson token_route_exit "$token_code" \
+            --argjson t031_wiring_exit "$t031_code" \
+            --argjson integrated_oauth_exit "$integrated_code" \
+            --argjson metadata_routing_exit "$metadata_code" \
+            '{contract:$contract,base_sha:$base_sha,source_head_sha:$source_head_sha,npm_exit:$npm_exit,token_route_exit:$token_route_exit,t031_wiring_exit:$t031_wiring_exit,integrated_oauth_exit:$integrated_oauth_exit,metadata_routing_exit:$metadata_routing_exit,protected_branch_mutation:false,force_push:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            >"$REPORT_DIR/summary.json"
+          combined=$((npm_code | token_code | t031_code | integrated_code | metadata_code))
+          if [ "$combined" -ne 0 ]; then
+            for file in "$REPORT_DIR"/*.log; do echo "### $file"; tail -n 160 "$file" || true; done
+            exit 1
+          fi
+
+      - name: Commit and push ordinary fast-forward repair
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$EXPECTED_HEAD_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$ROUTE_INDEX" "$OAUTH_FIXTURE" "$T031_TEST" "$TRIGGER_FILE"
+          git diff --cached --check
+          git commit -m 'fix(oauth): restore full-suite dependency composition'
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:$TARGET_BRANCH"
+          readback="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$readback" = "$result_head"
+          echo "RESULT_HEAD_SHA=$result_head" >> "$GITHUB_ENV"
+
+      - name: Finalize no-secret evidence
+        if: always()
+        shell: bash
+        run: |
+          REPORT_DIR="$RUNNER_TEMP/oauth-fullsuite-v2"
+          mkdir -p "$REPORT_DIR"
+          if [ -f "$REPORT_DIR/summary.json" ]; then
+            jq --arg result_head_sha "${RESULT_HEAD_SHA:-}" '. + {result_head_sha:$result_head_sha}' "$REPORT_DIR/summary.json" >"$REPORT_DIR/summary.final.json"
+            mv "$REPORT_DIR/summary.final.json" "$REPORT_DIR/summary.json"
+          else
+            jq -n --arg result_head_sha "${RESULT_HEAD_SHA:-}" '{contract:"mad4b.oauth-fullsuite-v2-repair-writer.v1",evidence_initialization_failed:true,result_head_sha:$result_head_sha,secrets_included:false}' >"$REPORT_DIR/summary.json"
+          fi
+
+      - name: Upload repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-fullsuite-v2-repair-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-fullsuite-v2
+          if-no-files-found: error
+          retention-days: 14
