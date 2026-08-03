@@ -79,7 +79,7 @@ jobs:
           node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
           node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
           node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           git diff --check
 
