@@ -1,7 +1,11 @@
 import express, { Router } from "express";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
-import { normalizeTenantGptOAuthResource } from "./tenantGptOAuthResourceProfile.js";
+import { TENANT_GPT_OAUTH_CLIENT_ID, TENANT_GPT_SCOPE } from "./tenantGptOAuthPreset.js";
+import {
+  TENANT_GPT_AUTHORIZATION_SERVER,
+  normalizeTenantGptOAuthResource,
+} from "./tenantGptOAuthResourceProfile.js";
 
 const REQUIRED_CODE_BINDING_CLAIMS = Object.freeze([
   "jti",
@@ -11,6 +15,17 @@ const REQUIRED_CODE_BINDING_CLAIMS = Object.freeze([
   "client_id",
   "resource",
 ]);
+
+const BINDING_LIMITS = Object.freeze({
+  code: 8192,
+  jti: 128,
+  user_id: 64,
+  tenant_id: 64,
+  redirect_uri: 2048,
+  client_id: 191,
+  resource: 2048,
+  jwt_secret: 4096,
+});
 
 function text(value, max = 512) {
   return String(value || "").trim().slice(0, max);
@@ -23,13 +38,41 @@ function invalidCodeClaim(code, message) {
   return error;
 }
 
+function requireBoundedClaim(payload, claim) {
+  const raw = String(payload?.[claim] || "").trim();
+  if (!raw) {
+    throw invalidCodeClaim(
+      `oauth_code_${claim}_required`,
+      `OAuth authorization-code claim ${claim} is required.`,
+    );
+  }
+  const max = BINDING_LIMITS[claim];
+  if (raw.length > max) {
+    throw invalidCodeClaim(
+      `oauth_code_${claim}_too_long`,
+      `OAuth authorization-code claim ${claim} exceeds its bounded length.`,
+    );
+  }
+  return raw;
+}
+
 function validRedirectUri(value) {
   try {
-    const url = new URL(text(value));
+    const url = new URL(String(value || ""));
     return ["https:", "http:"].includes(url.protocol);
   } catch {
     return false;
   }
+}
+
+function requireJwtSecret(env = process.env) {
+  const raw = String(env?.JWT_SECRET || "").trim();
+  if (!raw || raw.length > BINDING_LIMITS.jwt_secret) {
+    const error = new Error("A bounded JWT_SECRET is required for Tenant GPT OAuth token exchange.");
+    error.code = "oauth_jwt_secret_unavailable";
+    throw error;
+  }
+  return raw;
 }
 
 export function validateTenantGptOAuthAuthorizationCodeBindings(payload) {
@@ -40,43 +83,94 @@ export function validateTenantGptOAuthAuthorizationCodeBindings(payload) {
     throw invalidCodeClaim("oauth_code_purpose_invalid", "OAuth authorization-code purpose is invalid.");
   }
 
-  for (const claim of REQUIRED_CODE_BINDING_CLAIMS) {
-    if (!text(payload[claim])) {
-      throw invalidCodeClaim(
-        `oauth_code_${claim}_required`,
-        `OAuth authorization-code claim ${claim} is required.`,
-      );
-    }
-  }
-
-  if (!validRedirectUri(payload.redirect_uri)) {
+  const claims = Object.fromEntries(
+    REQUIRED_CODE_BINDING_CLAIMS.map((claim) => [claim, requireBoundedClaim(payload, claim)]),
+  );
+  if (!validRedirectUri(claims.redirect_uri)) {
     throw invalidCodeClaim("oauth_code_redirect_uri_invalid", "OAuth authorization-code redirect_uri is invalid.");
   }
-  if (!normalizeTenantGptOAuthResource(payload.resource)) {
+  if (!normalizeTenantGptOAuthResource(claims.resource)) {
     throw invalidCodeClaim("oauth_code_resource_invalid", "OAuth authorization-code resource is invalid.");
   }
 
   return payload;
 }
 
+function issueTenantGptAccessToken(payload, {
+  clientId,
+  jwtid,
+  resource,
+  expiresIn,
+  jwtSecret,
+} = {}) {
+  const userId = text(payload?.user_id, BINDING_LIMITS.user_id);
+  const tenantId = text(payload?.tenant_id, BINDING_LIMITS.tenant_id);
+  const normalizedClientId = text(clientId || TENANT_GPT_OAUTH_CLIENT_ID, BINDING_LIMITS.client_id);
+  const normalizedResource = normalizeTenantGptOAuthResource(resource);
+  if (!userId || !tenantId || !normalizedClientId || !normalizedResource || !jwtid) {
+    const error = new Error("Tenant GPT access-token subject, client, resource, and JTI are required.");
+    error.code = "tenant_gpt_access_token_input_invalid";
+    throw error;
+  }
+  return jwt.sign(
+    {
+      iss: TENANT_GPT_AUTHORIZATION_SERVER,
+      aud: normalizedResource,
+      azp: normalizedClientId,
+      client_id: normalizedClientId,
+      resource: normalizedResource,
+      sub: `tenant:${tenantId}:user:${userId}`,
+      user_id: userId,
+      tenant_id: tenantId,
+      scope: TENANT_GPT_SCOPE,
+      purpose: "tenant_gpt_access",
+    },
+    jwtSecret,
+    { expiresIn, jwtid },
+  );
+}
+
 export function buildTenantGptOAuthTokenExchangeDeps(deps = {}, env = deps.env || process.env) {
   const injectedVerifyCode = typeof deps.verifyCode === "function" ? deps.verifyCode : null;
+  const injectedIssueAccessToken = typeof deps.issueAccessToken === "function" ? deps.issueAccessToken : null;
   const verifyCode = injectedVerifyCode || ((code) => {
-    const jwtSecret = text(env?.JWT_SECRET, 4096);
-    if (!jwtSecret) {
-      const error = new Error("JWT_SECRET is required for Tenant GPT OAuth token exchange.");
-      error.code = "oauth_jwt_secret_unavailable";
-      throw error;
+    const rawCode = String(code || "").trim();
+    if (!rawCode || rawCode.length > BINDING_LIMITS.code) {
+      throw invalidCodeClaim("oauth_code_size_invalid", "OAuth authorization code has an invalid bounded size.");
     }
-    return jwt.verify(text(code, 16384), jwtSecret);
+    return jwt.verify(rawCode, requireJwtSecret(env));
   });
+  const issueAccessToken = injectedIssueAccessToken || ((payload, options = {}) => issueTenantGptAccessToken(
+    payload,
+    { ...options, jwtSecret: requireJwtSecret(env) },
+  ));
 
   return {
     ...deps,
     verifyCode(code) {
       return validateTenantGptOAuthAuthorizationCodeBindings(verifyCode(code));
     },
+    issueAccessToken,
   };
+}
+
+function requestFailure(res, {
+  requestId,
+  description,
+  code,
+  retrySameCode,
+} = {}) {
+  return res.status(400).json({
+    error: "invalid_request",
+    error_description: description,
+    error_code: code,
+    request_id: requestId,
+    retry_same_code: retrySameCode === true,
+    restart_authorization: false,
+    outcome_unknown: false,
+    operator_reconciliation_required: false,
+    secrets_included: false,
+  });
 }
 
 export function buildTenantGptOAuthTokenRequestBindingGuard(options = {}) {
@@ -84,27 +178,43 @@ export function buildTenantGptOAuthTokenRequestBindingGuard(options = {}) {
   const createId = typeof options.randomUUID === "function" ? options.randomUUID : randomUUID;
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), (req, res, next) => {
-    if (text(req.body?.redirect_uri)) return next();
-
     const requestId = createId();
+    const redirectUri = String(req.body?.redirect_uri || "").trim();
+    const code = String(req.body?.code || "").trim();
+
     delete req.headers.cookie;
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("x-request-id", requestId);
-    return res.status(400).json({
-      error: "invalid_request",
-      error_description: "redirect_uri is required for this authorization code.",
-      error_code: "oauth_redirect_uri_required",
-      request_id: requestId,
-      retry_same_code: true,
-      restart_authorization: false,
-      outcome_unknown: false,
-      operator_reconciliation_required: false,
-      secrets_included: false,
-    });
+
+    if (!redirectUri) {
+      return requestFailure(res, {
+        requestId,
+        description: "redirect_uri is required for this authorization code.",
+        code: "oauth_redirect_uri_required",
+        retrySameCode: true,
+      });
+    }
+    if (redirectUri.length > BINDING_LIMITS.redirect_uri || !validRedirectUri(redirectUri)) {
+      return requestFailure(res, {
+        requestId,
+        description: "redirect_uri is invalid or exceeds its bounded length.",
+        code: "oauth_redirect_uri_invalid",
+        retrySameCode: true,
+      });
+    }
+    if (code.length > BINDING_LIMITS.code) {
+      return requestFailure(res, {
+        requestId,
+        description: "code exceeds its bounded length.",
+        code: "oauth_code_too_long",
+        retrySameCode: false,
+      });
+    }
+    return next();
   });
 
   return router;
 }
 
-export { REQUIRED_CODE_BINDING_CLAIMS };
+export { BINDING_LIMITS, REQUIRED_CODE_BINDING_CLAIMS };
