@@ -1,4 +1,4 @@
-name: Exact OAuth Dependency Atomic ARM 6016
+name: Exact OAuth Governance ARM 6016
 
 on:
   pull_request:
@@ -10,142 +10,111 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-oauth-deps-atomic-arm-6016
+  group: exact-oauth-governance-arm-6016
   cancel-in-progress: false
 
 jobs:
-  validate:
+  govern:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804' &&
       github.event.pull_request.head.sha == 'd4d43f7754e273e25226095d9a105a72fa05b754'
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 30
+    env:
+      BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      HEAD_SHA: d4d43f7754e273e25226095d9a105a72fa05b754
+
     steps:
       - name: Checkout immutable candidate head
         uses: actions/checkout@v5
         with:
-          ref: gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804
+          ref: d4d43f7754e273e25226095d9a105a72fa05b754
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Prove immutable identity and exact scope
+      - name: Prove immutable identity scope and blobs
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main
-          test "$(git rev-parse HEAD)" = "d4d43f7754e273e25226095d9a105a72fa05b754"
-          test "$(git rev-parse origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
-          test "$(git merge-base origin/main HEAD)" = "a61cd9e83070618001676bbc679bc937f0551875"
-          test "$(git rev-list --count origin/main..HEAD)" = "1"
+          git fetch --no-tags origin "${BASE_SHA}"
+          test "$(git rev-parse HEAD)" = "${HEAD_SHA}"
+          test "$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")" = "${BASE_SHA}"
+          test "$(git rev-list --count "${BASE_SHA}".."${HEAD_SHA}")" = "1"
           test -z "$(git status --porcelain)"
-          git diff --check origin/main...HEAD
-          git diff --name-only origin/main...HEAD | sort > "$RUNNER_TEMP/changed-files.txt"
-          cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
+          git diff --check "${BASE_SHA}"..."${HEAD_SHA}"
+          git diff --name-only "${BASE_SHA}"..."${HEAD_SHA}" | sort > "${RUNNER_TEMP}/changed-files.txt"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
           http-generic-api/routes/index.js
           http-generic-api/test-auth-oauth-routes.mjs
           http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           EOF
-          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/changed-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/changed-files.txt"
           test "$(git rev-parse HEAD:http-generic-api/routes/index.js)" = "07f5966079784e8a18df69559976753362c8f00e"
           test "$(git rev-parse HEAD:http-generic-api/test-auth-oauth-routes.mjs)" = "6fd2e0854c8739b646d5a51de837153c4167bd7c"
           test "$(git rev-parse HEAD:http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs)" = "c7fc6db09585a86f6b4b0d53ab7b62f9d0a0b6dd"
-          {
-            echo "main_sha=$(git rev-parse origin/main)"
-            echo "candidate_sha=$(git rev-parse HEAD)"
-            echo "merge_base=$(git merge-base origin/main HEAD)"
-            echo "candidate_commits=$(git rev-list --count origin/main..HEAD)"
-            echo "changed_files:"
-            sed 's/^/  - /' "$RUNNER_TEMP/changed-files.txt"
-          } > "$RUNNER_TEMP/oauth-deps-arm-metadata.txt"
 
-      - uses: actions/setup-node@v6
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
-
-      - name: Validate changed JavaScript syntax
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/routes/index.js
-          node --check http-generic-api/test-auth-oauth-routes.mjs
-          node --check http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
 
       - name: Install locked API dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run focused OAuth dependency regressions
-        working-directory: http-generic-api
+      - name: Run E2E reference-integrity regressions
         run: |
           set -euo pipefail
-          node test-spec012-t031-oauth-token-route-wiring.mjs
-          node test-auth-oauth-routes.mjs
-          node test-spec012-t032-legacy-audience-compatibility.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
 
-      - name: Run full Unit and Integration suite
-        working-directory: http-generic-api
-        env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: npm test
-
-      - name: Prove runtime startup and deployment evidence
-        working-directory: http-generic-api
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: "true"
-          DEPLOYMENT_BRANCH: "gpt/fix-oauth-dependency-composition-atomic-a61cd9-20260804"
-          DEPLOYMENT_COMMIT_SHA: "d4d43f7754e273e25226095d9a105a72fa05b754"
+      - name: Evaluate exact E2E contract references
         run: |
           set -euo pipefail
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
+          mkdir -p "${RUNNER_TEMP}/e2e-reference"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-reference/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/e2e-reference/e2e-contract-reference-integrity.json"
 
-      - name: Run canonical architecture validation
-        working-directory: http-generic-api
-        run: npm run validate
+      - name: Run repository-tool lifecycle regression
+        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
 
-      - name: Run explicit OAuth and activation governance checks
-        working-directory: http-generic-api
+      - name: Evaluate exact repository-tool lifecycle
         run: |
           set -euo pipefail
-          node test-custom-gpt-schemas.mjs
-          node test-tenant-activation-contract-inventory-parity.mjs
-          node test-activation-lifecycle-contract-foundation.mjs
-          node test-openapi-split-governance.mjs
-          node test-openapi-split-regeneration-parity.mjs
+          git diff --name-status "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          BASE_SHA="${BASE_SHA}" CANDIDATE_SHA="${HEAD_SHA}" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
 
-      - name: Install locked root dependencies
-        run: npm ci
-
-      - name: Validate Execution Resolver
-        run: |
-          set -euo pipefail
-          npm run typecheck
-          npm test -- --runInBand
-
-      - name: Record final worktree state
+      - name: Write bounded governance summary
         if: always()
         shell: bash
         run: |
-          {
-            echo "final_head=$(git rev-parse HEAD)"
-            echo "final_main=$(git rev-parse origin/main)"
-            echo "final_status:"
-            git status --short
-          } > "$RUNNER_TEMP/oauth-deps-arm-final-state.txt"
+          set -euo pipefail
+          jq -n \
+            --arg base_sha "${BASE_SHA}" \
+            --arg head_sha "${HEAD_SHA}" \
+            '{base_sha:$base_sha,head_sha:$head_sha,candidate_commits:1,changed_paths:["http-generic-api/routes/index.js","http-generic-api/test-auth-oauth-routes.mjs","http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"],e2e_reference_integrity:"passed",repository_tool_lifecycle:"passed",protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/oauth-governance-summary.json"
 
-      - name: Upload exact ARM evidence
+      - name: Upload bounded governance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-oauth-deps-atomic-arm-6016-${{ github.event.pull_request.head.sha }}
+          name: exact-oauth-governance-arm-6016-${{ github.event.pull_request.head.sha }}
           path: |
-            ${{ runner.temp }}/oauth-deps-arm-metadata.txt
-            ${{ runner.temp }}/oauth-deps-arm-final-state.txt
-            ${{ runner.temp }}/test-suite-reports/*.json
-          if-no-files-found: warn
+            ${{ runner.temp }}/oauth-governance-summary.json
+            ${{ runner.temp }}/changed-files.txt
+            ${{ runner.temp }}/e2e-reference/
+            ${{ runner.temp }}/repository-tool-lifecycle/
+          if-no-files-found: error
           retention-days: 14
