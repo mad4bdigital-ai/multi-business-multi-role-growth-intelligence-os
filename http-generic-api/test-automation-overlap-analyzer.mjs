@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -104,9 +104,41 @@ assert.equal(
   true,
 );
 
-const realReport = analyzeAutomationOverlap({
-  repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
-});
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const workMapWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml");
+const overlapPolicyPath = path.join(repoRoot, "http-generic-api/scripts/taxonomy/automation-overlap-policy.json");
+const workMapWorkflow = readFileSync(workMapWorkflowPath, "utf8");
+const overlapPolicy = JSON.parse(readFileSync(overlapPolicyPath, "utf8"));
+const workMapResourceGroup = overlapPolicy.resource_groups.find(
+  (entry) => entry.key === "pull-request-work-map-generated-artifacts",
+);
+const expectedWorkMapConcurrency = "spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}";
+
+assert(workMapResourceGroup, "Work Map generated-artifact resource group must remain registered");
+assert.equal(
+  workMapResourceGroup.required_concurrency_group,
+  expectedWorkMapConcurrency,
+  "Work Map resource-group policy must match the workflow-dispatch-only writer concurrency identity",
+);
+assert.deepEqual(
+  workMapResourceGroup.workflows,
+  [{ path: ".github/workflows/spec-kit-work-map-autofix.yml", access: "write" }],
+  "Work Map generated artifacts must retain one governed writer",
+);
+assert(
+  workMapWorkflow.includes(`group: ${expectedWorkMapConcurrency}`),
+  "Work Map writer workflow must use the policy-required concurrency group",
+);
+assert(
+  workMapWorkflow.includes("cancel-in-progress: false"),
+  "Work Map writer must queue rather than cancel in-progress mutations",
+);
+assert(
+  !workMapWorkflow.includes("contains(github.event.pull_request.body"),
+  "retired pull-request authorization-marker concurrency must not return",
+);
+
+const realReport = analyzeAutomationOverlap({ repoRoot });
 assert.equal(
   realReport.enforcement.blocking_count,
   0,
