@@ -1,0 +1,14 @@
+pin_critical_runners_governance_patcher_v10
+validated_baseline=14433d15184bd7e7658281a356a7540e3d2d6dfe
+latest_main_at_trigger=dd929093dd83d2c91ac817ff60d324eca2b71e51
+latest_main_overlap=false
+pinned_workflows=9
+pr_read_only_workflows=3
+isolated_write_workflows=3
+ref_update=false
+branch_push=false
+main_mutation=false
+production_mutation=false
+provider_mutation=false
+database_mutation=false
+secrets_included=false
