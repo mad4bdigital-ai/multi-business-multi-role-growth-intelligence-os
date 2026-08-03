@@ -60,7 +60,7 @@ jobs:
           printf '%s\n' "${files[@]}"
           test "${#files[@]}" -eq 1
           test "${files[0]}" = '.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs")" = '3f3210a557466bc1c44222ef30099bc9973f2870'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs")" = 'fb3efd665a9640153647d9b78cf96ce4a67eb46e'
 
       - name: Run canonical syntax and governance checks
         shell: bash
@@ -136,6 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
           node http-generic-api/scripts/e2e-phase-governance.mjs check \
             --base "${EXPECTED_MAIN_SHA}" \
             --head "${EXPECTED_HEAD_SHA}" \
