@@ -1,0 +1,11 @@
+runner_label_allocation_probe
+base_main=d2feb29071823bc706916387b178bc0429be96d1
+workflow_base=69f8e6c11eb621d360be43c489933630f55952bb
+requested_labels=ubuntu-latest,ubuntu-24.04
+production_mutation=false
+provider_mutation=false
+credential_access=false
+sql_execution=false
+migration_apply=false
+database_mutation=false
+external_send=false
