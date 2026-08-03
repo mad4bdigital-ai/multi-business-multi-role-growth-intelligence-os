@@ -168,6 +168,8 @@ function setup() {
 
   const writerPolicy = contract.artifact_writer_policies.find((row) => row.artifact_group === "platform_work_maps");
   assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
+  assert.ok(writerPolicy.required_writer_commands.includes("mad4b.spec-kit-work-map-autofix.v2"));
+  assert.ok(!writerPolicy.required_writer_commands.includes("work-map-autofix:authorized"));
   assert.deepEqual(
     writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
     ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
@@ -204,48 +206,72 @@ function setup() {
   const triggerBlock = autofixWorkflow.slice(autofixWorkflow.indexOf("on:"), autofixWorkflow.indexOf("permissions:"));
   const concurrencyBlock = autofixWorkflow.slice(autofixWorkflow.indexOf("concurrency:"), autofixWorkflow.indexOf("jobs:"));
   const permissionsBlock = autofixWorkflow.slice(autofixWorkflow.indexOf("permissions:"), autofixWorkflow.indexOf("concurrency:"));
-  const jobAuthorizationBlock = autofixWorkflow.slice(autofixWorkflow.indexOf("jobs:"), autofixWorkflow.indexOf("runs-on:"));
 
-  assert.ok(triggerBlock.includes("types: [reopened]"), "Pull-request autofix must only be triggered by an explicit reopened event");
-  assert.ok(concurrencyBlock.includes("format('spec-kit-work-map-noop-{0}', github.run_id)"), "Unauthorised events must use a run-unique no-op concurrency group");
-  assert.ok(concurrencyBlock.includes("work-map-autofix:authorized"), "Authorized artifact writes must share the governed branch concurrency group");
-  assert.ok(concurrencyBlock.includes("cancel-in-progress: false"), "Authorized writes must queue instead of cancelling an active writer");
-  assert.ok(jobAuthorizationBlock.includes("github.event.action == 'reopened'"));
-  assert.ok(jobAuthorizationBlock.includes("github.event.pull_request.head.repo.full_name == github.repository"));
-  assert.ok(jobAuthorizationBlock.includes("github.actor != 'github-actions[bot]'"));
-  assert.ok(jobAuthorizationBlock.includes("work-map-autofix:authorized"));
+  assert.ok(triggerBlock.includes("workflow_dispatch:"), "Autofix v2 must use explicit workflow dispatch");
+  assert.ok(triggerBlock.includes("Existing same-repository pull-request branch to update"));
+  assert.ok(triggerBlock.includes("expected_head_sha:"));
+  assert.ok(!triggerBlock.includes("pull_request:"), "Autofix v2 must not accept pull-request event authorization");
+  assert.ok(!autofixWorkflow.includes("types: [reopened]"));
+  assert.ok(!autofixWorkflow.includes("work-map-autofix:authorized"));
 
-  assert.ok(permissionsBlock.includes("pull-requests: write"));
-  assert.ok(autofixWorkflow.includes("workflow_dispatch requires exactly one open same-repository PR targeting main"));
+  assert.ok(concurrencyBlock.includes("spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}"));
+  assert.ok(concurrencyBlock.includes("cancel-in-progress: false"));
+
+  for (const permission of ["actions: write", "contents: write", "pull-requests: write", "issues: write"]) {
+    assert.ok(permissionsBlock.includes(permission), `Autofix v2 missing permission ${permission}`);
+  }
+
+  for (const marker of [
+    "Initialize diagnostics and validate inputs",
+    "Checkout exact authorized head",
+    "Pin branch and pull request identity",
+    "Validate generator and governance contracts",
+    "Regenerate and prove idempotency",
+    "Commit and push governed Work Maps",
+    "Dispatch exact-head verification",
+    "Finalize diagnostic evidence",
+    ".work-map-autofix-diagnostics",
+    "mad4b.spec-kit-work-map-autofix.v2",
+    "WORK_MAP_AUTOFIX_V2",
+    "work-map-autofix-diagnostics-",
+    "actions/upload-artifact@v4",
+    "git check-ref-format --branch",
+    "git add docs/work-maps",
+    "git push origin",
+    "git rev-parse HEAD",
+    "gh workflow run ci.yml",
+    "gh workflow run spec-kit-work-map-integration.yml",
+  ]) {
+    assert.ok(autofixWorkflow.includes(marker), `Autofix v2 missing ${marker}`);
+  }
+
+  assert.ok(autofixWorkflow.includes('[[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]'));
+  assert.ok(autofixWorkflow.includes('actual_head_sha="$(git rev-parse HEAD)"'));
+  assert.ok(autofixWorkflow.includes('remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk \'{print $1}\')"'));
+  assert.ok(autofixWorkflow.includes('-f state=open'));
+  assert.ok(autofixWorkflow.includes('-f base=main'));
   assert.ok(autofixWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
-  assert.ok(autofixWorkflow.includes("Consume one-time pull-request authorization"));
-  assert.ok(autofixWorkflow.includes("consume-one-time-authorization"));
-  assert.ok(autofixWorkflow.includes("Authorization marker removal readback failed"));
-  assert.ok(autofixWorkflow.includes('"consume_authorization":"${{ steps.consume_authorization.outcome }}"'));
-  assert.ok(autofixWorkflow.includes("Bootstrap Work Map diagnostic envelope"));
-  assert.ok(autofixWorkflow.includes("WORK_MAP_STEP_OUTCOMES"));
-  assert.ok(autofixWorkflow.includes("work-map-autofix-diagnostic-report"));
-  assert.ok(autofixWorkflow.includes("gh api --method PATCH"));
-  assert.ok(autofixWorkflow.includes("gh api --method POST"));
-  assert.ok(autofixWorkflow.includes("actions/upload-artifact@v4"));
-  assert.ok(autofixWorkflow.includes("GITHUB_STEP_SUMMARY"));
-  assert.ok(autofixWorkflow.includes("regenerate-and-verify-idempotency"));
-  assert.ok(autofixWorkflow.includes("commit-push-and-dispatch"));
+  assert.ok(autofixWorkflow.includes("test \"${pr_count}\" = \"1\""));
+  assert.ok(!autofixWorkflow.includes("Consume one-time pull-request authorization"));
+  assert.ok(!autofixWorkflow.includes("Authorization marker removal readback failed"));
+  assert.ok(!autofixWorkflow.includes("--force"));
+  assert.ok(!autofixWorkflow.includes("--force-with-lease"));
   assert.ok(manifest.includes("node test-work-map-autofix-diagnostics.mjs"));
 
-  const bootstrapIndex = autofixWorkflow.indexOf("Bootstrap Work Map diagnostic envelope");
-  const checkoutIndex = autofixWorkflow.indexOf("actions/checkout@v5");
-  const pinIndex = autofixWorkflow.indexOf("Pin authorized branch head");
-  const consumeIndex = autofixWorkflow.indexOf("Consume one-time pull-request authorization");
-  const regenerateIndex = autofixWorkflow.indexOf("Regenerate and verify idempotency");
-  const finalizeIndex = autofixWorkflow.indexOf("Finalize Work Map diagnostic report");
-  const uploadIndex = autofixWorkflow.indexOf("Upload Work Map diagnostic report");
-  const publishIndex = autofixWorkflow.indexOf("Publish sticky Work Map diagnostic report");
-  assert.ok(bootstrapIndex >= 0 && bootstrapIndex < checkoutIndex);
-  assert.ok(pinIndex >= 0 && pinIndex < consumeIndex);
-  assert.ok(consumeIndex >= 0 && consumeIndex < regenerateIndex);
-  assert.ok(finalizeIndex >= 0 && finalizeIndex < uploadIndex);
-  assert.ok(uploadIndex >= 0 && uploadIndex < publishIndex);
+  const initializeIndex = autofixWorkflow.indexOf("Initialize diagnostics and validate inputs");
+  const checkoutIndex = autofixWorkflow.indexOf("Checkout exact authorized head");
+  const pinIndex = autofixWorkflow.indexOf("Pin branch and pull request identity");
+  const validateIndex = autofixWorkflow.indexOf("Validate generator and governance contracts");
+  const regenerateIndex = autofixWorkflow.indexOf("Regenerate and prove idempotency");
+  const publishIndex = autofixWorkflow.indexOf("Commit and push governed Work Maps");
+  const verifyIndex = autofixWorkflow.indexOf("Dispatch exact-head verification");
+  const finalizeIndex = autofixWorkflow.indexOf("Finalize diagnostic evidence");
+  const uploadIndex = autofixWorkflow.indexOf("Upload Work Map diagnostic evidence");
+  assert.ok(initializeIndex >= 0 && initializeIndex < checkoutIndex);
+  assert.ok(checkoutIndex < pinIndex && pinIndex < validateIndex);
+  assert.ok(validateIndex < regenerateIndex && regenerateIndex < publishIndex);
+  assert.ok(publishIndex < verifyIndex && verifyIndex < finalizeIndex);
+  assert.ok(finalizeIndex < uploadIndex);
 }
 
 console.log("Pipeline connectivity contract regression passed");
