@@ -1,4 +1,4 @@
-name: Incident 5021 direct finalize capability builder
+name: Incident 5021 direct finalize capability builder v2
 
 on:
   pull_request:
@@ -11,12 +11,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: incident-5021-direct-finalize-capability-builder
+  group: incident-5021-direct-finalize-capability-builder-v2
   cancel-in-progress: false
 
 jobs:
   patch-test-publish:
-    name: Patch, test, and publish direct finalize guard
+    name: Patch, test, and publish direct finalize guard v2
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
@@ -60,56 +60,40 @@ jobs:
           service = Path("http-generic-api/operationCapabilityLifecycleService.js")
           replace_once(
               service,
-              '''function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
-            if (operationKey === "operation.resume") return true;
-          ''',
-              '''function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
-            if (operationKey === "repo.pr.finalize") return true;
-            if (operationKey === "operation.resume") return true;
-          ''',
+              '  if (operationKey === "operation.resume") return true;\n',
+              '  if (operationKey === "repo.pr.finalize") return true;\n  if (operationKey === "operation.resume") return true;\n',
               "direct finalize service guard",
           )
 
           test = Path("http-generic-api/test-gpt-tools-route-syntax-regression.mjs")
+          helper_anchor = '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "operation.resume",
+              {},
+            ),
+            true,
+          );
+'''
           replace_once(
               test,
-              '''  assert.equal(
-            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
-              "operation.resume",
-              {},
-            ),
-            true,
-          );
-
-          {
-          ''',
-              '''  assert.equal(
-            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
-              "operation.resume",
-              {},
-            ),
-            true,
-          );
-          assert.equal(
+              helper_anchor,
+              helper_anchor + '''  assert.equal(
             _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
               "repo.pr.finalize",
               {},
             ),
             true,
           );
-
-          {
-          ''',
+''',
               "direct finalize helper assertion",
           )
-          replace_once(
-              test,
-              '''    assert.equal(createCalls, 0);
+
+          lifecycle_anchor = '''    assert.equal(createCalls, 0);
           }
 
           const renewalRequest = buildCapabilityRenewalRequest({
-          ''',
-              '''    assert.equal(createCalls, 0);
+'''
+          direct_finalize_case = '''    assert.equal(createCalls, 0);
           }
 
           {
@@ -130,9 +114,8 @@ jobs:
           }
 
           const renewalRequest = buildCapabilityRenewalRequest({
-          ''',
-              "direct finalize lifecycle rejection",
-          )
+'''
+          replace_once(test, lifecycle_anchor, direct_finalize_case, "direct finalize lifecycle rejection")
 
           contract = Path(".changes/e2e/repository-lifecycle-draft-merge-guard.json")
           replace_once(
@@ -195,7 +178,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: incident-5021-direct-finalize-${{ github.sha }}
+          name: incident-5021-direct-finalize-v2-${{ github.sha }}
           path: /tmp/incident-5021-direct-finalize-result.json
           if-no-files-found: warn
           retention-days: 7
