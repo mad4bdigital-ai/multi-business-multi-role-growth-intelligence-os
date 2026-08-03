@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-completed-build-log-evidence-push-r3c",
+  "title": "Drift-tolerant trusted-main push fallback for completed Hostinger build-log evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
+      "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Harden the trusted-main ARM marker fallback so delayed runner allocation cannot invalidate an otherwise authorized GET-only evidence push merely because unrelated main commits landed afterward.",
+      "e2e_journeys": [
+        {
+          "id": "collect-immutable-event-build-provenance-after-main-advances",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner, GitHub Actions, and the configured Hostinger read credential",
+          "entrypoint": "A squash merge to main changes only the exact R3C marker and uses the fixed V2 trigger token as the first commit-message line.",
+          "terminal_outcome": "The delayed ARM job checks out the immutable push SHA, proves it remains an ancestor of live main, proves the canonical workflow/reporter/test blobs are unchanged at both the event SHA and live main, and only then records the claim and performs the one GET-only completed-build log read.",
+          "steps": [
+            "Check out the exact github.sha with complete history rather than the moving main ref.",
+            "Validate the event is a main push and the checkout equals the immutable event SHA.",
+            "Read live main and prove the event SHA is still contained in its ancestry.",
+            "Validate protected Production remains f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+            "Validate the event changed only the exact R3C marker, with the required first-line token and marker body.",
+            "Validate the canonical workflow, reporter, and reporter-test blob identities at both the event SHA and live main.",
+            "Validate Incident #4953 remains open and no R3C claim or completed marker exists.",
+            "Record one durable R3C claim after all immutable and live-head checks pass.",
+            "Run the canonical reporter regression without credential access.",
+            "Perform one authenticated GET for completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 logs.",
+            "Scrub the configured provider token from persisted evidence, upload the artifact, and publish the bounded result.",
+            "Require expected Production SHA provenance before the workflow succeeds."
+          ],
+          "assertions": [
+            "The execution runner is ubuntu-24.04-arm.",
+            "The workflow has contents read and issues write only.",
+            "No workflow_dispatch, issue_comment, pull_request, or pull_request_target execution surface exists.",
+            "The checkout is pinned to github.sha and uses full history.",
+            "The immutable event SHA must be an ancestor of live main; exact equality is not required.",
+            "The target workflow, reporter, and reporter-test blobs must match the reviewed values at both event SHA and live main before the claim.",
+            "Only the canonical reporter reads secrets.HOSTINGER_API_TOKEN.",
+            "The Hostinger provider method is GET only.",
+            "No build creation, deployment, release activation, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, force update, or external business send occurs.",
+            "The exact provider token is removed from persisted evidence before artifact upload.",
+            "The result comment records event main SHA, live main SHA, and event_is_live_main_ancestor=true.",
+            "The R3C binding cannot be reused after claiming or completion."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-evidence-push-r3c-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-hostinger-completed-build-log-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
+            "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs",
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the inert V2 registration and then merge one exact R3C marker to obtain completed-build source-provenance evidence even if unrelated main commits land before runner allocation."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on non-ancestor event history, marker, token, blob, Production, issue, or binding drift while tolerating unrelated descendant movement of main."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This workflow is GET-only evidence and performs no Hostinger mutation canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This workflow does not deploy, activate, restart, or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}

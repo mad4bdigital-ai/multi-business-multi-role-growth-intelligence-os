@@ -1,5 +1,5 @@
 name: Spec Kit Work Map Autofix Recovery Dispatch
-run-name: Spec Kit Work Map Autofix Recovery Dispatch · PR ${{ github.event.pull_request.number || inputs.pr_number || 'unresolved' }}
+run-name: Spec Kit Work Map Autofix Recovery Dispatch · PR ${{ github.event.issue.number || github.event.pull_request.number || inputs.pr_number || 'unresolved' }}
 
 on:
   workflow_dispatch:
@@ -15,6 +15,8 @@ on:
   pull_request_target:
     branches: [main]
     types: [synchronize, reopened, ready_for_review, edited]
+  issue_comment:
+    types: [created]
 
 permissions:
   actions: write
@@ -23,7 +25,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: spec-kit-work-map-autofix-recovery-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  group: spec-kit-work-map-autofix-recovery-${{ github.event.issue.number || github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -37,12 +39,20 @@ jobs:
         github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false &&
         contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->')
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        github.actor != 'github-actions[bot]' &&
+        github.event.comment.body == '/recover-work-maps'
       )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      REQUESTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
+      REQUESTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
       MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
+      COMMENT_COMMAND: ${{ github.event.comment.body || '' }}
+      COMMAND_ACTOR: ${{ github.actor }}
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
       REPORT_DIR: ${{ runner.temp }}/spec-kit-work-map-autofix-recovery
     steps:
@@ -59,6 +69,20 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${MANUAL_CONFIRMATION}" != "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX" ]]; then
             echo "Manual recovery requires exact typed confirmation."
             exit 1
+          fi
+          if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            if [[ "${COMMENT_COMMAND}" != "/recover-work-maps" ]]; then
+              echo "Unexpected recovery comment command."
+              exit 1
+            fi
+            actor_permission="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${COMMAND_ACTOR}/permission" --jq '.permission')"
+            case "${actor_permission}" in
+              admin|maintain|write) ;;
+              *)
+                echo "Actor ${COMMAND_ACTOR} lacks write-level repository permission; permission=${actor_permission}."
+                exit 1
+                ;;
+            esac
           fi
           [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
 
@@ -203,6 +227,8 @@ jobs:
           jq -n \
             --arg contract "mad4b.spec-kit-work-map-autofix-recovery.v1" \
             --arg outcome "${outcome}" \
+            --arg source_event "${GITHUB_EVENT_NAME}" \
+            --arg actor "${COMMAND_ACTOR}" \
             --arg target_branch "${TARGET_BRANCH:-unresolved}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA:-unresolved}" \
             --arg behind_by "${BEHIND_BY:-unknown}" \
@@ -211,11 +237,11 @@ jobs:
             --arg authorization_consumed "${AUTHORIZATION_CONSUMED:-false}" \
             --arg delegated_run_id "${DELEGATED_RUN_ID:-none}" \
             --argjson pr_number "${PR_NUMBER:-0}" \
-            '{contract:$contract,outcome:$outcome,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,behind_by:$behind_by,writer_state:$writer_state,integration_state:$integration_state,authorization_consumed:$authorization_consumed,delegated_run_id:$delegated_run_id,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,source_event:$source_event,actor:$actor,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,behind_by:$behind_by,writer_state:$writer_state,integration_state:$integration_state,authorization_consumed:$authorization_consumed,delegated_run_id:$delegated_run_id,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${REPORT_DIR}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_RECOVERY outcome=${outcome} expected_head_sha=${EXPECTED_HEAD_SHA:-unresolved} target_branch=${TARGET_BRANCH:-unresolved} behind_by=${BEHIND_BY:-unknown} writer_state=${WRITER_STATE:-unknown} integration_state=${INTEGRATION_STATE:-unknown} authorization_consumed=${AUTHORIZATION_CONSUMED:-false} delegated_run_id=${DELEGATED_RUN_ID:-none} direct_repository_mutation=false protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_RECOVERY outcome=${outcome} source_event=${GITHUB_EVENT_NAME} actor=${COMMAND_ACTOR} expected_head_sha=${EXPECTED_HEAD_SHA:-unresolved} target_branch=${TARGET_BRANCH:-unresolved} behind_by=${BEHIND_BY:-unknown} writer_state=${WRITER_STATE:-unknown} integration_state=${INTEGRATION_STATE:-unknown} authorization_consumed=${AUTHORIZATION_CONSUMED:-false} delegated_run_id=${DELEGATED_RUN_ID:-none} direct_repository_mutation=false protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"
           fi
 

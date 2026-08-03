@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "phase": "phase5_validation_lab_and_structured_ci",
+  "status": "complete_on_main",
+  "tasks": ["T180", "T181", "T182", "T183", "T184", "T185", "T186", "T187", "T188", "T189"],
+  "implementation": {
+    "pull_request": 5160,
+    "branch": "gpt/spec-011-phase5-validation-structured-ci-final-20260803",
+    "head_sha": "92b1e2e39b513eb7d548ca8f825416b4fc80b293",
+    "merge_sha": "8cea21330ae76038d48215023e362195cff9f368",
+    "merged_at": "2026-08-03T06:21:55Z",
+    "changed_files": 11,
+    "commits": 1,
+    "human_contract_review_id": 4841288075
+  },
+  "source_equivalence": {
+    "certified_source_head": "12b9041f3cb7953ca7520d2134e85a20b84f86da",
+    "final_source_head_before_clean_rebuild": "cb242c5822763f9dfa711ec79d1e443e94964519",
+    "functional_source_equal": true,
+    "only_additional_change_after_certification": ".github/workflows/spec-011-delegation-mariadb-certification.yml PR-scoped concurrency",
+    "additional_lines": 4,
+    "force_push_used": false
+  },
+  "certification": {
+    "workflow": "Spec 011 Delegation MariaDB Certification",
+    "run_id": 30787416318,
+    "conclusion": "success",
+    "certified_source_head": "12b9041f3cb7953ca7520d2134e85a20b84f86da",
+    "all_steps_successful": true,
+    "focused_contract_tests": "success",
+    "migration_preflight": "success",
+    "pre_apply_authorization_evidence": "success",
+    "governed_migration_and_lifecycle": "success",
+    "post_apply_validation_lab": "success",
+    "structured_diagnosis_validation": "success",
+    "artifacts_uploaded": "success"
+  },
+  "artifacts": {
+    "migration_preflight": {
+      "artifact_id": 8846413284,
+      "digest": "sha256:b34fb608f51658d6c70b7f46f6d2e037f2a7f767f0bd21712b71c11eef17a4a3",
+      "preflight_version": "spec011-phase5-migration-engine-preflight-v1",
+      "status": "pass",
+      "evidence_fingerprint": "131bbe355dc31c972775bcf59680082213105c3219c803dbd17e3b52857e3bf8",
+      "apply_prerequisites_satisfied": true,
+      "apply_authorized": true,
+      "production_authorized": false,
+      "secrets_included": false
+    },
+    "mariadb_certification": {
+      "artifact_id": 8846413573,
+      "digest": "sha256:2effbd74799b6ab610e009249f0788b73fc4f08f6564a35751ce9a0f5059d1f0",
+      "migration_checksum": "27de4ec34d92ef4d6c5440847890ffc9c05a91546aa16af3e03aac89496d1774",
+      "statement_count": 2,
+      "create_verified": true,
+      "revoke_verified": true,
+      "expire_verified": true,
+      "runtime_policy_ready_zero": true,
+      "production_authorized": false,
+      "secrets_included": false
+    },
+    "structured_validation": {
+      "artifact_id": 8846413807,
+      "digest": "sha256:9a94f19bbdd6968f72c6634203df29a20c98ac1452d2e92b05f30404228aaab8",
+      "validation_version": "spec011-phase5-validation-ci-v1",
+      "diagnosis_schema_version": "spec011-structured-ci-diagnosis-v1",
+      "status": "pass",
+      "engine_validation_fingerprint": "b340b78accc1277ab094978adc1f43c7cff9e9eabe5aca1f9051d522ead3d9dc",
+      "failed_gate_ids": [],
+      "gate_count": 6,
+      "all_required_gates_passed": true,
+      "production_authorized": false,
+      "secrets_included": false
+    }
+  },
+  "engine_readback": {
+    "family": "mariadb",
+    "version": "11.4.12-MariaDB-ubu2404",
+    "sql_mode": "IGNORE_SPACE,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION",
+    "character_set": "utf8mb4",
+    "collation": "utf8mb4_uca1400_ai_ci",
+    "check_constraints_enforced": true,
+    "json_supported": true,
+    "transaction_isolation": "REPEATABLE-READ",
+    "transaction_isolation_verified": true,
+    "table_count": 5,
+    "constraint_count": 12,
+    "index_count": 16
+  },
+  "schema_and_rollback": {
+    "schema_diff_status": "pass",
+    "added_objects": 2,
+    "removed_objects": 0,
+    "destructive_change_detected": false,
+    "rollback_assessment": "pass",
+    "rollback_sql_required": false,
+    "rollback_plan_ref": "workflow://disposable-mariadb-service-destroy"
+  },
+  "structured_gates": {
+    "migration_engine_validation": "pass",
+    "contract_drift": "pass",
+    "state_machine_model": "pass",
+    "idempotency_unknown_outcome": "pass",
+    "delegation_boundary_policy_drift": "pass",
+    "semantic_file_mutation": "pass"
+  },
+  "main_readback": {
+    "validation_kernel_path": "http-generic-api/spec011Phase5ValidationCi.js",
+    "validation_kernel_version": "spec011-phase5-validation-ci-v1",
+    "preflight_kernel_path": "http-generic-api/spec011Phase5MigrationPreflight.js",
+    "preflight_kernel_version": "spec011-phase5-migration-engine-preflight-v1",
+    "workflow_path": ".github/workflows/spec-011-delegation-mariadb-certification.yml",
+    "delivery_path": "specs/011-durable-governed-execution-and-agent-delegation/phase5-validation-structured-ci-wave-delivery.json",
+    "main_verified": true
+  },
+  "boundaries": {
+    "production_database_write": false,
+    "production_migration_authorized": false,
+    "provider_write": false,
+    "deployment": false,
+    "public_route": false,
+    "runtime_authority_changed": false,
+    "automatic_unknown_outcome_retry": false,
+    "force_push": false,
+    "protected_branch_bypass": false,
+    "secrets_included": false
+  }
+}

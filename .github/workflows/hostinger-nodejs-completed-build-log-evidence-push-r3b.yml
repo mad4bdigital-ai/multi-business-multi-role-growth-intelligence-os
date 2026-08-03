@@ -1,0 +1,250 @@
+name: Hostinger Completed Build Log Evidence R3C Push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/hostinger-runtime-recovery/triggers/completed-build-log-evidence-r3c-f5c1ae88.txt
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hostinger-completed-build-log-evidence-r3c-push-f5c1ae88
+  cancel-in-progress: false
+
+jobs:
+  collect-completed-build-log-evidence:
+    name: Collect exact completed-build log provenance on ARM
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: "4953"
+      ACCOUNT_USERNAME: u338416126
+      DOMAIN: auth.mad4b.com
+      BUILD_UUID: 019fc51c-3947-7255-aa4d-f55cb8df7658
+      EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
+      TARGET_WORKFLOW_PATH: .github/workflows/hostinger-nodejs-completed-build-log-evidence.yml
+      TARGET_WORKFLOW_BLOB_SHA: 94321b273e70f96180c0f058adbb291b035fd237
+      REPORTER_PATH: http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs
+      REPORTER_BLOB_SHA: 27abdc637431a93f5d18de74ea2e9985b98756db
+      TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs
+      TEST_BLOB_SHA: d15d4b8d653359e1061a4004217133e271410a0a
+      MARKER_PATH: .github/hostinger-runtime-recovery/triggers/completed-build-log-evidence-r3c-f5c1ae88.txt
+      TRIGGER_TOKEN: RUN_HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_PUSH_F5C1AE88_V2
+      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:019fc51c-3947-7255-aa4d-f55cb8df7658:94321b273e70f96180c0f058adbb291b035fd237:R3C_PUSH_V2
+      REPORT_DIR: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence
+    steps:
+      - name: Checkout exact immutable main push
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate exact marker, refs, blobs, and one-time binding
+        id: binding
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -Eeuo pipefail
+
+          test "${EVENT_NAME}" = "push"
+          test "${EVENT_REF}" = "refs/heads/main"
+          [[ "${EVENT_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EVENT_BEFORE}" =~ ^[0-9a-f]{40}$ ]]
+
+          EVENT_CHECKOUT_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          CURRENT_PRODUCTION_SHA="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          test "${EVENT_SHA}" = "${EVENT_CHECKOUT_SHA}"
+          [[ "${REMOTE_MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "${CURRENT_PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
+
+          git fetch --no-tags origin "${REMOTE_MAIN_SHA}"
+          git merge-base --is-ancestor "${EVENT_SHA}" "${REMOTE_MAIN_SHA}"
+
+          FIRST_LINE="${EVENT_MESSAGE%%$'\n'*}"
+          test "${FIRST_LINE}" = "${TRIGGER_TOKEN}"
+          CHANGED_FILES="$(git diff --name-only "${EVENT_BEFORE}" "${EVENT_SHA}")"
+          test "${CHANGED_FILES}" = "${MARKER_PATH}"
+          test -f "${MARKER_PATH}"
+          diff -u <(cat <<'EOF'
+          phase=completed_build_log_evidence_r3c
+          control_issue=4953
+          domain=auth.mad4b.com
+          account_username=u338416126
+          build_uuid=019fc51c-3947-7255-aa4d-f55cb8df7658
+          expected_production_sha=f5c1ae8840b4d4452f2908bb0f23051880bb6896
+          provider_method=GET
+          provider_mutation=false
+          restart=false
+          secrets_included=false
+          EOF
+            ) "${MARKER_PATH}"
+
+          test "$(git rev-parse "${EVENT_SHA}:${TARGET_WORKFLOW_PATH}")" = "${TARGET_WORKFLOW_BLOB_SHA}"
+          test "$(git rev-parse "${EVENT_SHA}:${REPORTER_PATH}")" = "${REPORTER_BLOB_SHA}"
+          test "$(git rev-parse "${EVENT_SHA}:${TEST_PATH}")" = "${TEST_BLOB_SHA}"
+          test "$(git rev-parse "${REMOTE_MAIN_SHA}:${TARGET_WORKFLOW_PATH}")" = "${TARGET_WORKFLOW_BLOB_SHA}"
+          test "$(git rev-parse "${REMOTE_MAIN_SHA}:${REPORTER_PATH}")" = "${REPORTER_BLOB_SHA}"
+          test "$(git rev-parse "${REMOTE_MAIN_SHA}:${TEST_PATH}")" = "${TEST_BLOB_SHA}"
+
+          ISSUE_STATE="$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')"
+          test "${ISSUE_STATE}" = "open"
+
+          EXISTING="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_PUSH status=completed binding=${BINDING_ID}\") or contains(\"HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_PUSH status=claiming binding=${BINDING_ID}\")) | .id")"
+          test -z "${EXISTING}"
+
+          BODY="HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_PUSH status=claiming binding=${BINDING_ID} source_run_id=${GITHUB_RUN_ID} event_main_sha=${EVENT_SHA} live_main_sha=${REMOTE_MAIN_SHA} event_is_live_main_ancestor=true expected_production_sha=${EXPECTED_PRODUCTION_SHA} build_uuid=${BUILD_UUID} provider_method=GET provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false external_send=false secrets_included=false"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
+            -f body="${BODY}"
+
+          echo "event_main_sha=${EVENT_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "live_main_sha=${REMOTE_MAIN_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate canonical completed-build reporter contract
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs
+
+      - name: Generate authenticated GET-only completed-build log evidence
+        id: evidence_run
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_ACCOUNT_USERNAME: ${{ env.ACCOUNT_USERNAME }}
+          HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
+          HOSTINGER_NODEJS_BUILD_UUID: ${{ env.BUILD_UUID }}
+          EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
+          HOSTINGER_NODEJS_COMPLETED_BUILD_LOG_EVIDENCE_DIR: ${{ env.REPORT_DIR }}
+        run: |
+          node scripts/hostinger-nodejs-completed-build-log-evidence.mjs \
+            --account-username "${ACCOUNT_USERNAME}" \
+            --domain "${DOMAIN}" \
+            --build-uuid "${BUILD_UUID}" \
+            --expected-sha "${EXPECTED_PRODUCTION_SHA}" \
+            --output-dir "${REPORT_DIR}"
+
+      - name: Scrub exact provider token from persisted evidence
+        if: always()
+        shell: bash
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module - "${REPORT_DIR}" <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const [directory] = process.argv.slice(2);
+          const token = process.env.HOSTINGER_API_TOKEN || "";
+          if (!token) throw new Error("HOSTINGER_API_TOKEN unavailable for evidence scrub");
+          if (!fs.existsSync(directory)) throw new Error("evidence directory missing");
+          const files = fs.readdirSync(directory).filter((name) => name.endsWith(".json") || name.endsWith(".md"));
+          if (files.length === 0) throw new Error("evidence files missing");
+          for (const name of files) {
+            const file = path.join(directory, name);
+            const before = fs.readFileSync(file, "utf8");
+            fs.writeFileSync(file, before.split(token).join("[REDACTED]"), "utf8");
+            if (fs.readFileSync(file, "utf8").includes(token)) throw new Error(`provider token remained in ${name}`);
+          }
+          NODE
+
+      - name: Upload structured completed-build log evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-nodejs-completed-build-log-evidence-r3c-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate and publish bounded evidence decision
+        if: always()
+        id: decision
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_MAIN_SHA: ${{ steps.binding.outputs.event_main_sha }}
+          LIVE_MAIN_SHA: ${{ steps.binding.outputs.live_main_sha }}
+        run: |
+          set -Eeuo pipefail
+          REPORT="${REPORT_DIR}/hostinger-nodejs-completed-build-log-evidence.json"
+          test -s "${REPORT}"
+
+          node --input-type=module - "${REPORT}" "${EXPECTED_PRODUCTION_SHA}" "${BUILD_UUID}" <<'NODE'
+          import fs from "node:fs";
+          const [file, expectedSha, buildUuid] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(file, "utf8"));
+          if (report.contract !== "mad4b.hostinger-nodejs-completed-build-log-evidence.v1") throw new Error("unexpected evidence contract");
+          if (report.identity?.expected_sha !== expectedSha) throw new Error("expected SHA mismatch");
+          if (report.identity?.expected_branch !== "Production") throw new Error("expected branch mismatch");
+          if (report.identity?.build_uuid !== buildUuid) throw new Error("build UUID mismatch");
+          if (report.request?.method !== "GET" || report.request?.token_returned !== false) throw new Error("provider read boundary failed");
+          if (report.secrets_included !== false) throw new Error("secret boundary failed");
+          const effects = report.side_effects || {};
+          for (const key of [
+            "repository_mutation_performed",
+            "provider_dispatch_performed",
+            "provider_mutation_performed",
+            "sql_execution_performed",
+            "migration_apply_performed",
+            "database_mutation_performed",
+            "restart_performed",
+            "external_send_performed",
+          ]) {
+            if (effects[key] !== false) throw new Error(`unsafe side effect: ${key}`);
+          }
+          NODE
+
+          OUTCOME="$(jq -r '.outcome' "${REPORT}")"
+          CLASSIFICATION="$(jq -r '.classification' "${REPORT}")"
+          EXPECTED_FOUND="$(jq -r '.log_evidence.expected_sha_found // false' "${REPORT}")"
+          BRANCH_FOUND="$(jq -r '.log_evidence.production_branch_hint_found // false' "${REPORT}")"
+          SOURCE_SHAS="$(jq -r '(.log_evidence.source_shas // []) | join(",") | if length == 0 then "none" else . end' "${REPORT}")"
+          RELEASE_HINTS="$(jq -r '(.log_evidence.release_path_hints // []) | join(",") | if length == 0 then "none" else . end' "${REPORT}")"
+          FAILURE_CODE="$(jq -r '.first_failure.code // "none"' "${REPORT}")"
+
+          BODY="HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_PUSH status=completed binding=${BINDING_ID} source_run_id=${GITHUB_RUN_ID} artifact=hostinger-nodejs-completed-build-log-evidence-r3c-${GITHUB_RUN_ID} event_main_sha=${EVENT_MAIN_SHA} live_main_sha=${LIVE_MAIN_SHA} event_is_live_main_ancestor=true expected_production_sha=${EXPECTED_PRODUCTION_SHA} build_uuid=${BUILD_UUID} outcome=${OUTCOME} classification=${CLASSIFICATION} expected_sha_found=${EXPECTED_FOUND} production_branch_hint_found=${BRANCH_FOUND} source_shas=${SOURCE_SHAS} release_path_hints=${RELEASE_HINTS} first_failure=${FAILURE_CODE} provider_method=GET provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false external_send=false secrets_included=false"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
+            -f body="${BODY}"
+
+          echo "outcome=${OUTCOME}" >> "${GITHUB_OUTPUT}"
+          echo "classification=${CLASSIFICATION}" >> "${GITHUB_OUTPUT}"
+          echo "expected_sha_found=${EXPECTED_FOUND}" >> "${GITHUB_OUTPUT}"
+
+      - name: Enforce expected Production source provenance
+        if: always()
+        env:
+          EVIDENCE_RUN_OUTCOME: ${{ steps.evidence_run.outcome }}
+          DECISION_OUTCOME: ${{ steps.decision.outcome }}
+          OUTCOME: ${{ steps.decision.outputs.outcome }}
+          EXPECTED_SHA_FOUND: ${{ steps.decision.outputs.expected_sha_found }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${DECISION_OUTCOME}" = "success"
+          test "${EVIDENCE_RUN_OUTCOME}" = "success"
+          test "${OUTCOME}" = "passed"
+          test "${EXPECTED_SHA_FOUND}" = "true"
