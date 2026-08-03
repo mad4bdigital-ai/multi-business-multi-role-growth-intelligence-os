@@ -42,6 +42,23 @@ assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
 assert.match(requestWorkflow, /secrets_included:\s*false/u);
 assert.match(requestWorkflow, /Upload exact-head refresh request/u);
 
+const requestInvalidBranchIndex = requestWorkflow.indexOf("invalid_governed_work_branch");
+const requestProtectedBranchIndex = requestWorkflow.indexOf("protected_branch_mutation_forbidden");
+const requestHeadMismatchIndex = requestWorkflow.indexOf("pull_request_head_mismatch");
+const requestLabelSkipIndex = requestWorkflow.indexOf("generated_artifact_refresh_label_absent");
+assert.ok(
+  requestInvalidBranchIndex >= 0 && requestInvalidBranchIndex < requestLabelSkipIndex,
+  "invalid governed branches must fail closed before label-based skip",
+);
+assert.ok(
+  requestProtectedBranchIndex >= 0 && requestProtectedBranchIndex < requestLabelSkipIndex,
+  "protected branches must fail closed before label-based skip",
+);
+assert.ok(
+  requestHeadMismatchIndex >= 0 && requestHeadMismatchIndex < requestLabelSkipIndex,
+  "stale request heads must fail closed before label-based skip",
+);
+
 assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
 assert.match(dispatcherWorkflow, /Governed Generated Artifact Refresh PR Target Request/u);
@@ -107,7 +124,7 @@ assert.doesNotMatch(skippedDecisionBlock, /(?:--method|-X)\s*(?:POST|PUT|PATCH|D
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 88,
+  tests: 91,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
