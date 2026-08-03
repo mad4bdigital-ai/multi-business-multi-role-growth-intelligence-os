@@ -422,6 +422,91 @@
       "rationale": "SQL cache runtime policies are governed runtime policy and monitoring concerns covered by existing authority and observability maps."
     },
     {
+      "rule_key": "tenant_managed_execution_bindings",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "managed_execution_bindings"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "policy-authority-map",
+        "activation-access-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Tenant-managed execution bindings persist tenant-scoped run linkage, approval state, and customer-visible lifecycle projection within the existing workflow and authority boundaries."
+    },
+    {
+      "rule_key": "tenant_managed_execution_events",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "managed_execution_events"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Tenant-managed execution events are append-only lifecycle evidence carrying state transitions, actors, and redacted evidence for deterministic operational readback."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_authorized_injection_states",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_authorized_injection_states"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 authorized injection state records bind governed authorization, exact receipt identity, active-state uniqueness, and row-version concurrency without persisting runtime material."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_authorized_injection_rollbacks",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_authorized_injection_rollbacks"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 authorized injection rollback records are immutable, digest-bound rollback receipts used as secret-free operational and governance evidence."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_operation_readback",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "v_storage_cleanup_operation_readback"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 cleanup operation readback projects operation state, resource scope, versioning, and evidence for deterministic operational verification."
+    },
+    {
       "rule_key": "spec014_hostinger_storage_cleanup_approvals",
       "scope": "bounded_exact",
       "match": {
