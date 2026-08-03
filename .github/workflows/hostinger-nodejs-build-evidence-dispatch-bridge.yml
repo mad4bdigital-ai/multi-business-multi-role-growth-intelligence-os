@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: hostinger-nodejs-build-evidence-dispatch-f5c1ae88
+  group: hostinger-nodejs-build-evidence-dispatch-f5c1ae88-r2
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
        github.event.issue.number == 4953 &&
-       startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C expected_head_sha=') &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2 expected_head_sha=') &&
        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     permissions:
       contents: read
@@ -36,10 +36,10 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
-      AUTHORIZATION_COMMENT_ID: '5161758022'
+      AUTHORIZATION_COMMENT_ID: '5162098383'
       AUTHORIZATION_USER_ID: '271942579'
-      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C
-      TRIGGER_TOKEN: RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2
+      TRIGGER_TOKEN: RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2
       TARGET_WORKFLOW: hostinger-nodejs-build-evidence.yml
       TARGET_WORKFLOW_PATH: .github/workflows/hostinger-nodejs-build-evidence.yml
       TARGET_REF: main
@@ -48,7 +48,7 @@ jobs:
       DOMAIN: auth.mad4b.com
       EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
       PRODUCTION_MERGED_AT: '2026-08-03T00:53:07Z'
-      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:09578a2c9adcd0d1254b345248c33d2ba214d41f:5161758022
+      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:09578a2c9adcd0d1254b345248c33d2ba214d41f:5162098383
       MUTATION_TARGET_BRANCH: issue-and-actions-metadata-only
       EVENT_COMMENT_BODY: ${{ github.event.comment.body || '' }}
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
