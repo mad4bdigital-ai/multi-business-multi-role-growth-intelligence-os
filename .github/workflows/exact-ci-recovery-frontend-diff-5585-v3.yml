@@ -1,0 +1,119 @@
+name: Exact CI Recovery Frontend Diff 5585 V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ci-recovery-frontend-diff-5585-528024-v3
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ci-recovery-frontend-diff-5585-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture deterministic generated refresh
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-ci-recovery-exact-checkout-provenance-current-main-528024-20260803' &&
+      github.event.pull_request.head.sha == 'a9a74741dd71502375706f28fa392047eac55298'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_BASE_SHA: 52802460dd9d229be3e946689fd49cc2f35a37dc
+      EXPECTED_HEAD_SHA: a9a74741dd71502375706f28fa392047eac55298
+      GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact immutable identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_BASE_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_BASE_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+          test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
+          test "${files[2]}" = 'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json")" = 'c946e3e7878bae8f6cac5960912ef90b64ccecb8'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci-pull-request-recovery.yml")" = 'e21882316db92fcccd2b67d4ff60b7f5b3e6cdb7'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs")" = 'b1de449e9c762e11782841516a10356d724ef902'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate and validate canonical frontend surfaces
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Capture exact generated classification and content
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/frontend-refresh"
+          mkdir -p "${evidence}"
+          git status --porcelain > "${evidence}/git-status.txt"
+          mapfile -t changed < <(awk '{print $2}' "${evidence}/git-status.txt")
+          classification='no_drift'
+          if [[ "${#changed[@]}" -eq 1 && "${changed[0]}" = "${GENERATED_PATH}" ]]; then
+            classification='generated_refresh_required'
+          elif [[ "${#changed[@]}" -gt 0 ]]; then
+            classification='unexpected_drift'
+          fi
+          git diff --no-ext-diff --binary -- "${GENERATED_PATH}" > "${evidence}/frontend-surface-dispatch.generated.diff"
+          cp "${GENERATED_PATH}" "${evidence}/frontend-surface-dispatch.generated.json"
+          current_blob="$(git rev-parse "${EXPECTED_HEAD_SHA}:${GENERATED_PATH}")"
+          generated_blob="$(git hash-object "${GENERATED_PATH}")"
+          generated_sha256="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          jq -n \
+            --arg contract 'mad4b.exact-ci-recovery-frontend-refresh.v1' \
+            --arg base_sha "${EXPECTED_BASE_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg classification "${classification}" \
+            --arg path "${GENERATED_PATH}" \
+            --arg current_blob_sha "${current_blob}" \
+            --arg generated_blob_sha "${generated_blob}" \
+            --arg generated_sha256 "${generated_sha256}" \
+            --argjson changed_count "${#changed[@]}" \
+            '{contract:$contract,base_sha:$base_sha,head_sha:$head_sha,classification:$classification,changed_count:$changed_count,generated_path:$path,current_blob_sha:$current_blob_sha,generated_blob_sha:$generated_blob_sha,generated_sha256:$generated_sha256,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${evidence}/summary.json"
+          cat "${evidence}/summary.json"
+          test "${classification}" != 'unexpected_drift'
+
+      - name: Upload deterministic refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ci-recovery-frontend-refresh-5585-${{ github.run_id }}
+          path: ${{ runner.temp }}/frontend-refresh/
+          if-no-files-found: error
+          retention-days: 14
