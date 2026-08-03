@@ -29,11 +29,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       REQUEST_PR: ${{ github.event.pull_request.number }}
-      EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-convergence.json
     steps:
       - name: Build, validate, and converge protected refs
         id: converge
         shell: bash
+        env:
+          EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-convergence.json
         run: |
           set -Eeuo pipefail
 
@@ -336,7 +337,7 @@ jobs:
                 validation_branch: $validation_branch,
                 validation_base_branch: $validation_base_branch,
                 builder_run_id: $builder_run_id,
-                exact_validation_run_id: $exact_validation_run_id,
+                exact_validation_run_id: $exact_run_id,
                 supporting_runs: $supporting_runs,
                 release_pr: $release_pr,
                 validation_pr: $validation_pr,
@@ -408,7 +409,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: governed-production-promotion-convergence-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_PATH }}
+          path: ${{ runner.temp }}/governed-production-promotion-convergence.json
           if-no-files-found: error
           retention-days: 30
 
