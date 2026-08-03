@@ -41,7 +41,7 @@ jobs:
       REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
       REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
+      EVIDENCE_DIR: /tmp/hostinger-production-release-evidence-r6
 
     steps:
       - name: Checkout exact trusted main tooling
