@@ -4,18 +4,21 @@
   "feature_key": "repository-lifecycle-draft-merge-guard",
   "title": "Repository lifecycle Draft merge guard",
   "delivery_mode": "single_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
       "http-generic-api/githubRepositoryLifecycle.js",
       "http-generic-api/repositoryAutomationControlPlane.js",
       "http-generic-api/test-github-repository-lifecycle.mjs",
-      "http-generic-api/test-repository-automation-control-plane.mjs"
+      "http-generic-api/test-repository-automation-control-plane.mjs",
+      "http-generic-api/operationCapabilityLifecycleService.js",
+      "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+      "http-generic-api/openapi/operation-capability-lifecycle.yaml"
     ]
   },
   "merge_contract": {
-    "minimum_phase": "mvp"
+    "minimum_phase": "operational"
   },
   "phases": [
     {
@@ -71,8 +74,57 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Add audit-log actor binding and immutable approval evidence before protected-main finalization."
+      "status": "implemented",
+      "objective": "Require exact-head human approval, final head/base identity readback, and an explicitly issued capability envelope before protected pull-request finalization.",
+      "e2e_journeys": [
+        {
+          "id": "exact-head-human-approval-before-merge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_automation_operator",
+          "entrypoint": "finalizeGithubPullRequest",
+          "terminal_outcome": "Protected finalization reaches the merge endpoint only after exact-head human approval quorum and a final exact head/base identity readback; automatic capability renewal is blocked.",
+          "steps": [
+            "Resolve the exact candidate head and base through the required CI gate.",
+            "Re-read the pull request immediately before merge and reject state, Draft, head, or base drift.",
+            "Read bounded pull-request reviews and require the latest exact-head decisive review from non-bot, non-author human reviewers.",
+            "Reject stale approvals, bot or author approvals, active changes-requested decisions, and incomplete review evidence before the merge endpoint.",
+            "Require a separately issued capability envelope for pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."
+          ],
+          "assertions": [
+            "At least one exact-head human approval is required by default.",
+            "Stale-head, bot, and author approvals do not satisfy quorum.",
+            "Active exact-head changes-requested decisions block finalization.",
+            "Final head/base drift fails before review or merge dispatch.",
+            "No blocked path issues PUT /pulls/{number}/merge.",
+            "Protected finalization cannot create a just-in-time capability envelope."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-lifecycle-exact-head-approval",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "operation-capability-explicit-envelope",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-gpt-tools-route-syntax-regression.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/test-github-repository-lifecycle.mjs",
+            "http-generic-api/operationCapabilityLifecycleService.js",
+            "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+            "http-generic-api/openapi/operation-capability-lifecycle.yaml",
+            ".changes/e2e/repository-lifecycle-draft-merge-guard.json"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
