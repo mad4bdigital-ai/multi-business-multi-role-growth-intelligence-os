@@ -12,13 +12,44 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 service = Path("http-generic-api/operationCapabilityLifecycleService.js")
 replace_once(
     service,
+    '''function operationRequiresCapability(operationKey) {
+  try {
+''',
+    '''function operationRequiresCapability(operationKey) {
+  if (REPOSITORY_MUTATION_OPERATIONS.has(operationKey)) return true;
+  try {
+''',
+    "repository mutation capability requirement",
+)
+replace_once(
+    service,
     '  if (operationKey === "operation.resume") return true;\n',
     '  if (operationKey === "repo.pr.finalize") return true;\n'
     '  if (operationKey === "operation.resume") return true;\n',
-    "direct finalize service guard",
+    "direct finalize explicit envelope guard",
 )
 
 test = Path("http-generic-api/test-gpt-tools-route-syntax-regression.mjs")
+requires_anchor = '''  assert.equal(
+    _testingOperationCapabilityLifecycleService.operationRequiresCapability(
+      "repo.change.execute",
+    ),
+    true,
+  );
+'''
+replace_once(
+    test,
+    requires_anchor,
+    requires_anchor + '''  assert.equal(
+    _testingOperationCapabilityLifecycleService.operationRequiresCapability(
+      "repo.pr.finalize",
+    ),
+    true,
+  );
+''',
+    "direct finalize capability requirement assertion",
+)
+
 helper_anchor = '''  assert.equal(
     _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
       "operation.resume",
@@ -38,7 +69,7 @@ replace_once(
     true,
   );
 ''',
-    "direct finalize helper assertion",
+    "direct finalize explicit envelope assertion",
 )
 
 lifecycle_anchor = '''    assert.equal(createCalls, 0);
