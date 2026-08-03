@@ -1,0 +1,103 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1043-t016-readiness-path-repair",
+  "title": "Migration 1043 T016 Runtime Readiness path repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1043-t016-readiness-path-repair.json",
+      ".github/ops/sprint69-1043-runtime-readiness-backfill.mjs",
+      ".github/ops/sprint69-1043-runtime-readiness.mjs",
+      ".github/workflows/sprint69-1043-runtime-readiness-backfill.yml",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/test-capability-envelope-create-alias-path.mjs",
+      "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore deterministic repository-relative resolution for the T016 Runtime Readiness dry-run and capability-envelope-create aliases, preserve immutable authorization-bound evidence publishing, and fail closed without granting Apply or runtime execution authority.",
+      "e2e_journeys": [
+        {
+          "id": "resolve-t016-readiness-aliases-and-publish-bounded-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Migration 1043 readiness workflow and read-only evidence publisher",
+          "entrypoint": "Exact-head repository validation of the repaired T016 Runtime Readiness path",
+          "terminal_outcome": "Both capability-resolution aliases resolve from adminCliRoutes.js through import.meta.url without a doubled http-generic-api path, the backfill discovers the immutable authorization-bound non-skipped run with bounded pagination, and absent legacy booleans remain unverified rather than being misreported as false.",
+          "steps": [
+            "Resolve capability_resolution_dry_run from adminCliRoutes.js using a file URL anchored to import.meta.url.",
+            "Resolve capability_resolution_envelope_create from adminCliRoutes.js using a file URL anchored to import.meta.url.",
+            "Reject any doubled http-generic-api/http-generic-api script path through focused alias regression coverage.",
+            "Accept only the approved immutable T016 authorization comment identifiers and paginate issue-comment runs until the authorization time boundary is reached.",
+            "Ignore skipped workflow runs when selecting the first eligible Runtime Readiness evidence run.",
+            "Publish only allowlisted bounded evidence fields and preserve absent legacy failure booleans and secrets_included as unverified.",
+            "Execute the focused alias-path and Runtime Readiness contract tests on the exact candidate head."
+          ],
+          "assertions": [
+            "The dry-run and envelope-create built-in shell aliases use repository-relative absolute script paths derived from import.meta.url.",
+            "Neither alias can resolve to a doubled http-generic-api/http-generic-api path.",
+            "The read-only backfill remains bound to an approved immutable authorization comment and reaches its authorization boundary with bounded pagination.",
+            "Skipped runs are never selected as Runtime Readiness evidence.",
+            "Unknown legacy failure booleans and secrets_included are represented as unverified rather than coerced to false.",
+            "The repair does not invoke Runtime Readiness, create or approve a capability envelope, authorize or send Apply, execute Migration 1043, synchronize the activation registry, mutate a database, call a provider, deploy, restart, mutate Production or a protected ref, access credential payloads, or perform an external business write.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "capability-envelope-create-alias-path-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-envelope-create-alias-path.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-1043-runtime-readiness-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-runtime-readiness-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/sprint69-1043-t016-readiness-path-repair.json",
+            ".github/ops/sprint69-1043-runtime-readiness-backfill.mjs",
+            ".github/ops/sprint69-1043-runtime-readiness.mjs",
+            ".github/workflows/sprint69-1043-runtime-readiness-backfill.yml",
+            "http-generic-api/routes/adminCliRoutes.js",
+            "http-generic-api/test-capability-envelope-create-alias-path.mjs",
+            "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish exact run-bound Runtime Readiness evidence only after a new explicit operator authorization following merge."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep path drift, authorization ambiguity, pagination exhaustion, skipped-run selection, missing Artifacts, and unknown legacy evidence fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Complete Draft and Ready exact-head validation before any merge or separately authorized Runtime Readiness cycle."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no Runtime Readiness invocation, Migration Apply, activation-registry synchronization, deployment, provider call, external business write, database mutation, or Production ref mutation authority."
+    }
+  ],
+  "secrets_included": false
+}
