@@ -7,7 +7,10 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
-      "specs/014-retail-commerce-operations-growth-os/**"
+      "specs/014-retail-commerce-operations-growth-os/**",
+      "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+      "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
+      "http-generic-api/test-retail-commerce-specification-baseline.mjs"
     ]
   },
   "merge_contract": {
@@ -17,19 +20,21 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that the Retail Commerce reference package forms one internally consistent, executable, reuse-first specification journey without granting runtime, provider, migration, deployment, or Production authority.",
+      "objective": "Prove that the Retail Commerce reference package forms one internally consistent, executable, reuse-first specification journey and that its Production schema baseline collector remains read-only, bounded, and secret-free without granting runtime, provider, migration, deployment, or Production mutation authority.",
       "e2e_journeys": [
         {
           "id": "retail-commerce-reference-package-to-governed-implementation-handoff",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Platform architecture and implementation reviewer",
-          "entrypoint": "Retail Commerce manifest, specification, contracts, tasks, acceptance matrices, and Work Map integration contract",
-          "terminal_outcome": "The reviewer receives a deterministic pass only when the complete package is present, its JSON contracts parse, all current Work Maps and schema domains are resolved without a new authority kernel, completion remains truthful, and no runtime or external mutation is inferred.",
+          "entrypoint": "Retail Commerce manifest, specification, contracts, tasks, acceptance matrices, Work Map integration contract, and read-only Production schema baseline collector",
+          "terminal_outcome": "The reviewer receives a deterministic pass only when the complete package is present, its JSON and YAML contracts parse, all current Work Maps and schema domains are resolved without a new authority kernel, the schema-baseline collector proves SELECT-only bounded behavior under a fake pool, completion remains truthful, and no runtime or external mutation is inferred.",
           "steps": [
             "Load the Retail Commerce package and resolve its bounded feature identity independently from its numeric display label.",
             "Validate the Work Map integration against the current registry, coverage matrix, reuse-first policy, and zero-unresolved-dimension requirement.",
             "Validate the Spec Kit completion contract and confirm that implementation, migration, deployment, provider, WordPress, WooCommerce, Google Drive, payment, publication, and Production effects remain unclaimed.",
+            "Validate the specification package structure, JSON and YAML contracts, required artifacts, planned later phases, and absence of implementation files inside the bounded spec directory.",
+            "Execute the Production schema baseline collector against an injected fake pool and prove that every database statement is SELECT-only, no row data or credential values are returned, and no migration, database, provider, deployment, or external-send action occurs.",
             "Trace the Business Operating Profile, Brand commerce authority, capability, Blueprint, adapter, workflow, evidence, migration, observability, and support requirements through their tasks, contracts, and acceptance evidence.",
             "Emit a governed implementation handoff while preserving pilot Brand, provider topology, sandbox, taxonomy ownership, and rollout choices as explicit future implementation inputs."
           ],
@@ -39,7 +44,9 @@
             "Free-text onboarding data, capability recommendations, and solution Blueprints remain evidence or proposals and never become execution authority.",
             "All 19 current Work Maps and all 16 current schema domains have explicit decisions, with zero unresolved dimensions and no new Work Map candidate.",
             "The package reuses the existing platform runtime, policy, resource, provider, workflow, evidence, migration, observability, repository, delivery, and support authorities rather than creating parallel kernels.",
-            "The specification does not claim runtime implementation, migration Apply, database mutation, provider execution, credential access, WordPress or WooCommerce writes, Google Drive writes, deployment, Production promotion, external send, or secret inclusion."
+            "The specification package contains no runtime, migration, or execution scripts inside its bounded directory.",
+            "The Production schema baseline collector accepts no free-form SQL, executes only parameterized SELECT statements, reads schema and migration-ledger metadata only, hashes the database identity, and never returns credential values.",
+            "The specification and baseline evidence do not claim migration Apply, database mutation, provider execution, WordPress or WooCommerce writes, Google Drive writes, deployment, Production promotion, external send, or secret inclusion."
           ],
           "tests": [
             {
@@ -55,6 +62,20 @@
               "working_directory": ".",
               "path": "http-generic-api/scripts/spec-kit-completion-gate.mjs",
               "args": []
+            },
+            {
+              "id": "retail-commerce-specification-baseline",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-specification-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-production-schema-baseline-read-only",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-production-schema-baseline.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -65,7 +86,10 @@
             "specs/014-retail-commerce-operations-growth-os/acceptance-matrix.md",
             "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
             "specs/014-retail-commerce-operations-growth-os/completion.json",
-            "specs/014-retail-commerce-operations-growth-os/e2e-phases.json"
+            "specs/014-retail-commerce-operations-growth-os/e2e-phases.json",
+            "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+            "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
+            "http-generic-api/test-retail-commerce-specification-baseline.mjs"
           ]
         }
       ]
