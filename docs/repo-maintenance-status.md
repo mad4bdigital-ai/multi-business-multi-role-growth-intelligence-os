@@ -152,6 +152,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
+- `.github/workflows/spec-011-evidence-auto-closeout.yml`
 - `.github/workflows/spec-011-managed-delivery-lifecycle.yml`
 - `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
@@ -248,6 +249,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-schema-split-importer-v2-reference-preservation.mjs`
+- `http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs`
 - `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
 - `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
