@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "t009-data-classification-retention-redaction-review",
+  "task_id": "T009",
+  "status": "technical_review_complete_approval_required",
+  "observed_main_sha": "d2feb29071823bc706916387b178bc0429be96d1",
+  "observed_at": "2026-08-03",
+  "reviewed_sources": [
+    "specs/012-tenant-activation-lifecycle/spec.md",
+    "specs/012-tenant-activation-lifecycle/concerns.md",
+    "specs/012-tenant-activation-lifecycle/data-model.md",
+    "specs/012-tenant-activation-lifecycle/checklists/security.md"
+  ],
+  "classification_catalog": [
+    {
+      "class_key": "forbidden_secret_material",
+      "description": "Credential or bearer material that must never enter lifecycle evidence, logs, contracts, fixtures, GPT responses, or ordinary persistence.",
+      "gpt_exposure": "forbidden",
+      "examples": [
+        "raw_access_token",
+        "raw_authorization_code",
+        "authorization_header",
+        "oauth_client_secret",
+        "provider_credential",
+        "backend_secret"
+      ]
+    },
+    {
+      "class_key": "restricted_identity_and_authority",
+      "description": "Tenant, user, membership, workspace, actor, approval, and object-authority identifiers required for governed internal correlation.",
+      "gpt_exposure": "opaque_or_omitted",
+      "requirements": [
+        "tenant_and_user_scope",
+        "least_privilege",
+        "bounded_identifiers",
+        "no_cross_tenant_join",
+        "object_level_authority"
+      ]
+    },
+    {
+      "class_key": "confidential_tenant_configuration",
+      "description": "Questionnaire answers, policy proposals, connection modes, tool readiness, and tenant strategy/configuration.",
+      "gpt_exposure": "summary_only_when_authorized",
+      "requirements": [
+        "tenant_scope",
+        "field_minimization",
+        "schema_validation",
+        "no_secret_input",
+        "version_provenance"
+      ]
+    },
+    {
+      "class_key": "internal_operational_evidence",
+      "description": "Operation, stage, reconciliation, delivery, acknowledgement, deployment, and attention evidence.",
+      "gpt_exposure": "bounded_redacted_projection",
+      "requirements": [
+        "operation_binding",
+        "source_authority",
+        "freshness",
+        "bounded_summary",
+        "sensitive_values_included_false"
+      ]
+    },
+    {
+      "class_key": "opaque_public_diagnostic",
+      "description": "Stable error codes, request IDs, retryability, stage state, opaque deployment state, and approved next actions.",
+      "gpt_exposure": "allowed",
+      "requirements": [
+        "no_internal_sha_unless_admin",
+        "no_stack_trace",
+        "no_raw_payload",
+        "no_secret",
+        "bounded_length"
+      ]
+    }
+  ],
+  "entity_classification": [
+    {
+      "entity": "oauth_authorization_code_record",
+      "classes": ["restricted_identity_and_authority"],
+      "retention_profile": "ephemeral_auth_security",
+      "redaction": ["store_hash_or_jti_reference_only", "never_store_raw_code"]
+    },
+    {
+      "entity": "access_token_verification_evidence",
+      "classes": ["restricted_identity_and_authority", "internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["never_store_raw_token", "omit_authorization_header", "bounded_claim_summary"]
+    },
+    {
+      "entity": "session_context_summary",
+      "classes": ["restricted_identity_and_authority", "confidential_tenant_configuration"],
+      "retention_profile": "tenant_session_support",
+      "redaction": ["summary_first", "bounded_history", "tenant_user_scope"]
+    },
+    {
+      "entity": "activation_operation",
+      "classes": ["restricted_identity_and_authority", "internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["hash_idempotency_key", "no_raw_request_body", "no_secret"]
+    },
+    {
+      "entity": "activation_stage_attempt",
+      "classes": ["internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["stable_error_code_only", "bounded_source_type", "no_provider_payload"]
+    },
+    {
+      "entity": "activation_evidence_item",
+      "classes": ["internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["bounded_summary_json", "source_reference_no_secret", "sensitive_values_included_false"]
+    },
+    {
+      "entity": "activation_delivery_and_acknowledgement",
+      "classes": ["restricted_identity_and_authority", "internal_operational_evidence"],
+      "retention_profile": "product_support_delivery",
+      "redaction": ["payload_hash_only", "bounded_actor_id", "no_message_body"]
+    },
+    {
+      "entity": "activation_reconciliation_attempt",
+      "classes": ["internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["readback_contract_key_only", "linked_bounded_evidence", "no_original_mutation_payload"]
+    },
+    {
+      "entity": "deployment_observation",
+      "classes": ["internal_operational_evidence", "opaque_public_diagnostic"],
+      "retention_profile": "release_audit",
+      "redaction": ["tenant_public_opaque_projection", "admin_full_only_with_authority", "no_credentials"]
+    },
+    {
+      "entity": "activation_attention_item",
+      "classes": ["restricted_identity_and_authority", "internal_operational_evidence"],
+      "retention_profile": "operational_security_audit",
+      "redaction": ["bounded_summary", "stable_code", "tenant_id_omitted_from_public_projection"]
+    },
+    {
+      "entity": "questionnaire_answer_session",
+      "classes": ["restricted_identity_and_authority", "confidential_tenant_configuration"],
+      "retention_profile": "tenant_policy_configuration",
+      "redaction": ["schema_allowlist", "secret_input_rejected", "tenant_scope", "version_pinned"]
+    },
+    {
+      "entity": "governed_policy_proposal_and_activation",
+      "classes": ["restricted_identity_and_authority", "confidential_tenant_configuration", "internal_operational_evidence"],
+      "retention_profile": "policy_audit",
+      "redaction": ["proposal_hash_and_provenance", "bounded_impact_preview", "no_secret", "approval_reference_only"]
+    }
+  ],
+  "retention_profiles": [
+    {
+      "profile_key": "ephemeral_auth_security",
+      "lifecycle_trigger": "expiry_or_consumption",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "delete_or_irreversibly_minimize_after_approved_security_window"
+    },
+    {
+      "profile_key": "tenant_session_support",
+      "lifecycle_trigger": "session_terminal_or_superseded",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "delete_or_minimize_history_outside_approved_support_window"
+    },
+    {
+      "profile_key": "operational_security_audit",
+      "lifecycle_trigger": "operation_terminal",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "retain_bounded_audit_projection_only"
+    },
+    {
+      "profile_key": "product_support_delivery",
+      "lifecycle_trigger": "delivery_or_ack_terminal",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "remove_delivery_metadata_after_approved_support_window_unless_audit_hold"
+    },
+    {
+      "profile_key": "release_audit",
+      "lifecycle_trigger": "release_superseded",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "retain_release_identity_and_health_summary_without_secrets"
+    },
+    {
+      "profile_key": "tenant_policy_configuration",
+      "lifecycle_trigger": "answer_session_terminal_or_abandoned",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "delete_abandoned_answers_or_minimize_to_versioned_audit_reference"
+    },
+    {
+      "profile_key": "policy_audit",
+      "lifecycle_trigger": "proposal_superseded_rolled_back_or_terminal",
+      "approved_duration_days": null,
+      "approval_required": true,
+      "destruction_rule": "retain_immutable_provenance_and_approval_reference_without_secret_answers"
+    },
+    {
+      "profile_key": "raw_diagnostic_capture",
+      "lifecycle_trigger": "capture_created",
+      "approved_duration_days": 0,
+      "approval_required": true,
+      "default_enabled": false,
+      "destruction_rule": "disabled_by_default; elevated_bounded_capture_requires_separate_authority_and_shortest_approved_expiry"
+    }
+  ],
+  "redaction_contract": {
+    "forbidden_fields": [
+      "access_token",
+      "authorization_code",
+      "authorization",
+      "client_secret",
+      "provider_credential",
+      "cookie",
+      "set_cookie",
+      "private_key",
+      "refresh_token",
+      "raw_request_body",
+      "raw_response_body",
+      "full_conversation_content"
+    ],
+    "required_controls": [
+      "structured_allowlist_projection",
+      "length_and_collection_bounds",
+      "log_injection_encoding",
+      "tenant_user_scope",
+      "secret_scanner",
+      "sensitive_values_included_false_for_gpt_visible_evidence",
+      "raw_dumps_disabled_by_default"
+    ]
+  },
+  "approval_gate": {
+    "security_approval_registered": false,
+    "legal_approval_registered": false,
+    "retention_schedule_approved": false,
+    "task_complete": false,
+    "required_evidence": [
+      "security_owner_identity",
+      "legal_or_privacy_owner_identity",
+      "approved_duration_for_each_retention_profile",
+      "jurisdiction_and_legal_hold_rules",
+      "deletion_or_minimization_readback_contract",
+      "approval_timestamp_and_version"
+    ]
+  },
+  "non_effects": {
+    "retention_duration_activated": false,
+    "data_deleted": false,
+    "database_mutation_performed": false,
+    "migration_applied": false,
+    "runtime_wiring_performed": false,
+    "production_deployment_performed": false,
+    "credential_read_performed": false,
+    "secrets_included": false
+  }
+}
