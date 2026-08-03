@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "activation-slo-baseline-and-starter-profile-readiness",
+  "task_ids": ["T007A", "T029D"],
+  "status": "measurement_contract_ready_production_baseline_required",
+  "observed_main_sha": "b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5",
+  "observed_at": "2026-08-03",
+  "authority": {
+    "decision": "specs/012-tenant-activation-lifecycle/decisions/ADR-005-governed-interactive-policy-questionnaire-engine.md",
+    "tasks": "specs/012-tenant-activation-lifecycle/tasks.md",
+    "stage_catalog": "specs/012-tenant-activation-lifecycle/data-model.md",
+    "runtime_policy_authority": "governed_sql_registry",
+    "questionnaire_is_runtime_authority": false
+  },
+  "measurement_contract": {
+    "environment": "production",
+    "time_basis": "UTC",
+    "collection_mode": "read_only_aggregated_no_secret",
+    "required_identity": [
+      "baseline_id",
+      "window_start",
+      "window_end",
+      "main_sha",
+      "deployed_release_identity",
+      "contract_version",
+      "compiler_version_candidate",
+      "measurement_query_version"
+    ],
+    "required_segments": [
+      "stage_key",
+      "operation_profile",
+      "activation_mode",
+      "dependency_class",
+      "risk_tier",
+      "tenant_tier",
+      "response_mode"
+    ],
+    "required_metrics": [
+      "sample_count",
+      "success_count",
+      "degraded_count",
+      "failure_count",
+      "timeout_count",
+      "rate_limited_count",
+      "unknown_outcome_count",
+      "reconciliation_count",
+      "retry_count_distribution",
+      "latency_ms_p50",
+      "latency_ms_p90",
+      "latency_ms_p95",
+      "latency_ms_p99",
+      "freshness_lag_ms_p95",
+      "queue_wait_ms_p95",
+      "payload_size_bytes_p95"
+    ],
+    "required_quality_evidence": [
+      "tenant_safe_aggregation",
+      "no_raw_identifiers",
+      "no_secrets",
+      "completeness_ratio",
+      "missing_stage_ratio",
+      "clock_skew_check",
+      "deployment_transition_exclusion_or_label",
+      "outlier_policy",
+      "query_reproducibility",
+      "same_window_release_parity"
+    ],
+    "minimum_sample_policy": {
+      "approved_minimum_sample_count": null,
+      "approved_minimum_window_duration": null,
+      "approval_required": true
+    },
+    "production_measurement_performed": false,
+    "baseline_registered": false,
+    "baseline_readback_complete": false
+  },
+  "stage_scope": [
+    "oauth_authorize",
+    "identity_verify",
+    "oauth_code_issue",
+    "oauth_token_exchange",
+    "gateway_verify",
+    "membership_resolve",
+    "session_context",
+    "workspace_resolve",
+    "bootstrap_config",
+    "connection_resolve",
+    "provider_validate",
+    "tool_discovery",
+    "dispatch_prepare",
+    "dispatch_execute",
+    "readback",
+    "response_prepare",
+    "delivery",
+    "acknowledgement",
+    "reconciliation",
+    "deployment_verify"
+  ],
+  "starter_profiles": [
+    {
+      "profile_key": "fast",
+      "status": "unpublished",
+      "profile_version": null,
+      "source_baseline_id": null,
+      "policy_values": null,
+      "safety_bounds_approved": false,
+      "impact_model_validated": false,
+      "rollout_plan_approved": false,
+      "rollback_plan_approved": false
+    },
+    {
+      "profile_key": "balanced",
+      "status": "unpublished",
+      "profile_version": null,
+      "source_baseline_id": null,
+      "policy_values": null,
+      "safety_bounds_approved": false,
+      "impact_model_validated": false,
+      "rollout_plan_approved": false,
+      "rollback_plan_approved": false
+    },
+    {
+      "profile_key": "complete",
+      "status": "unpublished",
+      "profile_version": null,
+      "source_baseline_id": null,
+      "policy_values": null,
+      "safety_bounds_approved": false,
+      "impact_model_validated": false,
+      "rollout_plan_approved": false,
+      "rollback_plan_approved": false
+    },
+    {
+      "profile_key": "high_reliability",
+      "status": "unpublished",
+      "profile_version": null,
+      "source_baseline_id": null,
+      "policy_values": null,
+      "safety_bounds_approved": false,
+      "impact_model_validated": false,
+      "rollout_plan_approved": false,
+      "rollback_plan_approved": false
+    }
+  ],
+  "profile_compilation_requirements": [
+    "pinned_baseline_id",
+    "pinned_questionnaire_version",
+    "pinned_template_version",
+    "pinned_compiler_version",
+    "immutable_domain_safety_bounds",
+    "deterministic_output_hash",
+    "evidence_based_impact_preview",
+    "risk_to_approval_resolution",
+    "effective_and_expiry_time",
+    "rollout_cohort",
+    "observation_window",
+    "rollback_target_version",
+    "no_secret_declaration"
+  ],
+  "t029d_adapter_gate": {
+    "adapter_implementation_authorized": false,
+    "required_before_implementation": [
+      "production_baseline_registered",
+      "minimum_sample_policy_approved",
+      "starter_profile_values_approved",
+      "safety_bounds_approved",
+      "compiler_version_registered",
+      "impact_model_validated",
+      "rollout_and_rollback_approved",
+      "exact_version_registry_contract_available"
+    ]
+  },
+  "approval_gate": {
+    "operations_approval_registered": false,
+    "product_approval_registered": false,
+    "security_approval_registered": false,
+    "profile_publish_authorized": false,
+    "tasks_complete": false,
+    "required_evidence": [
+      "production_baseline_id_and_readback",
+      "approved_sampling_policy",
+      "approved_profile_values_and_versions",
+      "approved_immutable_safety_bounds",
+      "registered_compiler_version",
+      "validated_impact_model",
+      "approved_rollout_plan",
+      "approved_rollback_plan",
+      "approval_identities_and_timestamps"
+    ]
+  },
+  "non_effects": {
+    "production_query_performed": false,
+    "production_data_read": false,
+    "profile_published": false,
+    "policy_seed_written": false,
+    "adapter_implemented": false,
+    "runtime_wired": false,
+    "database_mutation_performed": false,
+    "migration_applied": false,
+    "deployment_performed": false,
+    "credential_read_performed": false,
+    "external_send_performed": false,
+    "secrets_included": false
+  }
+}
