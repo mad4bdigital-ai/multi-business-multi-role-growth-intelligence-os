@@ -1,0 +1,721 @@
+name: Incident 5021 exact-head approval guard builder
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/draft-merge-guard-v2-20260803
+    paths:
+      - .github/workflows/incident-5021-exact-head-approval-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-5021-exact-head-approval-builder
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish exact-head approval guard candidate
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      EXPECTED_TARGET_SHA: 2c89cc14d8a38a09034f0306eccff273234046e2
+    steps:
+      - name: Checkout clean target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify immutable target base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+
+      - name: Apply exact-head approval and explicit-envelope guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return text.replace(old, new, 1)
+
+          lifecycle_path = Path("http-generic-api/githubRepositoryLifecycle.js")
+          lifecycle = lifecycle_path.read_text()
+
+          lifecycle = replace_once(
+              lifecycle,
+              '''function normalizeBranch(branch = "") {
+            return String(branch || "").trim().replace(/^refs\\/heads\\//, "");
+          }
+          ''',
+              '''function normalizeBranch(branch = "") {
+            return String(branch || "").trim().replace(/^refs\\/heads\\//, "");
+          }
+
+          function boundedRequiredApprovals(value = 1) {
+            const parsed = Number(value);
+            if (!Number.isFinite(parsed)) return 1;
+            return Math.max(1, Math.min(10, Math.floor(parsed)));
+          }
+
+          function reviewOrder(review = {}, index = 0) {
+            const timestamp = Date.parse(review?.submitted_at || review?.submittedAt || "") || 0;
+            return { timestamp, id: Number(review?.id || 0), index };
+          }
+
+          function laterReview(left, right) {
+            if (!left) return right;
+            if (right.order.timestamp !== left.order.timestamp) {
+              return right.order.timestamp > left.order.timestamp ? right : left;
+            }
+            if (right.order.id !== left.order.id) return right.order.id > left.order.id ? right : left;
+            return right.order.index > left.order.index ? right : left;
+          }
+
+          export function summarizeGithubPullRequestApprovals(reviews = [], {
+            expectedHeadSha = "",
+            authorLogin = "",
+            requiredApprovals = 1,
+          } = {}) {
+            const expected = normalizeSha(expectedHeadSha);
+            const author = String(authorLogin || "").trim().toLowerCase();
+            const required = boundedRequiredApprovals(requiredApprovals);
+            const latestByReviewer = new Map();
+            const ignored = {
+              non_decisive: 0,
+              invalid_reviewer: 0,
+              bot: 0,
+              author: 0,
+              stale_head: 0,
+              dismissed: 0,
+            };
+
+            for (const [index, review] of (Array.isArray(reviews) ? reviews : []).entries()) {
+              const state = String(review?.state || "").trim().toUpperCase();
+              if (!["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(state)) {
+                ignored.non_decisive += 1;
+                continue;
+              }
+              const login = String(review?.user?.login || "").trim().toLowerCase();
+              if (!login) {
+                ignored.invalid_reviewer += 1;
+                continue;
+              }
+              const candidate = { review, state, login, order: reviewOrder(review, index) };
+              latestByReviewer.set(login, laterReview(latestByReviewer.get(login), candidate));
+            }
+
+            const approvedReviewers = [];
+            const changesRequestedReviewers = [];
+            for (const item of latestByReviewer.values()) {
+              const { review, state, login } = item;
+              const userType = String(review?.user?.type || "").trim().toLowerCase();
+              if (userType !== "user" || login.endsWith("[bot]")) {
+                ignored.bot += 1;
+                continue;
+              }
+              if (author && login == author) {
+                ignored.author += 1;
+                continue;
+              }
+              if (state === "DISMISSED") {
+                ignored.dismissed += 1;
+                continue;
+              }
+              if (normalizeSha(review?.commit_id || review?.commitId) !== expected) {
+                ignored.stale_head += 1;
+                continue;
+              }
+              const projection = {
+                login,
+                review_id: Number(review?.id || 0) || null,
+                commit_id: expected,
+                submitted_at: review?.submitted_at || review?.submittedAt || null,
+              };
+              if (state === "APPROVED") approvedReviewers.push(projection);
+              if (state === "CHANGES_REQUESTED") changesRequestedReviewers.push(projection);
+            }
+
+            approvedReviewers.sort((a, b) => a.login.localeCompare(b.login));
+            changesRequestedReviewers.sort((a, b) => a.login.localeCompare(b.login));
+            return {
+              required_approval_count: required,
+              exact_head_approval_count: approvedReviewers.length,
+              approved_reviewers: approvedReviewers,
+              changes_requested_reviewers: changesRequestedReviewers,
+              has_changes_requested: changesRequestedReviewers.length > 0,
+              quorum_satisfied: approvedReviewers.length >= required && changesRequestedReviewers.length === 0,
+              review_count: Array.isArray(reviews) ? reviews.length : 0,
+              ignored,
+              expected_head_sha: expected || null,
+              secrets_included: false,
+            };
+          }
+          ''',
+              "approval helpers",
+          )
+
+          old_finalize = '''  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+            if (pr?.draft === true) {
+              throw lifecycleError(409, "github_pr_finalize_draft_blocked", "Draft pull requests cannot be finalized or merged.", {
+                pull_number: pullNumber,
+                expected_head_sha: expectedHeadSha,
+                expected_base_sha: expectedBaseSha,
+                is_draft: true,
+                secrets_included: false,
+              });
+            }
+            const merge = await githubLifecycleRequest({
+          '''
+          new_finalize = '''  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+            const finalState = String(pr?.state || "").trim().toLowerCase();
+            if (finalState !== "open") {
+              throw lifecycleError(409, "github_pr_finalize_state_blocked", "Only open pull requests can be finalized.", {
+                pull_number: pullNumber,
+                current_state: finalState || null,
+                secrets_included: false,
+              });
+            }
+            if (pr?.draft === true) {
+              throw lifecycleError(409, "github_pr_finalize_draft_blocked", "Draft pull requests cannot be finalized or merged.", {
+                pull_number: pullNumber,
+                expected_head_sha: expectedHeadSha,
+                expected_base_sha: expectedBaseSha,
+                is_draft: true,
+                secrets_included: false,
+              });
+            }
+            const finalHeadSha = normalizeSha(pr?.head?.sha);
+            const finalBaseSha = normalizeSha(pr?.base?.sha);
+            if (finalHeadSha !== expectedHeadSha || finalBaseSha !== expectedBaseSha) {
+              throw lifecycleError(409, "github_pr_finalize_final_identity_mismatch", "Pull request head or base changed immediately before merge.", {
+                pull_number: pullNumber,
+                expected_head_sha: expectedHeadSha,
+                current_head_sha: finalHeadSha || null,
+                expected_base_sha: expectedBaseSha,
+                current_base_sha: finalBaseSha || null,
+                validation_phase: "final_pre_merge_readback",
+                secrets_included: false,
+              });
+            }
+            const reviewsResponse = await githubLifecycleRequest({
+              owner,
+              repo,
+              apiPath: `/pulls/${pullNumber}/reviews?per_page=100`,
+              token,
+              fetchImpl: options.fetchImpl,
+            });
+            const reviews = Array.isArray(reviewsResponse.payload) ? reviewsResponse.payload : [];
+            if (!Array.isArray(reviewsResponse.payload) || reviews.length >= 100) {
+              throw lifecycleError(409, "github_pr_finalize_review_set_unbounded", "Exact-head review evidence could not be bounded to one complete page.", {
+                pull_number: pullNumber,
+                returned_review_count: reviews.length,
+                per_page: 100,
+                secrets_included: false,
+              });
+            }
+            const approvalEvidence = summarizeGithubPullRequestApprovals(reviews, {
+              expectedHeadSha,
+              authorLogin: pr?.user?.login,
+              requiredApprovals: options.required_approvals || options.requiredApprovals || 1,
+            });
+            if (approvalEvidence.has_changes_requested) {
+              throw lifecycleError(409, "github_pr_finalize_changes_requested", "Exact-head review evidence contains an active changes-requested decision.", approvalEvidence);
+            }
+            if (!approvalEvidence.quorum_satisfied) {
+              throw lifecycleError(409, "github_pr_finalize_approval_required", "Exact-head human approval quorum is not satisfied.", approvalEvidence);
+            }
+            const merge = await githubLifecycleRequest({
+          '''
+          lifecycle = replace_once(lifecycle, old_finalize, new_finalize, "finalizer approval gate")
+          lifecycle = replace_once(
+              lifecycle,
+              '''      merge_method: mergeMethod,
+                ancestry_readback: {
+          ''',
+              '''      merge_method: mergeMethod,
+                approval_evidence: approvalEvidence,
+                ancestry_readback: {
+          ''',
+              "partial success approval evidence",
+          )
+          lifecycle = replace_once(
+              lifecycle,
+              '''    merge_method: mergeMethod,
+              ci_gate: gate,
+              ancestry_readback: {
+          ''',
+              '''    merge_method: mergeMethod,
+              ci_gate: gate,
+              approval_evidence: approvalEvidence,
+              ancestry_readback: {
+          ''',
+              "success approval evidence",
+          )
+          lifecycle_path.write_text(lifecycle)
+
+          test_path = Path("http-generic-api/test-github-repository-lifecycle.mjs")
+          test = test_path.read_text()
+          test = replace_once(
+              test,
+              '''      { status: 200, payload: { number: pullNumber, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
+          ''',
+              '''      { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                { status: 200, payload: [{ id: 9001, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T04:30:00Z", user: { login: "human-reviewer", type: "User" } }] },
+                { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
+          ''',
+              "success test review response",
+          )
+          test = replace_once(
+              test,
+              '''  assert.equal(result.ci_gate.gate_status, "pass");
+              assert.equal(result.ancestry_readback.verified, true);
+          ''',
+              '''  assert.equal(result.ci_gate.gate_status, "pass");
+              assert.equal(result.approval_evidence.exact_head_approval_count, 1);
+              assert.equal(result.approval_evidence.quorum_satisfied, true);
+              assert.equal(result.ancestry_readback.verified, true);
+          ''',
+              "success test approval assertions",
+          )
+
+          marker = '\nconsole.log("github repository lifecycle tests passed");'
+          if test.count(marker) != 1:
+              raise SystemExit("lifecycle test completion marker mismatch")
+          extra_tests = r'''
+
+          function exactHeadChecks() {
+            return [
+              "Syntax Check",
+              "Architecture Drift Detection",
+              "Execution Resolver Gate",
+              "Unit & Integration Tests",
+            ].map((name, index) => ({
+              name,
+              status: "completed",
+              conclusion: "success",
+              completed_at: `2026-08-03T05:0${index}:00Z`,
+            }));
+          }
+
+          function exactHeadGateResponses(pullNumber, branch = "gpt/exact-head-approval") {
+            return [
+              { status: 200, payload: { number: pullNumber, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+              { status: 200, payload: { status: "ahead", ahead_by: 3, behind_by: 0 } },
+              { status: 200, payload: { total_count: 4, check_runs: exactHeadChecks() } },
+            ];
+          }
+
+          {
+            const calls = [];
+            const pullNumber = 4387;
+            await assert.rejects(
+              () => finalizeGithubPullRequest({
+                owner: OWNER,
+                repo: REPO,
+                token: "test-token",
+                pull_number: pullNumber,
+                expected_head_sha: HEAD_SHA,
+                expected_base_sha: BASE_SHA,
+                confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+                fetchImpl: queuedFetch([
+                  ...exactHeadGateResponses(pullNumber),
+                  { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                  { status: 200, payload: [{ id: 1, state: "APPROVED", commit_id: COMMIT_SHA, submitted_at: "2026-08-03T05:10:00Z", user: { login: "reviewer", type: "User" } }] },
+                ], calls),
+              }),
+              (error) => error.code === "github_pr_finalize_approval_required"
+                && error.details?.ignored?.stale_head === 1,
+            );
+            assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "stale approval must not reach merge endpoint");
+          }
+
+          {
+            const calls = [];
+            const pullNumber = 4388;
+            await assert.rejects(
+              () => finalizeGithubPullRequest({
+                owner: OWNER,
+                repo: REPO,
+                token: "test-token",
+                pull_number: pullNumber,
+                expected_head_sha: HEAD_SHA,
+                expected_base_sha: BASE_SHA,
+                confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+                fetchImpl: queuedFetch([
+                  ...exactHeadGateResponses(pullNumber),
+                  { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                  { status: 200, payload: [
+                    { id: 2, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:11:00Z", user: { login: "merge-bot[bot]", type: "Bot" } },
+                    { id: 3, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:12:00Z", user: { login: "author", type: "User" } },
+                  ] },
+                ], calls),
+              }),
+              (error) => error.code === "github_pr_finalize_approval_required"
+                && error.details?.ignored?.bot === 1
+                && error.details?.ignored?.author === 1,
+            );
+            assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "bot or author approval must not reach merge endpoint");
+          }
+
+          {
+            const calls = [];
+            const pullNumber = 4389;
+            await assert.rejects(
+              () => finalizeGithubPullRequest({
+                owner: OWNER,
+                repo: REPO,
+                token: "test-token",
+                pull_number: pullNumber,
+                expected_head_sha: HEAD_SHA,
+                expected_base_sha: BASE_SHA,
+                confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+                fetchImpl: queuedFetch([
+                  ...exactHeadGateResponses(pullNumber),
+                  { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                  { status: 200, payload: [
+                    { id: 4, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:13:00Z", user: { login: "reviewer-a", type: "User" } },
+                    { id: 5, state: "CHANGES_REQUESTED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:14:00Z", user: { login: "reviewer-b", type: "User" } },
+                  ] },
+                ], calls),
+              }),
+              (error) => error.code === "github_pr_finalize_changes_requested"
+                && error.details?.has_changes_requested === true,
+            );
+            assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "changes requested must not reach merge endpoint");
+          }
+
+          {
+            const calls = [];
+            const pullNumber = 4390;
+            await assert.rejects(
+              () => finalizeGithubPullRequest({
+                owner: OWNER,
+                repo: REPO,
+                token: "test-token",
+                pull_number: pullNumber,
+                expected_head_sha: HEAD_SHA,
+                expected_base_sha: BASE_SHA,
+                confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+                fetchImpl: queuedFetch([
+                  ...exactHeadGateResponses(pullNumber),
+                  { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: COMMIT_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                ], calls),
+              }),
+              (error) => error.code === "github_pr_finalize_final_identity_mismatch"
+                && error.details?.validation_phase === "final_pre_merge_readback",
+            );
+            assert.equal(calls.some((call) => call.url.includes("/reviews")), false, "identity race must fail before review fetch");
+            assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "identity race must not reach merge endpoint");
+          }
+          '''
+          test = test.replace(marker, extra_tests + marker, 1)
+          test_path.write_text(test)
+
+          capability_path = Path("http-generic-api/operationCapabilityLifecycleService.js")
+          capability = capability_path.read_text()
+          capability = replace_once(
+              capability,
+              '''function renewalAllowed(input = {}) {
+            return input.automatic_capability_renewal !== false
+              && input.automaticCapabilityRenewal !== false;
+          }
+          ''',
+              '''function renewalAllowed(input = {}) {
+            return input.automatic_capability_renewal !== false
+              && input.automaticCapabilityRenewal !== false;
+          }
+
+          function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
+            if (operationKey === "operation.resume") return true;
+            if (operationKey !== "repo.change.execute") return false;
+            const automationKey = compact(
+              input.automation_key || input.automationKey || input.recipe_key || input.recipeKey || "pr_delivery",
+              64,
+            ).toLowerCase();
+            return ["pr_delivery", "full_workstream"].includes(automationKey);
+          }
+          ''',
+              "explicit envelope classifier",
+          )
+          capability = replace_once(
+              capability,
+              '''  if (!renewalAllowed(input)) {
+            throw lifecycleError(
+          ''',
+              '''  if (protectedFinalizationRequiresExplicitEnvelope(operationKey, input)) {
+            throw lifecycleError(
+              409,
+              "OPERATION_CAPABILITY_ENVELOPE_REQUIRED",
+              "Protected pull-request finalization requires a separately issued capability envelope; automatic renewal is disabled.",
+              {
+                operation_key: operationKey,
+                previous_envelope_id: existingEnvelopeId || null,
+                automatic_renewal_enabled: false,
+                next_action: "supply_explicit_approved_capability_envelope",
+                secrets_included: false,
+              },
+            );
+          }
+
+            if (!renewalAllowed(input)) {
+            throw lifecycleError(
+          ''',
+              "explicit envelope enforcement",
+          )
+          capability = replace_once(
+              capability,
+              '''  renewalProfile,
+            renewalAllowed,
+            publicFailure,
+          };
+          ''',
+              '''  renewalProfile,
+            renewalAllowed,
+            protectedFinalizationRequiresExplicitEnvelope,
+            publicFailure,
+          };
+          ''',
+              "testing export",
+          )
+          capability_path.write_text(capability)
+
+          capability_test_path = Path("http-generic-api/test-gpt-tools-route-syntax-regression.mjs")
+          capability_test = capability_test_path.read_text()
+          capability_test = replace_once(
+              capability_test,
+              '''      input: {
+                operation_key: "repo.change.execute",
+                capability_envelope_id: "env-expired",
+                owner: "owner",
+                repo: "repo",
+              },
+          ''',
+              '''      input: {
+                operation_key: "repo.change.execute",
+                automation_key: "branch_cleanup",
+                capability_envelope_id: "env-expired",
+                owner: "owner",
+                repo: "repo",
+              },
+          ''',
+              "expired renewal safe recipe",
+          )
+          capability_test = replace_once(
+              capability_test,
+              '''      input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },
+              operationKey: "repo.change.execute",
+              createEnvelope: async () => ({
+          ''',
+              '''      input: { operation_key: "repo.change.execute", automation_key: "branch_cleanup", owner: "owner", repo: "repo" },
+              operationKey: "repo.change.execute",
+              createEnvelope: async () => ({
+          ''',
+              "approval renewal safe recipe",
+          )
+          insertion = '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.repositoryResourceUri({
+              owner: "owner",
+              repo: "repo",
+            }),
+            "github://owner/repo",
+          );
+          '''
+          addition = insertion + '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "repo.change.execute",
+              {},
+            ),
+            true,
+          );
+            assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "repo.change.execute",
+              { automation_key: "branch_cleanup" },
+            ),
+            false,
+          );
+            assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "operation.resume",
+              {},
+            ),
+            true,
+          );
+
+            {
+            let createCalls = 0;
+            await assert.rejects(
+              () => prepareOperationCapabilityLifecycle({
+                pool: {},
+                auth: { tenant_id: "tenant-a", user_id: "user-a" },
+                input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },
+                operationKey: "repo.change.execute",
+                createEnvelope: async () => { createCalls += 1; return {}; },
+              }),
+              (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+                && error.details?.automatic_renewal_enabled === false,
+            );
+            assert.equal(createCalls, 0);
+          }
+          '''
+          capability_test = replace_once(capability_test, insertion, addition, "capability explicit envelope tests")
+          capability_test = replace_once(
+              capability_test,
+              '''  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL/);
+          ''',
+              '''  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL/);
+            assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_ENVELOPE_REQUIRED/);
+          ''',
+              "OpenAPI explicit envelope assertion",
+          )
+          capability_test_path.write_text(capability_test)
+
+          openapi_path = Path("http-generic-api/openapi/operation-capability-lifecycle.yaml")
+          openapi = openapi_path.read_text()
+          openapi = replace_once(
+              openapi,
+              '''    envelope. Missing or expired envelopes may be recreated from a governed
+              dry-run, but approval is never granted automatically.
+          ''',
+              '''    envelope. Missing or expired envelopes may be recreated from a governed
+              dry-run for lower-risk recipes, but protected pull-request finalization and
+              operation resume require a separately issued explicit envelope.
+          ''',
+              "OpenAPI lifecycle description",
+          )
+          openapi = replace_once(
+              openapi,
+              '''            Allows creation of a fresh dry-run envelope when none exists or the
+                supplied envelope expired. It never grants approval automatically.
+          ''',
+              '''            Allows creation of a fresh dry-run envelope when none exists or the
+                supplied envelope expired for lower-risk recipes. It is ignored for protected
+                pull-request finalization and operation resume, which require an explicit envelope.
+          ''',
+              "OpenAPI renewal field description",
+          )
+          openapi = replace_once(
+              openapi,
+              '''                - OPERATION_CAPABILITY_ENVELOPE_REJECTED
+          ''',
+              '''                - OPERATION_CAPABILITY_ENVELOPE_REJECTED
+                - OPERATION_CAPABILITY_ENVELOPE_REQUIRED
+          ''',
+              "OpenAPI error enum",
+          )
+          openapi_path.write_text(openapi)
+
+          contract_path = Path(".changes/e2e/repository-lifecycle-draft-merge-guard.json")
+          contract = json.loads(contract_path.read_text())
+          contract["current_phase"] = "operational"
+          contract["merge_contract"]["minimum_phase"] = "operational"
+          for path in [
+              "http-generic-api/operationCapabilityLifecycleService.js",
+              "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+              "http-generic-api/openapi/operation-capability-lifecycle.yaml",
+          ]:
+              if path not in contract["scope"]["include"]:
+                  contract["scope"]["include"].append(path)
+          operational = next(phase for phase in contract["phases"] if phase["id"] == "operational")
+          operational["status"] = "implemented"
+          operational["objective"] = "Require exact-head human approval, final head/base identity readback, and an explicitly issued capability envelope before protected pull-request finalization."
+          operational["e2e_journeys"] = [{
+              "id": "exact-head-human-approval-before-merge",
+              "end_to_end": True,
+              "level": "synthetic_runtime",
+              "actor": "repository_automation_operator",
+              "entrypoint": "finalizeGithubPullRequest",
+              "terminal_outcome": "Protected finalization reaches the merge endpoint only after exact-head human approval quorum and a final exact head/base identity readback; automatic capability renewal is blocked.",
+              "steps": [
+                  "Resolve the exact candidate head and base through the required CI gate.",
+                  "Re-read the pull request immediately before merge and reject state, Draft, head, or base drift.",
+                  "Read bounded pull-request reviews and require the latest exact-head decisive review from non-bot, non-author human reviewers.",
+                  "Reject stale approvals, bot or author approvals, active changes-requested decisions, and incomplete review evidence before the merge endpoint.",
+                  "Require a separately issued capability envelope for pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."
+              ],
+              "assertions": [
+                  "At least one exact-head human approval is required by default.",
+                  "Stale-head, bot, and author approvals do not satisfy quorum.",
+                  "Active exact-head changes-requested decisions block finalization.",
+                  "Final head/base drift fails before review or merge dispatch.",
+                  "No blocked path issues PUT /pulls/{number}/merge.",
+                  "Protected finalization cannot create a just-in-time capability envelope."
+              ],
+              "tests": [
+                  {"id": "github-repository-lifecycle-exact-head-approval", "runner": "node", "working_directory": "http-generic-api", "path": "test-github-repository-lifecycle.mjs", "args": []},
+                  {"id": "operation-capability-explicit-envelope", "runner": "node", "working_directory": "http-generic-api", "path": "test-gpt-tools-route-syntax-regression.mjs", "args": []}
+              ],
+              "evidence_paths": [
+                  "http-generic-api/githubRepositoryLifecycle.js",
+                  "http-generic-api/test-github-repository-lifecycle.mjs",
+                  "http-generic-api/operationCapabilityLifecycleService.js",
+                  "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+                  "http-generic-api/openapi/operation-capability-lifecycle.yaml",
+                  ".changes/e2e/repository-lifecycle-draft-merge-guard.json"
+              ]
+          }]
+          contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+          PY
+
+      - name: Run focused lifecycle and capability tests
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-gpt-tools-route-syntax-regression.mjs
+
+      - name: Enforce bounded final write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_TARGET_SHA" -- | sort)
+          expected=(
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json
+            http-generic-api/githubRepositoryLifecycle.js
+            http-generic-api/openapi/operation-capability-lifecycle.yaml
+            http-generic-api/operationCapabilityLifecycleService.js
+            http-generic-api/test-github-repository-lifecycle.mjs
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+          test "${#changed[@]}" -eq 6
+
+      - name: Commit and publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/githubRepositoryLifecycle.js \
+            http-generic-api/openapi/operation-capability-lifecycle.yaml \
+            http-generic-api/operationCapabilityLifecycleService.js \
+            http-generic-api/test-github-repository-lifecycle.mjs \
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          git commit -m "fix(github): require exact-head human approval"
+          git push origin "HEAD:${TARGET_BRANCH}"
