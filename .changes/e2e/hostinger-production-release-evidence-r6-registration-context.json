@@ -1,0 +1,59 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-release-evidence-r6-registration-context",
+  "title": "Hostinger Production R6 registration context repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-release-evidence-r6-registration-context.json",
+      ".github/workflows/hostinger-production-release-evidence-r6.yml",
+      "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore GitHub workflow registration by moving runner-scoped temporary-directory initialization out of job-level env and into a runner step.",
+      "e2e_journeys": [
+        {
+          "id": "register-and-run-hostinger-production-evidence-r6",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted main GitHub Actions workflow",
+          "entrypoint": "same-repository Draft pull_request opened event changing only the governed R6 trigger JSON",
+          "terminal_outcome": "GitHub registers the R6 workflow, initializes EVIDENCE_DIR from RUNNER_TEMP after runner allocation, and preserves the existing read-only evidence contract.",
+          "steps": [
+            "Remove runner.temp from jobs.collect-release-evidence.env where the runner context is unavailable during workflow registration.",
+            "Initialize EVIDENCE_DIR through GITHUB_ENV in a shell step after checkout.",
+            "Run the existing R6 static contract with regression assertions for the registration-safe context."
+          ],
+          "assertions": [
+            "No job-level EVIDENCE_DIR expression references runner.temp.",
+            "The runner-scoped directory is exported from RUNNER_TEMP through GITHUB_ENV.",
+            "All Hostinger provider and repository no-mutation boundaries remain unchanged."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-release-evidence-r6-registration-context",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-release-evidence-r6.yml",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
