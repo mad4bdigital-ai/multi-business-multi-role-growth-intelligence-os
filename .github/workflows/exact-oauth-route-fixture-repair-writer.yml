@@ -1,0 +1,110 @@
+name: Exact OAuth Route Fixture Repair Writer
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-route-fixture-repair-base-a61cd9e8
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-oauth-route-fixture-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  patch-and-test:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/probe-oauth-route-fixture-repair-a61cd9e8-20260804' &&
+      github.event.pull_request.head.sha == '6ddb36d8c310b7c8fa6f90800640d0f9b4f9e498'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: 6ddb36d8c310b7c8fa6f90800640d0f9b4f9e498
+      EXPECTED_HEAD_REF: gpt/probe-oauth-route-fixture-repair-a61cd9e8-20260804
+    steps:
+      - name: Checkout trusted writer base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: writer
+          persist-credentials: false
+
+      - name: Checkout exact probe candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact current-main fixture probe
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = '.changes/probes/oauth-route-test-fixture-repair-a61cd9e8.txt'
+
+      - name: Apply fixture dependency repair
+        working-directory: candidate
+        run: python ../writer/.github/ops/patch-oauth-route-test-fixture.py
+
+      - name: Verify one-file patch and syntax
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only)
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
+          git diff --check
+          node --check http-generic-api/test-auth-oauth-routes.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: candidate/http-generic-api
+        run: npm ci
+
+      - name: Run OAuth route suite
+        working-directory: candidate/http-generic-api
+        run: node test-auth-oauth-routes.mjs
+
+      - name: Commit and push validated fixture repair
+        working-directory: candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/$EXPECTED_HEAD_REF:refs/remotes/origin/$EXPECTED_HEAD_REF"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_HEAD_REF)" = "$EXPECTED_HEAD_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add http-generic-api/test-auth-oauth-routes.mjs
+          git diff --cached --quiet && { echo 'refusing empty repair commit' >&2; exit 1; }
+          git commit -m 'test(oauth): inject governed token-route dependencies'
+          new_sha="$(git rev-parse HEAD)"
+          auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$auth_url" "HEAD:refs/heads/$EXPECTED_HEAD_REF"
+          readback="$(git ls-remote "$auth_url" "refs/heads/$EXPECTED_HEAD_REF" | awk '{print $1}')"
+          test "$readback" = "$new_sha"
+          {
+            echo '## OAuth route fixture repair'
+            echo
+            echo "- previous head: \`$EXPECTED_HEAD_SHA\`"
+            echo "- repaired head: \`$new_sha\`"
+            echo '- runtime files changed: none'
+            echo '- OAuth route suite: passed'
+            echo '- force push: false'
+            echo '- protected refs mutated: false'
+            echo '- secrets included: false'
+          } >> "$GITHUB_STEP_SUMMARY"
