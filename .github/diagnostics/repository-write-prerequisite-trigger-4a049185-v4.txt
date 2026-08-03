@@ -1,0 +1,6 @@
+contract=mad4b.repository-write-prerequisite-trigger.v4
+main_sha=4a049185f8eff3232bf1a6ed0a176525e72d980d
+candidate_branch=gpt/ci/repository-write-workflow-prerequisite-4a049185-20260804
+repository_write_authorized=false
+production_mutation_authorized=false
+secrets_included=false
