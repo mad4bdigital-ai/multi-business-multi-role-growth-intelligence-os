@@ -11,7 +11,8 @@
       "hostinger-entrypoint-runtime.js",
       "http-generic-api/scripts/generate-deployment-manifest.mjs",
       "http-generic-api/test-hostinger-root-entrypoint.mjs",
-      "http-generic-api/test-root-cause-activation-runtime-repair.mjs"
+      "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
+      "http-generic-api/test-server-startup-smoke.mjs"
     ]
   },
   "merge_contract": {
@@ -37,6 +38,7 @@
             "Reject root startup if the generated manifest does not resolve branch Production.",
             "Set a process-local authoritative branch lock only after the Production manifest write succeeds.",
             "Change the process working directory and import the nested server after the branch lock is present.",
+            "Start the full root runtime under stale branch environment metadata and require /version to expose Production from the process-local lock.",
             "Let direct nested startup continue using normal environment and Git provenance when the root branch lock is absent.",
             "Require explicit --branch arguments to retain precedence over all environment candidates."
           ],
@@ -46,7 +48,8 @@
             "The manifest output path is exactly http-generic-api/deployment-manifest.json.",
             "The root manifest branch argument is exactly Production.",
             "The process-local branch lock is set to Production before nested server import.",
-            "A stale DEPLOYMENT_BRANCH=main or ACTIVATION_GITHUB_BRANCH=main cannot overwrite the root Production branch during the same startup.",
+            "A stale DEPLOYMENT_BRANCH=main, ACTIVATION_GITHUB_BRANCH=main, or pull-request branch name cannot overwrite the root Production branch during the same startup.",
+            "The full root runtime smoke reports branch Production and branch source env:DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH.",
             "Direct nested startup without the root lock preserves its existing branch-resolution behavior.",
             "Manifest refresh failure or a non-Production root result prevents process.chdir and nested server import.",
             "No repository mutation outside the candidate branch, provider dispatch, credential access, SQL execution, migration apply, deployment command, restart command, or external send is introduced.",
@@ -66,6 +69,13 @@
               "working_directory": "http-generic-api",
               "path": "test-root-cause-activation-runtime-repair.mjs",
               "args": []
+            },
+            {
+              "id": "hostinger-full-root-runtime-production-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -73,7 +83,8 @@
             "http-generic-api/scripts/generate-deployment-manifest.mjs",
             "http-generic-api/deploymentManifest.js",
             "http-generic-api/test-hostinger-root-entrypoint.mjs",
-            "http-generic-api/test-root-cause-activation-runtime-repair.mjs"
+            "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
           ]
         }
       ]
