@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "brand-skill-staging-preflight-rebind",
+  "title": "Brand Skill repaired-workflow staging preflight rebind",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/brand-skill-staging-preflight-rebind.json",
+      ".github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml",
+      ".github/workflows/brand-skill-staging-preflight-push-fallback.yml",
+      "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
+      "docs/runbooks/brand-skill-staging-preflight-dispatch-bridge.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Rebind the governed Staging read-only preflight to the repaired workflow blob while preserving the reviewed runtime and migration snapshot.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-dispatch-validate-and-close-brand-skill-staging-preflight",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner and GitHub Actions",
+          "entrypoint": "A fresh exact authorization comment on Issue #3809 or the bounded main-push fallback",
+          "terminal_outcome": "The repaired target workflow is dispatched with the exact runtime commit and migration checksum, the no-apply artifact is independently validated, and the issue is closed only on passing evidence.",
+          "steps": [
+            "Validate the fresh authorization actor and exact token.",
+            "Validate the repaired workflow blob on its merge commit and current main.",
+            "Validate the migration blob on the runtime commit and current main.",
+            "Dispatch the existing Brand Skill MariaDB certification workflow with staging_read_only inputs.",
+            "Validate the uploaded artifact and close Issue #3809 only after all no-apply fields pass."
+          ],
+          "assertions": [
+            "The new binding identity includes the repaired workflow blob.",
+            "The old workflow blob and historical authorization comment ID are rejected by contract tests.",
+            "The bridge and fallback contain no staging secrets, migration Apply command, Production environment, or provider mutation.",
+            "A completed marker for the exact new binding prevents another completion.",
+            "Failed attempts remain fail-closed and do not authorize migration Apply."
+          ],
+          "tests": [
+            {
+              "id": "brand-skill-mariadb-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-skill-mariadb-certification-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml",
+            ".github/workflows/brand-skill-staging-preflight-push-fallback.yml",
+            "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
+            "docs/runbooks/brand-skill-staging-preflight-dispatch-bridge.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the fresh authorized Staging read-only run and validate its artifact."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Keep old workflow blobs, fixed historical authorization IDs, secret access, Apply commands, and Production bindings fail-closed through regression tests."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Execute one checksum and workflow-blob-bound Staging read-only preflight."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This phase grants no migration Apply, deployment, provider, credential, or Production authority."
+    }
+  ]
+}
