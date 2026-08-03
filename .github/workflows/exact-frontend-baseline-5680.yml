@@ -220,7 +220,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          node http-generic-api/scripts/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
             --report-file artifacts/e2e-contract-reference-integrity.json \
             --base "${BASE_SHA}" \
