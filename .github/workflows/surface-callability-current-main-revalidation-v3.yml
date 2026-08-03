@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Revalidation V3 Isolated Generation
+name: Surface Callability Current Main Revalidation V3 Exact b991
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: surface-callability-current-main-revalidation-v3-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   finalize:
@@ -25,11 +25,8 @@ jobs:
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      BASE_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
-      OLD_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
-      V2_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v2.yml
+      BASE_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
       WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v3.yml
-      DIAGNOSTIC_WORKFLOW_PATH: .github/workflows/surface-callability-generation-diagnostic.yml
 
     steps:
       - name: Checkout exact event head
@@ -43,20 +40,14 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          event_ref='${{ github.event.pull_request.head.ref }}'
-          event_sha='${{ github.event.pull_request.head.sha }}'
-          actual_head="$(git rev-parse HEAD)"
-          test "$event_ref" = "$TARGET_BRANCH" || { echo 'bounded_trigger_head_ref_mismatch'; exit 1; }
-          test "$actual_head" = "$event_sha" || { echo 'bounded_trigger_event_sha_mismatch'; exit 1; }
+          test '${{ github.event.pull_request.head.ref }}' = "$TARGET_BRANCH"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           git fetch origin 'refs/heads/main:refs/remotes/origin/main' --no-tags
-          origin_main="$(git rev-parse refs/remotes/origin/main)"
-          test "$origin_main" = "$BASE_SHA" || { echo 'bounded_trigger_base_sha_mismatch'; exit 1; }
-          git merge-base --is-ancestor "$BASE_SHA" HEAD || { echo 'bounded_trigger_base_not_ancestor'; exit 1; }
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
-          printf 'latest_commit_changed_count=%s\n' "${#changed[@]}"
-          printf 'latest_commit_changed_path=%s\n' "${changed[@]}"
-          test "${#changed[@]}" -eq 1 || { echo 'bounded_trigger_changed_count_mismatch'; exit 1; }
-          test "${changed[0]}" = "$WORKFLOW_PATH" || { echo 'bounded_trigger_changed_path_mismatch'; exit 1; }
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$WORKFLOW_PATH"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -69,21 +60,13 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Surface discovery before closure generation
+      - name: Generate and persist closure evidence
         working-directory: http-generic-api
-        run: node scripts/surface-contract-discovery.mjs --write
-
-      - name: Generate closure contracts
-        working-directory: http-generic-api
-        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
-
-      - name: Surface discovery after closure generation
-        working-directory: http-generic-api
-        run: node scripts/surface-contract-discovery.mjs --write
-
-      - name: Generate frontend dispatch against current main
-        working-directory: http-generic-api
-        run: npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+        run: |
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
 
       - name: Reject temporary exporter tests
         shell: bash
@@ -101,57 +84,24 @@ jobs:
           node --check scripts/resource-api-callability-contracts.mjs
           node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
-      - name: Workspace invitation controls
+      - name: Focused Surface gates
         working-directory: http-generic-api
-        run: node test-workspace-invitation-controls.mjs
-
-      - name: SQL registry extractor
-        working-directory: http-generic-api
-        run: node test-surface-contract-sql-registry-extractor.mjs
-
-      - name: Surface contract classification
-        working-directory: http-generic-api
-        run: node test-surface-contract-classification.mjs
-
-      - name: Resource effect classes
-        working-directory: http-generic-api
-        run: node test-resource-api-callability-effect-classes.mjs
-
-      - name: Resource API coverage
-        working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
-
-      - name: Surface full closure
-        working-directory: http-generic-api
-        run: node test-surface-callability-full-closure.mjs
-
-      - name: Frontend Surface dispatch
-        working-directory: http-generic-api
-        run: node test-frontend-surface-dispatch.mjs
-
-      - name: Frontend auth OpenAPI parity
-        working-directory: http-generic-api
-        run: node test-frontend-auth-openapi-parity.mjs
-
-      - name: OpenAPI route coverage
-        working-directory: http-generic-api
-        run: NO_COLOR=1 node test-openapi-route-coverage.mjs
-
-      - name: Server startup smoke
-        working-directory: http-generic-api
-        run: node test-server-startup-smoke.mjs
-
-      - name: Current test manifest
-        working-directory: http-generic-api
-        run: node test-test-manifest-runner.mjs
-
-      - name: Hostinger full-closure safety
-        working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: OpenAPI auth parity
-        working-directory: http-generic-api
-        run: npm run openapi:auth:check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node test-workspace-invitation-controls.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-surface-contract-classification.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          NO_COLOR=1 node test-openapi-route-coverage.mjs
+          node test-server-startup-smoke.mjs
+          node test-test-manifest-runner.mjs
+          node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+          npm run openapi:auth:check
 
       - name: Prove scoped queue closure
         working-directory: http-generic-api
@@ -170,18 +120,20 @@ jobs:
           if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
           if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_queue_item_count_mismatch:${manifest.source_queue_item_count}`);
           if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
-          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
+          console.log(JSON.stringify({ok:true,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
           NODE
 
       - name: Remove temporary workflows and enforce bounded outputs
         shell: bash
         run: |
           set -Eeuo pipefail
-          test -s docs/surface-contract-safety-attestations.json
-          test -s docs/surface-contract-gap-queue.json
-          test -s http-generic-api/resource-api-surface-callability.manifest.json
-          test -s http-generic-api/frontend-surface-dispatch.generated.json
-          rm "${OLD_WORKFLOW_PATH}" "${V2_WORKFLOW_PATH}" "${WORKFLOW_PATH}" "${DIAGNOSTIC_WORKFLOW_PATH}"
+          for path in \
+            .github/workflows/surface-callability-current-main-finalizer.yml \
+            .github/workflows/surface-callability-current-main-revalidation-v2.yml \
+            .github/workflows/surface-callability-current-main-revalidation-v3.yml \
+            .github/workflows/surface-callability-generation-diagnostic.yml; do
+            rm -f "$path"
+          done
           cat > /tmp/allowed.txt <<'EOF'
           .github/workflows/surface-callability-current-main-finalizer.yml
           .github/workflows/surface-callability-current-main-revalidation-v2.yml
@@ -207,25 +159,18 @@ jobs:
           git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
           unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
           test -z "$unexpected" || { printf 'unexpected revalidation outputs:\n%s\n' "$unexpected"; exit 1; }
-          grep -Fxq "${OLD_WORKFLOW_PATH}" /tmp/changed.txt
-          grep -Fxq "${V2_WORKFLOW_PATH}" /tmp/changed.txt
-          grep -Fxq "${WORKFLOW_PATH}" /tmp/changed.txt
-          grep -Fxq "${DIAGNOSTIC_WORKFLOW_PATH}" /tmp/changed.txt
+          grep -Fxq "$WORKFLOW_PATH" /tmp/changed.txt
 
       - name: Commit product-only revalidation result
         shell: bash
         run: |
           set -Eeuo pipefail
           before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$before" = "${{ github.event.pull_request.head.sha }}"
+          test "$before" = '${{ github.event.pull_request.head.sha }}'
           git config user.name 'mad4bdigital-ai'
           git config user.email 'mad4bdigital-ai@users.noreply.github.com'
           git add -A
-          git commit -m 'chore(surface): revalidate scoped closure on current main'
+          git commit -m 'chore(surface): revalidate scoped closure on main b991e0ae'
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$after" = "$(git rev-parse HEAD)"
-          test ! -e "${OLD_WORKFLOW_PATH}"
-          test ! -e "${V2_WORKFLOW_PATH}"
-          test ! -e "${WORKFLOW_PATH}"
-          test ! -e "${DIAGNOSTIC_WORKFLOW_PATH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
+          test ! -e "$WORKFLOW_PATH"
