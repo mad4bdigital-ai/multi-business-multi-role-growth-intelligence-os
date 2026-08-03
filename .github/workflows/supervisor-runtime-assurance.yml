@@ -9,8 +9,8 @@ on:
       - '.github/workflows/docs-agent.yml'
       - '.github/workflows/supervisor-runtime-assurance.yml'
       - 'http-generic-api/supervisorRuntimeReadiness.js'
-      - 'http-generic-api/scripts/supervisor-runtime-readiness.mjs'
-      - 'http-generic-api/scripts/supervisor-behavioral-certification.mjs'
+      - 'http-generic-api/supervisor-runtime-readiness.mjs'
+      - 'http-generic-api/supervisor-behavioral-certification.mjs'
       - 'http-generic-api/scripts/check-supervisor-admin-tool-export-sync.mjs'
       - 'http-generic-api/config/supervisor-admin-tool-exports.json'
       - 'http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
@@ -30,7 +30,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: supervisor-runtime-assurance-${{ github.ref }}
@@ -39,9 +38,11 @@ concurrency:
 jobs:
   assurance:
     name: Static readiness and behavioral dry-run
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -92,38 +93,3 @@ jobs:
           path: supervisor-assurance-evidence
           if-no-files-found: warn
           retention-days: 14
-
-  alert-lifecycle:
-    name: Reconcile supervisor assurance issue
-    needs: assurance
-    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - name: Open or resolve repository assurance issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ASSURANCE_RESULT: ${{ needs.assurance.result }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          LABEL="supervisor-runtime-assurance"
-          TITLE="[Supervisor Runtime Assurance] Scheduled check failed"
-          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D93F0B \
-            --description "Automated supervisor readiness or behavioral dry-run failure" --force
-          ISSUE_NUMBER=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" \
-            --json number --jq '.[0].number // empty')
-          if [ "$ASSURANCE_RESULT" != "success" ]; then
-            BODY="The scheduled supervisor assurance workflow failed. Review ${RUN_URL}. No live apply, provider call, credential read, or external runtime write was attempted."
-            if [ -n "$ISSUE_NUMBER" ]; then
-              gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
-            else
-              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label "$LABEL" --body "$BODY"
-            fi
-          elif [ -n "$ISSUE_NUMBER" ]; then
-            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-              --body "Supervisor assurance recovered successfully. Evidence: ${RUN_URL}."
-            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
-          fi

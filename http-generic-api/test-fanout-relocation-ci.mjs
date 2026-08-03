@@ -38,10 +38,18 @@ assert.match(relocator, /manual_review/);
 assert.match(relocator, /relative_sibling_script_import/);
 assert.match(relocator, /safe_to_move/);
 assert.match(relocator, /updateReferences/);
-assert.match(workflow, /workflow_dispatch/);
-assert.match(workflow, /mode == 'apply'/);
-assert.match(workflow, /Refusing to apply relocation on protected branch/);
-assert.match(workflow, /git push/);
+
+assert.match(workflow, /(?:^|\n)\s*pull_request\s*:/u);
+assert.match(workflow, /(?:^|\n)\s*contents\s*:\s*read\b/u);
+assert.match(workflow, /FANOUT_RELOCATION_MODE:\s*report/u);
+assert.match(workflow, /Report fanout relocation taxonomy/u);
+assert.match(workflow, /Validate relocation tooling/u);
+assert.doesNotMatch(workflow, /(?:^|\n)\s*workflow_dispatch\s*:/u);
+assert.doesNotMatch(workflow, /(?:^|\n)\s*contents\s*:\s*write\b/u);
+assert.doesNotMatch(workflow, /mode\s*==\s*['"]apply['"]/u);
+assert.doesNotMatch(workflow, /Apply safe fanout relocations/u);
+assert.doesNotMatch(workflow, /\bgit\s+push\b/iu);
+assert.doesNotMatch(workflow, /Refusing to apply relocation on protected branch/u);
 assert.doesNotMatch(relocator, /process\.env\.(TOKEN|SECRET|PASSWORD|API_KEY)/i);
 
-console.log("fanout relocation CI contract test passed");
+console.log("fanout relocation read-only PR contract test passed");

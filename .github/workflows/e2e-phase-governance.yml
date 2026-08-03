@@ -23,7 +23,7 @@ env:
 jobs:
   evaluate:
     name: Evaluate changed feature phases
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       mode: ${{ steps.parallel.outputs.mode }}
       feature_key: ${{ steps.parallel.outputs.feature_key }}
@@ -126,7 +126,7 @@ jobs:
 
   execute:
     name: Execute current phase journeys
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: evaluate
     steps:
       - name: Checkout exact candidate tree
@@ -208,7 +208,7 @@ jobs:
     name: Publish canonical evidence report
     if: ${{ always() }}
     needs: [evaluate, execute]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate tree
         uses: actions/checkout@v5
