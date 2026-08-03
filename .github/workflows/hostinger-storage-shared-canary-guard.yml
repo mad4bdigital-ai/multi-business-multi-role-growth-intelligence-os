@@ -27,12 +27,27 @@ jobs:
           node-version: '22'
       - name: Install deterministic import parser
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check syntax
         run: |
           node --check http-generic-api/hostingerStorageSharedCanaryCore.js
           node --check http-generic-api/hostingerStorageSharedCanary.js
           node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
           node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
+          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node --check http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+      - name: Validate Spec 012 OAuth token-route wiring
+        working-directory: http-generic-api
+        run: node test-spec012-t031-oauth-token-route-wiring.mjs
+      - name: Validate Spec 012 OAuth token binding hardening
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-binding-hardening.mjs
       - name: Parse Shared Core import boundary
         run: node http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
       - name: Enforce synthetic Shared boundary
