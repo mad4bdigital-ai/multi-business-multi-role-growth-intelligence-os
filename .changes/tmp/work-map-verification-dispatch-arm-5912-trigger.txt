@@ -1,1 +1,2 @@
 Temporary never-merge trigger for exact ARM validation of canonical PR #5912.
+Synchronization: simplified validator registration.
