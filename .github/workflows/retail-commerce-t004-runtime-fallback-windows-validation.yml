@@ -1,0 +1,117 @@
+name: Retail Commerce T004 Runtime Fallback Windows Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/retail-commerce-t004-runtime-fallback-windows-validation.yml"
+      - ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml"
+      - "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs"
+      - "http-generic-api/test-retail-commerce-production-schema-baseline.mjs"
+      - "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs"
+      - "http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs"
+      - "specs/014-retail-commerce-operations-growth-os/e2e-phases.json"
+
+permissions:
+  contents: read
+
+jobs:
+  focused-validation:
+    name: Validate exact T004 fallback candidate on Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact checked-out head
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_HEAD_SHA) {
+            throw "Checked-out SHA $actual does not match expected $env:EXPECTED_HEAD_SHA"
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check focused JavaScript syntax
+        working-directory: http-generic-api
+        shell: pwsh
+        run: |
+          node --check scripts/retail-commerce-production-schema-baseline.mjs
+          node --check test-retail-commerce-production-schema-baseline.mjs
+          node --check test-retail-commerce-production-schema-runtime-gap-readback.mjs
+          node --check test-retail-commerce-production-schema-baseline-pr-trigger.mjs
+
+      - name: Run direct and runtime collector contracts
+        working-directory: http-generic-api
+        run: node test-retail-commerce-production-schema-baseline.mjs
+
+      - name: Run authoritative gap and real migration parser contracts
+        working-directory: http-generic-api
+        run: node test-retail-commerce-production-schema-runtime-gap-readback.mjs
+
+      - name: Run owner-bound trigger contract
+        working-directory: http-generic-api
+        run: node test-retail-commerce-production-schema-baseline-pr-trigger.mjs
+
+      - name: Run specification baseline contract
+        working-directory: http-generic-api
+        run: node test-retail-commerce-specification-baseline.mjs
+
+      - name: Validate E2E phase JSON
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs'); const p='specs/014-retail-commerce-operations-growth-os/e2e-phases.json'; const v=JSON.parse(fs.readFileSync(p,'utf8')); if(v.feature_key!=='014-retail-commerce-operations-growth-os'||v.current_phase!=='mvp') process.exit(1); console.log(JSON.stringify({ok:true,feature_key:v.feature_key,current_phase:v.current_phase,secrets_included:false}));"
+
+      - name: Write bounded validation evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'retail-commerce-t004-runtime-fallback-validation'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $report = [ordered]@{
+            contract = 'mad4b.retail-commerce-t004-runtime-fallback-validation.v1'
+            candidate_sha = $env:EXPECTED_HEAD_SHA
+            platform = 'windows-latest'
+            focused_tests_requested = @(
+              'test-retail-commerce-production-schema-baseline.mjs',
+              'test-retail-commerce-production-schema-runtime-gap-readback.mjs',
+              'test-retail-commerce-production-schema-baseline-pr-trigger.mjs',
+              'test-retail-commerce-specification-baseline.mjs'
+            )
+            production_call_executed = $false
+            credential_values_read = $false
+            sql_execution = $false
+            migration_apply = $false
+            database_mutation = $false
+            provider_call = $false
+            external_write = $false
+            secrets_included = $false
+          }
+          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $dir 'validation.json')
+          "VALIDATION_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retail-commerce-t004-runtime-fallback-windows-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/retail-commerce-t004-runtime-fallback-validation
+          if-no-files-found: error
+          retention-days: 14
