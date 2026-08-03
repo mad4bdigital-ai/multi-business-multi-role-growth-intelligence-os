@@ -1,0 +1,192 @@
+name: TEMP R7 Exact Validation c44e955c
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-r7-exact-base-a61cd9e8
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-r7-exact-validation-c44e955c-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact R7 candidate and Work Map readback
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      CANDIDATE_SHA: c44e955c3d01e50d8003c7976b48a2ebf2a5dcb5
+      CANDIDATE_BRANCH: gpt/hostinger-production-runtime-readback-r7-20260804
+      TRIGGER_PATH: .github/validation/r7-exact-validation-c44e955c.txt
+      EVIDENCE_DIR: ${{ runner.temp }}/r7-exact-validation-c44e955c
+    steps:
+      - name: Checkout exact canonical candidate
+        uses: actions/checkout@v5
+        with:
+          ref: c44e955c3d01e50d8003c7976b48a2ebf2a5dcb5
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identities and five-file scope
+        shell: bash
+        env:
+          VALIDATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VALIDATION_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          VALIDATION_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          test "${HEAD_REPOSITORY}" = "${REPOSITORY}"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${CANDIDATE_BRANCH}:refs/remotes/origin/${CANDIDATE_BRANCH}" \
+            "+refs/heads/${VALIDATION_HEAD_REF}:refs/remotes/origin/${VALIDATION_HEAD_REF}" \
+            "+refs/heads/${VALIDATION_BASE_REF}:refs/remotes/origin/${VALIDATION_BASE_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_BRANCH})" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_HEAD_REF})" = "${VALIDATION_HEAD_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_BASE_REF})" = "${VALIDATION_BASE_SHA}"
+          validation_changes="$(git diff --name-only "${VALIDATION_BASE_SHA}" "${VALIDATION_HEAD_SHA}")"
+          test "${validation_changes}" = "${TRIGGER_PATH}"
+          git merge-base --is-ancestor "${MAIN_SHA}" "${CANDIDATE_SHA}"
+          git diff --name-only "${MAIN_SHA}" "${CANDIDATE_SHA}" | sort > "${EVIDENCE_DIR}/changed-files.txt"
+          cat > "${EVIDENCE_DIR}/expected-files.txt" <<'EOF'
+          .changes/e2e/hostinger-production-runtime-readback-r7.json
+          .github/workflows/hostinger-production-runtime-readback-r7.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          EOF
+          diff -u "${EVIDENCE_DIR}/expected-files.txt" "${EVIDENCE_DIR}/changed-files.txt"
+          git diff --check "${MAIN_SHA}" "${CANDIDATE_SHA}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate R7 workflow syntax and focused regression
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import YAML from 'yaml';
+          const source = fs.readFileSync('../.github/workflows/hostinger-production-runtime-readback-r7.yml', 'utf8');
+          const document = YAML.parse(source);
+          if (document?.name !== 'Hostinger Production Runtime Readback R7') throw new Error('unexpected workflow name');
+          if (!document?.jobs?.readback) throw new Error('missing readback job');
+          console.log(JSON.stringify({ ok: true, workflow_yaml_valid: true }));
+          NODE
+          node --check test-hostinger-production-runtime-readback-r7.mjs
+          node test-hostinger-production-runtime-readback-r7.mjs
+
+      - name: Run changed-scope hardcoding guard
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cat > "${RUNNER_TEMP}/r7-changed-files.txt" <<'EOF'
+          .changes/e2e/hostinger-production-runtime-readback-r7.json
+          .github/workflows/hostinger-production-runtime-readback-r7.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          EOF
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/r7-changed-files.txt"
+
+      - name: Evaluate and execute exact E2E contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${MAIN_SHA}" \
+            --head "${CANDIDATE_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-check.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${MAIN_SHA}" \
+            --head "${CANDIDATE_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-run.json" \
+            --execution-report-file "${EVIDENCE_DIR}/e2e-execution.json"
+
+      - name: Validate E2E references and Git index
+        working-directory: http-generic-api
+        run: |
+          node test-e2e-contract-reference-integrity.mjs
+          node test-e2e-contract-git-index-integrity.mjs
+
+      - name: Verify Work Map generator currentness
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+
+      - name: Verify Spec 014 final Work Map readback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REPORT_PATH="${EVIDENCE_DIR}/spec014-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${EVIDENCE_DIR}/spec014-readback-stdout.json"
+          jq -e '.ok == true and .findings == [] and .secrets_included == false' "${EVIDENCE_DIR}/spec014-readback.json"
+
+      - name: Run repository tool lifecycle guard regression
+        working-directory: http-generic-api
+        run: node scripts/test-repository-tool-lifecycle-guard.mjs
+
+      - name: Re-read identities and publish exact summary
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+          VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VALIDATION_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          VALIDATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATION_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          main_readback="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          candidate_readback="$(git ls-remote origin refs/heads/${CANDIDATE_BRANCH} | awk '{print $1}')"
+          validation_head_readback="$(git ls-remote origin refs/heads/${VALIDATION_HEAD_REF} | awk '{print $1}')"
+          validation_base_readback="$(git ls-remote origin refs/heads/${VALIDATION_BASE_REF} | awk '{print $1}')"
+          jq -n \
+            --arg status "${JOB_STATUS}" \
+            --arg main_sha "${MAIN_SHA}" \
+            --arg main_readback "${main_readback}" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --arg candidate_readback "${candidate_readback}" \
+            --arg validation_head_sha "${VALIDATION_HEAD_SHA}" \
+            --arg validation_head_readback "${validation_head_readback}" \
+            --arg validation_base_sha "${VALIDATION_BASE_SHA}" \
+            --arg validation_base_readback "${validation_base_readback}" \
+            '{contract:"mad4b.r7-exact-validation.v1",status:$status,main_sha:$main_sha,main_readback:$main_readback,candidate_sha:$candidate_sha,candidate_readback:$candidate_readback,validation_head_sha:$validation_head_sha,validation_head_readback:$validation_head_readback,validation_base_sha:$validation_base_sha,validation_base_readback:$validation_base_readback,main_immutable:($main_sha==$main_readback),candidate_immutable:($candidate_sha==$candidate_readback),validation_refs_immutable:($validation_head_sha==$validation_head_readback and $validation_base_sha==$validation_base_readback),candidate_content_mutation:false,main_mutation:false,production_mutation:false,provider_call:false,deployment:false,restart:false,credential_access:false,sql:false,migration_apply:false,database_mutation:false,force_push:false,external_send:false,secrets_included:false}' \
+            > "${EVIDENCE_DIR}/summary.json"
+
+      - name: Upload exact R7 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-r7-validation-c44e955c-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
