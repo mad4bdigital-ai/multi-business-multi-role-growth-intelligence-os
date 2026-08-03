@@ -1,0 +1,198 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-write-workflow-prerequisites",
+  "title": "Read-only pull-request workflow and governed write separation",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-write-workflow-prerequisites.json",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      ".github/workflows/http-generic-api-fanout-relocation.yml",
+      ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+      ".github/workflows/supervisor-runtime-assurance.yml",
+      ".github/workflows/supervisor-runtime-assurance-alert.yml",
+      ".specify/pipeline-connectivity-contract.json",
+      "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/test-fanout-relocation-ci.mjs",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "resilient"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove repository and issue mutation authority from pull-request validation workflows while preserving the existing read-only evidence checks.",
+      "e2e_journeys": [
+        {
+          "id": "pull-request-validation-remains-read-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "pull request author and repository lifecycle reviewer",
+          "entrypoint": "E2E integrity, HTTP fanout report, or supervisor assurance pull-request workflow",
+          "terminal_outcome": "Each pull-request workflow checks out and validates the exact candidate using read-only permissions and contains no repository, workflow-state, pull-request, or issue mutation path.",
+          "steps": [
+            "Run E2E contract reference integrity without the former Work Map dispatch bridge.",
+            "Run HTTP Generic API fanout taxonomy reporting without apply, commit, or push.",
+            "Run supervisor readiness and behavioral dry-run without issue-write authority.",
+            "Verify the separated write workflows have no pull-request trigger."
+          ],
+          "assertions": [
+            "E2E integrity has contents read permission only.",
+            "Fanout pull-request reporting has no contents write, apply mode, commit, or push.",
+            "Supervisor pull-request assurance has no issue-write permission or issue command.",
+            "No live apply, provider call, database action, deployment, credential read, or external runtime write is introduced."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-independent-recovery-bridge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "fanout-report-apply-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fanout-relocation-ci.mjs",
+              "args": []
+            },
+            {
+              "id": "supervisor-assurance-alert-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/http-generic-api-fanout-relocation.yml",
+            ".github/workflows/supervisor-runtime-assurance.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve the required write capabilities only through independently triggered governed workflows.",
+      "e2e_journeys": [
+        {
+          "id": "governed-write-capabilities-remain-separated",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository operator",
+          "entrypoint": "Explicit Work Map recovery, exact-head fanout apply, or scheduled supervisor alert workflow",
+          "terminal_outcome": "The existing Work Map recovery bridge remains connected, fanout apply requires exact-head authorization, and supervisor issue reconciliation remains limited to schedule or manual dispatch.",
+          "steps": [
+            "Bind the Work Map recovery contract to the existing independent recovery-dispatch workflow.",
+            "Require fanout apply target branch, expected head SHA, typed confirmation, and protected-branch rejection.",
+            "Run scheduled or manually dispatched supervisor assurance before issue reconciliation.",
+            "Keep all write workflows free of pull-request triggers."
+          ],
+          "assertions": [
+            "Work Map content still has one sole remote writer.",
+            "Fanout apply verifies local and remote head identity before mutation and before push.",
+            "Fanout apply rejects main and Production and never force-pushes.",
+            "Supervisor alert lifecycle may write issues but cannot be triggered by a pull request.",
+            "No workflow is dispatched by this repository change."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-governed-write-bridge",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "fanout-exact-head-apply-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fanout-relocation-ci.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+            ".github/workflows/supervisor-runtime-assurance-alert.yml",
+            ".specify/pipeline-connectivity-contract.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed when pull-request write authority, stale branch identity, protected-branch mutation, force push, or mixed validation/mutation semantics reappear.",
+      "e2e_journeys": [
+        {
+          "id": "repository-write-boundaries-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository lifecycle and E2E governance gates",
+          "entrypoint": "A candidate changing any governed workflow in this contract scope",
+          "terminal_outcome": "Regression and lifecycle gates reject mixed pull-request writes or unguarded apply semantics before merge.",
+          "steps": [
+            "Validate pipeline connectivity against the independent Work Map recovery bridge.",
+            "Validate report/apply and assurance/alert workflow separation.",
+            "Run repository lifecycle evaluation against every changed workflow.",
+            "Publish bounded exact-candidate E2E evidence."
+          ],
+          "assertions": [
+            "A pull-request workflow with any write permission is rejected.",
+            "A fanout apply path without expected-head verification or protected-branch rejection is rejected.",
+            "A separated write workflow with a pull-request trigger is rejected.",
+            "No secrets are included in evidence."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "fanout-governance-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fanout-relocation-ci.mjs",
+              "args": []
+            },
+            {
+              "id": "supervisor-governance-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-write-workflow-prerequisites.json",
+            "docs/runbooks/supervisor-runtime-assurance.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow-governance prerequisite has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository workflow-governance prerequisite performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}
