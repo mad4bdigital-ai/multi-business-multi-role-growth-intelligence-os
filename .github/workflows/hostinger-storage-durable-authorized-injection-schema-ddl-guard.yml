@@ -47,6 +47,8 @@ jobs:
         id: candidate_mode
         continue-on-error: true
         env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
@@ -56,13 +58,17 @@ jobs:
 
           const raw = readFileSync(process.env.PHASE_CONTRACT, 'utf8');
           const contract = JSON.parse(raw);
+          const sameRepository = process.env.HEAD_REPOSITORY === process.env.REPOSITORY;
           const governedContract = contract.feature_key === '014-governed-hostinger-storage-orchestration'
             && contract.delivery_mode === 'multi_pr'
             && contract.parallel_work?.enabled === true
             && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
             && contract.parallel_work?.no_partial_feature_merge === true;
-          const isGovernedRollup = process.env.BASE_REF === 'main' && governedContract;
-          const isProductionPromotion = process.env.BASE_REF === 'Production'
+          const isGovernedRollup = sameRepository
+            && process.env.BASE_REF === 'main'
+            && governedContract;
+          const isProductionPromotion = sameRepository
+            && process.env.BASE_REF === 'Production'
             && (process.env.HEAD_REF === 'main' || process.env.HEAD_REF.startsWith('release/production-'))
             && governedContract;
           const mode = isProductionPromotion
@@ -76,6 +82,7 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `feature_key=${String(contract.feature_key || '')}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `delivery_mode=${String(contract.delivery_mode || '')}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `merge_policy=${String(contract.parallel_work?.merge_policy || '')}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `same_repository=${sameRepository}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `production_promotion=${isProductionPromotion}\n`);
           NODE
 
@@ -141,6 +148,7 @@ jobs:
         env:
           MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}
           CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}
+          SAME_REPOSITORY: ${{ steps.candidate_mode.outputs.same_repository }}
           PRODUCTION_PROMOTION: ${{ steps.candidate_mode.outputs.production_promotion }}
           PHASE_CONTRACT_DIGEST: ${{ steps.candidate_mode.outputs.phase_contract_digest }}
           CONTRACT_FEATURE_KEY: ${{ steps.candidate_mode.outputs.feature_key }}
@@ -193,7 +201,7 @@ jobs:
             'outcome': 'passed' if not failed else 'failed',
             'candidate_kind': 'head',
             'candidate_mode': candidate_mode,
-            'candidate_mode_source': 'governed_phase_contract_and_pr_refs',
+            'candidate_mode_source': 'same_repository_governed_phase_contract_and_pr_refs',
             'governed_phase_contract': os.environ['PHASE_CONTRACT'],
             'governed_phase_contract_digest': os.environ.get('PHASE_CONTRACT_DIGEST') or None,
             'contract_feature_key': os.environ.get('CONTRACT_FEATURE_KEY') or None,
@@ -204,6 +212,7 @@ jobs:
             'merge_candidate_sha': os.environ['MERGE_CANDIDATE_SHA'],
             'head_ref': os.environ['HEAD_REF'],
             'base_ref': os.environ['BASE_REF'],
+            'same_repository_head': os.environ.get('SAME_REPOSITORY') == 'true',
             'stages': stages,
             'first_failure': failed[0] if failed else None,
             'canonical_registry_modified': False,
