@@ -12,39 +12,42 @@ import {
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const IDENTITY_AUTHORITY = "deployment_info_coherent_pair";
+const DIRECT_SHA_FIELDS = Object.freeze([
+  "commit_sha",
+  "commit",
+  "deployed_commit_sha",
+  "sha",
+  "revision_sha",
+  "revision",
+]);
+const DIRECT_BRANCH_FIELDS = Object.freeze([
+  "branch",
+  "deployment_branch",
+]);
 
-function collectByKey(value, matcher, depth = 0, output = []) {
-  if (depth > 8 || value === null || value === undefined) return output;
-  if (Array.isArray(value)) {
-    for (const entry of value) collectByKey(entry, matcher, depth + 1, output);
-    return output;
+function firstDirectString(body, fields) {
+  if (!body || Array.isArray(body) || typeof body !== "object") return null;
+  for (const field of fields) {
+    const value = body[field];
+    if (typeof value !== "string") continue;
+    const normalized = value.trim();
+    if (normalized) return normalized;
   }
-  if (typeof value !== "object") return output;
-  for (const [key, entry] of Object.entries(value)) {
-    if (matcher(key, entry)) output.push(entry);
-    collectByKey(entry, matcher, depth + 1, output);
-  }
-  return output;
+  return null;
 }
 
-function extractIdentity(body) {
-  const shas = new Set();
-  const branches = new Set();
-  for (const entry of collectByKey(body, (key, value) => /(sha|commit|revision)/iu.test(key) && typeof value === "string")) {
-    const normalized = String(entry).trim().toLowerCase();
-    if (SHA_PATTERN.test(normalized)) shas.add(normalized);
-  }
-  for (const entry of collectByKey(body, (key, value) => /branch/iu.test(key) && typeof value === "string")) {
-    const normalized = String(entry).trim();
-    if (normalized) branches.add(normalized);
-  }
-  return { shas: [...shas], branches: [...branches] };
+function extractDirectIdentity(body) {
+  const rawSha = firstDirectString(body, DIRECT_SHA_FIELDS);
+  const rawBranch = firstDirectString(body, DIRECT_BRANCH_FIELDS);
+  const sha = rawSha && SHA_PATTERN.test(rawSha.toLowerCase()) ? rawSha.toLowerCase() : null;
+  const branch = rawBranch || null;
+  return { sha, branch };
 }
 
 function hasCoherentExpectedIdentity(body, configuration) {
-  const identity = extractIdentity(body);
-  return identity.shas.includes(configuration.expectedSha)
-    && identity.branches.includes(configuration.expectedBranch);
+  const identity = extractDirectIdentity(body);
+  return identity.sha === configuration.expectedSha
+    && identity.branch === configuration.expectedBranch;
 }
 
 function suppressExpectedIdentity(value, configuration, depth = 0) {
@@ -115,7 +118,11 @@ export async function executeGovernedRestart(options, dependencies = {}) {
       sha: configuration.expectedSha,
       branch: configuration.expectedBranch,
     },
+    schema_scope: "top_level_direct_identity_fields",
+    accepted_sha_fields: [...DIRECT_SHA_FIELDS],
+    accepted_branch_fields: [...DIRECT_BRANCH_FIELDS],
     cross_endpoint_composition_allowed: false,
+    cross_object_composition_allowed: false,
     version_endpoint_authoritative: false,
     mode: IDENTITY_AUTHORITY,
   };
@@ -142,7 +149,11 @@ function fallbackReport(error, options = {}) {
       contract: "mad4b.hostinger-runtime-identity-authority.v1",
       authoritative_endpoint: "/deployment-info",
       required_pair: { sha: expectedSha, branch: "Production" },
+      schema_scope: "top_level_direct_identity_fields",
+      accepted_sha_fields: [...DIRECT_SHA_FIELDS],
+      accepted_branch_fields: [...DIRECT_BRANCH_FIELDS],
       cross_endpoint_composition_allowed: false,
+      cross_object_composition_allowed: false,
       version_endpoint_authoritative: false,
       mode: IDENTITY_AUTHORITY,
     },
