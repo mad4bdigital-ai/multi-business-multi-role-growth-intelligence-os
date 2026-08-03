@@ -1,0 +1,312 @@
+name: Exact Frontend Baseline Validation 5680
+
+on:
+  pull_request:
+    branches: [gpt/validate-frontend-baseline-5680-cf4282d5]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-frontend-baseline-5680-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_MAIN_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+  EXPECTED_HEAD_SHA: 5c3ddc208e942aa29791ee4ce5f98966cb1289e2
+  EXPECTED_HEAD_REF: gpt/ci/frontend-generated-baseline-atomic-cf4282d5-20260803
+  GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
+  EXPECTED_BLOB: 440562278043eb76c9e1219c2b65d29794fb86c4
+
+jobs:
+  frontend-determinism:
+    name: Identity and Frontend deterministic parity
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci/frontend-generated-baseline-atomic-cf4282d5-20260803' &&
+      github.event.pull_request.head.sha == '5c3ddc208e942aa29791ee4ce5f98966cb1289e2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_MAIN_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}".."${EXPECTED_HEAD_SHA}")" -eq 1
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${GENERATED_PATH}"
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:${GENERATED_PATH}")" = "${EXPECTED_BLOB}"
+          git diff --check
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - working-directory: http-generic-api
+        run: npm ci
+      - name: Prove canonical Frontend regeneration is clean
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          test -z "$(git status --porcelain)"
+      - name: Run canonical source and bounded-write checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node validate-memory-schema.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
+
+  full-ci-runtime:
+    name: Complete suite and runtime startup
+    if: github.event.pull_request.head.sha == '5c3ddc208e942aa29791ee4ce5f98966cb1289e2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - working-directory: http-generic-api
+        run: npm ci
+      - name: Run complete ordered suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          node --input-type=module -e '
+            process.env.GITHUB_SHA = process.env.EXPECTED_HEAD_SHA;
+            if (process.env.GITHUB_SHA !== process.env.EXPECTED_HEAD_SHA) throw new Error("exact SHA binding failed");
+            await import("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs");
+          '
+          test -f "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
+          test -f "${TEST_SUITE_REPORT_DIR}/test-suite.json"
+          jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha and .status == "passed"' "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
+          jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha and .firstFailure == null and .status == "passed"' "${TEST_SUITE_REPORT_DIR}/test-suite.json"
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/ci/frontend-generated-baseline-atomic-cf4282d5-20260803
+          DEPLOYMENT_COMMIT_SHA: 5c3ddc208e942aa29791ee4ce5f98966cb1289e2
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+      - name: Upload ordered no-secret reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-frontend-baseline-suite-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  execution-resolver:
+    name: Execution Resolver Gate
+    if: github.event.pull_request.head.sha == '5c3ddc208e942aa29791ee4ce5f98966cb1289e2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+      - name: Guard resolver runtime surface
+        run: |
+          set -euo pipefail
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
+
+  architecture-lifecycle:
+    name: Architecture and lifecycle governance
+    if: github.event.pull_request.head.sha == '5c3ddc208e942aa29791ee4ce5f98966cb1289e2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      BASE_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+      CANDIDATE_SHA: 5c3ddc208e942aa29791ee4ce5f98966cb1289e2
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - working-directory: http-generic-api
+        run: npm ci
+      - name: Run architecture validation
+        working-directory: http-generic-api
+        run: |
+          npm run validate
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+      - name: Run Repository Tool Lifecycle fail-closed guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+  contract-reference:
+    name: E2E contract strict reference report
+    if: github.event.pull_request.head.sha == '5c3ddc208e942aa29791ee4ce5f98966cb1289e2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      BASE_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+      CANDIDATE_SHA: 5c3ddc208e942aa29791ee4ce5f98966cb1289e2
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Generate strict reference report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          node http-generic-api/scripts/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --report-file artifacts/e2e-contract-reference-integrity.json \
+            --base "${BASE_SHA}" \
+            --head "${CANDIDATE_SHA}"
+          jq -e '.ok == true' artifacts/e2e-contract-reference-integrity.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-contract-reference-${{ github.run_id }}
+          path: artifacts/e2e-contract-reference-integrity.json
+          if-no-files-found: error
+          retention-days: 14
+
+  contract-index:
+    name: E2E contract Git-index on fresh checkout
+    needs: [contract-reference]
+    if: always() && needs.contract-reference.result == 'success'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-contract-reference-${{ github.run_id }}
+          path: artifacts
+      - name: Verify live Git-index before regression fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain)"
+          test -f artifacts/e2e-contract-reference-integrity.json
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file artifacts/e2e-contract-reference-integrity.json
+          test -z "$(git status --porcelain)"
+          node http-generic-api/scripts/test-e2e-contract-git-index-integrity.mjs
+
+  final:
+    name: Exact Draft validation final
+    needs: [frontend-determinism, full-ci-runtime, execution-resolver, architecture-lifecycle, contract-reference, contract-index]
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require every gate and fresh immutable identity
+        shell: bash
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend-determinism.result }}
+          SUITE_RESULT: ${{ needs.full-ci-runtime.result }}
+          RESOLVER_RESULT: ${{ needs.execution-resolver.result }}
+          ARCHITECTURE_RESULT: ${{ needs.architecture-lifecycle.result }}
+          REFERENCE_RESULT: ${{ needs.contract-reference.result }}
+          INDEX_RESULT: ${{ needs.contract-index.result }}
+        run: |
+          set -euo pipefail
+          test "${FRONTEND_RESULT}" = success
+          test "${SUITE_RESULT}" = success
+          test "${RESOLVER_RESULT}" = success
+          test "${ARCHITECTURE_RESULT}" = success
+          test "${REFERENCE_RESULT}" = success
+          test "${INDEX_RESULT}" = success
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse "HEAD:${GENERATED_PATH}")" = "${EXPECTED_BLOB}"
+          jq -n \
+            --arg base_sha "${EXPECTED_MAIN_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg blob "${EXPECTED_BLOB}" \
+            '{ok:true,cycle:"draft",base_sha:$base_sha,head_sha:$head_sha,changed_paths:["http-generic-api/frontend-surface-dispatch.generated.json"],generated_blob:$blob,frontend_deterministic:true,complete_suite:true,runtime_startup:true,execution_resolver:true,architecture:true,lifecycle:true,contract_reference:true,contract_index:true,repository_mutation_performed:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            | tee "${RUNNER_TEMP}/exact-frontend-baseline-summary.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-frontend-baseline-draft-${{ github.run_id }}
+          path: ${{ runner.temp }}/exact-frontend-baseline-summary.json
+          if-no-files-found: error
+          retention-days: 14
