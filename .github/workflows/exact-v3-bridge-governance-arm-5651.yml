@@ -119,10 +119,11 @@ jobs:
           set -euo pipefail
           node scripts/test-repository-tool-lifecycle-guard.mjs
           git diff --name-status "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
-          node scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-            --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
-            --policy ../.github/repository-maintenance-tool-governance.json \
-            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+          CANDIDATE_SHA="${EXPECTED_HEAD_SHA}" BASE_SHA="${EXPECTED_BASE_SHA}" \
+            node scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+              --policy ../.github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
 
       - name: Upload bounded governance evidence
         if: always()
