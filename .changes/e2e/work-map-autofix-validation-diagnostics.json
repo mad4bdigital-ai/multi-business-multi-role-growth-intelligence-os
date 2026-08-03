@@ -1,0 +1,64 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-autofix-validation-diagnostics",
+  "title": "Work Map Autofix named validation diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-autofix-validation-diagnostics.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make each Work Map Autofix validation contract independently named and preserve the first failing contract in bounded diagnostic evidence before generation, commit, or push.",
+      "e2e_journeys": [
+        {
+          "id": "named-validation-failure-to-bounded-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The workflow-dispatch-only Spec Kit Work Map Autofix writer validation step",
+          "terminal_outcome": "A validation failure identifies the exact named contract in the artifact JSON, Markdown report, and pull-request comment while generation and repository mutation remain blocked.",
+          "steps": [
+            "Load the Work Map Autofix workflow without dispatching it.",
+            "Verify all eleven generator, connectivity, and classification checks are invoked through a named fail-closed contract wrapper.",
+            "Verify the first failing contract is written to bounded diagnostics.",
+            "Verify final evidence exposes the failed contract in Markdown, JSON, and the pull-request comment.",
+            "Verify validation contains no generation, push, force-push, protected-branch mutation, or external-send authority."
+          ],
+          "assertions": [
+            "All eleven validation commands have stable unique names.",
+            "The first non-zero validation command records its name and exit code before returning failure.",
+            "The workflow still fails closed before generation when validation fails.",
+            "Diagnostic upload remains guarded by always().",
+            "No new trigger, permission, writer, force-push, protected-branch, database, Production, provider, credential, or external-send authority is added."
+          ],
+          "tests": [
+            {
+              "id": "work-map-autofix-validation-diagnostics-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-validation-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-autofix-validation-diagnostics.json",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
