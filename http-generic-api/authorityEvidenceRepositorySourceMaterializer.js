@@ -74,6 +74,7 @@ export function materializeAuthorityEvidenceRepositorySourceDocuments(options = 
       source_observed_at: source.observed_at,
       pagination: canonicalPagination(source.pagination),
       evidence_refs: source.evidence_refs,
+      declared_records_sha256: source.declared_content_sha256,
       records: source.records,
       safety: {
         read_only: true,
@@ -149,8 +150,8 @@ function safeSourcePath(root, sourceFile) {
   return realPath;
 }
 
-function sourceFromDocument(document, entry) {
-  return {
+function sourceFromDocument(document) {
+  const source = {
     source_family: document.source_family,
     source_key: document.source_key,
     source_identity: document.source_identity,
@@ -159,8 +160,15 @@ function sourceFromDocument(document, entry) {
     evidence_refs: document.evidence_refs,
     records: document.records,
     safety: document.safety,
-    content_sha256: entry.records_sha256,
   };
+  if (
+    document.declared_records_sha256 !== null
+    && document.declared_records_sha256 !== undefined
+    && document.declared_records_sha256 !== ""
+  ) {
+    source.content_sha256 = document.declared_records_sha256;
+  }
+  return source;
 }
 
 function readCanonicalContext(materializationReport, root) {
@@ -180,7 +188,7 @@ function readCanonicalContext(materializationReport, root) {
       source_file: sourceFile,
       text,
       document,
-      source: sourceFromDocument(document, entry),
+      source: sourceFromDocument(document),
     };
   });
   return { documents, sources: documents.map((entry) => entry.source) };
@@ -189,6 +197,7 @@ function readCanonicalContext(materializationReport, root) {
 function compatibilityReport(materializationReport, sources) {
   const compatibilitySources = sources.map((source) => ({
     ...source,
+    content_sha256: sha256Json(source.records),
     pagination: {
       expected_count: source.records.length,
       observed_count: source.records.length,
