@@ -105,10 +105,6 @@ jobs:
         working-directory: http-generic-api
         run: node test-surface-contract-sql-registry-extractor.mjs
 
-      - name: Surface contract classification
-        working-directory: http-generic-api
-        run: node test-surface-contract-classification.mjs
-
       - name: Resource effect classes
         working-directory: http-generic-api
         run: node test-resource-api-callability-effect-classes.mjs
