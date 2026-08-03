@@ -2,22 +2,27 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "011-durable-governed-execution-and-agent-delegation",
-  "title": "Durable governed execution, delegation, reconciliation, managed delivery, evidence closeout, and goal-filtered intelligence",
+  "title": "Durable governed execution, delegation, reconciliation, managed delivery, evidence closeout, goal-filtered intelligence, and T141 canary readiness",
   "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".changes/e2e/spec011-t141-readiness-canary-contract.json",
       ".github/workflows/spec-011-managed-delivery-lifecycle.yml",
       ".github/workflows/spec-011-evidence-auto-closeout.yml",
       ".github/workflows/spec-011-goal-filtered-operational-intelligence.yml",
+      ".github/workflows/spec-011-t141-readiness-canary-contract.yml",
       "http-generic-api/spec011ManagedDeliveryLifecycle.js",
       "http-generic-api/spec011EvidenceAutoCloseout.js",
       "http-generic-api/spec011GoalFilteredOperationalIntelligence.js",
+      "http-generic-api/spec011T141ReadinessCanaryContract.js",
       "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs",
       "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
       "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
       "http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs",
       "http-generic-api/test-spec011-goal-filtered-operational-intelligence.mjs",
+      "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
+      "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
       "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
@@ -28,7 +33,10 @@
       "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence.md",
       "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
       "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json",
-      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase8-goal-filtered-operational-intelligence.schema.json"
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase8-goal-filtered-operational-intelligence.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/t141-readiness-canary-contract.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract.md"
     ]
   },
   "merge_contract": {
@@ -38,7 +46,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove governed managed PR and release delivery, evidence closeout, and goal-filtered operational intelligence through executable synthetic-runtime journeys without force push, protected-branch bypass, secret exposure, provider mutation, or automatic mutation retry after an unknown outcome.",
+      "objective": "Prove governed managed PR and release delivery, evidence closeout, goal-filtered operational intelligence, and non-mutating T141 canary readiness through executable synthetic-runtime journeys without force push, protected-branch bypass, secret exposure, provider mutation, or automatic mutation retry after an unknown outcome.",
       "e2e_journeys": [
         {
           "id": "govern-managed-pr-and-release-lifecycle",
@@ -192,22 +200,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Exercise authorized non-production managed delivery, evidence closeout, and goal-filtered intelligence against durable repository, operation, Activation, and diagnostic-reference authorities with exact readback."
+      "objective": "Exercise authorized non-production managed delivery, evidence closeout, goal-filtered intelligence, and T141 canary readiness against durable repository, operation, Activation, diagnostic-reference, migration-ledger, and runtime-binding authorities with exact readback."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, degraded operational surfaces, ambiguous goal relationships, and upstream timeouts without duplicate mutation or diagnostic loss."
+      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, degraded operational surfaces, ambiguous goal relationships, stale T141 authorization, and upstream timeouts without duplicate mutation or diagnostic loss."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run one governed non-production managed-delivery lifecycle, one evidence closeout, and one goal-filtered operational projection with complete receipts, diagnostic references, and bounded summary evidence."
+      "objective": "Run one governed non-production managed-delivery lifecycle, one evidence closeout, one goal-filtered operational projection, and one separately authorized T141 staging canary with complete receipts, diagnostic references, and bounded evidence while T141 remains open."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Use separately authorized Production evidence and readback while preserving migration, deployment, provider, protected-branch, Tenant, and diagnostic disclosure boundaries."
+      "objective": "Use separately authorized Production migration, delegation-canary, deployment, and readback evidence while preserving provider, protected-branch, Tenant, runtime-policy, and diagnostic disclosure boundaries."
     }
   ]
 }
