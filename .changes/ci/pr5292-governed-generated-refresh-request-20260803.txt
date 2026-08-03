@@ -1,0 +1,11 @@
+PR: 5292
+Purpose: request the registered governed generated-artifact refresh on the exact synchronized head.
+Synchronized main: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+Pre-request head: f6fba34beaae9e054267ff29790ec98a85183ac8
+Temporary request marker: true
+Remove after governed writer completion: true
+Production mutation: false
+Deployment: false
+Database or migration apply: false
+Provider or external write: false
+Secrets included: false
