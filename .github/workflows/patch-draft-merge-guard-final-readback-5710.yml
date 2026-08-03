@@ -1,0 +1,212 @@
+name: Patch Draft Merge Guard Final Readback 5710
+
+on:
+  pull_request:
+    branches:
+      - gpt/patch-draft-merge-guard-base-14433d15
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-draft-merge-guard-final-readback-5710-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Patch exact Draft merge guard candidate
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/incident-5021/draft-merge-guard-atomic-14433d15-20260803' &&
+      github.event.pull_request.head.sha == '8838940ae0b76310af976ac820bab7db74160d06'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_HEAD_SHA: 8838940ae0b76310af976ac820bab7db74160d06
+      OUTPUT_BRANCH: gpt/incident-5021/draft-merge-guard-final-readback-patched-20260803
+    steps:
+      - name: Checkout exact reviewed candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD^)" = '14433d15184bd7e7658281a356a7540e3d2d6dfe'
+          test "$(git rev-parse HEAD:http-generic-api/githubRepositoryLifecycle.js)" = '72bbed4b5ef6a604ed17e698f4ec56bfd066870a'
+          test "$(git rev-parse HEAD:http-generic-api/test-github-repository-lifecycle.mjs)" = 'fc5425740beb666d7326bfffbb68ee6203757c1d'
+          test "$(git rev-parse HEAD:.changes/e2e/repository-lifecycle-draft-merge-guard.json)" = '88ba2649dfa042ef6d45d8f479f655c3dcb53c8f'
+
+      - name: Apply bounded final-readback correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          lifecycle_path = Path('http-generic-api/githubRepositoryLifecycle.js')
+          lifecycle = lifecycle_path.read_text()
+          old = '''  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+          if (pr?.draft === true) {
+          '''
+          new = '''  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+          const finalHeadSha = normalizeSha(pr?.head?.sha);
+          const finalBaseSha = normalizeSha(pr?.base?.sha);
+          if (finalHeadSha !== expectedHeadSha || finalBaseSha !== expectedBaseSha) {
+            throw lifecycleError(409, "github_pr_finalize_sha_mismatch", "Pull request head or base changed during final pre-merge readback.", {
+              pull_number: pullNumber,
+              expected_head_sha: expectedHeadSha,
+              current_head_sha: finalHeadSha || null,
+              expected_base_sha: expectedBaseSha,
+              current_base_sha: finalBaseSha || null,
+              validation_phase: "pre_merge_readback",
+              secrets_included: false,
+            });
+          }
+          if (pr?.draft === true) {
+          '''
+          if lifecycle.count(old) != 1:
+              raise SystemExit(f'expected one lifecycle insertion anchor, found {lifecycle.count(old)}')
+          lifecycle_path.write_text(lifecycle.replace(old, new, 1))
+
+          test_path = Path('http-generic-api/test-github-repository-lifecycle.mjs')
+          test_source = test_path.read_text()
+          anchor = '\nconsole.log("github repository lifecycle tests passed");\n'
+          regression = r'''
+
+          {
+            const calls = [];
+            const movedBaseSha = "9".repeat(40);
+            const checks = [
+              "Syntax Check",
+              "Architecture Drift Detection",
+              "Execution Resolver Gate",
+              "Unit & Integration Tests",
+            ].map((name, index) => ({
+              name,
+              status: "completed",
+              conclusion: "success",
+              completed_at: `2026-08-03T05:0${index}:00Z`,
+            }));
+            await assert.rejects(
+              () => finalizeGithubPullRequest({
+                owner: OWNER,
+                repo: REPO,
+                token: "test-token",
+                pull_number: 4387,
+                expected_head_sha: HEAD_SHA,
+                expected_base_sha: BASE_SHA,
+                confirm: githubPullRequestFinalizeConfirmation(4387, HEAD_SHA),
+                fetchImpl: queuedFetch([
+                  { status: 200, payload: { number: 4387, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/base-race", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                  { status: 200, payload: { status: "ahead", ahead_by: 3, behind_by: 0 } },
+                  { status: 200, payload: { total_count: 4, check_runs: checks } },
+                  { status: 200, payload: { number: 4387, draft: false, base: { ref: "main", sha: movedBaseSha }, head: { ref: "gpt/base-race", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+                ], calls),
+              }),
+              (error) => error.code === "github_pr_finalize_sha_mismatch"
+                && error.status === 409
+                && error.details?.validation_phase === "pre_merge_readback"
+                && error.details?.expected_head_sha === HEAD_SHA
+                && error.details?.current_head_sha === HEAD_SHA
+                && error.details?.expected_base_sha === BASE_SHA
+                && error.details?.current_base_sha === movedBaseSha,
+            );
+            assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "base-SHA race must not reach merge endpoint");
+          }
+          '''
+          if test_source.count(anchor) != 1:
+              raise SystemExit(f'expected one test insertion anchor, found {test_source.count(anchor)}')
+          test_path.write_text(test_source.replace(anchor, regression + anchor, 1))
+
+          contract_path = Path('.changes/e2e/repository-lifecycle-draft-merge-guard.json')
+          contract = json.loads(contract_path.read_text())
+          journey = contract['phases'][0]['e2e_journeys'][0]
+          journey['objective'] = (
+              'Prevent repository automation from converting a Draft PR to Ready and immediately finalizing it; '
+              'reject Draft state and any final-readback head/base SHA drift before the merge request.'
+          )
+          final_step = 'Re-read the final PR head SHA, base SHA, and Draft state immediately before the merge endpoint.'
+          if final_step not in journey['steps']:
+              journey['steps'].append(final_step)
+          for assertion in [
+              'The final PR readback must match both expected_head_sha and expected_base_sha.',
+              'Final-readback SHA drift fails with validation_phase=pre_merge_readback before any merge endpoint request.',
+          ]:
+              if assertion not in journey['assertions']:
+                  journey['assertions'].append(assertion)
+          contract_path.write_text(json.dumps(contract, indent=2, ensure_ascii=False) + '\n')
+          PY
+
+      - name: Verify bounded diff and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only)
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/repository-lifecycle-draft-merge-guard.json'
+          test "${files[1]}" = 'http-generic-api/githubRepositoryLifecycle.js'
+          test "${files[2]}" = 'http-generic-api/test-github-repository-lifecycle.mjs'
+          git diff --check
+          node --check http-generic-api/githubRepositoryLifecycle.js
+          node --check http-generic-api/test-github-repository-lifecycle.mjs
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused regressions
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Commit and push new feature branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$OUTPUT_BRANCH" >/dev/null 2>&1; then
+            echo "Output branch already exists; refusing overwrite." >&2
+            exit 1
+          fi
+          git config user.name 'mad4b-governed-patch'
+          git config user.email 'actions@users.noreply.github.com'
+          git switch -c "$OUTPUT_BRANCH"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/githubRepositoryLifecycle.js \
+            http-generic-api/test-github-repository-lifecycle.mjs
+          git commit -m 'fix(github): bind final merge readback to head and base SHA'
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_HEAD_SHA"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "HEAD:refs/heads/$OUTPUT_BRANCH"
+
+      - name: Publish no-secret writer summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n \
+            --arg source_sha "$EXPECTED_HEAD_SHA" \
+            --arg output_branch "$OUTPUT_BRANCH" \
+            --arg output_sha "$(git rev-parse HEAD 2>/dev/null || true)" \
+            '{contract:"mad4b.draft-merge-guard-final-readback-writer.v1",source_sha:$source_sha,output_branch:$output_branch,output_sha:$output_sha,protected_ref_mutated:false,force_push:false,production_mutated:false,provider_call:false,credential_payload_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/draft-merge-guard-final-readback-writer.json"
+
+      - name: Upload writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: draft-merge-guard-final-readback-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/draft-merge-guard-final-readback-writer.json
+          if-no-files-found: error
+          retention-days: 14
