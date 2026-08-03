@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Revalidation V2
+name: Surface Callability Current Main Revalidation V2 Exact Head
 
 on:
   pull_request:
