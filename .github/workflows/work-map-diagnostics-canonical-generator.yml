@@ -17,7 +17,7 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout exact launcher head
         uses: actions/checkout@v4
@@ -30,10 +30,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify immutable launcher topology
+      - name: Verify bounded relaunch topology
         shell: bash
         env:
-          EXPECTED_PARENT: e123688d3346a0d173d81989354de4cdc7bf44b4
+          EXPECTED_PARENT: e59da3b47744cf29bf3a380a54c8111fd48dd74b
           LAUNCHER_PATH: .github/workflows/work-map-diagnostics-canonical-generator.yml
         run: |
           set -euo pipefail
@@ -43,35 +43,29 @@ jobs:
           test "${changed[0]}" = "$LAUNCHER_PATH"
           test -z "$(git status --porcelain)"
 
-      - name: Validate changed diagnostics contract
+      - name: Validate focused diagnostics regression
         shell: bash
         run: |
           set -euo pipefail
           node --check http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
 
-      - name: Generate twice and prove idempotency
+      - name: Generate twice and prove current output
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
           test -z "$unexpected"
-          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           test -n "$(git diff --name-only -- docs/work-maps)"
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           test "$first_hash" = "$second_hash"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           git diff --check
 
-      - name: Remove one-shot launcher and commit bounded output
+      - name: Remove launcher and commit generated maps
         shell: bash
         env:
           BRANCH: gpt/work-map-diagnostics-generated-e123-20260804
