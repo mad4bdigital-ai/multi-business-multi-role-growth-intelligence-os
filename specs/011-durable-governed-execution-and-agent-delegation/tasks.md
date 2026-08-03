@@ -93,10 +93,10 @@
 
 ## Phase 8 — Goal-Filtered Operational Intelligence
 
-- [ ] T240 Add goal-to-operation correlation.
-- [ ] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
-- [ ] T242 Add summary-first bounded goal projection.
-- [ ] T243 Preserve full diagnostic detail through governed references.
+- [x] T240 Add goal-to-operation correlation.
+- [x] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
+- [x] T242 Add summary-first bounded goal projection.
+- [x] T243 Preserve full diagnostic detail through governed references.
 
 ## Completion governance
 
