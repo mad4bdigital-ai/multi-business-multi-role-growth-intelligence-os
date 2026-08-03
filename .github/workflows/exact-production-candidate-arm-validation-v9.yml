@@ -1,4 +1,4 @@
-name: Exact Production Candidate ARM Validation V9
+name: Exact Production Candidate ARM Validation V12
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-production-candidate-arm-v9-${{ github.event.pull_request.number }}
+  group: exact-production-candidate-arm-v12-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -18,16 +18,16 @@ jobs:
     name: Exact Production Candidate Full ARM Validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/validate-production-candidate-14433d15-2669991a-v9' &&
-      github.event.pull_request.head.sha == '9a2aaf9d331acb7fcf363cd98d63d7e809461059'
+      github.event.pull_request.head.ref == 'gpt/validate-production-candidate-20260804-67c6bd65-v12' &&
+      github.event.pull_request.head.sha == '67c6bd6523076dfb437a43f2f2a200deb0d4df7e'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 150
     env:
-      EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      EXPECTED_MAIN_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
       EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
-      EXPECTED_HEAD_SHA: 9a2aaf9d331acb7fcf363cd98d63d7e809461059
-      EXPECTED_HEAD_TREE: 20d8ce901a76e6f8acea30d3aca2baf52e5a1265
-      EXPECTED_HEAD_REF: gpt/validate-production-candidate-14433d15-2669991a-v9
+      EXPECTED_HEAD_SHA: 67c6bd6523076dfb437a43f2f2a200deb0d4df7e
+      EXPECTED_HEAD_TREE: 51aadede375c065738af84301bcc0c5f45ddde25
+      EXPECTED_HEAD_REF: gpt/validate-production-candidate-20260804-67c6bd65-v12
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -93,6 +93,7 @@ jobs:
           node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
           node validate-memory-schema.mjs
           git diff --check
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
 
       - name: Run complete Unit and Integration suite with exact provenance
         id: unit
@@ -257,7 +258,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-production-candidate-arm-v9-${{ github.run_id }}
+          name: exact-production-candidate-arm-v12-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/exact-production-candidate-arm-summary.json
             ${{ runner.temp }}/e2e-phase-*.json
