@@ -82,7 +82,7 @@ jobs:
                   "authorization-code replay readback",
               ),
               (
-                  '''app.use(buildTenantGptOAuthMetadataRoutes());''',
+                  "app.use(buildTenantGptOAuthMetadataRoutes());",
                   '''app.use(buildTenantGptOAuthMetadataRoutes({
                 getPool: () => oauthClientPool,
                 env: process.env,
@@ -90,35 +90,44 @@ jobs:
                   "metadata token-route dependency injection",
               ),
               (
-                  '''  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));''',
+                  '  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));',
                   '''  assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic uses governed token endpoint key", invalidClientDiagnostic?.endpoint_key === "auth_oauth_token", JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic captures bounded code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds), JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
-              assert("invalid client diagnostic excludes raw authorization code", !JSON.stringify(invalidClientDiagnostic || {}).includes(codeResult.body.code), JSON.stringify(invalidClientDiagnostic));''',
-                  "OAuth v2 invalid-client diagnostics",
+              assert("invalid client diagnostic uses governed token endpoint key", invalidClientDiagnostic?.endpoint_key === "auth_oauth_token", JSON.stringify(invalidClientDiagnostic));''',
+                  "OAuth v2 invalid-client action identity",
               ),
               (
-                  '''  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
-              assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
-              assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
-              assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
-              assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));''',
+                  '  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));',
+                  '  assert("invalid client diagnostic captures bounded code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+                  "OAuth v2 invalid-client code age",
+              ),
+              (
+                  '  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+                  '  assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds), JSON.stringify(invalidClientDiagnostic));',
+                  "OAuth v2 invalid-client code expiry",
+              ),
+              (
+                  '  assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));',
+                  '''  assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic excludes raw authorization code", !JSON.stringify(invalidClientDiagnostic || {}).includes(codeResult.body.code), JSON.stringify(invalidClientDiagnostic));''',
+                  "OAuth v2 invalid-client secret boundary",
+              ),
+              (
+                  '  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));',
                   '''  assert("success diagnostic uses OAuth v2 action key", successDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(successDiagnostic));
-              assert("success diagnostic records response commitment", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));
-              assert("success diagnostic records prepared access token without token material", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true, JSON.stringify(successDiagnostic));
-              assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
-              assert("success diagnostic captures durable code consumption", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));
+              assert("success diagnostic records response commitment", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));''',
+                  "OAuth v2 success action identity",
+              ),
+              (
+                  '  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));',
+                  '  assert("success diagnostic records prepared access token without token material", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true, JSON.stringify(successDiagnostic));',
+                  "OAuth v2 success token preparation",
+              ),
+              (
+                  '  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));',
+                  '''  assert("success diagnostic captures durable code consumption", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));
               assert("success diagnostic captures protected resource only", successDiagnostic?.runtime_evidence_json?.resource_profile?.resource === ACTIVATION_RESOURCE, JSON.stringify(successDiagnostic));
-              assert("success diagnostic marks secrets excluded", successDiagnostic?.runtime_evidence_json?.secrets_included === false, JSON.stringify(successDiagnostic));
-              assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));''',
-                  "OAuth v2 success diagnostics",
+              assert("success diagnostic marks secrets excluded", successDiagnostic?.runtime_evidence_json?.secrets_included === false, JSON.stringify(successDiagnostic));''',
+                  "OAuth v2 success governed evidence",
               ),
           ]
 
@@ -140,7 +149,7 @@ jobs:
 
           path.write_text(source, encoding="utf-8")
           print(f"PATCHED_BYTES={path.stat().st_size}")
-          print("REPLACEMENT_COUNT=5")
+          print(f"REPLACEMENT_COUNT={len(replacements)}")
 
       - name: Install locked test dependencies
         uses: actions/setup-node@v6
