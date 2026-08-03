@@ -1,86 +1,112 @@
-# Brand Skill Staging Preflight Dispatch Bridge
+# Brand Skill Staging Read-only Preflight Rebind
 
 ## Purpose
 
-This bridge exists only to expose a governed GitHub-native execution surface for the already reviewed workflow:
+This phase restores the governed Staging read-only preflight after the target workflow was repaired by PR `#4734`.
+
+The repair changed the Git blob of:
 
 ```text
 .github/workflows/brand-skill-mariadb-certification.yml
 ```
 
-It does not copy, replace, or weaken the Staging preflight contract. It dispatches the unchanged target workflow with the exact reviewed inputs after validating immutable repository bindings.
+Therefore the former authorization and binding are not reused. The new execution separates the workflow definition authority from the runtime and migration snapshot authority.
 
-## Trigger
+## Fresh authorization token
 
-The bridge listens only to a newly created comment on Issue `#3809` whose complete body is:
+A new execution is accepted only from a newly created comment on Issue `#3809` whose complete body is:
 
 ```text
-AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC
+AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC
 ```
 
-The comment must be authored by a repository `OWNER`, `MEMBER`, or `COLLABORATOR`. Pull-request comments and comments on every other issue are rejected by the job-level condition.
+The comment must be authored by repository user ID `271942579` with association `OWNER`, `MEMBER`, or `COLLABORATOR`.
 
-## Immutable bindings
+The exact comment is the authorization evidence. The workflow does not reuse the historical authorization comment ID.
 
-Before dispatch, the bridge validates all of the following:
+## Split immutable bindings
 
-- authorization evidence comment: `5136135941`
-- authorization user ID: `271942579`
-- reviewed commit: `e1084397317a7f2645d78fc43a3064eef98fabaf`
+### Repaired workflow definition
+
+The workflow definition used by `workflow_dispatch` must match both:
+
+- repair merge commit: `8926c000473f1f3fc3480f6d530b314ec3c7dfcc`
+- workflow blob: `b6e5f7bd4a73803e4f062097a32bd9d8d17756ec`
+
+The same blob must still be present on current `main`.
+
+### Runtime and migration snapshot
+
+The Staging preflight checks out and inspects:
+
+- runtime commit: `e1084397317a7f2645d78fc43a3064eef98fabaf`
 - migration SHA-256: `eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802`
+- migration blob on both the runtime commit and current `main`: `1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7`
 - statement count: `3`
-- target workflow blob on `main` and the reviewed commit: `e36f9241a819018659788edb2a8a854da641b4b8`
-- target migration blob on `main` and the reviewed commit: `1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7`
-- Issue `#3809` remains open
-- no completed or dispatched marker already exists for the same binding
 
-Any mismatch fails closed before workflow dispatch.
+The repaired workflow blob is intentionally not required to exist at the runtime commit. The repair happened later and only fixes the GitHub Actions execution context before checkout.
+
+## Binding identity
+
+The one-time completion identity is:
+
+```text
+b6e5f7bd4a73803e4f062097a32bd9d8d17756ec:e1084397317a7f2645d78fc43a3064eef98fabaf:eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802:3
+```
+
+Including the workflow blob makes the repaired attempt distinct from the earlier failed dispatch that used workflow blob `e36f9241a819018659788edb2a8a854da641b4b8`.
+
+A completed marker for the new binding prevents every later execution. A dispatched marker prevents reusing the same authorization comment, while a newly created exact authorization comment can authorize a distinct retry if an earlier target run failed. Failed attempts do not silently become completion evidence.
+
+## Execution surfaces
+
+### Issue comment bridge
+
+The primary path is:
+
+```text
+.github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml
+```
+
+It validates the triggering comment, repository actor, open control issue, repaired workflow blob, migration blob, absence of a completed marker, and absence of a prior dispatch for the same authorization comment before dispatch.
+
+### Main-push fallback
+
+The fallback path is:
+
+```text
+.github/workflows/brand-skill-staging-preflight-push-fallback.yml
+```
+
+It runs only for a `main` push by user ID `271942579` whose commit message contains:
+
+```text
+RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC
+```
+
+Before dispatch it discovers a fresh exact authorization comment on Issue `#3809` and applies the same immutable binding and one-dispatch-per-comment checks as the issue-comment bridge. Both execution surfaces share one non-cancelling concurrency group, so they cannot dispatch the same authorization concurrently.
 
 ## Dispatch inputs
 
-The bridge calls the GitHub Actions workflow-dispatch endpoint for the unchanged target workflow with exactly:
+Both execution surfaces dispatch the repaired target workflow on `main` with exactly:
 
 ```text
-ref=main
 run_mode=staging_read_only
 expected_commit_sha=e1084397317a7f2645d78fc43a3064eef98fabaf
 expected_migration_sha256=eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802
 ```
 
-The target workflow then checks out the exact reviewed commit and performs its own commit, checksum, statement-count, target-environment, and no-apply validation.
+The target workflow validates typed inputs from repository root before checkout, then checks out the exact runtime commit.
 
-## Separation of responsibilities
+## Required evidence
 
-The bridge has no GitHub environment binding and receives no database secret. It has only the GitHub permissions required to:
-
-- read repository contents and immutable blob metadata;
-- dispatch the existing target workflow;
-- record progress and evidence on Issue `#3809`;
-- close Issue `#3809` after successful artifact validation.
-
-Only the existing target workflow is bound to the `staging` GitHub environment and receives `STAGING_DB_*` secrets.
-
-## One-time and fail-closed behavior
-
-The bridge uses a non-cancelling concurrency group for Issue `#3809`. It records a claim before dispatch and refuses a second dispatch after a `dispatched` or `completed` marker exists for the exact commit/checksum/statement-count binding.
-
-A failed dispatch or target workflow leaves the issue open and records a bounded failure marker. It does not authorize migration apply or retry with changed bindings.
-
-## Evidence closure
-
-After the target run succeeds, the bridge downloads the artifact named:
-
-```text
-brand-skill-staging-read-only-preflight
-```
-
-It independently validates:
+The target run must upload `brand-skill-staging-read-only-preflight`. The bridge independently requires:
 
 - `ok=true`
 - `ready=true`
 - `target_environment=staging`
-- the exact reviewed commit
-- the exact migration SHA-256
+- `commit_sha=e1084397317a7f2645d78fc43a3064eef98fabaf`
+- `migration_checksum_sha256=eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802`
 - `statement_count=3`
 - `applies_sql=false`
 - `records_ledger=false`
@@ -91,21 +117,22 @@ It independently validates:
 - `external_writes=false`
 - `secrets_included=false`
 
-Issue `#3809` is closed only after all fields pass.
+Issue `#3809` is closed only after these fields pass.
 
-## Explicitly excluded operations
+## Safety boundary
 
-This bridge does not:
+Neither bridge:
 
-- apply SQL;
-- invoke the governed migration runner;
-- pass `--apply`;
-- create, alter, or drop schema objects;
-- write a migration ledger;
-- seed policies or grants;
-- access Production;
-- deploy or restart a service;
-- perform provider calls or external writes;
-- read or expose credential payloads.
+- receives `STAGING_DB_*` secrets;
+- binds to the `staging` environment;
+- applies SQL;
+- invokes the governed migration runner;
+- passes `--apply`;
+- writes a migration ledger;
+- seeds policies or grants;
+- accesses Production;
+- deploys or restarts services;
+- performs provider calls or external business writes;
+- reads or exposes credential payloads.
 
-Migration apply remains a separate governed operation requiring a fresh typed authorization after successful Staging preflight evidence.
+Only the target workflow is bound to the `staging` environment. Migration Apply remains a separate operation requiring a new explicit authorization after successful read-only evidence.
