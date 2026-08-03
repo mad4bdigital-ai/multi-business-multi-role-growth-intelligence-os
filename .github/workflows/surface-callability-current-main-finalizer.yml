@@ -126,8 +126,29 @@ jobs:
         run: node test-frontend-auth-openapi-parity.mjs
 
       - name: OpenAPI route coverage
+        id: openapi-route-coverage
         working-directory: http-generic-api
-        run: node test-openapi-route-coverage.mjs
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          NO_COLOR=1 node test-openapi-route-coverage.mjs > ../openapi-route-coverage.log 2>&1
+          status=$?
+          cat ../openapi-route-coverage.log
+          exit "$status"
+
+      - name: Upload OpenAPI route coverage diagnostic
+        if: steps.openapi-route-coverage.outcome != 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-route-coverage-diagnostic-${{ github.run_id }}
+          path: openapi-route-coverage.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce OpenAPI route coverage
+        if: steps.openapi-route-coverage.outcome != 'success'
+        run: exit 1
 
       - name: Hostinger full-closure safety
         working-directory: http-generic-api
