@@ -11,7 +11,7 @@ const COMMIT_SHA_PATTERN = /^[a-f0-9]{40}$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
 const SENSITIVE_KEY_PATTERN =
-  /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+  /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|auth(?:orization)?[_-]?header)/i;
 const MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024;
 const MAX_SOURCE_RECORDS = 8192;
 
@@ -46,7 +46,7 @@ function assertNoSensitiveValues(value, location = "root", seen = new WeakSet())
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   for (const [key, nested] of Object.entries(value)) {
-    if (SENSITIVE_KEY_PATTERN.test(key) && nested !== false && nested !== null && nested !== undefined) {
+    if (SENSITIVE_KEY_PATTERN.test(key) && nested !== false && nested !== null) {
       throw new AuthorityEvidenceRepositoryCandidateError(
         "authority_evidence_repository_candidate_sensitive_value_forbidden",
         "Repository source candidates must not contain secret-bearing values.",
@@ -70,7 +70,7 @@ function token(value, field) {
 }
 
 function commitSha(value, field) {
-  const normalized = String(value ?? "").trim().toLowerCase();
+  const normalized = String(value ?? "").trim();
   if (!COMMIT_SHA_PATTERN.test(normalized)) {
     throw new AuthorityEvidenceRepositoryCandidateError(
       "authority_evidence_repository_candidate_invalid_commit_sha",
