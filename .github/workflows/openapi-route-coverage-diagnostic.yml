@@ -1,0 +1,87 @@
+name: OpenAPI Route Coverage Diagnostic
+
+on:
+  push:
+    branches:
+      - gpt/pr5210-surface-source-clean-20260803
+    paths:
+      - .github/workflows/openapi-route-coverage-diagnostic.yml
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: ae26acbb7cd640ca9670c7b26b267aca45e3b337
+
+jobs:
+  diagnose:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/pr5210-surface-source-clean-20260803
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply stable lifecycle fallback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/routes/tenantLifecycleRoutes.js')
+          source = path.read_text(encoding='utf-8')
+          old = 'err.code || "workspace_invitations_expire_stale_failed"'
+          new = 'err.code || "workspace_invitations_expire_failed"'
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'workspace_invitation_expire_stable_code_marker_mismatch:{count}')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Generate closure evidence
+        working-directory: http-generic-api
+        run: |
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+
+      - name: Capture OpenAPI route coverage
+        id: coverage
+        working-directory: http-generic-api
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          NO_COLOR=1 node test-openapi-route-coverage.mjs > ../openapi-route-coverage.log 2>&1
+          status=$?
+          cat ../openapi-route-coverage.log
+          exit "$status"
+
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-route-coverage-diagnostic-${{ github.run_id }}
+          path: openapi-route-coverage.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Preserve failing result
+        if: steps.coverage.outcome != 'success'
+        run: exit 1
