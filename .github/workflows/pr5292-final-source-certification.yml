@@ -26,32 +26,55 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
-      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
       EXPECTED_MAIN: 97e4ee7ec790844ad20ee2349125579353c693d5
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
       GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Checkout exact diagnostic head
+      - name: Checkout exact diagnostic SHA
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify exact bounded trigger and current main
+      - name: Publish and verify exact preflight values
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          git fetch --no-tags origin main
+          actual_head="$(git rev-parse HEAD)"
+          symbolic_head="$(git rev-parse --abbrev-ref HEAD)"
+          actual_main="$(git rev-parse origin/main)"
           trigger_files="$(git diff --name-only HEAD^ HEAD)"
+          if git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD; then ancestor=yes; else ancestor=no; fi
+          body_file="${RUNNER_TEMP}/pr5292-preflight.md"
+          {
+            echo '<!-- pr5292-generator-preflight-diagnostic -->'
+            echo '### PR #5292 generator preflight diagnostic'
+            echo
+            printf -- '- Event head: `%s`\n' "${EXPECTED_HEAD}"
+            printf -- '- Checked-out head: `%s`\n' "$actual_head"
+            printf -- '- Symbolic checkout: `%s`\n' "$symbolic_head"
+            printf -- '- Pinned main: `%s`\n' "${EXPECTED_MAIN}"
+            printf -- '- Fetched main: `%s`\n' "$actual_main"
+            printf -- '- Pinned main is ancestor: `%s`\n' "$ancestor"
+            echo '- Last-commit paths:'
+            while IFS= read -r path; do
+              test -z "$path" && continue
+              printf -- '  - `%s`\n' "$path"
+            done <<EOF
+          $trigger_files
+          EOF
+          } > "$body_file"
+          gh pr comment 5292 --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+          cat "$body_file" >> "$GITHUB_STEP_SUMMARY"
+          test "$actual_head" = "${EXPECTED_HEAD}"
+          test "$actual_main" = "${EXPECTED_MAIN}"
+          test "$ancestor" = yes
           test "$(printf '%s\n' "$trigger_files" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
           test "$trigger_files" = "${WORKFLOW_PATH}"
-          git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
-          git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
           git branch -f main origin/main
 
       - name: Set up Node 22
@@ -79,7 +102,6 @@ jobs:
           status_file="${RUNNER_TEMP}/pr5292-generator-status.txt"
           git status --porcelain=v1 --untracked-files=all > "$status_file"
           changed="$(sed -E 's/^...//' "$status_file" | sed -E 's/.* -> /')"
-          test -n "$changed"
           body_file="${RUNNER_TEMP}/pr5292-generator-diagnostic.md"
           {
             echo '<!-- pr5292-generator-write-set-diagnostic -->'
@@ -103,5 +125,6 @@ jobs:
           } > "$body_file"
           gh pr comment 5292 --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
           cat "$body_file" >> "$GITHUB_STEP_SUMMARY"
+          test -n "$changed"
           echo 'Diagnostic intentionally stops before any artifact commit.' >&2
           exit 1
