@@ -1,0 +1,245 @@
+OAuth v2 bounded writer diagnostic
+main=a61cd9e83070618001676bbc679bc937f0551875
+writer_head=ccfba84894e687f0f7bcc266a8332339c02bc28c
+focused_status=1
+--- sanitized tail ---
+  [PASS] legacy audience is rejected after cutoff
+tenant_gpt_audience_compatibility {
+  metric_name: 'tenant_gpt_audience_compatibility_total',
+  metric_value: 1,
+  labels: {
+    classification: 'legacy_audience_rejected_disabled',
+    outcome: 'rejected',
+    audience_mode: 'legacy',
+    cutoff_state: 'disabled'
+  },
+  cutoff_at: '2026-10-31T23:59:59.000Z',
+  legacy_audience_present: true,
+  secrets_included: false
+}
+  [PASS] legacy audience can be disabled before cutoff
+tenant_gpt_audience_compatibility {
+  metric_name: 'tenant_gpt_audience_compatibility_total',
+  metric_value: 1,
+  labels: {
+    classification: 'legacy_audience_rejected_cutoff_unconfigured',
+    outcome: 'rejected',
+    audience_mode: 'legacy',
+    cutoff_state: 'unconfigured'
+  },
+  cutoff_at: null,
+  legacy_audience_present: true,
+  secrets_included: false
+}
+  [PASS] legacy audience fails closed when cutoff is invalid
+tenant_gpt_audience_compatibility_evidence_failed { code: 'telemetry_unavailable', secrets_included: false }
+  [PASS] telemetry failure does not deny a valid strict token
+  [PASS] telemetry callback is attempted once
+  [PASS] missing verifier secret fails closed
+  [PASS] missing verifier secret is a dependency failure
+  [PASS] oversized verifier secret fails closed
+  [PASS] oversized verifier secret is a dependency failure
+
+Tenant GPT access token verifier tests passed.
+PASS tenant-gpt-oauth-authorization-code-store
+PASS tenant-gpt-google-jit-recovery
+
+== identity normalization
+  [PASS] email normalization trims and lowercases
+  [PASS] verified Google identity is accepted
+  [PASS] unverified Google identity is rejected
+  [PASS] missing Google verification claim is rejected
+  [PASS] missing Google subject is rejected
+  [PASS] identity migration fails closed on duplicate subjects
+  [PASS] identity migration ignores empty provider subjects
+  [PASS] identity migration adds provider subject uniqueness
+  [PASS] identity migration is idempotent
+
+== authorize popup
+  [PASS] activation host authorize reaches shared auth route
+  [PASS] authorize is not cacheable
+  [PASS] authorize includes app name
+  [PASS] authorize renders Google Sign-In
+  [PASS] authorize includes existing-account option
+  [PASS] authorize includes new-workspace option
+  [PASS] authorize carries activation mode
+  [PASS] authorize carries requested OAuth scope
+  [PASS] authorize carries the registered OAuth client
+  [PASS] authorize carries the derived Activation resource
+  [PASS] authorize carries device id
+  [PASS] authorize preselects signup panel
+  [PASS] authorize does not emit application onboarding link
+  [PASS] authorize privacy link always targets auth host
+  [PASS] authorize terms link always targets auth host
+  [PASS] authorize does not emit relative setup link
+  [PASS] authorize includes configured Google client
+  [PASS] authorize preserves requested ChatGPT callback
+  [PASS] authorize does not rewrite callback before ChatGPT state validation
+  [PASS] authorize popup submits every identity mode through OAuth code endpoint
+  [PASS] authorize popup does not call broad login route
+  [PASS] authorize popup does not call broad registration route
+  [PASS] authorize popup does not call broad Google auth route
+  [PASS] authorize leaves GIS button locale automatic
+  [PASS] authorize does not force a GSI hl parameter
+  [PASS] Arabic browser language still returns authorize html
+  [PASS] Arabic browser language is delegated to GIS
+  [PASS] Arabic browser language does not inject hl
+
+== OAuth metadata
+  [PASS] authorization metadata is public
+  [PASS] authorization metadata publishes the platform issuer
+  [PASS] authorization metadata publishes the authorization endpoint
+  [PASS] authorization metadata publishes the token endpoint
+  [PASS] authorization metadata declares resource support
+  [PASS] protected resource metadata is public
+  [PASS] protected resource metadata identifies Activation
+  [PASS] protected resource metadata links the authorization server
+  [PASS] protected resource metadata requires bearer header usage
+
+== Google Identity Services locale policy
+  [PASS] ./routes/authRoutes.js does not hardcode a GIS locale
+  [PASS] ./routes/authRoutes.js does not force a GSI hl parameter
+  [PASS] ./routes/localManagerBetaRoutes.js does not hardcode a GIS locale
+  [PASS] ./routes/localManagerBetaRoutes.js does not force a GSI hl parameter
+  [PASS] ./public/connect/app.jsx does not hardcode a GIS locale
+  [PASS] ./public/connect/app.jsx does not force a GSI hl parameter
+  [PASS] authorize rejects unsafe redirect scheme
+  [PASS] authorize rejects unapproved redirect host
+  [PASS] authorize rejects non-Tenant-GPT client
+  [PASS] authorize rejects a resource that does not match the Activation host
+  [PASS] authorize rejects an unregistered request host
+  [PASS] authorize requires state before rendering popup
+
+== code issuance and token exchange
+  [PASS] Google popup issues an authorization code through the default identity resolver
+  [PASS] Google ID token is verified for the configured audience
+  [PASS] Google identity reuses the bound platform user
+  [PASS] Google identity normalizes email before code issuance
+  [PASS] missing durable code table is created once
+  [PASS] authorization-code insert is retried after table recovery
+  [PASS] Google identity transaction commits
+  [PASS] Google OAuth state survives the recovered code flow
+  [PASS] code-store outages return a retryable service response
+  [PASS] code-store outages are not mislabeled as identity failures
+  [PASS] code-store outage response includes a correlation reference
+  [PASS] code-store diagnostics identify the failed stage
+  [PASS] code-store diagnostics exclude raw database messages
+  [PASS] code-store diagnostics mark secrets excluded
+  [PASS] identity infrastructure outages return a retryable service response
+  [PASS] identity infrastructure outages are classified separately
+  [PASS] identity outage response includes a correlation reference
+  [PASS] identity diagnostics identify the failed stage
+  [PASS] identity diagnostics exclude raw database messages
+  [PASS] OAuth configuration outages return a retryable service response
+  [PASS] OAuth configuration outages are not mislabeled as redirect mismatches
+  [PASS] OAuth configuration outage response includes a correlation reference
+  [PASS] OAuth configuration failure stops before identity resolution
+  [PASS] OAuth configuration diagnostics identify the failed stage
+  [PASS] OAuth configuration diagnostics exclude raw database messages
+  [PASS] authorize returns 503 when OAuth configuration is unavailable
+  [PASS] authorize reports a retryable configuration outage
+  [PASS] code endpoint accepts signed user token
+  [PASS] code response includes code
+  [PASS] code response redirects with state
+  [PASS] code response redirects with code
+  [PASS] authorization code stores canonical ChatGPT callback
+  [PASS] authorization code binds the registered OAuth client
+  [PASS] authorization code binds the Activation protected resource
+  [PASS] code response reports the Activation protected resource
+  [PASS] code response redirects legacy callback directly to canonical ChatGPT host
+  [PASS] code response does not redirect through legacy ChatGPT host
+  [PASS] code response preserves activation mode
+  [PASS] code response preserves sign-in options
+  [PASS] activation host routes popup credentials into shared OAuth code logic
+  [PASS] credential code preserves OAuth state
+  [PASS] credential resolver receives the selected popup mode
+  [PASS] token endpoint rejects wrong OAuth client secret
+  [PASS] wrong OAuth client secret reports invalid_client
+  [PASS] invalid client token exchange writes diagnostic
+  [PASS] invalid client diagnostic uses OAuth v2 action key
+  [PASS] invalid client diagnostic marks secret presence only
+  [PASS] invalid client diagnostic captures bounded code expiry
+  [PASS] invalid client diagnostic captures code age
+  [PASS] invalid client diagnostic excludes raw secret
+  [PASS] token endpoint rejects a resource that does not match the Activation host
+  [PASS] resource mismatch reports invalid_target
+  [PASS] token endpoint exchanges authorization code
+  [PASS] token endpoint accepts legacy callback as equivalent to canonical code callback
+  [PASS] token endpoint returns lowercase bearer token type
+  [PASS] token endpoint mints a fresh access JWT
+  [PASS] token endpoint returns standard OAuth scope
+  [PASS] token endpoint excludes non-standard activation context
+  [PASS] success token exchange writes diagnostic
+  [PASS] success diagnostic records committed response phase
+  [PASS] success diagnostic records token preparation without token material
+  [PASS] success diagnostic captures activation context storage only
+  [PASS] success diagnostic records consumed authorization code
+  [PASS] success diagnostic excludes raw access token
+  [PASS] token exchange stores activation context server-side
+  [PASS] stored activation context preserves activation mode
+  [PASS] stored activation context preserves workspace name
+  [PASS] stored activation context marks secrets excluded
+  [PASS] access JWT has platform issuer
+  [PASS] access JWT has the Activation audience
+  [PASS] access JWT carries the Activation resource claim
+  [PASS] access JWT carries the authorized OAuth client
+  [PASS] Activation gateway rejects a missing bearer token
+tenant_gpt_audience_compatibility {
+  metric_name: 'tenant_gpt_audience_compatibility_total',
+  metric_value: 1,
+  labels: {
+    classification: 'audience_mismatch_rejected',
+    outcome: 'rejected',
+    audience_mode: 'other',
+    cutoff_state: 'not_applicable'
+  },
+  cutoff_at: '2026-10-31T23:59:59.000Z',
+  legacy_audience_present: false,
+  secrets_included: false
+}
+  [PASS] Activation gateway rejects a token for the Auth resource
+  [PASS] Activation gateway accepts the Activation-bound token
+  [PASS] Activation gateway exposes the verified token resource
+  [PASS] access JWT has tenant subject
+  [PASS] stored activation context is linked to access JWT jti
+  [PASS] access JWT carries linked tenant scopes
+  [PASS] OAuth access JWT omits duplicated scope links
+  [PASS] OAuth access JWT identifies the authorized client
+  [PASS] OAuth access JWT stays compact
+  [PASS] access JWT carries tenant GPT purpose
+  [FAIL] token endpoint rejects authorization code replay - 503
+::error title=OAuth route test failure::token endpoint rejects authorization code replay - 503
+  [FAIL] authorization code replay reports invalid_grant - {"error":"temporarily_unavailable","error_description":"The token exchange is temporarily unavailable before code consumption. Retrying the same authorization code is allowed.","error_code":"oauth_token_exchange_preconsumption_unavailable","request_id":"d6249e3d-b234-438a-9fa8-273b3b6be875","retry_same_code":true,"restart_authorization":false,"outcome_unknown":false,"operator_reconciliation_required":false,"secrets_included":false}
+::error title=OAuth route test failure::authorization code replay reports invalid_grant - {"error":"temporarily_unavailable","error_description":"The token exchange is temporarily unavailable before code consumption. Retrying the same authorization code is allowed.","error_code":"oauth_token_exchange_preconsumption_unavailable","request_id":"d6249e3d-b234-438a-9fa8-273b3b6be875","retry_same_code":true,"restart_authorization":false,"outcome_unknown":false,"operator_reconciliation_required":false,"secrets_included":false}
+  [PASS] token endpoint rejects redirect mismatch
+  [PASS] redirect mismatch reports invalid_grant
+  [PASS] activation host blocks unrelated auth route /auth/login
+  [PASS] activation host returns explicit boundary error for /auth/login
+  [PASS] activation host blocks unrelated auth route /auth/register
+  [PASS] activation host returns explicit boundary error for /auth/register
+  [PASS] activation host blocks unrelated auth route /auth/google
+  [PASS] activation host returns explicit boundary error for /auth/google
+  [PASS] activation host blocks unrelated auth route /auth/platform-jwt/issue
+  [PASS] activation host returns explicit boundary error for /auth/platform-jwt/issue
+  [PASS] activation host blocks unrelated auth route /auth/oauth/revoke
+  [PASS] activation host returns explicit boundary error for /auth/oauth/revoke
+  [PASS] activation host evidence cannot be bypassed by spoofing auth forwarded host
+  [PASS] spoofed forwarded host still returns the activation boundary error
+
+== platform JWT client
+  [PASS] platform JWT client rejects user principal
+  [PASS] platform JWT client reports admin requirement
+  [PASS] platform JWT client issues token for admin
+  [PASS] platform JWT client returns bearer token
+  [PASS] platform JWT client clamps requested ttl
+  [PASS] platform JWT token has user claim
+  [PASS] platform JWT token has tenant claim
+  [PASS] platform JWT token carries tenant GPT purpose
+  [PASS] platform JWT token carries the Core protected-resource audience
+  [PASS] platform JWT token carries the Core resource claim
+  [PASS] platform JWT token carries the authorized OAuth client
+  [PASS] platform JWT token carries tenant GPT scope
+  [PASS] platform JWT client enforces tenant membership
+  [PASS] tenant membership failure is explicit
+
+Auth OAuth route tests: 169 passed, 2 failed
