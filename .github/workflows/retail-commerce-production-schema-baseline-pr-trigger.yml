@@ -30,6 +30,8 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
       DB_CONNECTION_LIMIT: "1"
       DB_CONNECT_TIMEOUT_MS: "10000"
       TRIGGER_PATH: .github/ops/retail-commerce-production-schema-baseline-trigger.json
@@ -68,6 +70,12 @@ jobs:
               accepted_main_drift_files: [],
               trigger_sha: $trigger_sha,
               trigger_branch: $trigger_branch,
+              selected_collection_source: null,
+              unavailable_direct_database_bindings: [],
+              missing_binding_alternatives: {
+                direct_database: [],
+                governed_runtime_api: []
+              },
               authoritative_database_connection_succeeded: false,
               baseline_collected: false,
               parity_status: "not_collected",
@@ -77,12 +85,16 @@ jobs:
                 select_only: true,
                 row_data_read: false,
                 freeform_sql_accepted: false,
+                sql_execution: false,
+                mutation_sql_execution: false,
                 migration_dry_run: false,
                 migration_apply: false,
                 database_mutation: false,
+                runtime_api_request_executed: false,
                 provider_call: false,
                 credential_values_returned: false,
                 external_send: false,
+                external_write: false,
                 secrets_included: false
               }
             }' > "${report_path}"
@@ -178,62 +190,119 @@ jobs:
           node test-retail-commerce-production-schema-baseline.mjs
           node test-retail-commerce-production-schema-baseline-pr-trigger.mjs
 
-      - name: Preflight Production database secret bindings
-        id: db_preflight
+      - name: Select authoritative baseline source
+        id: source_preflight
         shell: bash
         run: |
           set -euo pipefail
-          missing=()
+          db_missing=()
+          runtime_missing=()
           for key in DB_HOST DB_NAME DB_USER DB_PASSWORD; do
             if [[ -z "${!key:-}" ]]; then
-              missing+=("${key}")
+              db_missing+=("${key}")
             fi
           done
+          if [[ -z "${BACKEND_API_KEY:-}" ]]; then
+            runtime_missing+=("BACKEND_API_KEY")
+          fi
 
-          if (( ${#missing[@]} > 0 )); then
-            missing_json="$(printf '%s\n' "${missing[@]}" | jq -R . | jq -s .)"
-            jq \
-              --arg status "blocked_missing_secret_bindings" \
-              --argjson missing_secret_bindings "${missing_json}" \
-              '.status = $status
-               | .missing_secret_bindings = $missing_secret_bindings
-               | .authoritative_database_connection_succeeded = false
-               | .baseline_collected = false
-               | .parity_status = "not_collected"
-               | .safety.credential_values_returned = false
-               | .safety.secrets_included = false' \
-              "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
-            mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
-            echo "ready=false" >> "${GITHUB_OUTPUT}"
-            printf 'Missing Production DB secret binding: %s\n' "${missing[@]}"
-            exit 0
+          db_missing_json="$(printf '%s\n' "${db_missing[@]:-}" | sed '/^$/d' | jq -R . | jq -s -c .)"
+          runtime_missing_json="$(printf '%s\n' "${runtime_missing[@]:-}" | sed '/^$/d' | jq -R . | jq -s -c .)"
+
+          if (( ${#db_missing[@]} == 0 )); then
+            source_mode="direct_db"
+            status="credential_bindings_available_direct_database"
+            ready=true
+            missing_json='[]'
+          elif (( ${#runtime_missing[@]} == 0 )); then
+            source_mode="runtime_api"
+            status="credential_bindings_available_governed_runtime_api"
+            ready=true
+            missing_json='[]'
+          else
+            source_mode="none"
+            status="blocked_missing_secret_bindings"
+            ready=false
+            missing_json="$(jq -cn --argjson db "${db_missing_json}" --argjson runtime "${runtime_missing_json}" '$db + $runtime | unique')"
           fi
 
           jq \
-            '.status = "credential_bindings_available"
-             | .missing_secret_bindings = []' \
+            --arg status "${status}" \
+            --arg source_mode "${source_mode}" \
+            --argjson db_missing "${db_missing_json}" \
+            --argjson runtime_missing "${runtime_missing_json}" \
+            --argjson missing_secret_bindings "${missing_json}" \
+            '.status = $status
+             | .selected_collection_source = $source_mode
+             | .unavailable_direct_database_bindings = $db_missing
+             | .missing_binding_alternatives = {
+                 direct_database: $db_missing,
+                 governed_runtime_api: $runtime_missing
+               }
+             | .missing_secret_bindings = $missing_secret_bindings
+             | .authoritative_database_connection_succeeded = false
+             | .baseline_collected = false
+             | .parity_status = "not_collected"
+             | .safety.credential_values_returned = false
+             | .safety.secrets_included = false' \
             "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
           mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
-          echo "ready=true" >> "${GITHUB_OUTPUT}"
+
+          echo "ready=${ready}" >> "${GITHUB_OUTPUT}"
+          echo "source_mode=${source_mode}" >> "${GITHUB_OUTPUT}"
+          echo "db_missing_json=${db_missing_json}" >> "${GITHUB_OUTPUT}"
+          echo "runtime_missing_json=${runtime_missing_json}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${ready}" != "true" ]]; then
+            printf 'No authoritative baseline source is configured. Direct DB missing: %s; runtime API missing: %s\n' \
+              "${db_missing[*]:-none}" "${runtime_missing[*]:-none}"
+          fi
 
       - name: Collect authoritative Production schema and migration-ledger baseline
         id: collect
-        if: steps.db_preflight.outputs.ready == 'true'
+        if: steps.source_preflight.outputs.ready == 'true'
         continue-on-error: true
         working-directory: http-generic-api
         shell: bash
+        env:
+          SOURCE_MODE: ${{ steps.source_preflight.outputs.source_mode }}
+          DB_MISSING_JSON: ${{ steps.source_preflight.outputs.db_missing_json }}
+          RUNTIME_MISSING_JSON: ${{ steps.source_preflight.outputs.runtime_missing_json }}
         run: |
           set -euo pipefail
-          node scripts/retail-commerce-production-schema-baseline.mjs --report="${REPORT_PATH}"
+          if [[ "${SOURCE_MODE}" = "direct_db" ]]; then
+            node scripts/retail-commerce-production-schema-baseline.mjs \
+              --source=direct_db \
+              --report="${REPORT_PATH}"
+          elif [[ "${SOURCE_MODE}" = "runtime_api" ]]; then
+            node scripts/retail-commerce-production-schema-baseline.mjs \
+              --source=runtime_api \
+              --report="${REPORT_PATH}"
+          else
+            echo "Unsupported selected collection source: ${SOURCE_MODE}" >&2
+            exit 1
+          fi
+
           jq \
             --arg sha "${BASELINE_SOURCE_SHA}" \
             --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" \
+            --arg source_mode "${SOURCE_MODE}" \
             --argjson drift_accepted "${NON_EXECUTABLE_MAIN_DRIFT_ACCEPTED}" \
             --argjson accepted_drift_files "${ACCEPTED_MAIN_DRIFT_FILES}" \
-            '.source_repository_sha = $sha
+            --argjson db_missing "${DB_MISSING_JSON}" \
+            --argjson runtime_missing "${RUNTIME_MISSING_JSON}" \
+            '.status = "baseline_collected"
+             | .source_repository_sha = $sha
              | .execution_current_main_sha = $current_main_sha
+             | .selected_collection_source = $source_mode
              | .non_executable_main_drift_accepted = $drift_accepted
-             | .accepted_main_drift_files = $accepted_drift_files' \
+             | .accepted_main_drift_files = $accepted_drift_files
+             | .unavailable_direct_database_bindings = $db_missing
+             | .missing_binding_alternatives = {
+                 direct_database: $db_missing,
+                 governed_runtime_api: $runtime_missing
+               }
+             | .missing_secret_bindings = []' \
             "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
           mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
 
@@ -261,6 +330,12 @@ jobs:
                 accepted_main_drift_files: [],
                 trigger_sha: $trigger_sha,
                 trigger_branch: $trigger_branch,
+                selected_collection_source: null,
+                unavailable_direct_database_bindings: [],
+                missing_binding_alternatives: {
+                  direct_database: [],
+                  governed_runtime_api: []
+                },
                 authoritative_database_connection_succeeded: false,
                 baseline_collected: false,
                 parity_status: "not_collected",
@@ -270,12 +345,16 @@ jobs:
                   select_only: true,
                   row_data_read: false,
                   freeform_sql_accepted: false,
+                  sql_execution: false,
+                  mutation_sql_execution: false,
                   migration_dry_run: false,
                   migration_apply: false,
                   database_mutation: false,
+                  runtime_api_request_executed: false,
                   provider_call: false,
                   credential_values_returned: false,
                   external_send: false,
+                  external_write: false,
                   secrets_included: false
                 }
               }' > "${REPORT_PATH}"
@@ -292,8 +371,12 @@ jobs:
             status,
             source_repository_sha,
             execution_current_main_sha,
+            selected_collection_source,
+            collection_source,
             non_executable_main_drift_accepted,
             accepted_main_drift_files,
+            unavailable_direct_database_bindings,
+            missing_binding_alternatives,
             authoritative_database_connection_succeeded,
             baseline_collected,
             parity_status,
@@ -316,7 +399,8 @@ jobs:
         if: always()
         shell: bash
         env:
-          PREFLIGHT_READY: ${{ steps.db_preflight.outputs.ready }}
+          PREFLIGHT_READY: ${{ steps.source_preflight.outputs.ready }}
+          SOURCE_MODE: ${{ steps.source_preflight.outputs.source_mode }}
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
         run: |
@@ -327,27 +411,48 @@ jobs:
           if [[ "${PREFLIGHT_READY}" != "true" ]]; then
             jq -e '
               .status == "blocked_missing_secret_bindings" and
+              .selected_collection_source == "none" and
               (.missing_secret_bindings | type == "array" and length > 0) and
               .authoritative_database_connection_succeeded == false and
               .baseline_collected == false and
               .safety.credential_values_returned == false and
               .safety.secrets_included == false
             ' "${REPORT_PATH}" >/dev/null
-            echo "Production schema evidence is blocked by missing secret bindings; bounded evidence was uploaded."
+            echo "Production schema evidence is blocked because neither authoritative source is configured; bounded evidence was uploaded."
             exit 1
           fi
 
           test "${COLLECT_OUTCOME}" = "success"
-          jq -e --arg sha "${BASELINE_SOURCE_SHA}" --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" '
+          jq -e \
+            --arg sha "${BASELINE_SOURCE_SHA}" \
+            --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" \
+            --arg source_mode "${SOURCE_MODE}" '
+            .status == "baseline_collected" and
             .source_repository_sha == $sha and
             .execution_current_main_sha == $current_main_sha and
+            .selected_collection_source == $source_mode and
             (.non_executable_main_drift_accepted | type == "boolean") and
             (.accepted_main_drift_files | type == "array") and
             .authoritative_database_connection_succeeded == true and
             .baseline_collected == true and
             .safety.select_only == true and
+            .safety.sql_execution == true and
+            .safety.mutation_sql_execution == false and
             .safety.row_data_read == false and
             .safety.migration_apply == false and
             .safety.database_mutation == false and
-            .safety.secrets_included == false
+            .safety.provider_call == false and
+            .safety.credential_values_returned == false and
+            .safety.external_write == false and
+            .safety.secrets_included == false and
+            (
+              ($source_mode == "direct_db" and
+               .collection_source == "direct_database_metadata" and
+               .safety.runtime_api_request_executed == false) or
+              ($source_mode == "runtime_api" and
+               .collection_source == "governed_production_runtime_schema_readback" and
+               .runtime_base_url == "https://auth.mad4b.com" and
+               .safety.runtime_api_request_executed == true and
+               .safety.local_sql_execution == false)
+            )
           ' "${REPORT_PATH}" >/dev/null

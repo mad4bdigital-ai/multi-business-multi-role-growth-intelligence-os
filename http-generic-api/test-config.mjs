@@ -1,3 +1,4 @@
+import "./test-runtime-registry-authority.mjs";
 import { positiveNumberEnv } from "./config.js";
 
 let passed = 0;
