@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-runtime-parity-comment-bridge",
+  "title": "Governed current Production runtime parity comment bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-runtime-parity-comment-bridge.json",
+      ".github/workflows/production-runtime-parity-comment-bridge.yml",
+      "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
+      "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+      "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose one registered, secret-free, issue-comment-triggered route for executing the existing canonical Production runtime parity reporter against the exact current protected Production SHA when direct workflow_dispatch is unavailable to the governed repository connector.",
+      "e2e_journeys": [
+        {
+          "id": "run-current-production-runtime-parity-from-governed-incident-comment",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner on the open Production incident",
+          "entrypoint": "An exact RUN_PRODUCTION_RUNTIME_PARITY comment on issue 4953 containing current protected Production and main tooling SHAs",
+          "terminal_outcome": "The workflow verifies immutable repository bindings, executes the canonical auth.mad4b.com public runtime parity reporter from exact current main tooling, uploads bounded evidence, and passes only when the exact Production SHA and branch identity are live.",
+          "steps": [
+            "Accept only issue_comment created events on open non-PR issue 4953 from repository user ID 271942579 with an OWNER, MEMBER, or COLLABORATOR association.",
+            "Parse exactly one lowercase 40-character expected Production SHA and one lowercase 40-character tooling SHA; reject missing, additional, uppercase, malformed, or URL-bearing input.",
+            "Checkout the exact requested tooling SHA without persisted credentials.",
+            "Require the requested tooling SHA to equal current protected main and the requested expected SHA to equal current protected Production.",
+            "Run the existing canonical runtime parity reporter contract test.",
+            "Probe only the fixed public HTTPS endpoint auth.mad4b.com/version using the canonical reporter.",
+            "Upload bounded structured evidence and fail closed unless exact SHA, Production branch, service identity, DNS, TLS, HTTP, and no-side-effect assertions pass."
+          ],
+          "assertions": [
+            "The bridge has contents read and issues read only and declares no write permission.",
+            "No workflow_dispatch, pull_request_target, push, schedule, deployment, arbitrary URL, secret, credential, provider mutation, build creation, deployment, activation, restart, SQL, Migration Apply, database mutation, repository mutation, or external send authority is introduced.",
+            "The runtime endpoint is fixed to https://auth.mad4b.com/version and cannot be supplied by the comment.",
+            "Both main tooling and Production identities are reread from protected refs before the public request.",
+            "The existing mad4b.production-runtime-parity-evidence.v1 reporter remains the only runtime parity implementation.",
+            "The artifact declares secrets_included=false and all mutation/effect flags false."
+          ],
+          "tests": [
+            {"id":"production-runtime-parity-comment-bridge-contract","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-comment-bridge.mjs","args":[]},
+            {"id":"production-runtime-parity-canonical-reporter","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-evidence.mjs","args":[]}
+          ],
+          "evidence_paths": [
+            ".github/workflows/production-runtime-parity-comment-bridge.yml",
+            "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
+            "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
+            "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {"id":"operational","status":"planned","objective":"Execute one exact run for the current protected Production SHA and attach the run-bound classification to incident 4953 without mutating the provider or runtime."},
+    {"id":"resilient","status":"planned","objective":"Keep replay, stale main, stale Production, malformed comments, unauthorized actors, unavailable artifacts, DNS/TLS/HTTP failures, and identity mismatch fail-closed."},
+    {"id":"canary","status":"not_applicable","objective":"This bridge probes only the current protected Production identity and introduces no deployment or canary authority."},
+    {"id":"production","status":"planned","objective":"Require a passing exact-sha parity Artifact after every protected Production promotion before declaring Hostinger runtime activation complete."}
+  ],
+  "secrets_included": false
+}
