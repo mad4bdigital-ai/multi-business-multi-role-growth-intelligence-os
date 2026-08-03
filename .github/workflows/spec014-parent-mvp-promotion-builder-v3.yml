@@ -1,0 +1,205 @@
+name: Spec 014 Parent MVP Promotion Builder V3
+run-name: Spec 014 parent MVP promotion builder V3 · ${{ github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-parent-mvp-promotion-builder-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-parent-mvp-promotion-builder-v3
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Publish one-file parent MVP promotion
+    if: github.event.pull_request.head.ref == 'gpt/014-hostinger/parent-mvp-promotion-builder-v3-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: gpt/014-hostinger/parent-mvp-promotion-reconciliation-v2-20260803
+      INTEGRATION_HEAD: 70ffb7c666b46d0fea534b1d7cb8863dc87f4672
+      CONTRACT_PATH: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+      PROOF_PATH: .changes/e2e/spec014-mvp-convergence-journey.json
+    steps:
+      - name: Checkout clean target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify immutable target base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$INTEGRATION_HEAD"
+          test -z "$(git status --porcelain)"
+
+      - name: Promote parent MVP from integrated success and failure evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+
+          const contractPath = process.env.CONTRACT_PATH;
+          const proofPath = process.env.PROOF_PATH;
+          const document = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const proof = JSON.parse(fs.readFileSync(proofPath, 'utf8'));
+
+          assert.equal(document.feature_key, '014-governed-hostinger-storage-orchestration');
+          assert.equal(document.current_phase, 'mvp');
+          assert.equal(proof.feature_key, 'spec014-mvp-convergence-journey');
+          assert.equal(proof.current_phase, 'mvp');
+
+          const proofMvp = proof.phases.find((phase) => phase.id === 'mvp');
+          assert.equal(proofMvp?.status, 'implemented');
+          const proofJourney = proofMvp.e2e_journeys.find(
+            (journey) => journey.id === 'tenant-storage-request-to-reconciled-readback',
+          );
+          assert.ok(proofJourney);
+          assert.equal(proofJourney.end_to_end, true);
+          assert.equal(proofJourney.level, 'synthetic_runtime');
+          assert.equal(proofJourney.entrypoint, 'POST /tenant/storage-operations/apply-plan');
+          assert.ok(proofJourney.steps.some((step) => step.includes('separate child fixture')));
+          assert.ok(proofJourney.assertions.some((item) => item.includes('unknown-outcome child contract')));
+          for (const requiredPath of [
+            'http-generic-api/test-hostinger-storage-e2e.mjs',
+            'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
+            'http-generic-api/test-hostinger-storage-control-plane-repository.mjs',
+            'http-generic-api/test-hostinger-storage-unknown-outcome.mjs',
+          ]) {
+            assert.ok(proofJourney.evidence_paths.includes(requiredPath), `missing proof path: ${requiredPath}`);
+          }
+
+          const mvp = document.phases.find((phase) => phase.id === 'mvp');
+          assert.ok(mvp);
+          assert.equal(mvp.status, 'blocked');
+          const preservedLaterPhases = JSON.stringify(document.phases.filter((phase) => phase.id !== 'mvp'));
+          const preservedParallelWork = JSON.stringify(document.parallel_work);
+
+          mvp.status = 'implemented';
+          mvp.objective = 'Execute one mounted Tenant storage operation through Context Kernel authority and one canonical repository instance to completed Tenant-safe readback, while separately executing the canonical synthetic unknown-outcome contract to prove reconcile-before-retry, receipt recovery, replay safety, and conflict blocking without provider or Production authority.';
+          mvp.blockers = [];
+          delete mvp.planned_e2e_journey;
+          mvp.e2e_journeys = [
+            {
+              id: 'tenant-storage-request-to-reconciled-readback',
+              end_to_end: true,
+              level: 'synthetic_runtime',
+              actor: 'tenant_workspace_owner',
+              entrypoint: 'POST /tenant/storage-operations/apply-plan',
+              terminal_outcome: 'The exact successful Tenant operation completes in the same canonical repository with consumed immutable plan, append-only approvals, prepared/result/readback journal phases, one reconciliation result, and Tenant-safe response bindings; a separately attributable synthetic executor child contract proves the required failure/retry safety path.',
+              steps: [
+                'Resolve Context Kernel identity and effective resource authority for the exact Tenant, workspace, user, resource, and request.',
+                'Reject request-side authority injection, cross-Tenant access, and expected-SHA drift before mutation.',
+                'Execute the mounted Tenant route using one canonical repository instance, an immutable expected-SHA-bound plan, append-only approval evidence, one-shot enablement, and the fixed synthetic executor.',
+                'Re-read the exact successful operation from the same repository and prove completed state, consumed immutable plan with unchanged bindings, unchanged approval digests, prepared/result/readback journal phases, and one reconciliation result.',
+                'Bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest.',
+                'Execute the canonical synthetic unknown-outcome contract as a separate child fixture and require crash-before-mutation reconciliation to not_applied, crash-after-mutation recovery from receipt, replay-safe reconciliation commit, automatic retry denial before readback, and conflict blocking.',
+                'Keep provider dispatch, live mutation, SQL Apply, schema verification, deployment, Production readiness, and secrets disabled.',
+              ],
+              assertions: [
+                'The mounted successful request and post-request readback use the same repository object and operation ID.',
+                'The immutable plan bindings remain unchanged while its single-use consumed state advances.',
+                'Approval record digests remain append-only and unchanged.',
+                'Prepared, result, and readback journal records persist for the same successful operation, run, and plan.',
+                'Exactly one reconciliation result matches the Tenant-safe response outcome and result digest.',
+                'The Tenant-safe response is bound to the same operation, run, plan, outcome, and result digest.',
+                'The separately attributable unknown-outcome child contract proves read-before-retry, no blind automatic retry, receipt-bound recovery, replay-safe reconciliation, and conflict blocking.',
+                'Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.',
+                'Provider dispatch, live mutation, SQL Apply, schema verification, deployment, Production readiness, and secrets remain false.',
+              ],
+              tests: [
+                {
+                  id: 'hostinger-storage-parent-mvp-success-and-failure-convergence',
+                  runner: 'node',
+                  working_directory: 'http-generic-api',
+                  path: 'test-hostinger-storage-e2e.mjs',
+                  args: [],
+                },
+              ],
+              evidence_paths: [
+                '.changes/e2e/spec014-mvp-convergence-journey.json',
+                'http-generic-api/test-hostinger-storage-e2e.mjs',
+                'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
+                'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs',
+                'http-generic-api/test-hostinger-storage-control-plane-repository.mjs',
+                'http-generic-api/test-hostinger-storage-unknown-outcome.mjs',
+                'http-generic-api/hostingerStorageTenantRuntime.js',
+                'http-generic-api/hostingerStorageSyntheticExecutor.js',
+                'http-generic-api/hostingerStorageControlPlaneRepository.js',
+              ],
+            },
+          ];
+          mvp.safety = {
+            synthetic_only: true,
+            provider_dispatch_allowed: false,
+            production_ready: false,
+            secrets_included: false,
+          };
+
+          assert.equal(
+            JSON.stringify(document.phases.filter((phase) => phase.id !== 'mvp')),
+            preservedLaterPhases,
+          );
+          assert.equal(JSON.stringify(document.parallel_work), preservedParallelWork);
+          fs.writeFileSync(contractPath, `${JSON.stringify(document)}\n`, 'utf8');
+          NODE
+
+      - name: Prove shared successful operation state
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-mvp-shared-operation-state.mjs
+
+      - name: Prove mounted Tenant route contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-tenant-runtime-route.mjs
+
+      - name: Prove durable repository contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-control-plane-repository.mjs
+
+      - name: Prove unknown-outcome reconcile-before-retry contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-unknown-outcome.mjs
+
+      - name: Run exact aggregate MVP journey
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-e2e.mjs
+
+      - name: Enforce one-file final write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git status --short | sed 's/^...//')
+          printf 'changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$CONTRACT_PATH"
+
+      - name: Commit and publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- "$CONTRACT_PATH"
+          git commit -m "feat(spec-014): promote parent MVP with failure evidence"
+          git push origin "HEAD:$TARGET_BRANCH"
