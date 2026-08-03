@@ -1,3 +1,0 @@
-canonical_pr=5908
-candidate_sha=83b7ae3d0c76e895acd2c5e1858443cf9aa0a91b
-never_merge=true
