@@ -12,6 +12,7 @@ import {
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const IDENTITY_AUTHORITY = "deployment_info_coherent_pair";
+const ATTEMPT_JOURNAL_FILE = "hostinger-nodejs-production-restart-attempt.json";
 const DIRECT_SHA_FIELDS = Object.freeze([
   "commit_sha",
   "commit",
@@ -68,8 +69,6 @@ function suppressExpectedIdentity(value, configuration, depth = 0) {
 }
 
 async function rewriteJsonResponse(response, transform) {
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("application/json")) return response;
   let body;
   try {
     body = await response.clone().json();
@@ -79,6 +78,7 @@ async function rewriteJsonResponse(response, transform) {
   const rewritten = transform(body);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
+  if (!headers.get("content-type")) headers.set("content-type", "application/json");
   return new Response(JSON.stringify(rewritten), {
     status: response.status,
     statusText: response.statusText,
@@ -90,12 +90,41 @@ function authorizedRestartPath(configuration) {
   return `/api/hosting/v1/accounts/${encodeURIComponent(configuration.accountUsername)}/websites/${encodeURIComponent(configuration.domain)}/nodejs/server/restart`;
 }
 
+function attemptJournalPath(configuration) {
+  return path.join(configuration.outputDir, ATTEMPT_JOURNAL_FILE);
+}
+
+function persistAttemptJournal(configuration) {
+  fs.mkdirSync(configuration.outputDir, { recursive: true });
+  const journal = {
+    contract: "mad4b.hostinger-nodejs-production-restart-attempt.v1",
+    recorded_at: new Date().toISOString(),
+    expected_sha: configuration.expectedSha,
+    expected_branch: configuration.expectedBranch,
+    expected_build_uuid: configuration.expectedBuildUuid,
+    domain: configuration.domain,
+    provider_method: "POST",
+    provider_path: authorizedRestartPath(configuration),
+    restart_attempted: true,
+    provider_mutation_attempted: true,
+    secrets_included: false,
+  };
+  fs.writeFileSync(
+    attemptJournalPath(configuration),
+    `${JSON.stringify(journal, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+}
+
 export function createCoherentRuntimeFetch(configuration, fetchImpl = fetch, mutationState = { attempted: false }) {
   const restartPath = authorizedRestartPath(configuration);
   return async (url, init = {}) => {
     const method = String(init.method || "GET").toUpperCase();
     const pathname = new URL(String(url)).pathname;
-    if (method === "POST" && pathname === restartPath) mutationState.attempted = true;
+    if (method === "POST" && pathname === restartPath) {
+      persistAttemptJournal(configuration);
+      mutationState.attempted = true;
+    }
 
     const response = await fetchImpl(url, init);
     if (method !== "GET") return response;
