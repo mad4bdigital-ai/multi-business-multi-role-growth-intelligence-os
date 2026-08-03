@@ -1,0 +1,95 @@
+name: Dispatch Authorized Hostinger Build Evidence F5C1AE88
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/dispatch-hostinger-build-evidence-f5c1ae88.yml'
+
+permissions:
+  actions: write
+  contents: read
+  issues: read
+
+concurrency:
+  group: dispatch-hostinger-build-evidence-f5c1ae88
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch trusted-main GET-only evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      ISSUE_NUMBER: '4953'
+      OWNER_ID: '271942579'
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C
+      TARGET_WORKFLOW: hostinger-nodejs-build-evidence.yml
+      TARGET_WORKFLOW_BLOB: 09578a2c9adcd0d1254b345248c33d2ba214d41f
+      EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
+      ACCOUNT_USERNAME: u338416126
+      PRODUCTION_MERGED_AT: '2026-08-03T00:53:07Z'
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate immutable authorization and repository authority
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_state="$(gh api "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.state')"
+          [[ "${issue_state}" == "open" ]]
+
+          authorized_count="$(gh api --paginate "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+            --jq "[.[] | select(.user.id == (${OWNER_ID} | tonumber)) | select(.body | contains(\"${AUTHORIZATION_TOKEN}\"))] | length" \
+            | awk '{ total += $1 } END { print total + 0 }')"
+          [[ "${authorized_count}" -ge 1 ]]
+
+          git fetch origin main Production --no-tags
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "${production_sha}" == "${EXPECTED_PRODUCTION_SHA}" ]]
+
+          target_blob="$(git rev-parse "refs/remotes/origin/main:.github/workflows/${TARGET_WORKFLOW}")"
+          [[ "${target_blob}" == "${TARGET_WORKFLOW_BLOB}" ]]
+
+      - name: Dispatch trusted main workflow
+        id: dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh api \
+            --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/dispatches" \
+            -f ref='main' \
+            -f "inputs[account_username]=${ACCOUNT_USERNAME}" \
+            -f "inputs[expected_sha]=${EXPECTED_PRODUCTION_SHA}" \
+            -f "inputs[production_merged_at]=${PRODUCTION_MERGED_AT}"
+          echo "dispatched_at=${dispatched_at}" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve dispatched run
+        shell: bash
+        env:
+          DISPATCHED_AT: ${{ steps.dispatch.outputs.dispatched_at }}
+        run: |
+          set -euo pipefail
+          run_id=''
+          for attempt in $(seq 1 30); do
+            run_id="$(gh api "repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=main&per_page=20" \
+              --jq ".workflow_runs | map(select(.created_at >= \"${DISPATCHED_AT}\")) | sort_by(.created_at) | reverse | .[0].id // empty")"
+            if [[ -n "${run_id}" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          [[ -n "${run_id}" ]]
+          echo "Authorized Hostinger evidence workflow dispatched: run ${run_id}"
+          echo "Target: Production@${EXPECTED_PRODUCTION_SHA}"
+          echo "Provider operation: GET only"
