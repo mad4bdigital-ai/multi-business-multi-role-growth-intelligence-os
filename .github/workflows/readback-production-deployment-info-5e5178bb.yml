@@ -1,0 +1,281 @@
+name: Read Back Production Deployment Info 5E5178BB
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/readback-production-deployment-info-5e5178bb.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: readback-production-deployment-info-5e5178bb
+  cancel-in-progress: false
+
+jobs:
+  public-get-only-topology:
+    name: Public GET-only Production topology readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/readback-production-deployment-info-5e5178bb-20260803' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
+      EXPECTED_BRANCH: Production
+      EXPECTED_DEPLOYED_AFTER: '2026-08-03T06:16:38Z'
+      REPORT_DIR: ${{ runner.temp }}/production-deployment-info-evidence
+    steps:
+      - name: Verify current protected authority
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          test "${PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
+          MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "${MAIN_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          echo "main_sha=${MAIN_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Collect bounded public topology evidence
+        id: collect
+        continue-on-error: true
+        env:
+          MAIN_SHA: ${{ steps.authority.outputs.main_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+
+          const expectedSha = process.env.EXPECTED_PRODUCTION_SHA;
+          const expectedBranch = process.env.EXPECTED_BRANCH;
+          const expectedAfter = process.env.EXPECTED_DEPLOYED_AFTER;
+          const outputDir = process.env.REPORT_DIR;
+          const maxBytes = 64 * 1024;
+          const sensitiveKey = /(authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential)/i;
+
+          function sanitize(value, depth = 0) {
+            if (depth > 8) return '[MAX_DEPTH]';
+            if (Array.isArray(value)) return value.slice(0, 100).map((item) => sanitize(item, depth + 1));
+            if (value && typeof value === 'object') {
+              const out = {};
+              for (const [key, item] of Object.entries(value).slice(0, 200)) {
+                out[key] = sensitiveKey.test(key) ? '[REDACTED]' : sanitize(item, depth + 1);
+              }
+              return out;
+            }
+            if (typeof value === 'string') {
+              return value
+                .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
+                .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED_JWT]')
+                .slice(0, 12000);
+            }
+            return value;
+          }
+
+          async function fetchEndpoint(name, url) {
+            const started = Date.now();
+            try {
+              const response = await fetch(url, {
+                method: 'GET',
+                headers: { accept: 'application/json' },
+                redirect: 'error',
+                signal: AbortSignal.timeout(20000),
+              });
+              const buffer = Buffer.from(await response.arrayBuffer());
+              if (buffer.length > maxBytes) throw new Error(`response_too_large:${buffer.length}`);
+              const text = buffer.toString('utf8');
+              let parsed = null;
+              let parseError = null;
+              try { parsed = text ? JSON.parse(text) : null; } catch (error) { parseError = String(error?.message || error); }
+              return {
+                name,
+                url,
+                ok: response.ok,
+                http_status: response.status,
+                content_type: response.headers.get('content-type'),
+                body_bytes: buffer.length,
+                body_sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+                redirected: response.redirected,
+                duration_ms: Date.now() - started,
+                parse_error: parseError,
+                body: sanitize(parsed ?? text),
+              };
+            } catch (error) {
+              return {
+                name,
+                url,
+                ok: false,
+                http_status: 0,
+                content_type: null,
+                body_bytes: 0,
+                body_sha256: null,
+                redirected: false,
+                duration_ms: Date.now() - started,
+                parse_error: String(error?.message || error).slice(0, 1000),
+                body: null,
+              };
+            }
+          }
+
+          const endpoints = await Promise.all([
+            fetchEndpoint('health', 'https://auth.mad4b.com/health'),
+            fetchEndpoint('version', 'https://auth.mad4b.com/version'),
+            fetchEndpoint('deployment_info', 'https://auth.mad4b.com/deployment-info'),
+            fetchEndpoint('connector_agent_version', 'https://auth.mad4b.com/connector-agent/version'),
+          ]);
+
+          const byName = Object.fromEntries(endpoints.map((item) => [item.name, item]));
+          const direct = byName.deployment_info?.body && typeof byName.deployment_info.body === 'object' && !Array.isArray(byName.deployment_info.body)
+            ? byName.deployment_info.body
+            : {};
+          const pickDirect = (keys) => {
+            for (const key of keys) {
+              const value = direct[key];
+              if (typeof value === 'string' && value.trim()) return { key, value: value.trim() };
+            }
+            return { key: null, value: null };
+          };
+          const branch = pickDirect(['branch', 'deployment_branch', 'git_branch', 'source_branch']);
+          const sha = pickDirect(['commit_sha', 'deployed_commit_sha', 'git_sha', 'sha']);
+          const deployedAt = pickDirect(['deployed_at', 'deployment_timestamp', 'deployment_time', 'manifest_generated_at', 'generated_at', 'updated_at']);
+          const releasePath = pickDirect(['release_path', 'release_directory', 'deployment_path', 'manifest_path', 'deployment_manifest_path']);
+
+          const timestampMs = deployedAt.value ? Date.parse(deployedAt.value) : Number.NaN;
+          const expectedAfterMs = Date.parse(expectedAfter);
+          const checks = {
+            health_http_ok: byName.health?.http_status === 200,
+            version_http_ok: byName.version?.http_status === 200,
+            deployment_info_http_ok: byName.deployment_info?.http_status === 200,
+            connector_agent_http_ok: byName.connector_agent_version?.http_status === 200,
+            deployment_info_branch_exact: branch.value === expectedBranch,
+            deployment_info_sha_exact: sha.value === expectedSha,
+            deployment_timestamp_present: Boolean(deployedAt.value),
+            deployment_timestamp_current: Number.isFinite(timestampMs) && timestampMs >= expectedAfterMs,
+          };
+
+          let outcome = 'passed';
+          let firstFailure = null;
+          const ordered = [
+            ['health_http_ok', 'health_http_failed'],
+            ['version_http_ok', 'version_http_failed'],
+            ['deployment_info_http_ok', 'deployment_info_http_failed'],
+            ['connector_agent_http_ok', 'connector_agent_http_failed'],
+            ['deployment_info_branch_exact', 'deployment_info_branch_mismatch'],
+            ['deployment_info_sha_exact', 'deployment_info_sha_mismatch'],
+            ['deployment_timestamp_present', 'deployment_timestamp_missing'],
+            ['deployment_timestamp_current', 'deployment_timestamp_stale'],
+          ];
+          for (const [check, code] of ordered) {
+            if (!checks[check]) {
+              outcome = 'failed';
+              firstFailure = { code, check };
+              break;
+            }
+          }
+
+          const report = {
+            contract: 'mad4b.production-deployment-info-evidence.v1',
+            generated_at: new Date().toISOString(),
+            identity: {
+              repository: process.env.REPOSITORY,
+              issue: Number(process.env.CONTROL_ISSUE),
+              current_main_sha: process.env.MAIN_SHA,
+              expected_production_sha: expectedSha,
+              expected_branch: expectedBranch,
+              expected_deployed_after: expectedAfter,
+              workflow_run_id: process.env.GITHUB_RUN_ID,
+              pull_request: Number(process.env.GITHUB_REF_NAME?.split('/')[0]) || null,
+            },
+            outcome,
+            first_failure: firstFailure,
+            coherent_direct_top_level_identity: {
+              branch_key: branch.key,
+              branch: branch.value,
+              sha_key: sha.key,
+              sha: sha.value,
+              deployed_at_key: deployedAt.key,
+              deployed_at: deployedAt.value,
+              release_path_key: releasePath.key,
+              release_path: releasePath.value,
+            },
+            checks,
+            endpoints,
+            side_effects: {
+              repository_mutation_performed: false,
+              provider_dispatch_performed: false,
+              credential_access_performed: false,
+              provider_mutation_performed: false,
+              deployment_performed: false,
+              restart_performed: false,
+              sql_execution_performed: false,
+              migration_apply_performed: false,
+              database_mutation_performed: false,
+              external_send_performed: false,
+            },
+            secrets_included: false,
+          };
+
+          fs.writeFileSync(path.join(outputDir, 'production-deployment-info-evidence.json'), JSON.stringify(report, null, 2));
+          fs.writeFileSync(path.join(outputDir, 'production-deployment-info-evidence.md'), [
+            '# Production Deployment Info Evidence',
+            '',
+            `- Outcome: **${outcome}**`,
+            `- Expected Production SHA: \`${expectedSha}\``,
+            `- Deployment-info branch: \`${branch.value ?? 'unavailable'}\``,
+            `- Deployment-info SHA: \`${sha.value ?? 'unavailable'}\``,
+            `- Deployment timestamp: \`${deployedAt.value ?? 'unavailable'}\``,
+            `- Release path: \`${releasePath.value ?? 'unavailable'}\``,
+            `- First failure: \`${firstFailure?.code ?? 'none'}\``,
+            '- Secrets included: `false`',
+            '',
+          ].join('\n'));
+          NODE
+
+      - name: Upload structured topology evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-info-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-deployment-info-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce coherent deployment-info decision
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const reportPath = path.join(process.env.REPORT_DIR, 'production-deployment-info-evidence.json');
+          const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+          const effects = report.side_effects || {};
+          const safe =
+            report.contract === 'mad4b.production-deployment-info-evidence.v1' &&
+            report.identity?.expected_production_sha === process.env.EXPECTED_PRODUCTION_SHA &&
+            report.identity?.expected_branch === 'Production' &&
+            report.secrets_included === false &&
+            Object.values(effects).every((value) => value === false);
+          if (!safe) throw new Error('invalid topology evidence contract');
+          console.log(JSON.stringify({
+            outcome: report.outcome,
+            first_failure: report.first_failure,
+            identity: report.coherent_direct_top_level_identity,
+            checks: report.checks,
+            secrets_included: false,
+          }));
+          if (report.outcome !== 'passed') process.exit(1);
+          NODE
