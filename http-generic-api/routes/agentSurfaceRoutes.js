@@ -8,7 +8,7 @@ async function membership(pool, req) { const params = [req.auth.user_id]; let te
 function sendError(res, error, code) { return res.status(error.status || 500).json({ ok: false, error: { code: error.code || code, message: error.message, ...(error.details !== undefined ? { details: error.details } : {}) }, secrets_included: false }); }
 export function buildAgentSurfaceRoutes(deps = {}) {
   const router = Router();
-  const pool = deps.pool || { query: (...args) => getPool().query(...args) };
+  const pool = deps.pool || getPool();
   router.get("/me/agent-surfaces/catalog", requireUserJwt, async (req, res) => { try { const member = await membership(pool, req); return res.json({ ok: true, tenant_id: member.tenant_id, user_id: req.auth.user_id, catalog: agentSurfaceCatalog(), secrets_included: false }); } catch (error) { return sendError(res, error, "agent_surface_catalog_failed"); } });
   router.get("/me/agent-surfaces", requireUserJwt, async (req, res) => { try { const member = await membership(pool, req); return res.json({ ok: true, catalog: agentSurfaceCatalog(), ...await assessTenantAgentSurfaceReadiness({ tenantId: member.tenant_id, userId: req.auth.user_id, pool }), secrets_included: false }); } catch (error) { return sendError(res, error, "agent_surfaces_read_failed"); } });
   router.get("/me/agent-surfaces/readiness", requireUserJwt, async (req, res) => { try { const member = await membership(pool, req); return res.json({ ok: true, ...await assessTenantAgentSurfaceReadiness({ tenantId: member.tenant_id, userId: req.auth.user_id, pool }), secrets_included: false }); } catch (error) { return sendError(res, error, "agent_surface_readiness_failed"); } });
