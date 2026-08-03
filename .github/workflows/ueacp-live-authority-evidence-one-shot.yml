@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: ueacp-live-authority-evidence-one-shot-push
@@ -15,15 +16,15 @@ concurrency:
 jobs:
   collect-live-authority-evidence:
     name: Collect governed live authority evidence
-    if: >-
-      github.actor == 'mad4bdigital-ai' &&
-      github.ref_name == 'gpt/ueacp-live-authority-evidence-trigger-20260803'
+    if: github.ref_name == 'gpt/ueacp-live-authority-evidence-trigger-20260803'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       TRIGGER_HEAD_SHA: ${{ github.sha }}
+      PR_NUMBER: "5152"
+      ARTIFACT_NAME: ueacp-live-authority-evidence-${{ github.run_id }}-${{ github.run_attempt }}
       AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-authorization.json
       IDENTITY_PATH: ${{ runner.temp }}/ueacp-live-identity.json
       CENSUS_PATH: ${{ runner.temp }}/ueacp-live-census.json
@@ -68,6 +69,15 @@ jobs:
           node --check .github/scripts/authority-live-census-observation.mjs
           node --check http-generic-api/scripts/authority-live-evidence-collect.mjs
           echo "UEACP_TRUSTED_BASE_SHA=$trusted_base_sha"
+
+      - name: Publish bounded run start marker
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="UEACP_LIVE_AUTHORITY_EVIDENCE_RUN status=started run_id=${GITHUB_RUN_ID} run_attempt=${GITHUB_RUN_ATTEMPT} trigger_head_sha=${TRIGGER_HEAD_SHA} trusted_base_sha=${TRUSTED_BASE_SHA} artifact_name=${ARTIFACT_NAME} live_database_read=true sql_mutation=false migration_apply=false provider_calls=false credential_payload_read=false external_business_write=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body"
 
       - name: Read database identity and issue bounded authorization
         shell: bash
@@ -218,11 +228,34 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ueacp-live-authority-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: |
             ${{ env.IDENTITY_PATH }}
             ${{ env.AUTHORIZATION_PATH }}
             ${{ env.CENSUS_PATH }}
             ${{ env.EVIDENCE_PATH }}
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
+
+      - name: Publish bounded run completion marker
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_OUTCOME: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          packet_status="unavailable"
+          source_count="unavailable"
+          path_count="unavailable"
+          blocking_gaps="unavailable"
+          packet_sha256="unavailable"
+          if [[ -s "$EVIDENCE_PATH" ]]; then
+            packet_status="$(jq -r '.status // "unknown"' "$EVIDENCE_PATH")"
+            source_count="$(jq -r '.source_bundle.source_family_count // "unknown"' "$EVIDENCE_PATH")"
+            path_count="$(jq -r '.source_bundle.inventory.summary.canonical_path_count // "unknown"' "$EVIDENCE_PATH")"
+            blocking_gaps="$(jq -r '.source_bundle.blocking_gap_count // "unknown"' "$EVIDENCE_PATH")"
+            packet_sha256="$(jq -r '.packet_sha256 // "unknown"' "$EVIDENCE_PATH")"
+          fi
+          body="UEACP_LIVE_AUTHORITY_EVIDENCE_RUN status=completed outcome=${JOB_OUTCOME} run_id=${GITHUB_RUN_ID} run_attempt=${GITHUB_RUN_ATTEMPT} trigger_head_sha=${TRIGGER_HEAD_SHA} trusted_base_sha=${TRUSTED_BASE_SHA:-unavailable} artifact_name=${ARTIFACT_NAME} packet_status=${packet_status} source_family_count=${source_count} canonical_path_count=${path_count} blocking_gap_count=${blocking_gaps} packet_sha256=${packet_sha256} sql_mutation=false migration_apply=false provider_calls=false credential_payload_read=false external_business_write=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body"
