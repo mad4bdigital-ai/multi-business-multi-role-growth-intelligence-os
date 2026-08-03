@@ -1,0 +1,124 @@
+name: Surface Callability Main Reconcile Once
+
+on:
+  push:
+    branches:
+      - gpt/surface-callability-main-clean-20260803
+    paths:
+      - .github/workflows/surface-callability-main-reconcile-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-callability-main-reconcile-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out current-main branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/surface-callability-main-clean-20260803
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply verified product commit without committing
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            git fetch origin gpt/surface-callability-wave1-clean-20260731
+            git cherry-pick --no-commit 2300ddefb99f04af42e5215f7584507e0935d850
+            git status --short
+          } 2>&1 | tee surface-main-reconcile.log
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate current-main Surface evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            npm run frontend:dispatch:generate
+            node scripts/surface-callability-closure/generate_closure_contracts.mjs
+            node scripts/surface-contract-discovery.mjs --write
+          } 2>&1 | tee -a ../surface-main-reconcile.log
+
+      - name: Validate reconciled contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            node --check routes/tenantLifecycleRoutes.js
+            node --check routes/workspaceResourceRoutes.js
+            node --check routes/tenantInfrastructureRoutes.js
+            node --check routes/agentSurfaceRoutes.js
+            node --check agentSurfaceRuntimeService.js
+            node --check scripts/resource-api-callability-contracts.mjs
+            node --check scripts/surface-contract-sql-registry-extractor.mjs
+            node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+            node test-surface-contract-sql-registry-extractor.mjs
+            node test-resource-api-callability-effect-classes.mjs
+            node test-resource-api-coverage.mjs
+            node test-multi-surface-agent-runtime.mjs
+            node test-tenant-database-query-readonly.mjs
+            node test-tenant-ssh-cli-allowlisted-execute.mjs
+            node test-surface-callability-full-closure.mjs
+          } 2>&1 | tee -a ../surface-main-reconcile.log
+
+      - name: Enforce queue zero and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const queue = JSON.parse(fs.readFileSync('docs/surface-contract-gap-queue.json', 'utf8'));
+          if (queue.total_items !== 0 || (queue.top_items || []).length !== 0) {
+            console.error(JSON.stringify(queue, null, 2));
+            process.exit(1);
+          }
+          NODE
+          test -z "$(find http-generic-api/scripts/surface-callability-closure -maxdepth 1 -name 'patch_*.py' -print -quit)"
+          test ! -e docs/.surface-coverage-diagnostic-trigger
+          rm -f .github/workflows/surface-callability-main-reconcile-once.yml
+          git diff --check
+          git status --short | tee -a surface-main-reconcile.log
+
+      - name: Commit reconciled product result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: reconcile verified Surface closure onto current main'
+          git push origin HEAD:gpt/surface-callability-main-clean-20260803
+
+      - name: Upload reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-callability-main-reconcile
+          path: |
+            surface-main-reconcile.log
+            docs/surface-contract-gap-queue.json
+            docs/surface-contract-discovery-status.json
+            http-generic-api/resource-api-surface-callability.manifest.json
+          if-no-files-found: warn
+          retention-days: 14
