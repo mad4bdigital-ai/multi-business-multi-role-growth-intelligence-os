@@ -1,0 +1,138 @@
+name: Incident 5021 exact-head approval guard builder v3
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/draft-merge-guard-v2-20260803
+    paths:
+      - .github/workflows/incident-5021-exact-head-approval-builder-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-5021-exact-head-approval-builder-v3
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish anchor-safe exact-head approval candidate
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-20260803
+      EXPECTED_TARGET_SHA: 2c89cc14d8a38a09034f0306eccff273234046e2
+      SOURCE_WORKFLOW: .github/workflows/incident-5021-exact-head-approval-builder.yml
+    steps:
+      - name: Checkout immutable target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify target and fetch bounded patch source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$BUILDER_BRANCH"
+
+      - name: Build and execute anchor-safe patch script
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import textwrap
+
+          builder_branch = "gpt/incident-5021/exact-head-approval-guard-builder-20260803"
+          workflow_path = ".github/workflows/incident-5021-exact-head-approval-builder.yml"
+          raw = subprocess.check_output(
+              ["git", "show", f"origin/{builder_branch}:{workflow_path}"],
+              text=True,
+          )
+          start_marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = raw.find(start_marker)
+          if start < 0:
+              raise SystemExit("original builder python start marker missing")
+          start += len(start_marker)
+          end = raw.find(end_marker, start)
+          if end < 0:
+              raise SystemExit("original builder python end marker missing")
+          script = textwrap.dedent(raw[start:end])
+
+          replacement_call = 'lifecycle = replace_once(lifecycle, old_finalize, new_finalize, "finalizer approval gate")'
+          if script.count(replacement_call) != 1:
+              raise SystemExit("finalizer replacement call count mismatch")
+
+          anchor_safe_call = r'''finalizer_start_anchor = '  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;\n'
+          finalizer_merge_anchor = '  const merge = await githubLifecycleRequest({\n'
+          if lifecycle.count(finalizer_start_anchor) != 1:
+              raise SystemExit(f"finalizer start anchor: expected exactly one match, found {lifecycle.count(finalizer_start_anchor)}")
+          finalizer_start = lifecycle.index(finalizer_start_anchor)
+          finalizer_merge = lifecycle.find(finalizer_merge_anchor, finalizer_start + len(finalizer_start_anchor))
+          if finalizer_merge < 0:
+              raise SystemExit("finalizer merge anchor missing after PR readback")
+          old_finalize = lifecycle[finalizer_start:finalizer_merge + len(finalizer_merge_anchor)]
+          lifecycle = replace_once(lifecycle, old_finalize, new_finalize, "finalizer approval gate")'''
+          script = script.replace(replacement_call, anchor_safe_call, 1)
+          compile(script, "/tmp/incident-5021-builder-v3.py", "exec")
+          Path("/tmp/incident-5021-builder-v3.py").write_text(script)
+          print("anchor-safe patch script compiled")
+          PY
+          python /tmp/incident-5021-builder-v3.py
+
+      - name: Run focused lifecycle and capability tests
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-gpt-tools-route-syntax-regression.mjs
+
+      - name: Enforce exact six-file candidate boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_TARGET_SHA" -- | sort)
+          expected=(
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json
+            http-generic-api/githubRepositoryLifecycle.js
+            http-generic-api/openapi/operation-capability-lifecycle.yaml
+            http-generic-api/operationCapabilityLifecycleService.js
+            http-generic-api/test-github-repository-lifecycle.mjs
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+          test "${#changed[@]}" -eq 6
+
+      - name: Commit and publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/githubRepositoryLifecycle.js \
+            http-generic-api/openapi/operation-capability-lifecycle.yaml \
+            http-generic-api/operationCapabilityLifecycleService.js \
+            http-generic-api/test-github-repository-lifecycle.mjs \
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          git commit -m "fix(github): require exact-head human approval"
+          test "$(git status --porcelain)" = ""
+          git push origin "HEAD:${TARGET_BRANCH}"
