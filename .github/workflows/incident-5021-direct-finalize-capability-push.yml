@@ -94,3 +94,5 @@ jobs:
           path: /tmp/incident-5021-direct-finalize-result.json
           if-no-files-found: warn
           retention-days: 7
+
+# Triggered after the workflow definition already existed on the branch.
