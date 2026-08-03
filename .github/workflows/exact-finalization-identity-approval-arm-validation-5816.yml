@@ -1,156 +1,124 @@
-name: Exact Spec 014 Schema Scope ARM Validation 5840
+name: Patch R6 Production Binding 42177d36
 
 on:
   pull_request:
     branches:
       - gpt/validate-finalization-identity-approval-arm-base-4a049185
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: exact-spec014-schema-scope-arm-validation-5840-${{ github.event.pull_request.number }}
+  group: patch-r6-production-binding-42177d36-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  exact-candidate:
-    name: Exact Spec 014 Schema Scope Full Validation
+  patch:
+    name: Apply exact R6 binding patch
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/fix-spec014-schema-contract-rule-scope-db55d091-20260804' &&
-      github.event.pull_request.head.sha == '5e2ba315cb78ec733855604d70f8300598fceb87'
+      github.event.pull_request.head.ref == 'gpt/r6-bind-production-42177d36-20260804'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 10
     env:
-      EXPECTED_MAIN_SHA: db55d091f755abd00df2fe6b36cb4d3dedc0849a
-      EXPECTED_HEAD_SHA: 5e2ba315cb78ec733855604d70f8300598fceb87
-      EXPECTED_HEAD_REF: gpt/fix-spec014-schema-contract-rule-scope-db55d091-20260804
+      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
+      HEAD_REF: gpt/r6-bind-production-42177d36-20260804
+      WORKFLOW_PATH: .github/workflows/hostinger-production-release-evidence-r6.yml
+      OLD_AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R6
+      NEW_AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_42177D36_6134C0F8_R6
+      OLD_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      NEW_PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      OLD_MERGED_AT: '2026-08-03T10:14:37Z'
+      NEW_MERGED_AT: '2026-08-03T22:37:32Z'
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact work branch
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
-
-      - name: Verify immutable identity and exact scope
+      - name: Verify current main and branch lease
         shell: bash
         run: |
-          set -euo pipefail
-          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 1
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}^")" = "${EXPECTED_MAIN_SHA}"
-          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
-          test "${#files[@]}" -eq 1
-          test "${files[0]}" = '.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs")" = 'fb3efd665a9640153647d9b78cf96ce4a67eb46e'
+          test "$(git rev-parse refs/remotes/origin/${HEAD_REF})" = "$(git rev-parse HEAD)"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" HEAD)" = "${EXPECTED_MAIN_SHA}"
 
-      - name: Run canonical syntax and governance checks
+      - name: Apply exact three-value binding patch
+        id: patch
         shell: bash
         run: |
-          set -euo pipefail
-          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          node http-generic-api/scripts/user-jwt-auth-governance.mjs
-          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node --check find-canonical-domain.mjs
-          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
-          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['WORKFLOW_PATH'])
+          text = path.read_text()
+          replacements = [
+              (os.environ['OLD_AUTHORIZATION_TOKEN'], os.environ['NEW_AUTHORIZATION_TOKEN']),
+              (os.environ['OLD_PRODUCTION_SHA'], os.environ['NEW_PRODUCTION_SHA']),
+              (os.environ['OLD_MERGED_AT'], os.environ['NEW_MERGED_AT']),
+          ]
+          old_present = [text.count(old) for old, _ in replacements]
+          new_present = [text.count(new) for _, new in replacements]
+          if old_present == [0, 0, 0] and all(count >= 1 for count in new_present):
+              print('R6 binding already patched; no mutation required.')
+              Path('/tmp/r6-already-patched').write_text('true\n')
+              raise SystemExit(0)
+          if old_present != [1, 1, 1]:
+              raise SystemExit(f'Unexpected old binding cardinality: {old_present}')
+          for old, new in replacements:
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+
+          if [[ -f /tmp/r6-already-patched ]]; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+          test -z "$(git diff --name-only | grep -vFx "${WORKFLOW_PATH}" || true)"
+          test "$(git diff --name-only)" = "${WORKFLOW_PATH}"
           git diff --check
+          grep -Fq "${NEW_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
+          grep -Fq "EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          grep -Fq "PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
+          ! grep -Fq "${OLD_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
+          ! grep -Fq "EXPECTED_PRODUCTION_SHA: ${OLD_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          ! grep -Fq "PRODUCTION_MERGED_AT: '${OLD_MERGED_AT}'" "${WORKFLOW_PATH}"
 
-      - name: Install HTTP API dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Run complete Unit and Integration suite with exact provenance
-        working-directory: http-generic-api
-        shell: bash
-        env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: |
-          set -euo pipefail
-          actual_sha="$(git rev-parse HEAD)"
-          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
-          GITHUB_SHA="$actual_sha" npm test
-
-      - name: Verify exact test report provenance
+      - name: Commit exact binding patch
+        if: steps.patch.outputs.changed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          for report in \
-            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
-            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
-            test -f "$report"
-            test "$(jq -r '.status' "$report")" = 'passed'
-            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
-            test "$(jq -r '.firstFailure' "$report")" = 'null'
-            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
-          done
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${WORKFLOW_PATH}"
+          test "$(git diff --cached --name-only)" = "${WORKFLOW_PATH}"
+          git commit -m 'chore(r6): bind release evidence to Production 42177d36'
 
-      - name: Prove runtime startup and deployment evidence
-        working-directory: http-generic-api
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
-          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
-        run: |
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
-
-      - name: Install root dependencies and run Execution Resolver Gate
-        run: |
-          set -euo pipefail
-          npm ci
-          npm run typecheck
-          npm test -- --runInBand
-
-      - name: Run Architecture Drift Detection
-        working-directory: http-generic-api
-        run: npm run validate
-
-      - name: Run exact E2E phase evaluation and execution
+      - name: Push without force after remote readback
+        if: steps.patch.outputs.changed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+          set -Eeuo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/${HEAD_REF}" | awk '{print $1}')"
+          test "${remote_sha}" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:refs/heads/${HEAD_REF}"
 
-      - name: Publish exact no-secret summary
-        if: always()
+      - name: Final readback
         shell: bash
         run: |
-          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.exact-spec014-schema-scope-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,test_report_provenance_verified:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${RUNNER_TEMP}/exact-spec014-schema-scope-arm-validation-summary.json"
-
-      - name: Upload exact validation evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: exact-spec014-schema-scope-arm-validation-5840-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/exact-spec014-schema-scope-arm-validation-summary.json
-            ${{ runner.temp }}/e2e-phase-*.json
-            ${{ runner.temp }}/test-suite-reports/*.json
-          if-no-files-found: warn
-          retention-days: 14
+          set -Eeuo pipefail
+          test -z "$(git status --porcelain)"
+          grep -Fq "${NEW_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
+          grep -Fq "EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          grep -Fq "PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
