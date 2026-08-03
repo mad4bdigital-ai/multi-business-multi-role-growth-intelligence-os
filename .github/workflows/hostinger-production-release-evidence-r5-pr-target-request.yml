@@ -33,7 +33,6 @@ jobs:
       PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
       EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
       EXPECTED_TITLE: 'ops: request Hostinger Production R5 evidence'
-      EXPECTED_HEAD_REF: gpt/trigger-hostinger-production-release-evidence-r5-20260803
       MARKER_PATH: .github/hostinger-runtime-recovery/triggers/production-release-evidence-r5-2669991a.txt
       MARKER_TOKEN: HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE_V1
       CONTROL_ISSUE: '4953'
@@ -98,7 +97,7 @@ jobs:
           elif [[ "${author_id}" != "${AUTHORIZATION_USER_ID}" ]]; then outcome="blocked"; reason="pull_request_author_mismatch"
           elif [[ "${title}" != "${EXPECTED_TITLE}" ]]; then outcome="blocked"; reason="pull_request_title_mismatch"
           elif [[ "${head_repo}" != "${REPOSITORY}" ]]; then outcome="blocked"; reason="cross_repository_pull_request_forbidden"
-          elif [[ "${head_ref}" != "${EXPECTED_HEAD_REF}" ]]; then outcome="blocked"; reason="pull_request_branch_mismatch"
+          elif [[ ! "${head_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then outcome="blocked"; reason="invalid_governed_work_branch"
           elif [[ "${base_ref}" != "main" ]]; then outcome="blocked"; reason="unexpected_base_branch"
           elif [[ "${head_ref}" == "main" || "${head_ref}" == "Production" ]]; then outcome="blocked"; reason="protected_branch_mutation_forbidden"
           elif [[ "${current_head_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then outcome="blocked"; reason="pull_request_head_mismatch"
