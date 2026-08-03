@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: tmp-certified-release-arm-validation-d5e380fd
@@ -31,6 +32,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
+      GH_TOKEN: ${{ github.token }}
+      TRIGGER_PR: '5175'
       CANDIDATE_SHA: 15f196419a3bc75930ae393117355f7866687eeb
       CERTIFIED_CUT_SHA: d5e380fd23ae788890ff2f727278a66756a0e094
       EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
@@ -38,6 +41,11 @@ jobs:
       CERTIFIED_BASE_BRANCH: gpt/validate-certified-release-base-20260803-d5e380fd-v1
       REPORT_DIR: ${{ runner.temp }}/certified-release-arm-validation
     steps:
+      - name: Record ARM certification start
+        shell: bash
+        run: |
+          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_ARM_ONE_SHOT phase=started run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} runner_pool=ubuntu-24.04-arm code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+
       - name: Checkout exact immutable candidate
         uses: actions/checkout@v5
         with:
@@ -159,3 +167,11 @@ jobs:
             ${{ runner.temp }}/test-suite-reports/*.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record ARM certification completion
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          gh pr comment "$TRIGGER_PR" --repo "$GITHUB_REPOSITORY" --body "CERTIFIED_RELEASE_ARM_ONE_SHOT phase=completed run_id=${GITHUB_RUN_ID} attempt=${GITHUB_RUN_ATTEMPT} job_status=${JOB_STATUS} candidate_sha=${CANDIDATE_SHA} certified_cut_sha=${CERTIFIED_CUT_SHA} production_sha=${EXPECTED_PRODUCTION_SHA} artifact=certified-release-arm-d5e380fd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT} code_or_ref_mutation=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
