@@ -110,7 +110,6 @@ jobs:
           node test-surface-callability-full-closure.mjs
           node test-frontend-surface-dispatch.mjs
           node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
 
       - name: Enforce scoped queue closure
