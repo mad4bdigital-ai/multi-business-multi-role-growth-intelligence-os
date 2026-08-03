@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-pull-request-recovery-exact-checkout-provenance",
+  "title": "CI Pull Request Recovery exact checkout provenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/ci-pull-request-recovery.yml",
+      "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
+      ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out and executed instead of allowing an event-level pull-request merge SHA to label a head-SHA test result.",
+      "e2e_journeys": [
+        {
+          "id": "checked-out-head-sha-stamps-recovery-test-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "CI evidence publisher and repository reviewer",
+          "entrypoint": "CI Pull Request Recovery Unit & Integration Tests job",
+          "terminal_outcome": "The test suite starts only after the checked-out SHA matches the selected candidate and its structured progress reports expose that same checked-out SHA through the process-local GITHUB_SHA value.",
+          "steps": [
+            "Checkout the selected pull-request head SHA or explicit workflow-dispatch SHA.",
+            "Resolve git rev-parse HEAD immediately before the test suite.",
+            "Reject any mismatch between the checked-out SHA and the selected candidate SHA.",
+            "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
+            "Upload ordered test progress reports without relabeling head execution as a different merge candidate."
+          ],
+          "assertions": [
+            "Recovery reports cannot inherit a different event-level GITHUB_SHA after exact-head checkout.",
+            "A candidate identity mismatch fails before npm test.",
+            "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced.",
+            "The workflow retains read-only contents permission."
+          ],
+          "tests": [
+            {
+              "id": "ci-recovery-exact-checkout-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ci-pull-request-recovery.yml",
+            "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
+            ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish the verified checkout identity as an explicit typed field across all recovery evidence families."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove identity preservation across reruns, workflow dispatch, pull-request synchronize events, and cancelled/restarted jobs."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This CI evidence correction has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This CI evidence correction grants no Production or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
