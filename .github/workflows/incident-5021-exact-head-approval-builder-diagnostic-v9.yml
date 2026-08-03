@@ -23,6 +23,7 @@ jobs:
       TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
       BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-20260803
       EXPECTED_TARGET_SHA: 2c89cc14d8a38a09034f0306eccff273234046e2
+      SOURCE_COMMIT: 681a6a3bf8750276a25994584ef4b461caf9ce84
       REPORT_PATH: incident-5021-builder-diagnostic-v9.json
     steps:
       - name: Checkout immutable target branch
@@ -50,6 +51,7 @@ jobs:
           test "$(git status --porcelain)" = ""
           git fetch --no-tags origin "$BUILDER_BRANCH"
           git show "origin/${BUILDER_BRANCH}:.github/scripts/incident-5021-diagnostic-v9.py" > /tmp/incident-5021-diagnostic-v9.py
+          sed -i "s|origin/{BUILDER_BRANCH}|${SOURCE_COMMIT}|" /tmp/incident-5021-diagnostic-v9.py
           python -m py_compile /tmp/incident-5021-diagnostic-v9.py
 
       - name: Run compiled structured diagnostic
