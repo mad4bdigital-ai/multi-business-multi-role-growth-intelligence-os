@@ -6,6 +6,10 @@ from pathlib import Path
 WORKFLOW_PATH = Path('.github/workflows/spec-kit-work-map-autofix.yml')
 TEST_PATH = Path('http-generic-api/test-work-map-autofix-validation-diagnostics.mjs')
 E2E_PATH = Path('.changes/e2e/work-map-autofix-validation-diagnostics.json')
+GENERATED_EVIDENCE = [
+    'docs/work-maps/README.md',
+    'docs/work-maps/repository-automation-map.md',
+]
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -13,6 +17,12 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     if count != 1:
         raise RuntimeError(f'{label}: expected one match, found {count}')
     return text.replace(old, new, 1)
+
+
+def append_unique(values: list[str], additions: list[str]) -> None:
+    for value in additions:
+        if value not in values:
+            values.append(value)
 
 
 def update_workflow() -> None:
@@ -57,7 +67,8 @@ def update_e2e() -> None:
     phase['objective'] = (
         'Evaluate all eleven Work Map Autofix validation contracts, persist each outcome and log, '
         'preserve backward-compatible first-failure fields, fail closed once the complete failure set is captured, '
-        'and accept only a git-valid non-protected branch that resolves to one exact same-repository pull request into main.'
+        'accept only a git-valid non-protected branch that resolves to one exact same-repository pull request into main, '
+        'and preserve generated Work Map parity for the durable workflow change.'
     )
     branch_step = (
         'Verify the branch input is git-valid, is not a full refs path or protected branch, and is pinned to exactly one '
@@ -65,12 +76,24 @@ def update_e2e() -> None:
     )
     if branch_step not in journey['steps']:
         journey['steps'].insert(1, branch_step)
+    parity_step = (
+        'Regenerate the governed Work Map index and repository automation map, then prove a second generation is idempotent.'
+    )
+    if parity_step not in journey['steps']:
+        journey['steps'].append(parity_step)
     branch_assertion = (
         'Permanent workflow branch governance is input-driven and PR/commit-pinned; no gpt, cert, fix, feat, chore, docs, '
         'release, or other work-branch namespace is embedded as a durable allowlist.'
     )
     if branch_assertion not in journey['assertions']:
         journey['assertions'].append(branch_assertion)
+    parity_assertion = (
+        'Generated Work Map source hashes and repository automation documentation match the lifecycle-safe workflow source exactly.'
+    )
+    if parity_assertion not in journey['assertions']:
+        journey['assertions'].append(parity_assertion)
+    append_unique(payload['scope']['include'], GENERATED_EVIDENCE)
+    append_unique(journey['evidence_paths'], GENERATED_EVIDENCE)
     E2E_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
 
