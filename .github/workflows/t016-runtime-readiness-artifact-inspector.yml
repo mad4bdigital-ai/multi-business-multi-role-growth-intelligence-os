@@ -31,8 +31,8 @@ jobs:
       AUTHORIZATION_COMMENT: AUTHORIZE_GOVERNED_MIGRATION_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE
       WORKFLOW_FILE: sprint69-1043-runtime-readiness.yml
       WORKFLOW_NAME: Sprint 69 Migration 1043 Runtime Readiness
-      REPORT_DIR: ${{ runner.temp }}/t016-runtime-readiness-inspector-${{ github.run_id }}
-      SOURCE_DIR: ${{ runner.temp }}/t016-runtime-readiness-source-${{ github.run_id }}
+      REPORT_DIR: /tmp/t016-runtime-readiness-inspector-${{ github.run_id }}
+      SOURCE_DIR: /tmp/t016-runtime-readiness-source-${{ github.run_id }}
       INSPECTOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Discover authorization-bound Runtime Readiness run
