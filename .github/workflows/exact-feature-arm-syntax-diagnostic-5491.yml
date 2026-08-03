@@ -1,0 +1,86 @@
+name: Exact Feature ARM Syntax Diagnostic 5491
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-feature-arm-base-5491-44ed1522
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-feature-arm-syntax-diagnostic-5491-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  syntax-diagnostic:
+    name: Split Syntax Diagnostic
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-e2e-production-baseline-current-main-44ed1522-20260803' &&
+      github.event.pull_request.head.sha == 'c01155fb50808068642f9a8bd82b61a1e171be80'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: c01155fb50808068642f9a8bd82b61a1e171be80
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Verify exact candidate and parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'c01155fb50808068642f9a8bd82b61a1e171be80'
+          test "$(git rev-parse HEAD^1)" = '44ed152286be85c4573c584cbe786fb2faf94c91'
+      - name: Schema docs change guard
+        if: always()
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+      - name: Migration placement guard
+        if: always()
+        run: node http-generic-api/scripts/migration-placement-guard.mjs
+      - name: User JWT auth governance
+        if: always()
+        run: node http-generic-api/scripts/user-jwt-auth-governance.mjs
+      - name: Interruption readiness
+        if: always()
+        run: node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+      - name: Validate canonical sources
+        if: always()
+        run: node validate-canonical-sources.mjs
+      - name: Check canonical build
+        if: always()
+        run: node build-canonicals.mjs --check
+      - name: Check canonical domain finder syntax
+        if: always()
+        run: node --check find-canonical-domain.mjs
+      - name: Resource API coverage changed scope
+        if: always()
+        run: node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+      - name: Resource API architecture test
+        if: always()
+        run: node http-generic-api/test-resource-api-architecture.mjs
+      - name: Resource API service test
+        if: always()
+        run: node http-generic-api/test-resource-api-service.mjs
+      - name: Spec Kit completion changed scope
+        if: always()
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+      - name: Validate memory schema
+        if: always()
+        run: node validate-memory-schema.mjs
+      - name: Git diff check
+        if: always()
+        run: git diff --check
+      - name: E2E flow self-test syntax
+        if: always()
+        run: node --check http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+      - name: E2E parallel gate syntax
+        if: always()
+        run: node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
