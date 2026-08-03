@@ -3,3 +3,4 @@ Retry after removing unsupported completion-gate flags.
 Retry with isolated governance steps and main-bound Spec Kit diff.
 Run OAuth baseline dependency-injection diagnostic.
 Capture patched OAuth diagnostic output independently.
+Prove complete one-file OAuth baseline correction.
