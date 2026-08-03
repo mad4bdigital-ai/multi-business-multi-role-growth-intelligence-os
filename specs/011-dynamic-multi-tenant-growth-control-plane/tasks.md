@@ -57,8 +57,8 @@ All tasks are implementation-pending unless marked complete. The Spec Kit itself
 - [x] T601 Implement schema/manifest-driven Admin forms and diff/lineage views.
 - [x] T602 Implement Tenant-safe views with role/field allowlists.
 - [x] T603 Implement typed event schemas, outbox consumers and invalidation.
-- [ ] T604 Implement KPI definition/mapping and portfolio projections.
-- [ ] T605 Implement SLO metrics, traces, dashboards, alerts and reconciliation.
+- [x] T604 Implement KPI definition/mapping and portfolio projections.
+- [x] T605 Implement SLO metrics, traces, dashboards, alerts and reconciliation.
 
 ## Phase H — Rollout
 

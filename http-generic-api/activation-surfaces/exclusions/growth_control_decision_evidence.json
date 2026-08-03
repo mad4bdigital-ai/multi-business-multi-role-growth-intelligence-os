@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_decision_evidence",
+  "source_table": "growth_control_decision_evidence",
+  "reason": "Excluded because this table is an internal append-only decision evidence ledger for bounded operational traceability. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; writes require backend authority and same-cycle readback.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}
