@@ -1,0 +1,79 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ueacp-repository-source-candidate-builder",
+  "title": "UEACP repository source candidate builder",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/ueacp-repository-source-candidate-builder.json",
+      "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
+      "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
+      "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Convert one complete no-secret eight-family source snapshot capture into deterministic repository source-document candidates and a review index without producing a dispatch-ready manifest or executing any live operation.",
+      "e2e_journeys": [
+        {
+          "id": "source-snapshots-to-reviewed-repository-candidates",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP evidence reviewer",
+          "entrypoint": "A previously captured array of eight canonical authority source snapshots",
+          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written, while blob binding, T001/T002 closure, migration authority, and all runtime effects remain false.",
+          "steps": [
+            "Load a source snapshot array directly or from snapshots, sources, or source_bundle.sources.",
+            "Require exactly one snapshot for every registered authority evidence family.",
+            "Validate complete pagination, bounded records, timestamps, evidence references, and explicit no-effect/no-secret safety markers.",
+            "Reject sensitive values, duplicate or missing families, unsafe output paths, excessive records, and source documents above 8 MiB.",
+            "Render deterministic repository source documents with capture metadata and records hashes.",
+            "Build a candidate index with paths, content hashes, record counts, and capture timestamps.",
+            "Keep the candidate index review-required and explicitly not dispatch-ready because Git blob binding must occur after source-document commit review.",
+            "Perform no write unless the caller explicitly supplies --write."
+          ],
+          "assertions": [
+            "The source-document contract is mad4b.ueacp.authority-evidence-repository-source.v1.",
+            "The candidate index contract is mad4b.ueacp.authority-evidence-repository-candidate-index.v1.",
+            "Exactly eight deterministic source documents are produced.",
+            "No source document or index contains blob_sha or the final repository manifest contract.",
+            "Dry-run mode creates no repository files.",
+            "Write mode keeps every output within the repository root and the index within the source directory.",
+            "T001 and T002 remain open and migration_apply_authorized remains false.",
+            "No live workflow, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
+          ],
+          "tests": [
+            {
+              "id": "authority-evidence-repository-candidate-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-candidate-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/ueacp-repository-source-candidate-builder.json",
+            "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
+            "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
+            "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+            "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Run an explicitly authorized read-only source capture, review and merge the generated source documents, then finalize a separate reviewed ancestor and Git blob-bound manifest."
+    }
+  ],
+  "secrets_included": false
+}
