@@ -176,7 +176,9 @@ jobs:
             `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
             `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
+            `identity_scope=${report.runtime_identity_authority?.schema_scope || 'missing'}`,
             `cross_endpoint_composition=${report.runtime_identity_authority?.cross_endpoint_composition_allowed === true}`,
+            `cross_object_composition=${report.runtime_identity_authority?.cross_object_composition_allowed === true}`,
             `first_failure=${report.first_failure?.code || 'none'}`,
             `run_id=${process.env.GITHUB_RUN_ID}`,
             'provider_method=POST',
@@ -210,7 +212,9 @@ jobs:
               report.identity?.expected_build_uuid === "019fc51c-3947-7255-aa4d-f55cb8df7658" &&
               authority.contract === "mad4b.hostinger-runtime-identity-authority.v1" &&
               authority.authoritative_endpoint === "/deployment-info" &&
+              authority.schema_scope === "top_level_direct_identity_fields" &&
               authority.cross_endpoint_composition_allowed === false &&
+              authority.cross_object_composition_allowed === false &&
               authority.version_endpoint_authoritative === false &&
               authority.mode === "deployment_info_coherent_pair" &&
               report.secrets_included === false &&
@@ -228,6 +232,7 @@ jobs:
                 classification: report.classification || "invalid_report",
                 restart_performed: report.restart?.performed === true,
                 runtime_identity_authority: authority.mode || "missing",
+                runtime_identity_scope: authority.schema_scope || "missing",
                 first_failure: report.first_failure || null,
                 consult_job_logs: false,
                 secrets_included: false,
@@ -240,6 +245,7 @@ jobs:
               restart_performed: report.restart?.performed === true,
               runtime_current: report.post_runtime?.current === true || report.pre_runtime?.current === true,
               runtime_identity_authority: authority.mode,
+              runtime_identity_scope: authority.schema_scope,
               secrets_included: false,
             }));
           '
