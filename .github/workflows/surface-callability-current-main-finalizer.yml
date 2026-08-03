@@ -1,5 +1,5 @@
 name: Surface Callability Current Main Finalizer
-# Rerun with checksum-bound Hostinger safety verification and bounded diagnostics.
+# Trigger corrected checksum-bound Hostinger safety verifier with bounded diagnostics.
 
 on:
   pull_request:
