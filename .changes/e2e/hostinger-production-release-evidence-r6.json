@@ -19,7 +19,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events, classifies unrelated pull requests before any provider-capable work, uses only step-valid runner context, and preserves the complete immutable Production evidence, provider GET-only, secret, and no-mutation contract.",
+      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events, cancels stale same-PR evidence runs before provider-capable work, classifies unrelated pull requests before any provider-capable work, uses only step-valid runner context, and preserves the complete immutable Production evidence, provider GET-only, secret, and no-mutation contract.",
       "e2e_journeys": [
         {
           "id": "skip-unrelated-pull-request-before-r6-provider-access",
@@ -27,8 +27,9 @@
           "level": "synthetic_runtime",
           "actor": "trusted main R6 trigger-scope classifier",
           "entrypoint": "Any pull request targeting main that is not the exact same-repository owner Draft pull request changing only the governed R6 trigger JSON.",
-          "terminal_outcome": "The read-only classifier emits eligible=false and completes successfully; the provider-capable collector is skipped before checkout, credential access, authenticated Hostinger GET, public runtime GET, Artifact creation, or evidence summary.",
+          "terminal_outcome": "The newest PR event supersedes stale runs for the same PR, then the read-only classifier emits eligible=false and completes successfully; the provider-capable collector is skipped before checkout, credential access, authenticated Hostinger GET, public runtime GET, Artifact creation, or evidence summary.",
           "steps": [
+            "Use a PR-number concurrency group with cancel-in-progress enabled so the newest event cancels stale runs before classification or provider access.",
             "Run a GitHub-read-only classifier before the provider-capable evidence collector.",
             "Reject non-matching repository identity, repository-owner user ID, or Draft state without querying pull-request files.",
             "For an otherwise eligible internal Draft pull request, read changed filenames through GitHub GET only.",
@@ -37,6 +38,8 @@
             "Skip the entire evidence collector through a job dependency and exact eligibility output."
           ],
           "assertions": [
+            "R6 concurrency is scoped by pull-request number and cancel-in-progress is true.",
+            "A newer opened, reopened, or synchronize event cancels stale same-PR runs before any provider-capable job can execute.",
             "The classifier precedes the collector and exposes one eligible output.",
             "The classifier contains no actions/checkout, HOSTINGER_API_TOKEN, Hostinger endpoint, reporter invocation, public runtime endpoint, Artifact upload, or GitHub Step Summary.",
             "The classifier has read-only contents and pull-request permissions and performs no GitHub mutation.",
@@ -64,9 +67,10 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted main GitHub Actions workflow",
           "entrypoint": "same-repository Draft PR opened, reopened, or synchronized while changing only the governed trigger JSON, with its exact trigger branch and nonce supplied by the authorization-bound trigger contract rather than embedded in the permanent workflow",
-          "terminal_outcome": "Trusted main classifies the exact one-file trigger as eligible, registers the collector without job-level runner context evaluation, verifies current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence, writes an immutable execution-context record, then collects GET-only Hostinger and public runtime evidence, uploads one scrubbed Artifact, and writes only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
+          "terminal_outcome": "The newest exact PR event cancels stale same-PR evidence runs, then trusted main classifies the exact one-file trigger as eligible, registers the collector without job-level runner context evaluation, verifies current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence, writes an immutable execution-context record, then collects GET-only Hostinger and public runtime evidence, uploads one scrubbed Artifact, and writes only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
           "steps": [
             "Load the workflow only from protected main on internal pull_request opened, reopened, or synchronize events targeting main, without an outer paths filter.",
+            "Group runs by pull-request number and cancel stale in-progress runs when a newer PR event supersedes their head.",
             "Classify exact same-repository owner Draft one-file trigger scope before enabling the provider-capable collector.",
             "Checkout the exact pull request base SHA with persisted credentials disabled and require it to remain current main.",
             "Initialize the evidence directory at step runtime from RUNNER_TEMP through GITHUB_ENV and use runner.temp only in step-valid expression contexts.",
@@ -82,6 +86,8 @@
           ],
           "assertions": [
             "R6 has no issue_comment or workflow_dispatch trigger.",
+            "R6 concurrency is grouped by pull-request number with cancel-in-progress true, so only the newest event can progress to classification and collection.",
+            "A synchronize event that changes the trigger head invalidates and cancels the older run; the replacement authorization remains bound to its exact immutable head.",
             "R6 observes opened, reopened, and synchronize pull-request events without a paths filter, classifies exact scope before provider access, then repeats the one-file check inside the trusted collector.",
             "No job-level environment value references runner context; EVIDENCE_DIR is initialized from RUNNER_TEMP at step runtime, and reporter and Artifact paths use step-valid runner.temp expressions.",
             "The pull_request workflow has no write permission and performs no GitHub API mutation.",
@@ -120,7 +126,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the complete registration-safe R6 contract to main, prove one unrelated Draft pull request completes with the collector skipped and no provider access, record a fresh immutable read-only authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
+      "objective": "Merge the complete registration-safe and stale-run-cancelling R6 contract to main, prove one unrelated Draft pull request completes with the collector skipped and no provider access, record a fresh immutable read-only authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
     }
   ],
   "secrets_included": false
