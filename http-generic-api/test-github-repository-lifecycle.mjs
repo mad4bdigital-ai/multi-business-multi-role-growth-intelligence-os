@@ -339,6 +339,7 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: [{ id: 9001, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T04:30:00Z", user: { login: "human-reviewer", type: "User" } }] },
       { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      { status: 200, payload: [{ id: 9002, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T04:31:00Z", user: { login: "human-reviewer", type: "User" } }] },
       { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { status: "identical", ahead_by: 0, behind_by: 0 } },

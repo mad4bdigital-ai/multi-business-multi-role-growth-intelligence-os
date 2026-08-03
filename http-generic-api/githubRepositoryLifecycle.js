@@ -627,6 +627,41 @@ export async function finalizeGithubPullRequest(options = {}) {
     });
   }
 
+  const finalReviewsResponse = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/pulls/${pullNumber}/reviews?per_page=100`,
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const finalReviews = Array.isArray(finalReviewsResponse.payload) ? finalReviewsResponse.payload : [];
+  if (!Array.isArray(finalReviewsResponse.payload) || finalReviews.length >= 100) {
+    throw lifecycleError(409, "github_pr_finalize_review_set_unbounded", "Final exact-head review evidence could not be bounded to one complete page.", {
+      pull_number: pullNumber,
+      returned_review_count: finalReviews.length,
+      per_page: 100,
+      validation_phase: "final_pre_merge_review_readback",
+      secrets_included: false,
+    });
+  }
+  const finalApprovalEvidence = summarizeGithubPullRequestApprovals(finalReviews, {
+    expectedHeadSha,
+    authorLogin: postApprovalPr?.user?.login || pr?.user?.login,
+    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,
+  });
+  if (finalApprovalEvidence.has_changes_requested) {
+    throw lifecycleError(409, "github_pr_finalize_changes_requested", "Final exact-head review evidence contains an active changes-requested decision.", {
+      ...finalApprovalEvidence,
+      validation_phase: "final_pre_merge_review_readback",
+    });
+  }
+  if (!finalApprovalEvidence.quorum_satisfied) {
+    throw lifecycleError(409, "github_pr_finalize_approval_required", "Final exact-head human approval quorum is not satisfied.", {
+      ...finalApprovalEvidence,
+      validation_phase: "final_pre_merge_review_readback",
+    });
+  }
+
   const merge = await githubLifecycleRequest({
     owner,
     repo,
@@ -668,7 +703,7 @@ export async function finalizeGithubPullRequest(options = {}) {
       merged: true,
       merge_sha: mergeSha,
       merge_method: mergeMethod,
-      approval_evidence: approvalEvidence,
+      approval_evidence: finalApprovalEvidence,
       ancestry_readback: {
         verified: false,
         base_ref: pr?.base?.ref || defaultBranch,
@@ -727,7 +762,7 @@ export async function finalizeGithubPullRequest(options = {}) {
     merge_sha: mergeSha,
     merge_method: mergeMethod,
     ci_gate: gate,
-    approval_evidence: approvalEvidence,
+    approval_evidence: finalApprovalEvidence,
     ancestry_readback: {
       verified: true,
       base_ref: pr?.base?.ref || defaultBranch,
