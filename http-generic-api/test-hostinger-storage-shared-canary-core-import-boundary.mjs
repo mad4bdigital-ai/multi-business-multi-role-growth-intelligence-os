@@ -5,8 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-await import('./test-spec012-t031-oauth-token-route-wiring.mjs');
-
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
 const EXCLUDED_DIRECTORIES = new Set(['.git', 'node_modules', 'coverage', 'dist', 'build']);
