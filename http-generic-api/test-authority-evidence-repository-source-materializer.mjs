@@ -14,6 +14,12 @@ import {
   finalizeAuthorityEvidenceRepositoryManifest,
   materializeAuthorityEvidenceRepositorySourceDocuments,
 } from "./authorityEvidenceRepositorySourceMaterializer.js";
+import {
+  _testingAuthorityEvidenceRepositorySourceMaterialize as sourceMaterializeCli,
+} from "./scripts/authority-evidence-repository-source-materialize.mjs";
+import {
+  _testingAuthorityEvidenceRepositoryManifestFinalize as manifestFinalizeCli,
+} from "./scripts/authority-evidence-repository-manifest-finalize.mjs";
 
 function pathRecord(sourceRegistry) {
   return {
@@ -140,6 +146,95 @@ assert.throws(
   (error) => error instanceof AuthorityEvidenceRepositorySourceMaterializationError
     && error.code === "authority_evidence_repository_materialization_unsafe_path",
 );
+
+assert.deepEqual(sourceMaterializeCli.parseArgs([
+  "--sources-file=sources.json",
+  "--output-dir=specs/011/source-docs",
+  "--report-file=specs/011/materialization.json",
+]), expectObject({
+  sourcesFile: "sources.json",
+  outputDir: "specs/011/source-docs",
+  reportFile: "specs/011/materialization.json",
+}));
+assert.deepEqual(manifestFinalizeCli.parseArgs([
+  "--materialization-report=specs/011/materialization.json",
+  "--repository=owner/repo",
+  "--observed-ref=0123456789012345678901234567890123456789",
+  "--manifest-output=specs/011/manifest.json",
+]), expectObject({
+  materializationReport: "specs/011/materialization.json",
+  repository: "owner/repo",
+  observedRef: "0123456789012345678901234567890123456789",
+  manifestOutput: "specs/011/manifest.json",
+}));
+
+function expectObject(expected) {
+  return {
+    ...expected,
+    repositoryRoot: path.resolve(path.dirname(new URL(import.meta.url).pathname), ".."),
+  };
+}
+
+const writerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-source-writer-"));
+const writerOutside = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-source-writer-outside-"));
+try {
+  fs.mkdirSync(path.join(writerRoot, "review"), { recursive: true });
+  fs.writeFileSync(path.join(writerRoot, "review", "existing.json"), "existing\n");
+  assert.throws(
+    () => sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
+      { relativePath: "review/first.json", content: "first\n" },
+      { relativePath: "review/existing.json", content: "replace\n" },
+    ]),
+    /Refusing to overwrite existing file/,
+  );
+  assert.equal(fs.existsSync(path.join(writerRoot, "review", "first.json")), false);
+  assert.equal(fs.readFileSync(path.join(writerRoot, "review", "existing.json"), "utf8"), "existing\n");
+
+  fs.symlinkSync(writerOutside, path.join(writerRoot, "linked"), "dir");
+  assert.throws(
+    () => sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
+      { relativePath: "linked/escape.json", content: "escape\n" },
+    ]),
+    /Unsafe intermediate output directory/,
+  );
+  assert.equal(fs.existsSync(path.join(writerOutside, "escape.json")), false);
+  assert.throws(
+    () => manifestFinalizeCli.writeNewFile(writerRoot, "linked/manifest.json", "{}\n"),
+    /Unsafe intermediate output directory/,
+  );
+  assert.equal(fs.existsSync(path.join(writerOutside, "manifest.json")), false);
+
+  const originalLinkSync = fs.linkSync;
+  let linkCount = 0;
+  fs.linkSync = (...args) => {
+    linkCount += 1;
+    if (linkCount === 2) throw Object.assign(new Error("forced second-file failure"), { code: "EIO" });
+    return originalLinkSync(...args);
+  };
+  try {
+    assert.throws(
+      () => sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
+        { relativePath: "rollback/one.json", content: "one\n" },
+        { relativePath: "rollback/two.json", content: "two\n" },
+      ]),
+      /forced second-file failure/,
+    );
+  } finally {
+    fs.linkSync = originalLinkSync;
+  }
+  assert.equal(fs.existsSync(path.join(writerRoot, "rollback", "one.json")), false);
+  assert.equal(fs.existsSync(path.join(writerRoot, "rollback", "two.json")), false);
+
+  sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
+    { relativePath: "success/one.json", content: "one\n" },
+    { relativePath: "success/two.json", content: "two\n" },
+  ]);
+  assert.equal(fs.readFileSync(path.join(writerRoot, "success", "one.json"), "utf8"), "one\n");
+  assert.equal(fs.readFileSync(path.join(writerRoot, "success", "two.json"), "utf8"), "two\n");
+} finally {
+  fs.rmSync(writerRoot, { recursive: true, force: true });
+  fs.rmSync(writerOutside, { recursive: true, force: true });
+}
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-source-materialization-"));
 try {
