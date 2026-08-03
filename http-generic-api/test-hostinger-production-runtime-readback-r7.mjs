@@ -16,6 +16,7 @@ assert.match(workflow, /RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_pr
 assert.match(workflow, /\^\$\{TRIGGER_TOKEN\}\[\[:space:\]\]expected_production_sha=\(\[0-9a-f\]\{40\}\)\$/);
 assert.match(workflow, /runs-on: ubuntu-24\.04-arm/);
 assert.match(workflow, /persist-credentials: false/);
+assert.match(workflow, /issues: write/);
 assert.match(workflow, /git ls-remote origin refs\/heads\/Production/);
 assert.match(workflow, /git merge-base --is-ancestor "\$\{GITHUB_SHA\}" "\$\{remote_main_sha\}"/);
 
@@ -34,16 +35,22 @@ assert.match(workflow, /--max-time 25/);
 assert.match(workflow, /--retry 3/);
 assert.match(workflow, /hostinger-production-runtime-readback-r7-\$\{\{ github\.run_id \}\}/);
 assert.match(workflow, /HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 status=completed/);
+assert.match(workflow, /gh api --method POST/);
+assert.match(workflow, /repository_content_mutation_performed: false/);
+assert.match(workflow, /repository_issue_comment_authorized: true/);
+assert.match(workflow, /repository_issue_comment_performed: false/);
+assert.match(workflow, /repository_issue_comment_performed = true/);
+assert.match(workflow, /repository_content_mutation=false repository_issue_comment_performed=true/);
 assert.match(workflow, /production_current/);
 assert.match(workflow, /runtime_activation_pending_or_sha_mismatch/);
 assert.match(workflow, /runtime_sha_current_branch_provenance_mismatch/);
-assert.match(workflow, /repository_mutation_performed: false/);
 assert.match(workflow, /provider_credential_accessed: false/);
 assert.match(workflow, /provider_mutation_performed: false/);
 assert.match(workflow, /deployment_performed: false/);
 assert.match(workflow, /restart_performed: false/);
 assert.match(workflow, /secrets_included: false/);
 
+assert.doesNotMatch(workflow, /repository_mutation_performed/);
 assert.doesNotMatch(workflow, /HOSTINGER_API_TOKEN/);
 assert.doesNotMatch(workflow, /secrets\./);
 assert.doesNotMatch(workflow, /workflow_dispatch/);
@@ -59,10 +66,11 @@ console.log(JSON.stringify({
   contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v1',
   trigger: 'owner_bound_issue_comment',
   public_get_only: true,
+  repository_content_mutation_performed: false,
+  repository_issue_comment_authorized: true,
   provider_credential_accessed: false,
   provider_mutation_performed: false,
   deployment_performed: false,
   restart_performed: false,
-  repository_content_mutation_performed: false,
   secrets_included: false,
 }, null, 2));
