@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "feature_key": "retail-commerce-candidate-windows-validation",
+  "candidate_sha": "b8074af9bc24b9e1f009f169ddd5577d1e0d4082",
+  "candidate_branch": "gpt/retail-commerce-reference-package-cleanroom-20260803",
+  "purpose": "Run read-only exact-head Work Map and Spec Kit validation on Windows runner capacity.",
+  "repository_mutation": false,
+  "provider_mutation": false,
+  "database_mutation": false,
+  "deployment": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
