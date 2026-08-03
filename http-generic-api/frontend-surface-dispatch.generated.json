@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "b9f69b659016ab38a2e365fa6d9fb62b9a4e6f2f1161e78db19f02040fcd85d1",
+    "source_digest": "38180b88b544214610abd1b65b16e64221a244cab0bdb00ce56736a1e8cfa292",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -366,7 +366,7 @@
       },
       {
         "file": "routes/adminCliRoutes.js",
-        "sha256": "d7c0daf7ee547530e7eda9682738223ae1921d289b6a3e8ed8ed7cf73e85cba5",
+        "sha256": "25fdc643af9af258c959b6e10e3f6f9d036d10e46cbed2fc76616688d6ea6fa8",
         "present": true
       },
       {
@@ -981,7 +981,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
+        "sha256": "4d7713763068ce2bb24e8577d41f280ef256cde7014f89bd00f8f7b85b7aa7dd",
         "present": true
       },
       {
@@ -1591,7 +1591,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "871f43c24a73ce1a40eeab313e459928c6752c7bc9b673fdc8237b892c07607f",
+      "source_digest": "4d7713763068ce2bb24e8577d41f280ef256cde7014f89bd00f8f7b85b7aa7dd",
       "mount_prefix": "/",
       "mount_order": 12169,
       "split_from_mixed_scope_file": false,
@@ -86692,7 +86692,7 @@
       "family_key": "admin-cli",
       "label": "admin cli",
       "source_file": "routes/adminCliRoutes.js",
-      "source_digest": "d7c0daf7ee547530e7eda9682738223ae1921d289b6a3e8ed8ed7cf73e85cba5",
+      "source_digest": "25fdc643af9af258c959b6e10e3f6f9d036d10e46cbed2fc76616688d6ea6fa8",
       "mount_prefix": "/admin/cli",
       "mount_order": 22490,
       "split_from_mixed_scope_file": false,
