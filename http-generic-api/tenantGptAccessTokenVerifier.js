@@ -12,13 +12,25 @@ import {
   rejectTenantGptAudienceCompatibilityForResourceMismatch,
 } from "./tenantGptAudienceCompatibilityPolicy.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const JWT_SECRET_MAX_LENGTH = 4096;
 
-function tokenFailure(code, message) {
+function tokenFailure(code, message, status = 401) {
   const error = new Error(message);
   error.code = code;
-  error.status = 401;
+  error.status = status;
   return error;
+}
+
+function requireTenantGptJwtSecret() {
+  const secret = String(process.env.JWT_SECRET || "").trim();
+  if (!secret || secret.length > JWT_SECRET_MAX_LENGTH) {
+    throw tokenFailure(
+      "tenant_gpt_verifier_unavailable",
+      "Tenant GPT token verification is temporarily unavailable.",
+      503,
+    );
+  }
+  return secret;
 }
 
 function emitCompatibilityEvidence(evidence, callback) {
@@ -44,9 +56,10 @@ export function verifyTenantGptAccessToken(token, {
   const resource = normalizeTenantGptOAuthResource(expectedResource);
   if (!resource) throw tokenFailure("tenant_gpt_resource_invalid", "Protected resource configuration is invalid.");
 
+  const jwtSecret = requireTenantGptJwtSecret();
   let payload;
   try {
-    payload = jwt.verify(String(token || ""), JWT_SECRET, {
+    payload = jwt.verify(String(token || ""), jwtSecret, {
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
     });
   } catch {
@@ -147,3 +160,5 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
     });
   }
 }
+
+export { JWT_SECRET_MAX_LENGTH };
