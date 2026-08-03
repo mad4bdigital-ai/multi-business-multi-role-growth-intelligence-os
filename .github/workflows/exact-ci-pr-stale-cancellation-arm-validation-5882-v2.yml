@@ -1,5 +1,5 @@
-name: Exact CI PR Stale Cancellation ARM Validation 5882 V2
-run-name: Exact ARM Draft validation · PR 5882
+name: Exact CI PR Stale Cancellation ARM Validation 5921
+run-name: Exact ARM Draft validation · PR 5921
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: exact-ci-pr-stale-cancellation-arm-validation-5882-v2
+  group: exact-ci-pr-stale-cancellation-arm-validation-5921
   cancel-in-progress: false
 
 jobs:
@@ -28,12 +28,12 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       VALIDATOR_PR: ${{ github.event.pull_request.number }}
-      TARGET_PR: '5882'
+      TARGET_PR: '5921'
       VALIDATOR_WORKFLOW: .github/workflows/exact-ci-pr-stale-cancellation-arm-validation-5882-v2.yml
-      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
-      EXPECTED_HEAD_SHA: b619f8c5f74510837f1764331d75631e823b7d83
-      EXPECTED_HEAD_REF: gpt/ci-pr-stale-cancellation-main-58b98727-20260804
-      REPORT_DIR: ${{ runner.temp }}/exact-ci-validation-5882
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_HEAD_SHA: 440ceb3dfe3c05cf48144b5fdc4fc4ac454115f1
+      EXPECTED_HEAD_REF: gpt/ci-pr-stale-cancellation-main-97e4ee7e-20260804
+      REPORT_DIR: ${{ runner.temp }}/exact-ci-validation-5921
 
     steps:
       - name: Verify validator surface and canonical PR identity
@@ -217,13 +217,13 @@ jobs:
           LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
         run: |
           mkdir -p "${REPORT_DIR}"
-          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" --arg lifecycle_outcome "${LIFECYCLE_OUTCOME}" '{contract:"mad4b.exact-ci-pr-stale-cancellation-arm-validation.v2",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,lifecycle_outcome:$lifecycle_outcome,test_report_provenance_verified:true,generated_work_maps_checked:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
+          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" --arg lifecycle_outcome "${LIFECYCLE_OUTCOME}" '{contract:"mad4b.exact-ci-pr-stale-cancellation-arm-validation.v3",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,lifecycle_outcome:$lifecycle_outcome,test_report_provenance_verified:true,generated_work_maps_checked:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
 
       - name: Upload exact validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-ci-pr-stale-cancellation-arm-validation-5882-${{ github.run_id }}
+          name: exact-ci-pr-stale-cancellation-arm-validation-5921-${{ github.run_id }}
           path: |
             ${{ env.REPORT_DIR }}
             ${{ runner.temp }}/test-suite-reports/*.json
