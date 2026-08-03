@@ -1,0 +1,202 @@
+name: Finalize Hostinger Production Resync Policy V7
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/ops/hostinger-production-resync-policy-finalize-v7.mjs
+      - .github/workflows/finalize-hostinger-production-resync-policy-v7.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: finalize-hostinger-production-resync-policy-v7-2669991a
+  cancel-in-progress: false
+
+jobs:
+  reconcile-apply-readback:
+    if: github.event.pull_request.head.ref == 'gpt/finalize-hostinger-resync-policy-v7-20260803-1725'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      MIGRATION_PATH: http-generic-api/migrations/20260730_hostinger_production_resync_policy.sql
+      MIGRATION_ID: 20260730_hostinger_production_resync_policy.sql
+      MIGRATION_SHA256: 320581d0adf690f6ef4cf09d4ecd6dbcd5b6625743a529fbf0bc10a4948b41a6
+      EXPECTED_STATEMENT_COUNT: '10'
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      EXPECTED_MIGRATION_BLOB: 553e0ab987e04009ddced67c3ef986a2669a0f8b
+      PROGRAM_PATH: .github/ops/hostinger-production-resync-policy-finalize-v7.mjs
+      EXPECTED_PROGRAM_BLOB: 02e5ab84765612c411123650bc530fe7eb508971
+      WORKFLOW_PATH: .github/workflows/finalize-hostinger-production-resync-policy-v7.yml
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      R6_RUN_ID: '30821248381'
+      R6_ARTIFACT_ID: '8859067071'
+      R6_ARTIFACT_DIGEST: sha256:a6a6bc7a22405937e5d5f4be2c2505f738beea47b4043a3a08d5b69a93f91c39
+
+    steps:
+      - name: Check out pinned Production authority
+        uses: actions/checkout@v5
+        with:
+          ref: Production
+          fetch-depth: 0
+
+      - name: Verify exact two-file vehicle and immutable contracts
+        id: contract
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            refs/heads/main:refs/remotes/origin/main \
+            refs/heads/Production:refs/remotes/origin/Production \
+            "$PR_BASE_SHA" \
+            "$PR_HEAD_SHA"
+
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          checked_out_sha="$(git rev-parse HEAD)"
+          current_main_sha="$(git rev-parse refs/remotes/origin/main)"
+
+          [[ "$checked_out_sha" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::checked-out Production SHA mismatch: $checked_out_sha"
+            exit 1
+          }
+          [[ "$production_sha" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved before execution: $production_sha"
+            exit 1
+          }
+
+          mapfile -t changed_files < <(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" | sort)
+          expected_files=(
+            "$PROGRAM_PATH"
+            "$WORKFLOW_PATH"
+          )
+          mapfile -t expected_files < <(printf '%s\n' "${expected_files[@]}" | sort)
+          [[ "${#changed_files[@]}" -eq 2 ]] || {
+            printf '::error::expected exactly two changed files, observed %s: %s\n' "${#changed_files[@]}" "${changed_files[*]}"
+            exit 1
+          }
+          [[ "${changed_files[*]}" == "${expected_files[*]}" ]] || {
+            printf '::error::changed-file scope mismatch: %s\n' "${changed_files[*]}"
+            exit 1
+          }
+
+          migration_blob="$(git rev-parse "HEAD:${MIGRATION_PATH}")"
+          [[ "$migration_blob" == "$EXPECTED_MIGRATION_BLOB" ]] || {
+            echo "::error::migration blob mismatch: $migration_blob"
+            exit 1
+          }
+          migration_sha256="$(sha256sum "$MIGRATION_PATH" | awk '{print $1}')"
+          [[ "$migration_sha256" == "$MIGRATION_SHA256" ]] || {
+            echo "::error::migration checksum mismatch: $migration_sha256"
+            exit 1
+          }
+
+          program_blob="$(git rev-parse "${PR_HEAD_SHA}:${PROGRAM_PATH}")"
+          [[ "$program_blob" == "$EXPECTED_PROGRAM_BLOB" ]] || {
+            echo "::error::reviewed program blob mismatch: $program_blob"
+            exit 1
+          }
+          git show "${PR_HEAD_SHA}:${PROGRAM_PATH}" > "$GITHUB_WORKSPACE/.hostinger-production-resync-policy-finalize-v7.mjs"
+          node --check "$GITHUB_WORKSPACE/.hostinger-production-resync-policy-finalize-v7.mjs"
+
+          echo "production_sha=$production_sha" >> "$GITHUB_OUTPUT"
+          echo "current_main_sha=$current_main_sha" >> "$GITHUB_OUTPUT"
+          echo "pr_base_sha=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "pr_head_sha=$PR_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "migration_blob=$migration_blob" >> "$GITHUB_OUTPUT"
+          echo "program_blob=$program_blob" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install Production dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Read back first and apply at most once
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/hostinger-resync-policy-finalization-v7"
+          set +e
+          node "$GITHUB_WORKSPACE/.hostinger-production-resync-policy-finalize-v7.mjs" 2>&1 \
+            | tee "$RUNNER_TEMP/hostinger-resync-policy-finalization-v7/execution.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          rm -f "$GITHUB_WORKSPACE/.hostinger-production-resync-policy-finalize-v7.mjs"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error::governed reconciliation/apply/readback failed with exit ${status}"
+            exit "$status"
+          fi
+
+      - name: Verify Production remained immutable
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/Production:refs/remotes/origin/Production
+          final_production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          echo "final_production_sha=$final_production_sha" >> "$GITHUB_ENV"
+          [[ "$final_production_sha" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved during the readback/apply cycle: $final_production_sha"
+            exit 1
+          }
+
+      - name: Write bounded execution manifest
+        if: always()
+        shell: bash
+        env:
+          CURRENT_MAIN_SHA: ${{ steps.contract.outputs.current_main_sha }}
+          PR_BASE_SHA: ${{ steps.contract.outputs.pr_base_sha }}
+          PR_HEAD_SHA: ${{ steps.contract.outputs.pr_head_sha }}
+          PRODUCTION_SHA: ${{ steps.contract.outputs.production_sha }}
+          MIGRATION_BLOB: ${{ steps.contract.outputs.migration_blob }}
+          PROGRAM_BLOB: ${{ steps.contract.outputs.program_blob }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/hostinger-resync-policy-finalization-v7"
+          cat > "$RUNNER_TEMP/hostinger-resync-policy-finalization-v7/execution-manifest.json" <<JSON
+          {
+            "schema_version": "hostinger_production_resync_policy_finalization.v7",
+            "migration": "$MIGRATION_ID",
+            "migration_checksum_sha256": "$MIGRATION_SHA256",
+            "expected_statement_count": 10,
+            "current_main_sha_at_start": "$CURRENT_MAIN_SHA",
+            "pull_request_base_sha": "$PR_BASE_SHA",
+            "pull_request_head_sha": "$PR_HEAD_SHA",
+            "production_sha": "$PRODUCTION_SHA",
+            "production_sha_at_end": "${final_production_sha:-unknown}",
+            "migration_blob_sha": "$MIGRATION_BLOB",
+            "reviewed_program_blob_sha": "$PROGRAM_BLOB",
+            "runtime_parity_r6_run_id": $R6_RUN_ID,
+            "runtime_parity_r6_artifact_id": $R6_ARTIFACT_ID,
+            "runtime_parity_r6_artifact_digest": "$R6_ARTIFACT_DIGEST",
+            "readback_first": true,
+            "apply_maximum_attempts": 1,
+            "apply_retry_allowed": false,
+            "provider_call_executed": false,
+            "external_write_executed": false,
+            "deployment_executed": false,
+            "restart_executed": false,
+            "secrets_included": false
+          }
+          JSON
+
+      - name: Upload bounded finalization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-resync-policy-finalization-v7-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-resync-policy-finalization-v7
+          if-no-files-found: error
+          retention-days: 30
