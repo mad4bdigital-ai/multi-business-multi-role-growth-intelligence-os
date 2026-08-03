@@ -1,0 +1,253 @@
+name: Surface Callability Current Main Revalidation V5
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/surface-callability-current-main-revalidation-v5.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-callability-current-main-revalidation-v5-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v5.yml
+
+    steps:
+      - name: Checkout exact event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact bounded trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test '${{ github.event.pull_request.head.ref }}' = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply permanent SQL-derived scope source
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/surface-callability-current-main-revalidation-v4.yml').read_text(encoding='utf-8').splitlines()
+          start = None
+          end = None
+          for index, line in enumerate(workflow):
+              if line.strip() == "python3 - <<'PY'":
+                  start = index + 1
+                  continue
+              if start is not None and line.strip() == 'PY':
+                  end = index
+                  break
+          if start is None or end is None or end <= start:
+              raise SystemExit('v4_scope_patch_extraction_failed')
+          extracted = [line[10:] if line.startswith('          ') else line for line in workflow[start:end]]
+          target = Path('/tmp/apply-v4-sql-scope-patch.py')
+          target.write_text('\n'.join(extracted) + '\n', encoding='utf-8')
+          PY
+          python3 /tmp/apply-v4-sql-scope-patch.py
+
+      - name: Syntax check patched generator
+        working-directory: http-generic-api
+        run: node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Generate and persist closure evidence
+        working-directory: http-generic-api
+        run: |
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+
+      - name: Verify SQL-derived manifest metadata
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
+          if (manifest.source_scope_source !== 'sql_registry_and_committed_manifest_v1') throw new Error('surface_scope_source_mismatch');
+          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_item_count_mismatch:${manifest.source_queue_item_count}`);
+          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
+          if (manifest.remaining_scoped_queue_item_count !== 0) throw new Error(`surface_remaining_queue_mismatch:${manifest.remaining_scoped_queue_item_count}`);
+          console.log(JSON.stringify({ok:true,source:manifest.source_scope_source,items:20,tools:41,remaining_scoped_queue_items:0}));
+          NODE
+
+      - name: Syntax contracts
+        working-directory: http-generic-api
+        run: |
+          node --check routes/tenantLifecycleRoutes.js
+          node --check scripts/resource-api-callability-contracts.mjs
+          node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: Workspace invitation controls
+        working-directory: http-generic-api
+        run: node test-workspace-invitation-controls.mjs
+
+      - name: SQL registry extractor
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Surface discovery and classification
+        working-directory: http-generic-api
+        run: node test-surface-contract-discovery.mjs
+
+      - name: Resource effect classes
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Resource API coverage
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Surface full closure
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
+
+      - name: Frontend Surface dispatch
+        working-directory: http-generic-api
+        run: node test-frontend-surface-dispatch.mjs
+
+      - name: Frontend auth OpenAPI parity
+        working-directory: http-generic-api
+        run: node test-frontend-auth-openapi-parity.mjs
+
+      - name: OpenAPI route coverage
+        working-directory: http-generic-api
+        run: NO_COLOR=1 node test-openapi-route-coverage.mjs
+
+      - name: Server startup smoke
+        working-directory: http-generic-api
+        run: node test-server-startup-smoke.mjs
+
+      - name: Current test manifest
+        working-directory: http-generic-api
+        run: node test-test-manifest-runner.mjs
+
+      - name: Hostinger full-closure safety
+        working-directory: http-generic-api
+        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: OpenAPI auth parity
+        working-directory: http-generic-api
+        run: npm run openapi:auth:check
+
+      - name: Prove scoped queue closure
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
+          const scoped = new Set(manifest.source_queue_tool_keys || []);
+          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
+            action.action_key === 'verify_tool_registry_binding' &&
+            (action.targets || []).some((key) => scoped.has(key))
+          ));
+          if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
+          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_queue_item_count_mismatch:${manifest.source_queue_item_count}`);
+          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
+          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
+          NODE
+
+      - name: Remove temporary workflows and enforce bounded outputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          temporary_workflows=(
+            .github/workflows/surface-callability-current-main-finalizer.yml
+            .github/workflows/surface-callability-current-main-revalidation-v2.yml
+            .github/workflows/surface-callability-current-main-revalidation-v3.yml
+            .github/workflows/surface-callability-generation-diagnostic.yml
+            .github/workflows/surface-callability-classification-diagnostic.yml
+            .github/workflows/surface-callability-current-main-revalidation-v4.yml
+            .github/workflows/surface-callability-current-main-revalidation-v5.yml
+          )
+          for path in "${temporary_workflows[@]}"; do rm -f "$path"; done
+          for path in "${temporary_workflows[@]}"; do test ! -e "$path"; done
+
+          cat > /tmp/allowed.txt <<'EOF'
+          .github/workflows/surface-callability-current-main-finalizer.yml
+          .github/workflows/surface-callability-current-main-revalidation-v2.yml
+          .github/workflows/surface-callability-current-main-revalidation-v3.yml
+          .github/workflows/surface-callability-generation-diagnostic.yml
+          .github/workflows/surface-callability-classification-diagnostic.yml
+          .github/workflows/surface-callability-current-main-revalidation-v4.yml
+          .github/workflows/surface-callability-current-main-revalidation-v5.yml
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-safety-attestations.json
+          http-generic-api/docs/generated/openapi-route-coverage.json
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          http-generic-api/resource-api-surface-callability.manifest.json
+          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+          http-generic-api/scripts/test-manifest.mjs
+          http-generic-api/surface-contract-classification-evidence.json
+          http-generic-api/test-frontend-auth-openapi-parity.mjs
+          http-generic-api/test-frontend-surface-dispatch.mjs
+          http-generic-api/test-surface-callability-full-closure.mjs
+          EOF
+          sort -u /tmp/allowed.txt -o /tmp/allowed.txt
+          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
+          unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
+          test -z "$unexpected" || { printf 'unexpected V5 outputs:\n%s\n' "$unexpected"; exit 1; }
+          for required in \
+            .github/workflows/surface-callability-current-main-revalidation-v5.yml \
+            .github/workflows/surface-callability-classification-diagnostic.yml \
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
+            http-generic-api/resource-api-surface-callability.manifest.json \
+            http-generic-api/test-surface-callability-full-closure.mjs; do
+            grep -Fxq "$required" /tmp/changed.txt || { echo "missing required output: $required"; exit 1; }
+          done
+
+      - name: Commit bounded product result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$before" = '${{ github.event.pull_request.head.sha }}'
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(surface): derive certified closure scope from SQL registrations'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$after" = "$(git rev-parse HEAD)"
