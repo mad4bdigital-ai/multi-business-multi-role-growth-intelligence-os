@@ -40,7 +40,7 @@ const PHASE4_CLOSEOUT_PATH = path.join(
   "phase4-reconciliation-readback-wave-closeout.json",
 );
 const WORKFLOW_PATH = path.join(REPO_DIR, ".github", "workflows", "spec-011-delegation-mariadb-certification.yml");
-const OPENAPI_PATH = path.join(REPO_DIR, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
+const OPENAPI_PATH = path.join(API_DIR, "openapi.yaml");
 const MIGRATION_PATH = path.join(API_DIR, "migrations", "20260725_agent_delegation_grant_persistence_contract.sql");
 
 function sha256(value) {
@@ -191,7 +191,7 @@ async function collectSemanticEvidence() {
         bounded: true,
       },
       {
-        path: "canonicals/openapi/custom-gpt-surfaces.yaml",
+        path: "http-generic-api/openapi.yaml",
         format: "openapi",
         parse_ok: openapiValid,
         semantic_mutation: true,
