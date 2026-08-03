@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
-const JOURNEY_ID = 'tenant-storage-request-to-reconciled-readback';
+const JOURNEY_ID = 'tenant-storage-route-and-repository-contract-convergence';
+const PARENT_FEATURE_KEY = '014-governed-hostinger-storage-orchestration';
 
 function runStructuredTest(path, expectedGate) {
   const child = spawnSync(process.execPath, [path], {
@@ -31,6 +32,8 @@ const durable = runStructuredTest(
   'hostinger_storage_control_plane_repository',
 );
 
+assert.notEqual(route.gate, durable.gate, 'Child reports must remain independently attributable');
+
 assert.equal(route.mounted_route, 'POST /tenant/storage-operations/apply-plan');
 assert.equal(route.context_kernel_mutation_gate, true);
 assert.equal(route.effective_authority_dynamic_evidence, true);
@@ -54,23 +57,35 @@ assert.equal(durable.production_ready, false);
 
 console.log(JSON.stringify({
   ok: true,
-  gate: 'hostinger_storage_mvp_e2e',
+  gate: 'hostinger_storage_contract_convergence',
   journey_id: JOURNEY_ID,
   end_to_end: true,
   level: 'synthetic_runtime',
-  actor: 'tenant_workspace_owner',
-  entrypoint: 'POST /tenant/storage-operations/apply-plan',
-  terminal_outcome: 'reconciled_tenant_safe_readback',
+  actor: 'repository_ci_reviewer',
+  entrypoint: 'node test-hostinger-storage-e2e.mjs',
+  terminal_outcome: 'route_and_repository_contracts_passed',
+  child_contracts: {
+    mounted_route_gate: route.gate,
+    durable_repository_gate: durable.gate,
+  },
   assertions: {
+    mounted_route_contract_passed: true,
+    durable_repository_contract_passed: true,
+    child_reports_independently_attributable: true,
+    child_process_isolation: true,
     context_and_effective_authority_resolved: true,
     immutable_plan_and_single_use_consumption: true,
     fixed_synthetic_worker_dispatch: true,
-    prepared_result_readback_journal_restart_safe: true,
+    restart_safe_journal_contract: true,
     unknown_outcome_retry_guard: true,
     tenant_safe_projection: true,
     cross_tenant_leakage_rejected: true,
     expected_sha_bound: true,
   },
+  contract_convergence_only: true,
+  shared_operation_state: false,
+  parent_feature_key: PARENT_FEATURE_KEY,
+  parent_mvp_promoted: false,
   synthetic_only: true,
   live_provider_mutated: false,
   provider_dispatch_allowed: false,
