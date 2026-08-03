@@ -12,6 +12,7 @@ import {
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const IDENTITY_AUTHORITY = "deployment_info_coherent_pair";
+const PRE_MUTATION_AUTHORITY_CONTRACT = "mad4b.hostinger-pre-mutation-authority.v1";
 const ATTEMPT_JOURNAL_FILE = "hostinger-nodejs-production-restart-attempt.json";
 const DIRECT_SHA_FIELDS = Object.freeze([
   "commit_sha",
@@ -107,6 +108,7 @@ function persistAttemptJournal(configuration) {
     provider_path: authorizedRestartPath(configuration),
     restart_attempted: true,
     provider_mutation_attempted: true,
+    pre_mutation_authority: "passed",
     secrets_included: false,
   };
   fs.writeFileSync(
@@ -116,12 +118,190 @@ function persistAttemptJournal(configuration) {
   );
 }
 
-export function createCoherentRuntimeFetch(configuration, fetchImpl = fetch, mutationState = { attempted: false }) {
+function authorityError(code, message, status = 0) {
+  const error = new Error(message);
+  error.name = "PreMutationAuthorityError";
+  error.code = code;
+  error.status = status;
+  return error;
+}
+
+async function readGithubJson(url, { token, fetchImpl }) {
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      method: "GET",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "mad4b-hostinger-production-restart-authority",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "error",
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch {
+    throw authorityError("github_authority_transport_failed", "GitHub authority read failed.");
+  }
+  const text = await response.text();
+  if (text.length > 2 * 1024 * 1024) {
+    throw authorityError("github_authority_response_too_large", "GitHub authority response exceeded the bounded size.", response.status);
+  }
+  let body;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    throw authorityError("github_authority_response_invalid", "GitHub authority response was not valid JSON.", response.status);
+  }
+  if (!response.ok) {
+    throw authorityError(
+      "github_authority_http_error",
+      `GitHub authority read returned HTTP ${response.status}.`,
+      response.status,
+    );
+  }
+  return body;
+}
+
+function validateAuthorityOptions(options) {
+  const repository = String(options.repository || "").trim();
+  const controlIssue = String(options.controlIssue || "").trim();
+  const expectedHeadSha = String(options.expectedHeadSha || "").trim().toLowerCase();
+  const expectedProductionSha = String(options.expectedProductionSha || "").trim().toLowerCase();
+  const bindingId = String(options.bindingId || "").trim();
+  const runId = String(options.runId || "").trim();
+  const token = String(options.token || "").trim();
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository)) {
+    throw authorityError("github_authority_repository_invalid", "GitHub authority repository is invalid.");
+  }
+  if (!/^[1-9][0-9]*$/u.test(controlIssue)) {
+    throw authorityError("github_authority_issue_invalid", "GitHub authority issue number is invalid.");
+  }
+  if (!SHA_PATTERN.test(expectedHeadSha) || !SHA_PATTERN.test(expectedProductionSha)) {
+    throw authorityError("github_authority_sha_invalid", "GitHub authority requires full lowercase main and Production SHAs.");
+  }
+  if (!bindingId || !runId || !token) {
+    throw authorityError("github_authority_configuration_missing", "GitHub authority binding, run ID, and token are required.");
+  }
+  return { repository, controlIssue, expectedHeadSha, expectedProductionSha, bindingId, runId, token };
+}
+
+export function createGitHubPreMutationAuthorityRevalidator(options, fetchImpl = fetch) {
+  const authority = validateAuthorityOptions(options);
+  const apiBase = `https://api.github.com/repos/${authority.repository}`;
+  return async () => {
+    const [issue, mainRef, productionRef] = await Promise.all([
+      readGithubJson(`${apiBase}/issues/${authority.controlIssue}`, { token: authority.token, fetchImpl }),
+      readGithubJson(`${apiBase}/git/ref/heads/main`, { token: authority.token, fetchImpl }),
+      readGithubJson(`${apiBase}/git/ref/heads/Production`, { token: authority.token, fetchImpl }),
+    ]);
+    if (issue?.state !== "open") {
+      throw authorityError("control_issue_closed_before_restart", "Control issue closed before the provider mutation.");
+    }
+    const mainSha = String(mainRef?.object?.sha || "").toLowerCase();
+    const productionSha = String(productionRef?.object?.sha || "").toLowerCase();
+    if (mainSha !== authority.expectedHeadSha) {
+      throw authorityError("main_head_changed_before_restart", "main changed after authorization and before the provider mutation.");
+    }
+    if (productionSha !== authority.expectedProductionSha) {
+      throw authorityError("production_head_changed_before_restart", "Production changed after authorization and before the provider mutation.");
+    }
+
+    const comments = [];
+    for (let page = 1; page <= 100; page += 1) {
+      const batch = await readGithubJson(
+        `${apiBase}/issues/${authority.controlIssue}/comments?per_page=100&page=${page}`,
+        { token: authority.token, fetchImpl },
+      );
+      if (!Array.isArray(batch)) {
+        throw authorityError("github_authority_comments_invalid", "GitHub authority comments response was not an array.");
+      }
+      comments.push(...batch);
+      if (batch.length < 100) break;
+      if (page === 100) {
+        throw authorityError("github_authority_pagination_limit", "GitHub authority comments exceeded the bounded pagination limit.");
+      }
+    }
+
+    const prefix = "HOSTINGER_PRODUCTION_NODEJS_RESTART status=";
+    const binding = `binding=${authority.bindingId}`;
+    const expectedHead = `expected_head_sha=${authority.expectedHeadSha}`;
+    const run = `run_id=${authority.runId}`;
+    const relevant = comments
+      .filter((comment) => typeof comment?.body === "string")
+      .filter((comment) => comment?.user?.login === "github-actions[bot]" && comment?.user?.type === "Bot")
+      .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
+      .sort((left, right) => Number(left.id) - Number(right.id));
+    const claims = relevant.filter((comment) => comment.body.includes("status=claiming"));
+    const currentClaim = claims.filter((comment) =>
+      comment.body.includes(expectedHead) && comment.body.includes(run)).at(-1);
+    const latestClaim = claims.at(-1);
+    if (!currentClaim) {
+      throw authorityError("current_run_claim_missing_before_restart", "The current run claim is missing before the provider mutation.");
+    }
+    if (!latestClaim || Number(currentClaim.id) !== Number(latestClaim.id)) {
+      throw authorityError("current_run_claim_superseded_before_restart", "The current run claim is not the latest claim for the exact binding.");
+    }
+
+    const consumed = relevant.some((comment) =>
+      Number(comment.id) !== Number(currentClaim.id)
+      && (comment.body.includes("status=completed")
+        || comment.body.includes("restart_attempted=true")
+        || comment.body.includes("restart_performed=true")));
+    if (consumed) {
+      throw authorityError("restart_binding_consumed_before_mutation", "The exact restart binding was consumed before the provider mutation.");
+    }
+    const laterMarkers = relevant.filter((comment) => Number(comment.id) > Number(currentClaim.id));
+    if (laterMarkers.length > 0) {
+      throw authorityError("restart_claim_changed_before_mutation", "A later restart marker appeared after the current run claim.");
+    }
+
+    return {
+      contract: PRE_MUTATION_AUTHORITY_CONTRACT,
+      status: "passed",
+      checked_at: new Date().toISOString(),
+      repository: authority.repository,
+      control_issue: Number(authority.controlIssue),
+      issue_open: true,
+      main_sha: mainSha,
+      production_sha: productionSha,
+      binding: authority.bindingId,
+      run_id: authority.runId,
+      claim_comment_id: Number(currentClaim.id),
+      claim_is_latest: true,
+      later_marker_count: 0,
+      secrets_included: false,
+    };
+  };
+}
+
+export function createCoherentRuntimeFetch(
+  configuration,
+  fetchImpl = fetch,
+  mutationState = { attempted: false },
+  authorityState = { result: null },
+  beforeProviderMutation = null,
+) {
   const restartPath = authorizedRestartPath(configuration);
   return async (url, init = {}) => {
     const method = String(init.method || "GET").toUpperCase();
     const pathname = new URL(String(url)).pathname;
     if (method === "POST" && pathname === restartPath) {
+      if (typeof beforeProviderMutation === "function") {
+        try {
+          authorityState.result = await beforeProviderMutation();
+        } catch (error) {
+          authorityState.result = {
+            contract: PRE_MUTATION_AUTHORITY_CONTRACT,
+            status: "failed",
+            checked_at: new Date().toISOString(),
+            failure_code: String(error?.code || "pre_mutation_authority_failed"),
+            failure_message: String(error?.message || "Pre-mutation authority failed.").slice(0, 1_000),
+            secrets_included: false,
+          };
+          throw error;
+        }
+      }
       persistAttemptJournal(configuration);
       mutationState.attempted = true;
     }
@@ -147,13 +327,29 @@ export async function executeGovernedRestart(options, dependencies = {}) {
   const configuration = validateConfiguration(options);
   const rawFetch = dependencies.fetchImpl || fetch;
   const mutationState = { attempted: false };
-  const fetchImpl = createCoherentRuntimeFetch(configuration, rawFetch, mutationState);
+  const authorityState = { result: null };
+  const fetchImpl = createCoherentRuntimeFetch(
+    configuration,
+    rawFetch,
+    mutationState,
+    authorityState,
+    dependencies.beforeProviderMutation || null,
+  );
   const report = await executeBaseRestart(options, { ...dependencies, fetchImpl });
 
   report.restart = report.restart || { requested: false, performed: false, response_status: null };
   report.restart.attempted = mutationState.attempted;
   report.side_effects = report.side_effects || {};
   report.side_effects.provider_mutation_attempted = mutationState.attempted;
+  report.pre_mutation_authority = authorityState.result;
+  if (authorityState.result?.status === "failed" && mutationState.attempted === false) {
+    report.classification = "restart_precondition_failed";
+    report.first_failure = {
+      code: authorityState.result.failure_code || "pre_mutation_authority_failed",
+      message: authorityState.result.failure_message || "Pre-mutation authority failed.",
+      http_status: 0,
+    };
+  }
   if (mutationState.attempted && report.restart.performed !== true && report.outcome !== "passed") {
     report.classification = "restart_attempted_outcome_unconfirmed";
   }
@@ -204,6 +400,7 @@ function fallbackReport(error, options = {}) {
       version_endpoint_authoritative: false,
       mode: IDENTITY_AUTHORITY,
     },
+    pre_mutation_authority: null,
     outcome: "failed",
     classification: "restart_configuration_failed",
     precondition: null,
@@ -233,6 +430,18 @@ function fallbackReport(error, options = {}) {
   };
 }
 
+function authorityOptionsFromEnvironment() {
+  return {
+    repository: process.env.GITHUB_AUTH_REPOSITORY || process.env.GITHUB_REPOSITORY || "",
+    controlIssue: process.env.GITHUB_AUTH_CONTROL_ISSUE || process.env.CONTROL_ISSUE || "",
+    expectedHeadSha: process.env.GITHUB_AUTH_EXPECTED_HEAD_SHA || process.env.GITHUB_SHA || "",
+    expectedProductionSha: process.env.GITHUB_AUTH_EXPECTED_PRODUCTION_SHA || process.env.EXPECTED_PRODUCTION_SHA || "",
+    bindingId: process.env.GITHUB_AUTH_BINDING_ID || process.env.BINDING_ID || "",
+    runId: process.env.GITHUB_AUTH_RUN_ID || process.env.GITHUB_RUN_ID || "",
+    token: process.env.GITHUB_AUTH_TOKEN || "",
+  };
+}
+
 async function main() {
   let options = {};
   let outputDir = process.env.HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR
@@ -241,7 +450,11 @@ async function main() {
   try {
     options = parseArgs(process.argv.slice(2));
     outputDir = options.outputDir;
-    report = await executeGovernedRestart(options);
+    const beforeProviderMutation = createGitHubPreMutationAuthorityRevalidator(
+      authorityOptionsFromEnvironment(),
+      fetch,
+    );
+    report = await executeGovernedRestart(options, { beforeProviderMutation });
   } catch (error) {
     report = fallbackReport(error, options);
   }
@@ -251,11 +464,17 @@ async function main() {
     `${JSON.stringify(report.runtime_identity_authority, null, 2)}\n`,
     { mode: 0o600 },
   );
+  fs.writeFileSync(
+    path.join(outputDir, "hostinger-pre-mutation-authority.json"),
+    `${JSON.stringify(report.pre_mutation_authority, null, 2)}\n`,
+    { mode: 0o600 },
+  );
   console.log(JSON.stringify({
     outcome: report.outcome,
     classification: report.classification,
     restart_attempted: report.restart?.attempted === true,
     restart_performed: report.restart?.performed === true,
+    pre_mutation_authority: report.pre_mutation_authority?.status || "not_required",
     runtime_identity_authority: report.runtime_identity_authority?.mode || IDENTITY_AUTHORITY,
     secrets_included: false,
   }));
