@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '.changes/e2e/hostinger-production-nodejs-production-restart.json'
+      - '.changes/e2e/hostinger-production-nodejs-restart.json'
       - '.github/workflows/hostinger-nodejs-production-restart.yml'
       - '.github/workflows/hostinger-nodejs-production-restart-contract.yml'
       - 'http-generic-api/scripts/hostinger-nodejs-production-restart.mjs'
