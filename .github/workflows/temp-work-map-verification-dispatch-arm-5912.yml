@@ -1,4 +1,4 @@
-name: TEMP Work Map Verification Dispatch ARM 5990
+name: TEMP Full ARM Validation 5990
 
 on:
   pull_request:
@@ -11,32 +11,34 @@ permissions:
 
 jobs:
   validate:
-    name: Validate exact final atomic candidate
+    name: Full exact-head ARM validation
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      EXPECTED_HEAD_SHA: 0a2265ff40ee8cb3e220e547bb658598d34ce05f
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      TARGET_BRANCH: gpt/ci-work-map-exact-verification-dispatch-final-a61cd9e8-20260804
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: 0a2265ff40ee8cb3e220e547bb658598d34ce05f
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify source, topology, scope, and reviewed blobs
+      - name: Verify exact identity, topology, scope, and blobs
         shell: bash
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5990"
-          test "$(git rev-parse HEAD)" = "0a2265ff40ee8cb3e220e547bb658598d34ce05f"
-
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-full-5990"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git fetch --no-tags origin \
             "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-final-a61cd9e8-20260804:refs/remotes/origin/candidate"
-
-          test "$(git rev-parse refs/remotes/origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
-          test "$(git rev-parse refs/remotes/origin/candidate)" = "0a2265ff40ee8cb3e220e547bb658598d34ce05f"
-          test "$(git rev-parse HEAD^)" = "a61cd9e83070618001676bbc679bc937f0551875"
+            "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/candidate"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
           test "$(git rev-list --count refs/remotes/origin/main..HEAD)" = "1"
 
           cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
@@ -63,21 +65,66 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Run focused dispatch regression
+      - name: Install dependencies
         working-directory: http-generic-api
-        shell: bash
-        run: node test-work-map-post-write-exact-verification-dispatch.mjs
+        run: npm ci
 
-      - name: Verify E2E contract, test syntax, and generated maps
+      - name: Run syntax and focused governance checks
         shell: bash
         run: |
           set -euo pipefail
           node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
           node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
 
-      - name: Verify clean checkout after validation
+      - name: Run context-kernel changed-file ratchet
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "${EXPECTED_MAIN_SHA}"...HEAD > "$RUNNER_TEMP/context-kernel-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
+
+      - name: Guard interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
+
+      - name: Run complete Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Prove deployment manifest generation
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.TARGET_BRANCH }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+
+      - name: Upload ordered test progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-arm-unit-integration-progress-5990-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify clean checkout
         shell: bash
         run: |
           set -euo pipefail
