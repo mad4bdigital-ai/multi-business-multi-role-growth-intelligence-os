@@ -8,14 +8,14 @@ on:
       - .github/workflows/surface-callability-current-main-v2-finalizer.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: surface-callability-current-main-v2-finalizer-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  finalize:
+  diagnose-generation:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
       github.event.pull_request.number == 5685 &&
@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/surface-current-main-clean-v2-20260803' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
-    timeout-minutes: 35
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/surface-current-main-clean-v2-20260803
       BASE_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
@@ -35,13 +35,11 @@ jobs:
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
-          persist-credentials: true
 
       - name: Verify exact bounded trigger
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           git merge-base --is-ancestor "${BASE_SHA}" HEAD
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
@@ -59,165 +57,18 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Verify permanent source invariants
+      - name: Discovery before closure
         working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const lifecycle = fs.readFileSync('routes/tenantLifecycleRoutes.js', 'utf8');
-          const generator = fs.readFileSync('scripts/surface-callability-closure/generate_closure_contracts.mjs', 'utf8');
-          const verifier = fs.readFileSync('scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs', 'utf8');
-          if (!lifecycle.includes('workspace_invitations_expire_failed')) throw new Error('workspace_invitation_stable_code_missing');
-          if (lifecycle.includes('workspace_invitations_expire_stale_failed')) throw new Error('workspace_invitation_stale_code_present');
-          if (!generator.includes('repository_main_moved_trigger_policy_v1')) throw new Error('hostinger_policy_target_missing');
-          if (generator.includes('hostinger_production_resync_policy_v1')) throw new Error('legacy_hostinger_policy_target_present');
-          if (!/canonicalOpenApiAuthority\(\{\s*(?:apiRoot|rootDir):\s*ROOT\s*\}\)/.test(generator)) throw new Error('canonical_openapi_authority_call_missing');
-          if (!generator.includes('authority.files')) throw new Error('canonical_openapi_files_consumption_missing');
-          if (!verifier.includes('(source.match(/^PREPARE\\s+/gim) || []).length === 1')) throw new Error('hostinger_prepare_exact_count_guard_missing');
-          console.log(JSON.stringify({ok:true,stable_lifecycle_code:true,canonical_openapi_authority:true,hostinger_policy_target:true,hostinger_exact_statement_counts:true,secrets_included:false}));
-          NODE
+        run: node scripts/surface-contract-discovery.mjs --write
 
-      - name: Generate and persist closure evidence
+      - name: Generate closure contracts
         working-directory: http-generic-api
-        run: |
-          node scripts/surface-contract-discovery.mjs --write
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node scripts/surface-contract-discovery.mjs --write
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
 
-      - name: Reject temporary exporter tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          for path in http-generic-api/test-frontend-surface-dispatch.mjs http-generic-api/test-frontend-auth-openapi-parity.mjs; do
-            ! grep -Fq 'surface_artifact_export_complete_intentional_test_failure' "$path"
-          done
-
-      - name: Syntax contracts
+      - name: Discovery after closure
         working-directory: http-generic-api
-        run: |
-          node --check routes/tenantLifecycleRoutes.js
-          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node --check scripts/resource-api-callability-contracts.mjs
-          node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+        run: node scripts/surface-contract-discovery.mjs --write
 
-      - name: Workspace invitation controls
+      - name: Generate frontend dispatch
         working-directory: http-generic-api
-        run: node test-workspace-invitation-controls.mjs
-
-      - name: SQL registry extractor
-        working-directory: http-generic-api
-        run: node test-surface-contract-sql-registry-extractor.mjs
-
-      - name: Surface contract classification
-        working-directory: http-generic-api
-        run: node test-surface-contract-classification.mjs
-
-      - name: Resource effect classes
-        working-directory: http-generic-api
-        run: node test-resource-api-callability-effect-classes.mjs
-
-      - name: Multi-surface runtime
-        working-directory: http-generic-api
-        run: node test-multi-surface-agent-runtime.mjs
-
-      - name: Resource API coverage
-        working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
-
-      - name: Surface full closure
-        working-directory: http-generic-api
-        run: node test-surface-callability-full-closure.mjs
-
-      - name: Frontend Surface dispatch
-        working-directory: http-generic-api
-        run: node test-frontend-surface-dispatch.mjs
-
-      - name: Frontend auth OpenAPI parity
-        working-directory: http-generic-api
-        run: node test-frontend-auth-openapi-parity.mjs
-
-      - name: OpenAPI route coverage
-        working-directory: http-generic-api
-        run: node test-openapi-route-coverage.mjs
-
-      - name: Hostinger full-closure safety
-        working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: OpenAPI auth parity
-        working-directory: http-generic-api
-        run: npm run openapi:auth:check
-
-      - name: Server startup without database environment
-        working-directory: http-generic-api
-        run: node test-server-startup-smoke.mjs
-
-      - name: Current test manifest
-        working-directory: http-generic-api
-        run: node test-test-manifest-runner.mjs
-
-      - name: Prove scoped queue closure
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
-          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
-          const scoped = new Set(manifest.source_queue_tool_keys || []);
-          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
-            action.action_key === 'verify_tool_registry_binding' &&
-            (action.targets || []).some((key) => scoped.has(key))
-          ));
-          if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
-          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_queue_item_count_mismatch:${manifest.source_queue_item_count}`);
-          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
-          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
-          NODE
-
-      - name: Remove finalizer and enforce bounded generated outputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm "${WORKFLOW_PATH}"
-          cat > /tmp/allowed.txt <<'EOF'
-          .github/workflows/surface-callability-current-main-v2-finalizer.yml
-          docs/surface-contract-discovery-status.json
-          docs/surface-contract-discovery-status.md
-          docs/surface-contract-gap-queue.json
-          docs/surface-contract-gap-queue.md
-          docs/surface-contract-safety-attestations.json
-          http-generic-api/frontend-operation-governance.generated.json
-          http-generic-api/frontend-surface-dispatch.generated.json
-          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          http-generic-api/resource-api-surface-callability.manifest.json
-          http-generic-api/scripts/test-manifest.mjs
-          http-generic-api/surface-contract-classification-evidence.json
-          http-generic-api/test-frontend-auth-openapi-parity.mjs
-          http-generic-api/test-frontend-surface-dispatch.mjs
-          http-generic-api/test-surface-callability-full-closure.mjs
-          EOF
-          sort -u /tmp/allowed.txt -o /tmp/allowed.txt
-          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
-          unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
-          test -z "$unexpected" || { printf 'unexpected finalizer outputs:\n%s\n' "$unexpected"; exit 1; }
-          grep -Fxq "${WORKFLOW_PATH}" /tmp/changed.txt
-
-      - name: Commit product-only revalidation result
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$before" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
-          git add -A
-          git commit -m 'feat(surface): revalidate clean closure on current main'
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$after" = "$(git rev-parse HEAD)"
-          test ! -e "${WORKFLOW_PATH}"
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
