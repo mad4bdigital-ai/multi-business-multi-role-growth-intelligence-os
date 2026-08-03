@@ -13,29 +13,42 @@ requireFragment('permissions:\n  contents: read', 'read-only permissions');
 requireFragment('persist-credentials: false', 'credential-free checkout');
 requireFragment('Classify governed candidate mode', 'governed candidate-mode classifier');
 requireFragment('PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json', 'phase contract input');
+requireFragment('BASE_REF: ${{ github.event.pull_request.base.ref }}', 'base ref binding');
+requireFragment('HEAD_REF: ${{ github.event.pull_request.head.ref }}', 'head ref binding');
 requireFragment("contract.delivery_mode === 'multi_pr'", 'multi-PR contract requirement');
 requireFragment('contract.parallel_work?.enabled === true', 'parallel work requirement');
 requireFragment("contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'", 'Rollup merge policy requirement');
 requireFragment('contract.parallel_work?.no_partial_feature_merge === true', 'no-partial-merge requirement');
+requireFragment("process.env.BASE_REF === 'Production'", 'Production base classification');
+requireFragment("process.env.HEAD_REF === 'main'", 'main promotion head classification');
+requireFragment("process.env.HEAD_REF.startsWith('release/production-')", 'release promotion head classification');
+requireFragment("? 'production_promotion'", 'Production promotion mode');
+requireFragment("? 'integration'", 'Integration mode');
+requireFragment("'feature'", 'feature mode');
+requireFragment('production_promotion=${isProductionPromotion}', 'promotion classifier output');
 requireFragment('CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}', 'candidate mode output binding');
+requireFragment('PRODUCTION_PROMOTION: ${{ steps.candidate_mode.outputs.production_promotion }}', 'promotion output binding');
 requireFragment('MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}', 'candidate mode outcome binding');
-requireFragment("'candidate_mode_source': 'governed_phase_contract'", 'candidate mode evidence source');
+requireFragment("'candidate_mode_source': 'governed_phase_contract_and_pr_refs'", 'candidate mode evidence source');
 requireFragment("'governed_phase_contract_digest'", 'phase contract digest evidence');
-requireFragment('Validate rollup-aware workflow contract', 'workflow regression step');
+requireFragment('Validate promotion-aware workflow contract', 'workflow regression step');
 requireFragment('WORKFLOW_CONTRACT_OUTCOME: ${{ steps.workflow_contract.outcome }}', 'workflow contract outcome binding');
 requireFragment('MERGE_CANDIDATE_SHA: ${{ github.sha }}', 'merge candidate identity binding');
 requireFragment("'source_sha': os.environ['CANDIDATE_SHA']", 'source SHA bound to exact head');
 requireFragment("'merge_candidate_sha': os.environ['MERGE_CANDIDATE_SHA']", 'separate merge candidate SHA');
 requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature'", 'feature allowlist evidence');
 requireFragment("'rollup_scope_allowlist_skipped': candidate_mode == 'integration'", 'rollup scope evidence');
-requireFragment("'ddl_matches_registry_sql': ddl_matches_registry_sql", 'focused DDL parity evidence');
-requireFragment("focused.get('ddl_matches_registry_sql') is True", 'focused test result consumption');
-requireFragment("focused.get('contract_local_only') is True", 'contract-local result consumption');
-requireFragment('if [[ "${candidate_mode}" != "integration" ]]', 'feature-only diff allowlist enforcement');
+requireFragment("'production_promotion_scope_allowlist_skipped': candidate_mode == 'production_promotion'", 'promotion scope evidence');
+requireFragment("'production_promotion_contract_verified': os.environ.get('PRODUCTION_PROMOTION') == 'true'", 'promotion contract evidence');
+requireFragment("valid_modes = ('feature', 'integration', 'production_promotion')", 'bounded candidate modes');
+requireFragment("if [[ \"${candidate_mode}\" == \"feature\" ]]", 'feature-only diff allowlist enforcement');
 requireFragment("grep -q 'CONTRACT-LOCAL DDL ONLY'", 'DDL authority marker check');
 requireFragment("grep -q '\"governed_runtime_migration_promoted\": false'", 'non-promotion contract check');
 requireFragment("grep -q '\"migration_apply_authorized\": false'", 'no-apply contract check');
 requireFragment('(DROP|TRUNCATE)[[:space:]]+TABLE', 'destructive DDL rejection');
+requireFragment("'ddl_matches_registry_sql': ddl_matches_registry_sql", 'focused DDL parity evidence');
+requireFragment("focused.get('ddl_matches_registry_sql') is True", 'focused test result consumption');
+requireFragment("focused.get('contract_local_only') is True", 'contract-local result consumption');
 
 assert.equal(source.includes("'ddl_matches_registry_sql': not failed"), false, 'DDL parity must not be inferred from unrelated stages');
 assert.equal(source.includes("'source_sha': os.environ['SOURCE_SHA']"), false, 'merge candidate SHA must not masquerade as source head');
@@ -44,16 +57,18 @@ assert.equal(source.includes('contents: write'), false, 'workflow must remain re
 assert.equal(source.includes('git push'), false, 'workflow must not mutate repository state');
 
 const classification = source.indexOf('Classify governed candidate mode');
-const featureScopeGate = source.indexOf('if [[ "${candidate_mode}" != "integration" ]]');
+const featureScopeGate = source.indexOf('if [[ "${candidate_mode}" == "feature" ]]');
 const contentBoundary = source.indexOf("grep -q 'CONTRACT-LOCAL DDL ONLY'");
 assert(classification >= 0 && featureScopeGate > classification, 'Contract classification must precede scope enforcement');
-assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in both feature and Integration modes');
+assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in feature, Integration, and Production promotion modes');
 
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_durable_authorized_injection_schema_ddl_workflow',
   feature_scope_allowlist_preserved: true,
   contract_governed_integration_mode: true,
+  contract_governed_production_promotion_mode: true,
+  production_base_and_head_refs_verified: true,
   branch_specific_workflow_literals: false,
   integration_rollup_scope_supported: true,
   exact_head_source_identity: true,
@@ -64,5 +79,5 @@ console.log(JSON.stringify({
   migration_apply_authorized: false,
   provider_dispatch_allowed: false,
   production_ready: false,
-  secrets_included: false,
+  secrets_included: false
 }, null, 2));
