@@ -140,7 +140,29 @@ function defaultResolveBlobSha(repositoryRoot, observedRef, sourceFile) {
   return String(result.stdout || "").trim().toLowerCase();
 }
 
-function assertSafeRegularSourceFile(absolutePath, sourceFile) {
+function canonicalRepositoryRoot(repositoryRoot) {
+  try {
+    return fs.realpathSync(path.resolve(repositoryRoot));
+  } catch (error) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_root_unavailable",
+      "The repository root is unavailable for authority evidence collection.",
+      { error: error.message },
+    );
+  }
+}
+
+function resolveSafeRegularSourceFile(repositoryRoot, sourceFile) {
+  const absolutePath = path.resolve(repositoryRoot, sourceFile);
+  const lexicalRelative = path.relative(repositoryRoot, absolutePath).replaceAll("\\", "/");
+  if (lexicalRelative !== sourceFile) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_source_path_escape",
+      "The resolved source file escaped the repository root.",
+      { source_file: sourceFile },
+    );
+  }
+
   let fileStat;
   try {
     fileStat = fs.lstatSync(absolutePath);
@@ -165,6 +187,26 @@ function assertSafeRegularSourceFile(absolutePath, sourceFile) {
       { source_file: sourceFile, maximum_bytes: MAX_SOURCE_FILE_BYTES, observed_bytes: fileStat.size },
     );
   }
+
+  let realSourcePath;
+  try {
+    realSourcePath = fs.realpathSync(absolutePath);
+  } catch (error) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_source_file_unavailable",
+      "A declared repository source file could not be resolved in the checked-out worktree.",
+      { source_file: sourceFile, error: error.message },
+    );
+  }
+  const realRelative = path.relative(repositoryRoot, realSourcePath).replaceAll("\\", "/");
+  if (realRelative !== sourceFile) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_source_path_escape",
+      "The real source file path escaped or differed from the reviewed repository path.",
+      { source_file: sourceFile, observed_path: realRelative },
+    );
+  }
+  return realSourcePath;
 }
 
 function parseSourceDocument(text, sourceFile) {
@@ -245,24 +287,16 @@ export function collectAuthorityEvidenceRepositorySnapshots({
   resolve_blob_sha: resolveBlobSha = defaultResolveBlobSha,
 } = {}) {
   const normalizedManifest = normalizeManifest(manifest);
+  const canonicalRoot = canonicalRepositoryRoot(repositoryRoot);
   const observedAt = timestamp(now, "now");
   const snapshots = [];
   const sourceFiles = [];
 
   for (const binding of normalizedManifest.sources) {
-    const absolutePath = path.resolve(repositoryRoot, binding.source_file);
-    const relativeBack = path.relative(path.resolve(repositoryRoot), absolutePath).replaceAll("\\", "/");
-    if (relativeBack !== binding.source_file) {
-      throw new AuthorityEvidenceRepositorySnapshotError(
-        "authority_evidence_repository_source_path_escape",
-        "The resolved source file escaped the repository root.",
-        { source_file: binding.source_file },
-      );
-    }
-    assertSafeRegularSourceFile(absolutePath, binding.source_file);
+    const sourcePath = resolveSafeRegularSourceFile(canonicalRoot, binding.source_file);
 
     const actualBlobSha = commitSha(
-      resolveBlobSha(repositoryRoot, normalizedManifest.observed_ref, binding.source_file),
+      resolveBlobSha(canonicalRoot, normalizedManifest.observed_ref, binding.source_file),
       `actual_blob_sha:${binding.source_file}`,
     );
     if (actualBlobSha !== binding.blob_sha) {
@@ -273,7 +307,7 @@ export function collectAuthorityEvidenceRepositorySnapshots({
       );
     }
 
-    const sourceText = String(readFile(absolutePath));
+    const sourceText = String(readFile(sourcePath));
     const actualContentSha256 = sha256Text(sourceText);
     if (actualContentSha256 !== binding.content_sha256) {
       throw new AuthorityEvidenceRepositorySnapshotError(
@@ -374,5 +408,6 @@ export const _testingAuthorityEvidenceRepositorySnapshotCollector = Object.freez
   normalizeManifest,
   safeRelativeFile,
   assertNoSensitiveValues,
-  assertSafeRegularSourceFile,
+  canonicalRepositoryRoot,
+  resolveSafeRegularSourceFile,
 });
