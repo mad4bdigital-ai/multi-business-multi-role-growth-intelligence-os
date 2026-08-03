@@ -49,6 +49,7 @@ jobs:
           node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
           node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
           node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
           node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
           node http-generic-api/scripts/test-ci-evidence-router.mjs
@@ -68,7 +69,9 @@ jobs:
           assert.equal(workflow.includes('phase_evaluation_base: $' + '{{ steps.parallel.outputs.phase_evaluation_base }}'), true, 'The evaluate job must expose the governed promotion source baseline.');
           assert.equal((workflow.match(/^\s+PROMOTION_PHASE_BASE:\s+\$\{\{\s*(?:steps\.parallel|needs\.evaluate)\.outputs\.phase_evaluation_base\s*\}\}\s*$/gm) || []).length, 2, 'Evaluation and execution must both consume the governed promotion source baseline.');
           assert.equal((workflow.match(/^\s*EVALUATION_BASE_SHA="\$\{PROMOTION_PHASE_BASE:-\$\{PR_BASE_SHA:-\}\}"\s*$/gm) || []).length, 2, 'Both phase operations must fail closed onto the promotion baseline before the PR base.');
-          console.log(JSON.stringify({ ok: true, test: 'e2e_phase_artifact_routing_and_promotion_baseline', rerun_summary_self_contamination_blocked: true, promotion_history_reinterpretation_blocked: true, secrets_included: false }));
+          assert.equal(workflow.includes("steps.parallel.outputs.mode != 'default_branch_sync'"), true, 'Default-branch synchronization must not evaluate unrelated feature contracts.');
+          assert.equal(workflow.includes("needs.evaluate.outputs.mode == 'default_branch_sync'"), true, 'Default-branch synchronization must execute its bounded classifier regression.');
+          console.log(JSON.stringify({ ok: true, test: 'e2e_phase_artifact_routing_default_branch_sync_and_promotion_baseline', rerun_summary_self_contamination_blocked: true, default_branch_sync_bounded: true, promotion_history_reinterpretation_blocked: true, secrets_included: false }));
           NODE
 
       - name: Classify and validate parallel PR mode
@@ -91,7 +94,7 @@ jobs:
           node http-generic-api/scripts/e2e-parallel-pr-gate.mjs "${args[@]}"
 
       - name: Evaluate complete phase contract
-        if: steps.parallel.outputs.mode != 'workstream'
+        if: steps.parallel.outputs.mode != 'workstream' && steps.parallel.outputs.mode != 'default_branch_sync'
         shell: bash
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
@@ -165,8 +168,14 @@ jobs:
           --mode integration
           --report-file "${{ runner.temp }}/e2e-parallel-execution.json"
 
+      - name: Execute default-branch synchronization classifier regression
+        if: needs.evaluate.outputs.mode == 'default_branch_sync'
+        run: >-
+          node http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
+          > "${{ runner.temp }}/e2e-parallel-execution.json"
+
       - name: Execute declared current-phase E2E journeys
-        if: needs.evaluate.outputs.mode != 'workstream'
+        if: needs.evaluate.outputs.mode != 'workstream' && needs.evaluate.outputs.mode != 'default_branch_sync'
         shell: bash
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
