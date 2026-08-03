@@ -150,9 +150,13 @@ jobs:
         shell: bash
         run: |
           set +e
-          NO_COLOR=1 node test-openapi-route-coverage.mjs > ../openapi-route-coverage.log 2>&1
+          diagnostic="../openapi-route-coverage.log"
+          NO_COLOR=1 node test-openapi-route-coverage.mjs > "$diagnostic" 2>&1
           status=$?
-          cat ../openapi-route-coverage.log
+          cat "$diagnostic"
+          if [ "$status" -eq 0 ]; then
+            rm -f "$diagnostic"
+          fi
           exit "$status"
 
       - name: Upload OpenAPI route coverage diagnostic
@@ -187,6 +191,9 @@ jobs:
           cp surface-contract-classification-evidence.json "$diagnostics/"
           cat "$diagnostics/stdout.log"
           cat "$diagnostics/stderr.log" >&2
+          if [ "$status" -eq 0 ]; then
+            rm -rf "$diagnostics"
+          fi
           exit "$status"
 
       - name: Upload Hostinger full-closure diagnostic
