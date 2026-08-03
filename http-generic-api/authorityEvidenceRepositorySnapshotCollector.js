@@ -19,6 +19,7 @@ const COMMIT_SHA_PATTERN = /^[a-f0-9]{40}$/;
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
 const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+const MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024;
 
 export class AuthorityEvidenceRepositorySnapshotError extends Error {
   constructor(code, message, details = {}) {
@@ -139,6 +140,33 @@ function defaultResolveBlobSha(repositoryRoot, observedRef, sourceFile) {
   return String(result.stdout || "").trim().toLowerCase();
 }
 
+function assertSafeRegularSourceFile(absolutePath, sourceFile) {
+  let fileStat;
+  try {
+    fileStat = fs.lstatSync(absolutePath);
+  } catch (error) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_source_file_unavailable",
+      "A declared repository source file is unavailable in the checked-out worktree.",
+      { source_file: sourceFile, error: error.message },
+    );
+  }
+  if (fileStat.isSymbolicLink() || !fileStat.isFile()) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_unsafe_source_file_type",
+      "Repository authority source documents must be regular files and must not be symbolic links.",
+      { source_file: sourceFile },
+    );
+  }
+  if (fileStat.size > MAX_SOURCE_FILE_BYTES) {
+    throw new AuthorityEvidenceRepositorySnapshotError(
+      "authority_evidence_repository_source_file_too_large",
+      "A repository authority source file exceeds the bounded maximum size.",
+      { source_file: sourceFile, maximum_bytes: MAX_SOURCE_FILE_BYTES, observed_bytes: fileStat.size },
+    );
+  }
+}
+
 function parseSourceDocument(text, sourceFile) {
   let value;
   try {
@@ -231,6 +259,7 @@ export function collectAuthorityEvidenceRepositorySnapshots({
         { source_file: binding.source_file },
       );
     }
+    assertSafeRegularSourceFile(absolutePath, binding.source_file);
 
     const actualBlobSha = commitSha(
       resolveBlobSha(repositoryRoot, normalizedManifest.observed_ref, binding.source_file),
@@ -345,4 +374,5 @@ export const _testingAuthorityEvidenceRepositorySnapshotCollector = Object.freez
   normalizeManifest,
   safeRelativeFile,
   assertNoSensitiveValues,
+  assertSafeRegularSourceFile,
 });
