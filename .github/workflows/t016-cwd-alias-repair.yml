@@ -1,22 +1,25 @@
 name: T016 CWD Alias Repair
 
 on:
-  push:
+  pull_request:
     branches:
       - agent/validate-t016-readiness-artifact-base-435c001
-    paths:
-      - '.github/workflows/t016-cwd-alias-repair.yml'
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
 
 concurrency:
-  group: t016-cwd-alias-repair
-  cancel-in-progress: false
+  group: t016-cwd-alias-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   repair:
     name: Patch exact T016 aliases on existing candidate branch
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
+      github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
