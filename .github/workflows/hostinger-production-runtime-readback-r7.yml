@@ -44,8 +44,7 @@ jobs:
             echo "Invalid R7 trigger format." >&2
             exit 1
           fi
-          expected_production_sha="${BASH_REMATCH[1]}"
-          echo "expected_production_sha=${expected_production_sha}" >> "${GITHUB_OUTPUT}"
+          echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
 
       - name: Checkout exact trusted default-branch tooling
         uses: actions/checkout@v5
@@ -83,10 +82,7 @@ jobs:
           mkdir -p "${REPORT_DIR}"
 
           fetch_endpoint() {
-            local name="$1"
-            local url="$2"
-            local raw="${REPORT_DIR}/${name}.raw"
-            local safe="${REPORT_DIR}/${name}.json"
+            local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw" safe="${REPORT_DIR}/${1}.json"
             local status rc
             set +e
             status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
@@ -135,21 +131,22 @@ jobs:
             deployment_info: readStatus('deployment-info'),
             connector_agent_version: readStatus('connector-agent-version'),
           };
-          const deploymentManifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
-          const observedDeploymentSha = String(deployment?.commit_sha || deployment?.commit || deploymentManifest?.commit_sha || deploymentManifest?.commit || '').toLowerCase();
-          const observedBranch = String(deployment?.branch || deploymentManifest?.branch || '');
-          const branchSource = String(deployment?.branch_source || deploymentManifest?.branch_source || '');
-          const deployedAt = String(deployment?.deployed_at || deploymentManifest?.deployed_at || '');
+          const manifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
+          const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
+          const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
           const versionShas = collectShas(version);
           const allHttpSuccess = Object.values(statuses).every((status) => status === 200);
           const versionShaExact = versionShas.includes(expectedSha);
-          const deploymentShaExact = observedDeploymentSha === expectedSha;
-          const branchExact = observedBranch === 'Production';
+          const deploymentShaExact = runtimeSha === expectedSha;
+          const branchExact = runtimeBranch === 'Production';
           const productionCurrent = allHttpSuccess && versionShaExact && deploymentShaExact && branchExact;
-          let classification = 'runtime_parity_incomplete';
-          if (productionCurrent) classification = 'production_current';
-          else if (versionShaExact && deploymentShaExact && !branchExact) classification = 'runtime_sha_current_branch_provenance_mismatch';
-          else if (!versionShaExact || !deploymentShaExact) classification = 'runtime_activation_pending_or_sha_mismatch';
+          const classification = productionCurrent
+            ? 'production_current'
+            : versionShaExact && deploymentShaExact && !branchExact
+              ? 'runtime_sha_current_branch_provenance_mismatch'
+              : !versionShaExact || !deploymentShaExact
+                ? 'runtime_activation_pending_or_sha_mismatch'
+                : 'runtime_parity_incomplete';
 
           const report = {
             contract: 'mad4b.hostinger-production-runtime-readback-r7.v1',
@@ -161,21 +158,18 @@ jobs:
               health_ok: health?.ok ?? null,
               connector_agent_ok: connector?.ok ?? null,
               version_shas: versionShas,
-              deployment_commit_sha: observedDeploymentSha || null,
-              deployment_branch: observedBranch || null,
-              deployment_branch_source: branchSource || null,
-              deployed_at: deployedAt || null,
+              deployment_commit_sha: runtimeSha || null,
+              deployment_branch: runtimeBranch || null,
+              deployment_branch_source: String(deployment?.branch_source || manifest?.branch_source || '') || null,
+              deployed_at: String(deployment?.deployed_at || manifest?.deployed_at || '') || null,
             },
-            checks: {
-              all_http_success: allHttpSuccess,
-              version_sha_exact: versionShaExact,
-              deployment_sha_exact: deploymentShaExact,
-              branch_exact: branchExact,
-            },
+            checks: { all_http_success: allHttpSuccess, version_sha_exact: versionShaExact, deployment_sha_exact: deploymentShaExact, branch_exact: branchExact },
             classification,
             production_current: productionCurrent,
             public_get_only: true,
-            repository_mutation_performed: false,
+            repository_content_mutation_performed: false,
+            repository_issue_comment_authorized: true,
+            repository_issue_comment_performed: false,
             provider_credential_accessed: false,
             provider_mutation_performed: false,
             build_creation_performed: false,
@@ -200,15 +194,6 @@ jobs:
           set -Eeuo pipefail
           test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
 
-      - name: Upload bounded runtime evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hostinger-production-runtime-readback-r7-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/*
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Publish bounded runtime decision
         if: always()
         shell: bash
@@ -221,10 +206,11 @@ jobs:
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
         run: |
           set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
           summary="${REPORT_DIR}/summary.json"
           if [[ ! -s "${summary}" ]]; then
             jq -n --arg expected "${EXPECTED_PRODUCTION_SHA}" \
-              '{contract:"mad4b.hostinger-production-runtime-readback-r7.v1",expected_production_sha:$expected,expected_branch:"Production",classification:"runtime_evidence_unavailable",production_current:false,public_get_only:true,repository_mutation_performed:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
+              '{contract:"mad4b.hostinger-production-runtime-readback-r7.v1",expected_production_sha:$expected,expected_branch:"Production",classification:"runtime_evidence_unavailable",production_current:false,public_get_only:true,repository_content_mutation_performed:false,repository_issue_comment_authorized:true,repository_issue_comment_performed:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
               > "${summary}"
           fi
           classification="$(jq -r '.classification' "${summary}")"
@@ -233,14 +219,25 @@ jobs:
           version_status="$(jq -r '.statuses.version // 0' "${summary}")"
           deployment_status="$(jq -r '.statuses.deployment_info // 0' "${summary}")"
           connector_status="$(jq -r '.statuses.connector_agent_version // 0' "${summary}")"
-          observed_runtime_sha="$(jq -r '.observations.deployment_commit_sha // "unverified"' "${summary}")"
-          observed_runtime_branch="$(jq -r '.observations.deployment_branch // "unverified"' "${summary}")"
-          body="HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 status=completed run_id=${GITHUB_RUN_ID} trigger_comment_id=${EVENT_COMMENT_ID} tooling_sha=${TOOLING_SHA:-unresolved} observed_main_sha=${OBSERVED_MAIN_SHA:-unresolved} expected_production_sha=${EXPECTED_PRODUCTION_SHA} observed_production_sha=${OBSERVED_PRODUCTION_SHA:-unresolved} classification=${classification} production_current=${production_current} runtime_sha=${observed_runtime_sha} runtime_branch=${observed_runtime_branch} http_health=${health_status} http_version=${version_status} http_deployment_info=${deployment_status} http_connector_agent_version=${connector_status} collect_outcome=${COLLECT_OUTCOME} public_get_only=true provider_credential_accessed=false provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false external_business_send=false secrets_included=false"
+          runtime_sha="$(jq -r '.observations.deployment_commit_sha // "unverified"' "${summary}")"
+          runtime_branch="$(jq -r '.observations.deployment_branch // "unverified"' "${summary}")"
+          body="HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 status=completed run_id=${GITHUB_RUN_ID} trigger_comment_id=${EVENT_COMMENT_ID} tooling_sha=${TOOLING_SHA:-unresolved} observed_main_sha=${OBSERVED_MAIN_SHA:-unresolved} expected_production_sha=${EXPECTED_PRODUCTION_SHA} observed_production_sha=${OBSERVED_PRODUCTION_SHA:-unresolved} classification=${classification} production_current=${production_current} runtime_sha=${runtime_sha} runtime_branch=${runtime_branch} http_health=${health_status} http_version=${version_status} http_deployment_info=${deployment_status} http_connector_agent_version=${connector_status} collect_outcome=${COLLECT_OUTCOME} public_get_only=true repository_content_mutation=false repository_issue_comment_performed=true provider_credential_accessed=false provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false external_business_send=false secrets_included=false"
           gh api --method POST \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
             "/repos/${REPOSITORY}/issues/${EVENT_ISSUE_NUMBER}/comments" \
             -f body="${body}" >/dev/null
+          jq '.repository_issue_comment_performed = true' "${summary}" > "${summary}.next"
+          mv "${summary}.next" "${summary}"
+
+      - name: Upload bounded runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-runtime-readback-r7-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Enforce exact current Production runtime
         if: always()
@@ -253,7 +250,9 @@ jobs:
             .production_current == true and
             .classification == "production_current" and
             .public_get_only == true and
-            .repository_mutation_performed == false and
+            .repository_content_mutation_performed == false and
+            .repository_issue_comment_authorized == true and
+            .repository_issue_comment_performed == true and
             .provider_credential_accessed == false and
             .provider_mutation_performed == false and
             .build_creation_performed == false and
