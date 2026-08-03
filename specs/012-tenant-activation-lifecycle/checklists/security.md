@@ -1,6 +1,6 @@
 # Security Checklist: Tenant GPT Activation Lifecycle
 
-**Status**: Clarification required before implementation  
+**Status**: Technical data-governance review complete; retention approval required  
 **Scope**: OAuth, JWT, gateway, tenant identity, sessions, tools, evidence, recovery, and deployment diagnostics
 
 ## Authentication
@@ -47,7 +47,8 @@
 - [x] Diagnostic raw dumps are disabled by default and bounded under elevated authority.
 - [x] User/session history is tenant/user scoped and summary-first.
 - [x] Contracts and fixtures require `secrets_included: false` where applicable.
-- [ ] Retention durations are approved. Blocked by T009.
+- [x] Data classes, lifecycle entities, redaction controls, retention profiles, and approval boundaries are recorded in `implementation/pr-2i-t009-data-governance-readiness.json`.
+- [ ] Retention durations are approved. Blocked by T009 pending registered Security and Legal/Privacy approval for every retention profile.
 
 ## Input and protocol security
 
@@ -85,4 +86,4 @@
 
 ## Security approval gate
 
-ADR-001 through ADR-006 finalize the architecture-level ownership, token, Resolution authorization, questionnaire-policy, and deployment-evidence decisions. Runtime implementation remains gated on current-route/table inventory, physical SQL mapping, retention approval, production baseline/profile measurement, canonical contract parity, security tests, rollout controls, and governed migration/readback where required.
+ADR-001 through ADR-006 finalize the architecture-level ownership, token, Resolution authorization, questionnaire-policy, and deployment-evidence decisions. The repository-side T009 technical review now classifies all declared lifecycle entities and enforces a fail-closed redaction/approval contract. Runtime implementation remains gated on current-route/table inventory, physical SQL mapping, registered Security and Legal/Privacy retention approval, production baseline/profile measurement, canonical contract parity, security tests, rollout controls, and governed migration/readback where required.
