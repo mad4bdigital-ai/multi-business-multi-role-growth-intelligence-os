@@ -1,5 +1,6 @@
 name: Surface Artifact Promotion macOS
 
+# Temporary, PR-bounded self-removing generator trigger.
 on:
   pull_request:
     branches: [main]
