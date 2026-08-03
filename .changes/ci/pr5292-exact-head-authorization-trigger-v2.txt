@@ -1,6 +1,0 @@
-PR #5292 exact-head CI authorization trigger after successful current-main Surface final validation.
-Temporary marker: true
-Remove in the next commit: true
-Product tree mutation: false
-Production/deployment/migration/database/provider/external mutation: false
-Secrets included: false
