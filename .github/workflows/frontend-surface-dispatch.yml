@@ -21,7 +21,8 @@ jobs:
     timeout-minutes: 45
     env:
       TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
-      PINNED_SOURCE_HEAD: 153af5df9be737f4c129aae0cd07082b78b677da
+      PINNED_SOURCE_HEAD: 9b59c331b9efd2f7c900eeacedd0723c40b85a8b
+      OFFICIAL_WORKFLOW_SOURCE: 153af5df9be737f4c129aae0cd07082b78b677da
       WORKFLOW_PATH: .github/workflows/frontend-surface-dispatch.yml
       STALE_RUNNER_PATH: .github/workflows/surface-ci-repair-runner.yml
     steps:
@@ -115,7 +116,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git show "$PINNED_SOURCE_HEAD:$WORKFLOW_PATH" > "$WORKFLOW_PATH"
+          git show "$OFFICIAL_WORKFLOW_SOURCE:$WORKFLOW_PATH" > "$WORKFLOW_PATH"
           rm -f "$STALE_RUNNER_PATH"
 
       - name: Create local product commit
@@ -137,6 +138,7 @@ jobs:
           changed = {line.strip() for line in Path('/tmp/surface-final-repair-files.txt').read_text().splitlines() if line.strip()}
           expected = {
               '.changes/e2e/surface-callability-main-reconstruction.json',
+              '.github/workflows/frontend-surface-dispatch.yml',
               '.github/workflows/surface-ci-repair-runner.yml',
               'http-generic-api/agentSurfaceRuntimeService.js',
               'http-generic-api/frontend-surface-dispatch.generated.json',
