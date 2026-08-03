@@ -27,7 +27,7 @@ jobs:
       EXPECTED_HEAD_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
       TARGET_BRANCH: gpt/work-map-input-driven-branch-governance-20260804
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
-      SCRIPT_COMMIT_SHA: b68cf2cd4ea365d813bdc5cdf06e5c031c431cc5
+      SCRIPT_COMMIT_SHA: 92a91f6bc463397bf201373305341c80fee24f9f
     steps:
       - name: Checkout exact clean branch
         uses: actions/checkout@v5
@@ -58,6 +58,8 @@ jobs:
           .github/workflows/spec-kit-work-map-autofix.yml
           docs/work-maps/README.md
           docs/work-maps/repository-automation-map.md
+          http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
+          http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
           http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           EOF
 
@@ -109,6 +111,8 @@ jobs:
 
           run_check workflow-yaml ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
           run_check diagnostics-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          run_check lifecycle-regression node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          run_check lifecycle-guard-syntax node --check http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
           run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
           run_check marker-git-ref grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
           run_check marker-no-full-ref grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
@@ -140,6 +144,8 @@ jobs:
             .github/workflows/spec-kit-work-map-autofix.yml \
             docs/work-maps/README.md \
             docs/work-maps/repository-automation-map.md \
+            http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs \
             http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           git commit -m "fix(ci): make Work Map branch governance input-driven"
           new_head="$(git rev-parse HEAD)"
@@ -149,11 +155,13 @@ jobs:
           test -z "$(git status --porcelain)"
 
           payload="${DIAGNOSTIC_ROOT}/validated-payload"
-          mkdir -p "${payload}/.changes/e2e" "${payload}/.github/workflows" "${payload}/docs/work-maps" "${payload}/http-generic-api"
+          mkdir -p "${payload}/.changes/e2e" "${payload}/.github/workflows" "${payload}/docs/work-maps" "${payload}/http-generic-api/scripts/maintenance-tools" "${payload}/http-generic-api/scripts" "${payload}/http-generic-api"
           cp .changes/e2e/work-map-autofix-validation-diagnostics.json "${payload}/.changes/e2e/"
           cp .github/workflows/spec-kit-work-map-autofix.yml "${payload}/.github/workflows/"
           cp docs/work-maps/README.md "${payload}/docs/work-maps/"
           cp docs/work-maps/repository-automation-map.md "${payload}/docs/work-maps/"
+          cp http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs "${payload}/http-generic-api/scripts/maintenance-tools/"
+          cp http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs "${payload}/http-generic-api/scripts/"
           cp http-generic-api/test-work-map-autofix-validation-diagnostics.mjs "${payload}/http-generic-api/"
           printf '%s\n' "${new_head}" > "${payload}/local-commit-sha.txt"
           git show -s --format=%T "${new_head}" > "${payload}/local-tree-sha.txt"
@@ -164,6 +172,8 @@ jobs:
             "${payload}/.github/workflows/spec-kit-work-map-autofix.yml" \
             "${payload}/docs/work-maps/README.md" \
             "${payload}/docs/work-maps/repository-automation-map.md" \
+            "${payload}/http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs" \
+            "${payload}/http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs" \
             "${payload}/http-generic-api/test-work-map-autofix-validation-diagnostics.mjs" \
             > "${payload}/sha256sums.txt"
 
@@ -173,9 +183,7 @@ jobs:
           BASE_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
         run: |
           set -euo pipefail
-          export CI_CANDIDATE_KIND=head
-          export CI_CANDIDATE_SHA="${NEW_HEAD_SHA}"
-          export CI_SOURCE_HEAD_SHA="${NEW_HEAD_SHA}"
+          export CANDIDATE_SHA="${NEW_HEAD_SHA}"
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
           git diff --name-status "${BASE_SHA}" "${NEW_HEAD_SHA}" > /tmp/repository-tool-changes.tsv
           node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
@@ -215,6 +223,7 @@ jobs:
         with:
           name: work-map-input-driven-followup-${{ github.run_id }}
           path: ${{ runner.temp }}/work-map-input-driven-followup-${{ github.run_id }}
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
