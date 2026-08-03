@@ -528,9 +528,6 @@ function queuedFetch(entries, calls = []) {
   );
 }
 
-console.log("github repository lifecycle tests passed");
-
-
 {
   const checks = [
     "Syntax Check",
@@ -592,3 +589,5 @@ console.log("github repository lifecycle tests passed");
   );
   assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "draft race must not reach merge endpoint");
 }
+
+console.log("github repository lifecycle tests passed");

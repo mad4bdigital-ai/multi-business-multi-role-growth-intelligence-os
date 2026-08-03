@@ -64,7 +64,7 @@
             "http-generic-api/repositoryAutomationControlPlane.js",
             "http-generic-api/test-github-repository-lifecycle.mjs",
             "http-generic-api/test-repository-automation-control-plane.mjs",
-            "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5021"
+            ".changes/e2e/repository-lifecycle-draft-merge-guard.json"
           ]
         }
       ]
