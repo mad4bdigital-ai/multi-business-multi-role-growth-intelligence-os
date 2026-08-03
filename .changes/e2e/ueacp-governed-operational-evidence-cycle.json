@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ueacp-governed-operational-evidence-cycle",
+  "title": "UEACP governed operational evidence cycle",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/ueacp-governed-operational-evidence-cycle.json",
+      ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
+      "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
+      "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
+      "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind exactly eight reviewed authority-source documents to one immutable main ref, validate canonical path completeness, compose them with the bounded live catalog observer, and produce a no-secret packet ready only for later human ownership review.",
+      "e2e_journeys": [
+        {
+          "id": "collect-governed-ueacp-live-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "approved UEACP evidence operator and GitHub Actions",
+          "entrypoint": "UEACP Governed Operational Evidence Cycle contract job or explicitly approved workflow dispatch from main",
+          "terminal_outcome": "A SHA-bound no-secret packet reaches ready_for_human_ownership_review without migration, authority, provider, credential, deployment, Production, or task mutation.",
+          "steps": [
+            "Validate the source manifest contract, current main identity, and exact eight source-family bindings.",
+            "Verify every source path, Git blob SHA, and file content SHA-256.",
+            "Convert reviewed repository definitions into current-observation canonical source snapshots.",
+            "Reject incomplete or conflicting authority path contracts.",
+            "Create a thirty-minute read-only authorization after variable, typed-confirmation, and Environment gates.",
+            "Run the existing bounded SELECT-only live catalog observer and same-cycle readback.",
+            "Adapt the catalog observation and compose the canonical governed evidence packet.",
+            "Upload all no-secret JSON evidence before enforcing the packet decision."
+          ],
+          "assertions": [
+            "Pull requests run only contract tests and cannot execute the live job.",
+            "No push, schedule, issue-comment, or workflow-run event can execute the live job.",
+            "The source manifest must pin current main and exactly eight canonical source families.",
+            "Missing control fields, blob drift, content drift, path escape, duplicate families, and sensitive values fail closed.",
+            "The live observer remains SELECT/WITH/SHOW-only and performs same-cycle readback.",
+            "The packet keeps T001 and T002 incomplete and migration_apply_authorized false.",
+            "No SQL mutation, provider call, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
+          ],
+          "tests": [
+            {
+              "id": "authority-evidence-repository-snapshot-collector",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-snapshot-collector.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
+            "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+            "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+            "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge and review exact eight source documents and their current-main manifest, configure the protected Environment, then explicitly authorize one bounded Production read-only evidence cycle."
+    }
+  ],
+  "secrets_included": false
+}
