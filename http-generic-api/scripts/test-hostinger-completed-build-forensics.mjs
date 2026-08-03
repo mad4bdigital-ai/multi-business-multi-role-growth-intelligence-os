@@ -28,6 +28,9 @@ for (const required of [
   /continue-on-error: true/,
   /if: always\(\)/,
   /HOSTINGER_API_TOKEN: \$\{\{ secrets\.HOSTINGER_API_TOKEN \}\}/,
+  /Scrub exact provider token from persisted evidence/,
+  /before\.split\(token\)\.join\("\[REDACTED\]"\)/,
+  /provider token remained in/,
   /provider_method=GET/,
   /provider_mutation=false/,
   /active_slot_changed=false/,
@@ -46,6 +49,14 @@ for (const forbidden of [
   /git push\s+--force/,
   /force-with-lease/,
 ]) assert.doesNotMatch(workflowSource, forbidden);
+
+const collectIndex = workflowSource.indexOf("Collect bounded completed-build forensics");
+const scrubIndex = workflowSource.indexOf("Scrub exact provider token from persisted evidence");
+const uploadIndex = workflowSource.indexOf("Upload completed-build forensics evidence");
+const validateIndex = workflowSource.indexOf("Validate secret-free evidence contract");
+assert.ok(collectIndex >= 0 && scrubIndex > collectIndex, "provider token scrub must follow collection");
+assert.ok(uploadIndex > scrubIndex, "artifact upload must occur only after exact-token scrub");
+assert.ok(validateIndex > uploadIndex, "secret-free evidence validation must read the uploaded artifact payload");
 
 assert.match(scriptSource, /method: "GET"/);
 assert.match(scriptSource, /hostinger_build_logs/);
