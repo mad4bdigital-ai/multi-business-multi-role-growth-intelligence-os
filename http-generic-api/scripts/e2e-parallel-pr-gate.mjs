@@ -185,12 +185,17 @@ function main() {
       promotion_identity: promotion.identity
     });
   }
+  const defaultBranchSync = options.headRef === "main"
+    && Boolean(options.baseRef)
+    && options.baseRef !== "Production";
 
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
-  if (active.length === 1) {
+  if (defaultBranchSync) {
+    mode = "default_branch_sync";
+  } else if (active.length === 1) {
     mode = "workstream";
     featureKey = active[0].contract.feature_key;
     contractPath = active[0].summary.contract_path;
