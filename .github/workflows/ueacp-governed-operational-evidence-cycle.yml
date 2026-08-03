@@ -9,6 +9,7 @@ on:
       - "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js"
       - "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs"
       - "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs"
+      - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs"
       - "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
   workflow_dispatch:
@@ -67,6 +68,7 @@ jobs:
           grep -q 'environment: ueacp-live-evidence' "$workflow"
           grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE' "$workflow"
           grep -q 'ref: ${{ github.sha }}' "$workflow"
+          grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
