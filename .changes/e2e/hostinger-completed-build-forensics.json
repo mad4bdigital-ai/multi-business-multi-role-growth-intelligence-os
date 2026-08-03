@@ -20,31 +20,36 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Inspect the exact completed Hostinger build, its bounded redacted logs, and the public auth runtime in one secret-free GET-only cycle so Incident 4953 can distinguish wrong source, build-log failure, missing active-slot promotion, and a stale process before any provider mutation is considered.",
+      "objective": "Inspect the exact completed Hostinger build, its bounded redacted logs, and the public auth runtime in one secret-free GET-only cycle so Incident 4953 can distinguish wrong source, build-log failure, missing active-slot promotion, and a stale process before any provider mutation is considered, even when GitHub Actions starts after main has advanced.",
       "e2e_journeys": [
         {
           "id": "classify-completed-build-activation-state",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "trusted release operator and GitHub Actions",
-          "entrypoint": "Hostinger Completed Build Forensics workflow contract test or the exact trusted-main marker",
-          "terminal_outcome": "A structured artifact and bounded Incident 4953 comment bind build UUID 019fc51c-3947-7255-aa4d-f55cb8df7658 to protected Production f5c1ae8840b4d4452f2908bb0f23051880bb6896, extracted source and release signals, current public runtime identity, and one explicit next action without modifying Hostinger.",
+          "entrypoint": "Hostinger Completed Build Forensics workflow contract test or the exact trusted-main marker commit",
+          "terminal_outcome": "A structured artifact and bounded Incident 4953 comment bind the immutable marker execution SHA, build UUID 019fc51c-3947-7255-aa4d-f55cb8df7658, protected Production f5c1ae8840b4d4452f2908bb0f23051880bb6896, extracted source and release signals, current public runtime identity, and one explicit next action without modifying Hostinger.",
           "steps": [
+            "Check out the immutable GitHub event SHA with full ancestry rather than the moving main ref.",
             "Verify current protected Production still equals the incident-bound SHA.",
-            "Require an owner workflow dispatch or a trusted main push changing only the exact one-time marker with the fixed commit token.",
+            "For owner workflow dispatch, require the explicit expected SHA to equal both the event SHA and current main.",
+            "For marker push, require the event SHA to remain an ancestor of current main, while allowing unrelated later main commits during Actions queue delay.",
+            "Require the marker commit to change only the exact trigger path and carry the fixed token and bounded no-mutation payload.",
             "Run the focused forensics regression before reading the provider secret.",
             "Perform authenticated GET-only build-list inspection and select the exact completed build UUID.",
             "Perform authenticated GET-only retrieval of the exact build logs with bounded response size and structural redaction.",
             "Extract source SHA, branch, release-directory, deployment-completion, restart, and failure signals without persisting raw secrets.",
             "Read health, version, deployment-info, and connector-agent version from auth.mad4b.com using public GET requests.",
             "Classify current parity, correct build but inactive runtime, activation unproven, log failure signal, or incomplete source evidence.",
-            "Upload JSON and Markdown evidence and publish only bounded identifiers and digests to Incident 4953."
+            "Upload JSON and Markdown evidence and publish only bounded identifiers, execution SHA, and digests to Incident 4953."
           ],
           "assertions": [
             "The report contract is mad4b.hostinger-completed-build-forensics.v1.",
             "The live provider target is restricted to account u338416126 and domain auth.mad4b.com.",
             "The build UUID, Production SHA, and Production merge timestamp are fixed by the workflow contract.",
             "The workflow fails closed if protected Production moves before execution.",
+            "The marker-push path checks out github.sha and proves that immutable event revision remains an ancestor of current main instead of requiring main to remain unchanged while queued.",
+            "The manual workflow-dispatch path still requires exact current-main identity.",
             "The provider and public runtime methods are GET only.",
             "Build options and logs are structurally redacted and response sizes are bounded.",
             "The Hostinger API token is not returned in artifacts, comments, failures, or console summaries.",
@@ -72,7 +77,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the inert workflow registration, then merge exactly one marker-only trigger and read the resulting artifact and Incident 4953 decision."
+      "objective": "Merge the inert queue-stable workflow registration, then merge exactly one marker-only trigger and read the resulting artifact and Incident 4953 decision."
     },
     {
       "id": "resilient",
