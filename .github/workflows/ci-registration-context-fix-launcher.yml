@@ -43,53 +43,46 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/patch_ci_registration.py" <<'PY'
+          python - <<'PY'
           from pathlib import Path
-          from textwrap import dedent
-          import json
 
           runner_temp = "$" + "{{ runner.temp }}"
           env_evidence = "$" + "{{ env.EVIDENCE_PATH }}"
           evidence_name = "governed-local-connector-production-closure.json"
+          path = Path(".github/workflows/ci.yml")
+          workflow = path.read_text()
 
-          ci_path = Path(".github/workflows/ci.yml")
-          ci = ci_path.read_text()
+          invalid = f"      EVIDENCE_PATH: {runner_temp}/{evidence_name}\n"
+          if workflow.count(invalid) != 1:
+              raise SystemExit(f"expected one invalid job-level runner context, found {workflow.count(invalid)}")
+          workflow = workflow.replace(invalid, "", 1)
 
-          invalid_line = f"      EVIDENCE_PATH: {runner_temp}/{evidence_name}\n"
-          if ci.count(invalid_line) != 1:
-              raise SystemExit(
-                  f"expected exactly one invalid job-level runner context, found {ci.count(invalid_line)}"
-              )
-          ci = ci.replace(invalid_line, "", 1)
-
-          old_execute = (
+          old_step = (
               "      - name: Execute bounded trusted closure\n"
               "        id: closure\n"
               "        run: node .github/scripts/governed-local-connector-production-closure.mjs\n"
           )
-          new_execute = (
+          new_step = (
               "      - name: Execute bounded trusted closure\n"
               "        id: closure\n"
               "        env:\n"
               f"          EVIDENCE_PATH: {runner_temp}/{evidence_name}\n"
               "        run: node .github/scripts/governed-local-connector-production-closure.mjs\n"
           )
-          if ci.count(old_execute) != 1:
-              raise SystemExit(
-                  f"expected one closure execution step, found {ci.count(old_execute)}"
-              )
-          ci = ci.replace(old_execute, new_execute, 1)
+          if workflow.count(old_step) != 1:
+              raise SystemExit(f"expected one closure execution step, found {workflow.count(old_step)}")
+          workflow = workflow.replace(old_step, new_step, 1)
 
           old_upload = f"          path: {env_evidence}\n"
           new_upload = f"          path: {runner_temp}/{evidence_name}\n"
-          if ci.count(old_upload) != 1:
-              raise SystemExit(
-                  f"expected one env evidence upload path, found {ci.count(old_upload)}"
-              )
-          ci = ci.replace(old_upload, new_upload, 1)
-          ci_path.write_text(ci)
+          if workflow.count(old_upload) != 1:
+              raise SystemExit(f"expected one env evidence upload path, found {workflow.count(old_upload)}")
+          workflow = workflow.replace(old_upload, new_upload, 1)
+          path.write_text(workflow)
+          PY
 
-          test_source = dedent(r'''#!/usr/bin/env node
+          cat > http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs <<'JS'
+          #!/usr/bin/env node
           import assert from "node:assert/strict";
           import fs from "node:fs";
           import path from "node:path";
@@ -134,103 +127,114 @@ jobs:
             trigger_or_authority_changed: false,
             secrets_included: false
           }));
-          ''').lstrip()
+          JS
 
-          test_path = Path("http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs")
-          test_path.parent.mkdir(parents=True, exist_ok=True)
-          test_path.write_text(test_source)
-
-          contract = {
-              "$schema": "../../.specify/schemas/e2e-phases.schema.json",
-              "schema_version": 1,
-              "feature_key": "ci-workflow-registration-context-fix",
-              "title": "Canonical CI workflow registration context repair",
-              "delivery_mode": "single_pr",
-              "current_phase": "mvp",
-              "scope": {
-                  "include": [
-                      ".changes/e2e/ci-workflow-registration-context-fix.json",
-                      ".github/workflows/ci.yml",
-                      "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs"
-                  ]
-              },
-              "merge_contract": {"minimum_phase": "mvp"},
-              "phases": [
-                  {
-                      "id": "mvp",
-                      "status": "implemented",
-                      "objective": "Restore registration of the canonical CI workflow by removing a runner context from jobs.<job_id>.env while preserving the governed closure trigger, authority, evidence path, and full CI command surface.",
-                      "e2e_journeys": [
-                          {
-                              "id": "register-canonical-ci-with-step-owned-runner-temp-evidence",
-                              "end_to_end": True,
-                              "level": "synthetic_runtime",
-                              "actor": "GitHub Actions workflow registrar and pull-request runner",
-                              "entrypoint": "A same-repository pull request targets main after ci.yml moves EVIDENCE_PATH from job env to the bounded closure execution step.",
-                              "terminal_outcome": "GitHub materializes the workflow named CI, ordinary CI jobs run, and the dormant push-only governed closure retains the same token, permissions, script, artifact path, and no-migration/no-provider-mutation boundary.",
-                              "steps": [
-                                  "Read the canonical CI workflow and isolate the governed local-connector closure job declaration from its steps.",
-                                  "Reject runner.temp inside jobs.<job_id>.env, where runner context is unavailable during workflow registration.",
-                                  "Bind EVIDENCE_PATH to runner.temp only on the bounded closure execution step.",
-                                  "Upload the same evidence filename directly from runner.temp.",
-                                  "Retain the pull-request trigger, push-only one-shot closure condition, token, permissions, and script invocation.",
-                                  "Observe creation of the workflow named CI on the exact pull-request head and run the complete recovery, E2E, and registration regression checks."
-                              ],
-                              "assertions": [
-                                  "The canonical workflow remains named CI and continues targeting main and Production pull requests.",
-                                  "runner.temp is absent from the closure job declaration and job-level env.",
-                                  "The execution step and artifact upload use the same runner-temp evidence filename.",
-                                  "The governed closure remains push-only and one-shot-token bound.",
-                                  "No trigger broadening, permission increase, secret exposure, deployment, Hostinger/provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, or external business send is introduced.",
-                                  "secrets_included is false."
-                              ],
-                              "tests": [
-                                  {
-                                      "id": "ci-workflow-registration-context-self-test",
-                                      "runner": "node",
-                                      "working_directory": "http-generic-api",
-                                      "path": "scripts/ci-workflow-registration-context-self-test.mjs",
-                                      "args": []
-                                  }
-                              ],
-                              "evidence_paths": [
-                                  ".github/workflows/ci.yml",
-                                  "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs",
-                                  ".changes/e2e/ci-workflow-registration-context-fix.json"
-                              ]
-                          }
-                      ]
-                  },
-                  {
-                      "id": "operational",
-                      "status": "planned",
-                      "objective": "Verify canonical CI registration across opened, synchronize, and ready-for-review pull-request events."
-                  },
-                  {
-                      "id": "resilient",
-                      "status": "planned",
-                      "objective": "Reject future unavailable workflow contexts before they suppress workflow registration."
-                  },
-                  {
-                      "id": "canary",
-                      "status": "planned",
-                      "objective": "Prove Draft and Ready exact-head cycles with both canonical CI and CI Pull Request Recovery visible."
-                  },
-                  {
-                      "id": "production",
-                      "status": "planned",
-                      "objective": "Retire the temporary recovery workflow only after canonical CI registration remains stable across governed pull requests."
-                  }
-              ],
-              "secrets_included": False
-          }
-
-          contract_path = Path(".changes/e2e/ci-workflow-registration-context-fix.json")
-          contract_path.parent.mkdir(parents=True, exist_ok=True)
-          contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs")
+          path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
           PY
 
-          python "$RUNNER_TEMP/patch_ci_registration.py"
+          mkdir -p .changes/e2e
+          cat > .changes/e2e/ci-workflow-registration-context-fix.json <<'JSON'
+          {
+            "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+            "schema_version": 1,
+            "feature_key": "ci-workflow-registration-context-fix",
+            "title": "Canonical CI workflow registration context repair",
+            "delivery_mode": "single_pr",
+            "current_phase": "mvp",
+            "scope": {
+              "include": [
+                ".changes/e2e/ci-workflow-registration-context-fix.json",
+                ".github/workflows/ci.yml",
+                "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs"
+              ]
+            },
+            "merge_contract": {
+              "minimum_phase": "mvp"
+            },
+            "phases": [
+              {
+                "id": "mvp",
+                "status": "implemented",
+                "objective": "Restore registration of the canonical CI workflow by removing a runner context from jobs.<job_id>.env while preserving the governed closure trigger, authority, evidence path, and full CI command surface.",
+                "e2e_journeys": [
+                  {
+                    "id": "register-canonical-ci-with-step-owned-runner-temp-evidence",
+                    "end_to_end": true,
+                    "level": "synthetic_runtime",
+                    "actor": "GitHub Actions workflow registrar and pull-request runner",
+                    "entrypoint": "A same-repository pull request targets main after ci.yml moves EVIDENCE_PATH from job env to the bounded closure execution step.",
+                    "terminal_outcome": "GitHub materializes the workflow named CI, ordinary CI jobs run, and the dormant push-only governed closure retains the same token, permissions, script, artifact path, and no-migration/no-provider-mutation boundary.",
+                    "steps": [
+                      "Read the canonical CI workflow and isolate the governed local-connector closure job declaration from its steps.",
+                      "Reject runner.temp inside jobs.<job_id>.env, where runner context is unavailable during workflow registration.",
+                      "Bind EVIDENCE_PATH to runner.temp only on the bounded closure execution step.",
+                      "Upload the same evidence filename directly from runner.temp.",
+                      "Retain the pull-request trigger, push-only one-shot closure condition, token, permissions, and script invocation.",
+                      "Observe creation of the workflow named CI on the exact pull-request head and run the complete recovery, E2E, and registration regression checks."
+                    ],
+                    "assertions": [
+                      "The canonical workflow remains named CI and continues targeting main and Production pull requests.",
+                      "runner.temp is absent from the closure job declaration and job-level env.",
+                      "The execution step and artifact upload use the same runner-temp evidence filename.",
+                      "The governed closure remains push-only and one-shot-token bound.",
+                      "No trigger broadening, permission increase, secret exposure, deployment, Hostinger/provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, or external business send is introduced.",
+                      "secrets_included is false."
+                    ],
+                    "tests": [
+                      {
+                        "id": "ci-workflow-registration-context-self-test",
+                        "runner": "node",
+                        "working_directory": "http-generic-api",
+                        "path": "scripts/ci-workflow-registration-context-self-test.mjs",
+                        "args": []
+                      }
+                    ],
+                    "evidence_paths": [
+                      ".github/workflows/ci.yml",
+                      "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs",
+                      ".changes/e2e/ci-workflow-registration-context-fix.json"
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "operational",
+                "status": "planned",
+                "objective": "Verify canonical CI registration across opened, synchronize, and ready-for-review pull-request events."
+              },
+              {
+                "id": "resilient",
+                "status": "planned",
+                "objective": "Reject future unavailable workflow contexts before they suppress workflow registration."
+              },
+              {
+                "id": "canary",
+                "status": "planned",
+                "objective": "Prove Draft and Ready exact-head cycles with both canonical CI and CI Pull Request Recovery visible."
+              },
+              {
+                "id": "production",
+                "status": "planned",
+                "objective": "Retire the temporary recovery workflow only after canonical CI registration remains stable across governed pull requests."
+              }
+            ],
+            "secrets_included": false
+          }
+          JSON
+
+          python - <<'PY'
+          from pathlib import Path
+          for name in [
+              "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs",
+              ".changes/e2e/ci-workflow-registration-context-fix.json",
+          ]:
+              path = Path(name)
+              path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
+          PY
+
           node http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs
 
       - name: Commit permanent bounded repair and remove launcher
