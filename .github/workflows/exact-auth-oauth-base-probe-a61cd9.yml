@@ -1,0 +1,107 @@
+name: Exact OAuth Base Probe a61cd9
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-auth-oauth-base-a61cd9-20260804
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-auth-oauth-base-probe-a61cd9-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  exact-base-probe:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-auth-oauth-probe-a61cd9-20260804' &&
+      github.event.pull_request.head.sha == 'e3a30c5fc977135c5ac4f174cff98cd33222f563'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_SOURCE_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_PROBE_HEAD_SHA: e3a30c5fc977135c5ac4f174cff98cd33222f563
+      EXPECTED_PROBE_HEAD_REF: gpt/validate-auth-oauth-probe-a61cd9-20260804
+      PROBE_LOG: ${{ runner.temp }}/auth-oauth-base-probe.log
+      PROBE_SUMMARY: ${{ runner.temp }}/auth-oauth-base-probe-summary.json
+
+    steps:
+      - name: Checkout immutable base source
+        uses: actions/checkout@v5
+        with:
+          ref: a61cd9e83070618001676bbc679bc937f0551875
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify immutable probe identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
+          test "${{ github.event.pull_request.head.sha }}" = "${EXPECTED_PROBE_HEAD_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_PROBE_HEAD_REF}"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run exact OAuth route test and capture evidence
+        id: oauth_test
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          node test-auth-oauth-routes.mjs 2>&1 | tee "${PROBE_LOG}"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Write bounded probe summary
+        if: always()
+        shell: bash
+        env:
+          TEST_EXIT_CODE: ${{ steps.oauth_test.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          first_failure="$(grep -m1 -E '\[FAIL\]|TypeError:|AssertionError|^not ok' "${PROBE_LOG}" || true)"
+          jq -n \
+            --arg source_sha "${EXPECTED_SOURCE_SHA}" \
+            --arg probe_head_sha "${EXPECTED_PROBE_HEAD_SHA}" \
+            --arg test_command "node test-auth-oauth-routes.mjs" \
+            --arg exit_code "${TEST_EXIT_CODE:-unknown}" \
+            --arg first_failure "${first_failure}" \
+            '{source_sha:$source_sha,probe_head_sha:$probe_head_sha,test_command:$test_command,exit_code:$exit_code,first_failure:$first_failure,protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${PROBE_SUMMARY}"
+
+      - name: Upload bounded base probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-auth-oauth-base-probe-a61cd9-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/auth-oauth-base-probe.log
+            ${{ runner.temp }}/auth-oauth-base-probe-summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Preserve exact test conclusion
+        if: always()
+        shell: bash
+        env:
+          TEST_EXIT_CODE: ${{ steps.oauth_test.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          test "${TEST_EXIT_CODE}" = "0"
