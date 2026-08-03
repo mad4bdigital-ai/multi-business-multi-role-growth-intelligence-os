@@ -82,6 +82,11 @@ jobs:
           if code.count(old_count_guard) != 1 or code.count(old_error) != 1:
               raise SystemExit('embedded runner-count contract anchor mismatch')
           code = code.replace(old_count_guard, new_count_guard, 1).replace(old_error, new_error, 1)
+          cleanup_anchor = "if test_text.count(assertion_anchor) != 1:\n"
+          cleanup_insert = "assertion_insert = assertion_insert.rstrip() + '\\n\\n'\n"
+          if code.count(cleanup_anchor) != 1:
+              raise SystemExit('embedded assertion cleanup anchor mismatch')
+          code = code.replace(cleanup_anchor, cleanup_insert + cleanup_anchor, 1)
           exec(compile(code, str(source), 'exec'), {'__name__': '__main__'})
           Path('.github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml').unlink()
           PY
