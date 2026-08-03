@@ -1,0 +1,158 @@
+name: Spec 014 Parallel Integration Convergence Builder
+run-name: Spec 014 parallel integration convergence builder · ${{ github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-parallel-integration-convergence-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-parallel-integration-convergence-builder
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Publish one-file parallel integration convergence repair
+    if: github.event.pull_request.head.ref == 'gpt/014-hostinger/parallel-integration-convergence-builder-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: gpt/014-hostinger/parallel-integration-convergence-reconciliation-20260803
+      INTEGRATION_BRANCH: gpt/hostinger-safe-storage-cleanup-ssh-20260801
+      INTEGRATION_HEAD: 2627be35e3feb549b9c9070c1c99ffe9062e9aa4
+      CONTRACT_PATH: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+    steps:
+      - name: Checkout clean target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify immutable Integration base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$INTEGRATION_HEAD"
+          test -z "$(git status --porcelain)"
+
+      - name: Reconcile parallel Integration completion contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { execFileSync } = require('node:child_process');
+          const fs = require('node:fs');
+
+          const path = process.env.CONTRACT_PATH;
+          const document = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const before = structuredClone(document);
+
+          assert.equal(document.feature_key, '014-governed-hostinger-storage-orchestration');
+          assert.equal(document.current_phase, 'mvp');
+          assert.equal(document.phases.find((phase) => phase.id === 'mvp')?.status, 'implemented');
+          assert.equal(document.parallel_work?.enabled, true);
+
+          const parallel = document.parallel_work;
+          const integration = parallel.integration;
+          assert.ok(integration);
+          assert.equal(integration.branch_pattern, 'gpt/hostinger-safe-storage-cleanup-ssh-*');
+
+          const targetIds = ['schema-classification', 'final-work-map-readback'];
+          for (const id of targetIds) {
+            assert.ok(integration.required_workstreams.includes(id), `${id} must be required by Integration`);
+            const row = parallel.workstreams.find((item) => item.id === id);
+            assert.ok(row, `${id} workstream must exist`);
+            assert.equal(row.status, 'ready_for_integration');
+            assert.match(row.commit_evidence?.head_sha || '', /^[0-9a-f]{40}$/i);
+            assert.ok(Array.isArray(row.commit_evidence?.commits) && row.commit_evidence.commits.length > 0);
+            for (const commit of row.commit_evidence.commits) {
+              assert.match(commit, /^[0-9a-f]{40}$/i);
+              execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], { stdio: 'ignore' });
+            }
+            row.status = 'integrated';
+          }
+
+          assert.ok(!Array.isArray(integration.convergence_tests) || integration.convergence_tests.length === 0);
+          integration.convergence_tests = [
+            {
+              id: 'hostinger-storage-parent-mvp-shared-operation-state',
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: 'test-hostinger-storage-e2e.mjs',
+              args: [],
+            },
+          ];
+
+          const normalizedAfter = structuredClone(document);
+          for (const id of targetIds) {
+            normalizedAfter.parallel_work.workstreams.find((item) => item.id === id).status = 'ready_for_integration';
+          }
+          if (before.parallel_work.integration.convergence_tests === undefined) {
+            delete normalizedAfter.parallel_work.integration.convergence_tests;
+          } else {
+            normalizedAfter.parallel_work.integration.convergence_tests = before.parallel_work.integration.convergence_tests;
+          }
+          assert.deepEqual(normalizedAfter, before, 'Only the two workstream statuses and Integration convergence_tests may change');
+
+          fs.writeFileSync(path, `${JSON.stringify(document)}\n`, 'utf8');
+          NODE
+
+      - name: Commit candidate locally for exact-head governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- "$CONTRACT_PATH"
+          git commit -m "fix(spec-014): complete parallel Integration convergence"
+
+      - name: Run official parallel Integration gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse origin/main)"
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --head-ref "$INTEGRATION_BRANCH" \
+            --base-ref main \
+            --base "$main_sha" \
+            --head HEAD \
+            --report-file "$RUNNER_TEMP/e2e-parallel-work-evaluation.json"
+          node -e "const r=require(process.env.RUNNER_TEMP+'/e2e-parallel-work-evaluation.json'); if(r.ok!==true) process.exit(1)"
+
+      - name: Run exact parent MVP convergence journey
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-e2e.mjs
+
+      - name: Enforce one-file final candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check "$INTEGRATION_HEAD"..HEAD
+          mapfile -t changed < <(git diff --name-only "$INTEGRATION_HEAD"..HEAD)
+          printf 'changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$CONTRACT_PATH"
+          test "$(git rev-list --count "$INTEGRATION_HEAD"..HEAD)" -eq 1
+
+      - name: Publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:$TARGET_BRANCH"
