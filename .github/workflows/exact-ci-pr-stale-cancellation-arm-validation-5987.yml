@@ -1,0 +1,169 @@
+name: Exact CI PR Stale Cancellation ARM Validation 5987
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ci-pr-stale-cancellation-arm-base-5987-a61cd9e8
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ci-pr-stale-cancellation-arm-validation-5987-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-candidate:
+    name: Exact CI PR Stale Cancellation Full Validation
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/ci-pr-stale-cancellation-main-a61cd9e8-20260804' && github.event.pull_request.head.sha == '98a5ad092344316e62945a622f783fb42fcc20a2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: 98a5ad092344316e62945a622f783fb42fcc20a2
+      EXPECTED_HEAD_REF: gpt/ci-pr-stale-cancellation-main-a61cd9e8-20260804
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 1
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}^")" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 6
+          test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+          test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
+          test "${files[2]}" = '.github/workflows/ci.yml'
+          test "${files[3]}" = 'docs/work-maps/README.md'
+          test "${files[4]}" = 'docs/work-maps/repository-automation-map.md'
+          test "${files[5]}" = 'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json")" = '98563a3aa27fe26f5f6ec336e3b6e72dc41b1bd9'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci.yml")" = '1c496f7770f784f8e3aa2dc1b3c310c379c2d54f'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci-pull-request-recovery.yml")" = 'a93265700c7637750b0b0dd828ba51762221fe42'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs")" = '9a0e8e9d500ffd5f671ccec14288782e836efcbf'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:docs/work-maps/README.md")" = 'b8f547f0aa5ab458327c81947c80e3516f6f0f32'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:docs/work-maps/repository-automation-map.md")" = 'e3867915727db3fdd6dd8522d32cd99dd4ddeb15'
+
+      - name: Run canonical and Work Map governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused CI and lifecycle regressions
+        run: |
+          node http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+
+      - name: Run complete Unit and Integration suite
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Verify test report provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in "$RUNNER_TEMP/test-suite-reports/test-manifest.json" "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Prove runtime startup
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run Execution Resolver Gate
+        run: |
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run exact E2E phase validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Build no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n --arg base_sha "$EXPECTED_MAIN_SHA" --arg head_sha "$EXPECTED_HEAD_SHA" --arg run_id "$GITHUB_RUN_ID" '{contract:"mad4b.exact-ci-pr-stale-cancellation-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,exact_scope:true,work_maps_current:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "$RUNNER_TEMP/exact-ci-pr-stale-cancellation-summary.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ci-pr-stale-cancellation-arm-validation-5987-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/exact-ci-pr-stale-cancellation-summary.json
+            ${{ runner.temp }}/e2e-phase-*.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
