@@ -16,6 +16,7 @@ const SOURCE_DIR = String(process.env.SOURCE_DIR || '.artifacts/sprint69-1043-ru
 const TOKEN = String(process.env.GH_TOKEN || '').trim();
 const OUTPUT_PATH = String(process.env.GITHUB_OUTPUT || '').trim();
 const ALLOWED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const ALLOWED_AUTHORIZATION_COMMENT_IDS = new Set([5160291051, 5169156192]);
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
 
@@ -74,7 +75,7 @@ function isoMs(value) {
 async function discover() {
   assert.equal(REPOSITORY, 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os');
   assert.equal(ISSUE_NUMBER, 4449);
-  assert.equal(AUTHORIZATION_COMMENT_ID, 5160291051);
+  assert.ok(ALLOWED_AUTHORIZATION_COMMENT_IDS.has(AUTHORIZATION_COMMENT_ID), 'Authorization comment is not an approved immutable T016 binding');
 
   const comment = await githubJson(`/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}`);
   assert.equal(String(comment?.body || '').trim(), AUTHORIZATION_COMMENT);
