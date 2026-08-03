@@ -72,7 +72,7 @@ jobs:
 
           run_check schema-docs-change-guard node http-generic-api/scripts/schema-docs-change-guard.mjs
           run_check migration-placement-guard node http-generic-api/scripts/migration-placement-guard.mjs
-          run_check user-jwt-auth-governance bash -lc 'cd http-generic-api && node scripts/user-jwt-auth-governance.mjs'
+          run_check user-jwt-auth-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref=${EXPECTED_MAIN_SHA}"
           run_check interruption-readiness bash -lc 'cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree'
           run_check validate-canonical-sources node validate-canonical-sources.mjs
           run_check build-canonicals-check node build-canonicals.mjs --check
