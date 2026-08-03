@@ -19,7 +19,9 @@ env:
   EXPECTED_CANDIDATE_SHA: 85f9a9935beceeaf2e9bb3978d866a246421c405
   EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-97e4ee7e-20260804-v3
   EXPECTED_VALIDATOR_BASE_REF: gpt/validate-repository-write-prerequisite-arm-base-97e4ee7e-v1
+  EXPECTED_TRIGGER_REF: gpt/trigger-repository-write-prerequisite-arm-validation-5927-v2
   VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+  EXPECTED_TRIGGER_SHA: ${{ github.event.pull_request.head.sha }}
   CANONICAL_PR_NUMBER: '5927'
   EVIDENCE_DIR: ${{ runner.temp }}/exact-repository-write-prerequisite-arm-validation-5927
 
@@ -29,7 +31,7 @@ jobs:
     if: >-
       github.event.pull_request.base.ref == 'gpt/validate-repository-write-prerequisite-arm-base-97e4ee7e-v1' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/repository-write-prerequisite-main-97e4ee7e-20260804-v3'
+      github.event.pull_request.head.ref == 'gpt/trigger-repository-write-prerequisite-arm-validation-5927-v2'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     steps:
@@ -40,7 +42,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify validator base and canonical PR identities
+      - name: Verify validator, trigger, and canonical PR identities
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,17 +53,24 @@ jobs:
         run: |
           set -euo pipefail
           test "$EVENT_BASE_REF" = "$EXPECTED_VALIDATOR_BASE_REF"
-          test "$EVENT_HEAD_REF" = "$EXPECTED_CANDIDATE_REF"
-          test "$EVENT_HEAD_SHA" = "$EXPECTED_CANDIDATE_SHA"
+          test "$EVENT_HEAD_REF" = "$EXPECTED_TRIGGER_REF"
           test "$(git rev-parse HEAD)" = "$EVENT_BASE_SHA"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$EXPECTED_TRIGGER_REF:refs/remotes/origin/$EXPECTED_TRIGGER_REF"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_TRIGGER_REF)" = "$EVENT_HEAD_SHA"
           test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EVENT_BASE_SHA")" = "$EXPECTED_MAIN_SHA"
-          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EVENT_BASE_SHA")" -eq 1
-          test "$(git rev-parse "$EVENT_BASE_SHA^")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EVENT_BASE_SHA")" -eq 2
           mapfile -t validator_files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EVENT_BASE_SHA")
           test "${#validator_files[@]}" -eq 1
           test "${validator_files[0]}" = '.github/workflows/exact-repository-write-prerequisite-arm-validation-5927.yml'
+          test "$(git merge-base "$EVENT_BASE_SHA" "$EVENT_HEAD_SHA")" = "$EVENT_BASE_SHA"
+          test "$(git rev-list --count "$EVENT_BASE_SHA..$EVENT_HEAD_SHA")" -eq 1
+          test "$(git rev-parse "$EVENT_HEAD_SHA^")" = "$EVENT_BASE_SHA"
+          mapfile -t trigger_files < <(git diff --name-only "$EVENT_BASE_SHA"..."$EVENT_HEAD_SHA")
+          test "${#trigger_files[@]}" -eq 1
+          test "${trigger_files[0]}" = '.github/validation/exact-repository-write-prerequisite-arm-validation-5927.txt'
 
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
           test "$(jq -r '.state' <<<"$pr")" = 'open'
@@ -231,7 +240,7 @@ jobs:
             --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
             --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
 
-      - name: Final protected-main, validator-base, and canonical PR readback
+      - name: Final protected-main, validator, trigger, and canonical PR readback
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -239,6 +248,7 @@ jobs:
           set -euo pipefail
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
           test "$(git ls-remote origin "refs/heads/$EXPECTED_VALIDATOR_BASE_REF" | awk '{print $1}')" = "$VALIDATOR_BASE_SHA"
+          test "$(git ls-remote origin "refs/heads/$EXPECTED_TRIGGER_REF" | awk '{print $1}')" = "$EXPECTED_TRIGGER_SHA"
           test "$(git ls-remote origin "refs/heads/$EXPECTED_CANDIDATE_REF" | awk '{print $1}')" = "$EXPECTED_CANDIDATE_SHA"
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
           test "$(jq -r '.state' <<<"$pr")" = 'open'
@@ -255,9 +265,10 @@ jobs:
             --arg base_sha "$EXPECTED_MAIN_SHA" \
             --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
             --arg validator_base_sha "$VALIDATOR_BASE_SHA" \
+            --arg trigger_sha "$EXPECTED_TRIGGER_SHA" \
             --arg run_id "$GITHUB_RUN_ID" \
             --arg job_status "${{ job.status }}" \
-            '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v2",base_sha:$base_sha,head_sha:$head_sha,validator_base_sha:$validator_base_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v3",base_sha:$base_sha,head_sha:$head_sha,validator_base_sha:$validator_base_sha,trigger_sha:$trigger_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
             > "$EVIDENCE_DIR/summary.json"
 
       - name: Upload exact validation evidence
