@@ -1,0 +1,231 @@
+name: Exact CI Recovery Validation 5622
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ci-recovery-provenance-base-5622-0b098c
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ci-recovery-validation-5622-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-candidate:
+    name: Exact Candidate Full Validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci-recovery-provenance-atomic-0b098c77' &&
+      github.event.pull_request.head.sha == 'd2dc2dbf7634d5acfc5ac0e6f1b254b342f4e7e8'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: 0b098c77a155fe9c2109ae3e4315519d7f8894d2
+      EXPECTED_HEAD_SHA: d2dc2dbf7634d5acfc5ac0e6f1b254b342f4e7e8
+      EXPECTED_HEAD_REF: gpt/ci-recovery-provenance-atomic-0b098c77
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity direct parent scope and blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}".."${EXPECTED_HEAD_SHA}")" -eq 1
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+          test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
+          test "${files[2]}" = 'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json")" = 'c946e3e7878bae8f6cac5960912ef90b64ccecb8'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci-pull-request-recovery.yml")" = 'e21882316db92fcccd2b67d4ff60b7f5b3e6cdb7'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs")" = 'b1de449e9c762e11782841516a10356d724ef902'
+
+      - name: Run canonical syntax and governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
+          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          node --check http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused Recovery provenance regression
+        working-directory: http-generic-api
+        run: node test-ci-pull-request-recovery-exact-checkout-provenance.mjs
+
+      - name: Run complete suite through corrected Recovery identity boundary
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "${actual_sha}" = "${EXPECTED_HEAD_SHA}"
+          GITHUB_SHA="${actual_sha}" npm test
+
+      - name: Verify structured progress reports use exact checked-out SHA
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const expected = process.env.EXPECTED_HEAD_SHA;
+          const dir = process.env.TEST_SUITE_REPORT_DIR;
+          for (const name of ['test-manifest.json', 'test-suite.json']) {
+            const report = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+            assert.equal(report.status, 'passed');
+            assert.equal(report.commitSha, expected);
+            assert.equal(report.firstFailure, null);
+            assert.equal(report.secretsIncluded, false);
+            if (name === 'test-manifest.json') {
+              assert.equal(report.selectedCount, report.totalCommands);
+              assert.ok(report.totalCommands > 0);
+            }
+          }
+          NODE
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Install root dependencies and run Execution Resolver Gate
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run Repository Tool Lifecycle Governance
+        env:
+          BASE_SHA: ${{ env.EXPECTED_MAIN_SHA }}
+          CANDIDATE_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+      - name: Run E2E Contract Reference Integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/contract-reference"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/contract-reference/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/contract-reference/e2e-contract-reference-integrity.json"
+
+      - name: Run Frontend deterministic parity
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          test -z "${UNEXPECTED}"
+          test -z "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
+
+      - name: Run exact E2E phase evaluation and execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Publish exact no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n \
+            --arg base_sha "${EXPECTED_MAIN_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            '{contract:"mad4b.exact-ci-recovery-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/exact-ci-recovery-validation-summary.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ci-recovery-validation-5622-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/exact-ci-recovery-validation-summary.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+            ${{ runner.temp }}/e2e-phase-*.json
+            ${{ runner.temp }}/repository-tool-lifecycle/
+            ${{ runner.temp }}/contract-reference/
+          if-no-files-found: warn
+          retention-days: 14
