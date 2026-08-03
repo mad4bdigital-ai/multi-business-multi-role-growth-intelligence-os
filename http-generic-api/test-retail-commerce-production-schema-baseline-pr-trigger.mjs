@@ -78,6 +78,8 @@ assert.match(verify.run, /all\(\.files\[\]\.filename; \. == "docs\/repo-maintena
 assert.doesNotMatch(verify.run, /\.files \| type == "array" and length >= 1/u, "Zero-net tree drift must remain accepted");
 assert.match(verify.run, /accepted_drift_files/u);
 assert.match(verify.run, /non_executable_main_drift_accepted/u);
+assert.match(verify.run, /NON_EXECUTABLE_MAIN_DRIFT_ACCEPTED/u);
+assert.match(verify.run, /ACCEPTED_MAIN_DRIFT_FILES/u);
 assert.doesNotMatch(verify.run, /docs\/\*\*/u, "Main drift allowlist must not use a docs wildcard");
 assert.doesNotMatch(verify.run, /\.github\/workflows\/.+accepted/u, "Executable workflow drift must never be accepted");
 
@@ -91,6 +93,10 @@ assert.doesNotMatch(preflight.run, /echo\s+.*\$\{!key/u, "Credential values must
 assert.equal(collect.if, "steps.db_preflight.outputs.ready == 'true'");
 assert.equal(collect["continue-on-error"], true);
 assert.match(collect.run, /execution_current_main_sha/u);
+assert.match(collect.run, /--argjson drift_accepted/u);
+assert.match(collect.run, /--argjson accepted_drift_files/u);
+assert.match(collect.run, /non_executable_main_drift_accepted = \$drift_accepted/u);
+assert.match(collect.run, /accepted_main_drift_files = \$accepted_drift_files/u);
 assert.equal(ensure.if, "always()");
 assert.equal(summary.if, "always()");
 assert.match(summary.run, /accepted_main_drift_files/u);
@@ -101,6 +107,8 @@ assert.equal(failClosed.if, "always()");
 assert.match(failClosed.run, /UPLOAD_OUTCOME/u);
 assert.match(failClosed.run, /blocked_missing_secret_bindings/u);
 assert.match(failClosed.run, /execution_current_main_sha/u);
+assert.match(failClosed.run, /non_executable_main_drift_accepted \| type == "boolean"/u);
+assert.match(failClosed.run, /accepted_main_drift_files \| type == "array"/u);
 assert.match(failClosed.run, /exit 1/u);
 
 assert.doesNotMatch(source, /secrets_included:\s*true/u);
@@ -115,6 +123,7 @@ console.log(JSON.stringify({
   zero_net_tree_drift_accepted: true,
   exact_non_executable_main_drift_allowlist: ["docs/repo-maintenance-status.md"],
   main_drift_commit_limit: 20,
+  drift_evidence_preserved_after_collection: true,
   missing_binding_names_only: true,
   credential_values_returned: false,
   secrets_included: false,
