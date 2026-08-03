@@ -63,6 +63,9 @@ jobs:
               generated_at: (now | todateiso8601),
               status: "initialized",
               source_repository_sha: $base_sha,
+              execution_current_main_sha: $base_sha,
+              non_executable_main_drift_accepted: false,
+              accepted_main_drift_files: [],
               trigger_sha: $trigger_sha,
               trigger_branch: $trigger_branch,
               authoritative_database_connection_succeeded: false,
@@ -96,7 +99,36 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${BASE_SHA}"
-          test "$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${BASE_SHA}"
+
+          current_main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          drift_accepted=false
+          accepted_drift_files='[]'
+
+          if [[ "${current_main_sha}" != "${BASE_SHA}" ]]; then
+            comparison_json="${RUNNER_TEMP}/retail-commerce-main-drift.json"
+            gh api "/repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${current_main_sha}" > "${comparison_json}"
+            jq -e --arg base "${BASE_SHA}" '
+              .status == "ahead" and
+              .merge_base_commit.sha == $base and
+              .behind_by == 0 and
+              (.ahead_by >= 1 and .ahead_by <= 20) and
+              (.total_commits >= 1 and .total_commits <= 20) and
+              (.files | type == "array" and length >= 1) and
+              all(.files[].filename; . == "docs/repo-maintenance-status.md")
+            ' "${comparison_json}" >/dev/null
+            accepted_drift_files="$(jq -c '[.files[].filename]' "${comparison_json}")"
+            drift_accepted=true
+          fi
+
+          jq \
+            --arg current_main_sha "${current_main_sha}" \
+            --argjson drift_accepted "${drift_accepted}" \
+            --argjson accepted_drift_files "${accepted_drift_files}" \
+            '.execution_current_main_sha = $current_main_sha
+             | .non_executable_main_drift_accepted = $drift_accepted
+             | .accepted_main_drift_files = $accepted_drift_files' \
+            "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+          mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
 
           mapfile -t changed_files < <(gh api --paginate "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
           test "${#changed_files[@]}" -eq 1
@@ -125,6 +157,7 @@ jobs:
           ' --arg base "${BASE_SHA}" --arg head_ref "${HEAD_REF}" --arg confirmation "${REQUIRED_CONFIRMATION}" "${trigger_json}" >/dev/null
 
           echo "BASELINE_SOURCE_SHA=${BASE_SHA}" >> "${GITHUB_ENV}"
+          echo "EXECUTION_CURRENT_MAIN_SHA=${current_main_sha}" >> "${GITHUB_ENV}"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -190,7 +223,12 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/retail-commerce-production-schema-baseline.mjs --report="${REPORT_PATH}"
-          jq --arg sha "${BASELINE_SOURCE_SHA}" '.source_repository_sha = $sha' "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+          jq \
+            --arg sha "${BASELINE_SOURCE_SHA}" \
+            --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" \
+            '.source_repository_sha = $sha
+             | .execution_current_main_sha = $current_main_sha' \
+            "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
           mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
 
       - name: Ensure bounded evidence report exists
@@ -212,6 +250,9 @@ jobs:
                 generated_at: (now | todateiso8601),
                 status: "report_recovery_required",
                 source_repository_sha: $base_sha,
+                execution_current_main_sha: $base_sha,
+                non_executable_main_drift_accepted: false,
+                accepted_main_drift_files: [],
                 trigger_sha: $trigger_sha,
                 trigger_branch: $trigger_branch,
                 authoritative_database_connection_succeeded: false,
@@ -244,6 +285,9 @@ jobs:
             generated_at,
             status,
             source_repository_sha,
+            execution_current_main_sha,
+            non_executable_main_drift_accepted,
+            accepted_main_drift_files,
             authoritative_database_connection_succeeded,
             baseline_collected,
             parity_status,
@@ -288,8 +332,9 @@ jobs:
           fi
 
           test "${COLLECT_OUTCOME}" = "success"
-          jq -e --arg sha "${BASELINE_SOURCE_SHA}" '
+          jq -e --arg sha "${BASELINE_SOURCE_SHA}" --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" '
             .source_repository_sha == $sha and
+            .execution_current_main_sha == $current_main_sha and
             .authoritative_database_connection_succeeded == true and
             .baseline_collected == true and
             .safety.select_only == true and
