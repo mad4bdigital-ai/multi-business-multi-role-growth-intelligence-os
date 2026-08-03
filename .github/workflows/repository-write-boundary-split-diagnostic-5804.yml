@@ -1,0 +1,158 @@
+name: Repository Write Boundary Split Diagnostic 5804
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/repository-write-boundary-split-base-2e7df840-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-write-boundary-split-diagnostic-5804-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
+  EXPECTED_CANDIDATE_SHA: 3305fee5f3c84984a32a91ac82062faaa854118a
+  EXPECTED_HEAD_REF: gpt/repository-write-workflow-prerequisites-20260804
+  EXPECTED_BASE_REF: gpt/diag/repository-write-boundary-split-base-2e7df840-v1
+
+jobs:
+  diagnose:
+    name: Split six focused repository-write regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Validate immutable pull request identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_SHA" = "$EXPECTED_CANDIDATE_SHA"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$EXPECTED_BASE_REF"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify protected main freshness and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .changes/e2e/repository-write-workflow-prerequisites.json
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/http-generic-api-fanout-relocation-apply.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-write-workflow-prerequisite-guard.yml
+          .github/workflows/supervisor-runtime-assurance-alert.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          .specify/pipeline-connectivity-contract.json
+          docs/runbooks/supervisor-runtime-assurance.md
+          http-generic-api/test-fanout-relocation-ci.mjs
+          http-generic-api/test-pipeline-connectivity-check.mjs
+          http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+          EOF
+          git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_CANDIDATE_SHA" | sort > "${RUNNER_TEMP}/actual-files.txt"
+          sort -o "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/expected-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Work Map autofix connectivity
+        id: autofix_connectivity
+        continue-on-error: true
+        run: node http-generic-api/test-spec-kit-work-map-autofix-connectivity.mjs
+
+      - name: Fanout relocation boundary
+        id: fanout
+        continue-on-error: true
+        run: node http-generic-api/test-fanout-relocation-ci.mjs
+
+      - name: Pipeline connectivity boundary
+        id: pipeline
+        continue-on-error: true
+        run: node http-generic-api/test-pipeline-connectivity-check.mjs
+
+      - name: Supervisor assurance boundary
+        id: supervisor
+        continue-on-error: true
+        run: node http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+
+      - name: Repository write PR diagnostics
+        id: pr_diagnostics
+        continue-on-error: true
+        run: node http-generic-api/test-repository-write-pr-diagnostics.mjs
+
+      - name: Work Map recovery dispatch
+        id: recovery_dispatch
+        continue-on-error: true
+        run: node http-generic-api/test-spec-kit-work-map-recovery-dispatch.mjs
+
+      - name: Publish split diagnostic summary
+        if: always()
+        shell: bash
+        env:
+          AUTOFIX_CONNECTIVITY: ${{ steps.autofix_connectivity.outcome }}
+          FANOUT: ${{ steps.fanout.outcome }}
+          PIPELINE: ${{ steps.pipeline.outcome }}
+          SUPERVISOR: ${{ steps.supervisor.outcome }}
+          PR_DIAGNOSTICS: ${{ steps.pr_diagnostics.outcome }}
+          RECOVERY_DISPATCH: ${{ steps.recovery_dispatch.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostic
+          jq -n \
+            --arg expected_main_sha "$EXPECTED_MAIN_SHA" \
+            --arg expected_candidate_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg autofix_connectivity "$AUTOFIX_CONNECTIVITY" \
+            --arg fanout "$FANOUT" \
+            --arg pipeline "$PIPELINE" \
+            --arg supervisor "$SUPERVISOR" \
+            --arg pr_diagnostics "$PR_DIAGNOSTICS" \
+            --arg recovery_dispatch "$RECOVERY_DISPATCH" \
+            '{expected_main_sha:$expected_main_sha,expected_candidate_sha:$expected_candidate_sha,tests:{autofix_connectivity:$autofix_connectivity,fanout:$fanout,pipeline:$pipeline,supervisor:$supervisor,pr_diagnostics:$pr_diagnostics,recovery_dispatch:$recovery_dispatch},repository_mutation:false,secrets_included:false}' \
+            | tee diagnostic/results.json
+
+      - name: Upload split diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-boundary-split-5804-${{ github.run_id }}
+          path: diagnostic/results.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail if any focused regression failed
+        if: always()
+        shell: bash
+        env:
+          AUTOFIX_CONNECTIVITY: ${{ steps.autofix_connectivity.outcome }}
+          FANOUT: ${{ steps.fanout.outcome }}
+          PIPELINE: ${{ steps.pipeline.outcome }}
+          SUPERVISOR: ${{ steps.supervisor.outcome }}
+          PR_DIAGNOSTICS: ${{ steps.pr_diagnostics.outcome }}
+          RECOVERY_DISPATCH: ${{ steps.recovery_dispatch.outcome }}
+        run: |
+          set -euo pipefail
+          for outcome in "$AUTOFIX_CONNECTIVITY" "$FANOUT" "$PIPELINE" "$SUPERVISOR" "$PR_DIAGNOSTICS" "$RECOVERY_DISPATCH"; do
+            test "$outcome" = "success"
+          done
