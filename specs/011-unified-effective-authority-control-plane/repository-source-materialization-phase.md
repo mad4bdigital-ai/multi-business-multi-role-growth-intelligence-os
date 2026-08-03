@@ -23,9 +23,9 @@ The snapshots must already satisfy the canonical `authorityEvidenceSourceAdapter
 
 ## Module boundary
 
-`authorityEvidenceRepositorySourceMaterializer.js` is the public compatibility boundary. It re-exports the materializer and delegates manifest finalization to `authorityEvidenceRepositorySourceMaterializerStrict.js`.
+`authorityEvidenceRepositorySourceMaterializer.js` is the public canonical boundary. It emits Pagination-aware source documents, owns the exact report/document round-trip, and returns the final manifest result.
 
-The strict implementation performs all structural, digest, repository, reviewed-ref, source-adapter, bundle, and inventory checks. The public wrapper does not weaken those checks. It only preserves the more specific error precedence for current-content or reviewed-content drift before returning a stale materialization-report digest error.
+`authorityEvidenceRepositorySourceMaterializerStrict.js` remains an internal compatibility verifier for structural, repository, reviewed-ref, blob, content, source-adapter, bundle, and inventory checks. The public boundary derives a bounded compatibility report only for that internal replay, then independently re-materializes the original Pagination-aware documents and requires exact canonical equality. The compatibility report is never returned, published, or treated as reviewed evidence.
 
 ## Source document materialization
 
@@ -37,9 +37,12 @@ Each document contains:
 
 - canonical source family, source key, and source identity;
 - original observation timestamp for review context;
+- the canonical pagination identity: expected count, observed count, page count, completion state, and terminal cursor;
 - bounded evidence references;
 - normalized no-secret authority path records;
 - explicit read-only/no-provider/no-credential/no-external-write/no-secret safety markers.
+
+Pagination is review evidence, not disposable transport metadata. It is included in the reviewed document bytes and therefore in each document content hash and in the source-bundle identity.
 
 The module produces exact canonical JSON bytes, record hashes, file-content hashes, bundle hash, inventory hash, and a materialization report using:
 
@@ -83,15 +86,16 @@ The finalizer verifies:
 - the observed ref is a full commit SHA and an ancestor of current HEAD;
 - every report safety field remains at its canonical no-effect value;
 - the report declares exactly eight documents and exactly one canonical family path for every registered source family;
-- the complete materialization report reproduces its declared canonical SHA-256 digest;
 - every source path remains repository-relative, regular, non-symlinked, realpath-contained, and at most 8 MiB;
-- current source bytes match the reviewed materialization hash;
-- each document still uses the canonical source contract, matching family, and declared record count;
+- current source bytes match the reviewed materialization hashes;
+- each document still uses the canonical source contract, matching family, declared record count, and explicit pagination identity;
 - bytes committed at `observed_ref` are exactly identical to current source bytes;
-- the eight reviewed documents pass the canonical source-adapter contract again;
+- the strict internal replay validates exact Git blobs, source records, and no-effect controls;
+- the public boundary replays all eight documents with their original pagination through the canonical source-adapter contract;
 - rebuilding the reviewed source bundle reproduces the report's exact `source_bundle_sha256`;
 - rebuilding the authority inventory reproduces the report's exact `inventory_sha256`;
-- each source file has an exact Git blob SHA at the reviewed ref.
+- public re-materialization produces byte-identical source documents and a structurally identical canonical report;
+- reports with extra fields, reordered source entries, forged hashes, stale digests, or recomputed but noncanonical identities fail closed.
 
 Only after those checks does it emit a canonical repository manifest using:
 
@@ -103,11 +107,12 @@ The manifest destination is separately preflighted for lexical containment, inte
 
 ```text
 successful no-secret source snapshot artifact
-  -> materialize eight deterministic repository source documents
-  -> review source records and evidence references
+  -> materialize eight deterministic Pagination-aware repository source documents
+  -> review source records, pagination, and evidence references
   -> commit the eight documents and materialization report
   -> use that source commit as observed_ref
-  -> verify report digest and reconstruct reviewed bundle/inventory
+  -> run strict reviewed-ref/blob/content compatibility verification
+  -> replay original pagination and re-materialize exact canonical documents/report
   -> finalize exact blob/content manifest
   -> review and commit the manifest separately
   -> configure protected ueacp-live-evidence Environment
@@ -118,7 +123,14 @@ successful no-secret source snapshot artifact
 
 ## Fail-closed conditions
 
-The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate output paths, existing destinations, intermediate symlinks/non-directories, partial publication, missing files, source symlinks, path escapes, oversized documents, invalid safety markers, noncanonical family paths, stale report digest, source-bundle mismatch, inventory mismatch, malformed source JSON, source contract or record-count mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
+The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate output paths, existing destinations, intermediate symlinks/non-directories, partial publication, missing files, source symlinks, path escapes, oversized documents, invalid safety markers, missing or altered pagination, noncanonical family paths, stale or forged report identity, source-bundle mismatch, inventory mismatch, noncanonical source bytes, malformed source JSON, source contract or record-count mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
+
+## Regression coverage
+
+The Spec-local E2E journey executes both:
+
+- `test-authority-evidence-repository-source-materializer.mjs` for atomic publication, path safety, drift, rollback, and concurrency behavior;
+- `test-authority-evidence-repository-pagination-roundtrip.mjs` for a valid three-page source round-trip and rejection of a recomputed report carrying a forged bundle identity.
 
 ## Safety and task state
 
