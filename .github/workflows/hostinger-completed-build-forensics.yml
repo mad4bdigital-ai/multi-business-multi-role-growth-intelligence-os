@@ -1,0 +1,170 @@
+name: Hostinger Completed Build Forensics
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/hostinger-runtime-recovery/triggers/completed-build-forensics-f5c1ae88.txt
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hostinger-completed-build-forensics-f5c1ae88
+  cancel-in-progress: false
+
+jobs:
+  inspect-completed-build:
+    name: Inspect completed Hostinger build and active runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: "4953"
+      ACCOUNT_USERNAME: u338416126
+      DOMAIN: auth.mad4b.com
+      BUILD_UUID: 019fc51c-3947-7255-aa4d-f55cb8df7658
+      EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
+      PRODUCTION_MERGED_AT: "2026-08-03T00:53:07Z"
+      TRIGGER_TOKEN: RUN_HOSTINGER_COMPLETED_BUILD_FORENSICS_F5C1AE88_V1
+      MARKER_PATH: .github/hostinger-runtime-recovery/triggers/completed-build-forensics-f5c1ae88.txt
+      REPORT_DIR: ${{ runner.temp }}/hostinger-completed-build-forensics
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate trusted trigger and immutable bindings
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_BEFORE: ${{ github.event.before || '' }}
+          EVENT_MESSAGE: ${{ github.event.head_commit.message || '' }}
+          ACTOR: ${{ github.actor }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -Eeuo pipefail
+
+          CURRENT_MAIN_SHA="$(git rev-parse HEAD)"
+          REMOTE_MAIN_SHA="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          CURRENT_PRODUCTION_SHA="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          test "${CURRENT_MAIN_SHA}" = "${REMOTE_MAIN_SHA}"
+          test "${CURRENT_PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
+
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            test "${ACTOR}" = "${REPOSITORY_OWNER}"
+          elif [[ "${EVENT_NAME}" == "push" ]]; then
+            test "${EVENT_REF}" = "refs/heads/main"
+            test "${EVENT_SHA}" = "${CURRENT_MAIN_SHA}"
+            FIRST_LINE="${EVENT_MESSAGE%%$'\n'*}"
+            test "${FIRST_LINE}" = "${TRIGGER_TOKEN}"
+            [[ "${EVENT_BEFORE}" =~ ^[0-9a-f]{40}$ ]]
+            CHANGED_FILES="$(git diff --name-only "${EVENT_BEFORE}" "${EVENT_SHA}")"
+            test "${CHANGED_FILES}" = "${MARKER_PATH}"
+            test -f "${MARKER_PATH}"
+            diff -u <(cat <<'EOF'
+          phase=completed_build_forensics
+          control_issue=4953
+          domain=auth.mad4b.com
+          build_uuid=019fc51c-3947-7255-aa4d-f55cb8df7658
+          expected_production_sha=f5c1ae8840b4d4452f2908bb0f23051880bb6896
+          production_merged_at=2026-08-03T00:53:07Z
+          provider_method=GET
+          provider_mutation=false
+          restart=false
+          secrets_included=false
+          EOF
+            ) "${MARKER_PATH}"
+          else
+            echo "Unsupported event: ${EVENT_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Run focused contract regression
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-completed-build-forensics.mjs
+
+      - name: Collect bounded completed-build forensics
+        id: collect
+        working-directory: http-generic-api
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_ACCOUNT_USERNAME: ${{ env.ACCOUNT_USERNAME }}
+          HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
+          HOSTINGER_BUILD_UUID: ${{ env.BUILD_UUID }}
+          EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
+          PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
+          HOSTINGER_COMPLETED_BUILD_FORENSICS_DIR: ${{ env.REPORT_DIR }}
+        run: node scripts/hostinger-completed-build-forensics.mjs
+
+      - name: Validate secret-free evidence contract
+        id: evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REPORT="${REPORT_DIR}/hostinger-completed-build-forensics.json"
+          test -s "${REPORT}"
+          node --input-type=module - "${REPORT}" "${EXPECTED_PRODUCTION_SHA}" "${BUILD_UUID}" <<'NODE'
+          import fs from "node:fs";
+          const [reportPath, expectedSha, buildUuid] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+          if (report.contract !== "mad4b.hostinger-completed-build-forensics.v1") throw new Error("unexpected contract");
+          if (report.identity?.expected_sha !== expectedSha) throw new Error("expected SHA mismatch");
+          if (report.identity?.expected_branch !== "Production") throw new Error("expected branch mismatch");
+          if (report.identity?.build_uuid !== buildUuid) throw new Error("build UUID mismatch");
+          if (report.requests?.methods?.length !== 1 || report.requests.methods[0] !== "GET") throw new Error("non-GET method detected");
+          if (report.requests?.token_returned !== false || report.secrets_included !== false) throw new Error("secret boundary failed");
+          const effects = report.side_effects || {};
+          for (const [key, value] of Object.entries(effects)) {
+            if (value !== false) throw new Error(`side effect ${key} was not false`);
+          }
+          if (!report.decision?.classification || !report.decision?.next_action) throw new Error("decision missing");
+          NODE
+
+          echo "outcome=$(jq -r '.decision.outcome' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "classification=$(jq -r '.decision.classification' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "next_action=$(jq -r '.decision.next_action' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "observed_sha=$(jq -r '.runtime.version.identity.sha // .runtime.deploymentInfo.identity.sha // "unavailable"' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "observed_branch=$(jq -r '.runtime.deploymentInfo.identity.branch // .runtime.version.identity.branch // "unavailable"' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "source_shas=$(jq -r '.log_analysis.source_shas | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "source_branches=$(jq -r '.log_analysis.source_branches | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "release_dirs=$(jq -r '.log_analysis.release_directories | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "log_digest=$(jq -r '.log_analysis.excerpt_sha256' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload completed-build forensics evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-completed-build-forensics-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish bounded incident decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.evidence.outputs.outcome }}
+          CLASSIFICATION: ${{ steps.evidence.outputs.classification }}
+          NEXT_ACTION: ${{ steps.evidence.outputs.next_action }}
+          OBSERVED_SHA: ${{ steps.evidence.outputs.observed_sha }}
+          OBSERVED_BRANCH: ${{ steps.evidence.outputs.observed_branch }}
+          SOURCE_SHAS: ${{ steps.evidence.outputs.source_shas }}
+          SOURCE_BRANCHES: ${{ steps.evidence.outputs.source_branches }}
+          RELEASE_DIRS: ${{ steps.evidence.outputs.release_dirs }}
+          LOG_DIGEST: ${{ steps.evidence.outputs.log_digest }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          BODY="HOSTINGER_COMPLETED_BUILD_FORENSICS status=completed contract=mad4b.hostinger-completed-build-forensics.v1 run_id=${GITHUB_RUN_ID} artifact=hostinger-completed-build-forensics-${GITHUB_RUN_ID} outcome=${OUTCOME} classification=${CLASSIFICATION} next_action=${NEXT_ACTION} build_uuid=${BUILD_UUID} expected_production_sha=${EXPECTED_PRODUCTION_SHA} source_shas=${SOURCE_SHAS} source_branches=${SOURCE_BRANCHES} release_directories=${RELEASE_DIRS} observed_runtime_sha=${OBSERVED_SHA} observed_runtime_branch=${OBSERVED_BRANCH} log_excerpt_sha256=${LOG_DIGEST} provider_method=GET provider_mutation=false build_created=false deployment=false active_slot_changed=false restart=false sql=false migration_apply=false database_mutation=false external_send=false secrets_included=false"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
+            -f body="${BODY}"
