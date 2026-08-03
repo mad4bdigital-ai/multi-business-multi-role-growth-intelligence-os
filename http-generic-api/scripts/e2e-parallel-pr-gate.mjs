@@ -124,7 +124,7 @@ function main() {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.headRef && !options.headRef.startsWith("gh-readonly-queue/")) {
+  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/")) {
     const runtimeChanged = report.changed_files.some((file) => {
       const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
       return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
