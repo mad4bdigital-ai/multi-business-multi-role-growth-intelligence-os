@@ -36,8 +36,21 @@ function options(overrides = {}) {
   };
 }
 
+function buildListWithMetadata({
+  uuid = EXPECTED_BUILD,
+  created = "2026-08-03T00:53:09Z",
+  updated = "2026-08-03T00:53:35Z",
+  state = "completed",
+  sourceType = "git",
+  includeSourceType = true,
+} = {}) {
+  const buildOptions = { entry_file: "server.js" };
+  if (includeSourceType) buildOptions.source_type = sourceType;
+  return { data: [{ uuid, state, created_at: created, updated_at: updated, options: buildOptions }] };
+}
+
 function buildList(uuid = EXPECTED_BUILD, created = "2026-08-03T00:53:09Z", state = "completed") {
-  return { data: [{ uuid, state, created_at: created, updated_at: "2026-08-03T00:53:35Z", options: { source_type: "git", entry_file: "server.js" } }] };
+  return buildListWithMetadata({ uuid, created, state });
 }
 
 function runtimeBody(sha, branch) {
@@ -198,6 +211,63 @@ async function testDifferentLatestBuildFailsClosed() {
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_precondition_failed");
   assert.equal(report.first_failure.code, "newer_or_different_build_detected");
+  assertAttemptState(report, false, false);
+  assert.equal(authorityChecks, 0);
+  assert.equal(posts, 0);
+  assertCoherentAuthority(report);
+}
+
+async function testMissingBuildSourceFailsClosed() {
+  let posts = 0;
+  let authorityChecks = 0;
+  const fetchImpl = async (url, init = {}) => {
+    if (String(url).includes("/nodejs/builds")) {
+      return response(200, buildListWithMetadata({ includeSourceType: false }));
+    }
+    if (init.method === "POST") posts += 1;
+    return response(200, { ok: true });
+  };
+  const report = await executeGovernedRestart(options(), {
+    fetchImpl,
+    sleepImpl: async () => {},
+    beforeProviderMutation: async () => {
+      authorityChecks += 1;
+      return passedPreMutationAuthority();
+    },
+  });
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_precondition_failed");
+  assert.equal(report.first_failure.code, "authorized_build_source_not_git");
+  assertAttemptState(report, false, false);
+  assert.equal(authorityChecks, 0);
+  assert.equal(posts, 0);
+  assertCoherentAuthority(report);
+}
+
+async function testOldBuildUpdatedAfterMergeDoesNotQualify() {
+  let posts = 0;
+  let authorityChecks = 0;
+  const fetchImpl = async (url, init = {}) => {
+    if (String(url).includes("/nodejs/builds")) {
+      return response(200, buildListWithMetadata({
+        created: "2026-08-03T00:40:00Z",
+        updated: "2026-08-03T01:30:00Z",
+      }));
+    }
+    if (init.method === "POST") posts += 1;
+    return response(200, { ok: true });
+  };
+  const report = await executeGovernedRestart(options(), {
+    fetchImpl,
+    sleepImpl: async () => {},
+    beforeProviderMutation: async () => {
+      authorityChecks += 1;
+      return passedPreMutationAuthority();
+    },
+  });
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_precondition_failed");
+  assert.equal(report.first_failure.code, "no_build_after_merge");
   assertAttemptState(report, false, false);
   assert.equal(authorityChecks, 0);
   assert.equal(posts, 0);
@@ -392,6 +462,9 @@ function testWorkflowContract() {
   assert.match(workflow, /f5c1ae8840b4d4452f2908bb0f23051880bb6896/u);
   assert.match(workflow, /019fc51c-3947-7255-aa4d-f55cb8df7658/u);
   assert.match(implementation, /nodejs\/server\/restart/u);
+  assert.match(implementation, /function buildCreatedTimestamp/u);
+  assert.match(implementation, /latest\.source_type !== "git"/u);
+  assert.doesNotMatch(implementation, /Math\.max\(Date\.parse\(build\.created_at/u);
   assert.match(coherentWrapper, /deployment_info_coherent_pair/u);
   assert.match(coherentWrapper, /schema_scope:\s*"top_level_direct_identity_fields"/u);
   assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
@@ -411,6 +484,8 @@ function testWorkflowContract() {
   assert.match(workflow, /GITHUB_AUTH_EXPECTED_PRODUCTION_SHA/u);
   assert.match(workflow, /GITHUB_AUTH_BINDING_ID/u);
   assert.match(workflow, /GITHUB_AUTH_RUN_ID/u);
+  assert.match(workflow, /EVIDENCE_DIR:\s*\/tmp\/hostinger-nodejs-production-restart-\$\{\{ github\.run_id \}\}/u);
+  assert.doesNotMatch(workflow, /EVIDENCE_DIR:\s*\$\{\{ runner\.temp \}\}/u);
   assert.match(workflow, /pre_mutation_authority=/u);
   assert.match(workflow, /mad4b\.hostinger-pre-mutation-authority\.v1/u);
   assert.match(workflow, /preMutationAuthority\.main_sha === process\.env\.EXPECTED_HEAD_SHA/u);
@@ -458,6 +533,8 @@ await testAlreadyCurrentSkipsRestart();
 await testRestartConverges();
 await testPreMutationAuthorityFailureBlocksRestart();
 await testDifferentLatestBuildFailsClosed();
+await testMissingBuildSourceFailsClosed();
+await testOldBuildUpdatedAfterMergeDoesNotQualify();
 await testRestartStaysStale();
 await testSplitEndpointIdentityNeverPasses();
 await testCrossObjectDeploymentIdentityNeverPasses();
