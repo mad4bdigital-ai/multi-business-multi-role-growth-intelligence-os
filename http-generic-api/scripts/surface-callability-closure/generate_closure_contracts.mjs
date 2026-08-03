@@ -13,6 +13,49 @@ const TEST_MANIFEST_PATH = path.join(ROOT, "scripts", "test-manifest.mjs");
 const CLASSIFICATION_PATH = path.join(ROOT, "surface-contract-classification-evidence.json");
 const ATTESTATION_PATH = path.join(DOCS_ROOT, "docs", "surface-contract-safety-attestations.json");
 const HOSTINGER_MIGRATION = "20260730_hostinger_production_resync_policy.sql";
+const SURFACE_CLOSURE_TOOL_KEYS = new Set([
+  "brand_workspace_context_resolve",
+  "connect_credential_intake_wait",
+  "credential_intake_connection_status",
+  "platform_resource_context_catalog",
+  "platform_resource_context_diagnostic_handoff",
+  "platform_resource_context_related",
+  "platform_resource_context_resolve",
+  "tenant_agent_surface_deployment_upsert",
+  "tenant_agent_surface_preferences_update",
+  "tenant_agent_surfaces_catalog",
+  "tenant_agent_surfaces_get",
+  "tenant_agent_surfaces_readiness",
+  "tenant_capability_registry_read",
+  "tenant_database_connection_status",
+  "tenant_database_preflight",
+  "tenant_database_query_readonly",
+  "tenant_database_schema_read",
+  "tenant_docs_catalog",
+  "tenant_gpt_operating_guide_read",
+  "tenant_ssh_cli_allowlisted_dry_run",
+  "tenant_ssh_cli_allowlisted_execute",
+  "tenant_ssh_cli_approval_request_create",
+  "tenant_ssh_cli_approval_request_decide",
+  "tenant_ssh_cli_approval_request_status",
+  "tenant_ssh_cli_execute_job_result",
+  "tenant_ssh_connection_status",
+  "tenant_ssh_preflight",
+  "tenant_ssh_probe",
+  "workspace_access_request_cancel",
+  "workspace_assets_list",
+  "workspace_invitation_resend",
+  "workspace_invitation_revoke",
+  "workspace_invitations_expire_stale",
+  "workspace_member_remove",
+  "workspace_member_update",
+  "workspace_my_access_requests_list",
+  "workspace_ownership_transfer",
+  "workspace_resource_grant_create",
+  "workspace_resource_grant_revoke",
+  "workspace_resource_grants_list",
+  "workspace_vaults_list",
+]);
 
 const DATABASE_MUTATIONS = new Set([
   "tenant_agent_surface_preferences_update",
@@ -166,17 +209,29 @@ function statementCount(text) {
 
 const queue = readJson(QUEUE_PATH);
 if (queue.schema_version !== "surface-contract-gap-queue-v1" || !Array.isArray(queue.top_items)) throw new Error("surface_queue_invalid");
-const sourceItems = queue.top_items.filter((item) => item.migration_file !== HOSTINGER_MIGRATION);
-if (sourceItems.length !== 20) throw new Error(`surface_queue_expected_20_callable_items_actual_${sourceItems.length}`);
+function queueToolTargets(item) {
+  return unique((item.remediation || [])
+    .filter((action) => action.action_key === "verify_tool_registry_binding")
+    .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
+}
+const sourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
+const scopedToolKeys = unique(sourceItems.flatMap((item) => queueToolTargets(item).filter((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key))));
+const missingScopedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].filter((key) => !scopedToolKeys.includes(key)).sort();
+const unexpectedScopedToolKeys = scopedToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
+if (missingScopedToolKeys.length || unexpectedScopedToolKeys.length) {
+  throw new Error(`surface_queue_scope_mismatch:missing=${missingScopedToolKeys.join(",")}:unexpected=${unexpectedScopedToolKeys.join(",")}`);
+}
+if (sourceItems.length !== 20) throw new Error(`surface_queue_expected_20_scoped_callable_items_actual_${sourceItems.length}`);
 
 const registrations = [];
 for (const item of sourceItems) {
   const relativeMigration = `migrations/${item.migration_file}`;
   const migrationPath = path.join(ROOT, relativeMigration);
   if (!fs.existsSync(migrationPath)) throw new Error(`surface_migration_missing:${relativeMigration}`);
-  const expectedToolKeys = unique((item.remediation || [])
-    .filter((action) => action.action_key === "verify_tool_registry_binding")
-    .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
+  const discoveredToolKeys = queueToolTargets(item);
+  const outOfScopeToolKeys = discoveredToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
+  if (outOfScopeToolKeys.length) throw new Error(`surface_queue_item_scope_expanded:${relativeMigration}:${outOfScopeToolKeys.join(",")}`);
+  const expectedToolKeys = discoveredToolKeys.filter((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key));
   if (!expectedToolKeys.length) throw new Error(`surface_queue_tool_targets_missing:${relativeMigration}`);
   const extracted = extractRegistryToolRegistrations(fs.readFileSync(migrationPath, "utf8"));
   if (!extracted.length) throw new Error(`surface_registration_missing:${relativeMigration}`);
@@ -239,14 +294,16 @@ const sourceToolKeys = unique(registrations.map((item) => item.tool_key));
 writeJson(MANIFEST_PATH, {
   schema_version: "resource-api-surface-callability-v1",
   source_queue_schema: queue.schema_version,
-  source_queue_item_count: queue.total_items,
+  source_queue_item_count: sourceItems.length,
+  source_queue_total_item_count: queue.total_items,
+  source_queue_excluded_item_count: queue.total_items - sourceItems.length,
   source_queue_tool_keys: sourceToolKeys,
   contracts,
   generated_by: "scripts/surface-callability-closure/generate_closure_contracts.mjs",
   secrets_included: false,
 });
 
-const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nassert.equal(queue.total_items, 0, JSON.stringify(queue.top_items));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
+const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nconst remainingScopedItems = queue.top_items.filter((item) => (item.remediation || []).some((action) => action.action_key === "verify_tool_registry_binding" && (action.targets || []).some((key) => manifest.source_queue_tool_keys.includes(key))));\nassert.deepEqual(remainingScopedItems, [], JSON.stringify(remainingScopedItems));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
 fs.writeFileSync(TEST_PATH, testSource, "utf8");
 
 let testManifest = fs.readFileSync(TEST_MANIFEST_PATH, "utf8");
@@ -301,4 +358,4 @@ attestations.items.sort((a, b) => a.migration_file.localeCompare(b.migration_fil
 attestations.item_count = attestations.items.length;
 writeJson(ATTESTATION_PATH, attestations);
 
-console.log(JSON.stringify({ ok: true, source_queue_items: queue.total_items, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));
+console.log(JSON.stringify({ ok: true, source_queue_items: sourceItems.length, repository_queue_items: queue.total_items, excluded_repository_queue_items: queue.total_items - sourceItems.length, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));
