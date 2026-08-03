@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Revalidation
+name: Surface Callability Superseded Finalizer
 
 on:
   pull_request:
@@ -8,200 +8,19 @@ on:
       - .github/workflows/surface-callability-current-main-finalizer.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: surface-callability-current-main-finalizer-${{ github.event.pull_request.number }}
+  group: surface-callability-superseded-finalizer-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  finalize:
+  retired:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    env:
-      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      BASE_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
-      WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
-
     steps:
-      - name: Checkout exact target branch
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Verify exact fresh bounded trigger
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
-          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          git fetch origin main --no-tags
-          test "$(git rev-parse origin/main)" = "${BASE_SHA}"
-          git merge-base --is-ancestor "${BASE_SHA}" HEAD
-          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = "${WORKFLOW_PATH}"
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Verify permanent source corrections
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          grep -Fq 'err.code || "workspace_invitations_expire_failed"' http-generic-api/routes/tenantLifecycleRoutes.js
-          ! grep -Fq 'workspace_invitations_expire_stale_failed' http-generic-api/routes/tenantLifecycleRoutes.js
-          grep -Fq 'repository_main_moved_trigger_policy_v1' http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
-          ! grep -Fq 'hostinger_production_resync_policy_v1' http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
-          grep -Fq 'source.match(/^PREPARE\s+/gim)' http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: Generate and persist closure evidence
-        working-directory: http-generic-api
-        run: |
-          node scripts/surface-contract-discovery.mjs --write
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node scripts/surface-contract-discovery.mjs --write
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
-
-      - name: Reject temporary exporter tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          for path in http-generic-api/test-frontend-surface-dispatch.mjs http-generic-api/test-frontend-auth-openapi-parity.mjs; do
-            ! grep -Fq 'surface_artifact_export_complete_intentional_test_failure' "$path"
-          done
-
-      - name: Syntax contracts
-        working-directory: http-generic-api
-        run: |
-          node --check routes/tenantLifecycleRoutes.js
-          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node --check scripts/resource-api-callability-contracts.mjs
-          node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: Workspace invitation controls
-        working-directory: http-generic-api
-        run: node test-workspace-invitation-controls.mjs
-
-      - name: SQL registry extractor
-        working-directory: http-generic-api
-        run: node test-surface-contract-sql-registry-extractor.mjs
-
-      - name: Surface contract classification
-        working-directory: http-generic-api
-        run: node test-surface-contract-classification.mjs
-
-      - name: Resource effect classes
-        working-directory: http-generic-api
-        run: node test-resource-api-callability-effect-classes.mjs
-
-      - name: Resource API coverage
-        working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
-
-      - name: Surface full closure
-        working-directory: http-generic-api
-        run: node test-surface-callability-full-closure.mjs
-
-      - name: Frontend Surface dispatch
-        working-directory: http-generic-api
-        run: node test-frontend-surface-dispatch.mjs
-
-      - name: Frontend auth OpenAPI parity
-        working-directory: http-generic-api
-        run: node test-frontend-auth-openapi-parity.mjs
-
-      - name: OpenAPI route coverage
-        working-directory: http-generic-api
-        run: NO_COLOR=1 node test-openapi-route-coverage.mjs
-
-      - name: Hostinger full-closure safety
-        working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: OpenAPI auth parity
-        working-directory: http-generic-api
-        run: npm run openapi:auth:check
-
-      - name: Prove scoped queue closure
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
-          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
-          const scoped = new Set(manifest.source_queue_tool_keys || []);
-          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
-            action.action_key === 'verify_tool_registry_binding' &&
-            (action.targets || []).some((key) => scoped.has(key))
-          ));
-          if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
-          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_queue_item_count_mismatch:${manifest.source_queue_item_count}`);
-          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count_mismatch:${(manifest.source_queue_tool_keys || []).length}`);
-          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
-          NODE
-
-      - name: Remove finalizer and enforce bounded generated outputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -s docs/surface-contract-safety-attestations.json
-          test -s docs/surface-contract-gap-queue.json
-          test -s http-generic-api/resource-api-surface-callability.manifest.json
-          test -s http-generic-api/frontend-surface-dispatch.generated.json
-          rm "${WORKFLOW_PATH}"
-          cat > /tmp/allowed.txt <<'EOF'
-          .github/workflows/surface-callability-current-main-finalizer.yml
-          docs/surface-contract-discovery-status.json
-          docs/surface-contract-discovery-status.md
-          docs/surface-contract-gap-queue.json
-          docs/surface-contract-gap-queue.md
-          docs/surface-contract-safety-attestations.json
-          http-generic-api/frontend-operation-governance.generated.json
-          http-generic-api/frontend-surface-dispatch.generated.json
-          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          http-generic-api/resource-api-surface-callability.manifest.json
-          http-generic-api/scripts/test-manifest.mjs
-          http-generic-api/surface-contract-classification-evidence.json
-          http-generic-api/test-frontend-auth-openapi-parity.mjs
-          http-generic-api/test-frontend-surface-dispatch.mjs
-          http-generic-api/test-surface-callability-full-closure.mjs
-          EOF
-          sort -u /tmp/allowed.txt -o /tmp/allowed.txt
-          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
-          unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
-          test -z "$unexpected" || { printf 'unexpected finalizer outputs:\n%s\n' "$unexpected"; exit 1; }
-          grep -Fxq "${WORKFLOW_PATH}" /tmp/changed.txt
-
-      - name: Commit product-only revalidation result
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$before" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
-          git add -A
-          git commit -m 'chore(surface): revalidate scoped closure on current main'
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$after" = "$(git rev-parse HEAD)"
-          test ! -e "${WORKFLOW_PATH}"
+      - name: Confirm superseded workflow is inert
+        run: echo 'superseded_by_surface_callability_current_main_revalidation_v2=true'
