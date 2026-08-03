@@ -25,8 +25,9 @@ jobs:
       EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
       HEAD_REF: gpt/r6-bind-production-42177d36-20260804
       WORKFLOW_PATH: .github/workflows/hostinger-production-release-evidence-r6.yml
-      OLD_AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R6
-      NEW_AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_42177D36_6134C0F8_R6
+      OLD_PRODUCTION_PREFIX: 2669991A
+      NEW_PRODUCTION_PREFIX: 42177D36
+      REPORTER_PREFIX: 6134C0F8
       OLD_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
       NEW_PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
       OLD_MERGED_AT: '2026-08-03T10:14:37Z'
@@ -60,23 +61,51 @@ jobs:
 
           path = Path(os.environ['WORKFLOW_PATH'])
           text = path.read_text()
+          old_token = (
+              'AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_'
+              + os.environ['OLD_PRODUCTION_PREFIX']
+              + '_'
+              + os.environ['REPORTER_PREFIX']
+              + '_R6'
+          )
+          new_token = (
+              'AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_'
+              + os.environ['NEW_PRODUCTION_PREFIX']
+              + '_'
+              + os.environ['REPORTER_PREFIX']
+              + '_R6'
+          )
           replacements = [
-              (os.environ['OLD_AUTHORIZATION_TOKEN'], os.environ['NEW_AUTHORIZATION_TOKEN']),
-              (os.environ['OLD_PRODUCTION_SHA'], os.environ['NEW_PRODUCTION_SHA']),
-              (os.environ['OLD_MERGED_AT'], os.environ['NEW_MERGED_AT']),
+              (
+                  f"      AUTHORIZATION_TOKEN: {old_token}",
+                  f"      AUTHORIZATION_TOKEN: {new_token}",
+              ),
+              (
+                  f"      EXPECTED_PRODUCTION_SHA: {os.environ['OLD_PRODUCTION_SHA']}",
+                  f"      EXPECTED_PRODUCTION_SHA: {os.environ['NEW_PRODUCTION_SHA']}",
+              ),
+              (
+                  f"      PRODUCTION_MERGED_AT: '{os.environ['OLD_MERGED_AT']}'",
+                  f"      PRODUCTION_MERGED_AT: '{os.environ['NEW_MERGED_AT']}'",
+              ),
           ]
           old_present = [text.count(old) for old, _ in replacements]
           new_present = [text.count(new) for _, new in replacements]
-          if old_present == [0, 0, 0] and all(count >= 1 for count in new_present):
+          if old_present == [0, 0, 0] and new_present == [1, 1, 1]:
               print('R6 binding already patched; no mutation required.')
               Path('/tmp/r6-already-patched').write_text('true\n')
               raise SystemExit(0)
-          if old_present != [1, 1, 1]:
-              raise SystemExit(f'Unexpected old binding cardinality: {old_present}')
+          if old_present != [1, 1, 1] or new_present != [0, 0, 0]:
+              raise SystemExit(
+                  f'Unexpected exact binding cardinality: old={old_present}, new={new_present}'
+              )
           for old, new in replacements:
               text = text.replace(old, new)
           path.write_text(text)
           PY
+
+          old_authorization_token="AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_${OLD_PRODUCTION_PREFIX}_${REPORTER_PREFIX}_R6"
+          new_authorization_token="AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_${NEW_PRODUCTION_PREFIX}_${REPORTER_PREFIX}_R6"
 
           if [[ -f /tmp/r6-already-patched ]]; then
             echo "changed=false" >> "${GITHUB_OUTPUT}"
@@ -87,12 +116,12 @@ jobs:
           test -z "$(git diff --name-only | grep -vFx "${WORKFLOW_PATH}" || true)"
           test "$(git diff --name-only)" = "${WORKFLOW_PATH}"
           git diff --check
-          grep -Fq "${NEW_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
-          grep -Fq "EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
-          grep -Fq "PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
-          ! grep -Fq "${OLD_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
-          ! grep -Fq "EXPECTED_PRODUCTION_SHA: ${OLD_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
-          ! grep -Fq "PRODUCTION_MERGED_AT: '${OLD_MERGED_AT}'" "${WORKFLOW_PATH}"
+          grep -Fq "      AUTHORIZATION_TOKEN: ${new_authorization_token}" "${WORKFLOW_PATH}"
+          grep -Fq "      EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          grep -Fq "      PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
+          ! grep -Fq "      AUTHORIZATION_TOKEN: ${old_authorization_token}" "${WORKFLOW_PATH}"
+          ! grep -Fq "      EXPECTED_PRODUCTION_SHA: ${OLD_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          ! grep -Fq "      PRODUCTION_MERGED_AT: '${OLD_MERGED_AT}'" "${WORKFLOW_PATH}"
 
       - name: Commit exact binding patch
         if: steps.patch.outputs.changed == 'true'
@@ -118,7 +147,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          new_authorization_token="AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_${NEW_PRODUCTION_PREFIX}_${REPORTER_PREFIX}_R6"
           test -z "$(git status --porcelain)"
-          grep -Fq "${NEW_AUTHORIZATION_TOKEN}" "${WORKFLOW_PATH}"
-          grep -Fq "EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
-          grep -Fq "PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
+          grep -Fq "      AUTHORIZATION_TOKEN: ${new_authorization_token}" "${WORKFLOW_PATH}"
+          grep -Fq "      EXPECTED_PRODUCTION_SHA: ${NEW_PRODUCTION_SHA}" "${WORKFLOW_PATH}"
+          grep -Fq "      PRODUCTION_MERGED_AT: '${NEW_MERGED_AT}'" "${WORKFLOW_PATH}"
