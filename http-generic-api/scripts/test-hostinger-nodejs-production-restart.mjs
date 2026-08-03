@@ -44,6 +44,22 @@ function runtimeBody(sha, branch) {
   return { service: "http_generic_api_connector", deployed_commit_sha: sha, deployment_branch: branch };
 }
 
+function passedPreMutationAuthority() {
+  return {
+    contract: "mad4b.hostinger-pre-mutation-authority.v1",
+    status: "passed",
+    issue_open: true,
+    main_sha: EXPECTED_SHA,
+    production_sha: EXPECTED_SHA,
+    binding: `${EXPECTED_SHA}:${EXPECTED_BUILD}`,
+    run_id: "test-run",
+    claim_comment_id: 42,
+    claim_is_latest: true,
+    later_marker_count: 0,
+    secrets_included: false,
+  };
+}
+
 function assertCoherentAuthority(report) {
   assert.equal(report.runtime_identity_authority.contract, "mad4b.hostinger-runtime-identity-authority.v1");
   assert.equal(report.runtime_identity_authority.authoritative_endpoint, "/deployment-info");
@@ -63,6 +79,7 @@ function assertAttemptState(report, attempted, performed) {
 
 async function testAlreadyCurrentSkipsRestart() {
   let posts = 0;
+  let authorityChecks = 0;
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -70,17 +87,28 @@ async function testAlreadyCurrentSkipsRestart() {
     if (value.endsWith("/health")) return response(200, { ok: true });
     return response(200, runtimeBody(EXPECTED_SHA, "Production"));
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  const report = await executeGovernedRestart(options(), {
+    fetchImpl,
+    sleepImpl: async () => {},
+    beforeProviderMutation: async () => {
+      authorityChecks += 1;
+      return passedPreMutationAuthority();
+    },
+  });
   assert.equal(report.contract, HOSTINGER_NODEJS_PRODUCTION_RESTART_CONTRACT);
   assert.equal(report.outcome, "passed");
   assert.equal(report.classification, "runtime_already_current");
   assertAttemptState(report, false, false);
   assert.equal(posts, 0);
+  assert.equal(authorityChecks, 0);
+  assert.equal(report.pre_mutation_authority, null);
   assertCoherentAuthority(report);
 }
 
 async function testRestartConverges() {
   let restarted = false;
+  let authorityChecks = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-converges-"));
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -88,34 +116,96 @@ async function testRestartConverges() {
     if (value.endsWith("/health")) return response(200, { ok: true });
     return response(200, runtimeBody(restarted ? EXPECTED_SHA : OLD_SHA, restarted ? "Production" : "main"));
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.outcome, "passed");
-  assert.equal(report.classification, "restart_completed_runtime_current");
-  assertAttemptState(report, true, true);
-  assert.equal(report.side_effects.provider_mutation_performed, true);
-  assert.equal(report.side_effects.build_creation_performed, false);
-  assert.equal(report.side_effects.deployment_performed, false);
-  assert.equal(report.secrets_included, false);
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => {
+        authorityChecks += 1;
+        return passedPreMutationAuthority();
+      },
+    });
+    assert.equal(report.outcome, "passed");
+    assert.equal(report.classification, "restart_completed_runtime_current");
+    assertAttemptState(report, true, true);
+    assert.equal(authorityChecks, 1);
+    assert.equal(report.pre_mutation_authority.status, "passed");
+    assert.equal(report.side_effects.provider_mutation_performed, true);
+    assert.equal(report.side_effects.build_creation_performed, false);
+    assert.equal(report.side_effects.deployment_performed, false);
+    assert.equal(report.secrets_included, false);
+    const journal = JSON.parse(fs.readFileSync(path.join(outputDir, "hostinger-nodejs-production-restart-attempt.json"), "utf8"));
+    assert.equal(journal.pre_mutation_authority, "passed");
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+}
+
+async function testPreMutationAuthorityFailureBlocksRestart() {
+  let posts = 0;
+  let authorityChecks = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-authority-failure-"));
+  const fetchImpl = async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes("/nodejs/builds")) return response(200, buildList());
+    if (init.method === "POST") { posts += 1; return response(200, { ok: true }); }
+    if (value.endsWith("/health")) return response(200, { ok: true });
+    return response(200, runtimeBody(OLD_SHA, "main"));
+  };
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => {
+        authorityChecks += 1;
+        const error = new Error("main changed before restart");
+        error.code = "main_head_changed_before_restart";
+        throw error;
+      },
+    });
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_precondition_failed");
+    assert.equal(report.first_failure.code, "main_head_changed_before_restart");
+    assertAttemptState(report, false, false);
+    assert.equal(authorityChecks, 1);
+    assert.equal(posts, 0);
+    assert.equal(report.pre_mutation_authority.status, "failed");
+    assert.equal(report.pre_mutation_authority.failure_code, "main_head_changed_before_restart");
+    assert.equal(fs.existsSync(path.join(outputDir, "hostinger-nodejs-production-restart-attempt.json")), false);
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 async function testDifferentLatestBuildFailsClosed() {
   let posts = 0;
+  let authorityChecks = 0;
   const fetchImpl = async (url, init = {}) => {
     if (String(url).includes("/nodejs/builds")) return response(200, buildList("019fc999-3947-7255-aa4d-f55cb8df7658", "2026-08-03T01:30:00Z"));
     if (init.method === "POST") posts += 1;
     return response(200, { ok: true });
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  const report = await executeGovernedRestart(options(), {
+    fetchImpl,
+    sleepImpl: async () => {},
+    beforeProviderMutation: async () => {
+      authorityChecks += 1;
+      return passedPreMutationAuthority();
+    },
+  });
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_precondition_failed");
   assert.equal(report.first_failure.code, "newer_or_different_build_detected");
   assertAttemptState(report, false, false);
+  assert.equal(authorityChecks, 0);
   assert.equal(posts, 0);
   assertCoherentAuthority(report);
 }
 
 async function testRestartStaysStale() {
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-stale-"));
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -123,16 +213,25 @@ async function testRestartStaysStale() {
     if (value.endsWith("/health")) return response(200, { ok: true });
     return response(200, runtimeBody(OLD_SHA, "main"));
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.classification, "restart_completed_runtime_stale");
-  assertAttemptState(report, true, true);
-  assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => passedPreMutationAuthority(),
+    });
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_completed_runtime_stale");
+    assertAttemptState(report, true, true);
+    assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 async function testSplitEndpointIdentityNeverPasses() {
   let posts = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-split-"));
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -142,18 +241,27 @@ async function testSplitEndpointIdentityNeverPasses() {
     if (value.endsWith("/deployment-info")) return response(200, runtimeBody(OLD_SHA, "Production"));
     throw new Error(`Unexpected URL ${value}`);
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.pre_runtime.current, false);
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.classification, "restart_completed_runtime_stale");
-  assertAttemptState(report, true, true);
-  assert.equal(posts, 1);
-  assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => passedPreMutationAuthority(),
+    });
+    assert.equal(report.pre_runtime.current, false);
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_completed_runtime_stale");
+    assertAttemptState(report, true, true);
+    assert.equal(posts, 1);
+    assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 async function testCrossObjectDeploymentIdentityNeverPasses() {
   let posts = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-cross-object-"));
   const deploymentBody = {
     branch: "main",
     commit_sha: OLD_SHA,
@@ -172,18 +280,27 @@ async function testCrossObjectDeploymentIdentityNeverPasses() {
     if (value.endsWith("/deployment-info")) return response(200, deploymentBody);
     throw new Error(`Unexpected URL ${value}`);
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.pre_runtime.current, false);
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.classification, "restart_completed_runtime_stale");
-  assertAttemptState(report, true, true);
-  assert.equal(posts, 1);
-  assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => passedPreMutationAuthority(),
+    });
+    assert.equal(report.pre_runtime.current, false);
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_completed_runtime_stale");
+    assertAttemptState(report, true, true);
+    assert.equal(posts, 1);
+    assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 async function testNonStandardJsonContentTypeCannotBypassIdentityAuthority() {
   let posts = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-content-type-"));
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -193,13 +310,21 @@ async function testNonStandardJsonContentTypeCannotBypassIdentityAuthority() {
     if (value.endsWith("/deployment-info")) return response(200, runtimeBody(OLD_SHA, "Production"), "application/problem+json");
     throw new Error(`Unexpected URL ${value}`);
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.pre_runtime.current, false);
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.classification, "restart_completed_runtime_stale");
-  assertAttemptState(report, true, true);
-  assert.equal(posts, 1);
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => passedPreMutationAuthority(),
+    });
+    assert.equal(report.pre_runtime.current, false);
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_completed_runtime_stale");
+    assertAttemptState(report, true, true);
+    assert.equal(posts, 1);
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 async function testAmbiguousPostTransportFailureConsumesAttempt() {
@@ -216,7 +341,11 @@ async function testAmbiguousPostTransportFailureConsumesAttempt() {
     return response(200, runtimeBody(OLD_SHA, "main"));
   };
   try {
-    const report = await executeGovernedRestart(options({ outputDir }), { fetchImpl, sleepImpl: async () => {} });
+    const report = await executeGovernedRestart(options({ outputDir }), {
+      fetchImpl,
+      sleepImpl: async () => {},
+      beforeProviderMutation: async () => passedPreMutationAuthority(),
+    });
     assert.equal(report.outcome, "failed");
     assert.equal(report.classification, "restart_attempted_outcome_unconfirmed");
     assert.equal(report.first_failure.code, "request_transport_failed");
@@ -229,6 +358,7 @@ async function testAmbiguousPostTransportFailureConsumesAttempt() {
     assert.equal(journal.contract, "mad4b.hostinger-nodejs-production-restart-attempt.v1");
     assert.equal(journal.restart_attempted, true);
     assert.equal(journal.provider_mutation_attempted, true);
+    assert.equal(journal.pre_mutation_authority, "passed");
     assert.equal(journal.expected_sha, EXPECTED_SHA);
     assert.equal(journal.expected_build_uuid, EXPECTED_BUILD);
     assert.equal(journal.secrets_included, false);
@@ -268,8 +398,24 @@ function testWorkflowContract() {
   assert.match(coherentWrapper, /cross_object_composition_allowed:\s*false/u);
   assert.match(coherentWrapper, /persistAttemptJournal\(configuration\)/u);
   assert.match(coherentWrapper, /hostinger-nodejs-production-restart-attempt\.json/u);
+  assert.match(coherentWrapper, /createGitHubPreMutationAuthorityRevalidator/u);
+  assert.match(coherentWrapper, /main_head_changed_before_restart/u);
+  assert.match(coherentWrapper, /production_head_changed_before_restart/u);
+  assert.match(coherentWrapper, /current_run_claim_missing_before_restart/u);
+  assert.match(coherentWrapper, /current_run_claim_superseded_before_restart/u);
+  assert.match(coherentWrapper, /restart_claim_changed_before_mutation/u);
+  assert.match(coherentWrapper, /authorityState\.result = await beforeProviderMutation\(\)/u);
   assert.match(coherentWrapper, /mutationState\.attempted = true/u);
   assert.match(coherentWrapper, /restart_attempted_outcome_unconfirmed/u);
+  assert.match(workflow, /GITHUB_AUTH_EXPECTED_HEAD_SHA/u);
+  assert.match(workflow, /GITHUB_AUTH_EXPECTED_PRODUCTION_SHA/u);
+  assert.match(workflow, /GITHUB_AUTH_BINDING_ID/u);
+  assert.match(workflow, /GITHUB_AUTH_RUN_ID/u);
+  assert.match(workflow, /pre_mutation_authority=/u);
+  assert.match(workflow, /mad4b\.hostinger-pre-mutation-authority\.v1/u);
+  assert.match(workflow, /preMutationAuthority\.main_sha === process\.env\.EXPECTED_HEAD_SHA/u);
+  assert.match(workflow, /preMutationAuthority\.claim_is_latest === true/u);
+  assert.match(workflow, /preMutationAuthority\.later_marker_count === 0/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
   assert.match(workflow, /authority\.schema_scope === "top_level_direct_identity_fields"/u);
   assert.match(workflow, /authority\.cross_endpoint_composition_allowed === false/u);
@@ -310,6 +456,7 @@ function testWorkflowContract() {
 
 await testAlreadyCurrentSkipsRestart();
 await testRestartConverges();
+await testPreMutationAuthorityFailureBlocksRestart();
 await testDifferentLatestBuildFailsClosed();
 await testRestartStaysStale();
 await testSplitEndpointIdentityNeverPasses();
