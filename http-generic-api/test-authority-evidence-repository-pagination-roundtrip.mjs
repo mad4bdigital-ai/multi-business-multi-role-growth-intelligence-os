@@ -88,14 +88,18 @@ function git(root, args) {
   return String(result.stdout || "").trim();
 }
 
+const paginatedFamily = AUTHORITY_EVIDENCE_SOURCE_FAMILIES[0];
 const sources = AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map(source);
 const materialized = materializeAuthorityEvidenceRepositorySourceDocuments({ sources });
 assert.equal(materialized.documents.length, 8);
 assert.equal(materialized.report.source_document_count, 8);
-assert.equal(materialized.bundle.sources[0].pagination.page_count, 3);
+assert.equal(
+  materialized.bundle.sources.find((entry) => entry.source_family === paginatedFamily)?.pagination.page_count,
+  3,
+);
 
 const paginatedDocument = materialized.documents.find(
-  (entry) => entry.source_family === AUTHORITY_EVIDENCE_SOURCE_FAMILIES[0],
+  (entry) => entry.source_family === paginatedFamily,
 );
 assert(paginatedDocument);
 assert.equal(JSON.parse(paginatedDocument.content).pagination.page_count, 3);
