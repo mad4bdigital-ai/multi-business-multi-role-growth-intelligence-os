@@ -6,7 +6,8 @@ info:
     Additive capability-envelope lifecycle fields for governed Admin and Tenant
     operation execution. Mutation operations require an operation-scoped
     envelope. Missing or expired envelopes may be recreated from a governed
-    dry-run, but approval is never granted automatically.
+    dry-run for lower-risk recipes, but protected pull-request finalization and
+    operation resume require a separately issued explicit envelope.
 servers:
   - url: https://auth.mad4b.com
 paths:
@@ -179,7 +180,8 @@ components:
           default: true
           description: |
             Allows creation of a fresh dry-run envelope when none exists or the
-            supplied envelope expired. It never grants approval automatically.
+            supplied envelope expired for lower-risk recipes. It is ignored for protected
+            pull-request finalization and operation resume, which require an explicit envelope.
         capability_ttl_minutes:
           type: integer
           minimum: 5
@@ -249,6 +251,7 @@ components:
               type: string
               enum:
                 - OPERATION_CAPABILITY_ENVELOPE_REJECTED
+                - OPERATION_CAPABILITY_ENVELOPE_REQUIRED
                 - OPERATION_CAPABILITY_RENEWAL_REQUIRED
                 - OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL
                 - OPERATION_CAPABILITY_RENEWAL_NOT_READY

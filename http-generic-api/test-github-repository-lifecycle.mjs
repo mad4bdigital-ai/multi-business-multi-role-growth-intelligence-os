@@ -337,7 +337,8 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { number: pullNumber, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: { status: "ahead", ahead_by: 7, behind_by: 0 } },
       { status: 200, payload: { total_count: 4, check_runs: checks } },
-      { status: 200, payload: { number: pullNumber, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      { status: 200, payload: [{ id: 9001, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T04:30:00Z", user: { login: "human-reviewer", type: "User" } }] },
       { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { status: "identical", ahead_by: 0, behind_by: 0 } },
@@ -354,6 +355,8 @@ function queuedFetch(entries, calls = []) {
   assert.equal(result.merge_sha, COMMIT_SHA);
   assert.equal(result.merge_method, "squash");
   assert.equal(result.ci_gate.gate_status, "pass");
+  assert.equal(result.approval_evidence.exact_head_approval_count, 1);
+  assert.equal(result.approval_evidence.quorum_satisfied, true);
   assert.equal(result.ancestry_readback.verified, true);
   assert.equal(result.branch_cleanup.verified_absent, true);
   const mergeCall = calls.find((call) => call.url.endsWith(`/pulls/${pullNumber}/merge`));
@@ -582,12 +585,138 @@ function queuedFetch(entries, calls = []) {
         { status: 200, payload: { number: 4386, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
         { status: 200, payload: { status: "ahead", ahead_by: 901, behind_by: 0 } },
         { status: 200, payload: { total_count: 4, check_runs: checks } },
-        { status: 200, payload: { number: 4386, draft: true, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: { number: 4386, state: "open", draft: true, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       ], calls),
     }),
     (error) => error.code === "github_pr_finalize_draft_blocked" && error.details?.is_draft === true,
   );
   assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "draft race must not reach merge endpoint");
+}
+
+
+function exactHeadChecks() {
+  return [
+    "Syntax Check",
+    "Architecture Drift Detection",
+    "Execution Resolver Gate",
+    "Unit & Integration Tests",
+  ].map((name, index) => ({
+    name,
+    status: "completed",
+    conclusion: "success",
+    completed_at: `2026-08-03T05:0${index}:00Z`,
+  }));
+}
+
+function exactHeadGateResponses(pullNumber, branch = "gpt/exact-head-approval") {
+  return [
+    { status: 200, payload: { number: pullNumber, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+    { status: 200, payload: { status: "ahead", ahead_by: 3, behind_by: 0 } },
+    { status: 200, payload: { total_count: 4, check_runs: exactHeadChecks() } },
+  ];
+}
+
+{
+  const calls = [];
+  const pullNumber = 4387;
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: pullNumber,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        ...exactHeadGateResponses(pullNumber),
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: [{ id: 1, state: "APPROVED", commit_id: COMMIT_SHA, submitted_at: "2026-08-03T05:10:00Z", user: { login: "reviewer", type: "User" } }] },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_approval_required"
+      && error.details?.ignored?.stale_head === 1,
+  );
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "stale approval must not reach merge endpoint");
+}
+
+{
+  const calls = [];
+  const pullNumber = 4388;
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: pullNumber,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        ...exactHeadGateResponses(pullNumber),
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: [
+          { id: 2, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:11:00Z", user: { login: "merge-bot[bot]", type: "Bot" } },
+          { id: 3, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:12:00Z", user: { login: "author", type: "User" } },
+        ] },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_approval_required"
+      && error.details?.ignored?.bot === 1
+      && error.details?.ignored?.author === 1,
+  );
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "bot or author approval must not reach merge endpoint");
+}
+
+{
+  const calls = [];
+  const pullNumber = 4389;
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: pullNumber,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        ...exactHeadGateResponses(pullNumber),
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: [
+          { id: 4, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:13:00Z", user: { login: "reviewer-a", type: "User" } },
+          { id: 5, state: "CHANGES_REQUESTED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:14:00Z", user: { login: "reviewer-b", type: "User" } },
+        ] },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_changes_requested"
+      && error.details?.has_changes_requested === true,
+  );
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "changes requested must not reach merge endpoint");
+}
+
+{
+  const calls = [];
+  const pullNumber = 4390;
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: pullNumber,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        ...exactHeadGateResponses(pullNumber),
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: COMMIT_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_final_identity_mismatch"
+      && error.details?.validation_phase === "final_pre_merge_readback",
+  );
+  assert.equal(calls.some((call) => call.url.includes("/reviews")), false, "identity race must fail before review fetch");
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "identity race must not reach merge endpoint");
 }
 
 console.log("github repository lifecycle tests passed");
