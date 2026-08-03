@@ -12,6 +12,7 @@ This runbook covers supervisor runtime readiness, behavioral certification, post
 - Live readiness and rollback certification run only through governed Admin tools.
 - A resolved operational alert may be reopened only with fresh evidence.
 - Generated Work Maps have one remote branch writer: `.github/workflows/spec-kit-work-map-autofix.yml`.
+- Work Map authorization and dispatch are separated from the writer by `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`.
 - Docs Agent and the Work Map Integration Gate may generate local previews or repair artifacts, but they must not commit or push Work Maps.
 
 ## Automated assurance
@@ -42,24 +43,45 @@ Docs Agent is preview-only for pull requests.
 
 ### Governed Work Map mutation
 
-The sole remote writer is `Spec Kit Work Map Autofix`.
+The sole remote writer is `Spec Kit Work Map Autofix`. It is `workflow_dispatch`-only and accepts:
 
-A write may start only through one of these exact-head paths:
+- an existing same-repository pull-request branch;
+- the full current `expected_head_sha`.
 
-1. `workflow_dispatch` with an existing same-repository pull-request branch and its full current `expected_head_sha`.
-2. A one-time reopened pull request whose body temporarily contains `<!-- work-map-autofix:authorized -->`.
+The writer itself does not consume pull-request authorization. It must:
 
-The writer must:
-
-- reject `main` as a target branch;
+- reject `main` and `Production` as target branches;
+- require exactly one open same-repository pull request targeting `main`;
 - verify local and remote heads equal the authorized SHA before generation and again before push;
-- consume one-time authorization before branch mutation;
+- run generator, classification, and pipeline-connectivity contracts;
 - generate twice and prove idempotency;
 - reject changes outside `docs/work-maps/**`;
 - avoid force push and protected-branch bypass;
 - verify the remote pushed SHA;
 - dispatch CI and the Work Map Integration Gate after a successful commit;
-- publish a bounded diagnostic artifact and sticky pull-request report.
+- publish a bounded diagnostic artifact and report.
+
+### Work Map recovery and authorization control plane
+
+`Spec Kit Work Map Autofix Recovery Dispatch` is the trusted non-writer control plane.
+
+It may start through:
+
+1. explicit `workflow_dispatch` with exact confirmation `RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX`;
+2. a trusted `pull_request_target` event for a ready same-repository pull request whose body contains `<!-- work-map-autofix:authorized -->`;
+3. an exact `/recover-work-maps` comment from an actor with write-level repository permission.
+
+Before dispatching the writer, the recovery control plane must:
+
+- load no candidate code and perform no Work Map generation itself;
+- require an open, non-draft, same-repository pull request targeting `main`;
+- require the work branch to be current with `main`;
+- reject `main` and `Production` as target branches;
+- consume and read back removal of the one-time authorization marker;
+- verify the writer and Integration workflows are active;
+- dispatch the writer with the exact branch and `expected_head_sha`;
+- observe the delegated run ID;
+- report `direct_repository_mutation=false`, `protected_branch_mutation=false`, and `force_push=false`.
 
 The Work Map Integration Gate remains read-only. When maps are stale, it produces an exact-head repair candidate artifact, records the tested SHA and source hash, and then fails closed. That artifact is evidence for the governed writer; it is not itself a branch mutation.
 
@@ -141,4 +163,5 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Apply authorization failure: inspect capability registration, policy matching, expiry, and blocking gaps; never bypass the policy.
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
 - Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
-- Work Map Autofix without an exact authorized head, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.
+- Work Map writer without an exact current head, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.
+- Work Map recovery dispatch without a consumed one-time authorization, exact current branch, or observed delegated run: treat the authorization as failed and do not retry implicitly.
