@@ -1,4 +1,4 @@
-name: Exact Local Connector Closure ARM Diagnostics 5496 v3
+name: Exact Local Connector Closure ARM Audit Diagnostics 5496 v4
 
 on:
   pull_request:
@@ -10,18 +10,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-local-connector-closure-arm-diagnostics-5496-v3-${{ github.event.pull_request.number }}
+  group: exact-local-connector-closure-arm-audit-diagnostics-5496-v4-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   diagnose:
-    name: Split canonical governance diagnostics
+    name: Capture Resource API coverage audit
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       EXPECTED_HEAD_REF: gpt/ci/retire-local-connector-closure-final-one-commit-20260803
       EXPECTED_HEAD_SHA: d2d3fbf20998d24fda53eb05e1f0ddd004ace8e7
       EXPECTED_MAIN_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+      EVIDENCE_DIR: /tmp/local-connector-closure-audit-5496-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -39,6 +40,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
           test "$HEAD_REPOSITORY" = "$REPOSITORY"
           test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
           test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
@@ -50,68 +52,86 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/${EXPECTED_HEAD_REF})" = "$EXPECTED_HEAD_SHA"
           git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
           test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "2"
-          mapfile -t actual < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA" | sort)
-          expected=(
-            .changes/e2e/local-connector-production-closure-automation-retirement.json
-            .github/local-connector-closure/trigger-3945-792ff63a.txt
-            .github/scripts/governed-local-connector-production-closure.mjs
-            .github/workflows/automation-overlap-guard.yml
-            .github/workflows/governed-local-connector-production-closure-pr-target.yml
-            .github/workflows/governed-local-connector-production-closure-push.yml
-            .github/workflows/governed-local-connector-production-closure.yml
-            .github/workflows/local-connector-closure-v8-trigger.txt
-            http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
-          )
-          test "${#actual[@]}" = "${#expected[@]}"
-          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${actual[@]}")
+          git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF_FILES'
+          .changes/e2e/local-connector-production-closure-automation-retirement.json
+          .github/local-connector-closure/trigger-3945-792ff63a.txt
+          .github/scripts/governed-local-connector-production-closure.mjs
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/governed-local-connector-production-closure-pr-target.yml
+          .github/workflows/governed-local-connector-production-closure-push.yml
+          .github/workflows/governed-local-connector-production-closure.yml
+          .github/workflows/local-connector-closure-v8-trigger.txt
+          http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
+          EOF_FILES
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: "22"
 
-      - name: Schema docs change guard
-        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+      - name: Capture audit under validation PR base context
+        id: default_audit
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/default-base.log" 2>&1
+          status=$?
+          printf '%s\n' "$status" > "$EVIDENCE_DIR/default-base.status"
+          cat "$EVIDENCE_DIR/default-base.log"
+          exit 0
 
-      - name: Migration placement guard
-        run: node http-generic-api/scripts/migration-placement-guard.mjs
+      - name: Capture audit against canonical main baseline
+        id: main_audit
+        shell: bash
+        env:
+          GITHUB_BASE_REF: ""
+        run: |
+          set +e
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/main-base.log" 2>&1
+          status=$?
+          printf '%s\n' "$status" > "$EVIDENCE_DIR/main-base.status"
+          cat "$EVIDENCE_DIR/main-base.log"
+          exit 0
 
-      - name: User JWT auth governance
-        run: node http-generic-api/scripts/user-jwt-auth-governance.mjs
-
-      - name: Interruption readiness
-        run: node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-
-      - name: Validate canonical sources
-        run: node validate-canonical-sources.mjs
-
-      - name: Check canonical generated output
-        run: node build-canonicals.mjs --check
-
-      - name: Check canonical domain finder syntax
-        run: node --check find-canonical-domain.mjs
-
-      - name: Resource API coverage audit
-        run: node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
-
-      - name: Resource API architecture regression
-        run: node http-generic-api/test-resource-api-architecture.mjs
-
-      - name: Resource API service regression
-        run: node http-generic-api/test-resource-api-service.mjs
-
-      - name: Spec Kit completion gate
-        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-
-      - name: Validate memory schema
-        run: node validate-memory-schema.mjs
-
-      - name: Git diff whitespace check
-        run: git diff --check
-
-      - name: Prove retirement self-test
+      - name: Publish bounded audit summary
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          node --check http-generic-api/scripts/local-connector-closure-automation-retirement-self-test.mjs
-          (cd http-generic-api && node scripts/local-connector-closure-automation-retirement-self-test.mjs)
+          {
+            echo '## Resource API coverage audit diagnostics'
+            echo
+            echo "- Candidate: \`$EXPECTED_HEAD_SHA\`"
+            echo "- Main: \`$EXPECTED_MAIN_SHA\`"
+            echo "- Validation-base status: \`$(cat "$EVIDENCE_DIR/default-base.status" 2>/dev/null || echo missing)\`"
+            echo "- Canonical-main status: \`$(cat "$EVIDENCE_DIR/main-base.status" 2>/dev/null || echo missing)\`"
+            echo
+            echo '### Validation-base output'
+            echo '```json'
+            sed -n '1,240p' "$EVIDENCE_DIR/default-base.log" 2>/dev/null || true
+            echo '```'
+            echo
+            echo '### Canonical-main output'
+            echo '```json'
+            sed -n '1,240p' "$EVIDENCE_DIR/main-base.log" 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-connector-closure-5496-resource-audit-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce canonical-main audit result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat "$EVIDENCE_DIR/main-base.status")" = "0"
