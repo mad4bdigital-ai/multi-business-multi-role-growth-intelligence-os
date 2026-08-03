@@ -528,4 +528,66 @@ function queuedFetch(entries, calls = []) {
   );
 }
 
+{
+  const checks = [
+    "Syntax Check",
+    "Architecture Drift Detection",
+    "Execution Resolver Gate",
+    "Unit & Integration Tests",
+  ].map((name, index) => ({
+    name,
+    status: "completed",
+    conclusion: "success",
+    completed_at: `2026-08-03T04:0${index}:00Z`,
+  }));
+  const result = await getGithubPullRequestCiGate({
+    owner: OWNER,
+    repo: REPO,
+    token: "test-token",
+    pull_number: 4386,
+    fetchImpl: queuedFetch([
+      { status: 200, payload: { number: 4386, draft: true, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      { status: 200, payload: { status: "ahead", ahead_by: 901, behind_by: 0 } },
+      { status: 200, payload: { total_count: 4, check_runs: checks } },
+    ]),
+  });
+  assert.equal(result.gate_status, "blocked");
+  assert.equal(result.is_draft, true);
+  assert.equal(result.ready_for_merge, false);
+}
+
+{
+  const calls = [];
+  const checks = [
+    "Syntax Check",
+    "Architecture Drift Detection",
+    "Execution Resolver Gate",
+    "Unit & Integration Tests",
+  ].map((name, index) => ({
+    name,
+    status: "completed",
+    conclusion: "success",
+    completed_at: `2026-08-03T04:1${index}:00Z`,
+  }));
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: 4386,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(4386, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        { status: 200, payload: { number: 4386, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: { status: "ahead", ahead_by: 901, behind_by: 0 } },
+        { status: 200, payload: { total_count: 4, check_runs: checks } },
+        { status: 200, payload: { number: 4386, draft: true, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_draft_blocked" && error.details?.is_draft === true,
+  );
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "draft race must not reach merge endpoint");
+}
+
 console.log("github repository lifecycle tests passed");
