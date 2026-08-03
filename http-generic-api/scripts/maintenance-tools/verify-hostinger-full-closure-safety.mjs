@@ -154,7 +154,7 @@ for (const pattern of prohibitedPatterns) {
   assert(!pattern.test(source), "hostinger_prohibited_external_effect_pattern", { pattern: pattern.source });
 }
 
-assert((source.match(/\bPREPARE\s+/gi) || []).length === 1, "hostinger_prepare_count_mismatch");
+assert((source.match(/^PREPARE\s+/gim) || []).length === 1, "hostinger_prepare_count_mismatch");
 assert((source.match(/^EXECUTE\s+/gim) || []).length === 1, "hostinger_execute_count_mismatch");
 assert((source.match(/\bDEALLOCATE\s+PREPARE\s+/gi) || []).length === 1, "hostinger_deallocate_count_mismatch");
 
