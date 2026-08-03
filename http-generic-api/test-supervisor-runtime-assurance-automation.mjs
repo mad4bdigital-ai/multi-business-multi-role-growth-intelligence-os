@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
+const workMapRecoveryBridge = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
 const assurance = readFileSync("../.github/workflows/supervisor-runtime-assurance.yml", "utf8");
 const runbook = readFileSync("../docs/runbooks/supervisor-runtime-assurance.md", "utf8");
@@ -51,30 +52,41 @@ assert.doesNotMatch(followupJob, /docs\/work-maps/);
 assert.doesNotMatch(followupJob, /gh pr merge/);
 
 for (const marker of [
-  "work-map-autofix:authorized",
-  "Bootstrap Work Map diagnostic envelope",
-  "work-map-autofix-diagnostics.mjs",
-  "regenerate-and-verify-idempotency",
-  "commit-push-and-dispatch",
-  "work-map-autofix-diagnostic-report",
-  "GITHUB_STEP_SUMMARY",
-  "expected_head_sha",
+  "workflow_dispatch:",
+  "Existing same-repository pull-request branch to update",
+  "expected_head_sha:",
+  "Initialize diagnostics and validate inputs",
+  "Checkout exact authorized head",
+  "Pin branch and pull request identity",
+  "Validate generator and governance contracts",
+  "Regenerate and prove idempotency",
+  "Commit and push governed Work Maps",
+  "Dispatch exact-head verification",
+  "Finalize diagnostic evidence",
+  ".work-map-autofix-diagnostics",
+  "mad4b.spec-kit-work-map-autofix.v2",
+  "WORK_MAP_AUTOFIX_V2",
+  "work-map-autofix-diagnostics-",
+  "actions/upload-artifact@v4",
+  "git check-ref-format --branch",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
-  "Direct autofix writes to main are forbidden",
-  "Refusing stale autofix",
-  "Autofix push readback mismatch",
   "gh workflow run ci.yml",
   "gh workflow run spec-kit-work-map-integration.yml",
 ]) {
-  assert.ok(workMapAutofix.includes(marker), `Work Map Autofix missing ${marker}`);
+  assert.ok(workMapAutofix.includes(marker), `Work Map Autofix v2 missing ${marker}`);
 }
-assert.match(workMapAutofix, /types: \[reopened\]/);
-assert.match(workMapAutofix, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
-assert.match(workMapAutofix, /github\.actor != 'github-actions\[bot\]'/);
+assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
-assert.match(workMapAutofix, /git diff --name-only \| grep -v '\^docs\/work-maps\/'/);
+assert.match(workMapAutofix, /TARGET_BRANCH: \$\{\{ inputs\.branch \}\}/);
+assert.match(workMapAutofix, /EXPECTED_HEAD_SHA: \$\{\{ inputs\.expected_head_sha \}\}/);
+assert.match(workMapAutofix, /\[\[ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\]/);
+assert.match(workMapAutofix, /-f state=open/);
+assert.match(workMapAutofix, /-f base=main/);
+assert.match(workMapAutofix, /head="\$\{GITHUB_REPOSITORY_OWNER\}:\$\{TARGET_BRANCH\}"/);
+assert.doesNotMatch(workMapAutofix, /types: \[reopened\]/);
+assert.doesNotMatch(workMapAutofix, /work-map-autofix:authorized/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
 
 for (const marker of [
@@ -96,8 +108,40 @@ assert.ok(writerPolicy, "platform Work Map writer policy is required");
 assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
 assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
+  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
 );
+
+const recoveryBridgePolicy = writerPolicy.non_writer_pipelines.find(
+  (row) => row.pipeline === "work-map-recovery-bridge",
+);
+assert.ok(recoveryBridgePolicy, "Work Map recovery bridge must remain a governed non-writer");
+for (const marker of [
+  "Validate immutable PR snapshot and dispatch sole writer",
+  "work-map-autofix:authorized",
+  "authorization_consumed=true",
+  "spec-kit-work-map-autofix.yml/dispatches",
+  "direct_repository_content_mutation=false",
+  "protected_branch_mutation=false",
+  "force_push=false",
+]) {
+  assert.ok(
+    recoveryBridgePolicy.required_commands.includes(marker),
+    `Work Map recovery bridge policy missing ${marker}`,
+  );
+  assert.ok(workMapRecoveryBridge.includes(marker), `Work Map recovery bridge workflow missing ${marker}`);
+}
+for (const marker of [
+  "platform-work-map-generator.mjs --write",
+  "git add docs/work-maps",
+  "git push origin",
+  "git commit",
+]) {
+  assert.ok(
+    recoveryBridgePolicy.forbidden_commands.includes(marker),
+    `Work Map recovery bridge policy must forbid ${marker}`,
+  );
+  assert.ok(!workMapRecoveryBridge.includes(marker), `Work Map recovery bridge must not contain ${marker}`);
+}
 
 for (const marker of [
   "schedule:",
@@ -129,8 +173,9 @@ for (const marker of [
   "APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
   "skip-docs-agent",
   "Spec Kit Work Map Autofix",
-  "work-map-autofix:authorized",
+  "workflow_dispatch",
   "expected_head_sha",
+  "same-repository pull-request branch",
   "provider_calls=0",
   "transaction_rolled_back=true",
   "same-cycle",
@@ -138,6 +183,7 @@ for (const marker of [
 ]) {
   assert.ok(runbook.includes(marker), `runbook missing ${marker}`);
 }
+assert.doesNotMatch(runbook, /work-map-autofix:authorized/);
 assert.doesNotMatch(runbook, /docs-agent-write|docs-agent-automerge/);
 assert.ok(testManifest.includes("node test-supervisor-runtime-assurance-automation.mjs"));
 
