@@ -21,9 +21,15 @@ The materializer accepts one JSON array containing exactly one complete snapshot
 
 The snapshots must already satisfy the canonical `authorityEvidenceSourceAdapters.js` contract. Materialization fails closed when a family is missing or duplicated, pagination is incomplete, counts differ, path contracts conflict, required path controls are absent, unsafe effects are declared, or sensitive values appear.
 
+## Module boundary
+
+`authorityEvidenceRepositorySourceMaterializer.js` is the public compatibility boundary. It re-exports the materializer and delegates manifest finalization to `authorityEvidenceRepositorySourceMaterializerStrict.js`.
+
+The strict implementation performs all structural, digest, repository, reviewed-ref, source-adapter, bundle, and inventory checks. The public wrapper does not weaken those checks. It only preserves the more specific error precedence for current-content or reviewed-content drift before returning a stale materialization-report digest error.
+
 ## Source document materialization
 
-`authorityEvidenceRepositorySourceMaterializer.js` converts the validated normalized bundle into eight deterministic JSON documents using:
+The materializer converts the validated normalized bundle into eight deterministic JSON documents using:
 
 `mad4b.ueacp.authority-evidence-repository-source.v1`
 
@@ -75,11 +81,16 @@ This two-stage boundary prevents a self-referential manifest. The reviewed sourc
 The finalizer verifies:
 
 - the observed ref is a full commit SHA and an ancestor of current HEAD;
-- the report contains exactly one document for every registered source family;
+- every report safety field remains at its canonical no-effect value;
+- the report declares exactly eight documents and exactly one canonical family path for every registered source family;
+- the complete materialization report reproduces its declared canonical SHA-256 digest;
 - every source path remains repository-relative, regular, non-symlinked, realpath-contained, and at most 8 MiB;
 - current source bytes match the reviewed materialization hash;
-- each document still uses the canonical source contract and matching family;
+- each document still uses the canonical source contract, matching family, and declared record count;
 - bytes committed at `observed_ref` are exactly identical to current source bytes;
+- the eight reviewed documents pass the canonical source-adapter contract again;
+- rebuilding the reviewed source bundle reproduces the report's exact `source_bundle_sha256`;
+- rebuilding the authority inventory reproduces the report's exact `inventory_sha256`;
 - each source file has an exact Git blob SHA at the reviewed ref.
 
 Only after those checks does it emit a canonical repository manifest using:
@@ -96,6 +107,7 @@ successful no-secret source snapshot artifact
   -> review source records and evidence references
   -> commit the eight documents and materialization report
   -> use that source commit as observed_ref
+  -> verify report digest and reconstruct reviewed bundle/inventory
   -> finalize exact blob/content manifest
   -> review and commit the manifest separately
   -> configure protected ueacp-live-evidence Environment
@@ -106,7 +118,7 @@ successful no-secret source snapshot artifact
 
 ## Fail-closed conditions
 
-The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate output paths, existing destinations, intermediate symlinks/non-directories, partial publication, missing files, source symlinks, path escapes, oversized documents, stale report hashes, malformed source JSON, source contract mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
+The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate output paths, existing destinations, intermediate symlinks/non-directories, partial publication, missing files, source symlinks, path escapes, oversized documents, invalid safety markers, noncanonical family paths, stale report digest, source-bundle mismatch, inventory mismatch, malformed source JSON, source contract or record-count mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
 
 ## Safety and task state
 
