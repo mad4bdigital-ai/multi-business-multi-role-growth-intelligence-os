@@ -18,19 +18,19 @@ jobs:
     name: Exact dispatch contract validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804' &&
-      github.event.pull_request.head.sha == 'afcc533fc59903aac7c1f80e3e5d7bf1f425335e'
+      github.event.pull_request.head.ref == 'gpt/trigger-work-map-verification-dispatch-arm-5912'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
       EXPECTED_HEAD_SHA: afcc533fc59903aac7c1f80e3e5d7bf1f425335e
+      EXPECTED_HEAD_REF: gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804
       REPORT_DIR: ${{ runner.temp }}/work-map-verification-dispatch-5912
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -43,8 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse "refs/remotes/origin/${EXPECTED_HEAD_REF}")" = "${EXPECTED_HEAD_SHA}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
           test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 1
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
@@ -82,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${REPORT_DIR}"
-          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.work-map-verification-dispatch-arm.v2",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
+          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.work-map-verification-dispatch-arm.v3",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
 
       - name: Upload validation evidence
         if: always()
