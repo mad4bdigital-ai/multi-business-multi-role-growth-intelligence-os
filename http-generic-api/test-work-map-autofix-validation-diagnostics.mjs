@@ -52,6 +52,7 @@ assert.match(workflow, /if-no-files-found: error/);
 
 assert.match(validationBlock, /run_contract\(\) \{/);
 assert.match(validationBlock, /failed-validation-contract\.txt/);
+assert.match(validationBlock, /failed-validation-exit-code\.txt/);
 assert.match(validationBlock, /validation-results\.tsv/);
 
 for (const contractName of contractNames) {
@@ -67,9 +68,13 @@ const invocations = validationBlock.match(/^\s*run_contract "/gm) ?? [];
 assert.equal(invocations.length, contractNames.length, "unexpected number of named validation contracts");
 
 assert.match(workflow, /\| Failed validation contract \| \\`\$\{failed_validation_contract\}\\` \|/);
+assert.match(workflow, /\| Failed validation exit code \| \\`\$\{failed_validation_exit_code\}\\` \|/);
 assert.match(workflow, /--arg failed_validation_contract "\$\{failed_validation_contract\}"/);
+assert.match(workflow, /--arg failed_validation_exit_code "\$\{failed_validation_exit_code\}"/);
 assert.match(workflow, /failed_validation_contract:\$failed_validation_contract/);
+assert.match(workflow, /failed_validation_exit_code:\$failed_validation_exit_code/);
 assert.match(workflow, /failed_validation_contract=\$\{failed_validation_contract\}/);
+assert.match(workflow, /failed_validation_exit_code=\$\{failed_validation_exit_code\}/);
 assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
 
 assert.doesNotMatch(validationBlock, /git push/);
