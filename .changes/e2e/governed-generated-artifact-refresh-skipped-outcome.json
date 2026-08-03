@@ -41,7 +41,7 @@
             "The original skip reason is preserved in canonical dispatcher evidence.",
             "Skipped handling terminates before pull-request revalidation and writer dispatch.",
             "No workflow_dispatch POST, repository content write, protected-ref mutation, or force push occurs on the skipped path.",
-            "Blocked malformed or stale requests remain fail-closed, while eligible labeled requests retain the existing writer-dispatch path.",
+            "Invalid governed branches, protected branches, stale request heads, malformed requests, and blocked requests remain fail-closed before label-based skip, while eligible labeled requests retain the existing writer-dispatch path.",
             "Structured evidence remains Job-log independent and declares secrets_included=false."
           ],
           "tests": [
