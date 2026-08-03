@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/spec014-mvp-convergence-journey.json",
       "http-generic-api/test-hostinger-storage-e2e.mjs",
+      "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
       "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
     ]
   },
@@ -57,6 +58,7 @@
           ],
           "evidence_paths": [
             "http-generic-api/test-hostinger-storage-e2e.mjs",
+            "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
             "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
             "http-generic-api/hostingerStorageTenantRuntime.js",
             "http-generic-api/hostingerStorageTenantCanary.js",
