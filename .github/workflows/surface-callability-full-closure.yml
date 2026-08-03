@@ -82,8 +82,27 @@ jobs:
         run: node test-multi-surface-agent-runtime.mjs
 
       - name: Validate resource API coverage
+        id: resource_api_coverage
+        continue-on-error: true
         working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node test-resource-api-coverage.mjs 2>&1 | tee ../resource-api-coverage.log
+
+      - name: Upload resource API coverage diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-api-coverage-diagnostic
+          path: resource-api-coverage.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop on resource API coverage failure
+        if: steps.resource_api_coverage.outcome == 'failure'
+        shell: bash
+        run: exit 1
 
       - name: Validate full Surface queue closure
         working-directory: http-generic-api
