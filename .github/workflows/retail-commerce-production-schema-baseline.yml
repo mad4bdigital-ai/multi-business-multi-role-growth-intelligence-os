@@ -1,0 +1,125 @@
+name: Retail Commerce Production Schema Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: Exact current main SHA to inspect
+        required: true
+        type: string
+      confirmation:
+        description: Enter READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+  REQUIRED_CONFIRMATION: READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE
+
+jobs:
+  production-schema-baseline:
+    name: Collect SELECT-only Production schema evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_CONNECTION_LIMIT: "1"
+      DB_CONNECT_TIMEOUT_MS: "10000"
+      REPORT_PATH: ${{ runner.temp }}/retail-commerce-production-schema-baseline/retail-commerce-production-schema-baseline.json
+
+    steps:
+      - name: Reject non-main or unconfirmed execution
+        shell: bash
+        env:
+          PROVIDED_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${PROVIDED_CONFIRMATION}" = "${REQUIRED_CONFIRMATION}"
+          test "${EXPECTED_MAIN_SHA}" = "${GITHUB_SHA}"
+          test "${#EXPECTED_MAIN_SHA}" -eq 40
+
+      - name: Checkout exact protected main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify protected main did not move
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Prove collector SELECT-only contract
+        working-directory: http-generic-api
+        run: node test-retail-commerce-production-schema-baseline.mjs
+
+      - name: Verify Production database secret bindings exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in DB_HOST DB_NAME DB_USER DB_PASSWORD; do
+            test -n "${!key:-}"
+          done
+
+      - name: Collect authoritative Production schema and migration-ledger baseline
+        id: collect
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${REPORT_PATH}")"
+          node scripts/retail-commerce-production-schema-baseline.mjs --report="${REPORT_PATH}"
+
+      - name: Publish bounded evidence summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -s "${REPORT_PATH}" ]]; then
+            jq '{contract,generated_at,source_repository_sha,authoritative_database_connection_succeeded,baseline_collected,parity_status,gap_count:(.gaps|length? // 0),safety}' "${REPORT_PATH}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo '{"baseline_collected":false,"reason":"report_missing","secrets_included":false}' >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload Production schema baseline Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retail-commerce-production-schema-baseline-${{ env.EXPECTED_MAIN_SHA }}
+          path: ${{ runner.temp }}/retail-commerce-production-schema-baseline
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail closed when collection did not succeed
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "${REPORT_PATH}"
+          jq -e '.authoritative_database_connection_succeeded == true and .baseline_collected == true and .safety.select_only == true and .safety.row_data_read == false and .safety.migration_apply == false and .safety.database_mutation == false and .safety.secrets_included == false' "${REPORT_PATH}" >/dev/null
+          test "${{ steps.collect.outcome }}" = "success"
