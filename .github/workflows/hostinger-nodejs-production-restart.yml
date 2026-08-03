@@ -97,7 +97,11 @@ jobs:
             --jq ".[]
               | select(.body | contains(\"HOSTINGER_PRODUCTION_NODEJS_RESTART status=\"))
               | select(.body | contains(\"binding=${BINDING_ID}\"))
-              | select((.body | contains(\"status=completed\")) or (.body | contains(\"restart_performed=true\")))
+              | select(
+                  (.body | contains(\"status=completed\")) or
+                  (.body | contains(\"restart_attempted=true\")) or
+                  (.body | contains(\"restart_performed=true\"))
+                )
               | .id" \
             | wc -l | tr -d ' ')"
           test "${duplicate_count}" = "0"
@@ -158,21 +162,25 @@ jobs:
           const fallback = {
             outcome: 'failed',
             classification: 'restart_report_missing',
-            restart: { performed: false },
+            restart: { attempted: false, performed: false },
+            side_effects: { provider_mutation_attempted: false },
             first_failure: { code: 'restart_report_missing' },
             post_runtime: null,
             runtime_identity_authority: null,
             secrets_included: false,
           };
           const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : fallback;
-          const retryableWithoutProviderMutation = report.outcome !== 'passed' && report.restart?.performed !== true;
+          const restartAttempted = report.restart?.attempted === true;
+          const retryableWithoutProviderMutation = report.outcome !== 'passed' && !restartAttempted;
           const fields = [
             'HOSTINGER_PRODUCTION_NODEJS_RESTART',
             `status=${report.outcome === 'passed' ? 'completed' : 'failed'}`,
             `binding=${process.env.BINDING_ID}`,
             `expected_head_sha=${process.env.EXPECTED_HEAD_SHA || 'missing'}`,
             `classification=${report.classification || 'unknown'}`,
+            `restart_attempted=${restartAttempted}`,
             `restart_performed=${report.restart?.performed === true}`,
+            `provider_mutation_attempted=${report.side_effects?.provider_mutation_attempted === true}`,
             `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
             `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
@@ -205,6 +213,8 @@ jobs:
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
             const effects = report.side_effects || {};
             const authority = report.runtime_identity_authority || {};
+            const attempted = report.restart?.attempted === true;
+            const performed = report.restart?.performed === true;
             const valid =
               report.contract === "mad4b.hostinger-nodejs-production-restart.v1" &&
               report.identity?.expected_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
@@ -217,6 +227,8 @@ jobs:
               authority.cross_object_composition_allowed === false &&
               authority.version_endpoint_authoritative === false &&
               authority.mode === "deployment_info_coherent_pair" &&
+              effects.provider_mutation_attempted === attempted &&
+              (!performed || attempted) &&
               report.secrets_included === false &&
               effects.repository_mutation_performed === false &&
               effects.protected_ref_mutation_performed === false &&
@@ -230,7 +242,8 @@ jobs:
                 ok: false,
                 outcome: report.outcome || "unknown",
                 classification: report.classification || "invalid_report",
-                restart_performed: report.restart?.performed === true,
+                restart_attempted: attempted,
+                restart_performed: performed,
                 runtime_identity_authority: authority.mode || "missing",
                 runtime_identity_scope: authority.schema_scope || "missing",
                 first_failure: report.first_failure || null,
@@ -242,7 +255,8 @@ jobs:
             console.log(JSON.stringify({
               ok: true,
               classification: report.classification,
-              restart_performed: report.restart?.performed === true,
+              restart_attempted: attempted,
+              restart_performed: performed,
               runtime_current: report.post_runtime?.current === true || report.pre_runtime?.current === true,
               runtime_identity_authority: authority.mode,
               runtime_identity_scope: authority.schema_scope,
