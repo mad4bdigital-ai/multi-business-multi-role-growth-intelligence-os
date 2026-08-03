@@ -32,13 +32,32 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Apply verified product commit without committing
+      - name: Apply verified product commit with bounded conflict resolution
         shell: bash
         run: |
           set -o pipefail
           {
             git fetch origin gpt/surface-callability-wave1-clean-20260731
+            set +e
             git cherry-pick --no-commit 2300ddefb99f04af42e5215f7584507e0935d850
+            rc=$?
+            set -e
+            if [[ $rc -ne 0 ]]; then
+              git diff --name-only --diff-filter=U | sort > /tmp/conflicts.txt
+              cat > /tmp/expected.txt <<'EOF'
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+          EOF
+              sort -o /tmp/expected.txt /tmp/expected.txt
+              diff -u /tmp/expected.txt /tmp/conflicts.txt
+              while IFS= read -r path; do git checkout --theirs -- "$path"; git add "$path"; done < /tmp/expected.txt
+              test -z "$(git diff --name-only --diff-filter=U)"
+              git cherry-pick --quit
+            fi
             git status --short
           } 2>&1 | tee surface-main-reconcile.log
 
