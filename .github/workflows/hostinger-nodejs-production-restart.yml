@@ -126,6 +126,7 @@ jobs:
           NODE
 
       - name: Claim exact restart binding before execution
+        id: claim
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
@@ -134,6 +135,7 @@ jobs:
           set -euo pipefail
           claim="HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=${BINDING_ID} expected_head_sha=${EXPECTED_HEAD_SHA} restart_attempted=false restart_performed=false provider_mutation_attempted=false retryable_without_provider_mutation=false run_id=${GITHUB_RUN_ID} provider_method=POST build_created=false deployment=false sql=false migration_apply=false protected_ref_mutation=false secrets_included=false issue_remains_open=true"
           gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${claim}" >/dev/null
+          echo "claimed=true" >> "${GITHUB_OUTPUT}"
 
       - name: Checkout trusted main tooling
         uses: actions/checkout@v5
@@ -168,7 +170,7 @@ jobs:
         run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
 
       - name: Upload structured restart evidence
-        if: always()
+        if: always() && steps.claim.outputs.claimed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-nodejs-production-restart-${{ github.run_id }}
@@ -177,7 +179,7 @@ jobs:
           retention-days: 30
 
       - name: Publish bounded restart marker
-        if: always()
+        if: always() && steps.claim.outputs.claimed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
@@ -233,7 +235,7 @@ jobs:
           gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${marker}" >/dev/null
 
       - name: Enforce exact post-restart Production parity
-        if: always()
+        if: always() && steps.claim.outputs.claimed == 'true'
         env:
           REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
         run: |
