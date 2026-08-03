@@ -54,11 +54,27 @@ function createStoreQuery() {
         consumed_at: row.consumed_at,
         client_matches: row.client_id === params[0] ? 1 : 0,
         redirect_matches: row.redirect_uri_hash === params[1] ? 1 : 0,
+        expired_by_store: new Date(row.expires_at).getTime() <= NOW_MS ? 1 : 0,
       } : undefined].filter(Boolean)];
     }
     throw new Error(`Unexpected authorization-code query: ${sql}`);
   };
   return { query, rows, calls };
+}
+
+async function captureConsumptionFailure(work, expectedCode) {
+  let captured = null;
+  await assert.rejects(
+    work,
+    error => {
+      captured = error;
+      return error?.code === expectedCode;
+    },
+  );
+  assert.ok(captured?.oauth_consumption, "store failure must carry bounded consumption readback");
+  assert.equal(Object.isFrozen(captured.oauth_consumption), true);
+  assert.equal(captured.oauth_consumption.secrets_included, false);
+  return captured.oauth_consumption;
 }
 
 assert.equal(TENANT_GPT_OAUTH_CODE_CONSUMPTION_OUTCOMES.includes("consumption_outcome_unknown"), true);
@@ -88,7 +104,6 @@ const issuedReadback = await inspectTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
 });
 assert.equal(issuedReadback.outcome, "issued_not_consumed");
 assert.equal(issuedReadback.secrets_included, false);
@@ -98,7 +113,6 @@ const firstConsume = await consumeTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
 });
 assert.deepEqual(firstConsume, {
   consumed: true,
@@ -115,13 +129,13 @@ const replayConsume = await consumeTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
 });
 assert.equal(replayConsume.consumed, false);
 assert.equal(replayConsume.outcome, "already_consumed");
 assert.equal(replayConsume.replay_allowed, false);
 assert.equal(store.calls.some((call) => call.sql.includes("consumed_at IS NULL")), true);
 assert.equal(store.calls.some((call) => call.sql.includes("expires_at > UTC_TIMESTAMP(3)")), true);
+assert.equal(store.calls.some((call) => call.sql.includes("expires_at <= UTC_TIMESTAMP(3)")), true);
 
 await persistTenantGptOAuthAuthorizationCode({
   query: store.query,
@@ -136,7 +150,6 @@ const bindingMismatch = await consumeTenantGptOAuthAuthorizationCode({
   jti: "binding-code",
   client_id: "wrong-client",
   redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
 });
 assert.equal(bindingMismatch.outcome, "binding_mismatch");
 assert.equal(bindingMismatch.consumed, false);
@@ -154,7 +167,6 @@ const expired = await consumeTenantGptOAuthAuthorizationCode({
   jti: "expired-code",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
 });
 assert.equal(expired.outcome, "expired");
 assert.equal(expired.consumed, false);
@@ -168,8 +180,8 @@ await persistTenantGptOAuthAuthorizationCode({
   expires_at: FUTURE,
 });
 const raceResults = await Promise.all([
-  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK, now_ms: NOW_MS }),
-  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK, now_ms: NOW_MS }),
+  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK }),
+  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK }),
 ]);
 assert.equal(raceResults.filter((result) => result.consumed).length, 1);
 assert.equal(raceResults.filter((result) => result.outcome === "already_consumed").length, 1);
@@ -189,17 +201,20 @@ const commitThenDisconnectQuery = async (sql, params = []) => {
       consumed_at: committedStatus === "consumed" ? new Date(NOW_MS) : null,
       client_matches: 1,
       redirect_matches: 1,
+      expired_by_store: 0,
     }]];
   }
   throw new Error(`Unexpected ambiguous query: ${sql} ${JSON.stringify(params)}`);
 };
-const committedUnknown = await consumeTenantGptOAuthAuthorizationCode({
-  query: commitThenDisconnectQuery,
-  jti: "ambiguous-code",
-  client_id: CLIENT,
-  redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
-});
+const committedUnknown = await captureConsumptionFailure(
+  () => consumeTenantGptOAuthAuthorizationCode({
+    query: commitThenDisconnectQuery,
+    jti: "ambiguous-code",
+    client_id: CLIENT,
+    redirect_uri: CALLBACK,
+  }),
+  "ECONNRESET",
+);
 assert.equal(committedUnknown.consumed, false);
 assert.equal(committedUnknown.outcome, "consumption_outcome_unknown");
 assert.equal(committedUnknown.readback_outcome, "already_consumed");
@@ -219,33 +234,38 @@ const disconnectBeforeCommitQuery = async (sql) => {
       consumed_at: null,
       client_matches: 1,
       redirect_matches: 1,
+      expired_by_store: 0,
     }]];
   }
   throw new Error(`Unexpected pre-commit query: ${sql}`);
 };
-const stillIssued = await consumeTenantGptOAuthAuthorizationCode({
-  query: disconnectBeforeCommitQuery,
-  jti: "still-issued-code",
-  client_id: CLIENT,
-  redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
-});
+const stillIssued = await captureConsumptionFailure(
+  () => consumeTenantGptOAuthAuthorizationCode({
+    query: disconnectBeforeCommitQuery,
+    jti: "still-issued-code",
+    client_id: CLIENT,
+    redirect_uri: CALLBACK,
+  }),
+  "ETIMEDOUT",
+);
 assert.equal(stillIssued.outcome, "store_unavailable_code_still_issued");
 assert.equal(stillIssued.readback_outcome, "issued_not_consumed");
 assert.equal(stillIssued.replay_allowed, true);
 assert.equal(stillIssued.store_error_code, "ETIMEDOUT");
 
-const unreadableOutcome = await consumeTenantGptOAuthAuthorizationCode({
-  query: async () => {
-    const error = new Error("store and readback unavailable");
-    error.code = "ECONNREFUSED";
-    throw error;
-  },
-  jti: "unreadable-code",
-  client_id: CLIENT,
-  redirect_uri: CALLBACK,
-  now_ms: NOW_MS,
-});
+const unreadableOutcome = await captureConsumptionFailure(
+  () => consumeTenantGptOAuthAuthorizationCode({
+    query: async () => {
+      const error = new Error("store and readback unavailable");
+      error.code = "ECONNREFUSED";
+      throw error;
+    },
+    jti: "unreadable-code",
+    client_id: CLIENT,
+    redirect_uri: CALLBACK,
+  }),
+  "ECONNREFUSED",
+);
 assert.equal(unreadableOutcome.outcome, "consumption_outcome_unknown");
 assert.equal(unreadableOutcome.readback_outcome, null);
 assert.equal(unreadableOutcome.replay_allowed, false);
