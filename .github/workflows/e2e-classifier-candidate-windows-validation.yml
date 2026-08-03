@@ -46,8 +46,13 @@ jobs:
           git fetch --no-tags origin \
             "+refs/heads/${EXPECTED_BASE_BRANCH}:refs/remotes/origin/${EXPECTED_BASE_BRANCH}" \
             "+refs/heads/${EXPECTED_CANDIDATE_BRANCH}:refs/remotes/origin/${EXPECTED_CANDIDATE_BRANCH}"
-          test "$(git rev-parse refs/remotes/origin/${EXPECTED_BASE_BRANCH})" = "${EXPECTED_BASE_SHA}"
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/${EXPECTED_BASE_BRANCH})"
           test "$(git rev-parse refs/remotes/origin/${EXPECTED_CANDIDATE_BRANCH})" = "${EXPECTED_CANDIDATE_SHA}"
+          git cat-file -e "${EXPECTED_BASE_SHA}^{commit}"
+          git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" "${EXPECTED_CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" "${CURRENT_MAIN_SHA}"
+          echo "CURRENT_MAIN_SHA=${CURRENT_MAIN_SHA}" >> "${GITHUB_ENV}"
+          printf '%s\n' "${CURRENT_MAIN_SHA}" > current-main-sha.txt
           git diff --name-only "${EXPECTED_BASE_SHA}...${EXPECTED_CANDIDATE_SHA}" > candidate-files.txt
           test "$(wc -l < candidate-files.txt | tr -d ' ')" = "3"
           cat > expected-files.txt <<'FILES'
@@ -133,8 +138,12 @@ jobs:
             validation: 'e2e_classifier_exact_candidate_windows',
             candidate_sha: process.env.EXPECTED_CANDIDATE_SHA,
             base_sha: process.env.EXPECTED_BASE_SHA,
+            current_main_sha: process.env.CURRENT_MAIN_SHA || null,
             candidate_branch: process.env.EXPECTED_CANDIDATE_BRANCH,
             base_branch: process.env.EXPECTED_BASE_BRANCH,
+            base_snapshot_is_ancestor_of_candidate: true,
+            base_snapshot_is_ancestor_of_current_main: true,
+            current_main_tip_may_advance: true,
             runner_pool: 'windows-latest',
             validation_only: true,
             required_checks_replaced: false,
@@ -157,5 +166,6 @@ jobs:
           path: |
             ${{ env.REPORT_DIR }}/*.json
             candidate-files.txt
+            current-main-sha.txt
           if-no-files-found: error
           retention-days: 14
