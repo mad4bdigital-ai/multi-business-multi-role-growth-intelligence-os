@@ -1,0 +1,115 @@
+name: Surface Callability Generation Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/surface-callability-generation-diagnostic.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surface-callability-generation-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
+      WORKFLOW_PATH: .github/workflows/surface-callability-generation-diagnostic.yml
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+    steps:
+      - name: Checkout exact event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify read-only bounded diagnostic trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test '${{ github.event.pull_request.head.ref }}' = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Diagnose generation sequence
+        id: generation
+        working-directory: http-generic-api
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          diagnostics="../surface-proof/current-main-generation-diagnostic"
+          mkdir -p "$diagnostics"
+          printf 'event_head=%s\nbase_sha=%s\n' '${{ github.event.pull_request.head.sha }}' "${BASE_SHA}" > "$diagnostics/context.txt"
+
+          overall=0
+          run_command() {
+            index="$1"
+            label="$2"
+            shift 2
+            log="$diagnostics/${index}-${label}.log"
+            status_file="$diagnostics/${index}-${label}.status.txt"
+            printf 'command=' > "$log"
+            printf '%q ' "$@" >> "$log"
+            printf '\n' >> "$log"
+            "$@" >> "$log" 2>&1
+            status=$?
+            printf '%s\n' "$status" > "$status_file"
+            if [ "$status" -ne 0 ] && [ "$overall" -eq 0 ]; then
+              overall="$status"
+              printf '%s:%s:%s\n' "$index" "$label" "$status" > "$diagnostics/first-failure.txt"
+            fi
+          }
+
+          run_command 01 discovery-write-before node scripts/surface-contract-discovery.mjs --write
+          run_command 02 generate-closure node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          run_command 03 discovery-write-after node scripts/surface-contract-discovery.mjs --write
+          run_command 04 frontend-dispatch npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+
+          git status --porcelain --untracked-files=all > "$diagnostics/worktree-status.txt"
+          if [ ! -f "$diagnostics/first-failure.txt" ]; then
+            printf 'none\n' > "$diagnostics/first-failure.txt"
+          fi
+          cat "$diagnostics/first-failure.txt"
+          for file in "$diagnostics"/*.status.txt; do printf '%s=' "$(basename "$file")"; cat "$file"; done
+          exit "$overall"
+
+      - name: Upload generation diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-callability-generation-diagnostic-${{ github.run_id }}
+          path: surface-proof/current-main-generation-diagnostic
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Enforce generation result
+        if: steps.generation.outcome != 'success'
+        run: exit 1
