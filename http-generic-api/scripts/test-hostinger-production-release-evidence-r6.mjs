@@ -54,6 +54,26 @@ assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
 
+assert.match(
+  workflow,
+  /\.key == "secrets_included" and \(\.value \| type\) == "boolean"\) then \./,
+  "R6 must preserve only the boolean secret-free sentinel before credential-key redaction",
+);
+assert.match(
+  workflow,
+  /elif \(\.key \| test\("authorization\|cookie\|password\|secret\|token\|api\[_-\]\?key\|private\[_-\]\?key\|credential"; "i"\)\) then \.value = "\[REDACTED\]"/,
+  "R6 must continue redacting credential-like values",
+);
+
+const redactProjectionValue = (key, value) => {
+  if (key === "secrets_included" && typeof value === "boolean") return value;
+  if (/authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential/i.test(key)) return "[REDACTED]";
+  return value;
+};
+assert.equal(redactProjectionValue("secrets_included", false), false);
+assert.equal(redactProjectionValue("secrets_included", "unsafe-text"), "[REDACTED]");
+assert.equal(redactProjectionValue("api_token", "sensitive"), "[REDACTED]");
+
 for (const marker of [
   "repository_write_performed:false",
   "provider_mutation_performed:false",
