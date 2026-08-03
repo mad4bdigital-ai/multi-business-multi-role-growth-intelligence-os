@@ -90,7 +90,7 @@
             "Re-read the pull request immediately before merge and reject state, Draft, head, or base drift.",
             "Read bounded pull-request reviews and require the latest exact-head decisive review from non-bot, non-author human reviewers.",
             "Reject stale approvals, bot or author approvals, active changes-requested decisions, and incomplete review evidence before the merge endpoint.",
-            "Require a separately issued capability envelope for pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."
+            "Require a separately issued capability envelope for direct repo.pr.finalize, pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."
           ],
           "assertions": [
             "At least one exact-head human approval is required by default.",

@@ -26,6 +26,7 @@ function lifecycleError(status, code, message, details = null) {
 }
 
 function operationRequiresCapability(operationKey) {
+  if (REPOSITORY_MUTATION_OPERATIONS.has(operationKey)) return true;
   try {
     return getOperationContract(operationKey).execution_class === "mutation";
   } catch {
@@ -101,6 +102,7 @@ function renewalAllowed(input = {}) {
 }
 
 function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
+  if (operationKey === "repo.pr.finalize") return true;
   if (operationKey === "operation.resume") return true;
   if (operationKey !== "repo.change.execute") return false;
   const automationKey = compact(

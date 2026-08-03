@@ -143,6 +143,12 @@ async function main() {
     true,
   );
   assert.equal(
+    _testingOperationCapabilityLifecycleService.operationRequiresCapability(
+      "repo.pr.finalize",
+    ),
+    true,
+  );
+  assert.equal(
     _testingOperationCapabilityLifecycleService.repositoryResourceUri({
       owner: "owner",
       repo: "repo",
@@ -170,6 +176,13 @@ async function main() {
     ),
     true,
   );
+  assert.equal(
+    _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+      "repo.pr.finalize",
+      {},
+    ),
+    true,
+  );
 
   {
     let createCalls = 0;
@@ -182,6 +195,23 @@ async function main() {
         createEnvelope: async () => { createCalls += 1; return {}; },
       }),
       (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+        && error.details?.automatic_renewal_enabled === false,
+    );
+    assert.equal(createCalls, 0);
+  }
+
+  {
+    let createCalls = 0;
+    await assert.rejects(
+      () => prepareOperationCapabilityLifecycle({
+        pool: {},
+        auth: { tenant_id: "tenant-a", user_id: "user-a" },
+        input: { operation_key: "repo.pr.finalize", owner: "owner", repo: "repo" },
+        operationKey: "repo.pr.finalize",
+        createEnvelope: async () => { createCalls += 1; return {}; },
+      }),
+      (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+        && error.details?.operation_key === "repo.pr.finalize"
         && error.details?.automatic_renewal_enabled === false,
     );
     assert.equal(createCalls, 0);
