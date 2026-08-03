@@ -94,11 +94,30 @@ jobs:
       - name: Verify bounded patch and focused regression
         shell: bash
         run: |
-          set -euo pipefail
-          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
-          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs)
-          git diff --check "${EXPECTED_BASE_SHA}"
-          git diff --name-only "${EXPECTED_BASE_SHA}" | sort > "${RUNNER_TEMP}/actual-files.txt"
+          set -uo pipefail
+
+          fail_phase() {
+            local status="$1"
+            local phase="$2"
+            echo "::error::PHASE_FAILED:${phase}:exit=${status}"
+            echo "DIAGNOSTIC:git-status"
+            git status --short
+            echo "DIAGNOSTIC:name-status"
+            git diff --name-status "${EXPECTED_BASE_SHA}"
+            exit "${status}"
+          }
+
+          echo "PHASE:node-check"
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs || fail_phase "$?" "node-check"
+
+          echo "PHASE:focused-regression"
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) || fail_phase "$?" "focused-regression"
+
+          echo "PHASE:diff-check"
+          git diff --check "${EXPECTED_BASE_SHA}" || fail_phase "$?" "diff-check"
+
+          echo "PHASE:changed-files"
+          git diff --name-only "${EXPECTED_BASE_SHA}" | sort | tee "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "changed-files"
           cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
           .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
           .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
@@ -108,7 +127,8 @@ jobs:
           .github/workflows/pr-generated-artifact-refresh.yml
           http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
           EOF
-          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "bounded-file-list"
+          echo "PHASE:verification-complete"
 
       - name: Commit and push bounded patch
         shell: bash
