@@ -26,18 +26,12 @@ def update_route() -> None:
         'import { TENANT_GPT_OAUTH_CLIENT_ID } from "../tenantGptOAuthPreset.js";\n',
         'route OAuth preset import',
     )
+    text = replace_once(text, '  TENANT_GPT_AUTHORIZATION_SERVER,\n', '', 'route authorization server import')
     text = replace_once(
         text,
-        '  TENANT_GPT_AUTHORIZATION_SERVER,\n',
+        'const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";\n',
         '',
-        'route authorization server import',
-    )
-    text = replace_once(
-        text,
-        'const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";\n'
-        'const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;\n',
-        '',
-        'route local JWT defaults',
+        'route local JWT secret',
     )
     text = replace_once(
         text,
@@ -74,6 +68,33 @@ def update_route() -> None:
         '      code: safeCodeEvidence(req.body?.code, startedAtMs, decodeCode),\n',
         'route safe code evidence call',
     )
+    text = replace_once(
+        text,
+        '      access_token_prepared: event.access_token_prepared === true,\n'
+        '      code_consumption: event.code_consumption || null,\n',
+        '      access_token_prepared: event.access_token_prepared === true,\n'
+        '      access_token: event.access_token || null,\n'
+        '      requested_scope: event.requested_scope || null,\n'
+        '      code_consumption: event.code_consumption || null,\n',
+        'route bounded token diagnostics',
+    )
+    text = replace_once(
+        text,
+        '      tokenLogContext.access_token_prepared = true;\n\n'
+        '      phase = "code_consumption";\n',
+        '      tokenLogContext.access_token_prepared = true;\n'
+        '      tokenLogContext.access_token = {\n'
+        '        token_type: "bearer",\n'
+        '        length: String(accessToken || "").length,\n'
+        '        secrets_included: false,\n'
+        '      };\n'
+        '      tokenLogContext.requested_scope = {\n'
+        '        count: String(codePayload.scope || "").split(/\\s+/u).filter(Boolean).length,\n'
+        '        secrets_included: false,\n'
+        '      };\n\n'
+        '      phase = "code_consumption";\n',
+        'route prepared token evidence',
+    )
     ROUTE.write_text(text, encoding='utf-8')
 
 
@@ -86,12 +107,7 @@ def update_binding() -> None:
         anchor + '  const decodeCode = typeof deps.decodeCode === "function" ? deps.decodeCode : ((code) => jwt.decode(String(code || "")));\n',
         'binding diagnostic decoder',
     )
-    text = replace_once(
-        text,
-        '    issueAccessToken,\n',
-        '    issueAccessToken,\n    decodeCode,\n',
-        'binding dependency return',
-    )
+    text = replace_once(text, '    issueAccessToken,\n', '    issueAccessToken,\n    decodeCode,\n', 'binding dependency return')
     BINDING.write_text(text, encoding='utf-8')
 
 
@@ -102,6 +118,26 @@ def update_integration_test() -> None:
         'app.use(buildTenantGptOAuthMetadataRoutes());\n',
         'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));\n',
         'integration metadata route dependencies',
+    )
+    text = replace_once(
+        text,
+        'invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange"',
+        'invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2"',
+        'integration v2 action key',
+    )
+    text = replace_once(
+        text,
+        'invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300',
+        'Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds)\n'
+        '    && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds >= 0\n'
+        '    && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds <= 300',
+        'integration code expiry evidence',
+    )
+    text = replace_once(
+        text,
+        'Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds)',
+        'Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds)',
+        'integration code age evidence',
     )
     INTEGRATION_TEST.write_text(text, encoding='utf-8')
 
@@ -116,6 +152,8 @@ assert.doesNotMatch(route, /development_fallback_secret_only/u,
 assert.doesNotMatch(route, /defaultVerifyCode|defaultIssueAccessToken/u,
   "route must require governed crypto dependencies from the binding layer");
 assert.match(route, /oauth_token_exchange_crypto_dependencies_required/u);
+assert.match(route, /requested_scope/u,
+  "route must expose bounded requested-scope evidence without the raw token");
 assert.match(bindingGuard, /decodeCode/u,
   "binding layer must provide bounded diagnostic code decoding");
 '''
@@ -131,44 +169,33 @@ def write_e2e() -> None:
         'title': 'Spec 012 T031 governed token route dependency and integration parity',
         'delivery_mode': 'single_pr',
         'current_phase': 'mvp',
-        'scope': {
-            'include': [
-                '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
-                'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js',
-                'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js',
-                'http-generic-api/test-auth-oauth-routes.mjs',
-                'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
-            ],
-        },
+        'scope': {'include': [
+            '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
+            'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js',
+            'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js',
+            'http-generic-api/test-auth-oauth-routes.mjs',
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+        ]},
         'merge_contract': {'minimum_phase': 'mvp'},
         'phases': [{
-            'id': 'mvp',
-            'status': 'implemented',
-            'objective': (
-                'Keep POST /auth/oauth/token on the governed T031 handler while requiring fail-closed crypto dependencies '
-                'from the binding layer and preserving the legacy integration test harness through the same injected pool.'
-            ),
+            'id': 'mvp', 'status': 'implemented',
+            'objective': 'Keep POST /auth/oauth/token on the governed T031 handler with fail-closed crypto dependencies, bounded token diagnostics, and integration-test pool parity.',
             'e2e_journeys': [{
-                'id': 'metadata-mount-to-governed-token-exchange',
-                'end_to_end': True,
-                'level': 'synthetic_runtime',
-                'actor': 'Tenant GPT OAuth integration reviewer',
+                'id': 'metadata-mount-to-governed-token-exchange', 'end_to_end': True,
+                'level': 'synthetic_runtime', 'actor': 'Tenant GPT OAuth integration reviewer',
                 'entrypoint': 'The metadata router mounted before the legacy auth router with an injected test pool',
-                'terminal_outcome': (
-                    'Invalid client and resource requests retain their OAuth errors, a valid authorization code returns a fresh '
-                    'access token and diagnostics, and the governed route contains no local JWT fallback or legacy bypass.'
-                ),
+                'terminal_outcome': 'Invalid requests retain OAuth errors, a valid code returns a fresh token and bounded diagnostics, and no local JWT fallback or legacy bypass remains.',
                 'steps': [
                     'Mount the metadata router before the legacy auth router with the bounded integration-test pool.',
                     'Resolve verification, access-token issuance, and diagnostic decoding through the governed binding layer.',
                     'Exercise invalid-client, invalid-target, successful exchange, activation context, and diagnostic behavior.',
-                    'Verify the legacy handler is not reached for POST /auth/oauth/token and no secret or raw token is logged.',
+                    'Verify bounded token type, length, scope count, and code timing evidence without raw secrets.',
                 ],
                 'assertions': [
-                    'The route requires injected verifyCode and issueAccessToken dependencies and fails closed when they are absent.',
+                    'The route requires injected verifyCode and issueAccessToken dependencies and fails closed when absent.',
                     'The route does not import jsonwebtoken or contain a development fallback secret.',
-                    'The metadata integration test uses the same mock pool for client validation, active subject checks, code consumption, and diagnostics.',
-                    'Successful and rejected exchanges preserve their documented OAuth status and error semantics.',
+                    'The metadata integration test uses the same mock pool for all token-exchange persistence.',
+                    'Diagnostic evidence uses the v2 action key and contains only bounded token and scope metadata.',
                     'No deployment, provider, database, migration, credential, Production, protected-ref, or external business mutation is performed.',
                 ],
                 'tests': [
