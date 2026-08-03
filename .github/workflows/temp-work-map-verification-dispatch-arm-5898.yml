@@ -1,0 +1,89 @@
+name: TEMP Work Map Verification Dispatch ARM 5898
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-work-map-verification-dispatch-arm-base-58b98727
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-work-map-verification-dispatch-arm-5898-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Exact dispatch contract validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci-work-map-exact-verification-dispatch-58b98727-20260804' &&
+      github.event.pull_request.head.sha == 'abac2f34d116e25b64079757879ebb3088ec65c3'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
+      EXPECTED_HEAD_SHA: abac2f34d116e25b64079757879ebb3088ec65c3
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable identity, scope, and blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 4
+          test "${files[0]}" = '.changes/e2e/work-map-post-write-exact-verification-dispatch.json'
+          test "${files[1]}" = '.github/workflows/ci.yml'
+          test "${files[2]}" = '.github/workflows/spec-kit-work-map-integration.yml'
+          test "${files[3]}" = 'http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci.yml")" = 'a09247d50e52fe00e94b54d1a98abe822e9346e5'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/spec-kit-work-map-integration.yml")" = 'ff41bb0c48df07d40baea2de91ec1303859c46b4'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs")" = '80fca5e93b0d3598492502e5fb371e8c1e92c4f5'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/work-map-post-write-exact-verification-dispatch.json")" = '7652a4bb0ddc45f997388bc006d5144f9647248b'
+
+      - name: Run focused dispatch regression
+        working-directory: http-generic-api
+        run: node test-work-map-post-write-exact-verification-dispatch.mjs
+
+      - name: Run syntax and bounded governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          git diff --check
+
+      - name: Publish no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.work-map-verification-dispatch-arm.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "$RUNNER_TEMP/summary.json"
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-verification-dispatch-arm-5898-${{ github.run_id }}
+          path: ${{ runner.temp }}/summary.json
+          if-no-files-found: error
+          retention-days: 14
