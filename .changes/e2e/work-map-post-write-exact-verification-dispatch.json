@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-post-write-exact-verification-dispatch",
+  "title": "Work Map post-write exact verification dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+      ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
+    ]
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow the governed Work Map writer to dispatch CI and Work Map integration against the exact committed branch head, then fail closed if either checkout or remote branch identity differs.",
+      "e2e_journeys": [
+        {
+          "id": "writer-dispatches-exact-post-write-verification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Work Map writer and CI evidence reviewer",
+          "entrypoint": "Dispatch exact-head verification after the Work Map writer pushes its governed commit",
+          "terminal_outcome": "Both verification workflows accept the writer inputs, check out the committed SHA, verify local and branch identity, and bind test and deployment evidence to that SHA.",
+          "steps": [
+            "The governed writer dispatches CI with expected_head_sha.",
+            "The governed writer dispatches Work Map integration with branch and expected_head_sha.",
+            "CI checks out and verifies the expected SHA in every load-bearing job.",
+            "The Unit and Integration suite publishes reports under the verified checked-out SHA.",
+            "Work Map integration verifies both local checkout identity and the current remote work-branch head.",
+            "Any missing, stale, or mismatched identity fails before verification evidence is accepted."
+          ],
+          "assertions": [
+            "Writer-supplied workflow_dispatch inputs are explicitly declared.",
+            "No verification workflow silently falls back to a different branch head when an exact SHA is supplied.",
+            "Push and pull-request execution retain their existing event SHA semantics.",
+            "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced."
+          ],
+          "tests": [
+            {
+              "path": "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+              "command": "node test-work-map-post-write-exact-verification-dispatch.mjs"
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".github/workflows/ci.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
+            ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish typed linkage between the writer run, verification run IDs, and exact committed head across the CI evidence families."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove exact identity preservation across reruns, concurrent branch movement, and verification dispatch retries."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository CI dispatch correction grants no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository CI dispatch correction grants no Production or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
