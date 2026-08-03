@@ -1,15 +1,15 @@
 name: UEACP Live Authority Evidence One Shot
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - gpt/ueacp-live-authority-evidence-trigger-20260803
 
 permissions:
   contents: read
 
 concurrency:
-  group: ueacp-live-authority-evidence-one-shot-${{ github.event_name }}
+  group: ueacp-live-authority-evidence-one-shot-push
   cancel-in-progress: true
 
 jobs:
@@ -17,42 +17,57 @@ jobs:
     name: Collect governed live authority evidence
     if: >-
       github.actor == 'mad4bdigital-ai' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/ueacp-live-authority-evidence-trigger-20260803' &&
-      github.event.pull_request.base.ref == 'main'
+      github.ref_name == 'gpt/ueacp-live-authority-evidence-trigger-20260803'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-      TRUSTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      TRIGGER_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TRIGGER_HEAD_SHA: ${{ github.sha }}
       AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-authorization.json
       IDENTITY_PATH: ${{ runner.temp }}/ueacp-live-identity.json
       CENSUS_PATH: ${{ runner.temp }}/ueacp-live-census.json
       EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-evidence-packet.json
     steps:
-      - name: Checkout trusted base SHA
+      - name: Checkout exact trigger head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          fetch-depth: 1
+          ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: "22"
 
-      - name: Verify trusted execution boundary
+      - name: Verify marker-only trigger and switch to trusted main
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$TRUSTED_BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$TRIGGER_HEAD_SHA"
+          git fetch --no-tags --depth=1 origin main
+          trusted_base_sha="$(git rev-parse origin/main)"
+          [[ "$trusted_base_sha" =~ ^[0-9a-f]{40}$ ]]
+          mapfile -t changed_files < <(git diff --name-only "$trusted_base_sha"...HEAD)
+          test "${#changed_files[@]}" -eq 1
+          test "${changed_files[0]}" = ".changes/ueacp/live-authority-evidence-trigger-20260803.json"
+          marker_contract="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.contract')"
+          marker_live_read="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.live_database_read_authorized')"
+          marker_merge="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.merge_authorized')"
+          marker_mutation="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.sql_mutation_authorized')"
+          test "$marker_contract" = "mad4b.ueacp.live-authority-evidence-trigger.v1"
+          test "$marker_live_read" = "true"
+          test "$marker_merge" = "false"
+          test "$marker_mutation" = "false"
+          echo "TRUSTED_BASE_SHA=$trusted_base_sha" >> "$GITHUB_ENV"
+          git checkout --detach "$trusted_base_sha"
+          test "$(git rev-parse HEAD)" = "$trusted_base_sha"
           test -f .github/scripts/authority-live-census-observation.mjs
           test -f http-generic-api/scripts/authority-live-evidence-collect.mjs
           test -f specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-authorization.schema.json
           node --check .github/scripts/authority-live-census-observation.mjs
           node --check http-generic-api/scripts/authority-live-evidence-collect.mjs
+          echo "UEACP_TRUSTED_BASE_SHA=$trusted_base_sha"
 
       - name: Read database identity and issue bounded authorization
         shell: bash
@@ -155,12 +170,11 @@ jobs:
 
       - name: Run hardened live authority catalog census
         shell: bash
-        env:
-          EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-census.json
-          REPOSITORY: ${{ github.repository }}
-          OBSERVED_REF: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+          export EVIDENCE_PATH="$CENSUS_PATH"
+          export REPOSITORY="$GITHUB_REPOSITORY"
+          export OBSERVED_REF="$TRUSTED_BASE_SHA"
           node .github/scripts/authority-live-census-observation.mjs
 
       - name: Collect all eight live authority source families
