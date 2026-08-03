@@ -238,6 +238,11 @@ jobs:
   assert.ok(!writerTriggerBlock.includes("pull_request:"));
   assert.ok(autofixWorkflow.includes("expected_head_sha:"));
   assert.ok(autofixWorkflow.includes("Pin branch and pull request identity"));
+  assert.ok(autofixWorkflow.includes("WORK_MAP_ROOT: docs"));
+  assert.ok(autofixWorkflow.includes("WORK_MAP_NAME: work-maps"));
+  assert.ok(autofixWorkflow.includes('work_map_dir="${WORK_MAP_ROOT}/${WORK_MAP_NAME}"'));
+  assert.ok(autofixWorkflow.includes('git add "${work_map_dir}"'));
+  assert.ok(!autofixWorkflow.includes("git add docs/work-maps"));
   assert.ok(autofixWorkflow.includes('test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(autofixWorkflow.includes('[[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]'));
   assert.ok(autofixWorkflow.includes('git push origin "HEAD:refs/heads/${TARGET_BRANCH}"'));
