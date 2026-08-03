@@ -20,7 +20,6 @@ jobs:
     env:
       EXPECTED_BASE_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
       EXPECTED_HEAD_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
-      TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
     steps:
       - name: Checkout exact V3 candidate
         uses: actions/checkout@v5
@@ -65,4 +64,5 @@ jobs:
         working-directory: http-generic-api
         env:
           GITHUB_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
         run: npm test
