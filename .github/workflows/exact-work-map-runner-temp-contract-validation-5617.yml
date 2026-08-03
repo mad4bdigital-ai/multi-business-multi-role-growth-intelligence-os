@@ -1,0 +1,94 @@
+name: Exact Work Map Runner Temp Contract Validation 5617
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-work-map-runner-temp-contract-base-435c001-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-work-map-runner-temp-contract-5617-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate checkout-safe diagnostics test contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable one-line scope
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: e2de31075fa4156b6c37602dac8fda4e81bf432b
+          EXPECTED_BASE_SHA: 435c00121a27f8ebbc435e15f08a1bb86f1a5ce3
+          EXPECTED_HEAD_REF: gpt/fix/work-map-autofix-runner-temp-contract-20260803
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$EVENT_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$EVENT_HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-list --count "${EXPECTED_BASE_SHA}..${EXPECTED_HEAD_SHA}")" = "1"
+          test "$(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+          test "$(git diff --numstat "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = $'1\t1\thttp-generic-api/test-supervisor-runtime-assurance-automation.mjs'
+          git diff --check "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA"
+
+      - name: Syntax check
+        run: node --check http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+
+      - name: Run aggregate supervisor assurance regression
+        working-directory: http-generic-api
+        run: node test-supervisor-runtime-assurance-automation.mjs
+
+      - name: Run dedicated Work Map diagnostics regression
+        working-directory: http-generic-api
+        run: node test-work-map-autofix-validation-diagnostics.mjs
+
+      - name: Verify exact contract markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F '${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}' \
+            http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+          ! grep -F '".work-map-autofix-diagnostics"' \
+            http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+          grep -F 'diagnostic_root="${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}"' \
+            .github/workflows/spec-kit-work-map-autofix.yml
+
+      - name: Publish bounded result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/work-map-runner-temp-contract-5617"
+          printf '{"candidate_pr":5617,"candidate_sha":"e2de31075fa4156b6c37602dac8fda4e81bf432b","base_sha":"435c00121a27f8ebbc435e15f08a1bb86f1a5ce3","runner":"ubuntu-24.04","changed_files":1,"additions":1,"deletions":1,"workflow_mutation":false,"permission_mutation":false,"secrets_included":false}\n' \
+            > "$RUNNER_TEMP/work-map-runner-temp-contract-5617/result.json"
+          cat "$RUNNER_TEMP/work-map-runner-temp-contract-5617/result.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bounded result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-runner-temp-contract-5617-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-runner-temp-contract-5617/result.json
+          if-no-files-found: error
+          retention-days: 14
