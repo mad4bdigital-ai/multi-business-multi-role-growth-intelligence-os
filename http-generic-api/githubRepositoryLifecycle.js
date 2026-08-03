@@ -41,6 +41,106 @@ function normalizeBranch(branch = "") {
   return String(branch || "").trim().replace(/^refs\/heads\//, "");
 }
 
+function boundedRequiredApprovals(value = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(10, Math.floor(parsed)));
+}
+
+function reviewOrder(review = {}, index = 0) {
+  const timestamp = Date.parse(review?.submitted_at || review?.submittedAt || "") || 0;
+  return { timestamp, id: Number(review?.id || 0), index };
+}
+
+function laterReview(left, right) {
+  if (!left) return right;
+  if (right.order.timestamp !== left.order.timestamp) {
+    return right.order.timestamp > left.order.timestamp ? right : left;
+  }
+  if (right.order.id !== left.order.id) return right.order.id > left.order.id ? right : left;
+  return right.order.index > left.order.index ? right : left;
+}
+
+export function summarizeGithubPullRequestApprovals(reviews = [], {
+  expectedHeadSha = "",
+  authorLogin = "",
+  requiredApprovals = 1,
+} = {}) {
+  const expected = normalizeSha(expectedHeadSha);
+  const author = String(authorLogin || "").trim().toLowerCase();
+  const required = boundedRequiredApprovals(requiredApprovals);
+  const latestByReviewer = new Map();
+  const ignored = {
+    non_decisive: 0,
+    invalid_reviewer: 0,
+    bot: 0,
+    author: 0,
+    stale_head: 0,
+    dismissed: 0,
+  };
+
+  for (const [index, review] of (Array.isArray(reviews) ? reviews : []).entries()) {
+    const state = String(review?.state || "").trim().toUpperCase();
+    if (!["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(state)) {
+      ignored.non_decisive += 1;
+      continue;
+    }
+    const login = String(review?.user?.login || "").trim().toLowerCase();
+    if (!login) {
+      ignored.invalid_reviewer += 1;
+      continue;
+    }
+    const candidate = { review, state, login, order: reviewOrder(review, index) };
+    latestByReviewer.set(login, laterReview(latestByReviewer.get(login), candidate));
+  }
+
+  const approvedReviewers = [];
+  const changesRequestedReviewers = [];
+  for (const item of latestByReviewer.values()) {
+    const { review, state, login } = item;
+    const userType = String(review?.user?.type || "").trim().toLowerCase();
+    if (userType !== "user" || login.endsWith("[bot]")) {
+      ignored.bot += 1;
+      continue;
+    }
+    if (author && login == author) {
+      ignored.author += 1;
+      continue;
+    }
+    if (state === "DISMISSED") {
+      ignored.dismissed += 1;
+      continue;
+    }
+    if (normalizeSha(review?.commit_id || review?.commitId) !== expected) {
+      ignored.stale_head += 1;
+      continue;
+    }
+    const projection = {
+      login,
+      review_id: Number(review?.id || 0) || null,
+      commit_id: expected,
+      submitted_at: review?.submitted_at || review?.submittedAt || null,
+    };
+    if (state === "APPROVED") approvedReviewers.push(projection);
+    if (state === "CHANGES_REQUESTED") changesRequestedReviewers.push(projection);
+  }
+
+  approvedReviewers.sort((a, b) => a.login.localeCompare(b.login));
+  changesRequestedReviewers.sort((a, b) => a.login.localeCompare(b.login));
+  return {
+    required_approval_count: required,
+    exact_head_approval_count: approvedReviewers.length,
+    approved_reviewers: approvedReviewers,
+    changes_requested_reviewers: changesRequestedReviewers,
+    has_changes_requested: changesRequestedReviewers.length > 0,
+    quorum_satisfied: approvedReviewers.length >= required && changesRequestedReviewers.length === 0,
+    review_count: Array.isArray(reviews) ? reviews.length : 0,
+    ignored,
+    expected_head_sha: expected || null,
+    secrets_included: false,
+  };
+}
+
 export function githubBranchDeleteConfirmation(branch = "") {
   const slug = normalizeBranch(branch)
     .toUpperCase()
@@ -367,11 +467,14 @@ export async function getGithubPullRequestCiGate(options = {}) {
   const failedChecks = required.filter((item) => item.present && item.status === "completed" && item.conclusion !== "success").map((item) => item.name);
   const baseFresh = Number(compare?.behind_by || 0) === 0;
   const mergeable = pr?.mergeable !== false && String(pr?.mergeable_state || "").toLowerCase() !== "dirty";
-  const gateStatus = baseFresh && mergeable && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";
+  const isDraft = pr?.draft === true;
+  const gateStatus = baseFresh && mergeable && !isDraft && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";
   return {
     ok: true,
     pull_number: pullNumber,
     gate_status: gateStatus,
+    is_draft: isDraft,
+    ready_for_merge: !isDraft,
     head_sha: headSha,
     base_ref: baseRef,
     base_sha: pr?.base?.sha || null,
@@ -436,6 +539,94 @@ export async function finalizeGithubPullRequest(options = {}) {
   }
 
   const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+  const finalState = String(pr?.state || "").trim().toLowerCase();
+  if (finalState !== "open") {
+    throw lifecycleError(409, "github_pr_finalize_state_blocked", "Only open pull requests can be finalized.", {
+      pull_number: pullNumber,
+      current_state: finalState || null,
+      secrets_included: false,
+    });
+  }
+  if (pr?.draft === true) {
+    throw lifecycleError(409, "github_pr_finalize_draft_blocked", "Draft pull requests cannot be finalized or merged.", {
+      pull_number: pullNumber,
+      expected_head_sha: expectedHeadSha,
+      expected_base_sha: expectedBaseSha,
+      is_draft: true,
+      secrets_included: false,
+    });
+  }
+  const finalHeadSha = normalizeSha(pr?.head?.sha);
+  const finalBaseSha = normalizeSha(pr?.base?.sha);
+  if (finalHeadSha !== expectedHeadSha || finalBaseSha !== expectedBaseSha) {
+    throw lifecycleError(409, "github_pr_finalize_final_identity_mismatch", "Pull request head or base changed immediately before merge.", {
+      pull_number: pullNumber,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: finalHeadSha || null,
+      expected_base_sha: expectedBaseSha,
+      current_base_sha: finalBaseSha || null,
+      validation_phase: "final_pre_merge_readback",
+      secrets_included: false,
+    });
+  }
+  const reviewsResponse = await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/pulls/${pullNumber}/reviews?per_page=100`,
+    token,
+    fetchImpl: options.fetchImpl,
+  });
+  const reviews = Array.isArray(reviewsResponse.payload) ? reviewsResponse.payload : [];
+  if (!Array.isArray(reviewsResponse.payload) || reviews.length >= 100) {
+    throw lifecycleError(409, "github_pr_finalize_review_set_unbounded", "Exact-head review evidence could not be bounded to one complete page.", {
+      pull_number: pullNumber,
+      returned_review_count: reviews.length,
+      per_page: 100,
+      secrets_included: false,
+    });
+  }
+  const approvalEvidence = summarizeGithubPullRequestApprovals(reviews, {
+    expectedHeadSha,
+    authorLogin: pr?.user?.login,
+    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,
+  });
+  if (approvalEvidence.has_changes_requested) {
+    throw lifecycleError(409, "github_pr_finalize_changes_requested", "Exact-head review evidence contains an active changes-requested decision.", approvalEvidence);
+  }
+  if (!approvalEvidence.quorum_satisfied) {
+    throw lifecycleError(409, "github_pr_finalize_approval_required", "Exact-head human approval quorum is not satisfied.", approvalEvidence);
+  }
+
+  const postApprovalPr = (await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/pulls/${pullNumber}`,
+    token,
+    fetchImpl: options.fetchImpl,
+  })).payload;
+  const postApprovalState = String(postApprovalPr?.state || "").trim().toLowerCase();
+  const postApprovalHeadSha = normalizeSha(postApprovalPr?.head?.sha);
+  const postApprovalBaseSha = normalizeSha(postApprovalPr?.base?.sha);
+  if (
+    postApprovalState !== "open"
+    || postApprovalPr?.draft === true
+    || postApprovalHeadSha !== expectedHeadSha
+    || postApprovalBaseSha !== expectedBaseSha
+  ) {
+    throw lifecycleError(409, "github_pr_finalize_final_identity_mismatch", "Pull request state, Draft status, head, or base changed after approval evidence and before merge.", {
+      pull_number: pullNumber,
+      expected_state: "open",
+      current_state: postApprovalState || null,
+      is_draft: postApprovalPr?.draft === true,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: postApprovalHeadSha || null,
+      expected_base_sha: expectedBaseSha,
+      current_base_sha: postApprovalBaseSha || null,
+      validation_phase: "post_approval_pre_merge_readback",
+      secrets_included: false,
+    });
+  }
+
   const merge = await githubLifecycleRequest({
     owner,
     repo,
@@ -477,6 +668,7 @@ export async function finalizeGithubPullRequest(options = {}) {
       merged: true,
       merge_sha: mergeSha,
       merge_method: mergeMethod,
+      approval_evidence: approvalEvidence,
       ancestry_readback: {
         verified: false,
         base_ref: pr?.base?.ref || defaultBranch,
@@ -535,6 +727,7 @@ export async function finalizeGithubPullRequest(options = {}) {
     merge_sha: mergeSha,
     merge_method: mergeMethod,
     ci_gate: gate,
+    approval_evidence: approvalEvidence,
     ancestry_readback: {
       verified: true,
       base_ref: pr?.base?.ref || defaultBranch,
@@ -745,7 +938,6 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   if (!branchExists && defaultBranchMoved) commitParentSha = currentBaseSha;
   const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${commitParentSha}`, token, fetchImpl: options.fetchImpl });
 
-  // Validate every hunk before creating any Git blob, tree, commit, or ref.
   const preparedChanges = [];
   for (const source of normalizedChanges) {
     if (source.action === "delete_file") {
@@ -857,6 +1049,7 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     secrets_included: false,
   };
 }
+
 async function readGithubBlobShaAtPath({ owner, repo, treeSha, filePath, token, fetchImpl }) {
   const parts = validateChangePath(filePath).split("/");
   let currentTreeSha = normalizeSha(treeSha);

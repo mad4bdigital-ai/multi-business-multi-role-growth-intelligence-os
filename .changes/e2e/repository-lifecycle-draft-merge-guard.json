@@ -1,0 +1,99 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-lifecycle-draft-merge-guard",
+  "title": "Repository lifecycle final identity and exact-head approval guard",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+      "http-generic-api/githubRepositoryLifecycle.js",
+      "http-generic-api/repositoryAutomationControlPlane.js",
+      "http-generic-api/test-github-repository-lifecycle.mjs",
+      "http-generic-api/test-repository-automation-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Fail closed unless repository finalization proves an open non-Draft pull request, unchanged exact head and base identities, complete exact-head human approval evidence, and a separately authorized Ready state immediately before the merge request.",
+      "e2e_journeys": [
+        {
+          "id": "draft-pr-fails-before-merge-endpoint",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_automation_operator",
+          "entrypoint": "finalizeGithubPullRequest",
+          "terminal_outcome": "Only an open non-Draft pull request with unchanged approved head and base SHAs, no active exact-head changes request, and sufficient non-author human approval can reach PUT /pulls/{number}/merge.",
+          "steps": [
+            "Run the required-check, mergeability, Draft-state, and base-freshness gate for the exact candidate.",
+            "Re-read pull-request state, Draft status, head SHA, and base SHA before collecting review evidence.",
+            "Reject stale-head, bot, author, dismissed, non-decisive, incomplete, or changes-requested review evidence.",
+            "Require the configured exact-head non-author human approval quorum.",
+            "Re-read state, Draft status, head SHA, and base SHA after approval evidence and immediately before merge.",
+            "Keep mark_ready absent from automatic pr_delivery and full_workstream finalization templates."
+          ],
+          "assertions": [
+            "Draft candidates cannot produce gate_status=pass.",
+            "A Ready-to-Draft race fails with github_pr_finalize_draft_blocked before any merge request.",
+            "Initial final identity drift fails with github_pr_finalize_final_identity_mismatch and validation_phase=final_pre_merge_readback before review retrieval or merge.",
+            "Post-approval state, Draft, head, or base drift fails with validation_phase=post_approval_pre_merge_readback before merge.",
+            "Only latest exact-head APPROVED reviews from non-bot non-author humans count toward quorum.",
+            "Active exact-head CHANGES_REQUESTED blocks finalization.",
+            "The merge request remains bound to expected_head_sha and cannot be reached by a stale base identity.",
+            "Automatic finalization plans do not mark a Draft pull request Ready in the same operation."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-lifecycle-finalization-identity-and-approval",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-automation-control-plane-readiness-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/repositoryAutomationControlPlane.js",
+            "http-generic-api/test-github-repository-lifecycle.mjs",
+            "http-generic-api/test-repository-automation-control-plane.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bind exact approval evidence to immutable audit records and separately issued protected-finalization capability envelopes."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove fail-closed behavior across merge queues, review pagination boundaries, retries, and concurrent Ready/Draft or base updates."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository lifecycle finalization has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This guard grants no Production, deployment, provider, database, migration, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
