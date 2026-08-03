@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "011-durable-governed-execution-and-agent-delegation",
+  "title": "Durable governed execution, delegation, reconciliation, managed delivery, and evidence closeout",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/spec-011-evidence-auto-closeout.yml",
+      "http-generic-api/spec011EvidenceAutoCloseout.js",
+      "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
+      "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
+      "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that authoritative evidence can be collected, bound to semantic closeout mutations, validated before commit, applied through governed repository authority, and reconciled into an exact closeout pull request without force push, protected-branch bypass, secret exposure, or automatic mutation retry after an unknown outcome.",
+      "e2e_journeys": [
+        {
+          "id": "authoritative-evidence-to-governed-closeout-pr",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository closeout operator",
+          "entrypoint": "executeEvidenceAutoCloseout with reviewed evidence readers, exact repository blobs, semantic closeout intent, typed confirmation, and mutation approval",
+          "terminal_outcome": "A bounded closeout branch and pull request are considered created only after authoritative evidence validation, semantic five-document change generation, atomic patch readback, exact PR head/base readback, and no-force/no-secret checks; unknown mutation outcomes remain reconciliation-required without automatic retry.",
+          "steps": [
+            "Collect exactly one fresh immutable observation for every required authoritative evidence family and calculate a deterministic evidence fingerprint.",
+            "Generate evidence-bound JSON Pointer and unique Markdown-anchor mutations for manifest, completion, checklist, tasks, and delivery-state documents.",
+            "Validate blob identities, content digests, semantic operations, JSON parseability, completion truthfulness, bounded size, and structured failure diagnosis before repository commit.",
+            "Preview the repository change through the durable pr_delivery path, then simulate atomic repo_patch_batch_apply with exact branch-head and changed-path readback.",
+            "Simulate github_create_pull_request followed by github_get_pull_request and verify the open PR number, head branch, exact head SHA, and base branch.",
+            "Simulate unknown patch and PR-create outcomes, perform readback once, and prove that no automatic mutation retry, force push, protected-branch bypass, Production write, provider write, deployment, or secret exposure occurs."
+          ],
+          "assertions": [
+            "Missing, duplicate, stale, mutable, failed, unrelated, ambiguous, or secret-like evidence cannot produce a closeout change set.",
+            "Every task and checklist closure references evidence contained in the validated authoritative packet.",
+            "Terminal completion is rejected unless all tasks plus migration-ledger, Production-parity, and post-merge-audit evidence are present.",
+            "The generated change set covers only the five governed document kinds and carries exact expected blob SHA plus before and after SHA-256 contracts.",
+            "Repository mutation is represented by repo_patch_batch_apply with force and force_push false and exact readback required.",
+            "Pull request creation uses registered GitHub endpoint authority and exact readback rather than caller-supplied raw HTTP authority.",
+            "An unknown mutation outcome is reconciled by reads and is never followed by an automatic repeated write.",
+            "The certification performs no real repository write, real PR creation, Production mutation, provider write, deployment, runtime authority activation, protected-branch bypass, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "spec011-evidence-auto-closeout-lifecycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-evidence-auto-closeout.mjs",
+              "args": []
+            },
+            {
+              "id": "spec011-evidence-auto-closeout-schemas",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-evidence-auto-closeout-schemas.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-011-evidence-auto-closeout.yml",
+            "http-generic-api/spec011EvidenceAutoCloseout.js",
+            "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
+            "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Exercise the closeout collector and repository writer against an authorized non-production repository target with durable receipts, approval envelopes, and exact branch/PR readback."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, upstream timeouts, and ambiguous PR-creation outcomes without duplicate mutation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Create one governed closeout pull request on an authorized non-production branch and verify its complete evidence chain without merging or deploying it."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Use separately authorized Production evidence and post-merge readback to close the final completion contract while preserving migration, deployment, provider, and protected-branch authority boundaries."
+    }
+  ]
+}
