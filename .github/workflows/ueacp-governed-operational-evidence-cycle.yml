@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ueacp-governed-operational-evidence-${{ github.event_name }}-${{ github.ref }}
+  group: ueacp-live-authority-evidence-one-shot-push
   cancel-in-progress: false
 
 jobs:
