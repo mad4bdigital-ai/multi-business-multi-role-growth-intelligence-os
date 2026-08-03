@@ -1,0 +1,100 @@
+name: PR 5292 Refresh Frontend Dispatch
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/pr5292-refresh-frontend-dispatch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr5292-refresh-frontend-dispatch
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.number == 5292 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
+      WORKFLOW_PATH: .github/workflows/pr5292-refresh-frontend-dispatch.yml
+      OLD_WORKFLOW_PATH: .github/workflows/pr5292-exact-head-core-ci.yml
+      OLD_WORKFLOW_V2_PATH: .github/workflows/pr5292-exact-head-core-ci-v2.yml
+
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify bounded trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate Frontend dispatch from source
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate
+
+      - name: Verify bounded generated changes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /')
+          for path in "${changed[@]}"; do
+            case "$path" in
+              http-generic-api/frontend-operation-governance.generated.json|http-generic-api/frontend-surface-dispatch.generated.json) ;;
+              *) echo "Unexpected generated change: $path" >&2; exit 1 ;;
+            esac
+          done
+          test "${#changed[@]}" -ge 1
+          npm --prefix http-generic-api run frontend:dispatch:check
+
+      - name: Remove temporary workflows
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -f "${WORKFLOW_PATH}" "${OLD_WORKFLOW_PATH}" "${OLD_WORKFLOW_V2_PATH}"
+
+      - name: Commit clean regenerated product tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$before" = "$(git rev-parse HEAD)"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(frontend): regenerate Surface dispatch from current source'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
+          test ! -e "${WORKFLOW_PATH}"
+          test ! -e "${OLD_WORKFLOW_PATH}"
+          test ! -e "${OLD_WORKFLOW_V2_PATH}"
