@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-runtime-readback-r7",
+  "title": "Owner-bound public Production runtime readback R7",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a reusable owner-bound, public-HTTPS-GET-only readback that compares the exact protected Production ref with public runtime SHA and branch provenance after each governed Git promotion.",
+      "e2e_journeys": [
+        {
+          "id": "verify-current-production-runtime-without-provider-mutation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner performing post-promotion runtime verification",
+          "entrypoint": "An exact issue or pull-request comment using RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=<40-hex-sha>",
+          "terminal_outcome": "The workflow publishes scrubbed Artifact and conversation evidence that classifies the runtime as production_current only when all four public endpoints return HTTP 200 and both runtime SHA and branch provenance exactly match the protected Production ref.",
+          "steps": [
+            "Validate the trigger author identity and exact 40-hex expected Production SHA command.",
+            "Checkout trusted default-branch tooling without persisted credentials.",
+            "Read protected main and Production refs and require the Production ref to equal the expected SHA before collection.",
+            "Fetch health, version, deployment-info, and connector-agent version through bounded public HTTPS GET requests.",
+            "Scrub sensitive response keys and derive exact SHA, branch, HTTP, and classification evidence.",
+            "Re-read the protected Production ref after collection to reject ref movement during the evidence cycle.",
+            "Upload bounded evidence, publish a secret-free repository comment, and fail closed unless production_current is true."
+          ],
+          "assertions": [
+            "Only the repository owner numeric identity can trigger the workflow.",
+            "The command must contain exactly one lowercase 40-hex expected Production SHA.",
+            "The protected Production ref is read before and after public runtime collection and must remain exact.",
+            "The workflow uses no Hostinger credential or provider API token.",
+            "The workflow performs no build creation, deployment, release activation, restart, SQL, Migration Apply, database mutation, protected-ref mutation, force push, or external business send.",
+            "Runtime currentness requires HTTP 200 for all four endpoints, exact SHA parity in version and deployment-info, and exact Production branch provenance.",
+            "All persisted evidence is bounded, scrubbed, and secret-free."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-readback-r7-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Allow an exact owner comment to generate same-cycle public runtime evidence and a bounded repository decision comment."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on malformed commands, protected-ref movement, DNS or HTTP failure, non-JSON or oversized responses, runtime SHA mismatch, and branch provenance mismatch."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Execute the first exact Production readback after merge and preserve the run, job, Artifact, and bounded result comment as acceptance evidence."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This read-only evidence workflow never performs a Production ref change, Hostinger provider mutation, deployment, restart, SQL, Migration Apply, or database mutation."
+    }
+  ],
+  "secrets_included": false
+}
