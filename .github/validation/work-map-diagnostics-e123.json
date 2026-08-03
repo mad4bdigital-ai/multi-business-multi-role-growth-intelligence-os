@@ -1,0 +1,87 @@
+{
+  "contract": "mad4b.work-map-autofix-diagnostics-exact-validation.v1",
+  "generated_at": "2026-08-03T21:56:17.013Z",
+  "candidate_sha": "e123688d3346a0d173d81989354de4cdc7bf44b4",
+  "checks": [
+    {
+      "name": "syntax-work-map-generator",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "syntax-diagnostics-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "diagnostics-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "generated-work-maps-current",
+      "outcome": "failed",
+      "exit_code": 1
+    },
+    {
+      "name": "spec014-final-readback",
+      "outcome": "passed",
+      "exit_code": 0
+    }
+  ],
+  "failed_count": 1,
+  "failed_checks": [
+    "generated-work-maps-current:1"
+  ],
+  "generated_work_maps_current": false,
+  "diagnostics_regression_passed": true,
+  "spec014_final_readback": {
+    "contract": "mad4b.spec014-final-work-map-readback.v1",
+    "generated_at": "2026-08-03T21:56:16.987Z",
+    "candidate_sha": "e123688d3346a0d173d81989354de4cdc7bf44b4",
+    "workflow_event_sha": "98c76fd116c3c4565fef0cd83c3aa8c54e185cb3",
+    "feature_key": "014-governed-hostinger-storage-orchestration",
+    "manifest_path": "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+    "ok": true,
+    "current_registry": {
+      "fingerprint": "f81e65d2452c2c04a1281d1537f2aec58a5a2228d6faa06f72faaa454d963fda",
+      "index_source_hash": "3f870e8a06081aa3a711f7a851ce09a34d4365b465fffa945b0cd2a6d5ffa14c",
+      "coverage_source_hash": "dce7f9950edf563067f4a805573400ba9311c28dc997fa11a6226d583471477e",
+      "schema_classification_registry_hash": "c5669a765fa718428aa977cae2f452b1a8d3d941ca393e1420aa6e9309fc19c2",
+      "map_count": 19,
+      "domain_count": 16,
+      "uncategorized_count": 0,
+      "taxonomy_gap_cluster_count": 0,
+      "globally_classified_schema_objects": 0,
+      "intentionally_unclassified_schema_objects": 0
+    },
+    "manifest_registry": {
+      "fingerprint": "f81e65d2452c2c04a1281d1537f2aec58a5a2228d6faa06f72faaa454d963fda",
+      "index_source_hash": "3f870e8a06081aa3a711f7a851ce09a34d4365b465fffa945b0cd2a6d5ffa14c",
+      "coverage_source_hash": "dce7f9950edf563067f4a805573400ba9311c28dc997fa11a6226d583471477e",
+      "map_count": 19,
+      "domain_count": 16,
+      "uncategorized_count": 0,
+      "taxonomy_gap_cluster_count": 0
+    },
+    "classification": {
+      "ok": true,
+      "coverage_percent": 100,
+      "unresolved_count": 0,
+      "intentionally_unclassified_count": 0,
+      "registry_hash": "c5669a765fa718428aa977cae2f452b1a8d3d941ca393e1420aa6e9309fc19c2"
+    },
+    "findings": [],
+    "repository_mutation": false,
+    "provider_dispatch": false,
+    "live_database_access": false,
+    "migration_apply": false,
+    "secrets_included": false
+  },
+  "repository_mutation": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
