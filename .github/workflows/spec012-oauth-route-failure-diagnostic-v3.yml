@@ -18,13 +18,13 @@ jobs:
     name: Diagnose transformed OAuth route failure safely
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
-      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
-      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
+      MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
     steps:
       - name: Checkout exact target
         uses: actions/checkout@v5
@@ -33,11 +33,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify identity and install dependencies
+      - name: Verify bounded synchronize identity and install dependencies
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test -f "${MARKER_PATH}"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD | wc -l | tr -d ' ')" = "1"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD)" = "${MARKER_PATH}"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
           git show "refs/remotes/origin/${SCRIPT_BRANCH}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
@@ -47,6 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -- "${MARKER_PATH}"
           python /tmp/apply-spec012-oauth-route-test-parity.py
           python - <<'PY'
           from pathlib import Path
