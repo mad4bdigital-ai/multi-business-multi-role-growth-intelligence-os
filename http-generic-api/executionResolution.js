@@ -5,7 +5,6 @@ import {
 
 export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   const {
-    requireEnv,
     createExecutionTraceId,
     debugLog,
     promoteDelegatedExecutionPayload,
@@ -20,6 +19,8 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     validateTopLevelRoutingFields,
     getRegistry,
     reloadRegistry,
+    dataSourceMode = process.env.DATA_SOURCE || "sql",
+    registrySpreadsheetId = process.env.REGISTRY_SPREADSHEET_ID || "",
     getRequiredHttpExecutionPolicyKeys,
     requirePolicySet,
     policyValue,
@@ -39,8 +40,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     ensureMethodAndPathMatchEndpoint,
     sanitizeCallerHeaders
   } = deps;
-
-  requireEnv("REGISTRY_SPREADSHEET_ID");
 
   let execution_trace_id =
     String(reqBody?.execution_trace_id || "").trim() || createExecutionTraceId();
@@ -146,6 +145,63 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   if (forceRefresh) {
     debugLog("REGISTRY_FORCE_REFRESH:", true);
   }
+
+  const normalizedDataSourceMode = String(dataSourceMode || "sql").trim().toLowerCase();
+  if (!["sql", "dual", "sheets"].includes(normalizedDataSourceMode)) {
+    return {
+      ok: false,
+      response: {
+        status: 503,
+        body: {
+          ok: false,
+          error: {
+            code: "invalid_registry_data_source",
+            message: "DATA_SOURCE must be one of: sql, dual, sheets.",
+            details: {
+              data_source: normalizedDataSourceMode || null,
+              allowed_values: ["sql", "dual", "sheets"]
+            }
+          }
+        }
+      },
+      requestPayload,
+      execution_trace_id
+    };
+  }
+
+  if (
+    normalizedDataSourceMode === "sheets" &&
+    !String(registrySpreadsheetId || "").trim()
+  ) {
+    return {
+      ok: false,
+      response: {
+        status: 503,
+        body: {
+          ok: false,
+          error: {
+            code: "registry_spreadsheet_id_required",
+            message: "REGISTRY_SPREADSHEET_ID is required for this Sheets-backed registry operation.",
+            details: {
+              data_source: "sheets",
+              operation_class: "registry_sheet_read"
+            }
+          }
+        }
+      },
+      requestPayload,
+      execution_trace_id
+    };
+  }
+
+  debugLog("REGISTRY_AUTHORITY:", JSON.stringify({
+    configured_mode: normalizedDataSourceMode,
+    runtime_authority: normalizedDataSourceMode === "sheets" ? "sheets" : "sql",
+    sheets_required_for_runtime: normalizedDataSourceMode === "sheets",
+    sheets_fallback_attempted: false,
+    force_refresh: forceRefresh
+  }));
+
   const registry = forceRefresh ? await reloadRegistry() : await getRegistry();
   const { brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
 
