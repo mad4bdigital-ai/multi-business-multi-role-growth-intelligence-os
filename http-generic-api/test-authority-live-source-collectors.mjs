@@ -7,6 +7,7 @@ import {
 import {
   AUTHORITY_LIVE_SOURCE_ROW_LIMIT,
   AuthorityLiveSourceCollectorError,
+  _testingAuthorityLiveSourceCollectors,
   createAuthorityLiveSourceCollectors,
 } from "./authorityLiveSourceCollectors.js";
 
@@ -27,6 +28,7 @@ const rowsByQuery = {
       module_binding: "authority_routes",
       status: "active",
       execution_mode: "read_only",
+      auth_validation_status: "tenant_connection_required",
     },
   ],
   direct_http_routes: [
@@ -41,6 +43,7 @@ const rowsByQuery = {
       module_binding: "authority_routes",
       status: "active",
       execution_mode: "read_only",
+      auth_validation_status: "tenant_connection_required",
     },
   ],
   runtime_action_registry: [
@@ -59,6 +62,7 @@ const rowsByQuery = {
       parent_action_key: "connector.inventory",
       endpoint_key: "connector.inventory.read",
       tool_name: "connector_inventory_read",
+      scope_class: "admin",
       status: "active",
     },
   ],
@@ -71,6 +75,7 @@ const rowsByQuery = {
       action_key: "connector.inventory",
       tool_key: null,
       tool_surface: null,
+      binding_scope: null,
       status: "active",
     },
   ],
@@ -86,6 +91,8 @@ const rowsByQuery = {
       alias_key: "connector_inventory_read",
       openai_action_name: "connector_inventory_read",
       tool_name: null,
+      scope_class: null,
+      auth_validation_status: "tenant_connection_required",
       status: "active",
     },
   ],
@@ -101,9 +108,9 @@ const collectors = createAuthorityLiveSourceCollectors({
   },
 });
 
-const sourceContext = (family) => Object.freeze({
+const sourceContext = (family, operationRef = "ueacp.live-evidence.test-20300101") => Object.freeze({
   contract: "mad4b.ueacp.authority-live-evidence-collector-context.v1",
-  operation_ref: "ueacp.live-evidence.test-20300101",
+  operation_ref: operationRef,
   environment: "production_runtime",
   target_schema: "platform",
   authorization_issued_at: "2029-12-31T23:55:00.000Z",
@@ -139,14 +146,52 @@ assert.equal(bundle.blocking_gap_count, 0);
 assert.equal(bundle.source_family_count, 8);
 assert.equal(bundle.inventory.status, "ready_for_human_closure_review");
 assert.equal(bundle.inventory.summary.canonical_path_count, 8);
+
 const endpoint = bundle.inventory.paths.find((item) => item.path_key === "endpoint.connector.inventory.read");
 assert.ok(endpoint);
 assert.deepEqual(endpoint.source_registries, ["admin_endpoint_catalog", "direct_http_routes"]);
 assert.equal(endpoint.route, "/authority/connectors");
 assert.equal(endpoint.method, "GET");
+assert.equal(endpoint.authority_mode, "tenant_only");
 assert.equal(endpoint.operation_mode, "read_only");
 assert.equal(endpoint.requirements.readback, false);
 assert.equal(endpoint.secrets_included, false);
+
+const descriptor = bundle.inventory.paths.find((item) => item.path_key === "descriptor.connector_inventory_export");
+assert.equal(descriptor.authority_mode, "admin_only");
+
+const tenantBinding = _testingAuthorityLiveSourceCollectors.mapProviderBindingRow({
+  binding_kind: "tool",
+  binding_table: "app_integration_tool_bindings",
+  binding_id: "tenant-binding",
+  app_key: "github",
+  action_key: null,
+  tool_key: "tenant_repo_report",
+  tool_surface: "tenant_platform_tool",
+  binding_scope: "tenant",
+  status: "active",
+});
+assert.equal(tenantBinding.authority_mode, "tenant_only");
+
+const sharedBinding = _testingAuthorityLiveSourceCollectors.mapProviderBindingRow({
+  binding_kind: "tool",
+  binding_table: "app_integration_tool_bindings",
+  binding_id: "shared-binding",
+  app_key: "github",
+  action_key: null,
+  tool_key: "repo_report",
+  tool_surface: "platform_endpoint_export",
+  binding_scope: "both",
+  status: "active",
+});
+assert.equal(sharedBinding.authority_mode, "shared");
+
+const maximumOperationRef = `a${"b".repeat(220)}`;
+const boundedIdentity = await collectors.runtime_action_registry(
+  sourceContext("runtime_action_registry", maximumOperationRef),
+);
+assert.match(boundedIdentity.source_identity, /^live\.runtime_action_registry\.[a-f0-9]{32}$/);
+assert.equal(boundedIdentity.evidence_refs[0].length < 80, true);
 
 const secretCollectors = createAuthorityLiveSourceCollectors({
   queryRows: async ({ queryKey }) => queryKey === "runtime_action_registry"
