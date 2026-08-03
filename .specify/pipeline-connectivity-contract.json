@@ -59,24 +59,6 @@
       ],
       "non_writer_pipelines": [
         {
-          "pipeline": "work-map-recovery-bridge",
-          "required_commands": [
-            "Validate immutable PR snapshot and dispatch sole writer",
-            "work-map-autofix:authorized",
-            "authorization_consumed=true",
-            "spec-kit-work-map-autofix.yml/dispatches",
-            "direct_repository_content_mutation=false",
-            "protected_branch_mutation=false",
-            "force_push=false"
-          ],
-          "forbidden_commands": [
-            "platform-work-map-generator.mjs --write",
-            "git add docs/work-maps",
-            "git push origin",
-            "git commit"
-          ]
-        },
-        {
           "pipeline": "spec-kit-work-map-integration",
           "required_commands": [
             "Generate exact-head Work Map repair candidate",
@@ -122,44 +104,6 @@
     }
   ],
   "pipelines": [
-    {
-      "key": "work-map-recovery-bridge",
-      "workflow": ".github/workflows/e2e-contract-reference-integrity.yml",
-      "mode": "consume_one_time_authorization_and_dispatch_exact_head_writer",
-      "required_permissions": {
-        "contents": "read"
-      },
-      "required_triggers": [
-        "workflow_dispatch",
-        "pull_request"
-      ],
-      "required_commands": [
-        "work-map-recovery-bridge",
-        "Validate immutable PR snapshot and dispatch sole writer",
-        "Publish Work Map writer dispatch evidence",
-        "work-map-autofix:authorized",
-        "authorization_consumed=true",
-        "spec-kit-work-map-autofix.yml/dispatches",
-        "expected_head_sha",
-        "delegated_run_id",
-        "current_behind_by",
-        "event_snapshot_behind_by",
-        "actions: write",
-        "issues: write",
-        "pull-requests: write",
-        "gh api --method PATCH",
-        "gh api --method POST",
-        "direct_repository_content_mutation=false",
-        "protected_branch_mutation=false",
-        "force_push=false"
-      ],
-      "forbidden_commands": [
-        "platform-work-map-generator.mjs --write",
-        "git add docs/work-maps",
-        "git push origin",
-        "git commit"
-      ]
-    },
     {
       "key": "spec-kit-work-map-integration",
       "workflow": ".github/workflows/spec-kit-work-map-integration.yml",
@@ -222,7 +166,7 @@
         "Checkout exact authorized head",
         "Pin branch and pull request identity",
         "Validate generator and governance contracts",
-        "Regenerate and prove idempotency",
+       "Regenerate and prove idempotency",
         "Commit and push governed Work Maps",
         "Dispatch exact-head verification",
         "Finalize diagnostic evidence",
@@ -231,9 +175,9 @@
         "platform-work-map-generator.mjs --check",
         "EXPECTED_HEAD_SHA",
         "test \"${actual_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
-        "test \"${remote_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+       "test \"${remote_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
         "test \"${pr_count}\" = \"1\"",
-        "head=\"${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}\"",
+       "head=\"${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}\"",
         "git push origin",
         "git rev-parse HEAD",
         "gh workflow run ci.yml",
@@ -318,11 +262,6 @@
     }
   ],
   "edges": [
-    {
-      "from": "work-map-recovery-bridge",
-      "to": "spec-kit-work-map-autofix",
-      "type": "authorized_exact_head_dispatch"
-    },
     {
       "from": "spec-kit-work-map-integration",
       "to": "platform_work_maps",

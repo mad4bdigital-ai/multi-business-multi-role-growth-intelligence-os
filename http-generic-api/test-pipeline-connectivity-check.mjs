@@ -262,7 +262,7 @@ jobs:
 {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".specify/pipeline-connectivity-contract.json"), "utf8"));
-  const bridgeWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/e2e-contract-reference-integrity.yml"), "utf8");
+  const referenceWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/e2e-contract-reference-integrity.yml"), "utf8");
   const writerWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml"), "utf8");
   const integrationWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-integration.yml"), "utf8");
   const docsWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/docs-agent.yml"), "utf8");
@@ -274,30 +274,41 @@ jobs:
   assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
   assert.deepEqual(
     writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-    ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
+    ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
   );
+  assert.equal(contract.pipelines.some((row) => row.key === "work-map-recovery-bridge"), false);
+  assert.equal(contract.edges.some((row) => row.from === "work-map-recovery-bridge" || row.to === "work-map-recovery-bridge"), false);
 
-  const bridgeContract = contract.pipelines.find((row) => row.key === "work-map-recovery-bridge");
   const writerContract = contract.pipelines.find((row) => row.key === "spec-kit-work-map-autofix");
-  assert.ok(bridgeContract, "Work Map recovery bridge must remain registered");
   assert.ok(writerContract, "Work Map writer must remain registered");
-  assert.deepEqual(bridgeContract.required_triggers.sort(), ["pull_request", "workflow_dispatch"].sort());
   assert.deepEqual(writerContract.required_triggers, ["workflow_dispatch"]);
   assert.ok(writerContract.forbidden_triggers.includes("pull_request"));
 
-  assert.ok(bridgeWorkflow.includes("Validate immutable PR snapshot and dispatch sole writer"));
-  assert.ok(bridgeWorkflow.includes("work-map-autofix:authorized"));
-  assert.ok(bridgeWorkflow.includes("authorization_consumed=true"));
-  assert.ok(bridgeWorkflow.includes("spec-kit-work-map-autofix.yml/dispatches"));
-  assert.ok(bridgeWorkflow.includes("delegated_run_id"));
-  assert.ok(bridgeWorkflow.includes("direct_repository_content_mutation=false"));
-  assert.ok(bridgeWorkflow.includes("protected_branch_mutation=false"));
-  assert.ok(bridgeWorkflow.includes("force_push=false"));
-  assert.ok(bridgeWorkflow.includes("gh api --method PATCH"));
-  assert.ok(!bridgeWorkflow.includes("platform-work-map-generator.mjs --write"));
-  assert.ok(!bridgeWorkflow.includes("git add docs/work-maps"));
-  assert.ok(!bridgeWorkflow.includes("git push origin"));
-  assert.ok(!bridgeWorkflow.includes("git commit"));
+  for (const marker of [
+    "Run reference integrity regression tests",
+    "Evaluate contract references",
+    "Upload canonical integrity report",
+  ]) {
+    assert.ok(referenceWorkflow.includes(marker), `E2E reference workflow missing ${marker}`);
+  }
+  for (const marker of [
+    "work-map-recovery-bridge",
+    "Validate immutable PR snapshot and dispatch sole writer",
+    "work-map-autofix:authorized",
+    "authorization_consumed=true",
+    "spec-kit-work-map-autofix.yml/dispatches",
+    "gh api --method PATCH",
+    "gh api --method POST",
+    "actions: write",
+    "issues: write",
+    "pull-requests: write",
+    "platform-work-map-generator.mjs --write",
+    "git add docs/work-maps",
+    "git push origin",
+    "git commit",
+  ]) {
+    assert.equal(referenceWorkflow.includes(marker), false, `E2E reference workflow must retire ${marker}`);
+  }
 
   assert.ok(docsWorkflow.includes("Generate dynamic text Work Map preview"));
   assert.ok(docsWorkflow.includes("Report preview-only PR mode"));
@@ -341,19 +352,23 @@ jobs:
   assert.ok(concurrencyBlock.includes("inputs.branch"));
   assert.ok(concurrencyBlock.includes("cancel-in-progress: false"));
 
-  assert.ok(writerWorkflow.includes("Initialize diagnostics and validate inputs"));
-  assert.ok(writerWorkflow.includes("Checkout exact authorized head"));
-  assert.ok(writerWorkflow.includes("Pin branch and pull request identity"));
+  for (const marker of [
+    "Initialize diagnostics and validate inputs",
+    "Checkout exact authorized head",
+    "Pin branch and pull request identity",
+    "Regenerate and prove idempotency",
+    "Commit and push governed Work Maps",
+    "Dispatch exact-head verification",
+    "WORK_MAP_AUTOFIX_V2",
+    "gh workflow run ci.yml",
+    "gh workflow run spec-kit-work-map-integration.yml",
+  ]) {
+    assert.ok(writerWorkflow.includes(marker), `Work Map writer missing ${marker}`);
+  }
   assert.ok(writerWorkflow.includes('test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${pr_count}" = "1"'));
   assert.ok(writerWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
-  assert.ok(writerWorkflow.includes("Regenerate and prove idempotency"));
-  assert.ok(writerWorkflow.includes("Commit and push governed Work Maps"));
-  assert.ok(writerWorkflow.includes("Dispatch exact-head verification"));
-  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));
-  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));
-  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));
   assert.ok(!writerWorkflow.includes("work-map-autofix:authorized"));
   assert.ok(!writerWorkflow.includes("gh api --method PATCH"));
   assert.ok(!writerWorkflow.includes("--force"));
