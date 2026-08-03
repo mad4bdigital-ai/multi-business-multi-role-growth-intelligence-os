@@ -49,10 +49,12 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
           node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
           import { appendFileSync, readFileSync } from 'node:fs';
           import { createHash } from 'node:crypto';
 
@@ -64,13 +66,46 @@ jobs:
             && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
             && contract.parallel_work?.no_partial_feature_merge === true;
           const isGovernedRollup = process.env.BASE_REF === 'main' && governedContract;
+          const directMainRelease = process.env.HEAD_REF === 'main';
+          const immutableReleaseMatch = /^release\/production-candidate-\d{8}-([0-9a-f]{8})-v[1-9][0-9]*$/u.exec(
+            process.env.HEAD_REF || '',
+          );
+          let immutableReleaseSourceInMain = false;
+          if (immutableReleaseMatch && process.env.HEAD_SHA?.startsWith(immutableReleaseMatch[1])) {
+            for (const mainRef of ['refs/remotes/origin/main', 'refs/heads/main']) {
+              try {
+                execFileSync('git', ['rev-parse', '--verify', mainRef], { stdio: 'ignore' });
+                execFileSync(
+                  'git',
+                  ['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef],
+                  { stdio: 'ignore' },
+                );
+                immutableReleaseSourceInMain = true;
+                break;
+              } catch {
+                // Fail closed and try the next canonical local ref.
+              }
+            }
+          }
+          const immutableMainSnapshot = Boolean(immutableReleaseMatch && immutableReleaseSourceInMain);
           const isGovernedRelease = process.env.BASE_REF === 'Production'
-            && process.env.HEAD_REF === 'main'
             && process.env.HEAD_REPOSITORY === process.env.REPOSITORY
-            && governedContract;
+            && governedContract
+            && (directMainRelease || immutableMainSnapshot);
           const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
+          const releaseIdentity = directMainRelease
+            ? 'protected_main'
+            : immutableMainSnapshot
+              ? 'immutable_main_snapshot'
+              : 'none';
+          const modeSource = immutableMainSnapshot
+            ? 'governed_phase_contract_and_git_ancestry'
+            : 'governed_phase_contract';
           const digest = createHash('sha256').update(raw).digest('hex');
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode_source=${modeSource}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `release_identity=${releaseIdentity}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `immutable_release_source_in_main=${immutableReleaseSourceInMain}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `phase_contract_digest=${digest}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `feature_key=${String(contract.feature_key || '')}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `delivery_mode=${String(contract.delivery_mode || '')}\n`);
@@ -139,6 +174,9 @@ jobs:
         env:
           MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}
           CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}
+          CANDIDATE_MODE_SOURCE: ${{ steps.candidate_mode.outputs.candidate_mode_source }}
+          RELEASE_IDENTITY: ${{ steps.candidate_mode.outputs.release_identity }}
+          IMMUTABLE_RELEASE_SOURCE_IN_MAIN: ${{ steps.candidate_mode.outputs.immutable_release_source_in_main }}
           PHASE_CONTRACT_DIGEST: ${{ steps.candidate_mode.outputs.phase_contract_digest }}
           CONTRACT_FEATURE_KEY: ${{ steps.candidate_mode.outputs.feature_key }}
           CONTRACT_DELIVERY_MODE: ${{ steps.candidate_mode.outputs.delivery_mode }}
@@ -189,7 +227,9 @@ jobs:
             'outcome': 'passed' if not failed else 'failed',
             'candidate_kind': 'head',
             'candidate_mode': candidate_mode,
-            'candidate_mode_source': 'governed_phase_contract',
+            'candidate_mode_source': os.environ.get('CANDIDATE_MODE_SOURCE') or 'unknown',
+            'release_identity': os.environ.get('RELEASE_IDENTITY') or 'none',
+            'immutable_release_source_in_main': os.environ.get('IMMUTABLE_RELEASE_SOURCE_IN_MAIN') == 'true',
             'governed_phase_contract': os.environ['PHASE_CONTRACT'],
             'governed_phase_contract_digest': os.environ.get('PHASE_CONTRACT_DIGEST') or None,
             'contract_feature_key': os.environ.get('CONTRACT_FEATURE_KEY') or None,
