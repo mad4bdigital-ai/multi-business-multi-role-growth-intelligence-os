@@ -93,10 +93,28 @@ jobs:
 
       - name: Run complete Unit and Integration suite with exact provenance
         working-directory: http-generic-api
+        shell: bash
         env:
-          GITHUB_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: npm test
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Verify exact test report provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in \
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
 
       - name: Prove runtime startup and deployment evidence
         working-directory: http-generic-api
@@ -142,7 +160,7 @@ jobs:
             --arg base_sha "${EXPECTED_MAIN_SHA}" \
             --arg head_sha "${EXPECTED_HEAD_SHA}" \
             --arg run_id "${GITHUB_RUN_ID}" \
-            '{contract:"mad4b.exact-ci-recovery-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            '{contract:"mad4b.exact-ci-recovery-arm-validation.v2",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,test_report_provenance_verified:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
             > "${RUNNER_TEMP}/exact-ci-recovery-arm-validation-summary.json"
 
       - name: Upload exact validation evidence
