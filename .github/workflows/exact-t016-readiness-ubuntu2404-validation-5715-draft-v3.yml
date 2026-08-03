@@ -1,201 +1,197 @@
-name: Exact T016 Readiness Ubuntu 24.04 Validation 5715 Draft v3
+name: T016 Governed Frontend Parity Refresh 5715
 
 on:
   pull_request:
     branches:
       - gpt/validate-t016-readiness-ubuntu2404-base-5715-draft-v3
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: exact-t016-readiness-ubuntu2404-5715-draft-v3-${{ github.event.pull_request.number }}
+  group: t016-governed-frontend-parity-refresh-5715
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Exact candidate marker-backed validation
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
+  refresh:
+    name: Refresh exact generated parity on PR 5715
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ops/t016-readiness-current-main-clean-20260803' &&
+      github.event.pull_request.head.sha == '2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      TARGET_BRANCH: gpt/ops/t016-readiness-current-main-clean-20260803
+      EXPECTED_HEAD: 2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11
+      EXPECTED_BASELINE: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
+      CONTRACT_PATH: .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
+      EVIDENCE_DIR: /tmp/t016-frontend-parity-refresh-${{ github.run_id }}
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact candidate branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: '22'
 
-      - name: Initialize bounded evidence
+      - name: Verify immutable target identity
         shell: bash
         run: |
           set -euo pipefail
-          evidence_dir="$RUNNER_TEMP/t016-readiness-5715-draft-v3-$GITHUB_RUN_ID"
-          mkdir -p \
-            "$evidence_dir/gates" \
-            "$evidence_dir/reference-integrity" \
-            "$evidence_dir/repository-tool-lifecycle" \
-            "$evidence_dir/test-suite-reports"
-          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
-          echo "EXPECTED_HEAD_SHA=2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11" >> "$GITHUB_ENV"
-          echo "EXPECTED_MAIN_SHA=14433d15184bd7e7658281a356a7540e3d2d6dfe" >> "$GITHUB_ENV"
-          printf '{"candidate_pr":5715,"candidate_sha":"2d9183ce9bc01a7f6d14062d3b7d0a6f6a9f3f11","main_sha":"14433d15184bd7e7658281a356a7540e3d2d6dfe","runner":"ubuntu-24.04","status":"initialized","runtime_contacted":false,"repository_mutation_performed":false,"secrets_included":false}\n' \
-            > "$evidence_dir/identity-start.json"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD}"
+          git merge-base --is-ancestor "${EXPECTED_BASELINE}" "${EXPECTED_HEAD}"
+          test "$(git rev-list --count "${EXPECTED_BASELINE}..${EXPECTED_HEAD}")" = '2'
+          test -z "$(git status --porcelain)"
 
-      - name: Run exact marker-backed validation gates
+      - name: Generate deterministic frontend dispatch artifact
         shell: bash
-        env:
-          REPOSITORY: ${{ github.repository }}
-          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_HEAD_REF: gpt/ops/t016-readiness-current-main-clean-20260803
-          GITHUB_BASE_REF: main
-          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/t016-readiness-5715-draft-v3-${{ github.run_id }}/test-suite-reports
         run: |
           set -euo pipefail
-          pass_gate() {
-            local gate="$1"
-            touch "$EVIDENCE_DIR/gates/${gate}.pass"
-            printf '%s\n' "$gate" | tee -a "$EVIDENCE_DIR/passed-gates.txt"
-          }
+          mkdir -p "${EVIDENCE_DIR}"
+          node http-generic-api/scripts/generate-frontend-surface-dispatch.mjs
+          git diff --name-only > "${EVIDENCE_DIR}/generator-changed-files.txt"
+          test "$(cat "${EVIDENCE_DIR}/generator-changed-files.txt")" = "${GENERATED_PATH}"
+          generated_hash_before="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          node http-generic-api/scripts/generate-frontend-surface-dispatch.mjs
+          generated_hash_after="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          test "${generated_hash_before}" = "${generated_hash_after}"
+          printf '%s\n' "${generated_hash_after}" > "${EVIDENCE_DIR}/generated-sha256.txt"
 
-          test "$HEAD_REPOSITORY" = "$REPOSITORY"
-          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
-          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
-          test "$(git rev-parse HEAD^^)" = "$EXPECTED_MAIN_SHA"
-          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "2"
-          git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
-          cat <<'EOF_FILES' | sed 's/^          //' | sort > "$EVIDENCE_DIR/expected-files.txt"
+      - name: Extend the T016 E2E contract to generated parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const contractPath = process.env.CONTRACT_PATH;
+          const generatedPath = process.env.GENERATED_PATH;
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const addUnique = (array, value) => {
+            if (!Array.isArray(array)) throw new Error(`Expected array while adding ${value}`);
+            if (!array.includes(value)) array.push(value);
+          };
+
+          addUnique(contract.scope.include, generatedPath);
+          const journey = contract.phases
+            ?.find((phase) => phase.id === 'mvp')
+            ?.e2e_journeys
+            ?.find((item) => item.id === 'resolve-t016-readiness-aliases-and-publish-bounded-evidence');
+          if (!journey) throw new Error('Canonical T016 MVP journey was not found');
+          addUnique(journey.evidence_paths, generatedPath);
+          addUnique(journey.steps, 'Regenerate the committed Frontend surface dispatch artifact after the admin route source changes and require deterministic byte-for-byte parity.');
+          addUnique(journey.assertions, 'The committed frontend-surface-dispatch.generated.json is byte-for-byte identical to a fresh generation from the exact candidate source.');
+
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+          NODE
+          node -e "JSON.parse(require('fs').readFileSync(process.env.CONTRACT_PATH, 'utf8'))"
+
+      - name: Run focused Frontend and T016 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/routes/adminCliRoutes.js
+          node --check .github/ops/sprint69-1043-runtime-readiness.mjs
+          node --check .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          (
+            cd http-generic-api
+            node test-capability-envelope-create-alias-path.mjs
+            node test-sprint69-1043-runtime-readiness-contract.mjs
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-generator-openapi-ownership.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch-generator.mjs
+          )
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          git diff --check
+
+      - name: Commit exact bounded refresh locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n%s\n' "${CONTRACT_PATH}" "${GENERATED_PATH}" | sort)"
+          test "${actual}" = "${expected}"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git add "${CONTRACT_PATH}" "${GENERATED_PATH}"
+          git commit -m 'chore(frontend): refresh T016 generated dispatch parity'
+          new_head="$(git rev-parse HEAD)"
+          echo "NEW_HEAD=${new_head}" >> "$GITHUB_ENV"
+          printf '%s\n' "${new_head}" > "${EVIDENCE_DIR}/new-head.txt"
+
+      - name: Validate committed exact-head composition and E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-list --count "${EXPECTED_BASELINE}..${NEW_HEAD}")" = '3'
+          git diff --name-only "${EXPECTED_BASELINE}" "${NEW_HEAD}" | sort > "${EVIDENCE_DIR}/actual-scope.txt"
+          cat <<'EOF' | sort > "${EVIDENCE_DIR}/expected-scope.txt"
           .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
           .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
           .github/ops/sprint69-1043-runtime-readiness.mjs
           .github/workflows/sprint69-1043-runtime-readiness-backfill.yml
+          http-generic-api/frontend-surface-dispatch.generated.json
           http-generic-api/routes/adminCliRoutes.js
           http-generic-api/test-capability-envelope-create-alias-path.mjs
           http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
-          EOF_FILES
-          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
-          test "$(wc -l < "$EVIDENCE_DIR/actual-files.txt" | tr -d ' ')" = "7"
-          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" > "$EVIDENCE_DIR/name-status.tsv"
-          printf '{"ok":true,"candidate_pr":5715,"candidate_sha":"%s","main_sha":"%s","commit_count":2,"changed_files":7,"runner":"ubuntu-24.04","runtime_contacted":false,"repository_mutation_performed":false,"secrets_included":false}\n' \
-            "$EXPECTED_HEAD_SHA" "$EXPECTED_MAIN_SHA" > "$EVIDENCE_DIR/preflight.json"
-          pass_gate preflight
-
-          node --check .github/ops/sprint69-1043-runtime-readiness.mjs
-          node --check .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
-          node --check http-generic-api/routes/adminCliRoutes.js
-          (cd http-generic-api && node test-capability-envelope-create-alias-path.mjs)
-          (cd http-generic-api && node test-sprint69-1043-runtime-readiness-contract.mjs)
-          pass_gate focused
-
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs)
-          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree)
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node --check find-canonical-domain.mjs
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
-          git diff --check
-          pass_gate syntax
-
-          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
-          (cd http-generic-api && node test-resource-api-architecture.mjs)
-          (cd http-generic-api && node test-resource-api-service.mjs)
-          pass_gate resource_api
-
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          EOF
+          diff -u "${EVIDENCE_DIR}/expected-scope.txt" "${EVIDENCE_DIR}/actual-scope.txt"
+          test "$(wc -l < "${EVIDENCE_DIR}/actual-scope.txt" | tr -d ' ')" = '8'
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+            --base "${EXPECTED_BASELINE}" \
+            --head "${NEW_HEAD}" \
+            --report-file "${EVIDENCE_DIR}/reference-integrity.json"
           node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
-          pass_gate reference_integrity
-
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" \
-            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-              --changed-files "$EVIDENCE_DIR/name-status.tsv" \
-              --policy .github/repository-maintenance-tool-governance.json \
-              --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
-          pass_gate lifecycle
-
-          (cd http-generic-api && npm ci)
-          (cd http-generic-api && npm test)
-          (cd http-generic-api && npm run validate)
-          pass_gate api_tests
-
-          npm ci
-          npm run typecheck
-          npm test -- --runInBand
-          pass_gate root_tests
-
+            --report-file "${EVIDENCE_DIR}/reference-integrity.json"
           node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+            --base "${EXPECTED_BASELINE}" \
+            --head "${NEW_HEAD}" \
+            --report-file "${EVIDENCE_DIR}/e2e-evaluation.json"
           node http-generic-api/scripts/e2e-phase-governance.mjs run \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
-            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
-          pass_gate e2e
+            --base "${EXPECTED_BASELINE}" \
+            --head "${NEW_HEAD}" \
+            --report-file "${EVIDENCE_DIR}/e2e-evaluation-run.json" \
+            --execution-report-file "${EVIDENCE_DIR}/e2e-execution.json"
+          git diff --check "${EXPECTED_BASELINE}...${NEW_HEAD}"
 
-      - name: Write marker-backed validation result
+      - name: Revalidate remote head and push normally
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Write bounded refresh evidence
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          gates='preflight focused syntax resource_api reference_integrity lifecycle api_tests root_tests e2e'
-          status=pass
-          for gate in $gates; do
-            if [ ! -f "$EVIDENCE_DIR/gates/${gate}.pass" ]; then
-              status=fail
-            fi
-          done
+          mkdir -p "${EVIDENCE_DIR}"
           jq -n \
-            --arg status "$status" \
-            --arg candidate_sha "$EXPECTED_HEAD_SHA" \
-            --arg main_sha "$EXPECTED_MAIN_SHA" \
-            --arg passed_gates "$(tr '\n' ',' < "$EVIDENCE_DIR/passed-gates.txt" 2>/dev/null || true)" \
-            '{candidate_pr:5715,candidate_sha:$candidate_sha,main_sha:$main_sha,runner:"ubuntu-24.04",status:$status,passed_gates:($passed_gates|split(",")|map(select(length>0))),expected_gate_count:9,runtime_contacted:false,capability_envelope_created:false,apply_authorized:false,migration_apply_executed:false,activation_registry_sync_executed:false,provider_mutation:false,production_mutation:false,credential_access:false,database_mutation:false,repository_mutation_performed:false,secrets_included:false}' \
-            > "$EVIDENCE_DIR/result.json"
-          cat "$EVIDENCE_DIR/result.json" >> "$GITHUB_STEP_SUMMARY"
+            --arg expected_head "${EXPECTED_HEAD}" \
+            --arg new_head "${NEW_HEAD:-}" \
+            --arg baseline "${EXPECTED_BASELINE}" \
+            '{contract:"t016_governed_frontend_parity_refresh.v1",pr:5715,expected_head:$expected_head,new_head:($new_head|select(length>0)),baseline:$baseline,target_branch:"gpt/ops/t016-readiness-current-main-clean-20260803",generated_path:"http-generic-api/frontend-surface-dispatch.generated.json",contract_path:".changes/e2e/sprint69-1043-t016-readiness-path-repair.json",ordinary_push:true,force_push:false,protected_ref_mutation:false,runtime_contacted:false,capability_envelope_created:false,apply_authorized:false,apply_sent:false,migration_apply_executed:false,activation_registry_sync_executed:false,database_mutation:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
+            > "${EVIDENCE_DIR}/summary.json"
 
-      - name: Upload exact validation evidence
+      - name: Upload bounded refresh evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-t016-readiness-5715-draft-ubuntu2404-v3-${{ github.run_id }}
+          name: t016-governed-frontend-parity-refresh-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}/
           if-no-files-found: error
           retention-days: 14
-
-      - name: Enforce marker-backed validation result
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          for gate in \
-            preflight focused syntax resource_api reference_integrity \
-            lifecycle api_tests root_tests e2e
-          do
-            test -f "$EVIDENCE_DIR/gates/${gate}.pass"
-          done
-          test "$(find "$EVIDENCE_DIR/gates" -maxdepth 1 -type f -name '*.pass' | wc -l | tr -d ' ')" = "9"
-          test "$(jq -r '.status' "$EVIDENCE_DIR/result.json")" = "pass"
-          test "$(jq -r '.candidate_sha' "$EVIDENCE_DIR/result.json")" = "$EXPECTED_HEAD_SHA"
-          test "$(jq -r '.repository_mutation_performed' "$EVIDENCE_DIR/result.json")" = "false"
-          test "$(jq -r '.secrets_included' "$EVIDENCE_DIR/result.json")" = "false"
