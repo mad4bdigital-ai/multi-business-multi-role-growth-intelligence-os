@@ -60,6 +60,7 @@ jobs:
           production_sha="$(git rev-parse refs/remotes/origin/Production)"
           checked_out_sha="$(git rev-parse HEAD)"
           current_main_sha="$(git rev-parse refs/remotes/origin/main)"
+          merge_base_sha="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"
 
           [[ "$checked_out_sha" == "$EXPECTED_PRODUCTION_SHA" ]] || {
             echo "::error::checked-out Production SHA mismatch: $checked_out_sha"
@@ -70,7 +71,7 @@ jobs:
             exit 1
           }
 
-          mapfile -t changed_files < <(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" | sort)
+          mapfile -t changed_files < <(git diff --name-only "$merge_base_sha" "$PR_HEAD_SHA" | sort)
           expected_files=(
             "$PROGRAM_PATH"
             "$WORKFLOW_PATH"
@@ -108,6 +109,7 @@ jobs:
           echo "current_main_sha=$current_main_sha" >> "$GITHUB_OUTPUT"
           echo "pr_base_sha=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
           echo "pr_head_sha=$PR_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "merge_base_sha=$merge_base_sha" >> "$GITHUB_OUTPUT"
           echo "migration_blob=$migration_blob" >> "$GITHUB_OUTPUT"
           echo "program_blob=$program_blob" >> "$GITHUB_OUTPUT"
 
@@ -160,6 +162,7 @@ jobs:
           CURRENT_MAIN_SHA: ${{ steps.contract.outputs.current_main_sha }}
           PR_BASE_SHA: ${{ steps.contract.outputs.pr_base_sha }}
           PR_HEAD_SHA: ${{ steps.contract.outputs.pr_head_sha }}
+          MERGE_BASE_SHA: ${{ steps.contract.outputs.merge_base_sha }}
           PRODUCTION_SHA: ${{ steps.contract.outputs.production_sha }}
           MIGRATION_BLOB: ${{ steps.contract.outputs.migration_blob }}
           PROGRAM_BLOB: ${{ steps.contract.outputs.program_blob }}
@@ -174,6 +177,7 @@ jobs:
             "current_main_sha_at_start": "$CURRENT_MAIN_SHA",
             "pull_request_base_sha": "$PR_BASE_SHA",
             "pull_request_head_sha": "$PR_HEAD_SHA",
+            "pull_request_merge_base_sha": "$MERGE_BASE_SHA",
             "production_sha": "$PRODUCTION_SHA",
             "production_sha_at_end": "${final_production_sha:-unknown}",
             "migration_blob_sha": "$MIGRATION_BLOB",
