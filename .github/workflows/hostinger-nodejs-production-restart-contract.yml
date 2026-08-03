@@ -81,8 +81,11 @@ jobs:
           const productionWorkflow = fs.readFileSync('../.github/workflows/hostinger-nodejs-production-restart.yml', 'utf8');
           assert.match(productionWorkflow, /Object\.hasOwn\(fields, key\)/u);
           assert.match(productionWorkflow, /marker_parser=strict_single_line_exact_fields_v1/u);
+          assert.match(productionWorkflow, /authority\.direct_field_consensus_required === true/u);
+          assert.match(productionWorkflow, /authority\.conflicting_direct_fields_allowed === false/u);
+          assert.match(productionWorkflow, /authority\.invalid_direct_fields_allowed === false/u);
           assert.doesNotMatch(productionWorkflow, /body\.includes\(['"]status=/u);
-          console.log('strict trusted-marker parser tests: passed');
+          console.log('strict trusted-marker and runtime-authority contract tests: passed');
           NODE
 
       - name: Reject conflicting direct runtime identity fields
@@ -153,5 +156,8 @@ jobs:
           assert.equal(posts, 1, 'conflicting identity must not skip the authorized restart path');
           assert.equal(report.outcome, 'failed');
           assert.equal(report.classification, 'restart_completed_runtime_stale');
+          assert.equal(report.runtime_identity_authority.direct_field_consensus_required, true);
+          assert.equal(report.runtime_identity_authority.conflicting_direct_fields_allowed, false);
+          assert.equal(report.runtime_identity_authority.invalid_direct_fields_allowed, false);
           console.log('conflicting direct runtime identity test: passed');
           NODE
