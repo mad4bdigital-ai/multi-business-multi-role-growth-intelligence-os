@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "critical-runner-label-allocation-mitigation",
+  "title": "Pin affected critical workflows and retire pull-request write paths",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/e2e-phase-governance.yml",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      ".github/workflows/ci-pull-request-recovery.yml",
+      ".github/workflows/supervisor-runtime-assurance.yml",
+      ".github/workflows/http-generic-api-fanout-relocation.yml",
+      ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+      ".changes/e2e/critical-runner-label-allocation-mitigation.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Use the empirically available Ubuntu 24.04 hosted runner and retire embedded repository-write behavior from pull-request workflows.",
+      "e2e_journeys": [
+        {
+          "id": "allocate-critical-hosted-workflow-jobs-with-read-only-pr-governance",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions hosted workflow scheduler and repository lifecycle guard",
+          "entrypoint": "A pull request changes one of the nine affected critical workflows.",
+          "terminal_outcome": "The nine allowlisted jobs request ubuntu-24.04 and the three affected pull-request workflows are read-only.",
+          "steps": [
+            "Pin each allowlisted workflow from ubuntu-latest to ubuntu-24.04.",
+            "Remove Work Map dispatch and PR-body mutation from E2E reference integrity.",
+            "Remove Fanout apply and git push from the pull-request workflow while retaining report and tests.",
+            "Remove Supervisor issue reconciliation from the pull-request workflow while retaining assurance evidence.",
+            "Execute runner-label and read-only pull-request regression checks."
+          ],
+          "assertions": [
+            "Exactly nine empirically affected workflows are pinned.",
+            "No allowlisted workflow requests ubuntu-latest.",
+            "Pull-request E2E integrity, Fanout report, and Supervisor assurance workflows contain no write permission or repository mutation command.",
+            "No replacement Work Map publisher, branch writer, issue writer, or other mutation authority is added by this patch.",
+            "Any future restoration of write-side automation requires a separately reviewed governed tool and explicit authorization.",
+            "No Production, provider, credential, SQL, Migration Apply, database, force-push, Work Map publication, or external runtime mutation is authorized.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "critical-runner-label-and-pr-write-retirement",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-critical-runner-label-pinning.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+            ".changes/e2e/critical-runner-label-allocation-mitigation.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Confirm exact-head Draft and Ready jobs obtain first-step timestamps and terminal results."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prevent reintroduction of ubuntu-latest or PR write authority into the governed allowlist."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Compare hosted allocation evidence after merge without provider or Production actions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Retain repository CI availability while preserving runtime safety boundaries."
+    }
+  ],
+  "secrets_included": false
+}
