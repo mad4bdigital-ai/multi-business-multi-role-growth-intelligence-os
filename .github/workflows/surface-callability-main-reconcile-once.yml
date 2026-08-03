@@ -32,14 +32,14 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Apply verified product commit with bounded conflict resolution
+      - name: Apply full verified PR delta with bounded conflict resolution
         shell: bash
         run: |
           set -o pipefail
           {
-            git fetch origin gpt/surface-callability-wave1-clean-20260731
+            git fetch origin gpt/integrated-platform-governance-wave-20260731
             set +e
-            git cherry-pick --no-commit 2300ddefb99f04af42e5215f7584507e0935d850
+            git cherry-pick -m 1 --no-commit 3850d80ae6cd4d151337b2cfaf47e4f0e07b41ac
             rc=$?
             set -e
             if [[ $rc -ne 0 ]]; then
