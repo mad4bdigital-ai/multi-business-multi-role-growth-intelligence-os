@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-arm-bridge-5983-v2"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-arm-bridge-5983"
 
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
           test "$(jq -r '.state' <<<"${pr}")" = 'open'
