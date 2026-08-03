@@ -5,6 +5,7 @@ const workflow = readFileSync('../.github/workflows/sprint69-1006-governed-rollo
 const program = readFileSync('../.github/ops/sprint69-1006-governed-rollout.mjs', 'utf8');
 const validator = readFileSync('../.github/ops/validate-sprint69-1006-readiness-trigger.mjs', 'utf8');
 const trigger = JSON.parse(readFileSync('../.github/ops/triggers/sprint69-1006-readiness-trigger.json', 'utf8'));
+const readinessJob = (workflow.split('\n  readiness:')[1] || '').split('\n  apply:')[0] || '';
 const applyJob = workflow.split('\n  apply:')[1] || '';
 
 assert.match(workflow, /issue_comment:/);
@@ -39,6 +40,15 @@ assert.doesNotMatch(workflow, /\bgh\s+api\b/);
 assert.doesNotMatch(workflow, /EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/);
 assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/sprint69-1006-readiness/);
 assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/sprint69-1006-apply/);
+assert.match(readinessJob, /Checkout exact manual-dispatch SHA/);
+assert.ok(readinessJob.includes("if: github.event_name == 'workflow_dispatch'"));
+assert.ok(readinessJob.includes('ref: ${{ github.sha }}'));
+assert.match(readinessJob, /Verify exact manual-dispatch checkout/);
+assert.match(readinessJob, /git rev-parse HEAD/);
+assert.match(readinessJob, /GITHUB_SHA/);
+assert.match(readinessJob, /Checkout trusted default branch/);
+assert.ok(readinessJob.includes("if: github.event_name != 'workflow_dispatch'"));
+assert.match(readinessJob, /ref: main/);
 assert.doesNotMatch(applyJob, /workflow_dispatch/, 'manual dispatch must never authorize the Apply job');
 
 assert.equal(trigger.schema_version, 1);
