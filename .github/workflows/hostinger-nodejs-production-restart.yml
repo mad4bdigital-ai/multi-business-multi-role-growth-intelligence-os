@@ -1,0 +1,296 @@
+name: Hostinger Production Node.js Restart
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA authorized for this restart
+        required: true
+        type: string
+      expected_build_uuid:
+        description: Exact completed Hostinger build UUID authorized for restart
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-nodejs-restart-f5c1ae88
+  cancel-in-progress: false
+
+jobs:
+  restart:
+    name: Restart authorized Production Node.js runtime
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.number == 4953 &&
+       github.event.comment.user.id == 271942579 &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_NODEJS_RESTART_F5C1AE88 '))
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      AUTHORIZATION_USER_ID: '271942579'
+      EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
+      EXPECTED_BUILD_UUID: 019fc51c-3947-7255-aa4d-f55cb8df7658
+      PRODUCTION_MERGED_AT: '2026-08-03T00:53:07Z'
+      ACCOUNT_USERNAME: u338416126
+      DOMAIN: auth.mad4b.com
+      TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_NODEJS_RESTART_F5C1AE88
+      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:019fc51c-3947-7255-aa4d-f55cb8df7658
+      MUTATION_TARGET_BRANCH: issue-metadata-and-hostinger-runtime-only
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body || '' }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
+      INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+      INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
+    steps:
+      - name: Resolve explicit authorization binding
+        id: authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${MUTATION_TARGET_BRANCH}" == "main" || "${MUTATION_TARGET_BRANCH}" == "Production" ]]; then
+            echo "Repository branch mutation is forbidden." >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+            if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_head_sha=([a-f0-9]{40})[[:space:]]expected_build_uuid=([0-9a-f-]{36})$ ]]; then
+              echo "Invalid governed restart trigger format." >&2
+              exit 1
+            fi
+            expected_head_sha="${BASH_REMATCH[1]}"
+            expected_build_uuid="${BASH_REMATCH[2]}"
+          else
+            expected_head_sha="${INPUT_EXPECTED_HEAD_SHA}"
+            expected_build_uuid="${INPUT_EXPECTED_BUILD_UUID}"
+            [[ "${expected_head_sha}" =~ ^[a-f0-9]{40}$ ]]
+            [[ "${expected_build_uuid}" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+          fi
+
+          test "${expected_build_uuid}" = "${EXPECTED_BUILD_UUID}"
+          echo "expected_head_sha=${expected_head_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify immutable repository and incident state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+
+          gh api --paginate --slurp "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" > "${RUNNER_TEMP}/restart-comments.json"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const pages = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/restart-comments.json`, 'utf8'));
+          const comments = pages.flat().filter((comment) => typeof comment?.body === 'string');
+          const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
+          const binding = `binding=${process.env.BINDING_ID}`;
+          const relevant = comments
+            .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
+            .sort((left, right) => Number(left.id) - Number(right.id));
+
+          const consumed = relevant.some((comment) =>
+            comment.body.includes('status=completed') ||
+            comment.body.includes('restart_attempted=true') ||
+            comment.body.includes('restart_performed=true'));
+          if (consumed) {
+            console.error('Exact Hostinger restart binding is already consumed.');
+            process.exit(1);
+          }
+
+          const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
+          const lastRetryableRelease = relevant.filter((comment) =>
+            comment.body.includes('status=failed') &&
+            comment.body.includes('restart_attempted=false') &&
+            comment.body.includes('retryable_without_provider_mutation=true')).at(-1);
+          if (lastClaim && (!lastRetryableRelease || Number(lastRetryableRelease.id) < Number(lastClaim.id))) {
+            console.error('An unresolved Hostinger restart claim already exists.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Claim exact restart binding before execution
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          claim="HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=${BINDING_ID} expected_head_sha=${EXPECTED_HEAD_SHA} restart_attempted=false restart_performed=false provider_mutation_attempted=false retryable_without_provider_mutation=false run_id=${GITHUB_RUN_ID} provider_method=POST build_created=false deployment=false sql=false migration_apply=false protected_ref_mutation=false secrets_included=false issue_remains_open=true"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${claim}" >/dev/null
+          echo "claimed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.authorization.outputs.expected_head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate restart implementation contract
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-production-restart.mjs
+
+      - name: Execute one governed Hostinger Node.js restart
+        id: restart
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_ACCOUNT_USERNAME: ${{ env.ACCOUNT_USERNAME }}
+          HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
+          EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
+          EXPECTED_HOSTINGER_BUILD_UUID: ${{ env.EXPECTED_BUILD_UUID }}
+          PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
+          HOSTINGER_RESTART_POLL_ATTEMPTS: '12'
+          HOSTINGER_RESTART_POLL_INTERVAL_MS: '10000'
+          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
+        run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
+
+      - name: Upload structured restart evidence
+        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-nodejs-production-restart-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-nodejs-production-restart/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish bounded restart marker
+        if: always() && steps.claim.outputs.claimed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$(node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const reportPath = process.env.REPORT_PATH;
+          const fallback = {
+            outcome: 'failed',
+            classification: 'restart_report_missing',
+            restart: { attempted: false, performed: false },
+            side_effects: { provider_mutation_attempted: false },
+            first_failure: { code: 'restart_report_missing' },
+            post_runtime: null,
+            runtime_identity_authority: null,
+            secrets_included: false,
+          };
+          const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : fallback;
+          const restartAttempted = report.restart?.attempted === true;
+          const retryableWithoutProviderMutation = report.outcome !== 'passed' && !restartAttempted;
+          const fields = [
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART',
+            `status=${report.outcome === 'passed' ? 'completed' : 'failed'}`,
+            `binding=${process.env.BINDING_ID}`,
+            `expected_head_sha=${process.env.EXPECTED_HEAD_SHA || 'missing'}`,
+            `classification=${report.classification || 'unknown'}`,
+            `restart_attempted=${restartAttempted}`,
+            `restart_performed=${report.restart?.performed === true}`,
+            `provider_mutation_attempted=${report.side_effects?.provider_mutation_attempted === true}`,
+            `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
+            `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
+            `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
+            `identity_scope=${report.runtime_identity_authority?.schema_scope || 'missing'}`,
+            `cross_endpoint_composition=${report.runtime_identity_authority?.cross_endpoint_composition_allowed === true}`,
+            `cross_object_composition=${report.runtime_identity_authority?.cross_object_composition_allowed === true}`,
+            `first_failure=${report.first_failure?.code || 'none'}`,
+            `run_id=${process.env.GITHUB_RUN_ID}`,
+            'provider_method=POST',
+            'build_created=false',
+            'deployment=false',
+            'sql=false',
+            'migration_apply=false',
+            'protected_ref_mutation=false',
+            'secrets_included=false',
+            'issue_remains_open=true',
+          ];
+          process.stdout.write(fields.join(' '));
+          NODE
+          )"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${marker}" >/dev/null
+
+      - name: Enforce exact post-restart Production parity
+        if: always() && steps.claim.outputs.claimed == 'true'
+        env:
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            const effects = report.side_effects || {};
+            const authority = report.runtime_identity_authority || {};
+            const attempted = report.restart?.attempted === true;
+            const performed = report.restart?.performed === true;
+            const valid =
+              report.contract === "mad4b.hostinger-nodejs-production-restart.v1" &&
+              report.identity?.expected_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
+              report.identity?.expected_branch === "Production" &&
+              report.identity?.expected_build_uuid === "019fc51c-3947-7255-aa4d-f55cb8df7658" &&
+              authority.contract === "mad4b.hostinger-runtime-identity-authority.v1" &&
+              authority.authoritative_endpoint === "/deployment-info" &&
+              authority.schema_scope === "top_level_direct_identity_fields" &&
+              authority.cross_endpoint_composition_allowed === false &&
+              authority.cross_object_composition_allowed === false &&
+              authority.version_endpoint_authoritative === false &&
+              authority.mode === "deployment_info_coherent_pair" &&
+              effects.provider_mutation_attempted === attempted &&
+              (!performed || attempted) &&
+              report.secrets_included === false &&
+              effects.repository_mutation_performed === false &&
+              effects.protected_ref_mutation_performed === false &&
+              effects.build_creation_performed === false &&
+              effects.deployment_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.database_mutation_performed === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "unknown",
+                classification: report.classification || "invalid_report",
+                restart_attempted: attempted,
+                restart_performed: performed,
+                runtime_identity_authority: authority.mode || "missing",
+                runtime_identity_scope: authority.schema_scope || "missing",
+                first_failure: report.first_failure || null,
+                consult_job_logs: false,
+                secrets_included: false,
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              classification: report.classification,
+              restart_attempted: attempted,
+              restart_performed: performed,
+              runtime_current: report.post_runtime?.current === true || report.pre_runtime?.current === true,
+              runtime_identity_authority: authority.mode,
+              runtime_identity_scope: authority.schema_scope,
+              secrets_included: false,
+            }));
+          '

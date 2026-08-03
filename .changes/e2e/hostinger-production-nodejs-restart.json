@@ -1,0 +1,112 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-nodejs-restart",
+  "title": "Governed restart for completed but inactive Hostinger Production build",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-nodejs-restart.json",
+      ".github/workflows/hostinger-nodejs-production-restart.yml",
+      ".github/workflows/hostinger-nodejs-production-restart-contract.yml",
+      "http-generic-api/scripts/hostinger-nodejs-production-restart.mjs",
+      "http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs",
+      "http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, creates a durable run-bound claim before execution, performs only the official server restart operation, preserves retryability before any provider request, consumes ambiguous provider attempts, and requires a coherent top-level Production branch and SHA pair from deployment-info afterward.",
+      "e2e_journeys": [
+        {
+          "id": "restart-completed-production-build-and-prove-runtime-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and trusted default-branch GitHub Actions runner",
+          "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
+          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, duplicate-execution, claim ownership, or coherent runtime identity bindings differ. A failure before the Hostinger POST remains retryable only when the same run that created the claim publishes a final non-mutating release marker. Once the provider POST is attempted, the binding is consumed even when its response is lost or ambiguous. A confirmed restart passes only when deployment-info reports Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through direct top-level identity fields in the same response.",
+          "steps": [
+            "Receive owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
+            "Resolve and validate the explicitly supplied full expected_head_sha and expected_build_uuid before any write.",
+            "Reject main and Production as repository mutation targets; only issue metadata and the existing Hostinger runtime process are eligible for mutation.",
+            "Verify current main equals the explicitly supplied full SHA and protected Production remains f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+            "Read every paginated Incident #4953 marker for the binding and reject completed, provider-attempted, provider-performed, or unresolved claiming states.",
+            "Allow a new run after a prior claim only when a later final marker proves restart_attempted=false and retryable_without_provider_mutation=true.",
+            "Create a status=claiming marker bound to the current run and expose claimed=true only after GitHub accepts that marker.",
+            "Gate artifact upload, the final release or consuming marker, and final parity enforcement on steps.claim.outputs.claimed=true so another run cannot release an older unresolved claim.",
+            "Fetch Hostinger build history and require the latest build after the Production merge to be completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
+            "Read health, version, and deployment-info before mutation and skip restart only if deployment-info itself contains the exact Production branch and SHA pair in its direct top-level identity fields.",
+            "Set restart_attempted and provider_mutation_attempted immediately before calling POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
+            "If the POST response is lost, times out, or fails at transport after dispatch, classify the result as restart_attempted_outcome_unconfirmed and prohibit automatic retry for the same binding.",
+            "Poll bounded public runtime endpoints after a confirmed response and require the exact Production SHA and branch pair from deployment-info without composing identity across endpoints or nested objects.",
+            "Upload structured secret-free evidence and publish a bounded issue marker containing the authorized main head, claim ownership, attempted/performed states, identity scope, composition restrictions, and retryability state while keeping the incident open."
+          ],
+          "assertions": [
+            "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target trigger.",
+            "workflow_dispatch requires exact expected_head_sha and expected_build_uuid inputs.",
+            "Only the repository owner workflow dispatch or authorized owner Issue #4953 trigger can enter the restart job.",
+            "The workflow grants contents:read and issues:write only; it cannot mutate repository contents or protected refs.",
+            "The workflow explicitly rejects main and Production as repository branch mutation targets.",
+            "Comment history is read with paginated slurp semantics before a claim is created.",
+            "An unresolved claim blocks every later run and cannot be released by a run that did not create its own claim.",
+            "A failed run with restart_attempted=false is retryable only when its own claimed=true step permits the final release marker.",
+            "status=completed, restart_attempted=true, or restart_performed=true consumes the exact-once binding.",
+            "An ambiguous POST transport result cannot be classified as a precondition failure or marked retryable.",
+            "Every final marker records expected_head_sha, restart_attempted, restart_performed, provider_mutation_attempted, retryable_without_provider_mutation, identity_scope, cross_endpoint_composition, and cross_object_composition for auditability.",
+            "The implementation rejects any newer or different Hostinger build and any non-completed authorized build before POST.",
+            "The only Hostinger provider mutation is the official Node.js server restart endpoint.",
+            "Version observations may not supply a missing SHA or branch to deployment-info; cross-endpoint identity composition is forbidden.",
+            "Nested deployment manifests, historical objects, or unrelated response objects may not supply a missing SHA or branch; cross-object identity composition is forbidden.",
+            "Success requires deployment-info to expose Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through accepted direct top-level identity fields in the same response.",
+            "The enforcement step requires schema_scope=top_level_direct_identity_fields, both composition flags false, and provider_mutation_attempted to equal restart_attempted.",
+            "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, or mutates a database.",
+            "The Hostinger token is never returned and all artifacts declare secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-nodejs-restart-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-production-restart.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-production-restart.yml",
+            ".github/workflows/hostinger-nodejs-production-restart-contract.yml",
+            "http-generic-api/scripts/hostinger-nodejs-production-restart.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Execute one authorized restart against the exact completed build and attach the run-bound evidence to Incident #4953."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider rejection, ambiguous POST transport outcome, retry after a non-mutating claimed failure, unresolved prior claim, attempted release by a different run, split endpoint identity, cross-object deployment identity, and post-restart stale runtime cases while remaining fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The operation is a bounded restart of the existing production server process and does not create a separate canary deployment."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Record exact coherent top-level runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
+    }
+  ],
+  "secrets_included": false
+}
