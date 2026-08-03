@@ -202,6 +202,11 @@ function testWorkflowContract() {
   assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
   assert.match(coherentWrapper, /cross_object_composition_allowed:\s*false/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
+  assert.match(workflow, /authority\.schema_scope === "top_level_direct_identity_fields"/u);
+  assert.match(workflow, /authority\.cross_endpoint_composition_allowed === false/u);
+  assert.match(workflow, /authority\.cross_object_composition_allowed === false/u);
+  assert.match(workflow, /identity_scope=\$\{report\.runtime_identity_authority\?\.schema_scope/u);
+  assert.match(workflow, /cross_object_composition=\$\{report\.runtime_identity_authority\?\.cross_object_composition_allowed === true/u);
   assert.match(workflow, /HOSTINGER_API_TOKEN/u);
   assert.match(workflow, /issues: write/u);
   assert.doesNotMatch(workflow, /contents: write/u);
