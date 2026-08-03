@@ -62,46 +62,46 @@
 
 ## Phase 5 — Validation Lab and Structured CI
 
-- [ ] T180 Add disposable MariaDB-compatible validation environment.
-- [ ] T181 Record engine, SQL mode, collation, constraints, indexes, schema diff, and rollback assessment.
-- [ ] T182 Block migration apply authorization without engine validation.
-- [ ] T183 Add structured CI failure artifact schema and reporter.
-- [ ] T184 Add contract drift gate.
-- [ ] T185 Add state-machine model gate.
-- [ ] T186 Add idempotency replay and unknown-outcome gates.
-- [ ] T187 Add delegation-boundary and policy-drift gates.
-- [ ] T188 Add semantic JSON, YAML, OpenAPI, and completion mutation gates.
-- [ ] T189 Fail CI checks that do not emit structured diagnosis.
+- [x] T180 Add disposable MariaDB-compatible validation environment.
+- [x] T181 Record engine, SQL mode, collation, constraints, indexes, schema diff, and rollback assessment.
+- [x] T182 Block migration apply authorization without engine validation.
+- [x] T183 Add structured CI failure artifact schema and reporter.
+- [x] T184 Add contract drift gate.
+- [x] T185 Add state-machine model gate.
+- [x] T186 Add idempotency replay and unknown-outcome gates.
+- [x] T187 Add delegation-boundary and policy-drift gates.
+- [x] T188 Add semantic JSON, YAML, OpenAPI, and completion mutation gates.
+- [x] T189 Fail CI checks that do not emit structured diagnosis.
 
 ## Phase 6 — Managed PR and Release Lifecycle
 
-- [ ] T200 Add managed delivery operation on top of the durable kernel.
-- [ ] T201 Add semantic patch intent and stable anchors.
-- [ ] T202 Add automatic base synchronization and stale-run cancellation.
-- [ ] T203 Add bounded delegated repair for allowlisted low-risk CI failures.
-- [ ] T204 Bind merge approval to final head and base SHA.
-- [ ] T205 Add merge, branch-delete, deployment receipt, and production readback.
-- [ ] T206 Prove no force push and protected-branch bypass.
+- [x] T200 Add managed delivery operation on top of the durable kernel.
+- [x] T201 Add semantic patch intent and stable anchors.
+- [x] T202 Add automatic base synchronization and stale-run cancellation.
+- [x] T203 Add bounded delegated repair for allowlisted low-risk CI failures.
+- [x] T204 Bind merge approval to final head and base SHA.
+- [x] T205 Add merge, branch-delete, deployment receipt, and production readback.
+- [x] T206 Prove no force push and protected-branch bypass.
 
 ## Phase 7 — Evidence Auto-Closeout
 
-- [ ] T220 Add authoritative evidence collector.
-- [ ] T221 Add schemas for manifest, completion, checklist, tasks, and delivery-state updates.
-- [ ] T222 Generate closeout changes with semantic mutations.
-- [ ] T223 Validate generated evidence before commit and in CI.
-- [ ] T224 Create closeout PR through governed repository automation.
+- [x] T220 Add authoritative evidence collector.
+- [x] T221 Add schemas for manifest, completion, checklist, tasks, and delivery-state updates.
+- [x] T222 Generate closeout changes with semantic mutations.
+- [x] T223 Validate generated evidence before commit and in CI.
+- [x] T224 Create closeout PR through governed repository automation.
 
 ## Phase 8 — Goal-Filtered Operational Intelligence
 
-- [ ] T240 Add goal-to-operation correlation.
-- [ ] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
-- [ ] T242 Add summary-first bounded goal projection.
-- [ ] T243 Preserve full diagnostic detail through governed references.
+- [x] T240 Add goal-to-operation correlation.
+- [x] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
+- [x] T242 Add summary-first bounded goal projection.
+- [x] T243 Preserve full diagnostic detail through governed references.
 
 ## Completion governance
 
-- [ ] T260 Record every implementation PR and merge SHA.
+- [x] T260 Record every implementation PR and merge SHA.
 - [ ] T261 Record migrations, checksums, authorization, and ledger evidence.
-- [ ] T262 Record delegation and fault-injection certification evidence.
+- [x] T262 Record delegation and fault-injection certification evidence.
 - [ ] T263 Record CI, staging, and production parity for every rollout phase.
 - [ ] T264 Complete post-merge audit and closeout PR.

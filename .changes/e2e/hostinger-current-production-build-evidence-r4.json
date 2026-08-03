@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-current-production-build-evidence-r4",
+  "title": "Governed current Production Hostinger build evidence R4",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-current-production-build-evidence-r4.json",
+      ".github/workflows/hostinger-current-production-build-evidence-r4.yml",
+      "http-generic-api/scripts/test-hostinger-current-production-build-evidence-r4.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Collect one authenticated GET-only Hostinger build-history packet for the current protected Production rebuild through an explicitly dispatched, exact-head guarded workflow without performing any provider mutation.",
+      "e2e_journeys": [
+        {
+          "id": "collect-current-production-build-history-r4",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and GitHub Actions",
+          "entrypoint": "A repository-owner workflow dispatch or one exact governed Issue 4953 trigger comment carrying expected_head_sha",
+          "terminal_outcome": "A secret-free artifact and bounded Incident 4953 comment identify whether Hostinger created a build after the 2026-08-03T06:16:38Z Production rebuild and report its UUID, state, source SHA evidence, and first failure without changing Hostinger.",
+          "steps": [
+            "Resolve an explicit expected_head_sha from workflow_dispatch input or the exact Issue 4953 trigger token.",
+            "Reject main and Production as repository mutation targets before any write.",
+            "Check out the exact authorized main head and prove remote main still equals expected_head_sha.",
+            "Verify authorization comment 5164305233, protected Production 5e5178bb, and canonical reporter blobs.",
+            "Reject prior claiming or completed use of the same immutable binding.",
+            "Record a bounded issue-only claim before accessing provider credentials.",
+            "Run the canonical reporter regression without provider credentials.",
+            "Perform authenticated GET-only Hostinger build-list inspection for auth.mad4b.com after the Production rebuild timestamp.",
+            "Scrub the exact provider token from every persisted JSON and Markdown file.",
+            "Upload the diagnostic packet and publish a bounded classification to Incident 4953."
+          ],
+          "assertions": [
+            "The workflow declares workflow_dispatch and verifies an explicit expected_head_sha before any repository write.",
+            "Issue-comment execution is restricted to Incident 4953, the repository owner identity, the exact one-time token, and a full SHA.",
+            "The target account is u338416126 and the domain is auth.mad4b.com.",
+            "The expected Production SHA is 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb and the rebuild timestamp is 2026-08-03T06:16:38Z.",
+            "The canonical reporter and reporter-test blobs are fixed before credential access.",
+            "The provider method is GET only and no build creation, deployment, release activation, restart, provider POST, SQL, migration Apply, database mutation, protected-ref mutation, force update, or external business send occurs.",
+            "The Hostinger API token is not returned in artifacts or incident comments.",
+            "Diagnostic outcomes including no build, pending, running, failed, other SHA, source-unverified, and reporter failure do not authorize restart."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-current-production-build-evidence-r4-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-current-production-build-evidence-r4.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-current-production-build-evidence-r4.yml",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-current-production-build-evidence-r4.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the inert registration, re-read main and Production, then post exactly one governed trigger and use the resulting build UUID and classification to choose completed-build log inspection or stop before restart."
+    }
+  ],
+  "secrets_included": false
+}

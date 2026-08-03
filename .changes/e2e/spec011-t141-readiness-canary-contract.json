@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec011-t141-readiness-canary-contract",
+  "title": "Spec 011 T141 readiness and governed delegation canary contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec011-t141-readiness-canary-contract.json",
+      ".github/workflows/spec-011-t141-readiness-canary-contract.yml",
+      "http-generic-api/spec011T141ReadinessCanaryContract.js",
+      "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
+      "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/t141-readiness-canary-contract.schema.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the remaining live delegation lifecycle can be bound to migration, deployment, runtime, per-mutation authorization, receipt, readback, and unknown-outcome contracts without performing any staging or Production mutation during certification.",
+      "e2e_journeys": [
+        {
+          "id": "bind-t141-readiness-to-a-governed-canary-without-execution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed delegation release operator",
+          "entrypoint": "buildT141CanaryContract with verified migration readiness, exact deployment readback, certified default-off runtime binding status, four eligible lifecycle plans, and four exact-fingerprint authorization bindings",
+          "terminal_outcome": "The contract is ready for a separately authorized staging or Production canary only when all readiness, deployment, lifecycle, authorization, receipt, and no-retry invariants pass; synthetic certification never closes T141 or performs a mutation.",
+          "steps": [
+            "Evaluate staging or Production readiness and reject disposable databases, missing migration ledger evidence, checksum drift, runtime binding drift, deployment SHA mismatch, unhealthy runtime, or missing environment authority.",
+            "Validate four eligible lifecycle plans for primary create/revoke and expiry create/expire with distinct request fingerprints, pending receipts, and idempotency keys.",
+            "Bind every mutation to a distinct unexpired capability envelope and approval hold whose expected request fingerprint and environment match exactly.",
+            "Build the immutable ten-step canary order with same-cycle readback after every step and retry forbidden after any unknown outcome.",
+            "Evaluate synthetic successful staging evidence and prove that T141, T261, and T263 remain ineligible for closure.",
+            "Evaluate synthetic Production evidence and allow completion eligibility only when Production migration authorization, parity, runtime readback, all grant states, and all receipts are verified.",
+            "Inject timeout-after-dispatch, stale authorization, duplicate fingerprint, missing same-cycle readback, and secret-like input and prove fail-closed or reconciliation-required outcomes."
+          ],
+          "assertions": [
+            "Readiness and contract construction perform no migration apply, database write, grant mutation, provider call, deployment, public-route addition, or runtime authority activation.",
+            "A staging canary can never make T141, T261, or T263 completion-eligible.",
+            "Production completion eligibility requires explicit Production migration authorization plus exact deployment and runtime parity.",
+            "Every mutation has a unique request fingerprint, pending receipt, idempotency key, capability envelope, and approval hold.",
+            "Unknown, ambiguous, or timeout-after-dispatch outcomes return reconciliation_required and automatic_mutation_retry_allowed=false.",
+            "runtime_policy_ready remains unpromoted and no public route is added.",
+            "The certification artifact states that no live canary ran and no Production authorization was used.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "spec011-t141-readiness-canary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-t141-readiness-canary-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "spec011-t141-readiness-canary-schema",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-t141-readiness-canary-schema.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec011-t141-readiness-canary-contract.json",
+            ".github/workflows/spec-011-t141-readiness-canary-contract.yml",
+            "http-generic-api/spec011T141ReadinessCanaryContract.js",
+            "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
+            "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract.md",
+            "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/t141-readiness-canary-contract.schema.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Execute the same contract against an explicitly authorized staging database and deployed runtime while persisting bounded receipts and exact readback evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove read-only reconciliation after ambiguous commit outcomes, runtime restarts, stale envelopes, partial receipt readback, and deployment drift without repeated mutation."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Complete one governed staging create-inspect-revoke and create-inspect-expire lifecycle with every receipt reconciled and T141 still open."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Complete the separately authorized Production migration and delegation canary on one exact deployed SHA, then open the evidence-only closeout PR for T141, T261, T263, and T264."
+    }
+  ],
+  "secrets_included": false
+}

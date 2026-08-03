@@ -28,6 +28,8 @@ const authorityRecoveryTestCommands = Object.freeze([
   "node test-authority-live-census-adapter.mjs",
   "node test-authority-live-evidence-orchestrator.mjs",
   "node test-authority-live-evidence-fail-closed.mjs",
+  "node test-authority-live-source-collectors.mjs",
+  "node test-authority-live-evidence-collect-runner-contract.mjs",
 ]);
 
 const growthControlContinuationTestCommands = Object.freeze([
@@ -42,6 +44,9 @@ const growthControlContinuationTestCommands = Object.freeze([
   "node test-growth-control-tenant-role-field-policy.mjs",
   "node test-growth-control-openapi-auth-contracts.mjs",
   "node test-growth-control-typed-invalidation-consumer.mjs",
+  "node test-growth-control-analytics-portfolio-phase.mjs",
+  "node test-growth-control-observability-operations-phase.mjs",
+  "node test-growth-control-analytics-observability-routes.mjs",
 ]);
 
 const diagnosticAutomationTestCommands = Object.freeze([

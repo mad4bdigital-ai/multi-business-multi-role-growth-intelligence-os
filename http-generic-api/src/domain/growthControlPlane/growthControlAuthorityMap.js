@@ -113,6 +113,8 @@ const RESOURCE_GROUPS = Object.freeze([
     repositoryPointers: [
       "durableExecutionControlService.js",
       "sequentialPlanOrchestrator.js",
+      "src/domain/growthControlPlane/growthControlObservability.js",
+      "src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js",
     ],
     resources: [
       ["plans", ["execution_plans"]],
@@ -125,8 +127,8 @@ const RESOURCE_GROUPS = Object.freeze([
       ["workflow_idempotency_records", ["execution_plan_mutation_receipts", "workflow_idempotency_records"], "evidence_authority"],
       ["workflow_outbox", ["workflow_outbox", "execution_outbox"]],
       ["output_artifacts", ["output_artifacts"]],
-      ["readback_assessments", ["readback_assessments", "execution_plan_mutation_receipts"], "evidence_authority"],
-      ["platform_evidence_events", ["execution_plan_events", "platform_audit_event_bus"], "evidence_authority"],
+      ["readback_assessments", ["readback_assessments", "execution_plan_mutation_receipts", "growth_control_reconciliation_findings"], "evidence_authority"],
+      ["platform_evidence_events", ["execution_plan_events", "platform_audit_event_bus", "growth_control_decision_evidence", "growth_control_observability_samples"], "evidence_authority"],
     ],
   },
   {
@@ -145,11 +147,16 @@ const RESOURCE_GROUPS = Object.freeze([
   },
   {
     domain: "kpi_analytics",
-    defaultAuthority: "existing_platform_authority",
+    defaultAuthority: "growth_control_additive",
+    repositoryPointers: [
+      "src/domain/growthControlPlane/growthControlAnalytics.js",
+      "src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js",
+      "src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js",
+    ],
     resources: [
-      ["kpi_definitions", ["kpi_definitions"]],
-      ["activity_kpi_bindings", ["activity_kpi_bindings"]],
-      ["normalized_metric_observations", ["normalized_metric_observations"], "evidence_authority"],
+      ["kpi_definitions", ["growth_control_kpi_definitions", "kpi_definitions"], "growth_control_additive"],
+      ["activity_kpi_bindings", ["growth_control_activity_kpi_bindings", "activity_kpi_bindings"], "growth_control_additive"],
+      ["normalized_metric_observations", ["growth_control_normalized_metric_observations", "normalized_metric_observations"], "evidence_authority"],
     ],
   },
 ]);

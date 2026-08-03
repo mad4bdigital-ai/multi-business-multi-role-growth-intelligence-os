@@ -1,0 +1,182 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "011-dynamic-multi-tenant-growth-control-plane",
+  "title": "Growth Control Plane analytics and observability governance",
+  "delivery_mode": "multi_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      "http-generic-api/activation-surfaces/exclusions/growth_control_activity_kpi_bindings.json",
+      "http-generic-api/activation-surfaces/exclusions/growth_control_decision_evidence.json",
+      "http-generic-api/activation-surfaces/exclusions/growth_control_kpi_definitions.json",
+      "http-generic-api/activation-surfaces/exclusions/growth_control_normalized_metric_observations.json",
+      "http-generic-api/activation-surfaces/exclusions/growth_control_observability_samples.json",
+      "http-generic-api/activation-surfaces/exclusions/growth_control_reconciliation_findings.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/migrations/20260731_growth_control_analytics_observability_foundation.sql",
+      "http-generic-api/openapi/growth-control-analytics-observability.openapi.yaml",
+      "http-generic-api/routes/dynamicGrowthControlPlaneRoutes.js",
+      "http-generic-api/scripts/run-test-manifest.mjs",
+      "http-generic-api/src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js",
+      "http-generic-api/src/domain/growthControlPlane/growthControlAnalytics.js",
+      "http-generic-api/src/domain/growthControlPlane/growthControlAuthorityMap.js",
+      "http-generic-api/src/domain/growthControlPlane/growthControlObservability.js",
+      "http-generic-api/src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js",
+      "http-generic-api/test-growth-control-analytics-observability-routes.mjs",
+      "http-generic-api/test-growth-control-analytics-portfolio-phase.mjs",
+      "http-generic-api/test-growth-control-observability-operations-phase.mjs",
+      "specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json",
+      "specs/011-dynamic-multi-tenant-growth-control-plane/tasks.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove version-aware KPI normalization and deterministic tenant-isolated portfolio projections from governed synthetic observations.",
+      "e2e_journeys": [
+        {
+          "id": "governed-kpi-observation-to-portfolio-projection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Growth Control Plane analytics operator",
+          "entrypoint": "Governed KPI definition, activity binding, and normalized observation domain boundary",
+          "terminal_outcome": "A native KPI observation is normalized against the exact governed definition version and appears only in the authorized tenant portfolio projection with immutable lineage and freshness evidence.",
+          "steps": [
+            "Validate the KPI definition and version-aware activity binding identity.",
+            "Normalize the native observation through the declared identity or scale conversion.",
+            "Preserve native key, unit, definition version, source lineage, confidence, freshness, and observation hash.",
+            "Project the normalized observation into the matching tenant portfolio only.",
+            "Reject ambiguous versions, tampered normalized values, stale lineage, and cross-tenant observations."
+          ],
+          "assertions": [
+            "Historical definition versions can coexist without reinterpreting earlier observations.",
+            "An observation identifies its definition version whenever multiple governed mappings are eligible.",
+            "Persisted normalized value, lineage, and observation hash remain immutable across mapping lifecycle changes.",
+            "Display names never create KPI equivalence and cross-tenant data fails closed.",
+            "Caller-supplied clocks cannot control freshness evaluation at the application boundary."
+          ],
+          "tests": [
+            {
+              "id": "growth-control-analytics-portfolio-phase",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-growth-control-analytics-portfolio-phase.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/src/domain/growthControlPlane/growthControlAnalytics.js",
+            "http-generic-api/src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js",
+            "http-generic-api/test-growth-control-analytics-portfolio-phase.mjs",
+            "http-generic-api/migrations/20260731_growth_control_analytics_observability_foundation.sql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Prove authenticated Admin, Tenant, and backend-only analytics and operational paths with transactional same-cycle persistence readback.",
+      "e2e_journeys": [
+        {
+          "id": "authenticated-analytics-observability-write-to-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized Admin, Tenant user, or backend service principal",
+          "entrypoint": "Growth Control Plane analytics and operations HTTP routes",
+          "terminal_outcome": "Read projections remain scope-safe, internal writes accept only a backend service principal, and every accepted synthetic write is transactionally reread and hash-verified before commit.",
+          "steps": [
+            "Resolve the route principal and reject unsupported identity or transport combinations.",
+            "Apply Admin, Tenant, field, and resource authority before entering the service boundary.",
+            "Validate and persist a normalized observation, SLO sample, or decision-evidence record transactionally.",
+            "Reread the persisted authority in the same cycle and compare its immutable identity and hash.",
+            "Commit only on exact readback; otherwise roll back with a typed failure."
+          ],
+          "assertions": [
+            "User JWT and ordinary API credential principals cannot access internal write operations.",
+            "Backend API-key and backend Bearer transports resolve to the same bounded service-principal contract.",
+            "Tenant projections cannot request or receive another tenant or platform-wide dashboard scope.",
+            "Readback mismatch rolls back the transaction instead of reporting success.",
+            "OpenAPI security alternatives and forbidden responses match runtime authentication behavior."
+          ],
+          "tests": [
+            {
+              "id": "growth-control-analytics-observability-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-growth-control-analytics-observability-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/dynamicGrowthControlPlaneRoutes.js",
+            "http-generic-api/src/application/growthControlPlane/growthControlAnalyticsObservabilityService.js",
+            "http-generic-api/src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js",
+            "http-generic-api/openapi/growth-control-analytics-observability.openapi.yaml",
+            "http-generic-api/test-growth-control-analytics-observability-routes.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prove deterministic SLO evaluation, secret-safe operational dashboards, typed alerts, and reconciliation without automatic notification, remediation, or high-risk repair.",
+      "e2e_journeys": [
+        {
+          "id": "telemetry-slo-evaluation-to-reconciliation-projection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Growth Control Plane operations operator",
+          "entrypoint": "Decision evidence and observability sample composition boundary",
+          "terminal_outcome": "Synthetic telemetry and decision evidence produce deterministic SLO, alert, dashboard, and reconciliation projections while unsafe repair, secret exposure, and cross-tenant aggregation remain blocked.",
+          "steps": [
+            "Compose bounded decision evidence and telemetry spans against the governed authority map.",
+            "Evaluate the SLO sample using server-owned time and deterministic thresholds.",
+            "Project critical or high alerts without dispatching notifications or remediation.",
+            "Build Admin or Tenant-safe operational dashboards from authorized records only.",
+            "Emit typed reconciliation findings and require explicit authority for any high-risk repair."
+          ],
+          "assertions": [
+            "SLO evaluation is deterministic for the same governed evidence and server clock.",
+            "Alerts are projections only and cannot send notifications or invoke remediation automatically.",
+            "Tenant dashboards never expose platform-wide or cross-tenant operational records.",
+            "Unknown, partial, conflicting, or high-risk findings remain explicit and are never silently repaired.",
+            "Decision evidence, telemetry, and reconciliation projections exclude secret-bearing fields."
+          ],
+          "tests": [
+            {
+              "id": "growth-control-observability-operations-phase",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-growth-control-observability-operations-phase.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/src/domain/growthControlPlane/growthControlObservability.js",
+            "http-generic-api/src/domain/growthControlPlane/growthControlAuthorityMap.js",
+            "http-generic-api/src/infrastructure/growthControlPlane/growthControlAnalyticsObservabilityRepository.js",
+            "http-generic-api/test-growth-control-observability-operations-phase.mjs",
+            "http-generic-api/activation-surfaces/exclusions/growth_control_reconciliation_findings.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Apply the additive migration and validate the analytics and observability journeys against an explicitly authorized non-production environment with rollback evidence."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify the exact Production SHA, migration state, runtime parity, dashboard isolation, SLO evidence, monitoring, and rollback under separate release authorization."
+    }
+  ]
+}
