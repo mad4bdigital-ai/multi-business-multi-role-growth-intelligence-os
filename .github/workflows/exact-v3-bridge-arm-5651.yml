@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate:
     if: >-
-      github.event.pull_request.base.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
