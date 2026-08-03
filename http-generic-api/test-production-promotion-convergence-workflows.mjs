@@ -41,6 +41,35 @@ for (const required of [
   assert.match(launcher, required);
 }
 
+const launcherJobHeader =
+  launcher.match(/  converge-source-pinned-candidate:\n[\s\S]*?    steps:/)?.[0] ?? "";
+assert.ok(launcherJobHeader, "Production promotion launcher job header must exist");
+assert.doesNotMatch(
+  launcherJobHeader,
+  /EVIDENCE_PATH:\s*\$\{\{\s*runner\.temp\s*\}\}/,
+  "runner.temp must not be evaluated in the launcher job-level environment",
+);
+assert.match(
+  launcher,
+  /id: converge\n\s+shell: bash\n\s+env:\n\s+EVIDENCE_PATH: \$\{\{ runner\.temp \}\}\/governed-production-promotion-convergence\.json\n\s+run: \|/,
+  "the convergence step must receive the runner-scoped evidence path at step runtime",
+);
+assert.match(
+  launcher,
+  /path: \$\{\{ runner\.temp \}\}\/governed-production-promotion-convergence\.json/,
+  "artifact upload must use runner.temp only from the step context",
+);
+assert.match(
+  launcher,
+  /exact_validation_run_id: \$exact_validation_run_id/,
+  "structured evidence must retain the declared exact-validation argument binding",
+);
+assert.doesNotMatch(
+  launcher,
+  /exact_validation_run_id: \$exact_run_id/,
+  "structured evidence must not reference an undeclared exact_run_id variable",
+);
+
 for (const required of [
   /workflow_run:/,
   /Governed Production Promotion Request Launcher/,
