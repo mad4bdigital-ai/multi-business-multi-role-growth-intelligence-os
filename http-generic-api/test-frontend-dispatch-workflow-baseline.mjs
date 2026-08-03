@@ -176,3 +176,5 @@ assert.match(
 );
 
 console.log("frontend dispatch read-only verification and delegated refresh contract: ok");
+
+// Temporary path-filter trigger for governed generated-artifact refresh; restore the main blob after writer completion.
