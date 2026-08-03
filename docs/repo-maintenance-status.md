@@ -61,6 +61,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/brand-skill-staging-preflight-push-fallback.yml`
 - `.github/workflows/ci-autostart-recovery.yml`
 - `.github/workflows/ci-evidence-pr-publisher.yml`
+- `.github/workflows/ci-pull-request-recovery.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
@@ -95,6 +96,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml`
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml`
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
+- `.github/workflows/hostinger-production-release-evidence-r5.yml`
 - `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
@@ -153,7 +155,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-011-evidence-auto-closeout.yml`
+- `.github/workflows/spec-011-goal-filtered-operational-intelligence.yml`
 - `.github/workflows/spec-011-managed-delivery-lifecycle.yml`
+- `.github/workflows/spec-011-t141-readiness-canary-contract.yml`
 - `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
@@ -250,6 +254,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-schema-split-importer-v2-reference-preservation.mjs`
 - `http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs`
+- `http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs`
+- `http-generic-api/test-spec011-t141-readiness-canary-schema.mjs`
 - `http-generic-api/test-support-ticket-admin-openapi-precise-contracts.mjs`
 - `http-generic-api/test-support-ticket-admin-remaining-openapi-contracts.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
