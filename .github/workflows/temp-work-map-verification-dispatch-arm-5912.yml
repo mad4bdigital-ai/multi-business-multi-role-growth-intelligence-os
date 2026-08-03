@@ -72,16 +72,32 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run syntax and focused governance checks
+      - name: Verify focused dispatch regression
+        working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          git diff --check
+          node --check test-work-map-post-write-exact-verification-dispatch.mjs
+          node test-work-map-post-write-exact-verification-dispatch.mjs
+
+      - name: Verify E2E contract JSON
+        shell: bash
+        run: node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
+
+      - name: Verify Spec Kit completion governance against main
+        shell: bash
+        env:
+          GITHUB_BASE_REF: main
+          GITHUB_HEAD_REF: ${{ env.TARGET_BRANCH }}
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs
+
+      - name: Verify generated Work Map currentness
+        shell: bash
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Verify diff hygiene
+        shell: bash
+        run: git diff --check "${EXPECTED_MAIN_SHA}"...HEAD
 
       - name: Run context-kernel changed-file ratchet
         working-directory: http-generic-api
