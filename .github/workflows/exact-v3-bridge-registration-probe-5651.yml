@@ -14,7 +14,7 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
-      github.event.pull_request.head.sha == 'f27868eb8d10dae117e3628a9950d6722eda1a02'
+      github.event.pull_request.head.sha == '33328e71227f9f61b4e7d40e6db322b76b381a2e'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
@@ -22,5 +22,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event.pull_request.head.sha }}" = "f27868eb8d10dae117e3628a9950d6722eda1a02"
+          test "${{ github.event.pull_request.head.sha }}" = "33328e71227f9f61b4e7d40e6db322b76b381a2e"
           echo "V3 bridge ARM base workflow registered"
