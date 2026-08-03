@@ -35,6 +35,10 @@ const durable = runStructuredTest(
   'test-hostinger-storage-control-plane-repository.mjs',
   'hostinger_storage_control_plane_repository',
 );
+const unknownOutcome = runStructuredTest(
+  'test-hostinger-storage-unknown-outcome.mjs',
+  'hostinger_storage_unknown_outcome',
+);
 
 assert.equal(sharedState.journey_id, JOURNEY_ID);
 assert.equal(sharedState.mounted_route, 'POST /tenant/storage-operations/apply-plan');
@@ -72,6 +76,13 @@ assert.equal(durable.single_use_plan, true);
 assert.equal(durable.unknown_outcome_retry_guard, true);
 assert.equal(durable.production_ready, false);
 
+assert.equal(unknownOutcome.crash_before_mutation_reconciled_not_applied, true);
+assert.equal(unknownOutcome.crash_after_mutation_recovered_from_receipt, true);
+assert.equal(unknownOutcome.reconciliation_record_replay_safe, true);
+assert.equal(unknownOutcome.automatic_retry_forbidden, true);
+assert.equal(unknownOutcome.conflict_blocks_operation, true);
+assert.equal(unknownOutcome.dispatch_allowed, false);
+
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_mvp_shared_operation_state_convergence',
@@ -85,10 +96,12 @@ console.log(JSON.stringify({
     shared_operation_state_gate: sharedState.gate,
     mounted_route_gate: route.gate,
     durable_repository_gate: durable.gate,
+    unknown_outcome_gate: unknownOutcome.gate,
   },
   assertions: {
     mounted_route_contract_passed: true,
     durable_repository_contract_passed: true,
+    unknown_outcome_contract_passed: true,
     context_and_effective_authority_resolved: true,
     same_repository_identity_preserved: true,
     same_repository_operation_completed: true,
@@ -99,7 +112,10 @@ console.log(JSON.stringify({
     prepared_result_readback_journal_persisted: true,
     reconciliation_recorded_for_same_operation: true,
     tenant_safe_projection_bound_to_same_run_plan_and_result: true,
-    unknown_outcome_retry_guard: true,
+    unknown_outcome_reconcile_before_retry: true,
+    unknown_outcome_recovered_from_persisted_receipt: true,
+    reconciliation_record_replay_safe: true,
+    conflict_blocks_operation: true,
     cross_tenant_leakage_rejected: true,
     expected_sha_bound: true,
   },
