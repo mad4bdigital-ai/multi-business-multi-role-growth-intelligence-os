@@ -13,11 +13,29 @@ This integrated wave implements Spec 011 tasks T180–T189 by composing the repo
 - `http-generic-api/test-shared-reconciliation-engine.mjs`
 - Existing contract, lifecycle, delegation, idempotency, OpenAPI, and Spec Kit CI checks.
 
-## Validation lab
+## Pre-apply engine gate
 
-The Phase 5 lab runs only against the disposable `spec011_delegation_cert_*` MariaDB target. It records:
+Before the governed migration certifier is permitted to run, Phase 5 executes `spec011-phase5-migration-preflight.mjs` against the disposable MariaDB service.
 
-- MariaDB-compatible engine family and exact version;
+The preflight verifies:
+
+- MariaDB/MySQL-compatible engine identity and exact version;
+- strict SQL mode;
+- `utf8mb4` character set and collation;
+- JSON support;
+- CHECK constraint enforcement;
+- transaction isolation readback;
+- disposable database identity;
+- `production_authorized: false`;
+- `secrets_included: false`.
+
+A passing preflight produces a SHA-256 evidence fingerprint. `authorizeMigrationApply` remains blocked unless that fingerprint and its artifact reference are present. The workflow validates this artifact before invoking the existing migration certifier. Therefore migration apply cannot begin when engine validation is absent, stale, blocked, or malformed.
+
+## Post-apply validation lab
+
+After the preflight-authorized disposable migration and lifecycle certification, the Phase 5 lab records:
+
+- engine family and exact version;
 - SQL mode and strict-mode evidence;
 - server character set and collation;
 - CHECK constraint enforcement;
@@ -28,9 +46,9 @@ The Phase 5 lab runs only against the disposable `spec011_delegation_cert_*` Mar
 - rollback assessment through disposable service destruction;
 - no-production-authorization and no-secret boundaries.
 
-The existing governed migration certification runs first. Phase 5 consumes its migration checksum, ledger/readback evidence, and lifecycle result rather than applying a second migration.
+The existing governed migration certification remains the only migration executor. Phase 5 consumes its migration checksum, ledger/readback evidence, and lifecycle result rather than applying a second migration.
 
-## Migration authorization gate
+## Migration authorization contract
 
 `authorizeMigrationApply` is fail-closed. Apply authorization requires all of the following in the same evidence bundle:
 
@@ -64,14 +82,14 @@ Secret-like metadata fields are rejected recursively. Missing, malformed, or inc
 
 The unified Phase 5 report contains one diagnosis for each required gate:
 
-- `migration_engine_validation` — T180–T182;
+- `migration_engine_validation` — T180–T182 post-apply certification;
 - `contract_drift` — T184;
 - `state_machine_model` — T185;
 - `idempotency_unknown_outcome` — T186;
 - `delegation_boundary_policy_drift` — T187;
 - `semantic_file_mutation` — T188.
 
-T183 is implemented by the diagnosis schema and reporter. T189 is implemented by workflow fallback generation, schema checks, complete gate coverage, and fail-closed artifact validation.
+The separate `migration_engine_preflight` diagnosis proves the T182 pre-apply boundary. T183 is implemented by the diagnosis schema and reporter. T189 is implemented by workflow fallback generation, schema checks, complete gate coverage, and fail-closed artifact validation.
 
 ## Semantic mutation gate
 
@@ -89,15 +107,16 @@ Plain text replacement is not accepted as semantic evidence. Completion mutation
 The existing Spec 011 MariaDB certification workflow now:
 
 1. runs the existing focused delegation and MariaDB tests;
-2. executes the existing disposable migration/lifecycle certification;
-3. runs Phase 5 unit certification;
-4. collects live engine and schema evidence;
-5. evaluates all structured gates;
-6. verifies migration apply authorization is evidence-backed;
-7. validates that every gate emitted structured diagnosis;
-8. uploads base certification and Phase 5 artifacts with `if: always()`.
+2. runs pre-apply engine validation;
+3. requires a valid preflight diagnosis, fingerprint, and apply authorization artifact;
+4. executes the existing disposable migration/lifecycle certification;
+5. runs the post-apply Phase 5 validation lab;
+6. evaluates all structured gates;
+7. verifies post-apply authorization remains evidence-backed;
+8. validates that every gate emitted structured diagnosis;
+9. uploads preflight, base certification, and Phase 5 artifacts with `if: always()`.
 
-If execution stops before the Phase 5 reporter can run, the workflow writes a bounded `pipeline_bootstrap` diagnosis before failing and uploading the artifact.
+If execution stops before either reporter can run, the workflow writes a bounded fallback diagnosis before failing and uploading the artifact.
 
 ## Safety boundaries
 
