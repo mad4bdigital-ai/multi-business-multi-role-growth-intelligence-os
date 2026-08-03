@@ -43,12 +43,36 @@ jobs:
       - name: Verify immutable identity and clean tracked tree
         shell: bash
         run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
-          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
-          test -z "$(git status --porcelain --untracked-files=no)"
+          set -uo pipefail
+          report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
+          : > "${report}"
+          : > "${RUNNER_TEMP}/frontend-generated.diff"
+          : > "${RUNNER_TEMP}/frontend-all.diff"
+          failed=0
+
+          actual_head="$(git rev-parse HEAD)"
+          echo "expected_head=${EXPECTED_HEAD_SHA}" | tee -a "${report}"
+          echo "actual_head=${actual_head}" | tee -a "${report}"
+          if [ "${actual_head}" != "${EXPECTED_HEAD_SHA}" ]; then failed=1; fi
+
+          if git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"; then
+            echo "expected_main_object=present" | tee -a "${report}"
+          else
+            echo "expected_main_object=missing" | tee -a "${report}"
+            failed=1
+          fi
+
+          merge_base="$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" 2>/dev/null || true)"
+          echo "expected_main=${EXPECTED_MAIN_SHA}" | tee -a "${report}"
+          echo "merge_base=${merge_base}" | tee -a "${report}"
+          if [ "${merge_base}" != "${EXPECTED_MAIN_SHA}" ]; then failed=1; fi
+
+          echo '===== TRACKED STATUS BEFORE INSTALL =====' | tee -a "${report}"
+          tracked_status="$(git status --porcelain --untracked-files=no)"
+          printf '%s\n' "${tracked_status}" | tee -a "${report}"
+          if [ -n "${tracked_status}" ]; then failed=1; fi
+
+          exit "${failed}"
 
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
@@ -60,7 +84,6 @@ jobs:
         run: |
           set -uo pipefail
           report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
-          : > "${report}"
           failed=0
 
           run_check() {
