@@ -1,0 +1,124 @@
+name: Exact Work Map Writer Command Diagnostics 5490
+
+on:
+  pull_request:
+    branches:
+      - gpt/diagnose-work-map-writer-arm-base-5490-44ed1522
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-work-map-writer-command-diagnostics-5490-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Exact Command Diagnostics
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable candidate and execute each command
+        id: checks
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/work-map-writer-diagnostics-v3-20260803
+          EXPECTED_HEAD_SHA: 1747a255640b0e21b08d04502159991e4dfcdf5f
+          EXPECTED_MAIN_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_HEAD_REF})" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = ".github/workflows/spec-kit-work-map-autofix.yml"
+
+          diagnostics="$RUNNER_TEMP/work-map-writer-command-diagnostics"
+          mkdir -p "$diagnostics"
+          printf 'index\tname\tstatus\tlog\n' > "$diagnostics/results.tsv"
+
+          run_check() {
+            local index="$1"
+            local name="$2"
+            local command="$3"
+            local log="$diagnostics/$(printf '%02d' "$index")-${name}.log"
+            set +e
+            bash -lc "$command" >"$log" 2>&1
+            local status=$?
+            set -e
+            cat "$log"
+            printf '%s\t%s\t%s\t%s\n' "$index" "$name" "$status" "$(basename "$log")" >> "$diagnostics/results.tsv"
+          }
+
+          run_check 1 schema-docs-change-guard 'node http-generic-api/scripts/schema-docs-change-guard.mjs'
+          run_check 2 migration-placement-guard 'node http-generic-api/scripts/migration-placement-guard.mjs'
+          run_check 3 user-jwt-auth-governance 'node http-generic-api/scripts/user-jwt-auth-governance.mjs'
+          run_check 4 interruption-readiness 'node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree'
+          run_check 5 validate-canonical-sources 'node validate-canonical-sources.mjs'
+          run_check 6 build-canonicals-check 'node build-canonicals.mjs --check'
+          run_check 7 find-canonical-domain-syntax 'node --check find-canonical-domain.mjs'
+          run_check 8 resource-api-coverage-audit 'node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed'
+          run_check 9 resource-api-architecture-test 'node http-generic-api/test-resource-api-architecture.mjs'
+          run_check 10 resource-api-service-test 'node http-generic-api/test-resource-api-service.mjs'
+          run_check 11 spec-kit-completion-gate 'node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed'
+          run_check 12 validate-memory-schema 'node validate-memory-schema.mjs'
+          run_check 13 work-map-generator-syntax 'node --check http-generic-api/scripts/platform-work-map-generator.mjs'
+          run_check 14 work-map-schema-intelligence-syntax 'node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs'
+          run_check 15 work-map-schema-classification-syntax 'node --check http-generic-api/scripts/work-map-schema-classification.mjs'
+          run_check 16 work-map-schema-contract-syntax 'node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs'
+          run_check 17 pipeline-connectivity-syntax 'node --check http-generic-api/scripts/pipeline-connectivity-check.mjs'
+          run_check 18 pipeline-connectivity-check 'node http-generic-api/scripts/pipeline-connectivity-check.mjs'
+          run_check 19 pipeline-connectivity-test 'node http-generic-api/test-pipeline-connectivity-check.mjs'
+          run_check 20 supervisor-runtime-assurance-test 'node http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
+          run_check 21 git-diff-check 'git diff --check'
+
+          {
+            echo '# Exact Work Map writer command diagnostics'
+            echo
+            echo '| Index | Check | Exit | Log |'
+            echo '|---:|---|---:|---|'
+            tail -n +2 "$diagnostics/results.tsv" | while IFS=$'\t' read -r index name status log; do
+              printf '| %s | `%s` | `%s` | `%s` |\n' "$index" "$name" "$status" "$log"
+            done
+          } > "$diagnostics/summary.md"
+          cat "$diagnostics/summary.md"
+
+          failures="$(awk -F '\t' 'NR > 1 && $3 != 0 { count++ } END { print count+0 }' "$diagnostics/results.tsv")"
+          printf 'failure_count=%s\n' "$failures" >> "$GITHUB_OUTPUT"
+          test "$failures" = "0"
+
+      - name: Upload exact command diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-writer-command-diagnostics-5490-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-writer-command-diagnostics
+          if-no-files-found: error
+          retention-days: 14
