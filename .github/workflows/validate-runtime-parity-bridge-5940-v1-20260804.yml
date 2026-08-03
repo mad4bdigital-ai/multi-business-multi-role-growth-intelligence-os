@@ -1,0 +1,119 @@
+name: Validate Runtime Parity Bridge 5940 V1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/validate-runtime-parity-bridge-5940-v1-20260804.yml
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: validate-runtime-parity-bridge-5940-v1-20260804
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact runtime parity bridge head
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-runtime-parity-bridge-5940-v1-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      VALIDATOR_WORKFLOW: .github/workflows/validate-runtime-parity-bridge-5940-v1-20260804.yml
+      TARGET_PR: '5940'
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-20260804
+      TARGET_SHA: c5a560f33722c64ed867736d579b93f8fa7b2941
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+
+    steps:
+      - name: Verify one-file validator and exact target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${VALIDATOR_WORKFLOW}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          target="$(gh api "/repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = open
+          test "$(jq -r '.base.sha' <<<"${target}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
+          mapfile -t target_files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${TARGET_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#target_files[@]}" -eq 3
+          printf '%s\n' "${target_files[@]}" | sort > "${RUNNER_TEMP}/target-files.txt"
+          diff -u <(printf '%s\n' \
+            '.changes/e2e/production-runtime-parity-comment-bridge.json' \
+            '.github/workflows/production-runtime-parity-comment-bridge.yml' \
+            'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs' | sort) \
+            "${RUNNER_TEMP}/target-files.txt"
+
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run focused bridge and canonical reporter tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-evidence.mjs
+          git diff --check "${EXPECTED_MAIN_SHA}" "${TARGET_SHA}"
+
+      - name: Run E2E phase and reference contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          phase_report="${RUNNER_TEMP}/phase.json"
+          execution_report="${RUNNER_TEMP}/phase-execution.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" --report-file "${phase_report}"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" \
+            --report-file "${phase_report}" --execution-report-file "${execution_report}"
+          jq -e '.ok == true' "${phase_report}"
+          jq -e '.ok == true' "${execution_report}"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs
+          node build-canonicals.mjs --check
+
+      - name: Diagnose generated Work Map currentness
+        id: work_maps
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+      - name: Enforce final validator decision
+        if: always()
+        shell: bash
+        env:
+          WORK_MAP_OUTCOME: ${{ steps.work_maps.outcome }}
+        run: |
+          set -Eeuo pipefail
+          echo "work_map_outcome=${WORK_MAP_OUTCOME}"
+          test "${WORK_MAP_OUTCOME}" = success
+          test -z "$(git status --short)"
