@@ -39,11 +39,11 @@ jobs:
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       REPORT_DIR: ${{ runner.temp }}/hostinger-completed-build-forensics
     steps:
-      - name: Checkout trusted main
+      - name: Checkout immutable execution revision
         uses: actions/checkout@v5
         with:
-          ref: main
-          fetch-depth: 2
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Validate trusted trigger and immutable bindings
@@ -59,22 +59,25 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          CURRENT_MAIN_SHA="$(git rev-parse HEAD)"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
           REMOTE_MAIN_SHA="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           CURRENT_PRODUCTION_SHA="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
-          test "${CURRENT_MAIN_SHA}" = "${REMOTE_MAIN_SHA}"
+          test "${CHECKED_OUT_SHA}" = "${EVENT_SHA}"
           test "${CURRENT_PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
 
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             test "${ACTOR}" = "${REPOSITORY_OWNER}"
+            test "${EVENT_REF}" = "refs/heads/main"
             [[ "${INPUT_EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
-            test "${INPUT_EXPECTED_HEAD_SHA}" = "${CURRENT_MAIN_SHA}"
+            test "${INPUT_EXPECTED_HEAD_SHA}" = "${EVENT_SHA}"
+            test "${REMOTE_MAIN_SHA}" = "${EVENT_SHA}"
           elif [[ "${EVENT_NAME}" == "push" ]]; then
             test "${EVENT_REF}" = "refs/heads/main"
-            test "${EVENT_SHA}" = "${CURRENT_MAIN_SHA}"
             FIRST_LINE="${EVENT_MESSAGE%%$'\n'*}"
             test "${FIRST_LINE}" = "${TRIGGER_TOKEN}"
             [[ "${EVENT_BEFORE}" =~ ^[0-9a-f]{40}$ ]]
+            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+            git merge-base --is-ancestor "${EVENT_SHA}" refs/remotes/origin/main
             CHANGED_FILES="$(git diff --name-only "${EVENT_BEFORE}" "${EVENT_SHA}")"
             test "${CHANGED_FILES}" = "${MARKER_PATH}"
             test -f "${MARKER_PATH}"
@@ -211,7 +214,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          BODY="HOSTINGER_COMPLETED_BUILD_FORENSICS status=completed contract=mad4b.hostinger-completed-build-forensics.v1 run_id=${GITHUB_RUN_ID} artifact=hostinger-completed-build-forensics-${GITHUB_RUN_ID} outcome=${OUTCOME} classification=${CLASSIFICATION} next_action=${NEXT_ACTION} build_uuid=${BUILD_UUID} expected_production_sha=${EXPECTED_PRODUCTION_SHA} source_shas=${SOURCE_SHAS} source_branches=${SOURCE_BRANCHES} release_directories=${RELEASE_DIRS} observed_runtime_sha=${OBSERVED_SHA} observed_runtime_branch=${OBSERVED_BRANCH} log_excerpt_sha256=${LOG_DIGEST} provider_method=GET provider_mutation=false build_created=false deployment=false active_slot_changed=false restart=false sql=false migration_apply=false database_mutation=false external_send=false secrets_included=false"
+          BODY="HOSTINGER_COMPLETED_BUILD_FORENSICS status=completed contract=mad4b.hostinger-completed-build-forensics.v1 run_id=${GITHUB_RUN_ID} execution_sha=${GITHUB_SHA} artifact=hostinger-completed-build-forensics-${GITHUB_RUN_ID} outcome=${OUTCOME} classification=${CLASSIFICATION} next_action=${NEXT_ACTION} build_uuid=${BUILD_UUID} expected_production_sha=${EXPECTED_PRODUCTION_SHA} source_shas=${SOURCE_SHAS} source_branches=${SOURCE_BRANCHES} release_directories=${RELEASE_DIRS} observed_runtime_sha=${OBSERVED_SHA} observed_runtime_branch=${OBSERVED_BRANCH} log_excerpt_sha256=${LOG_DIGEST} provider_method=GET provider_mutation=false build_created=false deployment=false active_slot_changed=false restart=false sql=false migration_apply=false database_mutation=false external_send=false secrets_included=false"
           gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
