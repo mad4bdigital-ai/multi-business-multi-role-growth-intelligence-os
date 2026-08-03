@@ -103,7 +103,49 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Exercise stale head before claim and during Hostinger prechecks, changed Production, closed Incident, newer build, duplicate trigger, untrusted marker spoofing, missing or superseded current-run claim, a later trusted marker, missing secret, provider rejection, ambiguous POST transport, missing report before and after journal creation, split endpoint identity, cross-object identity, non-standard JSON MIME, and post-restart stale runtime while remaining fail-closed."
+      "objective": "Exercise stale head before claim and during Hostinger prechecks, changed Production, closed Incident, newer build, duplicate trigger, untrusted marker spoofing, missing or superseded current-run claim, a later trusted marker, missing secret, provider rejection, ambiguous POST transport, missing report before and after journal creation, split endpoint identity, cross-object identity, non-standard JSON MIME, and post-restart stale runtime while remaining fail-closed.",
+      "e2e_journeys": [
+        {
+          "id": "reject-stale-ambiguous-or-spoofed-restart-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted GitHub Actions contract runner using synthetic GitHub, Hostinger, and public-runtime responses",
+          "entrypoint": "Hostinger Production Node.js Restart Contract workflow on the exact pull-request candidate",
+          "terminal_outcome": "Every stale, conflicting, spoofed, superseded, missing-secret, provider-error, ambiguous-attempt, or incoherent-runtime scenario terminates with structured fail-closed evidence. Scenarios proven to stop before provider dispatch perform zero Hostinger POSTs and create no attempt journal; scenarios that may have crossed the provider boundary consume or retain the exact binding and are never classified as automatically retryable.",
+          "steps": [
+            "Run the restart regression contract entirely against synthetic fetch implementations and temporary evidence directories.",
+            "Exercise stale main, changed Production, closed Incident, missing or superseded claims, later trusted markers, and untrusted marker spoofing before the provider mutation gate.",
+            "Exercise newer or non-completed builds, missing credentials, provider rejection, and ambiguous POST transport outcomes.",
+            "Exercise missing-report behavior both before attempt-journal creation and after a durable attempt journal proves provider mutation was attempted.",
+            "Exercise split endpoint identity, conflicting direct identity fields, nested historical identity, non-standard JSON MIME, and post-restart stale runtime.",
+            "Require deployment-info direct top-level consensus for the exact Production branch and SHA before any success classification.",
+            "Verify bounded structured evidence, exact-once marker semantics, and absence of secret or protected-reference mutation."
+          ],
+          "assertions": [
+            "Synthetic pre-mutation authority failures send zero provider POSTs, leave restart_attempted=false, and create no attempt journal.",
+            "Duplicate, spoofed, superseded, or later-marker claims cannot obtain current-run mutation authority.",
+            "A durable attempt journal prevents missing or ambiguous provider outcomes from being marked retryable_without_provider_mutation=true.",
+            "Conflicting, invalid, split, or nested runtime identity cannot satisfy coherent Production parity.",
+            "Only deployment-info direct top-level fields may prove the exact Production branch and SHA pair.",
+            "All regression requests use synthetic fetch implementations; the contract journey performs no live Hostinger restart, deployment, build creation, SQL, migration, database mutation, protected-ref mutation, external send, or secret output."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-nodejs-restart-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-production-restart.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-production-restart-contract.yml",
+            "http-generic-api/scripts/hostinger-nodejs-production-restart.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
