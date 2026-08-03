@@ -51,6 +51,7 @@
             "The canonical reporter and reporter-test blobs are verified before HOSTINGER_API_TOKEN is used.",
             "Hostinger provider method is GET only and public runtime responses are bounded and recursively redacted.",
             "The workflow writes no claim or completion comment; the Artifact is reviewed and the bounded decision is posted through an authenticated administrative channel.",
+            "No generated artifact path is in R6 scope, so the generated-artifact refresh label is intentionally absent and the governed refresh request must resolve as skipped rather than dispatching a writer.",
             "No repository content or protected-ref mutation, Actions dispatch, build creation, deployment, release activation, restart, SQL execution, migration dry-run or Apply, database mutation, arbitrary SSH, force push, or external business send occurs.",
             "Secrets included is false and the issue remains open until the Artifact decision is separately reviewed."
           ],
