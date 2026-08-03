@@ -1,0 +1,2 @@
+Exact read-only baseline probe for main@97e4ee7ec790844ad20ee2349125579353c693d5.
+No runtime, deployment, provider, database, migration, credential, protected-ref, or external mutation authority.
