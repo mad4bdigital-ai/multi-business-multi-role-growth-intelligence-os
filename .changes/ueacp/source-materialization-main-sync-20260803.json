@@ -1,8 +1,0 @@
-{
-  "contract": "mad4b.ueacp.source-materialization-main-sync.v1",
-  "base_main_sha": "415557d31e0533b8156e8058aa2a20fb844bc121",
-  "target_branch": "gpt/011-ueacp-repository-source-materialization-20260803",
-  "ancestry_only": true,
-  "repository_mutation_performed": false,
-  "secrets_included": false
-}
