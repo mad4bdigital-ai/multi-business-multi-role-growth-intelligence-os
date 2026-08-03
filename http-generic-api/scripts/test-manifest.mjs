@@ -78,6 +78,7 @@ const staticDiscoveryCommands = [
   "node test-platform-resource-recipe-capability.mjs",
   "node test-production-promotion-convergence-workflows.mjs",
   "node test-registry-data-management-service.mjs",
+  "node test-runtime-registry-authority.mjs",
   "node test-remaining-resource-capability-completion-gates.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-repository-main-moved-trigger-coordinator.mjs",
