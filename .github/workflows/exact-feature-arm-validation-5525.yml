@@ -1,0 +1,220 @@
+name: Exact Feature ARM Validation 5525
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-feature-arm-base-5525-c7f7be81
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-feature-arm-validation-5525-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Exact Candidate Preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    outputs:
+      head_sha: ${{ steps.verify.outputs.head_sha }}
+      main_sha: ${{ steps.verify.outputs.main_sha }}
+    steps:
+      - name: Checkout exact candidate with read-only token
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify immutable same-repository candidate
+        id: verify
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/fix-e2e-production-baseline-current-main-c7f7be81-clean-20260803
+          EXPECTED_HEAD_SHA: 3180de6304ed6780bcf0a0f1fd2761996c16d8c5
+          EXPECTED_MAIN_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse ${EXPECTED_HEAD_SHA}^1)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA")
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = ".github/workflows/e2e-phase-governance.yml"
+          test "${files[1]}" = "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs"
+          test "${files[2]}" = "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
+          printf 'head_sha=%s\n' "$EXPECTED_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          printf 'main_sha=%s\n' "$EXPECTED_MAIN_SHA" >> "$GITHUB_OUTPUT"
+
+  syntax:
+    name: Syntax Check
+    needs: preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate exact changed sources
+        run: |
+          set -euo pipefail
+          git diff --check
+          node --check http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+
+  test:
+    name: Unit & Integration Tests
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run focused Production baseline regression
+        working-directory: http-generic-api
+        run: node scripts/e2e-parallel-pr-flow-self-test.mjs
+      - name: Run complete test suite with exact provenance
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ needs.preflight.outputs.head_sha }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+      - name: Upload ordered test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-feature-5525-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  resolver:
+    name: Execution Resolver Gate
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+
+  architecture:
+    name: Architecture Drift Detection
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+  e2e:
+    name: E2E Phase Governance
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run exact phase evaluation and journey execution
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.preflight.outputs.main_sha }}
+          HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$RUNNER_TEMP/e2e-phase-execution.json"
+      - name: Upload exact E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-feature-5525-e2e-${{ github.run_id }}
+          path: ${{ runner.temp }}/e2e-phase-*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  diagnostic:
+    name: Branch Test Diagnostic Scope
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Re-prove exact scope and reviewed blobs
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.preflight.outputs.main_sha }}
+          HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$HEAD_SHA:.github/workflows/e2e-phase-governance.yml")" = "484ec2b5c8cd76cd8de914934659bef48194eeb0"
+          test "$(git rev-parse "$HEAD_SHA:http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs")" = "3fcc961e43b8ec686d52168e1164685f05953e48"
+          test "$(git rev-parse "$HEAD_SHA:http-generic-api/scripts/e2e-parallel-pr-gate.mjs")" = "7dcbb1f008fcd7411334833daf887a582874538d"
+          git diff --stat "$BASE_SHA"..."$HEAD_SHA"
