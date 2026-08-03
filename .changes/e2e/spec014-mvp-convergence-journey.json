@@ -10,7 +10,8 @@
       ".changes/e2e/spec014-mvp-convergence-journey.json",
       "http-generic-api/test-hostinger-storage-e2e.mjs",
       "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
-      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
+      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+      "http-generic-api/test-hostinger-storage-unknown-outcome.mjs"
     ]
   },
   "merge_contract": {
@@ -20,7 +21,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that one mounted Tenant request resolves Context Kernel authority and uses one canonical repository instance for the exact operation through immutable-plan consumption, prepared/result/readback journaling, reconciliation, and Tenant-safe readback.",
+      "objective": "Prove that one mounted Tenant request resolves Context Kernel authority and uses one canonical repository instance for the exact operation through immutable-plan consumption, prepared/result/readback journaling, reconciliation, Tenant-safe readback, and fail-closed unknown-outcome handling before retry.",
       "e2e_journeys": [
         {
           "id": "tenant-storage-request-to-reconciled-readback",
@@ -28,7 +29,7 @@
           "level": "synthetic_runtime",
           "actor": "tenant_workspace_owner",
           "entrypoint": "POST /tenant/storage-operations/apply-plan",
-          "terminal_outcome": "The exact Tenant operation completes and the same repository instance records the consumed immutable plan, prepared/result/readback journal, reconciliation result, and Tenant-safe readback bindings.",
+          "terminal_outcome": "The exact Tenant operation completes with persisted shared-state evidence, while interrupted synthetic execution forbids automatic retry until bounded reconciliation proves not-applied, applied-from-receipt, replay-safe completion, or a blocking conflict.",
           "steps": [
             "Create one Tenant operation with its immutable plan, approval evidence, execution lease, adapter, one-shot enablement, and canonical in-memory repository.",
             "Mount the Tenant route with Context Kernel and effective-authority resolution bound to that exact operation.",
@@ -36,6 +37,8 @@
             "Read the exact operation back from the same repository object supplied to the runtime.",
             "Require completed operation state, consumed immutable plan with unchanged bindings, unchanged append-only approvals, and prepared/result/readback journal phases for the same run and plan.",
             "Require one reconciliation record and bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest.",
+            "Execute the existing unknown-outcome contract for interruption before mutation and after mutation, and forbid automatic retry until repository and adapter readback reconciliation completes.",
+            "Require not-applied reconciliation before a new plan, applied recovery from a persisted mutation receipt, replay-safe reconciliation after a committed-record crash, and a blocking conflict when item identity drifts.",
             "Keep provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets disabled."
           ],
           "assertions": [
@@ -44,6 +47,10 @@
             "Approval record digests remain append-only and unchanged.",
             "Prepared, result, and readback journal records persist for the same operation, run, and plan.",
             "One reconciliation result matches the Tenant-safe response outcome and result digest.",
+            "Unknown outcome forbids automatic retry and requires readback reconciliation first.",
+            "Interruption before mutation reconciles as not applied and requires a new plan before retry.",
+            "Interruption after mutation recovers from the persisted receipt without duplicate mutation.",
+            "Committed reconciliation replay is idempotent, while identity conflict blocks the operation.",
             "Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.",
             "Provider dispatch, live mutation, Production readiness, and secrets remain false."
           ],
@@ -60,8 +67,10 @@
             "http-generic-api/test-hostinger-storage-e2e.mjs",
             "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
             "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+            "http-generic-api/test-hostinger-storage-unknown-outcome.mjs",
             "http-generic-api/hostingerStorageTenantRuntime.js",
             "http-generic-api/hostingerStorageTenantCanary.js",
+            "http-generic-api/hostingerStorageSyntheticExecutor.js",
             "http-generic-api/hostingerStorageControlPlaneRepository.js",
             "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json"
           ]
@@ -76,7 +85,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Extend the same mounted shared-state operation with fault injection, worker restart recovery, unknown-outcome reconciliation, and checkpoint restoration."
+      "objective": "Extend the synthetic unknown-outcome proof to mounted route interruption, worker restart recovery, transport faults, and checkpoint restoration."
     },
     {
       "id": "canary",
