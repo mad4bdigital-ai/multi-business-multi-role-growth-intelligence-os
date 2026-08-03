@@ -28,7 +28,6 @@ jobs:
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       TARGET_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
       TRIGGER_MARKER: .github/arm-markers/work-map-full-failure-writer-trigger.txt
-      DIAGNOSTIC_ROOT: ${{ runner.temp }}/work-map-full-failure-writer-${{ github.run_id }}
     steps:
       - name: Checkout exact triggered feature head
         uses: actions/checkout@v5
@@ -46,6 +45,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-full-failure-writer-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           test "$(git rev-parse HEAD)" = "${TARGET_HEAD_SHA}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${TARGET_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
           git diff --name-only "${EXPECTED_MAIN_SHA}" "${TARGET_HEAD_SHA}" | LC_ALL=C sort > /tmp/trigger-files.txt
