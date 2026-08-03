@@ -19,13 +19,14 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/spec012-oauth-fullsuite-fix-a61cd9e8-v1' &&
-      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+      github.event.pull_request.head.sha == '8d3764afa5889e528eac27f5521866b7f2170ffc'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_TARGET_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_TARGET_SHA: 8d3764afa5889e528eac27f5521866b7f2170ffc
       TARGET_BRANCH: gpt/spec012-oauth-fullsuite-fix-a61cd9e8-v1
+      TRIGGER_PATH: .github/validation/exact-oauth-fullsuite-repair-5937.txt
     steps:
       - name: Checkout exact target branch
         uses: actions/checkout@v5
@@ -39,9 +40,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
           test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
+          test -f "$TRIGGER_PATH"
           case "$TARGET_BRANCH" in main|Production) exit 1 ;; esac
 
       - name: Apply exact OAuth composition and v2 evidence repair
@@ -100,14 +103,17 @@ jobs:
                   raise SystemExit(f'{path}: expected one exact replacement target, found {count}: {old[:120]!r}')
               path.write_text(source.replace(old, new), encoding='utf-8')
           PY
+          rm -- "$TRIGGER_PATH"
 
           mapfile -t files < <(git diff --name-only)
-          test "${#files[@]}" -eq 3
-          test "${files[0]}" = 'http-generic-api/routes/index.js'
-          test "${files[1]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
-          test "${files[2]}" = 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+          test "${#files[@]}" -eq 4
+          test "${files[0]}" = '.github/validation/exact-oauth-fullsuite-repair-5937.txt'
+          test "${files[1]}" = 'http-generic-api/routes/index.js'
+          test "${files[2]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
+          test "${files[3]}" = 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
           git diff --check
           git diff --exit-code -- . \
+            ':!.github/validation/exact-oauth-fullsuite-repair-5937.txt' \
             ':!http-generic-api/routes/index.js' \
             ':!http-generic-api/test-auth-oauth-routes.mjs' \
             ':!http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
@@ -147,11 +153,12 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- \
+          git add -A -- \
+            "$TRIGGER_PATH" \
             http-generic-api/routes/index.js \
             http-generic-api/test-auth-oauth-routes.mjs \
             http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 4
           git commit -m 'fix(spec-012): restore OAuth full-suite composition'
 
       - name: Push without force after final compare-and-swap
