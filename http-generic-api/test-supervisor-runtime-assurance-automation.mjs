@@ -63,11 +63,13 @@ for (const marker of [
   "Commit and push governed Work Maps",
   "Dispatch exact-head verification",
   "Finalize diagnostic evidence",
-  ".work-map-autofix-diagnostics",
+  'diagnostic_root="${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}"',
   "mad4b.spec-kit-work-map-autofix.v2",
   "WORK_MAP_AUTOFIX_V2",
   "work-map-autofix-diagnostics-",
   "actions/upload-artifact@v4",
+  'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}',
+  "if-no-files-found: error",
   "git check-ref-format --branch",
   "git add docs/work-maps",
   "git push origin",
@@ -77,6 +79,7 @@ for (const marker of [
 ]) {
   assert.ok(workMapAutofix.includes(marker), `Work Map Autofix v2 missing ${marker}`);
 }
+assert.doesNotMatch(workMapAutofix, /GITHUB_WORKSPACE.*work-map-autofix-diagnostics/);
 assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
 assert.match(workMapAutofix, /TARGET_BRANCH: \$\{\{ inputs\.branch \}\}/);
