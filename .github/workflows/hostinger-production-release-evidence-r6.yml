@@ -188,7 +188,7 @@ jobs:
             [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
             printf '%s\n' "${status}" > "${TOPOLOGY_DIR}/${name}.http-status"
             if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
-              jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
+              jq 'walk(if type == "object" then with_entries(if (.key == "secrets_included" and (.value | type) == "boolean") then . elif (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
             else
               jq -n --arg url "${url}" --arg status "${status}" --argjson curl_exit "${rc}" \
                 '{ok:false,url:$url,http_status:($status|tonumber? // 0),curl_exit:$curl_exit,error:"bounded_json_response_unavailable",secrets_included:false}' > "${safe}"
