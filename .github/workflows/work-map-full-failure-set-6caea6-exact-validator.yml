@@ -1,0 +1,133 @@
+name: Work Map Full Failure Set 6CAEA6 Exact Validator
+
+on:
+  push:
+    branches:
+      - gpt/validate-work-map-full-failure-set-6caea6-20260804
+    paths:
+      - .github/workflows/work-map-full-failure-set-6caea6-exact-validator.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-full-failure-set-6caea6-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify launcher and execute exact candidate
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate=6caea6ca1267a45b8218a9b89af78e2151a3ea02
+          launcher=.github/workflows/work-map-full-failure-set-6caea6-exact-validator.yml
+          test "$(git rev-parse HEAD^)" = "$candidate"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$launcher"
+          git checkout --detach "$candidate"
+
+          root="$RUNNER_TEMP/work-map-full-failure-set-6caea6"
+          mkdir -p "$root/logs"
+          : > "$root/results.tsv"
+          : > "$root/failed.tsv"
+          run_check() {
+            name="$1"; shift
+            set +e
+            "$@" >"$root/logs/$name.log" 2>&1
+            code=$?
+            set -e
+            cat "$root/logs/$name.log"
+            if [[ "$code" -eq 0 ]]; then
+              printf '%s\tpassed\t0\n' "$name" >> "$root/results.tsv"
+            else
+              printf '%s\tfailed\t%s\n' "$name" "$code" >> "$root/results.tsv"
+              printf '%s\t%s\n' "$name" "$code" >> "$root/failed.tsv"
+            fi
+          }
+
+          run_check syntax-platform-work-map-generator node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          run_check syntax-platform-work-map-schema-intelligence node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          run_check syntax-work-map-schema-classification node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          run_check syntax-work-map-schema-classification-contract node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_check syntax-pipeline-connectivity-check node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_check pipeline-connectivity-check node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_check pipeline-connectivity-regression node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_check schema-classification-contract node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_check schema-classification node http-generic-api/scripts/work-map-schema-classification.mjs
+          run_check schema-classification-regression node http-generic-api/test-work-map-schema-classification.mjs
+          run_check schema-classification-contract-regression node http-generic-api/test-work-map-schema-classification-contract.mjs
+          run_check complete-failure-set-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          run_check generated-work-maps-current node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          run_check spec014-final-work-map-readback env REPORT_PATH="$root/spec014.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+          test "$(wc -l < "$root/results.tsv" | tr -d '[:space:]')" = 14
+          failed_count="$(wc -l < "$root/failed.tsv" | tr -d '[:space:]')"
+          node - "$root/results.tsv" "$root/failed.tsv" "$root/spec014.json" "$root/report.json" <<'NODE'
+          const fs = require('node:fs');
+          const [resultsPath, failedPath, readbackPath, outputPath] = process.argv.slice(2);
+          const checks = fs.readFileSync(resultsPath, 'utf8').trim().split('\n').filter(Boolean).map((line) => {
+            const [name, outcome, exitCode] = line.split('\t');
+            return { name, outcome, exit_code: Number(exitCode) };
+          });
+          const failures = fs.readFileSync(failedPath, 'utf8').trim().split('\n').filter(Boolean).map((line) => {
+            const [name, exitCode] = line.split('\t'); return { name, exit_code: Number(exitCode) };
+          });
+          const r = JSON.parse(fs.readFileSync(readbackPath, 'utf8'));
+          const candidate = '6caea6ca1267a45b8218a9b89af78e2151a3ea02';
+          if (r.candidate_sha !== candidate || r.ok !== true || (r.findings || []).length !== 0) throw new Error('readback_failed');
+          if (r.classification?.ok !== true || r.classification?.coverage_percent !== 100) throw new Error('classification_failed');
+          const report = {
+            contract: 'mad4b.work-map-full-failure-set-exact-validation.v1',
+            generated_at: new Date().toISOString(), candidate_sha: candidate,
+            checks, check_count: checks.length, failures, failed_count: failures.length,
+            complete_failure_set_regression: checks.find(x => x.name === 'complete-failure-set-regression')?.outcome === 'passed',
+            generated_work_maps_current: checks.find(x => x.name === 'generated-work-maps-current')?.outcome === 'passed',
+            spec014_final_readback: r,
+            repository_mutation: false, provider_dispatch: false, live_database_access: false,
+            migration_apply: false, production_mutation: false, secrets_included: false
+          };
+          fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n');
+          NODE
+          echo "root=$root" >> "$GITHUB_OUTPUT"
+          echo "failed_count=$failed_count" >> "$GITHUB_OUTPUT"
+
+      - name: Publish evidence and remove launcher
+        shell: bash
+        env:
+          ROOT: ${{ steps.validate.outputs.root }}
+          EVENT_SHA: ${{ github.sha }}
+          BRANCH: gpt/validate-work-map-full-failure-set-6caea6-20260804
+        run: |
+          set -euo pipefail
+          git checkout -B "$BRANCH" "$EVENT_SHA"
+          mkdir -p .github/validation
+          cp "$ROOT/report.json" .github/validation/work-map-full-failure-set-6caea6.json
+          rm .github/workflows/work-map-full-failure-set-6caea6-exact-validator.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/validation/work-map-full-failure-set-6caea6.json
+          git add -u .github/workflows/work-map-full-failure-set-6caea6-exact-validator.yml
+          git diff --cached --check
+          git commit -m 'test(work-maps): publish synchronized exact evidence'
+          test "$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}')" = "$EVENT_SHA"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+      - name: Enforce zero failures
+        shell: bash
+        env:
+          FAILED_COUNT: ${{ steps.validate.outputs.failed_count }}
+        run: |
+          set -euo pipefail
+          test "$FAILED_COUNT" = 0
