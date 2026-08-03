@@ -1,0 +1,35 @@
+name: Hostinger Production Node.js Restart Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/hostinger-production-nodejs-restart.json'
+      - '.github/workflows/hostinger-nodejs-production-restart.yml'
+      - '.github/workflows/hostinger-nodejs-production-restart-contract.yml'
+      - 'http-generic-api/scripts/hostinger-nodejs-production-restart.mjs'
+      - 'http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Validate governed Hostinger Production restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate restart workflow and implementation
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-production-restart.mjs
