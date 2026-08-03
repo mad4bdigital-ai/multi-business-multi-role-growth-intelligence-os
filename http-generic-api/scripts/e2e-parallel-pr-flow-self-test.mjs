@@ -144,6 +144,32 @@ assert.equal(legacyImmutablePromotion.ok, true, JSON.stringify(legacyImmutablePr
 assert.equal(legacyImmutablePromotion.production_promotion_identity, "immutable_main_snapshot");
 assert.equal(legacyImmutablePromotion.phase_evaluation_base, workSha);
 
+const mainTree = run("git", ["rev-parse", `${headSha}^{tree}`], root).trim();
+const baseTree = run("git", ["rev-parse", `${baseSha}^{tree}`], root).trim();
+const reconciliationSha = run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-m", "reconcile main and Production"], root).trim();
+const reconciliationRef = `release/production-candidate-20260803-${reconciliationSha.slice(0, 8)}-v1`;
+const reconciliationPromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", reconciliationSha, "--head-ref", reconciliationRef, "--base-ref", "Production"], root));
+assert.equal(reconciliationPromotion.ok, true, JSON.stringify(reconciliationPromotion.findings));
+assert.equal(reconciliationPromotion.pr_mode, "standard");
+assert.equal(reconciliationPromotion.production_promotion, true);
+assert.equal(reconciliationPromotion.production_promotion_identity, "history_preserving_main_reconciliation");
+assert.equal(reconciliationPromotion.phase_evaluation_base, headSha);
+
+const rejectedCandidates = [
+  run("git", ["commit-tree", baseTree, "-p", headSha, "-p", baseSha, "-m", "wrong tree and empty effective diff"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", workSha, "-p", baseSha, "-m", "stale first parent"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", headSha, "-p", workSha, "-m", "wrong second parent"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-p", workSha, "-m", "unexpected third parent"], root).trim()
+];
+for (const rejectedSha of rejectedCandidates) {
+  const rejected = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", rejectedSha, "--head-ref", `release/production-candidate-20260803-${rejectedSha.slice(0, 8)}-v1`, "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+  assert.notEqual(rejected.status, 0);
+  const rejectedReport = JSON.parse(rejected.stdout);
+  assert.equal(rejectedReport.production_promotion, false);
+  assert.equal(rejectedReport.production_promotion_identity, null);
+  assert(rejectedReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+}
+
 const mismatchedImmutable = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/production-candidate-20260803-deadbeef-v1", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
 assert.notEqual(mismatchedImmutable.status, 0);
 const mismatchedImmutableReport = JSON.parse(mismatchedImmutable.stdout);
@@ -184,4 +210,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 46, flow: "parallel_workstream_to_integration_default_branch_and_source_baselined_production_promotions", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 51, flow: "parallel_workstream_to_integration_default_branch_and_fail_closed_history_preserving_production_promotions", secrets_included: false }));
