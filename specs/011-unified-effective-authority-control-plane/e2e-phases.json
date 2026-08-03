@@ -9,11 +9,16 @@
     "include": [
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/authorityEvidenceRepositorySourceMaterializer.js",
+      "http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
+      "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
-      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
+      "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md"
     ]
   },
   "merge_contract": {
@@ -23,7 +28,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind exactly eight reviewed authority-source documents to one reviewed ancestor ref, validate canonical path completeness, compose them with the bounded live catalog observer, and produce a no-secret packet ready only for later human ownership review.",
+      "objective": "Bind exactly eight reviewed authority-source documents to one reviewed ancestor ref, validate canonical path completeness, compose them with the bounded live catalog observer, and provide deterministic preparation tooling without automatic repository or runtime mutation.",
       "e2e_journeys": [
         {
           "id": "collect-governed-ueacp-live-evidence",
@@ -76,13 +81,57 @@
             "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
           ]
+        },
+        {
+          "id": "materialize-reviewed-repository-authority-sources",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP evidence reviewer",
+          "entrypoint": "authority-evidence-repository-source-materialize.mjs followed after a reviewed source commit by authority-evidence-repository-manifest-finalize.mjs",
+          "terminal_outcome": "Eight deterministic no-secret source documents and one exact ancestor-bound manifest are ready for separate repository review without an automatic commit or live operation.",
+          "steps": [
+            "Validate one complete no-secret snapshot for each of the eight registered source families.",
+            "Reject incomplete pagination, count mismatch, conflicting path contracts, missing path controls, unsafe effects, or sensitive values.",
+            "Materialize deterministic canonical source JSON bytes and a content-bound review report.",
+            "Refuse path escapes and refuse overwriting any existing source or report file.",
+            "Review and commit the eight source documents separately.",
+            "Verify the source commit is a full ancestor of current HEAD.",
+            "Verify current source bytes match both the materialization report and the exact bytes committed at the reviewed ref.",
+            "Resolve exact Git blob SHAs and emit the canonical repository source manifest.",
+            "Refuse automatic Git add, commit, push, live workflow dispatch, SQL, provider, credential, deployment, or task mutation."
+          ],
+          "assertions": [
+            "Exactly eight source documents are emitted in stable source-family order.",
+            "Repeated materialization of identical snapshots produces identical bytes and hashes.",
+            "Missing families and secret-bearing records fail closed.",
+            "The manifest finalizer rejects incomplete reports, current content drift, reviewed-ref content drift, symlinks, path escapes, and invalid commit identity.",
+            "The final manifest binds exact reviewed Git blob SHA and exact source content SHA-256 for every family.",
+            "No repository mutation is performed by either CLI; files are local review outputs only.",
+            "T001, T002, and T021-T024 remain open."
+          ],
+          "tests": [
+            {
+              "id": "authority-evidence-repository-source-materializer",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-source-materializer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/authorityEvidenceRepositorySourceMaterializer.js",
+            "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs",
+            "http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs",
+            "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
+            "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge and review exact eight source documents, then merge a manifest binding their reviewed ancestor ref and source hashes, configure the protected Environment, and explicitly authorize one bounded Production read-only evidence cycle."
+      "objective": "Use an independently reviewed live source snapshot artifact to materialize and commit exactly eight source documents, finalize and commit their reviewed manifest, configure the protected Environment, and explicitly authorize one bounded Production read-only evidence cycle."
     }
   ],
   "secrets_included": false
