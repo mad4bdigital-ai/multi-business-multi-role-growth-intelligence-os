@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/provider-webhook-inbox.schema.json",
+  "title": "Provider Webhook Inbox Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "inbox_ref",
+    "provider_key",
+    "connection_ref",
+    "tenant_ref",
+    "workspace_ref",
+    "event_identity",
+    "received_at",
+    "signature_status",
+    "replay_status",
+    "processing_status",
+    "payload_hash",
+    "payload_classification",
+    "secrets_included"
+  ],
+  "properties": {
+    "inbox_ref": { "$ref": "#/$defs/reference" },
+    "provider_key": { "$ref": "#/$defs/reference" },
+    "connection_ref": { "$ref": "#/$defs/reference" },
+    "tenant_ref": { "$ref": "#/$defs/reference" },
+    "workspace_ref": { "$ref": "#/$defs/reference" },
+    "brand_ref": { "$ref": "#/$defs/reference" },
+    "owner_scope_type": {
+      "type": "string",
+      "enum": ["personal_workspace", "company_workspace", "brand", "platform"]
+    },
+    "owner_scope_ref": { "$ref": "#/$defs/reference" },
+    "domain_key": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "event_identity": { "$ref": "#/$defs/reference" },
+    "event_type": { "type": "string", "minLength": 1, "maxLength": 191 },
+    "provider_created_at": { "type": ["string", "null"], "format": "date-time" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "signature_status": {
+      "type": "string",
+      "enum": ["valid", "invalid", "not_supported", "not_checked"]
+    },
+    "signature_version": { "type": ["string", "null"], "maxLength": 64 },
+    "replay_status": {
+      "type": "string",
+      "enum": ["first_seen", "duplicate", "outside_window", "rejected"]
+    },
+    "processing_status": {
+      "type": "string",
+      "enum": [
+        "received",
+        "accepted",
+        "processing",
+        "readback_required",
+        "applied",
+        "ignored",
+        "retry_scheduled",
+        "dead_letter",
+        "rejected"
+      ]
+    },
+    "attempt_count": { "type": "integer", "minimum": 0 },
+    "next_attempt_at": { "type": ["string", "null"], "format": "date-time" },
+    "payload_hash": { "$ref": "#/$defs/sha256" },
+    "payload_size_bytes": { "type": "integer", "minimum": 0 },
+    "payload_classification": {
+      "type": "string",
+      "enum": ["metadata_only", "bounded_business_event", "sensitive_redacted", "prohibited"]
+    },
+    "normalized_event": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "raw_payload_retained": { "type": "boolean" },
+    "readback_ref": { "$ref": "#/$defs/reference" },
+    "operation_ref": { "$ref": "#/$defs/reference" },
+    "correlation_ref": { "$ref": "#/$defs/reference" },
+    "error_code": { "type": ["string", "null"], "maxLength": 128 },
+    "error_summary": { "type": ["string", "null"], "maxLength": 1000 },
+    "context_revision": { "type": "integer", "minimum": 1 },
+    "connection_revision": { "type": "integer", "minimum": 1 },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

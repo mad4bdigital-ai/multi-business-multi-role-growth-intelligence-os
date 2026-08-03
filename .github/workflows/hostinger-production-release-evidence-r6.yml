@@ -3,24 +3,62 @@ name: Hostinger Production Release Evidence R6
 on:
   pull_request:
     branches: [main]
-    types: [opened]
-    paths:
-      - '.github/ops/hostinger-production-release-evidence-r6-trigger.json'
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
 
 concurrency:
   group: hostinger-production-release-evidence-r6-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
+  classify-trigger-scope:
+    name: Classify exact R6 trigger scope
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      eligible: ${{ steps.scope.outputs.eligible }}
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+      PR_DRAFT: ${{ github.event.pull_request.draft }}
+    steps:
+      - name: Classify exact one-file trigger without provider access
+        id: scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "${HEAD_REPOSITORY}" != "${REPOSITORY}" || "${PR_AUTHOR_ID}" != "${AUTHORIZATION_USER_ID}" || "${PR_DRAFT}" != "true" ]]; then
+            echo "eligible=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::R6 evidence collection skipped: pull request identity or Draft state is not eligible."
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(
+            gh api --paginate "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename'
+          )
+          if [[ "${#changed_files[@]}" -eq 1 && "${changed_files[0]}" == "${TRIGGER_PATH}" ]]; then
+            echo "eligible=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "eligible=false" >> "${GITHUB_OUTPUT}"
+          echo "::notice::R6 evidence collection skipped: pull request is not the exact one-file trigger."
+
   collect-release-evidence:
     name: Collect PR-triggered GET-only Hostinger release evidence
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.id == 271942579 &&
-      github.event.pull_request.draft == true
+    needs: classify-trigger-scope
+    if: needs.classify-trigger-scope.outputs.eligible == 'true'
     permissions:
       contents: read
       issues: read
@@ -41,7 +79,6 @@ jobs:
       REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
       REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
 
     steps:
       - name: Checkout exact trusted main tooling
@@ -50,6 +87,13 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Initialize runtime evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
+          mkdir -p "${RUNNER_TEMP}/hostinger-production-release-evidence-r6"
 
       - name: Verify trigger scope, authorization, and immutable bindings
         id: binding
@@ -106,9 +150,10 @@ jobs:
           TRIGGER_NONCE="$(jq -r '.trigger_nonce' "${TRIGGER_JSON}")"
           test "${BINDING_ID}" = "${EXPECTED_PRODUCTION_SHA}:${REPORTER_BLOB_SHA}:${AUTHORIZATION_COMMENT_ID}:R6"
 
-          AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
-          AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
-          test "${AUTH_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          AUTH_JSON="${RUNNER_TEMP}/r6-authorization.json"
+          gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" > "${AUTH_JSON}"
+          test "$(jq -r '.user.id' "${AUTH_JSON}")" = "${AUTHORIZATION_USER_ID}"
+          AUTH_BODY="$(jq -r '.body' "${AUTH_JSON}")"
           grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${AUTH_BODY}"
           grep -Fq "${BASE_SHA}" <<<"${AUTH_BODY}"
           grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${AUTH_BODY}"
@@ -190,7 +235,7 @@ jobs:
           HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
           EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
-          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}/build
+          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6/build
         run: node scripts/hostinger-nodejs-build-evidence.mjs
 
       - name: Fetch bounded public runtime topology
@@ -211,7 +256,7 @@ jobs:
             [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
             printf '%s\n' "${status}" > "${TOPOLOGY_DIR}/${name}.http-status"
             if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
-              jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
+              jq 'walk(if type == "object" then with_entries(if (.key == "secrets_included" and (.value | type) == "boolean") then . elif (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
             else
               jq -n --arg url "${url}" --arg status "${status}" --argjson curl_exit "${rc}" \
                 '{ok:false,url:$url,http_status:($status|tonumber? // 0),curl_exit:$curl_exit,error:"bounded_json_response_unavailable",secrets_included:false}' > "${safe}"
@@ -275,7 +320,7 @@ jobs:
           BUILD_REPORT="${EVIDENCE_DIR}/build/hostinger-nodejs-build-evidence.json"
           TOPOLOGY_REPORT="${EVIDENCE_DIR}/topology/topology-evidence.json"
           if [[ ! -s "${BUILD_REPORT}" ]]; then
-            jq -n --arg step "${BUILD_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_step_outcome:$step,identity:{expected_sha:$sha,expected_branch:"Production"},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
+            jq -n --arg step "${BUILD_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_step_outcome:$step,identity:{expected_sha:$sha,expected_branch:"Production"},request:{method:"GET",token_returned:false},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
           fi
           if [[ ! -s "${TOPOLOGY_REPORT}" ]]; then
             jq -n --arg step "${TOPOLOGY_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-production-topology-evidence.v1",expected_production_sha:$sha,classification:"topology_evidence_missing",production_current:false,topology_step_outcome:$step,public_get_only:true,credential_access_performed:false,provider_mutation_performed:false,restart_performed:false,secrets_included:false}' > "${TOPOLOGY_REPORT}"
@@ -309,7 +354,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-production-release-evidence-r6-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/**
+          path: ${{ runner.temp }}/hostinger-production-release-evidence-r6/**
           if-no-files-found: error
           retention-days: 30
 
