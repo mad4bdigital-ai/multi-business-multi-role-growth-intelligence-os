@@ -7,15 +7,16 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml"
+      - ".github/workflows/brand-skill-staging-preflight-push-fallback.yml"
       - ".github/workflows/brand-skill-mariadb-certification.yml"
       - "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs"
-      - "docs/runbooks/brand-skill-migration.md"
+      - "docs/runbooks/brand-skill-staging-preflight-dispatch-bridge.md"
 
 permissions:
   contents: read
 
 concurrency:
-  group: brand-skill-staging-preflight-dispatch-3809
+  group: ${{ github.event_name == 'issue_comment' && github.event.issue.number == 3809 && github.event.comment.body == 'AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC' && 'brand-skill-staging-preflight-execution-3809-v3' || format('brand-skill-staging-preflight-observation-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
@@ -44,38 +45,39 @@ jobs:
         run: node test-brand-skill-mariadb-certification-contract.mjs
 
   dispatch-staging-read-only-preflight:
-    name: Dispatch checksum-bound Staging read-only preflight
+    name: Dispatch checksum and workflow-blob-bound Staging read-only preflight
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
       github.event.issue.number == 3809 &&
-      github.event.comment.body == 'AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC' &&
+      github.event.comment.body == 'AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     permissions:
       contents: read
       actions: write
       issues: write
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: "3809"
-      AUTHORIZATION_COMMENT_ID: "5136135941"
+      AUTHORIZATION_COMMENT_ID: ${{ github.event.comment.id }}
       AUTHORIZATION_USER_ID: "271942579"
-      AUTHORIZATION_TOKEN: AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_ECA204DC
+      AUTHORIZATION_TOKEN: AUTHORIZE_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC
       TARGET_WORKFLOW: brand-skill-mariadb-certification.yml
       TARGET_REF: main
       RUN_MODE: staging_read_only
-      EXPECTED_COMMIT_SHA: e1084397317a7f2645d78fc43a3064eef98fabaf
+      EXPECTED_RUNTIME_COMMIT_SHA: e1084397317a7f2645d78fc43a3064eef98fabaf
+      EXPECTED_WORKFLOW_REPAIR_COMMIT_SHA: 8926c000473f1f3fc3480f6d530b314ec3c7dfcc
       EXPECTED_MIGRATION_SHA256: eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802
       EXPECTED_STATEMENT_COUNT: "3"
-      EXPECTED_WORKFLOW_BLOB_SHA: e36f9241a819018659788edb2a8a854da641b4b8
+      EXPECTED_WORKFLOW_BLOB_SHA: b6e5f7bd4a73803e4f062097a32bd9d8d17756ec
       EXPECTED_MIGRATION_BLOB_SHA: 1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7
       TARGET_WORKFLOW_PATH: .github/workflows/brand-skill-mariadb-certification.yml
       TARGET_MIGRATION_PATH: http-generic-api/migrations/20260728_brand_scoped_user_skill_activation.sql
-      BINDING_ID: e1084397317a7f2645d78fc43a3064eef98fabaf:eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802:3
+      BINDING_ID: b6e5f7bd4a73803e4f062097a32bd9d8d17756ec:e1084397317a7f2645d78fc43a3064eef98fabaf:eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802:3
     steps:
-      - name: Verify authorization and immutable target bindings
+      - name: Verify fresh authorization and immutable target bindings
         id: binding
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,69 +91,58 @@ jobs:
           AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
           AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
           test "${AUTH_USER_ID}" = "${AUTHORIZATION_USER_ID}"
-          grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${AUTH_BODY}"
-          grep -Fq "${EXPECTED_COMMIT_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${EXPECTED_MIGRATION_SHA256}" <<<"${AUTH_BODY}"
-          grep -Fq "statement count: \`3\`" <<<"${AUTH_BODY}"
-          grep -Fq "workflow mode: \`staging_read_only\`" <<<"${AUTH_BODY}"
+          test "${AUTH_BODY}" = "${AUTHORIZATION_TOKEN}"
 
           WORKFLOW_MAIN_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_WORKFLOW_PATH}?ref=${TARGET_REF}" --jq '.sha')"
-          WORKFLOW_REVIEWED_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_WORKFLOW_PATH}?ref=${EXPECTED_COMMIT_SHA}" --jq '.sha')"
+          WORKFLOW_REPAIR_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_WORKFLOW_PATH}?ref=${EXPECTED_WORKFLOW_REPAIR_COMMIT_SHA}" --jq '.sha')"
           MIGRATION_MAIN_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_MIGRATION_PATH}?ref=${TARGET_REF}" --jq '.sha')"
-          MIGRATION_REVIEWED_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_MIGRATION_PATH}?ref=${EXPECTED_COMMIT_SHA}" --jq '.sha')"
+          MIGRATION_RUNTIME_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_MIGRATION_PATH}?ref=${EXPECTED_RUNTIME_COMMIT_SHA}" --jq '.sha')"
 
           test "${WORKFLOW_MAIN_BLOB}" = "${EXPECTED_WORKFLOW_BLOB_SHA}"
-          test "${WORKFLOW_REVIEWED_BLOB}" = "${EXPECTED_WORKFLOW_BLOB_SHA}"
+          test "${WORKFLOW_REPAIR_BLOB}" = "${EXPECTED_WORKFLOW_BLOB_SHA}"
           test "${MIGRATION_MAIN_BLOB}" = "${EXPECTED_MIGRATION_BLOB_SHA}"
-          test "${MIGRATION_REVIEWED_BLOB}" = "${EXPECTED_MIGRATION_BLOB_SHA}"
+          test "${MIGRATION_RUNTIME_BLOB}" = "${EXPECTED_MIGRATION_BLOB_SHA}"
 
-          COMPLETED_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=completed binding=${BINDING_ID}\")) | .id")"
-          DISPATCHED_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched binding=${BINDING_ID}\")) | .id")"
-          test -z "${COMPLETED_MARKERS}"
-          test -z "${DISPATCHED_MARKERS}"
+          COMPLETED_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100"             --jq ".[] | select(.body | contains(\"BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=completed binding=${BINDING_ID}\")) | .id")"
+          if [[ -n "${COMPLETED_MARKERS}" ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "skip_reason=already_completed" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
 
-          BEFORE_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=20" \
-            --jq '[.workflow_runs[].id] | max // 0')"
+          DISPATCHED_ATTEMPT_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100"             --jq ".[] | select((.body | contains(\"BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched binding=${BINDING_ID}\")) and (.body | contains(\"authorization_comment_id=${AUTHORIZATION_COMMENT_ID}\"))) | .id")"
+          if [[ -n "${DISPATCHED_ATTEMPT_MARKERS}" ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "skip_reason=authorization_already_dispatched" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          BEFORE_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=20"             --jq '[.workflow_runs[].id] | max // 0')"
           echo "before_run_id=${BEFORE_RUN_ID}" >> "${GITHUB_OUTPUT}"
+          echo "skip=false" >> "${GITHUB_OUTPUT}"
 
-      - name: Record one-time dispatch claim
-        id: claim
+      - name: Record fresh authorization claim
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=claiming binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_event_comment_id=${{ github.event.comment.id }} target_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} migration_blob=${EXPECTED_MIGRATION_BLOB_SHA} applies_sql=false records_ledger=false production_authorized=false"
-          CLAIM_JSON="$(gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}")"
-          echo "comment_id=$(jq -r '.id' <<<"${CLAIM_JSON}")" >> "${GITHUB_OUTPUT}"
+          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=claiming binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} target_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} workflow_repair_commit=${EXPECTED_WORKFLOW_REPAIR_COMMIT_SHA} runtime_commit=${EXPECTED_RUNTIME_COMMIT_SHA} migration_blob=${EXPECTED_MIGRATION_BLOB_SHA} applies_sql=false records_ledger=false production_authorized=false"
+          gh api --method POST             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments"             -f body="${BODY}"
 
-      - name: Dispatch unchanged reviewed workflow
-        id: dispatch
+      - name: Dispatch repaired reviewed workflow
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          jq -n \
-            --arg ref "${TARGET_REF}" \
-            --arg mode "${RUN_MODE}" \
-            --arg commit "${EXPECTED_COMMIT_SHA}" \
-            --arg checksum "${EXPECTED_MIGRATION_SHA256}" \
-            '{ref:$ref,inputs:{run_mode:$mode,expected_commit_sha:$commit,expected_migration_sha256:$checksum}}' \
-            | gh api --method POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/dispatches" \
-                --input -
+          jq -n             --arg ref "${TARGET_REF}"             --arg mode "${RUN_MODE}"             --arg commit "${EXPECTED_RUNTIME_COMMIT_SHA}"             --arg checksum "${EXPECTED_MIGRATION_SHA256}"             '{ref:$ref,inputs:{run_mode:$mode,expected_commit_sha:$commit,expected_migration_sha256:$checksum}}'             | gh api --method POST                 -H "Accept: application/vnd.github+json"                 -H "X-GitHub-Api-Version: 2022-11-28"                 "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/dispatches"                 --input -
 
       - name: Resolve dispatched run
         id: target
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE_RUN_ID: ${{ steps.binding.outputs.before_run_id }}
@@ -160,23 +151,19 @@ jobs:
           set -euo pipefail
           RUN_ID=""
           for _ in $(seq 1 60); do
-            RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=20" \
-              --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID})) | sort_by(.id) | .[0].id // empty")"
+            RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=20"               --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID})) | sort_by(.id) | .[0].id // empty")"
             if [[ -n "${RUN_ID}" ]]; then break; fi
             sleep 5
           done
           test -n "${RUN_ID}"
           echo "run_id=${RUN_ID}" >> "${GITHUB_OUTPUT}"
 
-          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched binding=${BINDING_ID} target_run_id=${RUN_ID} bridge_run_id=${GITHUB_RUN_ID} expected_commit=${EXPECTED_COMMIT_SHA} expected_migration_sha256=${EXPECTED_MIGRATION_SHA256} applies_sql=false records_ledger=false production_authorized=false"
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}"
+          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched binding=${BINDING_ID} target_run_id=${RUN_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} expected_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} expected_runtime_commit=${EXPECTED_RUNTIME_COMMIT_SHA} expected_migration_sha256=${EXPECTED_MIGRATION_SHA256} applies_sql=false records_ledger=false production_authorized=false"
+          gh api --method POST             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments"             -f body="${BODY}"
 
       - name: Wait for governed target completion
         id: completion
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
@@ -184,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           CONCLUSION=""
-          for _ in $(seq 1 240); do
+          for _ in $(seq 1 360); do
             STATUS="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}" --jq '.status')"
             if [[ "${STATUS}" = "completed" ]]; then
               CONCLUSION="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}" --jq '.conclusion')"
@@ -198,14 +185,14 @@ jobs:
 
       - name: Download and validate bounded Staging evidence
         id: evidence
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          ARTIFACT_ID="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100" \
-            --jq '.artifacts[] | select(.name == "brand-skill-staging-read-only-preflight") | .id' | head -n 1)"
+          ARTIFACT_ID="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100"             --jq '.artifacts[] | select(.name == "brand-skill-staging-read-only-preflight") | .id' | head -n 1)"
           test -n "${ARTIFACT_ID}"
 
           mkdir -p "${RUNNER_TEMP}/brand-skill-staging-evidence"
@@ -214,7 +201,7 @@ jobs:
           EVIDENCE_FILE="$(find "${RUNNER_TEMP}/brand-skill-staging-evidence" -type f -name 'brand-skill-staging-preflight.json' -print -quit)"
           test -n "${EVIDENCE_FILE}"
 
-          node - "${EVIDENCE_FILE}" "${EXPECTED_COMMIT_SHA}" "${EXPECTED_MIGRATION_SHA256}" <<'NODE'
+          node - "${EVIDENCE_FILE}" "${EXPECTED_RUNTIME_COMMIT_SHA}" "${EXPECTED_MIGRATION_SHA256}" <<'NODE'
           const fs = require('node:fs');
           const [path, commit, checksum] = process.argv.slice(2);
           const value = JSON.parse(fs.readFileSync(path, 'utf8'));
@@ -242,6 +229,7 @@ jobs:
           echo "artifact_id=${ARTIFACT_ID}" >> "${GITHUB_OUTPUT}"
 
       - name: Record completion and close authorization issue
+        if: steps.binding.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.target.outputs.run_id }}
@@ -249,18 +237,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=completed binding=${BINDING_ID} result=pass target_run_id=${TARGET_RUN_ID} artifact_id=${ARTIFACT_ID} expected_commit=${EXPECTED_COMMIT_SHA} expected_migration_sha256=${EXPECTED_MIGRATION_SHA256} statement_count=${EXPECTED_STATEMENT_COUNT} ready=true target_environment=staging applies_sql=false records_ledger=false migration_apply_authorized=false production_authorized=false provider_calls=false external_writes=false secrets_included=false"
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}"
-          gh api --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" \
-            -f state=closed \
-            -f state_reason=completed
+          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=completed binding=${BINDING_ID} result=pass target_run_id=${TARGET_RUN_ID} artifact_id=${ARTIFACT_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} expected_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} expected_runtime_commit=${EXPECTED_RUNTIME_COMMIT_SHA} expected_migration_sha256=${EXPECTED_MIGRATION_SHA256} statement_count=${EXPECTED_STATEMENT_COUNT} ready=true target_environment=staging applies_sql=false records_ledger=false migration_apply_authorized=false production_authorized=false provider_calls=false external_writes=false secrets_included=false"
+          gh api --method POST             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments"             -f body="${BODY}"
+          gh api --method PATCH             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}"             -f state=closed             -f state_reason=completed
 
       - name: Record fail-closed bridge outcome
         if: failure()
@@ -271,9 +250,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=failed binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} target_run_id=${TARGET_RUN_ID:-unresolved} target_conclusion=${TARGET_CONCLUSION:-unknown} issue_remains_open=true migration_apply_authorized=false production_authorized=false"
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}"
+          BODY="BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=failed binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} target_run_id=${TARGET_RUN_ID:-unresolved} target_conclusion=${TARGET_CONCLUSION:-unknown} issue_remains_open=true migration_apply_authorized=false production_authorized=false"
+          gh api --method POST             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments"             -f body="${BODY}"
