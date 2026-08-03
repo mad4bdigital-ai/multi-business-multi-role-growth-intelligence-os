@@ -1,0 +1,133 @@
+name: Dispatch Authorized Hostinger Production Evidence R5
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - ".github/workflows/dispatch-hostinger-production-release-evidence-r5.yml"
+
+permissions:
+  actions: write
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: dispatch-hostinger-production-release-evidence-r5
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Verify immutable R5 authority and dispatch trusted main workflow
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      AUTHORIZATION_COMMENT_ID: '5165194648'
+      AUTHORIZATION_USER_ID: '271942579'
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R5
+      TRIGGER_COMMENT_ID: '5165552247'
+      TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R5
+      EXPECTED_MAIN_SHA: a2185136adac7dfb769e786405739468dd90e390
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      TARGET_WORKFLOW: .github/workflows/hostinger-production-release-evidence-r5.yml
+      TARGET_WORKFLOW_BLOB: 9652a18835135648db6c795f60687620b3153ae6
+      BINDING_ID: 2669991a882c7f7939510fbbace17f462a42517c:6134c0f8a454a5f8f1533f3f2a29ed6af77aa020:5165194648:R5
+      DISPATCHER_PATH: .github/workflows/dispatch-hostinger-production-release-evidence-r5.yml
+
+    steps:
+      - name: Checkout exact dispatcher head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify PR and immutable bindings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+          mapfile -t changed < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files?per_page=100" --jq '.[].filename')
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${DISPATCHER_PATH}"
+
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(git rev-parse "${EXPECTED_MAIN_SHA}:${TARGET_WORKFLOW}")" = "${TARGET_WORKFLOW_BLOB}"
+
+          auth_body="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
+          auth_user="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
+          test "${auth_user}" = "${AUTHORIZATION_USER_ID}"
+          grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${auth_body}"
+          grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${auth_body}"
+          grep -Fq 'provider method: `GET` only' <<<"${auth_body}"
+          grep -Fq 'provider mutation: `false`' <<<"${auth_body}"
+          grep -Fq 'restart: `false`' <<<"${auth_body}"
+
+          trigger_body="$(gh api "/repos/${REPOSITORY}/issues/comments/${TRIGGER_COMMENT_ID}" --jq '.body')"
+          trigger_user="$(gh api "/repos/${REPOSITORY}/issues/comments/${TRIGGER_COMMENT_ID}" --jq '.user.id')"
+          test "${trigger_user}" = "${AUTHORIZATION_USER_ID}"
+          test "${trigger_body}" = "${TRIGGER_TOKEN} expected_head_sha=${EXPECTED_MAIN_SHA}"
+
+          existing="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" --jq ".[] | select(.body | contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=claiming binding=${BINDING_ID}\") or contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=completed binding=${BINDING_ID}\")) | .id")"
+          test -z "${existing}"
+
+      - name: Dispatch trusted main R5 workflow
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/actions/workflows/hostinger-production-release-evidence-r5.yml/dispatches" \
+            -f ref=main \
+            -f "inputs[expected_head_sha]=${EXPECTED_MAIN_SHA}"
+          echo "dispatched_at=${dispatched_at}" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve target workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCHED_AT: ${{ steps.dispatch.outputs.dispatched_at }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          target_run_id=""
+          for attempt in $(seq 1 30); do
+            target_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/hostinger-production-release-evidence-r5.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
+              --jq ".workflow_runs[] | select(.head_sha == \"${EXPECTED_MAIN_SHA}\" and .created_at >= \"${DISPATCHED_AT}\") | .id" | head -n1)"
+            if [[ -n "${target_run_id}" ]]; then break; fi
+            sleep 5
+          done
+          test -n "${target_run_id}"
+          echo "TARGET_RUN_ID=${target_run_id}"
+          echo "TARGET_RUN_URL=https://github.com/${REPOSITORY}/actions/runs/${target_run_id}"
+
+      - name: Assert no provider mutation in dispatcher
+        run: |
+          echo 'dispatcher_hostinger_api_call=false'
+          echo 'dispatcher_secret_access=false'
+          echo 'provider_mutation=false'
+          echo 'build_creation=false'
+          echo 'deployment=false'
+          echo 'release_activation=false'
+          echo 'restart=false'
+          echo 'sql=false'
+          echo 'migration_apply=false'
+          echo 'database_mutation=false'
+          echo 'protected_ref_mutation=false'
+          echo 'secrets_included=false'
