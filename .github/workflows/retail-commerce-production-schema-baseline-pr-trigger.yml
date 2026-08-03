@@ -137,9 +137,11 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Prove collector SELECT-only contract
+      - name: Prove collector and trigger fail-closed contracts
         working-directory: http-generic-api
-        run: node test-retail-commerce-production-schema-baseline.mjs
+        run: |
+          node test-retail-commerce-production-schema-baseline.mjs
+          node test-retail-commerce-production-schema-baseline-pr-trigger.mjs
 
       - name: Preflight Production database secret bindings
         id: db_preflight
