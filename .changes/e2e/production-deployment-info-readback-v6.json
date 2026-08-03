@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-deployment-info-readback-v6",
+  "title": "Capture bounded Production deployment identity through trusted E2E diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-deployment-info-readback-v6.json",
+      "http-generic-api/scripts/temporary-production-deployment-info-evidence-v6.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Run one public GET-only readback of the current Production topology and preserve a bounded redacted JSON diagnostic in the canonical E2E execution Artifact.",
+      "e2e_journeys": [
+        {
+          "id": "capture-current-production-deployment-info",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository operator",
+          "entrypoint": "A Draft pull request changes this exact E2E contract and its temporary diagnostic script while Incident #4953 remains open.",
+          "terminal_outcome": "The trusted E2E runner verifies protected Production identity, reads public auth routes, prints one bounded redacted diagnostic packet, and exits nonzero intentionally so the canonical execution Artifact retains the diagnostic stream.",
+          "steps": [
+            "Verify protected Production still equals 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb and Incident #4953 remains open.",
+            "Read health, version, deployment-info, and connector-agent/version using public HTTPS GET requests with response-size and timeout limits.",
+            "Accept deployment branch, SHA, timestamp, and release path only from direct top-level fields of the single deployment-info body.",
+            "Recursively redact credential-like keys and print a compact diagnostic packet below the governed capture limit.",
+            "Exit with the dedicated diagnostic_capture_complete code so E2E failure diagnostics retain stdout in the Artifact."
+          ],
+          "assertions": [
+            "The collector performs no credential access, provider dispatch, provider mutation, build, deployment, activation, restart, repository mutation, SQL, Migration Apply, database mutation, or external send.",
+            "Each response is limited to 65536 bytes and every request has a 20 second timeout.",
+            "No branch or SHA identity is composed across different endpoints or nested historical objects.",
+            "The expected protected Production SHA is exactly 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb.",
+            "The intentional test failure is diagnostic-only and must not be interpreted as a Production runtime failure."
+          ],
+          "tests": [
+            {
+              "id": "production-deployment-info-readback-v6",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/temporary-production-deployment-info-evidence-v6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-deployment-info-readback-v6.json",
+            "http-generic-api/scripts/temporary-production-deployment-info-evidence-v6.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Record the resulting canonical execution Artifact and classification in Incident #4953."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain fail-closed identity checks and bounded redaction for any future authorized readback."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The readback performs no canary or provider mutation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The readback does not deploy, activate, restart, or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}
