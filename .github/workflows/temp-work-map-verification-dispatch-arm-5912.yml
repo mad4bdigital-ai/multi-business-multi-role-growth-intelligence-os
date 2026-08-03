@@ -1,4 +1,4 @@
-name: TEMP Work Map Verification Dispatch ARM 5949
+name: TEMP Work Map Verification Dispatch ARM 5964
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: 4d3470a3e0847748da2453216f7bb2f2e70ca87d
+          ref: 8ad016f584c622e72eeac9f53e3df961660ad011
           fetch-depth: 0
           persist-credentials: false
 
@@ -27,16 +27,16 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5949"
-          test "$(git rev-parse HEAD)" = "4d3470a3e0847748da2453216f7bb2f2e70ca87d"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5964"
+          test "$(git rev-parse HEAD)" = "8ad016f584c622e72eeac9f53e3df961660ad011"
 
           git fetch --no-tags origin \
             "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-atomic-97e4ee7e-20260804:refs/remotes/origin/candidate"
+            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-atomic-a61cd9e8-20260804:refs/remotes/origin/candidate"
 
-          test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
-          test "$(git rev-parse refs/remotes/origin/candidate)" = "4d3470a3e0847748da2453216f7bb2f2e70ca87d"
-          test "$(git rev-parse HEAD^)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+          test "$(git rev-parse refs/remotes/origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "8ad016f584c622e72eeac9f53e3df961660ad011"
+          test "$(git rev-parse HEAD^)" = "a61cd9e83070618001676bbc679bc937f0551875"
           test "$(git rev-list --count refs/remotes/origin/main..HEAD)" = "1"
 
           cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
