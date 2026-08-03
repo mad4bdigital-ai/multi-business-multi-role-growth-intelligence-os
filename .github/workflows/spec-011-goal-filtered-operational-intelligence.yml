@@ -1,0 +1,97 @@
+name: Spec 011 Goal-Filtered Operational Intelligence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "http-generic-api/spec011GoalFilteredOperationalIntelligence.js"
+      - "http-generic-api/test-spec011-goal-filtered-operational-intelligence*.mjs"
+      - ".github/workflows/spec-011-goal-filtered-operational-intelligence.yml"
+      - "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json"
+      - "specs/011-durable-governed-execution-and-agent-delegation/phase8-*"
+      - "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase8-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-goal-filtered-intelligence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  goal-filtered-intelligence-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Phase 8 syntax
+        run: |
+          node --check spec011GoalFilteredOperationalIntelligence.js
+          node --check test-spec011-goal-filtered-operational-intelligence.mjs
+          node --check test-spec011-goal-filtered-operational-intelligence-schema.mjs
+
+      - name: Certify goal correlation and bounded projection
+        run: node test-spec011-goal-filtered-operational-intelligence.mjs
+
+      - name: Validate Phase 8 output schema
+        run: node test-spec011-goal-filtered-operational-intelligence-schema.mjs
+
+      - name: Write bounded certification evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const ok = process.env.JOB_STATUS === 'success';
+          fs.writeFileSync('artifacts/spec011-goal-filtered-operational-intelligence.json', JSON.stringify({
+            schema_version: 1,
+            report_type: 'spec011_goal_filtered_operational_intelligence_certification',
+            version: 'spec011-goal-filtered-operational-intelligence-v1',
+            source_sha: process.env.GITHUB_SHA,
+            status: ok ? 'pass' : 'failed',
+            tasks: ['T240', 'T241', 'T242', 'T243'],
+            exact_goal_operation_correlation: true,
+            tenant_only_match_is_insufficient: true,
+            attention_classes: ['blocking', 'related_risk', 'platform_wide', 'unrelated'],
+            summary_first: true,
+            bounded_inline_projection: true,
+            unrelated_items_counted_not_discarded: true,
+            full_diagnostics_governed_references: true,
+            every_operation_referenced: true,
+            every_attention_item_referenced: true,
+            response_is_read_only: true,
+            provider_calls_made: false,
+            external_mutations_executed: false,
+            production_mutation: false,
+            deployment: false,
+            runtime_authority_changed: false,
+            secrets_included: false
+          }, null, 2) + '\n');
+          NODE
+        env:
+          JOB_STATUS: ${{ job.status }}
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-goal-filtered-operational-intelligence
+          path: http-generic-api/artifacts/spec011-goal-filtered-operational-intelligence.json
+          if-no-files-found: error
+          retention-days: 30
