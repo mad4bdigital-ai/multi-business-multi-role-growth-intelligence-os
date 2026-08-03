@@ -1,6 +1,11 @@
 name: PR 5292 Refresh Frontend Dispatch
 
 on:
+  push:
+    branches:
+      - gpt/pr5210-surface-source-clean-20260803
+    paths:
+      - .github/workflows/pr5292-refresh-frontend-dispatch.yml
   pull_request:
     branches: [main]
     types: [synchronize]
@@ -18,14 +23,21 @@ jobs:
   refresh:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
-      github.event.pull_request.number == 5292 &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
-      github.event.pull_request.base.ref == 'main'
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/gpt/pr5210-surface-source-clean-20260803') ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.number == 5292 &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+          github.event.pull_request.base.ref == 'main'
+        )
+      )
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       WORKFLOW_PATH: .github/workflows/pr5292-refresh-frontend-dispatch.yml
       OLD_WORKFLOW_PATH: .github/workflows/pr5292-exact-head-core-ci.yml
       OLD_WORKFLOW_V2_PATH: .github/workflows/pr5292-exact-head-core-ci-v2.yml
@@ -43,7 +55,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
           test "${#changed[@]}" -eq 1
           test "${changed[0]}" = "${WORKFLOW_PATH}"
