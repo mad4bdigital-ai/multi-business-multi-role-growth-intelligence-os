@@ -1,7 +1,0 @@
-issue=5937
-base=a61cd9e83070618001676bbc679bc937f0551875
-scope=exact_three_file_oauth_request_injection
-attempt=3
-repository_write=false
-production=false
-secrets_included=false
