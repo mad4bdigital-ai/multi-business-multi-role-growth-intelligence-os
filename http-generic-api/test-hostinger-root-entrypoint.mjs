@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { accessSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ROOT_ENTRYPOINT_BRANCH_LOCK_ENV } from "./scripts/generate-deployment-manifest.mjs";
 
@@ -11,8 +11,13 @@ const applicationRoot = resolve(repositoryRoot, "http-generic-api");
 const rootPackage = JSON.parse(readFileSync(resolve(repositoryRoot, "package.json"), "utf8"));
 const require = createRequire(import.meta.url);
 const {
+  ADMIN_SHELL_ALLOWLIST_ENV,
+  CAPABILITY_APPROVAL_ALIAS,
+  configureHostingerApprovalAlias,
+  parseShellAllowlist,
   refreshDeploymentManifest,
   resolveApplicationRoot,
+  resolveCapabilityApprovalScriptPath,
   resolveManifestGeneratorPath,
   startApplication,
 } = require("../hostinger-entrypoint-runtime.js");
@@ -25,6 +30,49 @@ assert.equal(
   resolveManifestGeneratorPath(),
   resolve(applicationRoot, "scripts", "generate-deployment-manifest.mjs")
 );
+assert.equal(
+  resolveCapabilityApprovalScriptPath(),
+  resolve(applicationRoot, "scripts", "capability-resolution-envelope-approve.mjs")
+);
+assert.equal(isAbsolute(resolveCapabilityApprovalScriptPath()), true);
+accessSync(resolveCapabilityApprovalScriptPath());
+assert.deepEqual(parseShellAllowlist(""), {});
+assert.throws(() => parseShellAllowlist("[]"), /must be a JSON object/);
+assert.throws(() => parseShellAllowlist("{invalid"), /must be valid JSON/);
+
+const existingAlias = {
+  command: "/usr/bin/existing",
+  args: ["--safe"],
+};
+const staleApprovalAlias = {
+  command: "/usr/bin/node",
+  args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"],
+};
+const configuredEnv = {
+  [ADMIN_SHELL_ALLOWLIST_ENV]: JSON.stringify({
+    existing_alias: existingAlias,
+    [CAPABILITY_APPROVAL_ALIAS]: staleApprovalAlias,
+  }),
+};
+const configured = configureHostingerApprovalAlias({
+  applicationRoot,
+  env: configuredEnv,
+  nodeExecutable: "/opt/node/bin/node",
+});
+const configuredAllowlist = JSON.parse(configuredEnv[ADMIN_SHELL_ALLOWLIST_ENV]);
+assert.deepEqual(configuredAllowlist.existing_alias, existingAlias);
+assert.equal(configured.command, "/opt/node/bin/node");
+assert.deepEqual(configured.args, [resolveCapabilityApprovalScriptPath(applicationRoot)]);
+assert.equal(configured.previous_alias_present, true);
+assert.equal(configured.preserved_alias_count, 1);
+assert.deepEqual(configuredAllowlist[CAPABILITY_APPROVAL_ALIAS], {
+  command: "/opt/node/bin/node",
+  args: [resolveCapabilityApprovalScriptPath(applicationRoot)],
+  display_name: "Approve capability resolution envelope",
+  allow_extra_args: true,
+  max_extra_args: 12,
+  timeout_ms: 120000,
+});
 
 const manifestEnv = {
   DEPLOYMENT_COMMIT_SHA: "a".repeat(40),
@@ -72,11 +120,17 @@ let changedDirectory = null;
 let importedEntrypoint = null;
 let manifestRefreshInput = null;
 let branchLockAtServerImport = null;
+let approvalAliasAtServerImport = null;
+let preservedAliasAtServerImport = null;
 const importResult = { imported: true };
 const manifestImporter = async () => ({ unused: true });
 const startupManifestEnv = {
   DEPLOYMENT_COMMIT_SHA: "b".repeat(40),
   DEPLOYMENT_BRANCH: "main",
+  [ADMIN_SHELL_ALLOWLIST_ENV]: JSON.stringify({
+    preserved_alias: existingAlias,
+    [CAPABILITY_APPROVAL_ALIAS]: staleApprovalAlias,
+  }),
 };
 
 const result = await startApplication({
@@ -87,6 +141,9 @@ const result = await startApplication({
   importer: async (specifier) => {
     sequence.push("server-import");
     branchLockAtServerImport = startupManifestEnv[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV];
+    const allowlist = JSON.parse(startupManifestEnv[ADMIN_SHELL_ALLOWLIST_ENV]);
+    approvalAliasAtServerImport = allowlist[CAPABILITY_APPROVAL_ALIAS];
+    preservedAliasAtServerImport = allowlist.preserved_alias;
     importedEntrypoint = specifier;
     return importResult;
   },
@@ -98,6 +155,7 @@ const result = await startApplication({
   },
   manifestEnv: startupManifestEnv,
   manifestImporter,
+  nodeExecutable: "/opt/hostinger/node",
 });
 
 assert.deepEqual(sequence, ["manifest-refresh", "chdir", "server-import"]);
@@ -107,6 +165,15 @@ assert.equal(manifestRefreshInput.importer, manifestImporter);
 assert.equal(changedDirectory, applicationRoot);
 assert.equal(importedEntrypoint, pathToFileURL(resolve(applicationRoot, "server.js")).href);
 assert.equal(branchLockAtServerImport, "Production");
+assert.deepEqual(preservedAliasAtServerImport, existingAlias);
+assert.deepEqual(approvalAliasAtServerImport, {
+  command: "/opt/hostinger/node",
+  args: [resolveCapabilityApprovalScriptPath(applicationRoot)],
+  display_name: "Approve capability resolution envelope",
+  allow_extra_args: true,
+  max_extra_args: 12,
+  timeout_ms: 120000,
+});
 assert.equal(result, importResult);
 
 const mismatchedEnv = {};
@@ -128,11 +195,14 @@ assert.equal(mismatchedEnv[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV], undefined);
 
 let chdirAfterFailure = false;
 let importAfterFailure = false;
+const runtimeEnvAfterFailure = {};
 await assert.rejects(
   startApplication({
     manifestRefresher: async () => {
       throw new Error("manifest refresh failed");
     },
+    manifestEnv: runtimeEnvAfterFailure,
+    runtimeEnv: runtimeEnvAfterFailure,
     chdir: () => {
       chdirAfterFailure = true;
     },
@@ -144,7 +214,8 @@ await assert.rejects(
 );
 assert.equal(chdirAfterFailure, false);
 assert.equal(importAfterFailure, false);
+assert.equal(runtimeEnvAfterFailure[ADMIN_SHELL_ALLOWLIST_ENV], undefined);
 
 console.log(
-  "Hostinger root entrypoint locks Production provenance before importing the nested server."
+  "Hostinger root entrypoint locks Production provenance and the governed approval alias before importing the nested server."
 );
