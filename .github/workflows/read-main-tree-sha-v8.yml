@@ -1,37 +1,202 @@
-name: Read Main Tree SHA V8
+name: Temporary OAuth Baseline Blob Publisher
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - gpt/read-main-tree-sha-v8-97e4ee7
     paths:
       - ".github/workflows/read-main-tree-sha-v8.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: read-main-tree-sha-v8-${{ github.repository }}-${{ github.event.pull_request.number }}
+  group: temporary-oauth-baseline-blob-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  read-main-tree:
+  publish-tested-blob:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout exact pull request base
+      - name: Checkout immutable current main
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: a61cd9e83070618001676bbc679bc937f0551875
           fetch-depth: 1
-      - name: Read immutable base tree
+          persist-credentials: false
+
+      - name: Verify immutable source identity
         shell: bash
         run: |
           set -euo pipefail
-          tested_sha="$(git rev-parse HEAD)"
-          expected_sha="${{ github.event.pull_request.base.sha }}"
-          test "${tested_sha}" = "${expected_sha}"
-          tree_sha="$(git rev-parse 'HEAD^{tree}')"
-          test -n "${tree_sha}"
-          printf 'BASE_SHA=%s\n' "${tested_sha}"
-          printf 'MAIN_TREE_SHA=%s\n' "${tree_sha}"
-          printf 'REF_UPDATED=false\n'
-          printf 'SECRETS_INCLUDED=false\n'
+          test "$(git rev-parse HEAD)" = "a61cd9e83070618001676bbc679bc937f0551875"
+          test "$(git status --porcelain)" = ""
+
+      - name: Patch OAuth aggregate harness with exact replacements
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-auth-oauth-routes.mjs")
+          source = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  '''      durableOAuthCodes.set(params[0], {
+                  client_id: params[3],
+                  redirect_uri_hash: params[4],
+                  status: "issued",
+                });''',
+                  '''      durableOAuthCodes.set(params[0], {
+                  client_id: params[3],
+                  redirect_uri_hash: params[4],
+                  expires_at: params[5],
+                  status: "issued",
+                });''',
+                  "persisted authorization-code expiry",
+              ),
+              (
+                  '''      if (canConsume) record.status = "consumed";
+                return [{ affectedRows: canConsume ? 1 : 0 }];
+              }
+              if (sql.includes("INSERT INTO `execution_log`")) {''',
+                  '''      if (canConsume) record.status = "consumed";
+                return [{ affectedRows: canConsume ? 1 : 0 }];
+              }
+              if (
+                sql.includes("SELECT status, expires_at, consumed_at")
+                && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")
+              ) {
+                const record = durableOAuthCodes.get(params[2]);
+                if (!record) return [[]];
+                return [[{
+                  status: record.status,
+                  expires_at: record.expires_at,
+                  consumed_at: record.status === "consumed" ? new Date() : null,
+                  client_matches: record.client_id === params[0] ? 1 : 0,
+                  redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+                  expired_by_store: 0,
+                }]];
+              }
+              if (sql.includes("INSERT INTO `execution_log`")) {''',
+                  "authorization-code replay readback",
+              ),
+              (
+                  '''app.use(buildTenantGptOAuthMetadataRoutes());''',
+                  '''app.use(buildTenantGptOAuthMetadataRoutes({
+                getPool: () => oauthClientPool,
+                env: process.env,
+              }));''',
+                  "metadata token-route dependency injection",
+              ),
+              (
+                  '''  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));''',
+                  '''  assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic uses governed token endpoint key", invalidClientDiagnostic?.endpoint_key === "auth_oauth_token", JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic captures bounded code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds), JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
+              assert("invalid client diagnostic excludes raw authorization code", !JSON.stringify(invalidClientDiagnostic || {}).includes(codeResult.body.code), JSON.stringify(invalidClientDiagnostic));''',
+                  "OAuth v2 invalid-client diagnostics",
+              ),
+              (
+                  '''  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
+              assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));''',
+                  '''  assert("success diagnostic uses OAuth v2 action key", successDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(successDiagnostic));
+              assert("success diagnostic records response commitment", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));
+              assert("success diagnostic records prepared access token without token material", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true, JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures durable code consumption", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));
+              assert("success diagnostic captures protected resource only", successDiagnostic?.runtime_evidence_json?.resource_profile?.resource === ACTIVATION_RESOURCE, JSON.stringify(successDiagnostic));
+              assert("success diagnostic marks secrets excluded", successDiagnostic?.runtime_evidence_json?.secrets_included === false, JSON.stringify(successDiagnostic));
+              assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));''',
+                  "OAuth v2 success diagnostics",
+              ),
+          ]
+
+          for old, new, label in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              source = source.replace(old, new, 1)
+
+          forbidden = [
+              "app.use(buildTenantGptOAuthMetadataRoutes());",
+              'action_key === "tenant_gpt_oauth_token_exchange"',
+              "runtime_evidence_json?.code_timing",
+              "runtime_evidence_json?.access_token?.token_type",
+              "runtime_evidence_json?.requested_scope?.count",
+          ]
+          for marker in forbidden:
+              if marker in source:
+                  raise SystemExit(f"stale marker remains: {marker}")
+
+          path.write_text(source, encoding="utf-8")
+          print(f"PATCHED_BYTES={path.stat().st_size}")
+          print("REPLACEMENT_COUNT=5")
+
+      - name: Install locked test dependencies
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Validate syntax and focused OAuth aggregate
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          node --check test-auth-oauth-routes.mjs
+          node test-auth-oauth-routes.mjs | tee /tmp/oauth-baseline-test.log
+
+      - name: Verify bounded workspace delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only > /tmp/oauth-baseline-files.txt
+          test "$(cat /tmp/oauth-baseline-files.txt)" = "http-generic-api/test-auth-oauth-routes.mjs"
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = "1"
+
+      - name: Publish tested unreachable Git blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="http-generic-api/test-auth-oauth-routes.mjs"
+          mkdir -p /tmp/oauth-baseline-blob
+          encoded="$(base64 -w0 "${target}")"
+          blob_sha="$(jq -n --arg content "${encoded}" '{content:$content,encoding:"base64"}' \
+            | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha')"
+          test -n "${blob_sha}"
+          digest="$(sha256sum "${target}" | awk '{print $1}')"
+          printf '%s\n' "${blob_sha}" > /tmp/oauth-baseline-blob/blob-sha.txt
+          cp "${target}" /tmp/oauth-baseline-blob/test-auth-oauth-routes.mjs
+          cp /tmp/oauth-baseline-test.log /tmp/oauth-baseline-blob/test.log
+          cp /tmp/oauth-baseline-files.txt /tmp/oauth-baseline-blob/files.txt
+          jq -n \
+            --arg source_sha "a61cd9e83070618001676bbc679bc937f0551875" \
+            --arg blob_sha "${blob_sha}" \
+            --arg sha256 "${digest}" \
+            '{source_sha:$source_sha,blob_sha:$blob_sha,sha256:$sha256,ref_updated:false,secrets_included:false,production_mutated:false}' \
+            > /tmp/oauth-baseline-blob/result.json
+          cat /tmp/oauth-baseline-blob/result.json
+
+      - name: Upload tested blob evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-baseline-tested-blob-${{ github.run_id }}
+          path: /tmp/oauth-baseline-blob
+          if-no-files-found: error
+          retention-days: 14
