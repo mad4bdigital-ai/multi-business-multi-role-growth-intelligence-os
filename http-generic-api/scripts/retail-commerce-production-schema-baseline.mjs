@@ -171,8 +171,12 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
       )
       : [];
 
-    const presentTables = unique(tableRows.map((row) => row.TABLE_NAME));
-    const missingTables = contract.expected_tables.filter((table) => !presentTables.includes(table));
+    const presentTables = new Set(tableRows.map((row) => row.TABLE_NAME));
+    const presentColumns = new Set(columnRows.map((row) => `${row.TABLE_NAME}.${row.COLUMN_NAME}`));
+    const presentIndexes = new Set(indexRows.map((row) => `${row.TABLE_NAME}.${row.INDEX_NAME}`));
+    const missingTables = contract.expected_tables.filter((table) => !presentTables.has(table));
+    const missingColumns = contract.expected_columns.filter((entry) => !presentColumns.has(`${entry.table}.${entry.column}`));
+    const missingIndexes = contract.expected_indexes.filter((entry) => !presentIndexes.has(`${entry.table}.${entry.index}`));
     const ledger = mapLedger(ledgerRows[0]);
     const checksumMatches = ledger.found && ledger.migration_checksum_sha256 === contract.repository_checksum_sha256;
     const statementCountMatches = ledger.found && ledger.statement_count === contract.repository_statement_count;
@@ -186,16 +190,16 @@ export async function collectRetailCommerceProductionSchemaBaseline(options = {}
           collation: row.TABLE_COLLATION || null,
         })),
         missing_tables: missingTables,
-        missing_columns: [],
-        missing_indexes: [],
+        missing_columns: missingColumns,
+        missing_indexes: missingIndexes,
         columns: mapColumns(columnRows),
         indexes: mapIndexes(indexRows),
       },
       ledger,
       checks: {
         all_expected_tables_present: missingTables.length === 0,
-        all_expected_columns_present: true,
-        all_expected_indexes_present: true,
+        all_expected_columns_present: missingColumns.length === 0,
+        all_expected_indexes_present: missingIndexes.length === 0,
         ledger_table_present: ledgerTablePresent,
         ledger_entry_found: ledger.found,
         ledger_checksum_matches_repository: checksumMatches,
