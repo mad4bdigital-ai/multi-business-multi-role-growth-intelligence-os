@@ -18,12 +18,12 @@ jobs:
     name: Apply exact R6 binding patch
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/r6-bind-production-42177d36-20260804'
+      github.event.pull_request.head.ref == 'gpt/r6-bind-production-42177d36-current-20260804'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
-      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
-      HEAD_REF: gpt/r6-bind-production-42177d36-20260804
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      HEAD_REF: gpt/r6-bind-production-42177d36-current-20260804
       WORKFLOW_PATH: .github/workflows/hostinger-production-release-evidence-r6.yml
       OLD_PRODUCTION_PREFIX: 2669991A
       NEW_PRODUCTION_PREFIX: 42177D36
