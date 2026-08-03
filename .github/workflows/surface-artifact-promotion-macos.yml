@@ -63,7 +63,7 @@ jobs:
         run: npm ci
 
       - name: Generate frontend dispatch
-        run: npm --prefix http-generic-api run frontend:dispatch:generate
+        run: npm --prefix http-generic-api run frontend:dispatch:generate -- --baseline-ref="${EXPECTED_HEAD}"
 
       - name: Check frontend dispatch
         run: npm --prefix http-generic-api run frontend:dispatch:check
@@ -90,8 +90,8 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
-          if (artifact?.baseline?.ref !== 'main') {
-            throw new Error(`artifact_baseline_ref_mismatch:${String(artifact?.baseline?.ref)}`);
+          if (artifact?.baseline?.ref !== process.env.EXPECTED_HEAD) {
+            throw new Error(`artifact_baseline_ref_mismatch:${String(artifact?.baseline?.ref)}:${String(process.env.EXPECTED_HEAD)}`);
           }
           NODE
 
@@ -131,6 +131,7 @@ jobs:
             surface_tool_keys: toolKeys.size,
             authority_files: artifact.baseline.authority.length,
             source_digest: artifact.baseline.source_digest,
+            baseline_ref: artifact.baseline.ref,
             secrets_included: false,
           }));
           NODE
