@@ -51,6 +51,12 @@
         "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
+    },
+    "hostinger-full-closure-safety-verifier": {
+      "description": "Verify checksum-bound static Hostinger policy evidence for the Surface callability closure without provider, credential, database, deployment, or external side effects.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": []
     }
   }
 }
