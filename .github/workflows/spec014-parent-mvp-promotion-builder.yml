@@ -1,0 +1,151 @@
+name: Spec 014 Parent MVP Promotion Builder
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/spec014-parent-mvp-promotion-builder.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-parent-mvp-promotion-builder-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.head_ref == 'gpt/014-hostinger/parent-mvp-shared-state-promotion-20260803'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact head branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Promote parent MVP from integrated shared-state evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const path = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const document = JSON.parse(fs.readFileSync(path, 'utf8'));
+
+          assert.equal(document.feature_key, '014-governed-hostinger-storage-orchestration');
+          assert.equal(document.current_phase, 'mvp');
+          assert(Array.isArray(document.phases));
+          const mvpMatches = document.phases.filter((phase) => phase?.id === 'mvp');
+          assert.equal(mvpMatches.length, 1);
+          const mvp = mvpMatches[0];
+          assert.equal(mvp.status, 'blocked');
+          assert(Array.isArray(mvp.blockers) && mvp.blockers.length > 0);
+          assert(mvp.planned_e2e_journey && typeof mvp.planned_e2e_journey === 'object');
+          assert.equal(mvp.planned_e2e_journey.id, 'tenant-storage-request-to-reconciled-readback');
+          assert.equal(Object.hasOwn(mvp, 'e2e_journeys'), false);
+
+          const integration = document.parallel_work?.integration;
+          assert(integration && typeof integration === 'object');
+          assert.deepEqual(integration.e2e_journey_ids, ['tenant-storage-request-to-reconciled-readback']);
+          assert.deepEqual(integration.convergence_tests, []);
+
+          const preservedWorkstreams = JSON.stringify(document.parallel_work.workstreams);
+          const preservedOverlaps = JSON.stringify(document.parallel_work.declared_overlaps);
+          const preservedLaterPhases = JSON.stringify(document.phases.filter((phase) => phase.id !== 'mvp'));
+
+          mvp.status = 'implemented';
+          mvp.objective = 'Prove one mounted Tenant request resolves Context Kernel and effective authority and uses one canonical repository instance for immutable-plan consumption, prepared/result/readback journaling, reconciliation, and Tenant-safe readback, while provider dispatch, live mutation, and Production authority remain disabled.';
+          delete mvp.blockers;
+          delete mvp.planned_e2e_journey;
+          mvp.e2e_journeys = [{
+            id: 'tenant-storage-request-to-reconciled-readback',
+            end_to_end: true,
+            level: 'synthetic_runtime',
+            actor: 'tenant_workspace_owner',
+            entrypoint: 'POST /tenant/storage-operations/apply-plan',
+            terminal_outcome: 'The exact Tenant operation completes and the same repository instance records the consumed immutable plan, prepared/result/readback journal, reconciliation result, and Tenant-safe readback bindings.',
+            steps: [
+              'Create one Tenant operation with its immutable plan, append-only approval evidence, execution lease, synthetic adapter, one-shot enablement, and canonical in-memory repository.',
+              'Mount the Tenant route with Context Kernel and effective-authority resolution bound to that exact operation.',
+              'Submit one expected-SHA-bound Tenant request to the mounted apply-plan endpoint.',
+              'Read the exact operation back from the same repository object supplied to the runtime.',
+              'Require completed operation state, consumed immutable plan with unchanged bindings, unchanged append-only approvals, and prepared/result/readback journal phases for the same run and plan.',
+              'Require one reconciliation record and bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest.',
+              'Keep provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets disabled.'
+            ],
+            assertions: [
+              'The mounted request and post-request readback use the same repository object and operation ID.',
+              'The immutable plan bindings remain unchanged while its single-use consumed state advances.',
+              'Approval record digests remain append-only and unchanged.',
+              'Prepared, result, and readback journal records persist for the same operation, run, and plan.',
+              'One reconciliation result matches the Tenant-safe response outcome and result digest.',
+              'Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.',
+              'Provider dispatch, live mutation, Production readiness, and secrets remain false.'
+            ],
+            tests: [{
+              id: 'hostinger-storage-mvp-shared-operation-state',
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: 'test-hostinger-storage-e2e.mjs',
+              args: []
+            }],
+            evidence_paths: [
+              '.changes/e2e/spec014-mvp-convergence-journey.json',
+              'http-generic-api/test-hostinger-storage-e2e.mjs',
+              'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
+              'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs',
+              'http-generic-api/hostingerStorageTenantRuntime.js',
+              'http-generic-api/hostingerStorageTenantCanary.js',
+              'http-generic-api/hostingerStorageControlPlaneRepository.js'
+            ]
+          }];
+
+          integration.convergence_tests = [{
+            id: 'hostinger-storage-mvp-shared-operation-state',
+            runner: 'node',
+            working_directory: 'http-generic-api',
+            path: 'test-hostinger-storage-e2e.mjs',
+            args: []
+          }];
+
+          assert.equal(JSON.stringify(document.parallel_work.workstreams), preservedWorkstreams);
+          assert.equal(JSON.stringify(document.parallel_work.declared_overlaps), preservedOverlaps);
+          assert.equal(JSON.stringify(document.phases.filter((phase) => phase.id !== 'mvp')), preservedLaterPhases);
+          assert.equal(mvp.status, 'implemented');
+          assert.equal(Object.hasOwn(mvp, 'blockers'), false);
+          assert.equal(Object.hasOwn(mvp, 'planned_e2e_journey'), false);
+          assert.equal(mvp.e2e_journeys.length, 1);
+          assert.equal(integration.convergence_tests.length, 1);
+
+          fs.writeFileSync(path, `${JSON.stringify(document)}\n`);
+          fs.unlinkSync('.github/workflows/spec014-parent-mvp-promotion-builder.yml');
+          NODE
+
+      - name: Validate promoted contract and shared-state journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/spec014-parent-mvp-promotion-builder.yml
+          node -e "const d=require('./specs/014-governed-hostinger-storage-orchestration/e2e-phases.json'); const m=d.phases.find(p=>p.id==='mvp'); if(m.status!=='implemented'||m.e2e_journeys?.length!==1) process.exit(1)"
+          cd http-generic-api
+          node test-hostinger-storage-e2e.mjs
+
+      - name: Publish self-cleaned exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/014-governed-hostinger-storage-orchestration/e2e-phases.json .github/workflows/spec014-parent-mvp-promotion-builder.yml
+          git diff --cached --exit-code && { echo 'Expected parent contract promotion diff.' >&2; exit 1; } || true
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/spec014-parent-mvp-promotion-builder.yml specs/014-governed-hostinger-storage-orchestration/e2e-phases.json "
+          git commit -m 'docs(spec-014): promote synthetic-runtime MVP contract'
+          git push origin HEAD:${{ github.head_ref }}
