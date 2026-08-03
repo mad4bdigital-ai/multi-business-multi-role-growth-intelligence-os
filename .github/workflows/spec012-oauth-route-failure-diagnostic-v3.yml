@@ -1,0 +1,100 @@
+name: Spec 012 OAuth Route Failure Diagnostic V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec012-oauth-route-failure-diagnostic-v3-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose transformed OAuth route failure safely
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
+      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
+    steps:
+      - name: Checkout exact target
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify identity and install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          npm ci --prefix http-generic-api
+          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
+          git show "refs/remotes/origin/${SCRIPT_BRANCH}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
+          python -m py_compile /tmp/apply-spec012-oauth-route-test-parity.py
+
+      - name: Apply V2 transformation and safe diagnostic instrumentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/apply-spec012-oauth-route-test-parity.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js')
+          source = path.read_text(encoding='utf-8')
+          old = '''    } catch (error) {
+      if (res.headersSent) {'''
+          new = '''    } catch (error) {
+      console.error("oauth_token_exchange_safe_failure_diagnostic", {
+        name: String(error?.name || "").slice(0, 64),
+        code: String(error?.code || "").slice(0, 128),
+        message: String(error?.message || "").slice(0, 240),
+        phase,
+        code_consumed: codeConsumed,
+        secrets_included: false,
+      });
+      if (res.headersSent) {'''
+          if source.count(old) != 1:
+              raise SystemExit('expected one catch insertion point')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Run transformed tests independently
+        shell: bash
+        run: |
+          set -uo pipefail
+          evidence="${RUNNER_TEMP}/spec012-oauth-route-failure-v3-${GITHUB_RUN_ID}"
+          mkdir -p "${evidence}"
+          set +e
+          node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs >"${evidence}/token-route.log" 2>&1
+          token_status=$?
+          node http-generic-api/test-auth-oauth-routes.mjs >"${evidence}/auth-oauth-integration.log" 2>&1
+          auth_status=$?
+          set -e
+          printf 'check\texit_code\n' > "${evidence}/summary.tsv"
+          printf 'token-route\t%s\n' "${token_status}" >> "${evidence}/summary.tsv"
+          printf 'auth-oauth-integration\t%s\n' "${auth_status}" >> "${evidence}/summary.tsv"
+          grep -n 'oauth_token_exchange_safe_failure_diagnostic' "${evidence}"/*.log > "${evidence}/safe-failures.txt" || true
+          cat "${evidence}/summary.tsv"
+          cat "${evidence}/safe-failures.txt" || true
+          printf 'EVIDENCE_ROOT=%s\n' "${evidence}" >> "${GITHUB_ENV}"
+
+      - name: Upload safe failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-route-failure-v3-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_ROOT }}
+          if-no-files-found: error
+          retention-days: 7
