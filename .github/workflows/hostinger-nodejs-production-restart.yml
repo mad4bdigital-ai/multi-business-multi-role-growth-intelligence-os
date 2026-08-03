@@ -99,29 +99,48 @@ jobs:
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const pages = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/restart-comments.json`, 'utf8'));
-          const comments = pages.flat().filter((comment) => typeof comment?.body === 'string');
-          const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
-          const binding = `binding=${process.env.BINDING_ID}`;
+          const parseMarker = (comment) => {
+            if (comment?.user?.login !== 'github-actions[bot]' || comment?.user?.type !== 'Bot') return null;
+            const id = Number(comment?.id);
+            if (!Number.isSafeInteger(id) || id <= 0 || typeof comment?.body !== 'string') return null;
+            const body = comment.body.trim();
+            if (!body || /[\r\n]/u.test(body)) return null;
+            const tokens = body.split(/\s+/u);
+            if (tokens.shift() !== 'HOSTINGER_PRODUCTION_NODEJS_RESTART') return null;
+            const fields = Object.create(null);
+            for (const token of tokens) {
+              const separator = token.indexOf('=');
+              if (separator <= 0 || separator === token.length - 1) return null;
+              const key = token.slice(0, separator);
+              const value = token.slice(separator + 1);
+              if (!/^[a-z][a-z0-9_]*$/u.test(key) || Object.hasOwn(fields, key)) return null;
+              fields[key] = value;
+            }
+            if (!fields.status || !fields.binding) return null;
+            return { id, fields };
+          };
+          const comments = pages.flat();
           const relevant = comments
-            .filter((comment) => comment?.user?.login === 'github-actions[bot]' && comment?.user?.type === 'Bot')
-            .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
-            .sort((left, right) => Number(left.id) - Number(right.id));
+            .map(parseMarker)
+            .filter(Boolean)
+            .filter((marker) => marker.fields.binding === process.env.BINDING_ID)
+            .sort((left, right) => left.id - right.id);
 
-          const consumed = relevant.some((comment) =>
-            comment.body.includes('status=completed') ||
-            comment.body.includes('restart_attempted=true') ||
-            comment.body.includes('restart_performed=true'));
+          const consumed = relevant.some((marker) =>
+            marker.fields.status === 'completed' ||
+            marker.fields.restart_attempted === 'true' ||
+            marker.fields.restart_performed === 'true');
           if (consumed) {
             console.error('Exact Hostinger restart binding is already consumed.');
             process.exit(1);
           }
 
-          const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
-          const lastRetryableRelease = relevant.filter((comment) =>
-            comment.body.includes('status=failed') &&
-            comment.body.includes('restart_attempted=false') &&
-            comment.body.includes('retryable_without_provider_mutation=true')).at(-1);
-          if (lastClaim && (!lastRetryableRelease || Number(lastRetryableRelease.id) < Number(lastClaim.id))) {
+          const lastClaim = relevant.filter((marker) => marker.fields.status === 'claiming').at(-1);
+          const lastRetryableRelease = relevant.filter((marker) =>
+            marker.fields.status === 'failed' &&
+            marker.fields.restart_attempted === 'false' &&
+            marker.fields.retryable_without_provider_mutation === 'true').at(-1);
+          if (lastClaim && (!lastRetryableRelease || lastRetryableRelease.id < lastClaim.id)) {
             console.error('An unresolved Hostinger restart claim already exists.');
             process.exit(1);
           }
@@ -170,27 +189,45 @@ jobs:
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const pages = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/restart-comments-before-provider.json`, 'utf8'));
-          const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
-          const binding = `binding=${process.env.BINDING_ID}`;
-          const runBinding = `run_id=${process.env.GITHUB_RUN_ID}`;
-          const expectedHead = `expected_head_sha=${process.env.EXPECTED_HEAD_SHA}`;
+          const parseMarker = (comment) => {
+            if (comment?.user?.login !== 'github-actions[bot]' || comment?.user?.type !== 'Bot') return null;
+            const id = Number(comment?.id);
+            if (!Number.isSafeInteger(id) || id <= 0 || typeof comment?.body !== 'string') return null;
+            const body = comment.body.trim();
+            if (!body || /[\r\n]/u.test(body)) return null;
+            const tokens = body.split(/\s+/u);
+            if (tokens.shift() !== 'HOSTINGER_PRODUCTION_NODEJS_RESTART') return null;
+            const fields = Object.create(null);
+            for (const token of tokens) {
+              const separator = token.indexOf('=');
+              if (separator <= 0 || separator === token.length - 1) return null;
+              const key = token.slice(0, separator);
+              const value = token.slice(separator + 1);
+              if (!/^[a-z][a-z0-9_]*$/u.test(key) || Object.hasOwn(fields, key)) return null;
+              fields[key] = value;
+            }
+            if (!fields.status || !fields.binding) return null;
+            return { id, fields };
+          };
           const relevant = pages.flat()
-            .filter((comment) => typeof comment?.body === 'string')
-            .filter((comment) => comment?.user?.login === 'github-actions[bot]' && comment?.user?.type === 'Bot')
-            .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
-            .sort((left, right) => Number(left.id) - Number(right.id));
-          const consumed = relevant.some((comment) =>
-            comment.body.includes('status=completed') ||
-            comment.body.includes('restart_attempted=true') ||
-            comment.body.includes('restart_performed=true'));
+            .map(parseMarker)
+            .filter(Boolean)
+            .filter((marker) => marker.fields.binding === process.env.BINDING_ID)
+            .sort((left, right) => left.id - right.id);
+          const consumed = relevant.some((marker) =>
+            marker.fields.status === 'completed' ||
+            marker.fields.restart_attempted === 'true' ||
+            marker.fields.restart_performed === 'true');
           if (consumed) {
             console.error('Exact Hostinger restart binding became consumed before provider mutation.');
             process.exit(1);
           }
-          const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
+          const lastClaim = relevant.filter((marker) => marker.fields.status === 'claiming').at(-1);
           const lastRelevant = relevant.at(-1);
-          if (!lastClaim || !lastClaim.body.includes(runBinding) || !lastClaim.body.includes(expectedHead)
-            || Number(lastRelevant?.id) !== Number(lastClaim.id)) {
+          if (!lastClaim
+            || lastClaim.fields.run_id !== process.env.GITHUB_RUN_ID
+            || lastClaim.fields.expected_head_sha !== process.env.EXPECTED_HEAD_SHA
+            || lastRelevant?.id !== lastClaim.id) {
             console.error('Current run no longer owns the latest unresolved Hostinger restart claim.');
             process.exit(1);
           }
@@ -306,6 +343,7 @@ jobs:
             `first_failure=${report.first_failure?.code || 'none'}`,
             `run_id=${process.env.GITHUB_RUN_ID}`,
             'marker_authority=github-actions-bot-only',
+            'marker_parser=strict_single_line_exact_fields_v1',
             'provider_method=POST',
             'build_created=false',
             'deployment=false',
@@ -344,6 +382,7 @@ jobs:
               String(preMutationAuthority.run_id) === String(process.env.GITHUB_RUN_ID) &&
               preMutationAuthority.claim_is_latest === true &&
               preMutationAuthority.later_marker_count === 0 &&
+              preMutationAuthority.marker_parser === "strict_single_line_exact_fields_v1" &&
               preMutationAuthority.secrets_included === false
             );
             const valid =
