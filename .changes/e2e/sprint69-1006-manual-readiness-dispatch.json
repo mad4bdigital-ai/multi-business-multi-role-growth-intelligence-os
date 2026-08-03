@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1006-manual-readiness-dispatch",
+  "title": "Sprint 69 Migration 1006 authenticated manual readiness dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1006-manual-readiness-dispatch.json",
+      ".github/workflows/sprint69-1006-governed-rollout.yml",
+      ".github/ops/validate-sprint69-1006-readiness-trigger.mjs",
+      "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide an explicit default-branch manual readiness channel when connector-created issue comments do not emit Actions events, without extending Apply authority.",
+      "e2e_journeys": [
+        {
+          "id": "validate-manual-readiness-dispatch-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository administrator dispatching the trusted default-branch workflow",
+          "entrypoint": "Sprint 69 Migration 1006 workflow_dispatch with a fresh authorization comment ID and exact main SHA",
+          "terminal_outcome": "The workflow validates the immutable main SHA and exact owner/member/collaborator authorization comment before readiness; manual dispatch can never select or enter Apply.",
+          "steps": [
+            "Require confirmation_comment_id and expected_main_sha inputs on workflow_dispatch.",
+            "Restrict manual dispatch readiness to refs/heads/main.",
+            "Validate the dispatch SHA against GITHUB_SHA before runtime readiness begins.",
+            "Read the exact Issue #4122 comment and require the fixed readiness token, matching dispatcher login, and an allowed author association.",
+            "Preserve the historical push fallback unchanged and keep the Apply job issue_comment-only.",
+            "Publish the existing no-secret Artifact and Job Summary evidence boundaries."
+          ],
+          "assertions": [
+            "workflow_dispatch has no path to the Apply job.",
+            "A stale or malformed main SHA fails closed before readiness execution.",
+            "A different comment author, issue, token, or association fails closed.",
+            "database_mutation_authorized and apply_authorized remain false during trigger validation.",
+            "The workflow keeps contents:read and performs no Issue mutation, SQL Apply, provider call, deployment, Production mutation, or external business write in contract validation."
+          ],
+          "tests": [
+            {
+              "id": "sprint69-manual-readiness-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1006-governed-rollout-control.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/sprint69-1006-governed-rollout.yml",
+            ".github/ops/validate-sprint69-1006-readiness-trigger.mjs",
+            "http-generic-api/test-sprint69-1006-governed-rollout-control.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge only after exact-head validation, then execute one separately authorized readiness dispatch and inspect its Artifact."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep SHA, comment, actor, association, and Apply-separation regressions fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one fresh Readiness-only dispatch against exact main and Production parity without Apply."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This control-plane repair authorizes no Migration Apply, database mutation, deployment, or Production promotion."
+    }
+  ]
+}
