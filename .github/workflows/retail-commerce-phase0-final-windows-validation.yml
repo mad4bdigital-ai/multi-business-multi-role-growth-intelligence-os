@@ -1,0 +1,50 @@
+name: Retail Commerce Phase 0 Final Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/retail-commerce-phase0-contract-baseline-20260803
+    paths:
+      - ".github/workflows/retail-commerce-phase0-final-windows-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-phase0:
+    name: Validate final Phase 0 exact candidate
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact Phase 0 candidate
+        uses: actions/checkout@v5
+        with:
+          ref: aff6f50c8e2f1e22b226d1c6af021e307c08ef6f
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact candidate identity and bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "aff6f50c8e2f1e22b226d1c6af021e307c08ef6f"
+          git diff --name-only ae26acbb7cd640ca9670c7b26b267aca45e3b337...HEAD > "${RUNNER_TEMP}/changed-files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/changed-files.txt" | tr -d ' ')" = "3"
+          grep -Fxq '.github/workflows/retail-commerce-specification-baseline.yml' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'http-generic-api/test-retail-commerce-specification-baseline.mjs' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'specs/014-retail-commerce-operations-growth-os/tasks.md' "${RUNNER_TEMP}/changed-files.txt"
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Execute specification baseline test
+        working-directory: http-generic-api
+        run: node test-retail-commerce-specification-baseline.mjs
