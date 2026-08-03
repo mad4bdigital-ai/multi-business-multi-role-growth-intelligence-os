@@ -23,7 +23,7 @@ function run(command, args, cwd = apiDir) {
   return result.stdout;
 }
 
-const surfacePaths = [
+const generatedSurfacePaths = [
   "docs/surface-contract-discovery-status.json",
   "docs/surface-contract-discovery-status.md",
   "docs/surface-contract-gap-queue.json",
@@ -34,12 +34,25 @@ const surfacePaths = [
   "http-generic-api/test-surface-callability-full-closure.mjs",
   "http-generic-api/scripts/test-manifest.mjs",
 ];
+const correctedSourcePaths = [
+  "http-generic-api/routes/tenantLifecycleRoutes.js",
+];
+const exportPaths = [...generatedSurfacePaths, ...correctedSourcePaths];
 const allowedChanged = new Set([
-  ...surfacePaths,
+  ...exportPaths,
   "http-generic-api/frontend-operation-governance.generated.json",
   "http-generic-api/frontend-surface-dispatch.generated.json",
   "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
 ]);
+
+const lifecyclePath = path.join(apiDir, "routes/tenantLifecycleRoutes.js");
+const lifecycleSource = fs.readFileSync(lifecyclePath, "utf8");
+const unstableCode = 'err.code || "workspace_invitations_expire_stale_failed"';
+const stableCode = 'err.code || "workspace_invitations_expire_failed"';
+if ((lifecycleSource.match(new RegExp(unstableCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length !== 1) {
+  throw new Error("workspace_invitation_expire_stable_code_marker_mismatch");
+}
+fs.writeFileSync(lifecyclePath, lifecycleSource.replace(unstableCode, stableCode));
 
 run("node", ["scripts/surface-contract-discovery.mjs"]);
 run("node", ["scripts/surface-callability-closure/generate_closure_contracts.mjs"]);
@@ -56,7 +69,7 @@ if (unexpected.length) {
   throw new Error(`surface_export_write_set_violation:${unexpected.sort().join(",")}`);
 }
 
-const missing = surfacePaths.filter((relativePath) => !fs.existsSync(path.join(repoRoot, relativePath)));
+const missing = exportPaths.filter((relativePath) => !fs.existsSync(path.join(repoRoot, relativePath)));
 if (missing.length) {
   throw new Error(`surface_export_missing_files:${missing.join(",")}`);
 }
@@ -67,7 +80,7 @@ try {
   sourceHeadSha = event?.pull_request?.head?.sha || null;
 } catch {}
 const candidateSha = run("git", ["rev-parse", "HEAD"], repoRoot).trim();
-const files = surfacePaths.map((relativePath) => {
+const files = exportPaths.map((relativePath) => {
   const bytes = fs.readFileSync(path.join(repoRoot, relativePath));
   return {
     path: relativePath,
@@ -83,6 +96,7 @@ const envelope = {
   source_head_sha: sourceHeadSha,
   candidate_sha: candidateSha,
   generator_sequence: [
+    "restore stable workspace invitation expire error code",
     "node scripts/surface-contract-discovery.mjs",
     "node scripts/surface-callability-closure/generate_closure_contracts.mjs",
     "node scripts/surface-contract-discovery.mjs",
