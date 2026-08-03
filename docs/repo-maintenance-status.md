@@ -255,6 +255,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
+- `http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
