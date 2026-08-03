@@ -67,7 +67,8 @@ jobs:
           grep -q "vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true'" "$workflow"
           grep -q 'environment: ueacp-live-evidence' "$workflow"
           grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE' "$workflow"
-          grep -q 'ref: ${{ github.sha }}' "$workflow"
+          grep -Eq 'ref:.*github\.sha' "$workflow"
+          grep -q 'git merge-base --is-ancestor' "$workflow"
           grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
 
   live-read-only-cycle:
@@ -92,7 +93,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -108,13 +109,15 @@ jobs:
           [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
           [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
           test -f "${SOURCE_MANIFEST_FILE}"
+          MANIFEST_REF="$(node --input-type=module -e "import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST_FILE,'utf8')); process.stdout.write(String(v.observed_ref||''));")"
+          [[ "${MANIFEST_REF}" =~ ^[a-f0-9]{40}$ ]]
+          git cat-file -e "${MANIFEST_REF}^{commit}"
+          git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const manifest = JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST_FILE, 'utf8'));
-          const head = process.env.GITHUB_SHA;
           if (manifest.contract !== 'mad4b.ueacp.authority-evidence-repository-manifest.v1') throw new Error('invalid source manifest contract');
           if (manifest.repository !== process.env.REPOSITORY) throw new Error('source manifest repository mismatch');
-          if (manifest.observed_ref !== head) throw new Error(`source manifest must pin current main ${head}`);
           NODE
           mkdir -p "${EVIDENCE_DIR}"
       - name: Create short-lived read-only authorization
