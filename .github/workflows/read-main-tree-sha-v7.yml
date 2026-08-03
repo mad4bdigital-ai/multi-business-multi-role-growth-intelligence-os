@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
-  EXPECTED_HEAD_REF: gpt/diag/read-main-tree-14433d-v7-20260803
+  EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+  EXPECTED_HEAD_REF: gpt/diag/read-main-tree-773179a2-v11-20260804
   PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
-  TRIGGER_PATH: .github/diagnostics/read-main-tree-sha-v7.txt
+  TRIGGER_PATH: .github/diagnostics/read-main-tree-sha-v11.txt
 
 jobs:
   read:
