@@ -3,6 +3,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || "oauth_route_test_secret";
 import jwt from "jsonwebtoken";
 
 const {
+  JWT_SECRET_MAX_LENGTH,
   verifyTenantGptAccessToken,
 } = await import("./tenantGptAccessTokenVerifier.js");
 
@@ -37,13 +38,18 @@ function signToken(overrides = {}) {
   }, process.env.JWT_SECRET, { expiresIn: "365d" });
 }
 
-function failureCode(token, options = {}) {
+function failure(token, options = {}) {
   try {
     verifyTenantGptAccessToken(token, options);
     return null;
   } catch (error) {
-    return error?.code || error?.message || "unknown";
+    return error;
   }
+}
+
+function failureCode(token, options = {}) {
+  const error = failure(token, options);
+  return error ? error.code || error.message || "unknown" : null;
 }
 
 function captureDecision(token, options = {}) {
@@ -153,6 +159,20 @@ const strictWithBrokenTelemetry = verifyTenantGptAccessToken(signToken(), {
 assert("telemetry failure does not deny a valid strict token",
   strictWithBrokenTelemetry.verification.audience === ACTIVATION_RESOURCE);
 assert("telemetry callback is attempted once", telemetryFailureCalls === 1);
+
+const tokenBeforeSecretRemoval = signToken();
+const originalSecret = process.env.JWT_SECRET;
+delete process.env.JWT_SECRET;
+const missingSecretError = failure(tokenBeforeSecretRemoval);
+process.env.JWT_SECRET = originalSecret;
+assert("missing verifier secret fails closed", missingSecretError?.code === "tenant_gpt_verifier_unavailable");
+assert("missing verifier secret is a dependency failure", missingSecretError?.status === 503);
+
+process.env.JWT_SECRET = "x".repeat(JWT_SECRET_MAX_LENGTH + 1);
+const oversizedSecretError = failure(tokenBeforeSecretRemoval);
+process.env.JWT_SECRET = originalSecret;
+assert("oversized verifier secret fails closed", oversizedSecretError?.code === "tenant_gpt_verifier_unavailable");
+assert("oversized verifier secret is a dependency failure", oversizedSecretError?.status === 503);
 
 if (failed) {
   console.error(`\nTenant GPT access token verifier tests failed: ${failed}`);
