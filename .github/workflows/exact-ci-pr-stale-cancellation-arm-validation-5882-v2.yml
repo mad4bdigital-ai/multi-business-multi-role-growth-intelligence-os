@@ -108,6 +108,10 @@ jobs:
           test "$(git rev-parse "${EXPECTED_HEAD_SHA}:docs/work-maps/repository-automation-map.md")" = 'e3867915727db3fdd6dd8522d32cd99dd4ddeb15'
           test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs")" = '9a0e8e9d500ffd5f671ccec14288782e836efcbf'
 
+      - name: Install HTTP API dependencies before governance
+        working-directory: http-generic-api
+        run: npm ci
+
       - name: Run canonical syntax, governance, and generated Work Map checks
         shell: bash
         run: |
@@ -130,10 +134,6 @@ jobs:
           git diff --check
           node --check http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs
           node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json','utf8'))"
-
-      - name: Install HTTP API dependencies
-        working-directory: http-generic-api
-        run: npm ci
 
       - name: Run focused cancellation and Work Map regressions
         working-directory: http-generic-api
