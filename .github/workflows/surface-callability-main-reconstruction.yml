@@ -1,12 +1,13 @@
 name: Surface Callability Main Reconstruction
 
 on:
-  push:
-    branches:
-      - gpt/surface-callability-main-reconstruction-20260803
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
 
 permissions:
   contents: write
+  pull-requests: read
 
 env:
   TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
@@ -16,11 +17,14 @@ env:
   RUNNER_PATH: .github/workflows/surface-callability-main-reconstruction.yml
 
 concurrency:
-  group: surface-callability-main-reconstruction-20260803
+  group: surface-callability-main-reconstruction-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
 
 jobs:
   reconstruct-and-validate:
+    if: >-
+      github.event.pull_request.head.ref == 'gpt/surface-callability-main-reconstruction-20260803' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -35,8 +39,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$PINNED_MAIN"
-          test "$(git diff --name-only HEAD^ HEAD)" = "$RUNNER_PATH"
+          git merge-base --is-ancestor "$PINNED_MAIN" HEAD
+          test "$(git diff --name-only "$PINNED_MAIN" HEAD)" = "$RUNNER_PATH"
+          COUNT=$(git rev-list --count "$PINNED_MAIN..HEAD")
+          test "$COUNT" -ge 1
+          test "$COUNT" -le 2
           git fetch origin "refs/heads/${INTEGRATION_REF}:refs/remotes/origin/surface-integration"
           test "$(git rev-parse refs/remotes/origin/surface-integration)" = "$PINNED_INTEGRATION"
 
