@@ -7,37 +7,39 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  refresh-frontend-digests:
-    name: Generate bounded Frontend digest refresh
+  frontend-parity:
+    name: Exact Frontend digest parity
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
-      github.event.pull_request.head.sha == '7fe26ff6ba739f8b00392b3b0357874e99917847'
+      github.event.pull_request.head.ref == 'gpt/frontend-dispatch-digest-refresh-20260803' &&
+      github.event.pull_request.head.sha == '8c26be76724989b4d2d5bb8f1c4a6832bdebbb12'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
-      EXPECTED_BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
-      TARGET_BRANCH: gpt/frontend-dispatch-digest-refresh-20260803
-      GENERATED_FILE: http-generic-api/frontend-surface-dispatch.generated.json
+      EXPECTED_MAIN_SHA: 5db9f992ff42b136fbac88f9191949a7e31ffbf0
+      EXPECTED_HEAD_SHA: 8c26be76724989b4d2d5bb8f1c4a6832bdebbb12
     steps:
-      - name: Checkout exact prerequisite branch
+      - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: gpt/frontend-dispatch-digest-refresh-20260803
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Verify immutable branch identity
+      - name: Verify immutable identity and synchronization
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_BASE_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
           test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Set up Node.js 22
@@ -51,11 +53,11 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Regenerate and verify bounded Frontend artifact
+      - name: Verify deterministic Frontend parity
+        working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          cd http-generic-api
           CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
           node test-frontend-dispatch-workflow-baseline.mjs
           node test-frontend-operation-governance-generator.mjs
@@ -63,27 +65,4 @@ jobs:
           node test-frontend-auth-openapi-parity.mjs
           node test-openapi-route-coverage.mjs
           npm run openapi:auth:check
-          cd ..
-
-          changed="$(git diff --name-only)"
-          test "${changed}" = "${GENERATED_FILE}"
-
-          read -r additions deletions path <<EOF
-          $(git diff --numstat -- "${GENERATED_FILE}")
-          EOF
-          test "${path}" = "${GENERATED_FILE}"
-          test "${additions}" = "3"
-          test "${deletions}" = "3"
-
-          test -z "$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -vFx "${GENERATED_FILE}" || true)"
-
-      - name: Commit and push without force
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${GENERATED_FILE}"
-          git diff --cached --quiet && { echo 'No bounded refresh to commit'; exit 1; }
-          git commit -m "chore(frontend): refresh dispatch source digests"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test -z "$(git status --porcelain --untracked-files=no)"
