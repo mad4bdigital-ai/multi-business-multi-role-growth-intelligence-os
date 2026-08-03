@@ -34,6 +34,7 @@ jobs:
         shell: bash
         run: |
           node <<'NODE'
+          (async () => {
           const fs = require('node:fs');
           const path = require('node:path');
           const assert = require('node:assert/strict');
@@ -126,6 +127,10 @@ jobs:
           fs.appendFileSync(outputPath, `artifact_found=${artifact ? 'true' : 'false'}\n`);
           fs.appendFileSync(outputPath, `run_conclusion=${run?.conclusion || ''}\n`);
           console.log(JSON.stringify(discovery, null, 2));
+          })().catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+          });
           NODE
 
       - name: Download exact Runtime Readiness Artifact
