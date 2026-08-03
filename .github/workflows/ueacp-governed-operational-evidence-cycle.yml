@@ -75,6 +75,7 @@ jobs:
           grep -q 'source manifest escaped repository root' "$workflow"
           grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
           test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 1
+          grep -Fq "steps.artifact_safety.outputs.safe == 'true'" "$workflow"
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
@@ -186,8 +187,45 @@ jobs:
             --sources-file "${EVIDENCE_DIR}/sources.json" \
             --observation-file "${EVIDENCE_DIR}/catalog-observation.json" \
             --packet-output "${EVIDENCE_DIR}/live-evidence-packet.json"
-      - name: Upload no-secret evidence before enforcing outcome
+      - name: Validate artifact bundle is no-secret
+        id: artifact_safety
         if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'safe=false\n' >> "${GITHUB_OUTPUT}"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const directory = process.env.EVIDENCE_DIR;
+          if (!directory) throw new Error('evidence directory was not initialized');
+          const root = fs.realpathSync(directory);
+          const names = fs.readdirSync(root).filter((name) => name.endsWith('.json')).sort();
+          if (names.length === 0) throw new Error('no JSON evidence exists for safe upload');
+          const sensitive = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+          const scan = (value, location = 'root', seen = new WeakSet()) => {
+            if (!value || typeof value !== 'object' || seen.has(value)) return;
+            seen.add(value);
+            for (const [key, nested] of Object.entries(value)) {
+              if (sensitive.test(key) && nested !== false && nested !== null && nested !== undefined) {
+                throw new Error(`sensitive evidence value at ${location}.${key}`);
+              }
+              scan(nested, `${location}.${key}`, seen);
+            }
+          };
+          for (const name of names) {
+            const declared = path.join(root, name);
+            const stat = fs.lstatSync(declared);
+            if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe evidence file type: ${name}`);
+            if (stat.size > 128 * 1024 * 1024) throw new Error(`oversized evidence file: ${name}`);
+            const real = fs.realpathSync(declared);
+            if (path.dirname(real) !== root) throw new Error(`evidence file escaped bundle root: ${name}`);
+            scan(JSON.parse(fs.readFileSync(real, 'utf8')), name);
+          }
+          NODE
+          printf 'safe=true\n' >> "${GITHUB_OUTPUT}"
+      - name: Upload validated no-secret evidence
+        if: always() && steps.artifact_safety.outputs.safe == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ueacp-governed-operational-evidence-${{ github.run_id }}
