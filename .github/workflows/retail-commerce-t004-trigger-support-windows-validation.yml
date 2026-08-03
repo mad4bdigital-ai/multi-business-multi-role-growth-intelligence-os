@@ -1,0 +1,59 @@
+name: Retail Commerce T004 Trigger Support Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/retail-commerce-t004-pr-trigger-support-20260803
+    paths:
+      - ".github/workflows/retail-commerce-t004-trigger-support-windows-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-trigger-support:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: d717c4eeb30b06cc08d409131ab35db168bea2bc
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate exact support workflow contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "d717c4eeb30b06cc08d409131ab35db168bea2bc"
+          git diff --name-only 607c9ae2fdb2f3e55382886d83b30fae07a5762f...HEAD > "${RUNNER_TEMP}/changed-files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/changed-files.txt" | tr -d ' ')" = "1"
+          workflow='.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml'
+          grep -Fxq "$workflow" "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fq 'pull_request:' "$workflow"
+          grep -Fq 'types: [opened, reopened, synchronize]' "$workflow"
+          grep -Fq 'contents: read' "$workflow"
+          grep -Fq 'pull-requests: read' "$workflow"
+          grep -Fq 'github.event.pull_request.user.id == 271942579' "$workflow"
+          grep -Fq "startsWith(github.event.pull_request.head.ref, 'gpt/retail-commerce-production-schema-baseline-trigger-')" "$workflow"
+          grep -Fq 'github.event.pull_request.draft == true' "$workflow"
+          grep -Fq 'test "${#changed_files[@]}" -eq 1' "$workflow"
+          grep -Fq 'READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE' "$workflow"
+          grep -Fq 'persist-credentials: false' "$workflow"
+          grep -Fq 'environment: Production' "$workflow"
+          grep -Fq 'continue-on-error: true' "$workflow"
+          grep -Fq 'actions/upload-artifact@v4' "$workflow"
+          test "$(grep -Ec 'contents: write|pull-requests: write|issues: write|actions: write' "$workflow" || true)" = "0"
+          test "$(grep -Ec '^      REPORT_PATH:.*runner\.temp' "$workflow" || true)" = "0"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import YAML from './http-generic-api/node_modules/yaml/dist/index.js';
+          const source = fs.readFileSync('.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml', 'utf8');
+          const parsed = YAML.parse(source);
+          if (!parsed?.jobs?.['production-schema-baseline']) throw new Error('Expected Production baseline job');
+          console.log(JSON.stringify({ok:true,workflow_parsed:true,secrets_included:false}));
+          NODE
