@@ -1,0 +1,93 @@
+name: Prepare Production Capability Approval Alias Fix
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    paths:
+      - .github/workflows/prepare-production-capability-approval-alias-fix.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-production-capability-approval-alias-fix-2669991a
+  cancel-in-progress: false
+
+jobs:
+  prepare-candidate:
+    if: >-
+      github.event.pull_request.base.ref == 'Production' &&
+      github.event.pull_request.head.ref == 'gpt/production-capability-approval-alias-fix-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      SOURCE_COMMIT_SHA: c7aa7cd8a9597e317c8bdaa17a583884d3e674c0
+      WORKFLOW_PATH: .github/workflows/prepare-production-capability-approval-alias-fix.yml
+      TARGET_SOURCE_PATH: http-generic-api/routes/adminCliRoutes.js
+      TARGET_TEST_PATH: http-generic-api/test-capability-envelope-approval-alias-path.mjs
+    steps:
+      - name: Check out exact candidate branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Verify immutable base and initial one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            refs/heads/Production:refs/remotes/origin/Production \
+            "$SOURCE_COMMIT_SHA"
+
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "$production_sha" == "$EXPECTED_PRODUCTION_SHA" ]] || {
+            echo "::error::Production moved before candidate preparation: $production_sha"
+            exit 1
+          }
+
+          mapfile -t initial_files < <(git diff --name-only "$EXPECTED_PRODUCTION_SHA" HEAD | sort)
+          [[ "${#initial_files[@]}" -eq 1 && "${initial_files[0]}" == "$WORKFLOW_PATH" ]] || {
+            printf '::error::unexpected initial candidate scope: %s\n' "${initial_files[*]}"
+            exit 1
+          }
+
+          source_parent="$(git rev-parse "${SOURCE_COMMIT_SHA}^")"
+          mapfile -t source_files < <(git diff --name-only "$source_parent" "$SOURCE_COMMIT_SHA" | sort)
+          expected_source_files=("$TARGET_SOURCE_PATH" "$TARGET_TEST_PATH")
+          mapfile -t expected_source_files < <(printf '%s\n' "${expected_source_files[@]}" | sort)
+          [[ "${source_files[*]}" == "${expected_source_files[*]}" ]] || {
+            printf '::error::source commit scope mismatch: %s\n' "${source_files[*]}"
+            exit 1
+          }
+
+      - name: Cherry-pick reviewed source repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git cherry-pick -x "$SOURCE_COMMIT_SHA"
+
+      - name: Remove temporary preparer and verify effective candidate
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git rm "$WORKFLOW_PATH"
+          git commit -m "chore(ops): remove temporary Production candidate preparer"
+
+          mapfile -t final_files < <(git diff --name-only "$EXPECTED_PRODUCTION_SHA" HEAD | sort)
+          expected_final_files=("$TARGET_SOURCE_PATH" "$TARGET_TEST_PATH")
+          mapfile -t expected_final_files < <(printf '%s\n' "${expected_final_files[@]}" | sort)
+          [[ "${final_files[*]}" == "${expected_final_files[*]}" ]] || {
+            printf '::error::effective Production candidate scope mismatch: %s\n' "${final_files[*]}"
+            exit 1
+          }
+
+          node --check "$TARGET_SOURCE_PATH"
+          node "$TARGET_TEST_PATH"
+          git diff --check "$EXPECTED_PRODUCTION_SHA" HEAD
+          git push origin "HEAD:${HEAD_REF}"
