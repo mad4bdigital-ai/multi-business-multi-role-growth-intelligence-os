@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 45
     env:
       TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
-      PINNED_SOURCE_HEAD: 36cc5245116fdbfb26208e8e0e40bc3b75f92ef3
+      PINNED_SOURCE_HEAD: 7bc7e6f977dabb9351d7ec34d9b5a04ffedd3745
       RUNNER_PATH: .github/workflows/surface-ci-repair-runner.yml
     steps:
       - name: Check out exact Surface branch
