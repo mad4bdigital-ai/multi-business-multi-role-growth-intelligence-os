@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "oauth-operation-correlation-foundation",
+  "task_id": "T030",
+  "status": "domain_foundation_complete_runtime_integration_required",
+  "observed_main_sha": "5ae197ec12669416fd263ebc1dfc2f7849b7640e",
+  "observed_at": "2026-08-03",
+  "implementation": {
+    "domain_module": "http-generic-api/tenantGptOAuthOperationCorrelation.js",
+    "domain_test": "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+    "readiness_test": "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs"
+  },
+  "correlation_contract": {
+    "schema_version": 1,
+    "stages": [
+      "oauth_authorize",
+      "identity_verify",
+      "oauth_code_issue",
+      "oauth_token_exchange",
+      "gateway_verify"
+    ],
+    "stable_identifiers": [
+      "operation_id",
+      "correlation_id",
+      "parent_operation_id"
+    ],
+    "chain_controls": [
+      "exactly_one_stage_forward",
+      "previous_envelope_sha256",
+      "envelope_sha256",
+      "monotonic_timestamps",
+      "registered_resource_binding",
+      "immutable_verified_envelope"
+    ],
+    "hashed_references": [
+      "client_id",
+      "user_id",
+      "tenant_id",
+      "oauth_code_jti",
+      "access_token_jti",
+      "stage_request_id"
+    ],
+    "forbidden_material": [
+      "authorization_header",
+      "raw_access_token",
+      "raw_authorization_code",
+      "raw_client_secret",
+      "raw_cookie",
+      "raw_credential",
+      "raw_email",
+      "raw_request_or_response_body"
+    ],
+    "secrets_included": false
+  },
+  "completed_foundation": [
+    "create_authorize_correlation_envelope",
+    "advance_identity_code_token_gateway_stages",
+    "verify_digest_and_resource_binding",
+    "produce_bounded_safe_evidence",
+    "reject_unknown_or_sensitive_fields",
+    "reject_stage_skip_replay_and_clock_regression",
+    "preserve_operation_and_correlation_identity"
+  ],
+  "runtime_integration_gate": {
+    "oauth_authorize_context_created": false,
+    "oauth_code_claim_bound": false,
+    "authorization_code_store_bound": false,
+    "oauth_token_claim_propagated": false,
+    "access_token_claim_propagated": false,
+    "gateway_request_context_attached": false,
+    "activation_operation_projection_persisted": false,
+    "stage_attempt_evidence_persisted": false,
+    "same_cycle_ledger_readback_complete": false,
+    "task_complete": false,
+    "required_before_completion": [
+      "authorize_route_creates_envelope",
+      "identity_and_code_issue_advance_same_envelope",
+      "authorization_code_store_persists_operation_reference",
+      "token_exchange_verifies_and_advances_code_claim",
+      "access_token_carries_bounded_correlation_claim",
+      "gateway_verifier_attaches_verified_context_without_caller_override",
+      "operation_projection_and_stage_evidence_persist_under_tenant_scope",
+      "exact_operation_ledger_readback",
+      "oauth_and_gateway_regression_tests",
+      "canonical_contract_parity"
+    ]
+  },
+  "dependency_boundary": {
+    "t026_migration_applied": false,
+    "runtime_wiring_authorized": false,
+    "reason": "Domain correlation can be reviewed without database access; persistence and runtime integration remain gated by exact-environment schema readiness and separate implementation review."
+  },
+  "non_effects": {
+    "oauth_route_changed": false,
+    "jwt_claim_changed": false,
+    "gateway_behavior_changed": false,
+    "database_mutation_performed": false,
+    "migration_applied": false,
+    "runtime_wired": false,
+    "production_deployed": false,
+    "credential_read_performed": false,
+    "external_send_performed": false,
+    "secrets_included": false
+  }
+}
