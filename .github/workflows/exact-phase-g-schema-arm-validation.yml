@@ -14,21 +14,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  preflight:
-    name: Exact Candidate Preflight
+  validate:
+    name: Exact Full ARM Validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
       github.event.pull_request.head.sha == '349ea1de31b75486e372067e256d9ee5bca3b114'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
-    outputs:
-      main_sha: ${{ steps.verify.outputs.main_sha }}
-      head_sha: ${{ steps.verify.outputs.head_sha }}
+    timeout-minutes: 180
     env:
       EXPECTED_MAIN_SHA: d2feb29071823bc706916387b178bc0429be96d1
       EXPECTED_HEAD_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
       EXPECTED_HEAD_REF: gpt/work-map-phase-g-schema-classification-20260803
+      BASE_SHA: d2feb29071823bc706916387b178bc0429be96d1
+      CANDIDATE_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -37,8 +36,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
       - name: Verify immutable identity, current main ancestry, and exact scope
-        id: verify
         shell: bash
         run: |
           set -euo pipefail
@@ -54,46 +61,6 @@ jobs:
           test "${files[0]}" = '.specify/work-map-schema-classification-registry.json'
           test "${files[1]}" = 'http-generic-api/test-work-map-schema-classification.mjs'
           test "${files[2]}" = 'specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json'
-          printf 'main_sha=%s\n' "${EXPECTED_MAIN_SHA}" >> "${GITHUB_OUTPUT}"
-          printf 'head_sha=%s\n' "${EXPECTED_HEAD_SHA}" >> "${GITHUB_OUTPUT}"
-
-  validate:
-    name: Exact Full ARM Validation
-    needs: preflight
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 180
-    env:
-      EXPECTED_MAIN_SHA: ${{ needs.preflight.outputs.main_sha }}
-      EXPECTED_HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
-      EXPECTED_HEAD_REF: gpt/work-map-phase-g-schema-classification-20260803
-      BASE_SHA: ${{ needs.preflight.outputs.main_sha }}
-      CANDIDATE_SHA: ${{ needs.preflight.outputs.head_sha }}
-      TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-    steps:
-      - name: Checkout exact candidate
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ needs.preflight.outputs.head_sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
-
-      - name: Verify exact checkout and unchanged main
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
-          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
 
       - name: Run canonical syntax and governance checks
         shell: bash
@@ -162,14 +129,14 @@ jobs:
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
           test "${actual_sha}" = "${EXPECTED_HEAD_SHA}"
-          GITHUB_SHA="${actual_sha}" npm test
+          TEST_SUITE_REPORT_DIR="${RUNNER_TEMP}/test-suite-reports" GITHUB_SHA="${actual_sha}" npm test
 
       - name: Prove runtime startup and deployment evidence
         working-directory: http-generic-api
         env:
           FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
-          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+          DEPLOYMENT_BRANCH: gpt/work-map-phase-g-schema-classification-20260803
+          DEPLOYMENT_COMMIT_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment
@@ -267,19 +234,7 @@ jobs:
           generated="$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
           test -z "${generated}"
 
-      - name: Publish bounded no-secret validation summary
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/exact-phase-g-summary"
-          jq -n \
-            --arg base_sha "${EXPECTED_MAIN_SHA}" \
-            --arg head_sha "${EXPECTED_HEAD_SHA}" \
-            '{contract:"mad4b.exact-phase-g-full-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
-            > "${RUNNER_TEMP}/exact-phase-g-summary/summary.json"
-
-      - name: Upload exact evidence
+      - name: Upload bounded no-secret evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -289,23 +244,5 @@ jobs:
             ${{ runner.temp }}/e2e-phase-*.json
             ${{ runner.temp }}/repository-tool-lifecycle/
             ${{ runner.temp }}/contract-reference/
-            ${{ runner.temp }}/exact-phase-g-summary/summary.json
           if-no-files-found: warn
           retention-days: 14
-
-  decision:
-    name: Exact Validation Decision
-    if: always()
-    needs: [preflight, validate]
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
-    steps:
-      - name: Enforce final decision
-        env:
-          PREFLIGHT_RESULT: ${{ needs.preflight.result }}
-          VALIDATION_RESULT: ${{ needs.validate.result }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "${PREFLIGHT_RESULT}" = success
-          test "${VALIDATION_RESULT}" = success
