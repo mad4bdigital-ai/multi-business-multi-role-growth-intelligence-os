@@ -239,14 +239,14 @@ jobs:
         id: verify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESULT_HEAD_SHA: ${{ steps.publish.outputs.result_head_sha }}
+          COMMITTED_HEAD_SHA: ${{ steps.publish.outputs.result_head_sha }}
         run: |
           set -euo pipefail
-          [[ "${RESULT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${COMMITTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
           remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head_sha}" = "${RESULT_HEAD_SHA}"
-          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
-          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+          test "${remote_head_sha}" = "${COMMITTED_HEAD_SHA}"
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}" -f expected_head_sha="${COMMITTED_HEAD_SHA}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}" -f branch="${TARGET_BRANCH}" -f expected_head_sha="${COMMITTED_HEAD_SHA}"
 
       - name: Finalize diagnostic evidence
         id: diagnostics
