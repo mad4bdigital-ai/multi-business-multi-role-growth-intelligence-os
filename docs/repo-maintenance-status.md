@@ -175,6 +175,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
 - `.github/workflows/ueacp-live-authority-evidence-one-shot.yml`
 - `.github/workflows/verify-runtime.yml`
 
