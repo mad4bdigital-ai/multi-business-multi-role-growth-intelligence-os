@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/surface-callability-main-reconstruction.json",
+      ".github/repository-maintenance-tool-governance.json",
       "docs/surface-contract-discovery-status.json",
       "docs/surface-contract-discovery-status.md",
       "docs/surface-contract-gap-queue.json",
