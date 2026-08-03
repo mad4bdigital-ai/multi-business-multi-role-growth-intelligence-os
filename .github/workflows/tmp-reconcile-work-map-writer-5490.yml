@@ -1,47 +1,53 @@
 name: Temporary Work Map Writer Reconciliation 5490
 
 on:
-  push:
+  pull_request:
     branches:
       - gpt/work-map-writer-diagnostics-v3-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: write
 
 concurrency:
-  group: tmp-work-map-writer-reconciliation-5490
-  cancel-in-progress: false
+  group: tmp-work-map-writer-reconciliation-5490-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   reconcile:
     name: Reconcile diagnostics branch with main
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/arm-trigger-work-map-writer-reconcile-20260804' &&
+      github.event.pull_request.head.sha == 'd7bdaa6b1099c8c03f4ebc28ab8b84d046f5eb20'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
-      EXPECTED_PARENT_SHA: 3f15080c4f6374c877a0a7f6ee748c863b04e175
+      EXPECTED_ORIGINAL_HEAD: 3f15080c4f6374c877a0a7f6ee748c863b04e175
       EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
       RECONCILER_SHA: 5d3c27406a1847badb10b81357044a16da278751
+      TARGET_HEAD: ${{ github.event.pull_request.base.sha }}
       TARGET_BRANCH: gpt/work-map-writer-diagnostics-v3-20260803
       TARGET_WORKFLOW: .github/workflows/spec-kit-work-map-autofix.yml
       TEMP_WORKFLOW: .github/workflows/tmp-reconcile-work-map-writer-5490.yml
     steps:
-      - name: Checkout exact trigger head
+      - name: Checkout exact base branch head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.TARGET_HEAD }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify authorized trigger ancestry and scope
+      - name: Verify target ancestry and temporary-only pre-merge delta
         shell: bash
         run: |
           set -euo pipefail
-          test "${GITHUB_REF}" = "refs/heads/${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
-          git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD | LC_ALL=C sort > /tmp/trigger-files.txt
-          printf '%s\n' "${TEMP_WORKFLOW}" > /tmp/expected-trigger-files.txt
-          diff -u /tmp/expected-trigger-files.txt /tmp/trigger-files.txt
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${TARGET_HEAD}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TARGET_HEAD}"
+          test "$(git merge-base "${EXPECTED_ORIGINAL_HEAD}" "${TARGET_HEAD}")" = "${EXPECTED_ORIGINAL_HEAD}"
+          git diff --name-only "${EXPECTED_ORIGINAL_HEAD}" "${TARGET_HEAD}" | LC_ALL=C sort > /tmp/pre-merge-files.txt
+          printf '%s\n' "${TEMP_WORKFLOW}" > /tmp/expected-pre-merge-files.txt
+          diff -u /tmp/expected-pre-merge-files.txt /tmp/pre-merge-files.txt
           test -z "$(git status --porcelain)"
           git fetch --no-tags origin "${EXPECTED_MAIN_SHA}" "${RECONCILER_SHA}"
           git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
@@ -55,8 +61,6 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          trigger_head="$(git rev-parse HEAD)"
-          echo "TRIGGER_HEAD=${trigger_head}" >> "$GITHUB_ENV"
           set +e
           git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
           merge_status=$?
@@ -100,7 +104,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TRIGGER_HEAD}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TARGET_HEAD}"
           git commit -m "chore(sync): reconcile Work Map writer diagnostics with main"
           new_head="$(git rev-parse HEAD)"
           test "$(git rev-list --parents -n 1 "${new_head}" | wc -w)" = "3"
