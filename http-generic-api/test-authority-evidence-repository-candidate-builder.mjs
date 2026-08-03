@@ -221,4 +221,28 @@ function expectCode(fn, code) {
   }
 }
 
+{
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-candidate-symlink-root-"));
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-candidate-symlink-external-"));
+  try {
+    const input = path.join(root, "snapshots.json");
+    fs.writeFileSync(input, `${JSON.stringify(snapshots(), null, 2)}\n`);
+    fs.symlinkSync(external, path.join(root, "specs"), "dir");
+    assert.throws(
+      () => runAuthorityEvidenceRepositoryCandidates([
+        "--input-file", input,
+        "--repository", "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+        "--observed-ref", "c".repeat(40),
+        "--repository-root", root,
+        "--write",
+      ]),
+      /symbolic-link path component/,
+    );
+    assert.equal(fs.readdirSync(external).length, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+}
+
 console.log("authority evidence repository candidate builder tests passed");
