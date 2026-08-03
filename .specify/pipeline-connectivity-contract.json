@@ -30,16 +30,19 @@
       "artifact_group": "platform_work_maps",
       "writer_pipeline": "spec-kit-work-map-autofix",
       "required_writer_commands": [
-        "work-map-autofix:authorized",
+        "workflow_dispatch:",
+        "Existing same-repository pull-request branch to update",
         "expected_head_sha",
-        "workflow_dispatch requires exactly one open same-repository PR targeting main",
-        "Consume one-time pull-request authorization",
-        "Authorization marker removal readback failed",
+        "Pin branch and pull request identity",
+        "git check-ref-format --branch",
         "git push origin",
         "git rev-parse HEAD",
         "cancel-in-progress: false",
         "docs/work-maps",
-        "Direct autofix writes to main are forbidden"
+        "mad4b.spec-kit-work-map-autofix.v2",
+        "WORK_MAP_AUTOFIX_V2",
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml"
       ],
       "forbidden_writer_commands": [
         "--force",
@@ -135,13 +138,14 @@
       "required_permissions": {
         "actions": "write",
         "contents": "write",
-        "pull-requests": "write"
+        "pull-requests": "write",
+        "issues": "write"
       },
       "required_triggers": [
-        "workflow_dispatch",
-        "pull_request"
+        "workflow_dispatch"
       ],
       "forbidden_triggers": [
+        "pull_request",
         "push",
         "schedule",
         "workflow_run"
@@ -149,40 +153,34 @@
       "required_commands": [
         "pipeline-connectivity-check.mjs",
         "test-pipeline-connectivity-check.mjs",
-        "work-map-autofix-diagnostics.mjs",
-        "test-work-map-autofix-diagnostics.mjs",
-        "Bootstrap Work Map diagnostic envelope",
-        "Finalize Work Map diagnostic report",
-        "Publish sticky Work Map diagnostic report",
-        "work-map-autofix-diagnostic-report",
-        "WORK_MAP_STEP_OUTCOMES",
-        "actions/upload-artifact@v4",
-        "GITHUB_STEP_SUMMARY",
-        "if: always()",
         "platform-work-map-generator.mjs --write",
         "platform-work-map-generator.mjs --check",
+        "Initialize diagnostics and validate inputs",
+        "Checkout exact authorized head",
+        "Pin branch and pull request identity",
+        "Validate generator and governance contracts",
+        "Regenerate and prove idempotency",
+        "Commit and push governed Work Maps",
+        "Dispatch exact-head verification",
+        "Finalize diagnostic evidence",
+        ".work-map-autofix-diagnostics",
+        "mad4b.spec-kit-work-map-autofix.v2",
+        "WORK_MAP_AUTOFIX_V2",
+        "actions/upload-artifact@v4",
+        "git check-ref-format --branch",
         "expected_head_sha",
-        "workflow_dispatch requires exactly one open same-repository PR targeting main",
-        "Consume one-time pull-request authorization",
-        "Authorization marker removal readback failed",
         "git push origin",
         "git rev-parse HEAD",
         "gh workflow run ci.yml",
         "gh workflow run spec-kit-work-map-integration.yml",
-        "gh api --method PATCH",
-        "gh api --method POST",
-        "Direct autofix writes to main are forbidden",
-        "github.event.action == 'reopened'",
-        "github.event.pull_request.head.repo.full_name == github.repository",
-        "github.actor != 'github-actions[bot]'",
-        "work-map-autofix:authorized",
-        "format('spec-kit-work-map-noop-{0}', github.run_id)",
         "windows-latest",
         "shell: bash"
       ],
       "forbidden_commands": [
         "--force",
-        "--force-with-lease"
+        "--force-with-lease",
+        "work-map-autofix:authorized",
+        "types: [reopened]"
       ]
     },
     {
