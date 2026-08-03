@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "phase": "phase6_managed_pr_and_release_lifecycle",
+  "status": "complete_on_main",
+  "tasks": ["T200", "T201", "T202", "T203", "T204", "T205", "T206"],
+  "implementation": {
+    "pull_request": 5207,
+    "branch": "gpt/spec-011-phase6-managed-delivery-lifecycle-20260803",
+    "head_sha": "c476faaee7c3f90cf57d223e1d4a071bc9ba9310",
+    "merge_sha": "a954524eaa8358ed333ff994b7be120dbf9e1139",
+    "merged_at": "2026-08-03T09:20:28Z",
+    "merge_method": "squash",
+    "changed_files": 5,
+    "additions": 1103,
+    "human_contract_review_id": 4842533479
+  },
+  "certification": {
+    "workflow": "Spec 011 Managed Delivery Lifecycle",
+    "run_id": 30800375275,
+    "head_sha": "c476faaee7c3f90cf57d223e1d4a071bc9ba9310",
+    "pull_request_merge_ref_sha": "54f843e33515940b7cb985093d111d505ef0188c",
+    "conclusion": "success",
+    "syntax_check": "success",
+    "managed_delivery_lifecycle_tests": "success",
+    "evidence_write": "success",
+    "artifact_upload": "success"
+  },
+  "artifact": {
+    "artifact_id": 8850702200,
+    "name": "spec011-managed-delivery-lifecycle",
+    "digest": "sha256:7f50cd5087f5f9783a29b5bf035f5f4da6445127906e6f78fe7d59b0b4748076",
+    "status": "pass",
+    "report_type": "spec011_managed_delivery_lifecycle_certification",
+    "version": "spec011-managed-delivery-lifecycle-v1",
+    "expires_at": "2026-09-02T09:18:13Z"
+  },
+  "certified_contract": {
+    "durable_operation": "repo.change.execute",
+    "durable_preview_operation": "repo.change.preview",
+    "base_sync_operation": "repo.branch.reconcile",
+    "durable_automation_key": "pr_delivery",
+    "semantic_stable_anchors": true,
+    "line_number_anchors_allowed": false,
+    "stale_run_cancellation": true,
+    "base_sync_exact_readback": true,
+    "bounded_delegated_repair": true,
+    "repair_attempt_limit": 1,
+    "final_head_base_approval_binding": true,
+    "merge_branch_delete_deploy_readback_receipts": true,
+    "force_push_allowed": false,
+    "protected_branch_bypass_allowed": false,
+    "direct_protected_branch_write_allowed": false
+  },
+  "supporting_checks": {
+    "hostinger_storage_shared_canary_guard": "success",
+    "context_kernel_hardcoding_report": "success",
+    "runtime_startup_deployment_evidence": "success",
+    "spec011_delegation_mariadb_certification": "success",
+    "platform_completion_cleanup_readback": "success",
+    "hostinger_storage_control_plane_guard": "success",
+    "platform_remaining_scope_scorecard": "success",
+    "docs_agent": "success",
+    "repository_tool_lifecycle_governance": "success",
+    "e2e_contract_reference_integrity": "success",
+    "frontend_surface_dispatch": "success"
+  },
+  "main_readback": {
+    "kernel": {
+      "path": "http-generic-api/spec011ManagedDeliveryLifecycle.js",
+      "blob_sha": "feff990361c069fc1b1cd8ce3dd0295202a987f9",
+      "version": "spec011-managed-delivery-lifecycle-v1"
+    },
+    "delivery_contract": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
+      "blob_sha": "3e119e5f82e04ff85b27bbaaa4ad49a00abc998f"
+    },
+    "verified": true
+  },
+  "boundaries": {
+    "new_persistence_model": false,
+    "new_public_route": false,
+    "production_database_write": false,
+    "production_migration_authorization": false,
+    "provider_write": false,
+    "deployment_executed_by_certification": false,
+    "real_merge_executed_by_certification": false,
+    "real_branch_delete_executed_by_certification": false,
+    "runtime_authority_changed": false,
+    "force_push_used": false,
+    "protected_branch_bypass_used": false,
+    "secrets_included": false
+  }
+}
