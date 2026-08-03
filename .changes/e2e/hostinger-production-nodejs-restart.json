@@ -22,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, creates a durable run-bound claim before execution, performs only the official server restart operation, preserves retryability before any provider request, consumes ambiguous provider attempts, and requires a coherent top-level Production branch and SHA pair from deployment-info afterward.",
+      "objective": "Provide one owner-authorized exact-main-head and exact-Production-SHA Hostinger Node.js restart with trusted bot-only claim history, immediate pre-provider repository revalidation, a durable local attempt journal written before network dispatch, fail-closed missing-report semantics, and coherent top-level Production runtime identity proof.",
       "e2e_journeys": [
         {
           "id": "restart-completed-production-build-and-prove-runtime-parity",
@@ -30,43 +30,46 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions runner",
           "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
-          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, duplicate-execution, claim ownership, or coherent runtime identity bindings differ. A failure before the Hostinger POST remains retryable only when the same run that created the claim publishes a final non-mutating release marker. Once the provider POST is attempted, the binding is consumed even when its response is lost or ambiguous. A confirmed restart passes only when deployment-info reports Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through direct top-level identity fields in the same response.",
+          "terminal_outcome": "The workflow fails closed if authorization, repository state, Production, incident state, completed build, trusted marker authority, claim ownership, provider-attempt durability, secret availability, or coherent runtime identity differs. Failures proven to occur before provider dispatch can release the same run claim. A durable attempt journal, ambiguous provider response, missing report after dispatch, or confirmed restart consumes or leaves unresolved the exact binding and cannot be retried automatically. Success requires deployment-info itself to report the exact Production branch and SHA through direct top-level fields.",
           "steps": [
-            "Receive owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
-            "Resolve and validate the explicitly supplied full expected_head_sha and expected_build_uuid before any write.",
-            "Reject main and Production as repository mutation targets; only issue metadata and the existing Hostinger runtime process are eligible for mutation.",
-            "Verify current main equals the explicitly supplied full SHA and protected Production remains f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
-            "Read every paginated Incident #4953 marker for the binding and reject completed, provider-attempted, provider-performed, or unresolved claiming states.",
-            "Allow a new run after a prior claim only when a later final marker proves restart_attempted=false and retryable_without_provider_mutation=true.",
-            "Create a status=claiming marker bound to the current run and expose claimed=true only after GitHub accepts that marker.",
-            "Gate artifact upload, the final release or consuming marker, and final parity enforcement on steps.claim.outputs.claimed=true so another run cannot release an older unresolved claim.",
-            "Fetch Hostinger build history and require the latest build after the Production merge to be completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
-            "Read health, version, and deployment-info before mutation and skip restart only if deployment-info itself contains the exact Production branch and SHA pair in its direct top-level identity fields.",
-            "Set restart_attempted and provider_mutation_attempted immediately before calling POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
-            "If the POST response is lost, times out, or fails at transport after dispatch, classify the result as restart_attempted_outcome_unconfirmed and prohibit automatic retry for the same binding.",
-            "Poll bounded public runtime endpoints after a confirmed response and require the exact Production SHA and branch pair from deployment-info without composing identity across endpoints or nested objects.",
-            "Upload structured secret-free evidence and publish a bounded issue marker containing the authorized main head, claim ownership, attempted/performed states, identity scope, composition restrictions, and retryability state while keeping the incident open."
+            "Receive explicit owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
+            "Resolve and validate the full expected_head_sha and exact expected_build_uuid before any write.",
+            "Reject main and Production as repository mutation targets; only Issue metadata and the existing Hostinger runtime process are eligible for mutation.",
+            "Verify current main equals the authorized full SHA, protected Production equals f5c1ae8840b4d4452f2908bb0f23051880bb6896, and Issue #4953 remains open.",
+            "Read every paginated Incident marker but trust exact-once state only when authored by github-actions[bot].",
+            "Reject completed, provider-attempted, provider-performed, or unresolved trusted claims for the exact Production-SHA and build-UUID binding.",
+            "Create a trusted status=claiming marker bound to the current run and expose claimed=true only after GitHub accepts it.",
+            "Checkout the explicitly authorized main SHA and execute the restart implementation regression contract.",
+            "Immediately before provider mutation, re-read main, Production, Issue state, and trusted marker history and require the current run to own the latest unresolved claim.",
+            "Fetch Hostinger build history and require the exact completed post-merge build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
+            "Read health, version, and deployment-info before mutation and skip restart only when deployment-info itself contains the exact Production branch and SHA pair in direct top-level fields.",
+            "Write hostinger-nodejs-production-restart-attempt.json with restart_attempted=true and provider_mutation_attempted=true before calling the authorized POST endpoint.",
+            "Call only POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
+            "If the provider response is lost or the final report is missing after the attempt journal exists, consume or leave unresolved the binding and prohibit automatic retry.",
+            "If execution stops before the attempt journal exists, publish a same-run trusted retryable release proving restart_attempted=false and provider_mutation_attempted=false.",
+            "Poll bounded public runtime endpoints and require exact coherent Production identity from deployment-info without cross-endpoint, nested-object, or MIME-header bypass.",
+            "Upload structured secret-free evidence and publish a bounded trusted marker while keeping Incident #4953 open."
           ],
           "assertions": [
-            "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target trigger.",
-            "workflow_dispatch requires exact expected_head_sha and expected_build_uuid inputs.",
-            "Only the repository owner workflow dispatch or authorized owner Issue #4953 trigger can enter the restart job.",
-            "The workflow grants contents:read and issues:write only; it cannot mutate repository contents or protected refs.",
-            "The workflow explicitly rejects main and Production as repository branch mutation targets.",
-            "Comment history is read with paginated slurp semantics before a claim is created.",
-            "An unresolved claim blocks every later run and cannot be released by a run that did not create its own claim.",
-            "A failed run with restart_attempted=false is retryable only when its own claimed=true step permits the final release marker.",
-            "status=completed, restart_attempted=true, or restart_performed=true consumes the exact-once binding.",
-            "An ambiguous POST transport result cannot be classified as a precondition failure or marked retryable.",
-            "Every final marker records expected_head_sha, restart_attempted, restart_performed, provider_mutation_attempted, retryable_without_provider_mutation, identity_scope, cross_endpoint_composition, and cross_object_composition for auditability.",
-            "The implementation rejects any newer or different Hostinger build and any non-completed authorized build before POST.",
+            "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target production trigger.",
+            "Only the repository owner workflow dispatch or exact owner Issue #4953 trigger can enter the restart job.",
+            "The workflow grants contents:read and issues:write only and cannot mutate repository contents or protected refs.",
+            "Only github-actions[bot] markers participate in consumed, unresolved, or retryable exact-once calculations.",
+            "An untrusted public Issue comment cannot consume, release, or supersede a restart claim.",
+            "Main, Production, and Incident state are verified once before the claim and again immediately before provider mutation.",
+            "The current run must own the latest trusted unresolved claim at the pre-provider revalidation point.",
+            "A durable attempt journal is written synchronously before the Hostinger POST is dispatched.",
+            "A missing or invalid report with an attempt journal cannot produce restart_attempted=false or retryable_without_provider_mutation=true.",
+            "A pre-provider failure without an attempt journal may release only the same run claim as restart_attempted=false and provider_mutation_attempted=false.",
+            "status=completed, restart_attempted=true, or restart_performed=true consumes the exact binding.",
+            "An ambiguous POST transport result is classified restart_attempted_outcome_unconfirmed and cannot be retried automatically.",
+            "The implementation rejects newer, different, or non-completed builds before provider mutation.",
             "The only Hostinger provider mutation is the official Node.js server restart endpoint.",
-            "Version observations may not supply a missing SHA or branch to deployment-info; cross-endpoint identity composition is forbidden.",
-            "Nested deployment manifests, historical objects, or unrelated response objects may not supply a missing SHA or branch; cross-object identity composition is forbidden.",
+            "Version observations cannot supply a missing SHA or branch to deployment-info.",
+            "Nested historical objects cannot supply a missing SHA or branch.",
+            "JSON identity suppression is applied after successful JSON parsing regardless of application/json, application/*+json, text/plain, or missing MIME metadata.",
             "Success requires deployment-info to expose Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through accepted direct top-level identity fields in the same response.",
-            "The enforcement step requires schema_scope=top_level_direct_identity_fields, both composition flags false, and provider_mutation_attempted to equal restart_attempted.",
-            "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, or mutates a database.",
-            "The Hostinger token is never returned and all artifacts declare secrets_included=false."
+            "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, mutates a database, or outputs secrets."
           ],
           "tests": [
             {
@@ -90,22 +93,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Execute one authorized restart against the exact completed build and attach the run-bound evidence to Incident #4953."
+      "objective": "Merge the exact-head governed implementation, authorize one current-main-bound restart, and attach its journal, report, artifact digest, and trusted marker to Incident #4953."
     },
     {
       "id": "resilient",
-      "status": "planned",
-      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider rejection, ambiguous POST transport outcome, retry after a non-mutating claimed failure, unresolved prior claim, attempted release by a different run, split endpoint identity, cross-object deployment identity, and post-restart stale runtime cases while remaining fail-closed."
+      "status": "implemented",
+      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, untrusted marker spoofing, unresolved claim, claim ownership loss, missing secret, provider rejection, ambiguous POST transport, missing report before and after journal creation, split endpoint identity, cross-object identity, non-standard JSON MIME, and post-restart stale runtime while remaining fail-closed."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "The operation is a bounded restart of the existing production server process and does not create a separate canary deployment."
+      "objective": "The operation restarts the existing Production Node.js process and does not create a separate canary deployment."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Record exact coherent top-level runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
+      "objective": "Record exact coherent top-level Production runtime parity after the one-time restart and retain fail-closed evidence when the runtime remains stale."
     }
   ],
   "secrets_included": false
