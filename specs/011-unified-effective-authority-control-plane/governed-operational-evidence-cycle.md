@@ -17,6 +17,7 @@ reviewed repository source documents
   -> bounded read-only Production catalog observation
   -> Authority Live Census Adapter
   -> governed immutable live evidence packet
+  -> no-secret artifact safety scan
   -> human ownership review
   -> explicit T001/T002 closeout decision
   -> separately governed migration design and implementation
@@ -43,7 +44,7 @@ A source manifest binds every document to:
 - the exact SHA-256 of the source file bytes;
 - one canonical source family.
 
-Each source must be a regular file, not a symbolic link or another file type, and must not exceed 8 MiB. The manifest itself must be a regular repository file, stay within the repository real path, and must not exceed 1 MiB.
+Each source must be a regular file, not a symbolic link or another file type, and must not exceed 8 MiB. The manifest itself must be a regular tracked repository file, stay within the repository real path, and must not exceed 1 MiB.
 
 The collector reads only the checked-out repository. It performs no network request, provider call, credential read, database query, external write, or repository mutation.
 
@@ -73,7 +74,7 @@ After those gates, the workflow creates an authorization valid for thirty minute
 
 No push, pull-request, schedule, issue-comment, or workflow-run event can execute the live job. Pull requests execute the contract job only.
 
-Temporary evidence is created beneath the runner-provided `RUNNER_TEMP` directory and exported through `GITHUB_ENV`; no job-level `runner.temp` expression is used.
+Temporary evidence is created beneath the runner-provided `RUNNER_TEMP` directory and exported through `GITHUB_ENV`; no job-level `runner.temp` expression is used. `BACKEND_API_KEY` is available only to the live catalog observer step.
 
 ## Live catalog boundary
 
@@ -93,7 +94,9 @@ The workflow does not generate or apply migration SQL.
 
 ## Output
 
-The uploaded artifact contains only:
+Before upload, an independent safety step scans every available JSON evidence file. Each file must be a regular file directly inside the evidence directory, parse as JSON, remain below 128 MiB, and contain no secret-bearing value under canonical sensitive keys. The step publishes `safe=true` only after all files pass. Artifact upload is skipped when the scan does not pass, including when collection fails before safe evidence exists.
+
+The validated artifact may contain only:
 
 - short-lived authorization metadata without credentials;
 - repository source attestation;
@@ -120,6 +123,7 @@ The cycle blocks when:
 - source and SQL observations exceed the bounded cycle window;
 - the target schema differs from the authorization;
 - catalog integrity or same-cycle readback fails;
+- the artifact bundle is missing, malformed, sensitive, unsafe, escaped, or oversized;
 - the resulting packet contains blocking issues.
 
 ## Safety and task state
