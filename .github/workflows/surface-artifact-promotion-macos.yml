@@ -32,8 +32,8 @@ jobs:
       TARGET_FILE: http-generic-api/frontend-surface-dispatch.generated.json
       GOVERNANCE_FILE: http-generic-api/frontend-operation-governance.generated.json
       OPENAPI_INDEX: http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-      RAW_WRITE_SET: ${{ runner.temp }}/generated-write-set-raw.txt
-      NORMALIZED_WRITE_SET: ${{ runner.temp }}/generated-write-set.txt
+      RAW_WRITE_SET: /tmp/generated-write-set-raw.txt
+      NORMALIZED_WRITE_SET: /tmp/generated-write-set.txt
 
     steps:
       - name: Checkout exact target branch
@@ -143,7 +143,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -f "${WORKFLOW_PATH}"
-          rm -- "${WORKFLOW_PATH}"
+          rm "${WORKFLOW_PATH}"
           test ! -e "${WORKFLOW_PATH}"
 
       - name: Capture raw generated write set
@@ -160,21 +160,19 @@ jobs:
           set -Eeuo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const rawPath = process.env.RAW_WRITE_SET;
-          const normalizedPath = process.env.NORMALIZED_WRITE_SET;
-          const raw = fs.readFileSync(rawPath, 'utf8');
+          const raw = fs.readFileSync(process.env.RAW_WRITE_SET, 'utf8');
           const paths = raw
             .split(/\r?\n/u)
             .filter(Boolean)
             .map((line) => {
               const payload = line.slice(3);
-              const renameSeparator = ' -> ';
-              return payload.includes(renameSeparator)
-                ? payload.slice(payload.lastIndexOf(renameSeparator) + renameSeparator.length)
+              const separator = ' -> ';
+              return payload.includes(separator)
+                ? payload.slice(payload.lastIndexOf(separator) + separator.length)
                 : payload;
             });
           const unique = [...new Set(paths)].sort();
-          fs.writeFileSync(normalizedPath, `${unique.join('\n')}\n`);
+          fs.writeFileSync(process.env.NORMALIZED_WRITE_SET, `${unique.join('\n')}\n`);
           console.log(unique.join('\n'));
           if (unique.length === 0) throw new Error('generated_write_set_empty');
           NODE
@@ -185,8 +183,8 @@ jobs:
         with:
           name: generated-write-set-${{ github.event.pull_request.head.sha }}
           path: |
-            ${{ env.NORMALIZED_WRITE_SET }}
-            ${{ env.RAW_WRITE_SET }}
+            /tmp/generated-write-set.txt
+            /tmp/generated-write-set-raw.txt
           if-no-files-found: warn
           retention-days: 1
 
