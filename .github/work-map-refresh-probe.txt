@@ -1,3 +1,0 @@
-Temporary currentness probe for the governed Spec Kit Work Map Integration gate.
-
-This file is outside every Work Map generator source set and must be deleted before merge. It performs no runtime, deployment, provider, credential, database, migration, Production, or external-send action.
