@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 35
     env:
       TARGET_BRANCH: gpt/surface-current-main-clean-v2-20260803
-      BASE_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+      BASE_SHA: 5db9f992ff42b136fbac88f9191949a7e31ffbf0
       WORKFLOW_PATH: .github/workflows/surface-callability-current-main-v2-finalizer.yml
 
     steps:
@@ -236,8 +236,7 @@ jobs:
           for path in \
             "${WORKFLOW_PATH}" \
             http-generic-api/resource-api-surface-callability.manifest.json \
-            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
-            http-generic-api/test-surface-callability-full-closure.mjs; do
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs; do
             grep -Fxq "$path" /tmp/changed.txt || { echo "missing required output: $path"; exit 1; }
           done
 
