@@ -2,10 +2,12 @@ import {
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID
 } from "./config.js";
+import {
+  resolveRuntimeRegistry as resolveRuntimeRegistryAuthority
+} from "./runtimeRegistryAuthority.js";
 
 export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   const {
-    requireEnv,
     createExecutionTraceId,
     debugLog,
     promoteDelegatedExecutionPayload,
@@ -20,6 +22,10 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     validateTopLevelRoutingFields,
     getRegistry,
     reloadRegistry,
+    resolveRuntimeRegistry = resolveRuntimeRegistryAuthority,
+    loadSqlRegistry,
+    dataSourceMode = process.env.DATA_SOURCE || "sql",
+    registrySpreadsheetId = process.env.REGISTRY_SPREADSHEET_ID || "",
     getRequiredHttpExecutionPolicyKeys,
     requirePolicySet,
     policyValue,
@@ -39,8 +45,6 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     ensureMethodAndPathMatchEndpoint,
     sanitizeCallerHeaders
   } = deps;
-
-  requireEnv("REGISTRY_SPREADSHEET_ID");
 
   let execution_trace_id =
     String(reqBody?.execution_trace_id || "").trim() || createExecutionTraceId();
@@ -146,7 +150,27 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
   if (forceRefresh) {
     debugLog("REGISTRY_FORCE_REFRESH:", true);
   }
-  const registry = forceRefresh ? await reloadRegistry() : await getRegistry();
+
+  const registryResolution = await resolveRuntimeRegistry({
+    authority: dataSourceMode,
+    forceRefresh,
+    registrySpreadsheetId,
+    loadSqlRegistry,
+    getSheetsRegistry: getRegistry,
+    reloadSheetsRegistry: reloadRegistry
+  });
+
+  if (!registryResolution.ok) {
+    return {
+      ok: false,
+      response: registryResolution.response,
+      requestPayload,
+      execution_trace_id
+    };
+  }
+
+  debugLog("REGISTRY_AUTHORITY:", JSON.stringify(registryResolution.metadata || {}));
+  const registry = registryResolution.registry;
   const { brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
 
   const requiredHttpExecutionPolicyKeys =
