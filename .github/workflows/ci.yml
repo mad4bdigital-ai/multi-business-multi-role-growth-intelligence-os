@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact commit SHA to check out and verify
+        required: false
+        type: string
   push:
   pull_request:
     branches: [main, Production]
@@ -10,6 +15,9 @@ concurrency:
   group: ci-${{ github.ref }}-local-connector-v18
   cancel-in-progress: false
 
+env:
+  EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
+
 jobs:
   syntax:
     name: Syntax Check
@@ -17,7 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
           fetch-depth: 0
+
+      - name: Verify exact CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CHECKED_OUT_SHA}"
 
       - name: Guard schema/docs coverage for runtime changes
         run: node http-generic-api/scripts/schema-docs-change-guard.mjs
@@ -81,7 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
           fetch-depth: 0
+
+      - name: Verify exact CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CHECKED_OUT_SHA}"
 
       - uses: actions/setup-node@v6
         with:
@@ -138,11 +160,15 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
-      - name: Run tests
+      - name: Run tests with exact checked-out identity
         working-directory: http-generic-api
         env:
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: npm test
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_CHECKED_OUT_SHA"
+          GITHUB_SHA="$actual_sha" npm test
 
       - name: Upload ordered test progress reports
         if: always()
@@ -158,7 +184,7 @@ jobs:
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
           DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
-          DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ env.EXPECTED_CHECKED_OUT_SHA }}"
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment
@@ -191,6 +217,15 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CHECKED_OUT_SHA}"
 
       - uses: actions/setup-node@v6
         with:
@@ -222,6 +257,15 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CHECKED_OUT_SHA}"
 
       - uses: actions/setup-node@v6
         with:
