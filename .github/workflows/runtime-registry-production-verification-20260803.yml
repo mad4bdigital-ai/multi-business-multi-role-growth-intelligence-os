@@ -1,0 +1,119 @@
+name: Runtime Registry Production Verification 20260803
+
+on:
+  push:
+    branches:
+      - gpt/runtime-registry-production-verification-20260803
+    paths:
+      - .github/workflows/runtime-registry-production-verification-20260803.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-registry-production-verification-20260803
+  cancel-in-progress: true
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      EXPECTED_MAIN_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify live health, bootstrap authority, and GitHub dispatch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import process from 'node:process';
+
+          const base = process.env.RUNTIME_BASE_URL.replace(/\/$/u, '');
+          const apiKey = String(process.env.BACKEND_API_KEY || '').trim();
+          const expectedSha = process.env.EXPECTED_MAIN_SHA;
+          if (!apiKey) throw new Error('BACKEND_API_KEY secret is required');
+
+          const request = async (path, options = {}) => {
+            const response = await fetch(`${base}${path}`, {
+              ...options,
+              headers: {
+                accept: 'application/json',
+                'content-type': 'application/json',
+                authorization: `Bearer ${apiKey}`,
+                ...(options.headers || {}),
+              },
+              signal: AbortSignal.timeout(20000),
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 2000) }; }
+            return { status: response.status, body };
+          };
+
+          const health = await request('/health');
+          console.log('health_status=', health.status);
+          console.log('health_summary=', JSON.stringify({ ok: health.body?.ok, status: health.body?.status, version: health.body?.version || health.body?.service_version || null }));
+          if (health.status !== 200 || health.body?.ok !== true) throw new Error(`health_failed:${health.status}`);
+
+          const bootstrap = await request('/activation/bootstrap-config');
+          console.log('bootstrap_status=', bootstrap.status);
+          console.log('bootstrap_summary=', JSON.stringify({ ok: bootstrap.body?.ok, source: bootstrap.body?.source, sheets_required: bootstrap.body?.sheets_required, github_token_configured: bootstrap.body?.github_token_configured }));
+          if (bootstrap.status !== 200 || bootstrap.body?.ok !== true) throw new Error(`bootstrap_failed:${bootstrap.status}`);
+          if (bootstrap.body?.source !== 'backend_runtime') throw new Error(`unexpected_bootstrap_source:${bootstrap.body?.source}`);
+          if (bootstrap.body?.sheets_required !== false) throw new Error(`sheets_still_required:${bootstrap.body?.sheets_required}`);
+
+          const dispatch = await request('/http-execute', {
+            method: 'POST',
+            body: JSON.stringify({
+              parent_action_key: 'github_api_mcp',
+              endpoint_key: 'github_list_issue_comments',
+              path_params: {
+                owner: 'mad4bdigital-ai',
+                repo: 'multi-business-multi-role-growth-intelligence-os',
+                issue_number: 5467,
+              },
+              query: { per_page: 1, page: 1 },
+              credential_scope: 'platform',
+            }),
+          });
+          const dispatchText = JSON.stringify(dispatch.body || {});
+          console.log('dispatch_status=', dispatch.status);
+          console.log('dispatch_error=', JSON.stringify(dispatch.body?.error || null));
+          if (/registry_spreadsheet_id_required|REGISTRY_SPREADSHEET_ID is required/iu.test(dispatchText)) {
+            throw new Error('production_still_has_global_registry_spreadsheet_dependency');
+          }
+          if (dispatch.status !== 200) throw new Error(`github_dispatch_not_200:${dispatch.status}:${dispatchText.slice(0, 500)}`);
+          if (typeof dispatch.body !== 'object' || dispatch.body === null) throw new Error('github_dispatch_unstructured');
+
+          const versionCandidates = [
+            health.body?.version,
+            health.body?.service_version,
+            health.body?.commit_sha,
+            health.body?.git_sha,
+            bootstrap.body?.commit_sha,
+            bootstrap.body?.git_sha,
+          ].filter(Boolean).map(String);
+          const exactShaExposed = versionCandidates.some((value) => value === expectedSha || expectedSha.startsWith(value) || value.startsWith(expectedSha.slice(0, 12)));
+          console.log('expected_main_sha=', expectedSha);
+          console.log('runtime_version_candidates=', JSON.stringify(versionCandidates));
+          console.log('exact_sha_exposed=', exactShaExposed);
+          console.log('RUNTIME_REGISTRY_PRODUCTION_VERIFICATION=PASS');
+          NODE
+
+      - name: Run canonical runtime verifier
+        working-directory: http-generic-api
+        env:
+          RUNTIME_PROFILE: api_only
+          EXPECT_QUEUE_AVAILABLE: 'false'
+          EXPECT_WORKER_ENABLED: 'false'
+          VERIFY_EXECUTION_LOG_ROW: 'false'
+          ALLOW_ENVIRONMENT_ACCESS_BLOCKED: 'false'
+        run: node verify-runtime.mjs
