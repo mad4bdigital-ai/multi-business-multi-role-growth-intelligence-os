@@ -91,8 +91,9 @@ assert.match(verifier, /audience_compatibility_classification/u);
 assert.match(verifier, /legacy_audience_cutoff_state/u);
 assert.match(verifier, /compatibility_metric_name/u);
 assert.match(verifier, /emitCompatibilityEvidence\(compatibility, onCompatibilityEvidence\)/u);
-assert.match(verifier, /telemetry callback/u,
-  "verifier should document best-effort telemetry failure isolation");
+assert.match(verifier, /try \{\s*callback\(evidence\);/u);
+assert.match(verifier, /tenant_gpt_audience_compatibility_evidence_failed/u,
+  "verifier must isolate metrics callback failures from the authentication decision");
 
 assert.match(manifest, /node test-spec012-t032-legacy-audience-compatibility\.mjs/u,
   "T032 readiness regression must be registered in the Spec 012 manifest");
