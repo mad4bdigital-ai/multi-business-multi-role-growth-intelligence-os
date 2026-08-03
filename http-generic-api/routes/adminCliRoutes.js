@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { spawn } from "child_process";
+import { fileURLToPath } from "url";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
 import { transitionCapabilityEnvelopeLifecycle } from "../capabilityResolutionEnvelopeGuard.js";
@@ -19,6 +20,7 @@ const LOCAL_WINDOWS_APP_ALLOWLIST_ENV = "LOCAL_WINDOWS_APP_ALLOWLIST";
 const LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV = "LOCAL_WINDOWS_APP_CONTROL_ENABLED";
 const ADMIN_SHELL_ALLOWLIST_ENV = "ADMIN_SHELL_ALLOWLIST";
 const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
+export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
 const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
 const GITHUB_REST_FALLBACK_PR_LABEL_ALLOWLIST = new Set(["superseded"]);
@@ -2078,7 +2080,7 @@ function builtInShellAllowlist() {
     tool_bus_gated_read_only_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/tool-bus-gated-read-only-dispatch.mjs"], display_name: "Tool Bus gated read-only dispatch", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
     capability_resolution_simulation_suite: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-simulation-suite.mjs"], display_name: "Dynamic capability resolution simulation suite", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
     capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
-    platform_capability_assurance_reconcile: { command: process.execPath, args: ["http-generic-api/scripts/platform-capability-assurance-reconcile.mjs"], display_name: "Reconcile platform capability assurance graph", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_approve: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    platform_capability_assurance_reconcile: { command: process.execPath, args: ["http-generic-api/scripts/platform-capability-assurance-reconcile.mjs"], display_name: "Reconcile platform capability assurance graph", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_approve: { command: process.execPath, args: [CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
     capability_resolution_envelope_lifecycle: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-lifecycle.mjs"], display_name: "Transition capability resolution envelope lifecycle", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true }, capability_resolution_envelope_apply_authorize: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs"], display_name: "Apply-authorize capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
     budget_quota_authority_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/budget-quota-authority-dry-run.mjs"], display_name: "Budget and quota authority dry-run", allow_extra_args: true, max_extra_args: 24, timeout_ms: 120000, built_in: true },
     google_ads_budget_change_preflight: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-preflight.mjs"], display_name: "Google Ads budget change preflight", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
