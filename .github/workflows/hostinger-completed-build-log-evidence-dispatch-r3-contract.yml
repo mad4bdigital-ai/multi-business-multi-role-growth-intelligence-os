@@ -1,0 +1,29 @@
+name: Hostinger Completed Build Log Evidence Dispatch R3 Contract
+
+on:
+  pull_request:
+    paths:
+      - ".changes/e2e/hostinger-completed-build-log-evidence-r3-dispatch.json"
+      - ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3.yml"
+      - ".github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml"
+      - "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-dispatch-r3.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate secret-blind one-time R3 dispatch bridge
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-completed-build-log-evidence-dispatch-r3.mjs
