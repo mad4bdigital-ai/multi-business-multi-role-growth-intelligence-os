@@ -1,0 +1,137 @@
+name: Direct Production Runtime Readback 42177d36 V3
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/temp-direct-production-runtime-readback-42177d36-v3.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: direct-production-runtime-readback-42177d36-v3
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Read public Production runtime identity
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/direct-production-runtime-readback-42177d36-v3-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      EXPECTED_BASE_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      EXPECTED_BRANCH: Production
+      WORKFLOW_PATH: .github/workflows/temp-direct-production-runtime-readback-42177d36-v3.yml
+      REPORT_DIR: ${{ runner.temp }}/direct-production-runtime-readback-42177d36-v3
+
+    steps:
+      - name: Checkout exact one-file request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable request and protected Production
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -Eeuo pipefail
+          test "${BASE_SHA}" = "${EXPECTED_BASE_SHA}"
+          test "$(git rev-parse HEAD)" = "${HEAD_SHA}"
+          changed_files="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")"
+          test "${changed_files}" = "${WORKFLOW_PATH}"
+          production_sha="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          test "${production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Collect bounded public runtime evidence
+        id: collect
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+
+          fetch_endpoint() {
+            local name="$1" url="$2"
+            local raw="${REPORT_DIR}/${name}.raw"
+            local safe="${REPORT_DIR}/${name}.json"
+            local status rc
+            set +e
+            status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
+              --proto '=https' --tlsv1.2 --header 'accept: application/json' \
+              --output "${raw}" --write-out '%{http_code}' "${url}")"
+            rc=$?
+            set -e
+            [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+            printf '%s\n' "${status}" > "${REPORT_DIR}/${name}.http-status"
+            printf '%s\n' "${rc}" > "${REPORT_DIR}/${name}.curl-exit"
+            if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
+              jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
+            else
+              jq -Rs '{non_json_body: .[0:4096]}' < "${raw}" > "${safe}"
+            fi
+          }
+
+          fetch_endpoint health https://auth.mad4b.com/health
+          fetch_endpoint version https://auth.mad4b.com/version
+          fetch_endpoint deployment-info https://auth.mad4b.com/deployment-info
+          fetch_endpoint connector-agent-version https://auth.mad4b.com/connector-agent/version
+
+          health_status="$(cat "${REPORT_DIR}/health.http-status")"
+          version_status="$(cat "${REPORT_DIR}/version.http-status")"
+          deployment_status="$(cat "${REPORT_DIR}/deployment-info.http-status")"
+          connector_status="$(cat "${REPORT_DIR}/connector-agent-version.http-status")"
+
+          version_sha_found=false
+          deployment_sha_match=false
+          deployment_branch_match=false
+          grep -Fq "${EXPECTED_PRODUCTION_SHA}" "${REPORT_DIR}/version.json" && version_sha_found=true || true
+          jq -e --arg expected "${EXPECTED_PRODUCTION_SHA}" '[.. | objects | .commit_sha? // empty, .. | objects | .sha? // empty] | map(select(type == "string")) | any(. == $expected)' "${REPORT_DIR}/deployment-info.json" >/dev/null 2>&1 && deployment_sha_match=true || true
+          jq -e --arg expected "${EXPECTED_BRANCH}" '[.. | objects | .branch? // empty, .. | objects | .deployment_branch? // empty] | map(select(type == "string")) | any(. == $expected)' "${REPORT_DIR}/deployment-info.json" >/dev/null 2>&1 && deployment_branch_match=true || true
+
+          production_current=false
+          if [[ "${health_status}" == "200" && "${version_status}" == "200" && "${deployment_status}" == "200" && "${connector_status}" == "200" \
+            && "${version_sha_found}" == "true" && "${deployment_sha_match}" == "true" && "${deployment_branch_match}" == "true" ]]; then
+            production_current=true
+          fi
+
+          jq -n \
+            --arg expected_production_sha "${EXPECTED_PRODUCTION_SHA}" \
+            --arg expected_branch "${EXPECTED_BRANCH}" \
+            --arg health_status "${health_status}" \
+            --arg version_status "${version_status}" \
+            --arg deployment_status "${deployment_status}" \
+            --arg connector_status "${connector_status}" \
+            --argjson version_sha_found "${version_sha_found}" \
+            --argjson deployment_sha_match "${deployment_sha_match}" \
+            --argjson deployment_branch_match "${deployment_branch_match}" \
+            --argjson production_current "${production_current}" \
+            '{contract:"mad4b.direct-production-runtime-readback.v1",expected_production_sha:$expected_production_sha,expected_branch:$expected_branch,endpoints:{health:{http_status:$health_status},version:{http_status:$version_status,expected_sha_found:$version_sha_found},deployment_info:{http_status:$deployment_status,commit_sha_match:$deployment_sha_match,branch_match:$deployment_branch_match},connector_agent_version:{http_status:$connector_status}},production_current:$production_current,classification:(if $production_current then "production_current" else "production_stale_or_unverified" end),repository_mutation_performed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_send_performed:false,secrets_included:false}' \
+            > "${REPORT_DIR}/summary.json"
+          cat "${REPORT_DIR}/summary.json"
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: direct-production-runtime-readback-42177d36-v3-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce current Production runtime
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ steps.collect.outcome }}" = "success"
+          jq -e '.contract == "mad4b.direct-production-runtime-readback.v1" and .expected_production_sha == "42177d360e9c6d76b4f09eaf06bd98ac26d09abe" and .expected_branch == "Production" and .production_current == true and .classification == "production_current" and .repository_mutation_performed == false and .provider_mutation_performed == false and .deployment_performed == false and .restart_performed == false and .secrets_included == false' "${REPORT_DIR}/summary.json" >/dev/null
