@@ -21,6 +21,7 @@
       "http-generic-api/routes/tenantInfrastructureRoutes.js",
       "http-generic-api/routes/tenantLifecycleRoutes.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
       "http-generic-api/scripts/openapi-route-coverage.mjs",
       "http-generic-api/scripts/resource-api-callability-contracts.mjs",
       "http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs",
@@ -52,7 +53,7 @@
             "Load the reconstructed Surface runtime service and tenant, workspace, infrastructure, lifecycle, and agent-surface routes on the synchronized current-main tree.",
             "Extract governed SQL registry bindings and regenerate the bounded resource API callability manifest and classification evidence.",
             "Regenerate frontend operation governance, frontend dispatch, discovery status, gap queue, and safety attestations from canonical repository sources.",
-            "Exercise effect-class, multi-surface runtime, resource API coverage, SQL extraction, full-closure, startup, current test-manifest, and canonical OpenAPI route-coverage regressions.",
+            "Exercise effect-class, multi-surface runtime, resource API coverage, SQL extraction, full-closure, startup, current test-manifest, Hostinger closure-safety, and canonical OpenAPI route-coverage regressions.",
             "Verify exactly 20 scoped migration items and 41 scoped tool keys, then prove that no queue item remains whose registry targets intersect the certified Surface tool-key set.",
             "Preserve newer unrelated queue items, current-main test registrations, protected-branch authority, and all explicit no-deploy/no-database/no-provider/no-secret boundaries."
           ],
@@ -62,6 +63,7 @@
             "The remaining discovery queue contains no item whose verify_tool_registry_binding targets intersect the certified Surface tool-key set.",
             "Repository-wide queue items outside the Surface scope remain visible and are not rewritten as completed.",
             "The current-main test manifest retains newer registrations and adds the Surface full-closure regression exactly once.",
+            "The checksum-bound Hostinger policy verifier proves static evidence only and performs no provider, deployment, database, repository, or external mutation.",
             "Canonical OpenAPI authority is consumed as the current array-of-file-paths contract by the route coverage guard.",
             "Building and starting the HTTP API without database environment variables still exposes deployment identity endpoints; tenant infrastructure database access is resolved lazily only when an authenticated infrastructure route is invoked.",
             "The certification performs no Production mutation, deployment, restart, migration or database apply, provider write, credential payload readback, external send, protected-branch bypass, force update, or secret disclosure."
@@ -100,6 +102,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-surface-callability-full-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-hostinger-full-closure-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
               "args": []
             },
             {
