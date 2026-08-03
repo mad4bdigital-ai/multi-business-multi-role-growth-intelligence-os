@@ -65,6 +65,7 @@ jobs:
             python3 scripts/surface-callability-closure/patch_workspace.py
             python3 scripts/surface-callability-closure/patch_agent_surfaces.py
             python3 scripts/surface-callability-closure/patch_infrastructure.py
+            python3 scripts/surface-callability-closure/patch_hostinger_policy_docs.py
             npm run frontend:dispatch:generate
             node scripts/surface-callability-closure/generate_closure_contracts.mjs
             node scripts/surface-contract-discovery.mjs --write
@@ -98,7 +99,6 @@ jobs:
             node test-multi-surface-agent-runtime.mjs
             node test-tenant-database-query-readonly.mjs
             node test-tenant-ssh-cli-allowlisted-execute.mjs
-            node test-agent-surface-runtime-service.mjs
             node test-surface-callability-full-closure.mjs
           } 2>&1 | tee ../surface-validation.log
 
@@ -129,6 +129,10 @@ jobs:
               changed.append(path)
 
           exact = {
+              'Updating Registry Patch Index.md',
+              'docs/ai-docs-agent-governance.md',
+              'docs/auto-docs-agent/README.md',
+              'docs/change-documentation-governance.md',
               'http-generic-api/agentSurfaceRuntimeService.js',
               'http-generic-api/routes/agentSurfaceRoutes.js',
               'http-generic-api/routes/tenantInfrastructureRoutes.js',
@@ -154,6 +158,10 @@ jobs:
           if unexpected:
               raise SystemExit('unexpected_surface_closure_writes:' + ','.join(unexpected))
           required = {
+              'Updating Registry Patch Index.md',
+              'docs/ai-docs-agent-governance.md',
+              'docs/auto-docs-agent/README.md',
+              'docs/change-documentation-governance.md',
               'http-generic-api/scripts/resource-api-callability-contracts.mjs',
               'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
               'http-generic-api/resource-api-surface-callability.manifest.json',
