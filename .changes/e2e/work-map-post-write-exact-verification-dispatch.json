@@ -7,6 +7,7 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".github/workflows/spec-kit-work-map-autofix.yml",
       ".github/workflows/ci.yml",
       ".github/workflows/spec-kit-work-map-integration.yml",
       "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
@@ -47,6 +48,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix.yml",
             ".github/workflows/ci.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
