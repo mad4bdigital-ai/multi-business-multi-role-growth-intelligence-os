@@ -14,6 +14,8 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const IDENTITY_AUTHORITY = "deployment_info_coherent_pair";
 const PRE_MUTATION_AUTHORITY_CONTRACT = "mad4b.hostinger-pre-mutation-authority.v1";
 const ATTEMPT_JOURNAL_FILE = "hostinger-nodejs-production-restart-attempt.json";
+const RESTART_MARKER_PREFIX = "HOSTINGER_PRODUCTION_NODEJS_RESTART";
+const MARKER_KEY_PATTERN = /^[a-z][a-z0-9_]*$/u;
 const DIRECT_SHA_FIELDS = Object.freeze([
   "commit_sha",
   "commit",
@@ -97,6 +99,8 @@ function attemptJournalPath(configuration) {
 
 function persistAttemptJournal(configuration) {
   fs.mkdirSync(configuration.outputDir, { recursive: true });
+  const journalPath = attemptJournalPath(configuration);
+  const temporaryPath = `${journalPath}.${process.pid}.${Date.now()}.tmp`;
   const journal = {
     contract: "mad4b.hostinger-nodejs-production-restart-attempt.v1",
     recorded_at: new Date().toISOString(),
@@ -111,11 +115,22 @@ function persistAttemptJournal(configuration) {
     pre_mutation_authority: "passed",
     secrets_included: false,
   };
-  fs.writeFileSync(
-    attemptJournalPath(configuration),
-    `${JSON.stringify(journal, null, 2)}\n`,
-    { mode: 0o600 },
-  );
+  let fileDescriptor;
+  try {
+    fileDescriptor = fs.openSync(temporaryPath, "wx", 0o600);
+    fs.writeFileSync(fileDescriptor, `${JSON.stringify(journal, null, 2)}\n`, "utf8");
+    fs.fsyncSync(fileDescriptor);
+  } finally {
+    if (fileDescriptor !== undefined) fs.closeSync(fileDescriptor);
+  }
+  fs.renameSync(temporaryPath, journalPath);
+  let directoryDescriptor;
+  try {
+    directoryDescriptor = fs.openSync(configuration.outputDir, "r");
+    fs.fsyncSync(directoryDescriptor);
+  } finally {
+    if (directoryDescriptor !== undefined) fs.closeSync(directoryDescriptor);
+  }
 }
 
 function authorityError(code, message, status = 0) {
@@ -124,6 +139,27 @@ function authorityError(code, message, status = 0) {
   error.code = code;
   error.status = status;
   return error;
+}
+
+export function parseTrustedRestartMarker(comment) {
+  if (comment?.user?.login !== "github-actions[bot]" || comment?.user?.type !== "Bot") return null;
+  const id = Number(comment?.id);
+  if (!Number.isSafeInteger(id) || id <= 0 || typeof comment?.body !== "string") return null;
+  const body = comment.body.trim();
+  if (!body || /[\r\n]/u.test(body)) return null;
+  const tokens = body.split(/\s+/u);
+  if (tokens.shift() !== RESTART_MARKER_PREFIX) return null;
+  const fields = Object.create(null);
+  for (const token of tokens) {
+    const separator = token.indexOf("=");
+    if (separator <= 0 || separator === token.length - 1) return null;
+    const key = token.slice(0, separator);
+    const value = token.slice(separator + 1);
+    if (!MARKER_KEY_PATTERN.test(key) || Object.hasOwn(fields, key)) return null;
+    fields[key] = value;
+  }
+  if (!fields.status || !fields.binding) return null;
+  return { id, fields };
 }
 
 async function readGithubJson(url, { token, fetchImpl }) {
@@ -223,35 +259,32 @@ export function createGitHubPreMutationAuthorityRevalidator(options, fetchImpl =
       }
     }
 
-    const prefix = "HOSTINGER_PRODUCTION_NODEJS_RESTART status=";
-    const binding = `binding=${authority.bindingId}`;
-    const expectedHead = `expected_head_sha=${authority.expectedHeadSha}`;
-    const run = `run_id=${authority.runId}`;
     const relevant = comments
-      .filter((comment) => typeof comment?.body === "string")
-      .filter((comment) => comment?.user?.login === "github-actions[bot]" && comment?.user?.type === "Bot")
-      .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
-      .sort((left, right) => Number(left.id) - Number(right.id));
-    const claims = relevant.filter((comment) => comment.body.includes("status=claiming"));
-    const currentClaim = claims.filter((comment) =>
-      comment.body.includes(expectedHead) && comment.body.includes(run)).at(-1);
+      .map(parseTrustedRestartMarker)
+      .filter(Boolean)
+      .filter((marker) => marker.fields.binding === authority.bindingId)
+      .sort((left, right) => left.id - right.id);
+    const claims = relevant.filter((marker) => marker.fields.status === "claiming");
+    const currentClaim = claims.filter((marker) =>
+      marker.fields.expected_head_sha === authority.expectedHeadSha
+      && marker.fields.run_id === authority.runId).at(-1);
     const latestClaim = claims.at(-1);
     if (!currentClaim) {
       throw authorityError("current_run_claim_missing_before_restart", "The current run claim is missing before the provider mutation.");
     }
-    if (!latestClaim || Number(currentClaim.id) !== Number(latestClaim.id)) {
+    if (!latestClaim || currentClaim.id !== latestClaim.id) {
       throw authorityError("current_run_claim_superseded_before_restart", "The current run claim is not the latest claim for the exact binding.");
     }
 
-    const consumed = relevant.some((comment) =>
-      Number(comment.id) !== Number(currentClaim.id)
-      && (comment.body.includes("status=completed")
-        || comment.body.includes("restart_attempted=true")
-        || comment.body.includes("restart_performed=true")));
+    const consumed = relevant.some((marker) =>
+      marker.id !== currentClaim.id
+      && (marker.fields.status === "completed"
+        || marker.fields.restart_attempted === "true"
+        || marker.fields.restart_performed === "true"));
     if (consumed) {
       throw authorityError("restart_binding_consumed_before_mutation", "The exact restart binding was consumed before the provider mutation.");
     }
-    const laterMarkers = relevant.filter((comment) => Number(comment.id) > Number(currentClaim.id));
+    const laterMarkers = relevant.filter((marker) => marker.id > currentClaim.id);
     if (laterMarkers.length > 0) {
       throw authorityError("restart_claim_changed_before_mutation", "A later restart marker appeared after the current run claim.");
     }
@@ -267,9 +300,10 @@ export function createGitHubPreMutationAuthorityRevalidator(options, fetchImpl =
       production_sha: productionSha,
       binding: authority.bindingId,
       run_id: authority.runId,
-      claim_comment_id: Number(currentClaim.id),
+      claim_comment_id: currentClaim.id,
       claim_is_latest: true,
       later_marker_count: 0,
+      marker_parser: "strict_single_line_exact_fields_v1",
       secrets_included: false,
     };
   };
