@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { executeGovernedRestart } from "./hostinger-nodejs-production-restart-coherent.mjs";
 import {
@@ -12,10 +13,10 @@ const EXPECTED_SHA = "f5c1ae8840b4d4452f2908bb0f23051880bb6896";
 const EXPECTED_BUILD = "019fc51c-3947-7255-aa4d-f55cb8df7658";
 const OLD_SHA = "ca1e1cfe6697d251d2c50db7fa48246f18ab118f";
 
-function response(status, body) {
+function response(status, body, contentType = "application/json") {
   return new Response(body === null ? null : JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": contentType },
   });
 }
 
@@ -181,8 +182,29 @@ async function testCrossObjectDeploymentIdentityNeverPasses() {
   assertCoherentAuthority(report);
 }
 
+async function testNonStandardJsonContentTypeCannotBypassIdentityAuthority() {
+  let posts = 0;
+  const fetchImpl = async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes("/nodejs/builds")) return response(200, buildList());
+    if (init.method === "POST") { posts += 1; return response(200, { ok: true }); }
+    if (value.endsWith("/health")) return response(200, { ok: true });
+    if (value.endsWith("/version")) return response(200, runtimeBody(EXPECTED_SHA, "unavailable"), "text/plain");
+    if (value.endsWith("/deployment-info")) return response(200, runtimeBody(OLD_SHA, "Production"), "application/problem+json");
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  assert.equal(report.pre_runtime.current, false);
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_completed_runtime_stale");
+  assertAttemptState(report, true, true);
+  assert.equal(posts, 1);
+  assertCoherentAuthority(report);
+}
+
 async function testAmbiguousPostTransportFailureConsumesAttempt() {
   let posts = 0;
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostinger-restart-attempt-"));
   const fetchImpl = async (url, init = {}) => {
     const value = String(url);
     if (value.includes("/nodejs/builds")) return response(200, buildList());
@@ -193,14 +215,27 @@ async function testAmbiguousPostTransportFailureConsumesAttempt() {
     if (value.endsWith("/health")) return response(200, { ok: true });
     return response(200, runtimeBody(OLD_SHA, "main"));
   };
-  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
-  assert.equal(report.outcome, "failed");
-  assert.equal(report.classification, "restart_attempted_outcome_unconfirmed");
-  assert.equal(report.first_failure.code, "request_transport_failed");
-  assertAttemptState(report, true, false);
-  assert.equal(report.side_effects.provider_mutation_performed, false);
-  assert.equal(posts, 1);
-  assertCoherentAuthority(report);
+  try {
+    const report = await executeGovernedRestart(options({ outputDir }), { fetchImpl, sleepImpl: async () => {} });
+    assert.equal(report.outcome, "failed");
+    assert.equal(report.classification, "restart_attempted_outcome_unconfirmed");
+    assert.equal(report.first_failure.code, "request_transport_failed");
+    assertAttemptState(report, true, false);
+    assert.equal(report.side_effects.provider_mutation_performed, false);
+    assert.equal(posts, 1);
+    const journalPath = path.join(outputDir, "hostinger-nodejs-production-restart-attempt.json");
+    assert.equal(fs.existsSync(journalPath), true);
+    const journal = JSON.parse(fs.readFileSync(journalPath, "utf8"));
+    assert.equal(journal.contract, "mad4b.hostinger-nodejs-production-restart-attempt.v1");
+    assert.equal(journal.restart_attempted, true);
+    assert.equal(journal.provider_mutation_attempted, true);
+    assert.equal(journal.expected_sha, EXPECTED_SHA);
+    assert.equal(journal.expected_build_uuid, EXPECTED_BUILD);
+    assert.equal(journal.secrets_included, false);
+    assertCoherentAuthority(report);
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
 }
 
 function testConfigurationGuards() {
@@ -231,6 +266,8 @@ function testWorkflowContract() {
   assert.match(coherentWrapper, /schema_scope:\s*"top_level_direct_identity_fields"/u);
   assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
   assert.match(coherentWrapper, /cross_object_composition_allowed:\s*false/u);
+  assert.match(coherentWrapper, /persistAttemptJournal\(configuration\)/u);
+  assert.match(coherentWrapper, /hostinger-nodejs-production-restart-attempt\.json/u);
   assert.match(coherentWrapper, /mutationState\.attempted = true/u);
   assert.match(coherentWrapper, /restart_attempted_outcome_unconfirmed/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
@@ -239,12 +276,21 @@ function testWorkflowContract() {
   assert.match(workflow, /authority\.cross_object_composition_allowed === false/u);
   assert.match(workflow, /effects\.provider_mutation_attempted === attempted/u);
   assert.match(workflow, /gh api --paginate --slurp/u);
+  assert.match(workflow, /github-actions\[bot\]/u);
+  assert.match(workflow, /marker_authority=github-actions-bot-only/u);
   assert.match(workflow, /status=claiming/u);
   assert.match(workflow, /id:\s*claim/u);
   assert.match(workflow, /echo "claimed=true" >> "\$\{GITHUB_OUTPUT\}"/u);
   assert.match(workflow, /An unresolved Hostinger restart claim already exists/u);
   assert.match(workflow, /lastRetryableRelease/u);
+  assert.match(workflow, /Revalidate repository state and claim immediately before provider mutation/u);
+  assert.ok((workflow.match(/git\/ref\/heads\/main/gu) || []).length >= 2);
+  assert.ok((workflow.match(/git\/ref\/heads\/Production/gu) || []).length >= 2);
+  assert.match(workflow, /Current run no longer owns the latest unresolved Hostinger restart claim/u);
   assert.match(workflow, /if: always\(\) && steps\.claim\.outputs\.claimed == 'true'/u);
+  assert.match(workflow, /ATTEMPT_JOURNAL_PATH/u);
+  assert.match(workflow, /restart_report_missing_after_provider_attempt/u);
+  assert.match(workflow, /attempt_journal_present=\$\{attemptJournalExists\}/u);
   assert.match(workflow, /identity_scope=\$\{report\.runtime_identity_authority\?\.schema_scope/u);
   assert.match(workflow, /cross_object_composition=\$\{report\.runtime_identity_authority\?\.cross_object_composition_allowed === true/u);
   assert.match(workflow, /restart_attempted=\$\{restartAttempted\}/u);
@@ -268,6 +314,7 @@ await testDifferentLatestBuildFailsClosed();
 await testRestartStaysStale();
 await testSplitEndpointIdentityNeverPasses();
 await testCrossObjectDeploymentIdentityNeverPasses();
+await testNonStandardJsonContentTypeCannotBypassIdentityAuthority();
 await testAmbiguousPostTransportFailureConsumesAttempt();
 testConfigurationGuards();
 testWorkflowContract();
