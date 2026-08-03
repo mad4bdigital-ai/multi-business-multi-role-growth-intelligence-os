@@ -8,7 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/work-map-writer-concurrency-policy-parity.json",
-      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json"
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-automation-overlap-analyzer.mjs"
     ]
   },
   "merge_contract": {
@@ -18,19 +19,20 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Align the governed automation-overlap resource group with the workflow-dispatch-only Work Map sole-writer concurrency identity already present on current main.",
+      "objective": "Align the governed automation-overlap resource group with the workflow-dispatch-only Work Map sole-writer concurrency identity already present on current main and lock that parity through an executable regression.",
       "e2e_journeys": [
         {
           "id": "validate-work-map-writer-concurrency-policy-parity",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Automation Overlap Guard",
-          "entrypoint": "The overlap analyzer loads the repository workflow inventory and the governed resource-group policy on the exact candidate head.",
-          "terminal_outcome": "The Work Map writer concurrency key exactly matches its policy resource group, cancellation remains disabled, and the real-repository overlap regression reports zero critical findings.",
+          "entrypoint": "The overlap analyzer loads the repository workflow inventory and governed resource-group policy on the exact candidate head.",
+          "terminal_outcome": "The Work Map writer concurrency key exactly matches its policy resource group, cancellation remains disabled, the retired pull-request marker expression stays absent, and the real-repository overlap regression reports zero critical findings.",
           "steps": [
             "Load the workflow-dispatch-only spec-kit-work-map-autofix workflow from the exact candidate tree.",
             "Load the governed pull-request-work-map-generated-artifacts resource group.",
-            "Compare the workflow concurrency group with the policy-required concurrency group.",
+            "Assert one writer, exact concurrency identity, and cancel-in-progress false.",
+            "Reject the retired pull-request authorization-marker concurrency expression.",
             "Execute the focused automation-overlap analyzer regression against the real repository inventory.",
             "Require zero blocking findings without suppressing behavioral high-severity observations."
           ],
@@ -38,6 +40,7 @@
             "The required concurrency group equals spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}.",
             "The sole Work Map writer remains the only write member of its resource group.",
             "cancel-in-progress remains false.",
+            "The retired pull-request body marker expression is absent from the writer workflow.",
             "No behavioral finding is allowlisted or downgraded by this change.",
             "No repository content write, protected-ref mutation, Production action, deployment, provider call, credential read, SQL, migration Apply, database mutation, external send, or force push is performed.",
             "secrets_included is false."
@@ -52,6 +55,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix.yml",
             "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
             "http-generic-api/test-automation-overlap-analyzer.mjs"
           ]
@@ -66,7 +70,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject future Work Map trigger or concurrency changes unless workflow and policy are updated atomically."
+      "objective": "Reject future Work Map trigger or concurrency changes unless workflow, policy, and regression are updated atomically."
     },
     {
       "id": "canary",
