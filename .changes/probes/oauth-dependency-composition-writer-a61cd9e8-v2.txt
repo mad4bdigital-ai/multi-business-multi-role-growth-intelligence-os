@@ -1,0 +1,4 @@
+Bounded OAuth dependency-composition repair v2 authorization.
+Protected main: a61cd9e83070618001676bbc679bc937f0551875
+Allowed effective files: routes/index.js, test-auth-oauth-routes.mjs, test-spec012-t031-oauth-token-route-wiring.mjs
+No protected-ref, Production, provider, credential, database, migration, force-push, or external-send authority.
