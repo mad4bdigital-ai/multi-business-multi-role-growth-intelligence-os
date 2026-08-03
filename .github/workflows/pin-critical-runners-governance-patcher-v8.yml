@@ -1,0 +1,754 @@
+name: Pin Critical Runners Governance Patcher V8
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-critical-runners-governance-patcher-v8-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+  EXPECTED_HEAD_REF: gpt/ci/pin-critical-runners-governance-publish-14433d-v8-20260803
+  PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+  TRIGGER_PATH: .github/diagnostics/pin-critical-runners-governance-patcher-v8.txt
+
+jobs:
+  publish:
+    name: Validate governed runner candidate and publish blobs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Fail closed on exact PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$PATCHER_BASE_REF"
+
+      - name: Checkout exact feature trigger
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable latest-main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" = "1"
+          test -f "$TRIGGER_PATH"
+
+      - name: Generate bounded governance-compliant candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('.')
+          runner_paths = [
+              '.github/workflows/automation-overlap-guard.yml',
+              '.github/workflows/ci-pull-request-recovery.yml',
+              '.github/workflows/ci.yml',
+              '.github/workflows/e2e-contract-reference-integrity.yml',
+              '.github/workflows/e2e-phase-governance.yml',
+              '.github/workflows/hostinger-storage-control-plane-guard.yml',
+              '.github/workflows/http-generic-api-fanout-relocation.yml',
+              '.github/workflows/repository-tool-lifecycle-governance.yml',
+              '.github/workflows/supervisor-runtime-assurance.yml',
+          ]
+
+          for relative in runner_paths:
+              path = root / relative
+              text = path.read_text(encoding='utf-8')
+              count = text.count('runs-on: ubuntu-latest')
+              if count < 1:
+                  raise SystemExit(f'{relative}: expected ubuntu-latest alias missing')
+              text = text.replace('runs-on: ubuntu-latest', 'runs-on: ubuntu-24.04')
+              if 'runs-on: ubuntu-latest' in text:
+                  raise SystemExit(f'{relative}: runner alias remained')
+              path.write_text(text, encoding='utf-8')
+
+          integrity_path = root / '.github/workflows/e2e-contract-reference-integrity.yml'
+          integrity = integrity_path.read_text(encoding='utf-8')
+          boundary = '\n  work-map-recovery-bridge:\n'
+          if boundary not in integrity:
+              raise SystemExit('E2E Work Map bridge boundary missing')
+          integrity_path.write_text(integrity.split(boundary, 1)[0].rstrip() + '\n', encoding='utf-8')
+
+          fanout_report = '''name: HTTP Generic API Fanout Relocation
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Relocation reporting scope."
+        required: true
+        default: "scripts"
+        type: choice
+        options:
+          - scripts
+          - all
+      max_files:
+        description: "Maximum files to classify in one report."
+        required: true
+        default: "20"
+      target_branch:
+        description: "Branch to inspect. Leave empty to use current ref."
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - "http-generic-api/scripts/**"
+      - "http-generic-api/test-fanout-relocation-ci.mjs"
+      - ".github/workflows/http-generic-api-fanout-relocation.yml"
+      - ".github/workflows/http-generic-api-fanout-relocation-apply.yml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  fanout-relocation:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout target branch read-only
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.target_branch || github.head_ref || github.ref_name }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Report fanout relocation taxonomy
+        working-directory: http-generic-api
+        env:
+          FANOUT_RELOCATION_MODE: report
+          FANOUT_RELOCATION_SCOPE: ${{ github.event.inputs.scope || 'scripts' }}
+          FANOUT_RELOCATION_MAX_FILES: ${{ github.event.inputs.max_files || '20' }}
+          FANOUT_RELOCATION_JSON: "true"
+        run: node scripts/fanout-relocation-ci.mjs --json
+
+      - name: Validate relocation tooling
+        working-directory: http-generic-api
+        run: node test-fanout-relocation-ci.mjs
+'''
+          (root / '.github/workflows/http-generic-api-fanout-relocation.yml').write_text(fanout_report, encoding='utf-8')
+
+          supervisor_path = root / '.github/workflows/supervisor-runtime-assurance.yml'
+          supervisor = supervisor_path.read_text(encoding='utf-8')
+          permissions_old = 'permissions:\n  contents: read\n  issues: write\n'
+          if permissions_old not in supervisor:
+              raise SystemExit('Supervisor mixed permissions block missing')
+          supervisor = supervisor.replace(permissions_old, 'permissions:\n  contents: read\n', 1)
+          alert_boundary = '\n  alert-lifecycle:\n'
+          if alert_boundary not in supervisor:
+              raise SystemExit('Supervisor alert job boundary missing')
+          supervisor_path.write_text(supervisor.split(alert_boundary, 1)[0].rstrip() + '\n', encoding='utf-8')
+
+          work_map_bridge = '''name: E2E Contract Work Map Recovery Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Open pull request number containing the one-time authorization marker."
+        required: true
+        type: string
+      expected_head_sha:
+        description: "Exact pull request head SHA authorized for dispatch."
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: e2e-contract-work-map-recovery-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Validate authorization and dispatch sole writer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PR_NUMBER: ${{ inputs.pr_number }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    steps:
+      - name: Validate immutable authorization and dispatch
+        id: bridge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = "open"
+          test "$(jq -r '.draft' <<<"$pr")" = "false"
+          test "$(jq -r '.base.ref' <<<"$pr")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"$pr")" = "$GITHUB_REPOSITORY"
+          target_branch="$(jq -r '.head.ref' <<<"$pr")"
+          current_head="$(jq -r '.head.sha' <<<"$pr")"
+          test "$current_head" = "$EXPECTED_HEAD_SHA"
+          if [[ -z "$target_branch" || "$target_branch" == "main" || "$target_branch" == "Production" ]]; then
+            echo "Protected or empty target branch is forbidden." >&2
+            exit 1
+          fi
+
+          body="$(jq -r '.body // ""' <<<"$pr")"
+          grep -Fq "$AUTHORIZATION_MARKER" <<<"$body"
+          current_behind_by="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}" --jq '.behind_by')"
+          test "$current_behind_by" = "0"
+
+          for workflow in spec-kit-work-map-autofix.yml spec-kit-work-map-integration.yml; do
+            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
+            if [[ "$state" != "active" ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            fi
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = "active"
+          done
+
+          latest_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -r '.head.sha' <<<"$latest_pr")" = "$EXPECTED_HEAD_SHA"
+          latest_body="$(jq -r '.body // ""' <<<"$latest_pr")"
+          grep -Fq "$AUTHORIZATION_MARKER" <<<"$latest_body"
+          next_body="${latest_body//${AUTHORIZATION_MARKER}/}"
+          jq -n --arg body "$next_body" '{body:$body}' > "${RUNNER_TEMP}/consume.json"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --input "${RUNNER_TEMP}/consume.json" >/dev/null
+          if gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""' | grep -Fq "$AUTHORIZATION_MARKER"; then
+            exit 1
+          fi
+
+          payload="$(jq -cn --arg ref main --arg branch "$target_branch" --arg expected_head_sha "$EXPECTED_HEAD_SHA" '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}')"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/dispatches" --input - <<<"$payload"
+          echo "target_branch=$target_branch" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=$EXPECTED_HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded dispatch evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ steps.bridge.outputs.target_branch }}
+          EXPECTED_HEAD_SHA_OUTPUT: ${{ steps.bridge.outputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          outcome="passed"
+          if [[ "${{ steps.bridge.outcome }}" != "success" ]]; then outcome="blocked"; fi
+          body="WORK_MAP_WRITER_DISPATCH outcome=${outcome} expected_head_sha=${EXPECTED_HEAD_SHA_OUTPUT:-unresolved} target_branch=${TARGET_BRANCH:-unresolved} direct_repository_content_mutation=false protected_branch_mutation=false force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body"
+'''
+          (root / '.github/workflows/e2e-contract-work-map-recovery-bridge.yml').write_text(work_map_bridge, encoding='utf-8')
+
+          fanout_apply = '''name: HTTP Generic API Fanout Relocation Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Governed non-protected branch to update."
+        required: true
+        type: string
+      expected_head_sha:
+        description: "Exact current remote head SHA required before mutation."
+        required: true
+        type: string
+      scope:
+        description: "Relocation scope."
+        required: true
+        default: "scripts"
+        type: choice
+        options:
+          - scripts
+      max_files:
+        description: "Maximum safe files to relocate."
+        required: true
+        default: "20"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fanout-relocation-apply-${{ inputs.target_branch }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      FANOUT_RELOCATION_SCOPE: ${{ inputs.scope }}
+      FANOUT_RELOCATION_MAX_FILES: ${{ inputs.max_files }}
+    steps:
+      - name: Reject protected branches and invalid identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ -z "$TARGET_BRANCH" || "$TARGET_BRANCH" == "main" || "$TARGET_BRANCH" == "Production" ]]; then
+            echo "Protected or empty target branch is forbidden." >&2
+            exit 1
+          fi
+
+      - name: Checkout exact governed target
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Verify expected remote head before mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_head="$(git rev-parse HEAD)"
+          test "$current_head" = "$EXPECTED_HEAD_SHA"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply bounded safe relocations
+        working-directory: http-generic-api
+        env:
+          FANOUT_RELOCATION_MODE: apply
+          FANOUT_RELOCATION_JSON: "true"
+        run: node scripts/fanout-relocation-ci.mjs --mode=apply --scope="$FANOUT_RELOCATION_SCOPE" --max-files="$FANOUT_RELOCATION_MAX_FILES" --json
+
+      - name: Validate relocation tooling
+        working-directory: http-generic-api
+        run: node test-fanout-relocation-ci.mjs
+
+      - name: Commit and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No relocation changes to commit."
+            exit 0
+          fi
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add http-generic-api/scripts
+          git commit -m "Apply HTTP generic API script taxonomy relocation"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+'''
+          (root / '.github/workflows/http-generic-api-fanout-relocation-apply.yml').write_text(fanout_apply, encoding='utf-8')
+
+          supervisor_alert = '''name: Supervisor Runtime Assurance Alert Lifecycle
+
+on:
+  workflow_run:
+    workflows:
+      - Supervisor Runtime Assurance
+    types:
+      - completed
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: supervisor-runtime-assurance-alert-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconcile scheduled supervisor assurance issue
+    if: github.event.workflow_run.event == 'schedule' || github.event.workflow_run.event == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Open or resolve repository assurance issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSURANCE_RESULT: ${{ github.event.workflow_run.conclusion }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          LABEL="supervisor-runtime-assurance"
+          TITLE="[Supervisor Runtime Assurance] Scheduled check failed"
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D93F0B --description "Automated supervisor readiness or behavioral dry-run failure" --force
+          ISSUE_NUMBER="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" --json number --jq '.[0].number // empty')"
+          if [[ "$ASSURANCE_RESULT" != "success" ]]; then
+            BODY="The scheduled supervisor assurance workflow failed. Review ${RUN_URL}. No live apply, provider call, credential read, or external runtime write was attempted."
+            if [[ -n "$ISSUE_NUMBER" ]]; then
+              gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label "$LABEL" --body "$BODY"
+            fi
+          elif [[ -n "$ISSUE_NUMBER" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Supervisor assurance recovered successfully. Evidence: ${RUN_URL}."
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
+          fi
+'''
+          (root / '.github/workflows/supervisor-runtime-assurance-alert.yml').write_text(supervisor_alert, encoding='utf-8')
+
+          include = [
+              '.github/workflows/ci.yml',
+              '.github/workflows/automation-overlap-guard.yml',
+              '.github/workflows/e2e-phase-governance.yml',
+              '.github/workflows/e2e-contract-reference-integrity.yml',
+              '.github/workflows/e2e-contract-work-map-recovery-bridge.yml',
+              '.github/workflows/repository-tool-lifecycle-governance.yml',
+              '.github/workflows/ci-pull-request-recovery.yml',
+              '.github/workflows/supervisor-runtime-assurance.yml',
+              '.github/workflows/supervisor-runtime-assurance-alert.yml',
+              '.github/workflows/http-generic-api-fanout-relocation.yml',
+              '.github/workflows/http-generic-api-fanout-relocation-apply.yml',
+              '.github/workflows/hostinger-storage-control-plane-guard.yml',
+              'http-generic-api/scripts/test-critical-runner-label-pinning.mjs',
+              '.changes/e2e/critical-runner-label-allocation-mitigation.json',
+          ]
+          contract = {
+              '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+              'schema_version': 1,
+              'feature_key': 'critical-runner-label-allocation-mitigation',
+              'title': 'Pin affected critical workflows and separate PR reads from governed writes',
+              'delivery_mode': 'single_pr',
+              'current_phase': 'mvp',
+              'scope': {'include': include},
+              'merge_contract': {'minimum_phase': 'mvp'},
+              'phases': [
+                  {
+                      'id': 'mvp',
+                      'status': 'implemented',
+                      'objective': 'Pin nine empirically blocked jobs to ubuntu-24.04 while moving three touched write paths out of pull-request workflows.',
+                      'e2e_journeys': [
+                          {
+                              'id': 'allocate-critical-hosted-workflow-jobs-with-governed-write-separation',
+                              'end_to_end': True,
+                              'level': 'synthetic_runtime',
+                              'actor': 'GitHub Actions hosted workflow scheduler and repository lifecycle guard',
+                              'entrypoint': 'A pull request changes one of the nine affected workflow paths.',
+                              'terminal_outcome': 'All nine jobs request ubuntu-24.04; pull-request workflows remain read-only; write paths require explicit dispatch or workflow-run isolation and fail closed on protected targets.',
+                              'steps': [
+                                  'Pin the nine allowlisted workflows to ubuntu-24.04.',
+                                  'Remove write authority from PR-triggered E2E, Fanout, and Supervisor workflows.',
+                                  'Move Work Map recovery and Fanout apply behavior to explicitly dispatched workflows.',
+                                  'Move Supervisor issue reconciliation to an isolated workflow_run workflow.',
+                                  'Execute the exact candidate self-test and repository lifecycle guard.',
+                              ],
+                              'assertions': [
+                                  'Exactly nine observed critical workflows are pinned.',
+                                  'No allowlisted workflow contains runs-on: ubuntu-latest.',
+                                  'PR-triggered E2E, Fanout, and Supervisor workflows contain no write permission.',
+                                  'Fanout apply verifies expected_head_sha and rejects main and Production before mutation.',
+                                  'Work Map recovery remains explicit and marker-gated; no marker is added by this delivery.',
+                                  'No force push, Production/provider/database/credential/SQL/Migration Apply/deployment authority is introduced.',
+                                  'secrets_included is false.',
+                              ],
+                              'tests': [
+                                  {
+                                      'id': 'critical-runner-label-pinning',
+                                      'runner': 'node',
+                                      'working_directory': 'http-generic-api',
+                                      'path': 'scripts/test-critical-runner-label-pinning.mjs',
+                                      'args': [],
+                                  }
+                              ],
+                              'evidence_paths': [
+                                  'http-generic-api/scripts/test-critical-runner-label-pinning.mjs',
+                                  '.changes/e2e/critical-runner-label-allocation-mitigation.json',
+                              ],
+                          }
+                      ],
+                  },
+                  {'id': 'operational', 'status': 'planned', 'objective': 'Confirm all affected Draft and Ready jobs obtain first-step timestamps.'},
+                  {'id': 'resilient', 'status': 'planned', 'objective': 'Prevent runner alias or mixed PR/write authority regression.'},
+                  {'id': 'canary', 'status': 'planned', 'objective': 'Compare post-merge allocation without Production/provider actions.'},
+                  {'id': 'production', 'status': 'planned', 'objective': 'Retain repository CI availability and runtime safety boundaries.'},
+              ],
+              'secrets_included': False,
+          }
+          contract_path = root / '.changes/e2e/critical-runner-label-allocation-mitigation.json'
+          contract_path.parent.mkdir(parents=True, exist_ok=True)
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n', encoding='utf-8')
+
+          self_test = r'''#!/usr/bin/env node
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import { fileURLToPath } from "node:url";
+
+          const here = path.dirname(fileURLToPath(import.meta.url));
+          const root = path.resolve(here, "../..");
+          const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+          const pinned = Object.freeze([
+            ".github/workflows/ci.yml",
+            ".github/workflows/automation-overlap-guard.yml",
+            ".github/workflows/e2e-phase-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/ci-pull-request-recovery.yml",
+            ".github/workflows/supervisor-runtime-assurance.yml",
+            ".github/workflows/http-generic-api-fanout-relocation.yml",
+            ".github/workflows/hostinger-storage-control-plane-guard.yml",
+          ]);
+          const prReadOnly = Object.freeze([
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/http-generic-api-fanout-relocation.yml",
+            ".github/workflows/supervisor-runtime-assurance.yml",
+          ]);
+          const isolatedWrites = Object.freeze([
+            ".github/workflows/e2e-contract-work-map-recovery-bridge.yml",
+            ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+            ".github/workflows/supervisor-runtime-assurance-alert.yml",
+          ]);
+          const hasWritePermission = (content) => /(?:^|\n)\s*(?:permissions\s*:\s*write-all\b|[A-Za-z][A-Za-z-]*\s*:\s*write\b)/iu.test(content);
+          const hasPullRequest = (content) => /(?:^|\n)\s*pull_request(?:_target)?\s*:/u.test(content);
+
+          for (const relative of pinned) {
+            const content = read(relative);
+            assert.equal(content.includes("runs-on: ubuntu-latest"), false, `${relative} must not request ubuntu-latest`);
+            assert.equal(content.includes("runs-on: ubuntu-24.04"), true, `${relative} must request ubuntu-24.04`);
+          }
+          for (const relative of prReadOnly) {
+            const content = read(relative);
+            assert.equal(hasPullRequest(content), true, `${relative} must retain PR validation`);
+            assert.equal(hasWritePermission(content), false, `${relative} must remain read-only on PR`);
+            assert.equal(/\bgit\s+push\b/iu.test(content), false, `${relative} must not push`);
+          }
+          for (const relative of isolatedWrites) {
+            const content = read(relative);
+            assert.equal(hasPullRequest(content), false, `${relative} must not be PR-triggered`);
+            assert.equal(content.includes("runs-on: ubuntu-24.04"), true, `${relative} must use ubuntu-24.04`);
+          }
+          const fanoutApply = read(".github/workflows/http-generic-api-fanout-relocation-apply.yml");
+          assert.equal(/expected_head_sha/iu.test(fanoutApply), true);
+          assert.equal(/current_head/iu.test(fanoutApply), true);
+          assert.equal(fanoutApply.includes('"main"'), true);
+          assert.equal(fanoutApply.includes('"Production"'), true);
+          assert.equal(/--force|\s-f(?:\s|$)/iu.test(fanoutApply), false);
+          const bridge = read(".github/workflows/e2e-contract-work-map-recovery-bridge.yml");
+          assert.equal(bridge.includes("<!-- work-map-autofix:authorized -->"), true);
+          assert.equal(hasPullRequest(bridge), false);
+          const canary = read(".github/workflows/hostinger-storage-shared-canary-guard.yml");
+          assert.equal(canary.includes("runs-on: ubuntu-24.04"), true);
+
+          console.log(JSON.stringify({
+            ok: true,
+            test: "critical_runner_label_pinning_and_write_separation",
+            pinned_workflows: pinned.length,
+            pr_read_only_workflows: prReadOnly.length,
+            isolated_write_workflows: isolatedWrites.length,
+            requested_label: "ubuntu-24.04",
+            repository_write_authority_added_to_pr: false,
+            production_mutation_authorized: false,
+            provider_mutation_authorized: false,
+            credential_access_authorized: false,
+            database_mutation_authorized: false,
+            secrets_included: false,
+          }));
+          '''
+          lines = self_test.splitlines()
+          normalized = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines).lstrip() + '\n'
+          test_path = root / 'http-generic-api/scripts/test-critical-runner-label-pinning.mjs'
+          test_path.parent.mkdir(parents=True, exist_ok=True)
+          test_path.write_text(normalized, encoding='utf-8')
+
+          trigger = root / '.github/diagnostics/pin-critical-runners-governance-patcher-v8.txt'
+          if not trigger.is_file():
+              raise SystemExit('missing v8 trigger marker')
+          trigger.unlink()
+          PY
+
+      - name: Validate generated scripts and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          node http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --check
+
+      - name: Create local candidate and enforce exact governance
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          cat > "${RUNNER_TEMP}/expected-staged.txt" <<'EOF'
+          .changes/e2e/critical-runner-label-allocation-mitigation.json
+          .github/diagnostics/pin-critical-runners-governance-patcher-v8.txt
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/ci-pull-request-recovery.yml
+          .github/workflows/ci.yml
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/e2e-contract-work-map-recovery-bridge.yml
+          .github/workflows/e2e-phase-governance.yml
+          .github/workflows/hostinger-storage-control-plane-guard.yml
+          .github/workflows/http-generic-api-fanout-relocation-apply.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-tool-lifecycle-governance.yml
+          .github/workflows/supervisor-runtime-assurance-alert.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          EOF
+          git diff --cached --name-only | sort > "${RUNNER_TEMP}/actual-staged.txt"
+          diff -u "${RUNNER_TEMP}/expected-staged.txt" "${RUNNER_TEMP}/actual-staged.txt"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(ci): pin critical runners and separate governed writes"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$candidate_sha" > "${RUNNER_TEMP}/changed-files.tsv"
+          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$candidate_sha" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/changed-files.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$candidate_sha" \
+            --report-file "${RUNNER_TEMP}/reference-integrity.json"
+
+          cat > "${RUNNER_TEMP}/expected-net.txt" <<'EOF'
+          .changes/e2e/critical-runner-label-allocation-mitigation.json
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/ci-pull-request-recovery.yml
+          .github/workflows/ci.yml
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/e2e-contract-work-map-recovery-bridge.yml
+          .github/workflows/e2e-phase-governance.yml
+          .github/workflows/hostinger-storage-control-plane-guard.yml
+          .github/workflows/http-generic-api-fanout-relocation-apply.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-tool-lifecycle-governance.yml
+          .github/workflows/supervisor-runtime-assurance-alert.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          EOF
+          git diff --name-only "$EXPECTED_MAIN_SHA"...HEAD | sort > "${RUNNER_TEMP}/actual-net.txt"
+          diff -u "${RUNNER_TEMP}/expected-net.txt" "${RUNNER_TEMP}/actual-net.txt"
+
+      - name: Publish validated blobs without updating any ref
+        id: blobs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GITHUB_TOKEN']
+          paths = [line for line in Path(os.environ['RUNNER_TEMP'] + '/actual-net.txt').read_text().splitlines() if line]
+          entries = []
+          for relative in paths:
+              data = Path(relative).read_bytes()
+              payload = json.dumps({'content': base64.b64encode(data).decode('ascii'), 'encoding': 'base64'}).encode('utf-8')
+              request = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=payload,
+                  method='POST',
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f'Bearer {token}',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'Content-Type': 'application/json',
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.load(response)
+              entries.append({'path': relative, 'mode': '100644', 'type': 'blob', 'sha': result['sha'], 'bytes': len(data)})
+
+          lifecycle = json.loads((Path(os.environ['RUNNER_TEMP']) / 'repository-tool-lifecycle/repository-tool-lifecycle-report.json').read_text())
+          if lifecycle.get('ok') is not True:
+              raise SystemExit('repository lifecycle report is not green')
+          manifest = {
+              'ok': True,
+              'base_sha': os.environ['EXPECTED_MAIN_SHA'],
+              'local_candidate_sha': os.environ['CANDIDATE_SHA'],
+              'local_candidate_tree_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
+              'entries': entries,
+              'entry_count': len(entries),
+              'repository_lifecycle_ok': True,
+              'ref_updated': False,
+              'branch_pushed': False,
+              'main_mutated': False,
+              'production_mutated': False,
+              'provider_mutated': False,
+              'database_mutated': False,
+              'secrets_included': False,
+          }
+          output = Path(os.environ['RUNNER_TEMP']) / 'pin-critical-runners-governance-v8.json'
+          output.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload immutable v8 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pin-critical-runners-governance-v8-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pin-critical-runners-governance-v8.json
+            ${{ runner.temp }}/reference-integrity.json
+            ${{ runner.temp }}/repository-tool-lifecycle/
+            ${{ runner.temp }}/expected-net.txt
+            ${{ runner.temp }}/actual-net.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert no ref update occurred
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "origin/$EXPECTED_HEAD_REF")" != "$(git rev-parse HEAD)"
+          echo "Validated governance-compliant blobs published; no Git ref was updated."
