@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "spec014-mvp-convergence-journey",
-  "title": "Spec 014 mounted Tenant shared-operation-state proof",
+  "title": "Spec 014 mounted Tenant shared-operation-state and failure/retry proof",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -10,7 +10,9 @@
       ".changes/e2e/spec014-mvp-convergence-journey.json",
       "http-generic-api/test-hostinger-storage-e2e.mjs",
       "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
-      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
+      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+      "http-generic-api/test-hostinger-storage-control-plane-repository.mjs",
+      "http-generic-api/test-hostinger-storage-unknown-outcome.mjs"
     ]
   },
   "merge_contract": {
@@ -20,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that one mounted Tenant request resolves Context Kernel authority and uses one canonical repository instance for the exact operation through immutable-plan consumption, prepared/result/readback journaling, reconciliation, and Tenant-safe readback.",
+      "objective": "Prove that one mounted Tenant request resolves Context Kernel authority and uses one canonical repository instance for the exact successful operation through immutable-plan consumption, prepared/result/readback journaling, reconciliation, and Tenant-safe readback; separately execute the canonical synthetic unknown-outcome contract to prove failure classification, reconcile-before-retry, replay safety, and conflict blocking.",
       "e2e_journeys": [
         {
           "id": "tenant-storage-request-to-reconciled-readback",
@@ -28,24 +30,26 @@
           "level": "synthetic_runtime",
           "actor": "tenant_workspace_owner",
           "entrypoint": "POST /tenant/storage-operations/apply-plan",
-          "terminal_outcome": "The exact Tenant operation completes and the same repository instance records the consumed immutable plan, prepared/result/readback journal, reconciliation result, and Tenant-safe readback bindings.",
+          "terminal_outcome": "The exact successful Tenant operation completes in the same repository instance with consumed immutable plan, prepared/result/readback journal, reconciliation result, and Tenant-safe readback bindings; a separately attributable synthetic executor contract proves the required failure/retry safety path.",
           "steps": [
             "Create one Tenant operation with its immutable plan, approval evidence, execution lease, adapter, one-shot enablement, and canonical in-memory repository.",
             "Mount the Tenant route with Context Kernel and effective-authority resolution bound to that exact operation.",
             "Submit one expected-SHA-bound Tenant request to the mounted apply-plan endpoint.",
-            "Read the exact operation back from the same repository object supplied to the runtime.",
+            "Read the exact successful operation back from the same repository object supplied to the runtime.",
             "Require completed operation state, consumed immutable plan with unchanged bindings, unchanged append-only approvals, and prepared/result/readback journal phases for the same run and plan.",
             "Require one reconciliation record and bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest.",
-            "Keep provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets disabled."
+            "Execute the canonical synthetic unknown-outcome contract as a separate child fixture and require crash-before-mutation reconciliation to not_applied, crash-after-mutation recovery from receipt, replay-safe reconciliation commit, automatic retry denial before readback, and conflict blocking.",
+            "Keep provider dispatch, live mutation, migration Apply, schema verification, deployment, Production readiness, and secrets disabled."
           ],
           "assertions": [
-            "The mounted request and post-request readback use the same repository object and operation ID.",
+            "The mounted successful request and post-request readback use the same repository object and operation ID.",
             "The immutable plan bindings remain unchanged while its single-use consumed state advances.",
             "Approval record digests remain append-only and unchanged.",
-            "Prepared, result, and readback journal records persist for the same operation, run, and plan.",
+            "Prepared, result, and readback journal records persist for the same successful operation, run, and plan.",
             "One reconciliation result matches the Tenant-safe response outcome and result digest.",
+            "The separately attributable unknown-outcome child contract proves read-before-retry, no blind automatic retry, restart/replay-safe reconciliation, and conflict blocking.",
             "Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.",
-            "Provider dispatch, live mutation, Production readiness, and secrets remain false."
+            "Provider dispatch, live mutation, migration Apply, schema verification, Production readiness, and secrets remain false."
           ],
           "tests": [
             {
@@ -60,9 +64,12 @@
             "http-generic-api/test-hostinger-storage-e2e.mjs",
             "http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs",
             "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+            "http-generic-api/test-hostinger-storage-control-plane-repository.mjs",
+            "http-generic-api/test-hostinger-storage-unknown-outcome.mjs",
             "http-generic-api/hostingerStorageTenantRuntime.js",
             "http-generic-api/hostingerStorageTenantCanary.js",
             "http-generic-api/hostingerStorageControlPlaneRepository.js",
+            "http-generic-api/hostingerStorageSyntheticExecutor.js",
             "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json"
           ]
         }
@@ -71,12 +78,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Preserve the shared-operation-state journey while adding cancellation, lease release, approval revocation, bounded retry, and operator-visible state-transition coverage."
+      "objective": "Preserve the MVP evidence while adding mounted cancellation, lease release, approval revocation, and separately authorized new-plan retry coverage."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Extend the same mounted shared-state operation with fault injection, worker restart recovery, unknown-outcome reconciliation, and checkpoint restoration."
+      "objective": "Extend the mounted shared-state operation itself with route-level fault injection, worker/process restart recovery, checkpoint restoration, and durable-runtime unknown-outcome reconciliation."
     },
     {
       "id": "canary",
