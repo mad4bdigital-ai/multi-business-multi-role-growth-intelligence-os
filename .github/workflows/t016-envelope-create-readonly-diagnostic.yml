@@ -1,0 +1,176 @@
+name: T016 Envelope Create Read-only Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - agent/validate-t016-readiness-artifact-base-435c001
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t016-envelope-readonly-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Diagnose envelope schema and resolver without writes
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
+      github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      REPORT_DIR: /tmp/t016-envelope-readonly-diagnostic-${{ github.run_id }}
+    steps:
+      - name: Checkout exact protected Production source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PRODUCTION_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run bounded schema and resolver diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { splitMigrationSqlStatements } from './http-generic-api/migrationSqlStatements.js';
+
+          const base = String(process.env.RUNTIME_BASE_URL).replace(/\/+$/, '');
+          const key = String(process.env.BACKEND_API_KEY || '').trim();
+          const reportDir = process.env.REPORT_DIR;
+          const migration = '225_sprint67_capability_resolution_envelope_ledger.sql';
+          const migrationPath = path.join('http-generic-api', 'migrations', migration);
+          const sql = fs.readFileSync(migrationPath, 'utf8');
+          const checksum = createHash('sha256').update(sql, 'utf8').digest('hex');
+          const statementCount = splitMigrationSqlStatements(sql).length;
+          const expectedColumns = [
+            'envelope_id','tenant_id','user_id','workspace_id','workspace_key','brand_key',
+            'app_key','capability_key','operation_intent','risk_class','selected_source_tier',
+            'selected_runtime_surface','authority_status','decision','envelope_status',
+            'dispatch_allowed','apply_allowed','approval_required','quota_required','audit_required',
+            'readback_required','blocking_gap_count','envelope_sha256','envelope_json','requested_by',
+            'expires_at','secrets_included'
+          ].map((column) => ({ table: 'capability_resolution_envelope_ledger', column }));
+
+          const safe = (value) => {
+            if (Array.isArray(value)) return value.map(safe);
+            if (!value || typeof value !== 'object') return value;
+            return Object.fromEntries(Object.entries(value).map(([name, child]) => [
+              name,
+              /password|secret|token|api[_-]?key|private[_-]?key|credential|cookie|authorization/i.test(name)
+                && !['authorization_created','authorization_required'].includes(name)
+                ? '[redacted]'
+                : safe(child),
+            ]));
+          };
+
+          async function post(pathname, body, timeoutMs = 180000) {
+            try {
+              const response = await fetch(`${base}${pathname}`, {
+                method: 'POST',
+                redirect: 'error',
+                headers: {
+                  Authorization: `Bearer ${key}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(timeoutMs),
+              });
+              const text = await response.text();
+              let payload;
+              try { payload = text ? JSON.parse(text) : null; }
+              catch { payload = { non_json_response: true, preview: text.slice(0, 300) }; }
+              return { transport_ok: true, status: response.status, http_ok: response.ok, payload: safe(payload) };
+            } catch (error) {
+              return {
+                transport_ok: false,
+                status: null,
+                http_ok: false,
+                transport_error: String(error?.name || 'Error'),
+                payload: null,
+              };
+            }
+          }
+
+          const schemaReadback = await post('/gpt/tools/call', {
+            name: 'governed_migration_schema_readback',
+            tool_args: {
+              migration,
+              expected_checksum_sha256: checksum,
+              expected_statement_count: statementCount,
+              expected_tables: ['capability_resolution_envelope_ledger'],
+              expected_columns: expectedColumns,
+            },
+          });
+
+          const resolverDryRun = await post('/admin/control', {
+            tool: 'shell',
+            action: 'run',
+            alias: 'capability_resolution_dry_run',
+            authority_context: {
+              resource_type: 'shell_alias',
+              resource_uri: 'shell://capability_resolution_dry_run',
+              operation_mode: 'capability_resolution_dry_run',
+              required: true,
+            },
+            extra_args: [
+              '--tenant-id=00000000-0000-0000-0000-000000000000',
+              '--user-id=00000000-0000-4000-a000-000000000002',
+              '--user-role=Admin',
+              '--app-key=platform_orchestration',
+              '--capability-key=governed_migration_authorization_bootstrap',
+              '--operation-intent=governed_migration_authorization_bootstrap',
+              '--runtime-surface=auth_host',
+              '--requested-source-tier=platform_managed_fallback',
+              '--explain'
+            ],
+          });
+
+          const report = {
+            contract: 't016_envelope_create_readonly_diagnostic.v1',
+            production_sha: process.env.PRODUCTION_SHA,
+            migration,
+            migration_checksum_sha256: checksum,
+            statement_count: statementCount,
+            schema_readback: schemaReadback,
+            resolver_dry_run: resolverDryRun,
+            database_write_executed: false,
+            envelope_create_executed: false,
+            authorization_created: false,
+            apply_authorized: false,
+            apply_sent: false,
+            migration_apply_executed: false,
+            provider_call_executed: false,
+            credential_payload_accessed: false,
+            external_write_executed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(reportDir, 'diagnostic.json'), `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Upload no-secret read-only diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t016-envelope-create-readonly-diagnostic-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
