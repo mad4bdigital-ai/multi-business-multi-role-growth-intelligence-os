@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/domain-authority-adapter-v2.schema.json",
+  "title": "Business-Profile-Bound Domain Authority Binding and Adapter Certification v2",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/domainAuthorityBinding" },
+    { "$ref": "#/$defs/adapterDefinition" },
+    { "$ref": "#/$defs/certificationResult" }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "domainKey": {
+      "type": "string",
+      "enum": [
+        "commerce.catalog",
+        "commerce.inventory",
+        "commerce.checkout",
+        "commerce.orders",
+        "commerce.customers",
+        "commerce.coupons",
+        "commerce.payments",
+        "commerce.fulfillment",
+        "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
+        "workspace.files",
+        "workspace.files.brand",
+        "workspace.documents",
+        "workspace.media",
+        "measurement.events",
+        "ads.performance",
+        "customer.communication"
+      ]
+    },
+    "brandRequiredDomainKey": {
+      "type": "string",
+      "enum": [
+        "commerce.catalog",
+        "commerce.inventory",
+        "commerce.checkout",
+        "commerce.orders",
+        "commerce.customers",
+        "commerce.coupons",
+        "commerce.payments",
+        "commerce.fulfillment",
+        "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
+        "workspace.files.brand",
+        "measurement.events",
+        "ads.performance",
+        "customer.communication"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_ref", "workspace_ref", "owner_scope_type", "owner_scope_ref"],
+      "properties": {
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "$ref": "#/$defs/reference" },
+        "location_ref": { "$ref": "#/$defs/reference" },
+        "channel_ref": { "$ref": "#/$defs/reference" },
+        "resource_ref": { "$ref": "#/$defs/reference" },
+        "owner_scope_type": { "type": "string", "enum": ["personal_workspace", "company_workspace", "brand", "platform"] },
+        "owner_scope_ref": { "$ref": "#/$defs/reference" },
+        "owner_user_ref": { "$ref": "#/$defs/reference" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "owner_scope_type": { "const": "brand" } }, "required": ["owner_scope_type"] },
+          "then": { "required": ["brand_ref"] }
+        },
+        {
+          "if": { "properties": { "owner_scope_type": { "const": "personal_workspace" } }, "required": ["owner_scope_type"] },
+          "then": { "required": ["owner_user_ref"] }
+        }
+      ]
+    },
+    "businessProfileContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_business_profile_ref",
+        "effective_business_profile_context_hash",
+        "effective_business_profile_version_vector",
+        "primary_activity_type_key",
+        "activity_pack_refs",
+        "status"
+      ],
+      "properties": {
+        "effective_business_profile_ref": { "$ref": "#/$defs/reference" },
+        "effective_business_profile_context_hash": { "$ref": "#/$defs/sha256" },
+        "effective_business_profile_version_vector": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": ["string", "integer"] }
+        },
+        "primary_activity_type_key": { "$ref": "#/$defs/reference" },
+        "secondary_activity_type_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "activity_pack_refs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "status": { "type": "string", "enum": ["ready", "ready_with_inherited_constraints", "needs_clarification", "needs_approval", "degraded", "blocked", "stale"] }
+      }
+    },
+    "domainAuthorityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "binding_ref",
+        "scope",
+        "domain_key",
+        "authority_mode",
+        "adapter_key",
+        "connection_ref",
+        "connection_binding_mode",
+        "connection_binding_revision",
+        "authority_revision",
+        "status"
+      ],
+      "properties": {
+        "record_type": { "const": "domain_authority_binding" },
+        "binding_ref": { "$ref": "#/$defs/reference" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "domain_key": { "$ref": "#/$defs/domainKey" },
+        "business_profile_context": { "$ref": "#/$defs/businessProfileContext" },
+        "authority_mode": { "type": "string", "enum": ["platform_native", "external_authoritative", "external_mirror", "read_projection"] },
+        "adapter_key": { "$ref": "#/$defs/reference" },
+        "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "connection_ref": { "$ref": "#/$defs/reference" },
+        "connection_binding_mode": { "type": "string", "enum": ["brand_owned", "workspace_delegated", "personal_owned", "platform_managed"] },
+        "explicit_delegation_ref": { "$ref": "#/$defs/reference" },
+        "connection_binding_revision": { "type": "integer", "minimum": 1 },
+        "capability_keys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "required_activity_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "required_profile_dimension_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "mapping_profile_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "authority_revision": { "type": "integer", "minimum": 1 },
+        "status": { "type": "string", "enum": ["draft", "active", "degraded", "blocked", "retired"] },
+        "effective_from": { "type": "string", "format": "date-time" },
+        "effective_until": { "type": ["string", "null"], "format": "date-time" },
+        "context_hash": { "$ref": "#/$defs/sha256" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "domain_key": { "$ref": "#/$defs/brandRequiredDomainKey" } }, "required": ["domain_key"] },
+          "then": {
+            "required": ["business_profile_context"],
+            "properties": {
+              "scope": {
+                "allOf": [
+                  { "required": ["brand_ref"] },
+                  { "properties": { "owner_scope_type": { "const": "brand" } } }
+                ]
+              },
+              "business_profile_context": {
+                "properties": { "status": { "enum": ["ready", "ready_with_inherited_constraints"] } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "connection_binding_mode": { "const": "workspace_delegated" } }, "required": ["connection_binding_mode"] },
+          "then": { "required": ["explicit_delegation_ref"] }
+        },
+        {
+          "if": { "properties": { "connection_binding_mode": { "const": "personal_owned" } }, "required": ["connection_binding_mode"] },
+          "then": { "properties": { "domain_key": { "enum": ["workspace.files", "workspace.documents", "workspace.media"] } } }
+        }
+      ]
+    },
+    "capabilityClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_key", "support", "readback_mode", "idempotency_mode", "profile_compatibility_mode"],
+      "properties": {
+        "capability_key": { "$ref": "#/$defs/reference" },
+        "support": { "type": "string", "enum": ["supported", "supported_with_constraints", "unsupported"] },
+        "readback_mode": { "type": "string", "enum": ["same_cycle", "async_required", "not_available"] },
+        "idempotency_mode": { "type": "string", "enum": ["provider_native", "platform_ledger", "composite", "not_supported"] },
+        "profile_compatibility_mode": { "type": "string", "enum": ["explicit_matrix", "activity_pack_predicate", "discovery_only"] },
+        "required_activity_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "forbidden_activity_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "required_profile_dimension_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "constraints": { "type": "object", "additionalProperties": true },
+        "required_scopes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "adapterDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "adapter_key",
+        "adapter_version",
+        "provider_key",
+        "canonical_contract",
+        "provider_api_version",
+        "business_profile_contract_version",
+        "domain_keys",
+        "supported_activity_type_keys",
+        "supported_activity_pack_refs",
+        "capability_claims",
+        "status"
+      ],
+      "properties": {
+        "record_type": { "const": "adapter_definition" },
+        "adapter_key": { "$ref": "#/$defs/reference" },
+        "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "provider_key": { "$ref": "#/$defs/reference" },
+        "canonical_contract": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "provider_api_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "business_profile_contract_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "mapping_profile_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "domain_keys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/domainKey" } },
+        "supported_activity_type_keys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "excluded_activity_type_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "supported_activity_pack_refs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "capability_claims": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/capabilityClaim" } },
+        "stale_profile_rejected": { "const": true },
+        "status": { "type": "string", "enum": ["draft", "certification_required", "certified", "certified_with_constraints", "degraded", "rejected", "retired"] },
+        "implementation_digest": { "$ref": "#/$defs/sha256" },
+        "secrets_included": { "const": false }
+      }
+    },
+    "testResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_key", "status"],
+      "properties": {
+        "test_key": { "$ref": "#/$defs/reference" },
+        "status": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
+        "constraint_ref": { "$ref": "#/$defs/reference" },
+        "evidence_ref": { "$ref": "#/$defs/reference" },
+        "message": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "certificationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "certification_run_ref",
+        "adapter_key",
+        "adapter_version",
+        "environment",
+        "status",
+        "business_profile_context_tested",
+        "activity_pack_compatibility_tested",
+        "stale_profile_rejection_tested",
+        "tests",
+        "started_at",
+        "completed_at",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "adapter_certification_result" },
+        "certification_run_ref": { "$ref": "#/$defs/reference" },
+        "adapter_key": { "$ref": "#/$defs/reference" },
+        "adapter_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "environment": { "type": "string", "enum": ["unit", "sandbox", "staging", "production_readonly"] },
+        "status": { "type": "string", "enum": ["certified", "certified_with_constraints", "degraded", "rejected"] },
+        "business_profile_context_tested": { "type": "boolean" },
+        "activity_pack_compatibility_tested": { "type": "boolean" },
+        "stale_profile_rejection_tested": { "type": "boolean" },
+        "tests": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/testResult" } },
+        "constraints": { "type": "array", "items": { "type": "string", "maxLength": 1000 } },
+        "head_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "secrets_included": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "enum": ["certified", "certified_with_constraints"] } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "business_profile_context_tested": { "const": true },
+              "activity_pack_compatibility_tested": { "const": true },
+              "stale_profile_rejection_tested": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
