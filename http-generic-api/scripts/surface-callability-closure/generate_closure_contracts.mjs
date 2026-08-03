@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { extractRegistryToolRegistrations } from "../surface-contract-sql-registry-extractor.mjs";
+import { canonicalOpenApiAuthority, parseOpenApiContracts } from "../frontend-surface-dispatch.mjs";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 const DOCS_ROOT = path.resolve(ROOT, "..");
@@ -29,12 +30,9 @@ const DATABASE_MUTATIONS = new Set([
   "tenant_ssh_cli_approval_request_decide",
 ]);
 const PROVIDER_READS = new Set([
-  "tenant_database_preflight",
-  "tenant_ssh_preflight",
   "tenant_database_schema_read",
   "tenant_database_query_readonly",
   "tenant_ssh_probe",
-  "tenant_ssh_cli_allowlisted_dry_run",
 ]);
 const EXTERNAL_EXECUTES = new Set(["tenant_ssh_cli_allowlisted_execute"]);
 
@@ -71,16 +69,29 @@ function effectClass(toolKey) {
 function policy(effect) {
   if (effect === "database_mutation") return { read_only: false, provider_calls_allowed: false, external_writes_allowed: false, database_writes_allowed: true, transaction_required: true, same_cycle_readback_required: true, credential_payload_reads_allowed: false };
   if (effect === "provider_read") return { read_only: true, provider_calls_allowed: true, external_writes_allowed: false, database_writes_allowed: false, transaction_required: false, same_cycle_readback_required: true, credential_payload_reads_allowed: true };
-  if (effect === "external_execute") return { read_only: false, provider_calls_allowed: true, external_writes_allowed: true, database_writes_allowed: true, transaction_required: true, same_cycle_readback_required: true, credential_payload_reads_allowed: true };
+  if (effect === "external_execute") return { read_only: false, provider_calls_allowed: true, external_writes_allowed: true, database_writes_allowed: true, transaction_required: false, same_cycle_readback_required: true, credential_payload_reads_allowed: true };
   return { read_only: true, provider_calls_allowed: false, external_writes_allowed: false, database_writes_allowed: false, transaction_required: false, same_cycle_readback_required: false, credential_payload_reads_allowed: false };
 }
 function expressPath(httpPath) {
   return httpPath.replace(/\{([^}]+)\}/g, ":$1");
 }
 function evidenceFor(toolKey, family) {
-  if (!DATABASE_MUTATIONS.has(toolKey)) return [];
-  if (toolKey.startsWith("tenant_agent_surface_")) return [{ role: "application_service", file: "agentSurfaceRuntimeService.js", markers: [`MUTATION_TRANSACTION: ${toolKey}`, `MUTATION_READBACK: ${toolKey}`] }];
-  return [{ role: "mutation_handler", file: family.route_file, markers: [`MUTATION_TRANSACTION: ${toolKey}`, `MUTATION_READBACK: ${toolKey}`] }];
+  if (DATABASE_MUTATIONS.has(toolKey)) {
+    if (toolKey.startsWith("tenant_agent_surface_")) return [{ role: "application_service", file: "agentSurfaceRuntimeService.js", markers: [`MUTATION_TRANSACTION: ${toolKey}`, `MUTATION_READBACK: ${toolKey}`] }];
+    return [{ role: "mutation_handler", file: family.route_file, markers: [`MUTATION_TRANSACTION: ${toolKey}`, `MUTATION_READBACK: ${toolKey}`] }];
+  }
+  const providerMarkers = {
+    tenant_database_query_readonly: ["executeReadonlyDatabaseQuery(", 'source: "tenant_database_query_readonly"', "read_only: true"],
+    tenant_database_schema_read: ["readRemoteDatabaseSchema(", 'source: "information_schema"', "SET SESSION TRANSACTION READ ONLY"],
+    tenant_ssh_probe: ["probeSshTcpBanner(", "ssh_banner_detected", "command_executed: false"],
+  };
+  if (providerMarkers[toolKey]) return [{ role: "provider_read_handler", file: family.route_file, markers: providerMarkers[toolKey] }];
+  if (EXTERNAL_EXECUTES.has(toolKey)) return [{
+    role: "external_execute_handler",
+    file: family.route_file,
+    markers: ["assertApprovedSshCliExecution(", "executionFacade.submitJob(", "executeApprovedSshCli(", "approval_request_id", "idempotency_key"],
+  }];
+  return [];
 }
 function routeAuthMarkers(family, httpPath) {
   if (family.key === "connect_api") return [`router.use(\"/connect/api\", requireUserJwt`, expressPath(httpPath)];
@@ -88,11 +99,48 @@ function routeAuthMarkers(family, httpPath) {
   if (family.key === "system_layer") return ["/system/tools/call", "dispatchToolForCaller"];
   return [expressPath(httpPath), "requireUserJwt"];
 }
-function openApiEvidence(family, method, httpPath) {
-  if (family.key === "system_layer") {
-    return { file: "openapi.yaml", markers: ["/system/tools/call:", "operationId: callSystemTool", "backendBearerAuth", "backendApiKeyAuth"] };
+function relativeApiPath(file) {
+  return path.relative(ROOT, file).replace(/\\/g, "/");
+}
+function buildOpenApiEvidenceIndex() {
+  const index = new Map();
+  const register = (sourcePath, priority) => {
+    if (!fs.existsSync(sourcePath)) return;
+    const contracts = parseOpenApiContracts(fs.readFileSync(sourcePath, "utf8"), { sourcePath, apiRoot: ROOT });
+    for (const [signature, contract] of contracts) {
+      const file = contract.source_file || relativeApiPath(sourcePath);
+      const existing = index.get(signature);
+      if (existing && existing.priority === priority && existing.file !== file) {
+        throw new Error(`surface_openapi_operation_ambiguous:${signature}:${existing.file}:${file}`);
+      }
+      if (!existing || priority < existing.priority) {
+        index.set(signature, {
+          priority,
+          file,
+          operation_id: contract.operation_id || null,
+        });
+      }
+    }
+  };
+  const authority = canonicalOpenApiAuthority({ apiRoot: ROOT });
+  const rootOpenApi = path.resolve(ROOT, "openapi.yaml");
+  for (const file of authority.files) {
+    register(file, path.resolve(file) === rootOpenApi ? 0 : 1);
   }
-  return { file: "openapi/frontend-runtime-routes.generated.yaml", markers: [`  ${httpPath}:`, `${method.toLowerCase()}:`, `x-source-file: ${family.route_file}`] };
+  register(path.join(ROOT, "openapi", "frontend-runtime-routes.generated.yaml"), 2);
+  return index;
+}
+const OPENAPI_EVIDENCE_INDEX = buildOpenApiEvidenceIndex();
+function openApiEvidence(family, method, httpPath) {
+  const signature = `${method} ${httpPath}`;
+  const evidence = OPENAPI_EVIDENCE_INDEX.get(signature);
+  if (!evidence) throw new Error(`surface_openapi_operation_missing:${signature}`);
+  const markers = [`  ${httpPath}:`, `    ${method.toLowerCase()}:`];
+  if (evidence.operation_id) markers.push(`operationId: ${evidence.operation_id}`);
+  if (evidence.file === "openapi/frontend-runtime-routes.generated.yaml") {
+    markers.push(`x-source-file: ${family.route_file}`);
+  }
+  return { file: evidence.file, markers };
 }
 function canonicalBytes(buffer) {
   return Buffer.from(buffer.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
@@ -126,9 +174,22 @@ for (const item of sourceItems) {
   const relativeMigration = `migrations/${item.migration_file}`;
   const migrationPath = path.join(ROOT, relativeMigration);
   if (!fs.existsSync(migrationPath)) throw new Error(`surface_migration_missing:${relativeMigration}`);
+  const expectedToolKeys = unique((item.remediation || [])
+    .filter((action) => action.action_key === "verify_tool_registry_binding")
+    .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
+  if (!expectedToolKeys.length) throw new Error(`surface_queue_tool_targets_missing:${relativeMigration}`);
   const extracted = extractRegistryToolRegistrations(fs.readFileSync(migrationPath, "utf8"));
   if (!extracted.length) throw new Error(`surface_registration_missing:${relativeMigration}`);
+  const registrationsByToolKey = new Map();
   for (const registration of extracted) {
+    const matches = registrationsByToolKey.get(registration.tool_key) || [];
+    matches.push(registration);
+    registrationsByToolKey.set(registration.tool_key, matches);
+  }
+  for (const toolKey of expectedToolKeys) {
+    const matches = registrationsByToolKey.get(toolKey) || [];
+    if (matches.length !== 1) throw new Error(`surface_registration_expected_once:${relativeMigration}:${toolKey}:${matches.length}`);
+    const registration = matches[0];
     if (!registration.http_method || !registration.http_path) throw new Error(`surface_registration_incomplete:${relativeMigration}:${registration.tool_key}`);
     registrations.push({ ...registration, migration_file: relativeMigration });
   }
@@ -185,7 +246,7 @@ writeJson(MANIFEST_PATH, {
   secrets_included: false,
 });
 
-const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nassert.equal(queue.total_items, 0, JSON.stringify(queue.top_items));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = route === "/system/tools/call" ? canonicalOpenApi : runtimeOpenApi;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
+const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nassert.equal(queue.total_items, 0, JSON.stringify(queue.top_items));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
 fs.writeFileSync(TEST_PATH, testSource, "utf8");
 
 let testManifest = fs.readFileSync(TEST_MANIFEST_PATH, "utf8");
