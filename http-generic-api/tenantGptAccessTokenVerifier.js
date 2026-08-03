@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
 import {
+  recordTenantGptAccessTokenProfileEvidence,
+  validateTenantGptAccessTokenProfile,
+} from "./tenantGptAccessTokenProfile.js";
+import {
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
   TENANT_GPT_LEGACY_AUDIENCE,
@@ -33,16 +37,29 @@ function requireTenantGptJwtSecret() {
   return secret;
 }
 
-function emitCompatibilityEvidence(evidence, callback) {
+function emitEvidence(evidence, callback, failureCode) {
   if (typeof callback !== "function") return;
   try {
     callback(evidence);
   } catch (error) {
-    console.warn("tenant_gpt_audience_compatibility_evidence_failed", {
-      code: String(error?.code || "compatibility_evidence_failed").slice(0, 64),
+    console.warn(failureCode, {
+      code: String(error?.code || "evidence_failed").slice(0, 64),
       secrets_included: false,
     });
   }
+}
+
+function profileFailure(profile) {
+  if (["user_claim_invalid", "tenant_claim_invalid", "subject_claim_invalid"].includes(profile.classification)) {
+    return tokenFailure(
+      "tenant_gpt_token_subject_invalid",
+      "Tenant GPT access token subject claims are invalid.",
+    );
+  }
+  return tokenFailure(
+    "tenant_gpt_token_lifetime_invalid",
+    "Tenant GPT access token lifetime or required profile claims are invalid.",
+  );
 }
 
 export function verifyTenantGptAccessToken(token, {
@@ -52,6 +69,7 @@ export function verifyTenantGptAccessToken(token, {
   legacyAudienceCutoffMs = tenantGptLegacyAudienceCutoffMs(),
   compatibilityClockSkewMs,
   onCompatibilityEvidence = recordTenantGptAudienceCompatibilityEvidence,
+  onTokenProfileEvidence = recordTenantGptAccessTokenProfileEvidence,
 } = {}) {
   const resource = normalizeTenantGptOAuthResource(expectedResource);
   if (!resource) throw tokenFailure("tenant_gpt_resource_invalid", "Protected resource configuration is invalid.");
@@ -61,6 +79,7 @@ export function verifyTenantGptAccessToken(token, {
   try {
     payload = jwt.verify(String(token || ""), jwtSecret, {
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
+      clockTimestamp: Math.floor(Number(nowMs) / 1000),
     });
   } catch {
     throw tokenFailure("invalid_user_jwt", "User token is invalid or expired.");
@@ -85,24 +104,49 @@ export function verifyTenantGptAccessToken(token, {
   });
 
   if (!compatibility.accepted) {
-    emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
+    emitEvidence(
+      compatibility,
+      onCompatibilityEvidence,
+      "tenant_gpt_audience_compatibility_evidence_failed",
+    );
     throw tokenFailure("tenant_gpt_token_audience_invalid", "User token is not valid for the Activation protected resource.");
   }
 
   if (payload.resource && normalizeTenantGptOAuthResource(payload.resource) !== resource) {
-    emitCompatibilityEvidence(
+    emitEvidence(
       rejectTenantGptAudienceCompatibilityForResourceMismatch(compatibility),
       onCompatibilityEvidence,
+      "tenant_gpt_audience_compatibility_evidence_failed",
     );
     throw tokenFailure("tenant_gpt_token_resource_invalid", "User token resource claim does not match the Activation protected resource.");
   }
 
-  emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
+  const verifiedAudience = compatibility.audience_mode === "strict"
+    ? resource
+    : TENANT_GPT_LEGACY_AUDIENCE;
+  const tokenProfile = validateTenantGptAccessTokenProfile(payload, {
+    expectedIssuer: TENANT_GPT_AUTHORIZATION_SERVER,
+    expectedAudience: verifiedAudience,
+    audienceMode: compatibility.audience_mode,
+    nowMs,
+  });
+  emitEvidence(
+    tokenProfile,
+    onTokenProfileEvidence,
+    "tenant_gpt_access_token_profile_evidence_failed",
+  );
+  if (!tokenProfile.accepted) throw profileFailure(tokenProfile);
+
+  emitEvidence(
+    compatibility,
+    onCompatibilityEvidence,
+    "tenant_gpt_audience_compatibility_evidence_failed",
+  );
   return {
     payload,
     verification: {
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
-      audience: compatibility.audience_mode === "strict" ? resource : TENANT_GPT_LEGACY_AUDIENCE,
+      audience: verifiedAudience,
       expected_resource: resource,
       audience_mode: compatibility.audience_mode,
       audience_compatibility_classification: compatibility.classification,
@@ -110,6 +154,19 @@ export function verifyTenantGptAccessToken(token, {
       legacy_audience_cutoff_state: compatibility.cutoff_state,
       legacy_audience_cutoff_at: compatibility.cutoff_at,
       compatibility_metric_name: compatibility.metric.name,
+      bearer_profile_classification: tokenProfile.classification,
+      bearer_profile_metric_name: tokenProfile.metric.name,
+      issuer_verified: tokenProfile.issuer_verified,
+      audience_verified: tokenProfile.audience_verified,
+      subject_verified: tokenProfile.subject_verified,
+      user_claim_present: tokenProfile.user_claim_present,
+      tenant_claim_present: tokenProfile.tenant_claim_present,
+      issued_at_present: tokenProfile.issued_at_present,
+      expiry_present: tokenProfile.expiry_present,
+      lifetime_seconds: tokenProfile.lifetime_seconds,
+      remaining_seconds: tokenProfile.remaining_seconds,
+      max_lifetime_seconds: tokenProfile.max_lifetime_seconds,
+      short_lived: tokenProfile.short_lived,
       secrets_included: false,
     },
   };
@@ -146,6 +203,19 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
       legacy_audience_cutoff_state: verified.verification.legacy_audience_cutoff_state,
       legacy_audience_cutoff_at: verified.verification.legacy_audience_cutoff_at,
       compatibility_metric_name: verified.verification.compatibility_metric_name,
+      bearer_profile_classification: verified.verification.bearer_profile_classification,
+      bearer_profile_metric_name: verified.verification.bearer_profile_metric_name,
+      issuer_verified: verified.verification.issuer_verified,
+      audience_verified: verified.verification.audience_verified,
+      subject_verified: verified.verification.subject_verified,
+      user_claim_present: verified.verification.user_claim_present,
+      tenant_claim_present: verified.verification.tenant_claim_present,
+      issued_at_present: verified.verification.issued_at_present,
+      expiry_present: verified.verification.expiry_present,
+      lifetime_seconds: verified.verification.lifetime_seconds,
+      remaining_seconds: verified.verification.remaining_seconds,
+      max_lifetime_seconds: verified.verification.max_lifetime_seconds,
+      short_lived: verified.verification.short_lived,
     };
     return next();
   } catch (error) {
