@@ -215,17 +215,19 @@ function normalizeBuildCollection(body) {
   })).filter((item) => item.uuid);
 }
 
-function buildTimestamp(build) {
-  return Math.max(Date.parse(build.created_at || "") || 0, Date.parse(build.updated_at || "") || 0);
+function buildCreatedTimestamp(build) {
+  return Date.parse(build.created_at || "") || 0;
 }
 
 function verifyBuildPrecondition(builds, configuration) {
-  const afterMerge = builds.filter((build) => buildTimestamp(build) >= configuration.productionMergedAtMs).sort((a, b) => buildTimestamp(b) - buildTimestamp(a));
+  const afterMerge = builds
+    .filter((build) => buildCreatedTimestamp(build) >= configuration.productionMergedAtMs)
+    .sort((a, b) => buildCreatedTimestamp(b) - buildCreatedTimestamp(a));
   const latest = afterMerge[0] || null;
-  if (!latest) throw new RestartError("no_build_after_merge", "No Hostinger Node.js build exists after the protected Production merge.");
-  if (latest.uuid !== configuration.expectedBuildUuid) throw new RestartError("newer_or_different_build_detected", `Latest build after merge is ${redact(latest.uuid, 128)}, not the authorized build.`);
+  if (!latest) throw new RestartError("no_build_after_merge", "No Hostinger Node.js build was created after the protected Production merge.");
+  if (latest.uuid !== configuration.expectedBuildUuid) throw new RestartError("newer_or_different_build_detected", `Latest build created after merge is ${redact(latest.uuid, 128)}, not the authorized build.`);
   if (latest.state !== "completed") throw new RestartError("authorized_build_not_completed", `Authorized build state is ${redact(latest.state, 64)}, not completed.`);
-  if (latest.source_type && latest.source_type !== "git") throw new RestartError("authorized_build_source_not_git", "Authorized build source is not Git.");
+  if (latest.source_type !== "git") throw new RestartError("authorized_build_source_not_git", "Authorized build source is missing or is not Git.");
   return { latest, builds_after_merge: afterMerge.length };
 }
 
