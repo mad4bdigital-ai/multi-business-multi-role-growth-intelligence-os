@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const WORKFLOW = '.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml';
 const source = readFileSync(WORKFLOW, 'utf8');
@@ -99,6 +102,104 @@ assert(releaseIdentityGate > promotionValidation, 'Release mode must derive from
 assert(featureScopeGate > releaseIdentityGate, 'Contract classification must precede scope enforcement');
 assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in feature, Integration, and Release modes');
 
+const heredocMarker = "node --input-type=module <<'NODE'\n";
+const heredocStart = source.indexOf(heredocMarker);
+const heredocEnd = source.indexOf('\n          NODE', heredocStart + heredocMarker.length);
+assert(heredocStart >= 0 && heredocEnd > heredocStart, 'candidate classifier heredoc must be extractable');
+const classifierSource = source.slice(heredocStart + heredocMarker.length, heredocEnd);
+const temporary = mkdtempSync(join(tmpdir(), 'ddl-release-classifier-'));
+const classifierFile = join(temporary, 'candidate-classifier.mjs');
+const validOutput = join(temporary, 'valid-output.txt');
+const invalidOutput = join(temporary, 'invalid-output.txt');
+writeFileSync(classifierFile, classifierSource);
+
+const gitEnvironment = {
+  ...process.env,
+  GIT_AUTHOR_NAME: 'DDL Workflow Contract',
+  GIT_AUTHOR_EMAIL: 'ddl-workflow@example.invalid',
+  GIT_COMMITTER_NAME: 'DDL Workflow Contract',
+  GIT_COMMITTER_EMAIL: 'ddl-workflow@example.invalid',
+};
+function git(args) {
+  return execFileSync('git', args, { encoding: 'utf8', env: gitEnvironment }).trim();
+}
+function parseOutputs(file) {
+  return Object.fromEntries(
+    readFileSync(file, 'utf8')
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const separator = line.indexOf('=');
+        return [line.slice(0, separator), line.slice(separator + 1)];
+      }),
+  );
+}
+
+const mainRef = ['refs/remotes/origin/main', 'refs/heads/main']
+  .find((candidate) => spawnSync('git', ['rev-parse', '--verify', `${candidate}^{commit}`], { stdio: 'ignore' }).status === 0);
+assert(mainRef, 'canonical main ref must exist in the full-history checkout');
+const mainSha = git(['rev-parse', `${mainRef}^{commit}`]);
+const mainTree = git(['rev-parse', `${mainSha}^{tree}`]);
+const syntheticProduction = git(['commit-tree', mainTree, '-p', mainSha, '-m', 'synthetic Production base']);
+const validCandidate = git([
+  'commit-tree', mainTree,
+  '-p', mainSha,
+  '-p', syntheticProduction,
+  '-m', 'synthetic history-preserving main reconciliation',
+]);
+const validRef = `release/production-candidate-20260804-${validCandidate.slice(0, 8)}-v1`;
+const repositoryIdentity = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
+const classifierEnvironment = {
+  ...process.env,
+  PHASE_CONTRACT: 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json',
+  PARALLEL_PR_GATE: 'http-generic-api/scripts/e2e-parallel-pr-gate.mjs',
+  BASE_REF: 'Production',
+  BASE_SHA: syntheticProduction,
+  HEAD_REF: validRef,
+  HEAD_SHA: validCandidate,
+  HEAD_REPOSITORY: repositoryIdentity,
+  REPOSITORY: repositoryIdentity,
+  RUNNER_TEMP: temporary,
+  GITHUB_OUTPUT: validOutput,
+};
+const validClassification = spawnSync(process.execPath, [classifierFile], {
+  cwd: process.cwd(),
+  env: classifierEnvironment,
+  encoding: 'utf8',
+});
+assert.equal(validClassification.status, 0, validClassification.stderr || validClassification.stdout);
+const valid = parseOutputs(validOutput);
+assert.equal(valid.candidate_mode, 'release');
+assert.equal(valid.candidate_mode_source, 'canonical_e2e_parallel_pr_gate');
+assert.equal(valid.release_identity, 'history_preserving_main_reconciliation');
+assert.equal(valid.canonical_promotion_validated, 'true');
+assert.equal(valid.promotion_gate_outcome, 'success');
+assert.equal(valid.promotion_phase_evaluation_base, mainSha);
+
+const reversedCandidate = git([
+  'commit-tree', mainTree,
+  '-p', syntheticProduction,
+  '-p', mainSha,
+  '-m', 'synthetic reversed-parent reconciliation',
+]);
+const invalidClassification = spawnSync(process.execPath, [classifierFile], {
+  cwd: process.cwd(),
+  env: {
+    ...classifierEnvironment,
+    HEAD_REF: `release/production-candidate-20260804-${reversedCandidate.slice(0, 8)}-v1`,
+    HEAD_SHA: reversedCandidate,
+    GITHUB_OUTPUT: invalidOutput,
+  },
+  encoding: 'utf8',
+});
+assert.notEqual(invalidClassification.status, 0, 'reversed reconciliation parents must fail closed');
+assert.match(
+  `${invalidClassification.stderr}\n${invalidClassification.stdout}`,
+  /canonical Production promotion classification failed/u,
+);
+rmSync(temporary, { recursive: true, force: true });
+
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_durable_authorized_injection_schema_ddl_workflow',
@@ -111,6 +212,8 @@ console.log(JSON.stringify({
     'immutable_main_snapshot',
     'history_preserving_main_reconciliation',
   ],
+  history_preserving_reconciliation_executed: true,
+  reversed_parent_reconciliation_rejected: true,
   duplicate_release_branch_parser_present: false,
   duplicate_release_ancestry_classifier_present: false,
   malformed_production_identity_fails_closed: true,
@@ -123,7 +226,8 @@ console.log(JSON.stringify({
   merge_candidate_identity_separate: true,
   focused_ddl_parity_authoritative: true,
   contract_local_content_checks_always_run: true,
-  repository_mutation_performed: false,
+  protected_ref_mutation_performed: false,
+  remote_repository_mutation_performed: false,
   migration_apply_authorized: false,
   provider_dispatch_allowed: false,
   production_ready: false,
