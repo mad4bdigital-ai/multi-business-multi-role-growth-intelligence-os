@@ -1,0 +1,130 @@
+name: Dispatch Work Map Writer 5776 V1 20260804
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/dispatch-work-map-writer-5776-v1-20260804.yml
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: dispatch-work-map-writer-5776-v1-20260804
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch sole authorized Work Map writer
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/dispatch-work-map-writer-5776-v1-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      BRIDGE_PR: ${{ github.event.pull_request.number }}
+      BRIDGE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BRIDGE_WORKFLOW: .github/workflows/dispatch-work-map-writer-5776-v1-20260804.yml
+      TARGET_PR: '5776'
+      TARGET_BRANCH: gpt/work-map-currentness-refresh-20260804
+      EXPECTED_TARGET_SHA: 592f2925bb34d86249c121c4ef694ef80021e73b
+      EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      ORIGINAL_BRIDGE_RUN: '30854347896'
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+
+    steps:
+      - name: Checkout exact one-file bridge
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BRIDGE_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable bridge and target snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${BRIDGE_HEAD_SHA}"
+          mapfile -t bridge_files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${BRIDGE_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#bridge_files[@]}" -eq 1
+          test "${bridge_files[0]}" = "${BRIDGE_WORKFLOW}"
+
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          target="$(gh api "/repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = open
+          test "$(jq -r '.draft' <<<"${target}")" = false
+          test "$(jq -r '.base.ref' <<<"${target}")" = main
+          test "$(jq -r '.base.sha' <<<"${target}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.repo.full_name' <<<"${target}")" = "${REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${EXPECTED_TARGET_SHA}"
+          if jq -r '.body // ""' <<<"${target}" | grep -Fq "${AUTHORIZATION_MARKER}"; then
+            echo 'Original authorization marker is still present; refusing a parallel dispatch.' >&2
+            exit 1
+          fi
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_TARGET_SHA}"
+
+          original_jobs="$(gh api "/repos/${REPOSITORY}/actions/runs/${ORIGINAL_BRIDGE_RUN}/jobs?per_page=100")"
+          original_dispatch_status="$(jq -r '.jobs[] | select(.name == "Dispatch authorized Work Map writer") | .status' <<<"${original_jobs}")"
+          test "${original_dispatch_status}" = queued
+
+      - name: Dispatch existing sole writer once
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          state="$(gh api "/repos/${REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml" --jq '.state')"
+          test "${state}" = active
+
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg branch "${TARGET_BRANCH}" \
+            --arg expected_head_sha "${EXPECTED_TARGET_SHA}" \
+            '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}')"
+          gh api --method POST \
+            "/repos/${REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/dispatches" \
+            --input - <<<"${payload}"
+
+          delegated_run_id=''
+          for _ in $(seq 1 40); do
+            delegated_run_id="$(gh api \
+              "/repos/${REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&branch=main&per_page=30" \
+              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\")] | sort_by(.created_at) | last | .id // empty")"
+            [[ -n "${delegated_run_id}" ]] && break
+            sleep 2
+          done
+          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
+          echo "delegated_run_id=${delegated_run_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish exact dispatch evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELEGATED_RUN_ID: ${{ steps.dispatch.outputs.delegated_run_id }}
+        run: |
+          set -Eeuo pipefail
+          {
+            echo '## Replacement ARM bridge dispatched the sole Work Map writer'
+            echo
+            echo "- Superseded queued bridge run: \`${ORIGINAL_BRIDGE_RUN}\` — marker removed, so it must no-op"
+            echo "- Target PR: #${TARGET_PR}"
+            echo "- Target branch: \`${TARGET_BRANCH}\`"
+            echo "- Authorized exact head: \`${EXPECTED_TARGET_SHA}\`"
+            echo "- Protected main: \`${EXPECTED_MAIN_SHA}\`"
+            echo "- Delegated official writer run: \`${DELEGATED_RUN_ID}\`"
+            echo '- This bridge performed no repository content write, protected-ref mutation, force push, SQL, migration, database, provider, deployment, credential, or external-send action.'
+          } > "${RUNNER_TEMP}/dispatch-evidence.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/dispatch-evidence.md"
+          gh pr comment "${BRIDGE_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/dispatch-evidence.md"
