@@ -86,12 +86,20 @@ async function rewriteJsonResponse(response, transform) {
   });
 }
 
-export function createCoherentRuntimeFetch(configuration, fetchImpl = fetch) {
-  return async (url, init = {}) => {
-    const response = await fetchImpl(url, init);
-    if (String(init.method || "GET").toUpperCase() !== "GET") return response;
+function authorizedRestartPath(configuration) {
+  return `/api/hosting/v1/accounts/${encodeURIComponent(configuration.accountUsername)}/websites/${encodeURIComponent(configuration.domain)}/nodejs/server/restart`;
+}
 
+export function createCoherentRuntimeFetch(configuration, fetchImpl = fetch, mutationState = { attempted: false }) {
+  const restartPath = authorizedRestartPath(configuration);
+  return async (url, init = {}) => {
+    const method = String(init.method || "GET").toUpperCase();
     const pathname = new URL(String(url)).pathname;
+    if (method === "POST" && pathname === restartPath) mutationState.attempted = true;
+
+    const response = await fetchImpl(url, init);
+    if (method !== "GET") return response;
+
     if (pathname.endsWith("/version")) {
       return rewriteJsonResponse(response, (body) => suppressExpectedIdentity(body, configuration));
     }
@@ -109,8 +117,18 @@ export function createCoherentRuntimeFetch(configuration, fetchImpl = fetch) {
 export async function executeGovernedRestart(options, dependencies = {}) {
   const configuration = validateConfiguration(options);
   const rawFetch = dependencies.fetchImpl || fetch;
-  const fetchImpl = createCoherentRuntimeFetch(configuration, rawFetch);
+  const mutationState = { attempted: false };
+  const fetchImpl = createCoherentRuntimeFetch(configuration, rawFetch, mutationState);
   const report = await executeBaseRestart(options, { ...dependencies, fetchImpl });
+
+  report.restart = report.restart || { requested: false, performed: false, response_status: null };
+  report.restart.attempted = mutationState.attempted;
+  report.side_effects = report.side_effects || {};
+  report.side_effects.provider_mutation_attempted = mutationState.attempted;
+  if (mutationState.attempted && report.restart.performed !== true && report.outcome !== "passed") {
+    report.classification = "restart_attempted_outcome_unconfirmed";
+  }
+
   report.runtime_identity_authority = {
     contract: "mad4b.hostinger-runtime-identity-authority.v1",
     authoritative_endpoint: "/deployment-info",
@@ -161,7 +179,7 @@ function fallbackReport(error, options = {}) {
     classification: "restart_configuration_failed",
     precondition: null,
     pre_runtime: null,
-    restart: { requested: false, performed: false, response_status: null },
+    restart: { requested: false, attempted: false, performed: false, response_status: null },
     post_runtime: null,
     poll_attempts_used: 0,
     first_failure: {
@@ -172,6 +190,7 @@ function fallbackReport(error, options = {}) {
     side_effects: {
       repository_mutation_performed: false,
       protected_ref_mutation_performed: false,
+      provider_mutation_attempted: false,
       provider_mutation_performed: false,
       restart_performed: false,
       build_creation_performed: false,
@@ -206,6 +225,7 @@ async function main() {
   console.log(JSON.stringify({
     outcome: report.outcome,
     classification: report.classification,
+    restart_attempted: report.restart?.attempted === true,
     restart_performed: report.restart?.performed === true,
     runtime_identity_authority: report.runtime_identity_authority?.mode || IDENTITY_AUTHORITY,
     secrets_included: false,
