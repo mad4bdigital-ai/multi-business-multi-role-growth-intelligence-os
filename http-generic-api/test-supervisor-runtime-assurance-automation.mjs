@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
+const workMapRecovery = readFileSync("../.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
 const assurance = readFileSync("../.github/workflows/supervisor-runtime-assurance.yml", "utf8");
@@ -51,31 +52,54 @@ assert.doesNotMatch(followupJob, /docs\/work-maps/);
 assert.doesNotMatch(followupJob, /gh pr merge/);
 
 for (const marker of [
-  "work-map-autofix:authorized",
-  "Bootstrap Work Map diagnostic envelope",
-  "work-map-autofix-diagnostics.mjs",
-  "regenerate-and-verify-idempotency",
-  "commit-push-and-dispatch",
-  "work-map-autofix-diagnostic-report",
-  "GITHUB_STEP_SUMMARY",
+  "workflow_dispatch:",
   "expected_head_sha",
+  "Initialize diagnostics and validate inputs",
+  "Pin branch and pull request identity",
+  "Validate generator and governance contracts",
+  "Regenerate and prove idempotency",
+  "Commit and push governed Work Maps",
+  "Dispatch exact-head verification",
+  "Finalize diagnostic evidence",
+  "work-map-autofix-diagnostics",
+  "actions/upload-artifact@v4",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
-  "Direct autofix writes to main are forbidden",
-  "Refusing stale autofix",
-  "Autofix push readback mismatch",
   "gh workflow run ci.yml",
   "gh workflow run spec-kit-work-map-integration.yml",
 ]) {
   assert.ok(workMapAutofix.includes(marker), `Work Map Autofix missing ${marker}`);
 }
-assert.match(workMapAutofix, /types: \[reopened\]/);
-assert.match(workMapAutofix, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
-assert.match(workMapAutofix, /github\.actor != 'github-actions\[bot\]'/);
+
+const writerTriggerBlock = workMapAutofix.slice(workMapAutofix.indexOf("on:"), workMapAutofix.indexOf("permissions:"));
+assert.match(writerTriggerBlock, /workflow_dispatch:/);
+assert.doesNotMatch(writerTriggerBlock, /pull_request:/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
-assert.match(workMapAutofix, /git diff --name-only \| grep -v '\^docs\/work-maps\/'/);
+assert.match(workMapAutofix, /\[\[ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\]/);
+assert.match(workMapAutofix, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
+
+for (const marker of [
+  "pull_request_target:",
+  "issue_comment:",
+  "work-map-autofix:authorized",
+  "/recover-work-maps",
+  "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
+  "Consume one-time authorization marker",
+  "Authorization marker removal readback failed",
+  "Dispatch exact-head sole governed Work Map writer",
+  "spec-kit-work-map-autofix.yml/dispatches",
+  "direct_repository_mutation:false",
+  "protected_branch_mutation:false",
+  "force_push:false",
+]) {
+  assert.ok(workMapRecovery.includes(marker), `Work Map recovery dispatcher missing ${marker}`);
+}
+assert.doesNotMatch(workMapRecovery, /uses:\s*actions\/checkout/);
+assert.doesNotMatch(workMapRecovery, /git add docs\/work-maps/);
+assert.doesNotMatch(workMapRecovery, /git push origin/);
+assert.doesNotMatch(workMapRecovery, /platform-work-map-generator\.mjs --write/);
 
 for (const marker of [
   "Generate exact-head Work Map repair candidate",
@@ -96,8 +120,14 @@ assert.ok(writerPolicy, "platform Work Map writer policy is required");
 assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
 assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
+  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-autofix-recovery-dispatch", "spec-kit-work-map-integration"].sort(),
 );
+
+const writerPipeline = pipelineContract.pipelines.find((pipeline) => pipeline.key === "spec-kit-work-map-autofix");
+const recoveryPipeline = pipelineContract.pipelines.find((pipeline) => pipeline.key === "spec-kit-work-map-autofix-recovery-dispatch");
+assert.deepEqual(writerPipeline.required_triggers, ["workflow_dispatch"]);
+assert.ok(writerPipeline.forbidden_triggers.includes("pull_request"));
+assert.equal(recoveryPipeline.mode, "trusted_authorization_and_exact_head_dispatch");
 
 for (const marker of [
   "schedule:",
@@ -128,8 +158,9 @@ for (const marker of [
   "supervisor_behavioral_certification",
   "APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
   "skip-docs-agent",
-  "Spec Kit Work Map Autofix",
+  "Spec Kit Work Map Autofix Recovery Dispatch",
   "work-map-autofix:authorized",
+  "/recover-work-maps",
   "expected_head_sha",
   "provider_calls=0",
   "transaction_rolled_back=true",
