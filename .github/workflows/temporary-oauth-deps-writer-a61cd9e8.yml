@@ -17,8 +17,7 @@ jobs:
   patch:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804' &&
-      github.event.pull_request.head.sha == '1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -34,9 +33,21 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          test "$(git rev-parse HEAD)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
+          test "$(git rev-parse HEAD^)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
           test "$(git rev-parse origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
           test -z "$(git status --porcelain)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('.changes/tmp/oauth-deps-writer-trigger-a61cd9e8.json').read_text(encoding='utf-8'))
+          if payload != {
+              'purpose': 'temporary exact-head trigger for governed OAuth dependency baseline writer',
+              'base_sha': 'a61cd9e83070618001676bbc679bc937f0551875',
+              'diagnostic_nonce': 2,
+              'secrets_included': False,
+          }:
+              raise SystemExit(f'unexpected trigger payload: {payload!r}')
+          PY
 
       - name: Apply three exact dependency-wiring replacements
         shell: bash
@@ -95,20 +106,84 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run focused OAuth dependency regressions
+      - name: Prepare diagnostic directory
+        shell: bash
+        run: mkdir -p diagnostics
+
+      - name: Capture T031 wiring regression
         working-directory: http-generic-api
         shell: bash
         run: |
+          set +e
+          node test-spec012-t031-oauth-token-route-wiring.mjs > ../diagnostics/t031-wiring.log 2>&1
+          code=$?
+          printf '%s\n' "$code" > ../diagnostics/t031-wiring.exit
+          cat ../diagnostics/t031-wiring.log
+          exit 0
+
+      - name: Capture integrated OAuth route regression
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          node test-auth-oauth-routes.mjs > ../diagnostics/auth-oauth-routes.log 2>&1
+          code=$?
+          printf '%s\n' "$code" > ../diagnostics/auth-oauth-routes.exit
+          cat ../diagnostics/auth-oauth-routes.log
+          exit 0
+
+      - name: Capture T032 compatibility regression
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          node test-spec012-t032-legacy-audience-compatibility.mjs > ../diagnostics/t032-compatibility.log 2>&1
+          code=$?
+          printf '%s\n' "$code" > ../diagnostics/t032-compatibility.exit
+          cat ../diagnostics/t032-compatibility.log
+          exit 0
+
+      - name: Record diagnostic metadata
+        shell: bash
+        run: |
           set -euo pipefail
-          node test-spec012-t031-oauth-token-route-wiring.mjs
-          node test-auth-oauth-routes.mjs
-          node test-spec012-t032-legacy-audience-compatibility.mjs
+          {
+            echo "main_sha=$(git rev-parse origin/main)"
+            echo "target_sha=$(git rev-parse HEAD)"
+            echo "target_parent_sha=$(git rev-parse HEAD^)"
+            echo "patch_files:"
+            git diff --name-only | sed 's/^/  - /'
+          } > diagnostics/metadata.txt
+
+      - name: Upload OAuth dependency diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-dependency-diagnostics-${{ github.event.pull_request.head.sha }}
+          path: diagnostics/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce focused regression success
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for status in diagnostics/*.exit; do
+            code="$(cat "$status")"
+            echo "$(basename "$status"): $code"
+            if [ "$code" != "0" ]; then
+              failed=1
+            fi
+          done
+          test "$failed" = "0"
 
       - name: Commit and push tested patch without force
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
+          test "$(git rev-parse HEAD^)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
+          test "$(git rev-parse origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
