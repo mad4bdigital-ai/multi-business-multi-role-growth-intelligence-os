@@ -1,4 +1,4 @@
-name: Work Map Writer Diagnostics Reconciliation
+name: Exact Phase G Schema ARM Validation
 
 on:
   pull_request:
@@ -7,210 +7,230 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: work-map-writer-diagnostics-reconcile-${{ github.event.pull_request.number }}
+  group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  reconcile:
-    name: Reconcile writer diagnostics with latest main
+  validate:
+    name: Exact Work Map Full Failure Set Validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/work-map-writer-diagnostics-v3-20260803' &&
-      github.event.pull_request.head.sha == '3f15080c4f6374c877a0a7f6ee748c863b04e175'
+      github.event.pull_request.head.ref == 'gpt/work-map-autofix-full-failure-set-20260804' &&
+      github.event.pull_request.head.sha == 'f387991216d4bb5d702eb213112138b917f04c9f'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 180
     env:
-      EXPECTED_OLD_HEAD: 3f15080c4f6374c877a0a7f6ee748c863b04e175
-      EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
-      TARGET_BRANCH: gpt/work-map-writer-diagnostics-v3-20260803
-      WORKFLOW_PATH: .github/workflows/spec-kit-work-map-autofix.yml
+      EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_HEAD_SHA: f387991216d4bb5d702eb213112138b917f04c9f
+      GITHUB_BASE_REF: main
+      CI_CANDIDATE_KIND: head
+      CI_CANDIDATE_SHA: f387991216d4bb5d702eb213112138b917f04c9f
+      CI_SOURCE_HEAD_SHA: f387991216d4bb5d702eb213112138b917f04c9f
     steps:
-      - name: Checkout exact diagnostics branch
+      - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_OLD_HEAD }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
-      - name: Verify immutable branch identity
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity synchronization and exact scope
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_OLD_HEAD}"
-          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${EXPECTED_OLD_HEAD}"
-          test -z "$(git status --porcelain)"
-          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse FETCH_HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          git update-ref refs/remotes/origin/main "${EXPECTED_MAIN_SHA}"
+          cat > /tmp/expected-files.txt <<'EOF'
+          .changes/e2e/work-map-autofix-validation-diagnostics.json
+          .github/workflows/spec-kit-work-map-autofix.yml
+          http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          EOF
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test -z "$(git status --porcelain --untracked-files=no)"
 
-      - name: Create history-preserving merge and isolate conflict
+      - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          set +e
-          git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
-          merge_status=$?
-          set -e
-          test "${merge_status}" = "1"
-          git diff --name-only --diff-filter=U | LC_ALL=C sort > /tmp/conflicts.txt
-          printf '%s\n' "${WORKFLOW_PATH}" > /tmp/expected-conflicts.txt
-          diff -u /tmp/expected-conflicts.txt /tmp/conflicts.txt
-          git checkout --theirs -- "${WORKFLOW_PATH}"
+          npm ci
+          npm ci --prefix http-generic-api
 
-      - name: Reapply full-set diagnostics over current main workflow
+      - name: Validate workflow and complete failure-set regression
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          node --check http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'failed_validation_contracts' .github/workflows/spec-kit-work-map-autofix.yml
+          git diff --check "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
 
-          path = Path('.github/workflows/spec-kit-work-map-autofix.yml')
-          text = path.read_text(encoding='utf-8')
-          start_marker = '      - name: Validate generator and governance contracts\n'
-          end_marker = '      - name: Regenerate and prove idempotency\n'
-          start = text.index(start_marker)
-          end = text.index(end_marker, start)
+      - name: Run all eleven governed validation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
 
-          checks = [
-              ('Syntax check platform Work Map generator', 'validate_generator_syntax', 'platform-work-map-generator-syntax', 'validation-01-platform-work-map-generator-syntax.log', 'node --check http-generic-api/scripts/platform-work-map-generator.mjs'),
-              ('Syntax check Work Map schema intelligence', 'validate_schema_intelligence_syntax', 'platform-work-map-schema-intelligence-syntax', 'validation-02-platform-work-map-schema-intelligence-syntax.log', 'node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs'),
-              ('Syntax check Work Map schema classification', 'validate_schema_classification_syntax', 'work-map-schema-classification-syntax', 'validation-03-work-map-schema-classification-syntax.log', 'node --check http-generic-api/scripts/work-map-schema-classification.mjs'),
-              ('Syntax check Work Map schema contract', 'validate_schema_contract_syntax', 'work-map-schema-classification-contract-syntax', 'validation-04-work-map-schema-contract-syntax.log', 'node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs'),
-              ('Syntax check pipeline connectivity validator', 'validate_connectivity_syntax', 'pipeline-connectivity-check-syntax', 'validation-05-pipeline-connectivity-syntax.log', 'node --check http-generic-api/scripts/pipeline-connectivity-check.mjs'),
-              ('Validate pipeline connectivity graph', 'validate_connectivity_graph', 'pipeline-connectivity-check', 'validation-06-pipeline-connectivity-check.log', 'node http-generic-api/scripts/pipeline-connectivity-check.mjs'),
-              ('Test pipeline connectivity contract', 'test_connectivity_contract', 'test-pipeline-connectivity-check', 'validation-07-test-pipeline-connectivity-check.log', 'node http-generic-api/test-pipeline-connectivity-check.mjs'),
-              ('Validate Work Map schema classification contract', 'validate_schema_contract', 'work-map-schema-classification-contract', 'validation-08-work-map-schema-classification-contract.log', 'node http-generic-api/scripts/work-map-schema-classification-contract.mjs'),
-              ('Validate Work Map schema classification', 'validate_schema_classification', 'work-map-schema-classification', 'validation-09-work-map-schema-classification.log', 'node http-generic-api/scripts/work-map-schema-classification.mjs'),
-              ('Test Work Map schema classification', 'test_schema_classification', 'test-work-map-schema-classification', 'validation-10-test-work-map-schema-classification.log', 'node http-generic-api/test-work-map-schema-classification.mjs'),
-              ('Test Work Map schema classification contract', 'test_schema_classification_contract', 'test-work-map-schema-classification-contract', 'validation-11-test-work-map-schema-classification-contract.log', 'node http-generic-api/test-work-map-schema-classification-contract.mjs'),
-          ]
-
-          step_template = '''      - name: __DISPLAY__
-            id: __ID__
-            continue-on-error: true
-            run: |
-              set -uo pipefail
-              log="${DIAGNOSTIC_ROOT}/__LOG__"
-              set +e
-              __COMMAND__ >"${log}" 2>&1
-              status=$?
-              set -e
-              cat "${log}"
-              printf '%s\\t%s\\t%s\\n' "__KEY__" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
-              exit "${status}"
-
-          '''
-          rendered_steps = []
-          for display, step_id, key, log, command in checks:
-              rendered_steps.append(
-                  step_template
-                  .replace('__DISPLAY__', display)
-                  .replace('__ID__', step_id)
-                  .replace('__KEY__', key)
-                  .replace('__LOG__', log)
-                  .replace('__COMMAND__', command)
-              )
-
-          env_lines = '\n'.join(
-              f"          VALIDATE_{index:02d}: ${{{{ steps.{step_id}.outcome }}}}"
-              for index, (_, step_id, _, _, _) in enumerate(checks, start=1)
+      - name: Run Syntax and repository governance gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          (
+            cd http-generic-api
+            node scripts/user-jwt-auth-governance.mjs
+            node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
           )
-          records = []
-          for index, (_, _, key, _, _) in enumerate(checks, start=1):
-              suffix = ' \\' if index < len(checks) else ''
-              records.append(f'                "{key}=${{VALIDATE_{index:02d}}}"{suffix}')
-          record_lines = '\n'.join(records)
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          (
+            cd http-generic-api
+            shopt -s nullglob
+            for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f"; done
+          )
 
-          aggregate = f'''      - name: Validate generator and governance contracts
-            id: validate
-            env:
-          {env_lines}
-            run: |
-              set -euo pipefail
-              summary="${{DIAGNOSTIC_ROOT}}/validation-summary.md"
-              {{
-                echo "## Validation outcomes"
-                echo
-                echo "| Check | Outcome |"
-                echo "|---|---|"
-              }} > "${{summary}}"
+      - name: Run Context Kernel and Unit Integration suite
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          npm test
 
-              failed=0
-              for record in \\
-          {record_lines}
-              do
-                check="${{record%%=*}}"
-                outcome="${{record#*=}}"
-                printf '| `%s` | `%s` |\\n' "${{check}}" "${{outcome}}" >> "${{summary}}"
-                if [[ "${{outcome}}" != "success" ]]; then
-                  failed=1
-                fi
-              done
+      - name: Prove Runtime Startup and explicit governance contracts
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
+          DEPLOYMENT_COMMIT_SHA: f387991216d4bb5d702eb213112138b917f04c9f
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+          node test-custom-gpt-schemas.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
 
-              if [[ "${{failed}}" != "0" ]]; then
-                awk -F '\\t' '$2 != "0" {{ if (count++) printf ","; printf "%s", $1 }} END {{ if (count) print "" }}' \\
-                  "${{DIAGNOSTIC_ROOT}}/validation-results.tsv" > "${{DIAGNOSTIC_ROOT}}/failed-validation-contract.txt"
-                awk -F '\\t' '$2 != "0" {{ print $2; exit }}' \\
-                  "${{DIAGNOSTIC_ROOT}}/validation-results.tsv" > "${{DIAGNOSTIC_ROOT}}/failed-validation-exit-code.txt"
-              fi
-
-              cat "${{summary}}"
-              test "${{failed}}" = "0"
-
-          '''
-
-          replacement = ''.join(rendered_steps) + aggregate
-          text = text[:start] + replacement + text[end:]
-
-          summary_insert = '''          if [[ -f "${DIAGNOSTIC_ROOT}/validation-summary.md" ]]; then
-                {
-                  echo
-                  cat "${DIAGNOSTIC_ROOT}/validation-summary.md"
-                } >> "${DIAGNOSTIC_ROOT}/report.md"
-              fi
-
-          '''
-          jq_marker = '          jq -n \\\n'
-          jq_index = text.index(jq_marker, text.index('      - name: Finalize diagnostic evidence'))
-          text = text[:jq_index] + summary_insert + text[jq_index:]
-
-          path.write_text(text, encoding='utf-8')
-          PY
-          git add "${WORKFLOW_PATH}"
-          test -z "$(git diff --name-only --diff-filter=U)"
-
-      - name: Verify resolved merge scope and workflow structure
+      - name: Run Execution Resolver Gate
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git diff --cached --name-only | wc -l)" = "1"
-          test "$(git diff --cached --name-only)" = "${WORKFLOW_PATH}"
-          git diff --cached --check
-          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' "${WORKFLOW_PATH}"
-          grep -q '^  workflow_dispatch:' "${WORKFLOW_PATH}"
-          test "$(grep -c '^      - name: .*Work Map\|^      - name: .*pipeline connectivity\|^      - name: Validate generator and governance contracts' "${WORKFLOW_PATH}")" -ge "8"
-          for id in validate_generator_syntax validate_schema_intelligence_syntax validate_schema_classification_syntax validate_schema_contract_syntax validate_connectivity_syntax validate_connectivity_graph test_connectivity_contract validate_schema_contract validate_schema_classification test_schema_classification test_schema_classification_contract validate; do
-            grep -q "        id: ${id}$" "${WORKFLOW_PATH}"
-          done
-          grep -q 'validation-summary.md' "${WORKFLOW_PATH}"
-          grep -q 'failed-validation-contract.txt' "${WORKFLOW_PATH}"
-          grep -q 'failed-validation-exit-code.txt' "${WORKFLOW_PATH}"
-          grep -q 'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}' "${WORKFLOW_PATH}"
-          test "$(git rev-list --parents -n 1 HEAD | wc -w)" = "2"
+          npm run typecheck
+          npm test -- --runInBand
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
 
-      - name: Commit merge and push without force
+      - name: Run Architecture Drift gates
+        working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${EXPECTED_OLD_HEAD}"
-          git commit -m "chore(sync): reconcile Work Map writer diagnostics with main"
-          new_head="$(git rev-parse HEAD)"
-          test "$(git rev-list --parents -n 1 "${new_head}" | wc -w)" = "3"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
+          npm run validate
+          test "$(wc -l < server.js)" -le 6000
+          node -e "import('./wordpress/index.js').then(m => { if (Object.keys(m).length < 545) process.exit(1); })"
+
+      - name: Run exact E2E evaluation execution and reference integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
+
+      - name: Run Repository Tool Lifecycle governance
+        shell: bash
+        env:
+          BASE_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+          CANDIDATE_SHA: f387991216d4bb5d702eb213112138b917f04c9f
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > /tmp/repository-tool-changes.tsv
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
+
+      - name: Run deterministic Frontend parity
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Upload exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-full-failure-final-arm-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/test-suite-reports/*.json
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-phase-execution.json
+            ${{ runner.temp }}/e2e-contract-reference-integrity.json
+            ${{ runner.temp }}/repository-tool-lifecycle/
+          if-no-files-found: warn
+          retention-days: 14
