@@ -56,13 +56,22 @@ jobs:
           set -euo pipefail
           python <<'PY'
           from pathlib import Path
-          import textwrap
 
           source = Path('.github/workflows/bootstrap-generated-refresh-runner-pinning.yml')
           lines = source.read_text(encoding='utf-8').splitlines()
           start = next(i for i, line in enumerate(lines) if line.strip() == "python <<'PY'")
           end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == 'PY')
-          code = textwrap.dedent('\n'.join(lines[start + 1:end]))
+          yaml_prefix = '          '
+          body = lines[start + 1:end]
+          invalid = [
+              (offset, line)
+              for offset, line in enumerate(body, start=start + 2)
+              if line and not line.startswith(yaml_prefix)
+          ]
+          if invalid:
+              line_number, line = invalid[0]
+              raise SystemExit(f'embedded bootstrap indentation mismatch at line {line_number}: {line!r}')
+          code = '\n'.join(line[len(yaml_prefix):] if line else '' for line in body)
           exec(compile(code, str(source), 'exec'), {'__name__': '__main__'})
           Path('.github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml').unlink()
           PY
