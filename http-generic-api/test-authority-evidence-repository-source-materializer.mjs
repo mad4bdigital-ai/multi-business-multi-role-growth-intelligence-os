@@ -94,6 +94,13 @@ function git(root, args) {
   return String(result.stdout || "").trim();
 }
 
+function expectObject(expected) {
+  return {
+    ...expected,
+    repositoryRoot: path.resolve(path.dirname(new URL(import.meta.url).pathname), ".."),
+  };
+}
+
 const materialized = materializeAuthorityEvidenceRepositorySourceDocuments({ sources: allSources() });
 assert.equal(materialized.report.contract, AUTHORITY_EVIDENCE_REPOSITORY_SOURCE_MATERIALIZATION_CONTRACT);
 assert.equal(materialized.report.status, "ready_for_repository_review");
@@ -168,13 +175,6 @@ assert.deepEqual(manifestFinalizeCli.parseArgs([
   manifestOutput: "specs/011/manifest.json",
 }));
 
-function expectObject(expected) {
-  return {
-    ...expected,
-    repositoryRoot: path.resolve(path.dirname(new URL(import.meta.url).pathname), ".."),
-  };
-}
-
 const writerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-source-writer-"));
 const writerOutside = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-source-writer-outside-"));
 try {
@@ -224,6 +224,27 @@ try {
   }
   assert.equal(fs.existsSync(path.join(writerRoot, "rollback", "one.json")), false);
   assert.equal(fs.existsSync(path.join(writerRoot, "rollback", "two.json")), false);
+
+  const originalUnlinkSync = fs.unlinkSync;
+  let forcedTemporaryUnlinkFailure = false;
+  fs.unlinkSync = (filePath) => {
+    if (!forcedTemporaryUnlinkFailure && String(filePath).endsWith(".tmp")) {
+      forcedTemporaryUnlinkFailure = true;
+      throw Object.assign(new Error("forced temporary unlink failure"), { code: "EIO" });
+    }
+    return originalUnlinkSync(filePath);
+  };
+  try {
+    assert.throws(
+      () => sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
+        { relativePath: "unlink-rollback/one.json", content: "one\n" },
+      ]),
+      /forced temporary unlink failure/,
+    );
+  } finally {
+    fs.unlinkSync = originalUnlinkSync;
+  }
+  assert.equal(fs.existsSync(path.join(writerRoot, "unlink-rollback", "one.json")), false);
 
   sourceMaterializeCli.writeNewFilesAtomically(writerRoot, [
     { relativePath: "success/one.json", content: "one\n" },
