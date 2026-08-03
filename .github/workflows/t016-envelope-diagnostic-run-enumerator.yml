@@ -1,0 +1,113 @@
+name: T016 Envelope Diagnostic Run Enumerator
+
+on:
+  pull_request:
+    branches:
+      - agent/validate-t016-readiness-artifact-base-435c001
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: t016-envelope-diagnostic-run-enumerator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enumerate:
+    name: Enumerate trusted diagnostic push runs
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      WORKFLOW_FILE: t016-envelope-create-readonly-diagnostic.yml
+      TRUSTED_BRANCH: agent/validate-t016-readiness-artifact-base-435c001
+      REPORT_DIR: /tmp/t016-envelope-diagnostic-run-enumerator-${{ github.run_id }}
+    steps:
+      - name: Enumerate diagnostic runs and artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const api = 'https://api.github.com';
+          const token = process.env.GH_TOKEN;
+          const repository = process.env.REPOSITORY;
+          const workflowFile = process.env.WORKFLOW_FILE;
+          const trustedBranch = process.env.TRUSTED_BRANCH;
+          const reportDir = process.env.REPORT_DIR;
+
+          async function githubJson(pathname) {
+            const response = await fetch(`${api}${pathname}`, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+              },
+              signal: AbortSignal.timeout(30000),
+            });
+            const text = await response.text();
+            const payload = text ? JSON.parse(text) : null;
+            assert.ok(response.ok, `GitHub request failed: HTTP ${response.status}`);
+            return payload;
+          }
+
+          const list = await githubJson(
+            `/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?event=push&branch=${encodeURIComponent(trustedBranch)}&per_page=20`,
+          );
+          const runs = (list?.workflow_runs || []).map((run) => ({
+            id: run.id,
+            status: run.status,
+            conclusion: run.conclusion,
+            head_branch: run.head_branch,
+            head_sha: run.head_sha,
+            created_at: run.created_at,
+            updated_at: run.updated_at,
+            html_url: run.html_url,
+          }));
+          const latest = runs[0] || null;
+          let artifacts = [];
+          if (latest?.status === 'completed') {
+            const artifactPayload = await githubJson(`/repos/${repository}/actions/runs/${latest.id}/artifacts?per_page=100`);
+            artifacts = (artifactPayload?.artifacts || []).map((item) => ({
+              id: item.id,
+              name: item.name,
+              expired: item.expired,
+              digest: item.digest,
+              size_in_bytes: item.size_in_bytes,
+            }));
+          }
+          const report = {
+            contract: 't016_envelope_diagnostic_run_enumerator.v1',
+            workflow_file: workflowFile,
+            trusted_branch: trustedBranch,
+            run_count: runs.length,
+            latest,
+            runs,
+            artifacts,
+            runtime_contacted_by_enumerator: false,
+            issue_write_executed: false,
+            repository_write_executed: false,
+            database_write_executed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(reportDir, 'runs.json'), `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Upload bounded diagnostic-run enumeration
+        uses: actions/upload-artifact@v4
+        with:
+          name: t016-envelope-diagnostic-run-enumerator-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
