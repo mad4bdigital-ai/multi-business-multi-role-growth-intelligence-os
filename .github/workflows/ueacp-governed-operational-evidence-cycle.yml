@@ -69,6 +69,7 @@ jobs:
           grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE' "$workflow"
           grep -Eq 'ref:.*github\.sha' "$workflow"
           grep -q 'git merge-base --is-ancestor' "$workflow"
+          grep -q 'git ls-files --error-unmatch' "$workflow"
           grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
@@ -111,6 +112,7 @@ jobs:
           [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
           [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
           [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
+          git ls-files --error-unmatch -- "${SOURCE_MANIFEST_FILE}" >/dev/null
           test -f "${SOURCE_MANIFEST_FILE}"
           MANIFEST_REF="$(node --input-type=module - <<'NODE'
           import fs from 'node:fs';
