@@ -20,17 +20,18 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a fresh single-use authorization bridge that dispatches the existing trusted-main GET-only Hostinger Node.js build-history workflow after the repository secret is configured.",
+      "objective": "Provide a fresh single-use authorization bridge with an explicit expected-main-SHA dispatch input that starts the existing trusted-main GET-only Hostinger Node.js build-history workflow after the repository secret is configured.",
       "e2e_journeys": [
         {
           "id": "dispatch-fresh-hostinger-build-history-readback",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
-          "entrypoint": "An exact issue comment carries the R2 trigger token and the current trusted main SHA while Incident #4953 remains open.",
-          "terminal_outcome": "The bridge verifies the immutable authorization comment, workflow blob, current main head, protected Production SHA, and one-time marker absence; then it dispatches the unchanged GET-only evidence workflow and records its run ID without performing any provider mutation.",
+          "entrypoint": "An explicit repository-owner workflow dispatch or an exact governed issue comment supplies the current trusted main SHA while Incident #4953 remains open.",
+          "terminal_outcome": "Before the first metadata write, the bridge resolves and validates an explicit expected main SHA, verifies the immutable authorization comment, workflow blob, current main head, protected Production SHA, and one-time marker absence; then it dispatches the unchanged GET-only evidence workflow and records its run ID without performing any provider mutation.",
           "steps": [
-            "Validate the exact trigger token, operator identity, issue number, and expected main SHA.",
+            "Resolve the explicit expected main SHA from the required workflow_dispatch input or the exact governed issue-comment token.",
+            "Validate the operator identity, issue number when applicable, and exact 40-character expected main SHA before any write.",
             "Validate the fresh authorization comment and its workflow blob, account, domain, Production SHA, merge timestamp, and GET-only boundaries.",
             "Reject execution if main, Production, the workflow blob, or incident state changed.",
             "Record a one-time claim in Issue #4953.",
@@ -38,6 +39,8 @@
             "Resolve the newly created workflow run and record its run ID for evidence collection."
           ],
           "assertions": [
+            "Every write-capable execution path requires an explicit expected main SHA and checks it against current main before the first metadata write.",
+            "The issue-comment trigger remains exact-token, exact-operator, and exact-issue bounded, while workflow_dispatch is repository-owner bounded.",
             "The bridge never receives or references the Hostinger secret value.",
             "The target workflow alone reads secrets.HOSTINGER_API_TOKEN on trusted main.",
             "The Hostinger provider operation is GET-only and performs no build creation, deployment, restart, or provider mutation.",
@@ -69,7 +72,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Confirm the bridge fails closed when main, Production, authorization, workflow blob, incident state, or one-time markers diverge."
+      "objective": "Confirm the bridge fails closed when the explicit head input, main, Production, authorization, workflow blob, incident state, or one-time markers diverge."
     },
     {
       "id": "canary",
