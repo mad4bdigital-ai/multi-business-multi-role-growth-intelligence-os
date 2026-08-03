@@ -25,7 +25,7 @@ jobs:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
       TARGET_BRANCH: gpt/spec012-auth-oauth-harness-repair-97e4ee7e-20260804
       TARGET_FILE: http-generic-api/test-auth-oauth-routes.mjs
-      REPORT_DIR: ${{ runner.temp }}/spec012-auth-oauth-harness-repair
+      REPORT_DIR: /tmp/spec012-auth-oauth-harness-repair
 
     steps:
       - name: Checkout exact repair branch
