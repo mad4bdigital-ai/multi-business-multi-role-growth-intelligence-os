@@ -276,6 +276,12 @@ jobs:
     writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
     ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
   );
+  assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));
+  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));
+  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));
+  assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));
+  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run ci.yml"));
+  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run spec-kit-work-map-integration.yml"));
 
   const bridgeContract = contract.pipelines.find((row) => row.key === "work-map-recovery-bridge");
   const writerContract = contract.pipelines.find((row) => row.key === "spec-kit-work-map-autofix");
@@ -351,9 +357,20 @@ jobs:
   assert.ok(writerWorkflow.includes("Regenerate and prove idempotency"));
   assert.ok(writerWorkflow.includes("Commit and push governed Work Maps"));
   assert.ok(writerWorkflow.includes("Dispatch exact-head verification"));
-  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));
-  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));
-  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));
+  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V3"));
+  assert.ok(writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v3"));
+  assert.ok(writerWorkflow.includes("gh api --method POST"));
+  assert.ok(writerWorkflow.includes("actions/workflows/ci.yml/dispatches"));
+  assert.ok(writerWorkflow.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));
+  assert.ok(writerWorkflow.includes("ci_dispatch_exit_code"));
+  assert.ok(writerWorkflow.includes("integration_dispatch_exit_code"));
+  assert.ok(writerWorkflow.includes("ci_run_id"));
+  assert.ok(writerWorkflow.includes("integration_run_id"));
+  assert.ok(writerWorkflow.includes('.head_sha == \\"${RESULT_HEAD_SHA}\\"'));
+  assert.ok(!writerWorkflow.includes("gh workflow run ci.yml"));
+  assert.ok(!writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));
+  assert.ok(!writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));
+  assert.ok(!writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v2"));
   assert.ok(!writerWorkflow.includes("work-map-autofix:authorized"));
   assert.ok(!writerWorkflow.includes("gh api --method PATCH"));
   assert.ok(!writerWorkflow.includes("--force"));
