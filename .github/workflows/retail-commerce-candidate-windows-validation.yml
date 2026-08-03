@@ -1,0 +1,94 @@
+name: Retail Commerce Candidate Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-retail-commerce-candidate-windows-20260803
+    paths:
+      - .changes/e2e/retail-commerce-candidate-windows-validation.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retail-commerce-candidate-windows-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact Retail Commerce candidate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_CANDIDATE_SHA: b8074af9bc24b9e1f009f169ddd5577d1e0d4082
+      EXPECTED_CANDIDATE_BRANCH: gpt/retail-commerce-reference-package-cleanroom-20260803
+      GITHUB_BASE_REF: main
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Enforce immutable candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/${EXPECTED_CANDIDATE_BRANCH})" = "${EXPECTED_CANDIDATE_SHA}"
+          git diff --name-only origin/main...HEAD > candidate-files.txt
+          test "$(wc -l < candidate-files.txt | tr -d ' ')" = "48"
+          test -z "$(grep -v '^specs/014-retail-commerce-operations-growth-os/' candidate-files.txt || true)"
+      - name: Parse all Retail Commerce JSON contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = 'specs/014-retail-commerce-operations-growth-os';
+          const files = [];
+          const walk = (dir) => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (entry.name.endsWith('.json')) files.push(full);
+            }
+          };
+          walk(root);
+          for (const file of files.sort()) JSON.parse(fs.readFileSync(file, 'utf8'));
+          console.log(JSON.stringify({ ok: true, json_files: files.length }));
+          NODE
+      - name: Validate Work Map and Spec Kit contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs
+      - name: Validate JavaScript syntax for governance scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/scripts/spec-kit-completion-gate.mjs
+      - name: Record bounded validation summary
+        if: always()
+        shell: bash
+        run: |
+          node --input-type=module - <<'NODE'
+          console.log(JSON.stringify({
+            candidate_sha: process.env.EXPECTED_CANDIDATE_SHA,
+            candidate_branch: process.env.EXPECTED_CANDIDATE_BRANCH,
+            repository_mutation: false,
+            provider_mutation: false,
+            database_mutation: false,
+            deployment: false,
+            production_mutation: false,
+            secrets_included: false
+          }));
+          NODE
