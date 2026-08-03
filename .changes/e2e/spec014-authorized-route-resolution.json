@@ -1,0 +1,127 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-authorized-route-resolution",
+  "title": "Resolve the exact verified Tenant storage runtime snapshot through the existing route seam",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-authorized-route-resolution.json",
+      ".github/contracts/spec014/hostinger-storage-authorized-route-resolution.json",
+      ".github/workflows/hostinger-storage-authorized-route-resolution-guard.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+      "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve tenantStorageRuntime from the canonical authorized dependency-injection coordinator only when the fixed mount-readback digest exposes the frozen verified dependency snapshot, while retaining the existing direct-runtime compatibility seam.",
+      "e2e_journeys": [
+        {
+          "id": "resolve-verified-runtime-through-existing-tenant-route",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant storage route builder",
+          "entrypoint": "A canonical dependency-injection coordinator and the exact verified mount-readback digest",
+          "terminal_outcome": "The existing Tenant route reaches its bounded request validator only for the exact verified runtime snapshot; all missing, invalid, pre-readback, mismatched, and rolled-back states return HTTP 503.",
+          "steps": [
+            "Reject a supplied object that is not the branded canonical dependency-injection coordinator.",
+            "Ask the coordinator for route dependencies using a fixed build-time mount-readback digest rather than request input.",
+            "Require a frozen dependency snapshot and a non-enumerable, non-configurable, non-writable tenantStorageRuntime descriptor.",
+            "Require the runtime to remain frozen, synthetic-only, non-provider, and non-production.",
+            "Keep the route fail-closed before injection, before readback, for missing or mismatched digests, and after rollback.",
+            "Preserve the reviewed direct tenantStorageRuntime compatibility seam without changing live server bootstrap or route registration."
+          ],
+          "assertions": [
+            "The route returns storage_tenant_runtime_unavailable with HTTP 503 when no runtime source is available.",
+            "An invalid coordinator cannot fall back to a separately supplied direct runtime.",
+            "Before exact readback, the coordinator returns no route dependency and the route remains HTTP 503.",
+            "The exact readback digest resolves the same frozen runtime object from the canonical dependency snapshot.",
+            "The verified route reaches the existing bounded body validator without executing Provider work.",
+            "Rollback immediately restores HTTP 503 through per-request coordinator resolution.",
+            "No server.js, routes/index.js, migration, provider, deployment, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "authorized-route-resolution",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-authorized-route-resolution.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+            "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bootstrap the reviewed coordinator and fixed readback identity through a separately governed live server composition after durable mount-state and authorization evidence exist."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Resolve coordinator state on every request so rollback and restart reconciliation change route availability without mutating the route registry or retaining a stale runtime reference.",
+      "e2e_journeys": [
+        {
+          "id": "rollback-restores-route-unavailable-without-rebuild",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized route resolver",
+          "entrypoint": "An already built Tenant router using the canonical coordinator and exact readback digest",
+          "terminal_outcome": "After rollback, the same route composition resolves no runtime and returns HTTP 503 without a second route registration.",
+          "steps": [
+            "Build the router with the canonical coordinator and exact readback digest.",
+            "Resolve the active frozen runtime dependency per request.",
+            "Rollback the active injection using the exact readback digest.",
+            "Issue another request through the same resolver contract.",
+            "Observe storage_tenant_runtime_unavailable with HTTP 503."
+          ],
+          "assertions": [
+            "No stale runtime reference survives rollback.",
+            "No live route registry mutation is required to restore fail-closed behavior.",
+            "Worker mount, Provider dispatch, Production readiness, automatic retry, and secrets remain false."
+          ],
+          "tests": [
+            {
+              "id": "authorized-route-resolution-rollback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+            "http-generic-api/test-hostinger-storage-authorized-route-resolution.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production server composition using durable readback identity and rollback evidence."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This route-resolution slice grants no live bootstrap, Provider, migration, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

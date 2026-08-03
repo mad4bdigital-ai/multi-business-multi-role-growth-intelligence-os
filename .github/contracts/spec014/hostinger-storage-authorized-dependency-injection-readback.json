@@ -1,0 +1,86 @@
+{
+  "contract_key": "spec014_hostinger_storage_authorized_dependency_injection_readback",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-authorized-dependency-injection-v1",
+  "route_path": "/tenant/storage-operations/apply-plan",
+  "dependency_key": "tenantStorageRuntime",
+  "required_input": {
+    "canonical_authorized_mount_bundle": true,
+    "exact_mount_bundle_digest": true,
+    "exact_runtime_sha": true,
+    "exact_authorization_generation": true,
+    "one_active_injection_slot": true,
+    "secrets_included": false
+  },
+  "injection_boundary": {
+    "dependency_snapshot_created": true,
+    "dependency_descriptor_non_enumerable": true,
+    "dependency_descriptor_non_configurable": true,
+    "dependency_descriptor_non_writable": true,
+    "dependency_injected": true,
+    "mount_performed": true,
+    "runtime_mounted": true,
+    "route_mounted": true,
+    "worker_mounted": false,
+    "live_server_modified": false,
+    "live_route_registration_performed": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false
+  },
+  "readback_gate": {
+    "route_dependencies_available_before_readback": false,
+    "exact_runtime_object_identity_required": true,
+    "frozen_dependency_snapshot_required": true,
+    "exact_receipt_digest_required": true,
+    "exact_mount_bundle_digest_required": true,
+    "mismatch_behavior": "fail_closed_without_route_dependency",
+    "default_route_outcome_before_readback": "HTTP_503_storage_tenant_runtime_unavailable"
+  },
+  "restart_reconciliation": {
+    "serialized_injection_receipt_required": true,
+    "serialized_mount_readback_required": true,
+    "canonical_mount_bundle_reconstruction_required": true,
+    "second_authorization_consumption_allowed": false,
+    "mount_readback_digest_must_remain_identical": true,
+    "automatic_retry_allowed": false
+  },
+  "rollback": {
+    "exact_active_mount_readback_required": true,
+    "dependency_removed": true,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "fail_closed_route_restored": true,
+    "default_route_outcome_after_rollback": "HTTP_503_storage_tenant_runtime_unavailable",
+    "automatic_retry_allowed": false
+  },
+  "repository_scope": {
+    "module_files": [
+      "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js"
+    ],
+    "test_files": [
+      "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+      "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs"
+    ],
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "provider_files_modified": 0,
+    "deployment_files_modified": 0
+  },
+  "forbidden_authority": {
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "live_database_access": false,
+    "provider_dispatch": false,
+    "migration_apply": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "secrets_included": false
+}

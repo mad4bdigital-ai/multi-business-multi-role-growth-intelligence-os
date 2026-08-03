@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_durable_tenant_authority_store_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "durable_authority_store",
+  "capability_status": "implemented_unmounted_schema_unapplied",
+  "purpose": "Persist Tenant-exclusive cleanup allowlists and Workspace Owner approvals with exact replay, row-version CAS, immutable token history, and signed schema provenance without mounting the Tenant runtime or authorizing migration apply.",
+  "store": {
+    "adapter_key": "hostinger_storage_mysql_tenant_authority_v1",
+    "store_version": "spec014-hostinger-storage-durable-tenant-authority-store-v1",
+    "durable_sql": true,
+    "async_only": true,
+    "tenant_exclusive": true,
+    "legacy_tenant_canary_compatible": false,
+    "factory_database_connections": 0,
+    "raw_pool_exposed": false
+  },
+  "schema_contract": {
+    "contract_key": "hostinger_storage_durable_tenant_authority_store_schema_v1",
+    "ddl_path": ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql",
+    "runtime_migration_path": false,
+    "promoted_into_wave_sequence": false,
+    "migration_authorization_created": false,
+    "migration_dry_run_performed": false,
+    "migration_apply_performed": false,
+    "tables": [
+      "storage_tenant_authority_allowlists",
+      "storage_tenant_authority_approvals",
+      "storage_tenant_authority_token_history"
+    ],
+    "requires_separate_checksum_bound_promotion": true,
+    "requires_same_cycle_live_readback": true,
+    "requires_signed_schema_verification": true
+  },
+  "authority_records": {
+    "allowlist": {
+      "current_row": true,
+      "cas_tokens": ["revision", "row_version"],
+      "immutable_history_token": "revision",
+      "tenant_scope_required": true,
+      "shared_target_allowed": false,
+      "platform_target_allowed": false,
+      "bounded_fields": ["max_items", "max_bytes", "valid_from_epoch", "expires_at_epoch"],
+      "opaque_fields": ["root_ref", "path_ref_prefix"],
+      "replay_requires_exact_record_digest": true
+    },
+    "approval": {
+      "current_row": true,
+      "cas_tokens": ["evidence_digest", "row_version"],
+      "immutable_history_token": "evidence_digest",
+      "approver_role_required": "workspace_owner",
+      "operation_plan_target_bound": true,
+      "replay_requires_exact_record_digest": true
+    }
+  },
+  "transactional_guarantees": [
+    "shared_advisory_lock",
+    "current_row_for_update",
+    "compare_and_swap_update",
+    "immutable_token_history_insert",
+    "same_transaction_exact_readback",
+    "rollback_on_any_mismatch",
+    "duplicate_token_reuse_rejected"
+  ],
+  "public_methods": [
+    "registerAllowlist",
+    "updateAllowlist",
+    "readAllowlist",
+    "registerApproval",
+    "updateApproval",
+    "readApproval",
+    "exportState"
+  ],
+  "signed_schema_verification": {
+    "exact_source_runtime_parity_required": true,
+    "database_fingerprint_required": true,
+    "readback_cycle_required": true,
+    "expiry_required": true,
+    "exact_schema_contract_digest_required": true,
+    "authority_granted": false,
+    "migration_apply_authorized": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "remaining_bridge_capabilities": [
+    "durable_enablement_registry",
+    "tenant_safe_durable_projection",
+    "dedicated_worker_certification",
+    "fixed_dispatch_certification",
+    "crash_safe_restart_reconciliation",
+    "separate_mount_authorization"
+  ],
+  "integration_boundary": {
+    "tenant_canary_changed": false,
+    "tenant_runtime_changed": false,
+    "route_dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "non_goals": {
+    "live_database_access": false,
+    "hostinger_access": false,
+    "migration_promotion": false,
+    "migration_authorization": false,
+    "migration_apply": false,
+    "foreign_key_enablement": false,
+    "route_mount": false,
+    "worker_mount": false,
+    "provider_dispatch": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "database_calls_during_factory_creation": 0,
+    "provider_calls": 0,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "runtime_migration_files_modified": 0,
+    "secrets_included": false
+  }
+}

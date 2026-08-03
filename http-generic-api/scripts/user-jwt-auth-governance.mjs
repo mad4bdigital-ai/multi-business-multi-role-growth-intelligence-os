@@ -7,6 +7,8 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const API_ROOT = resolve(SCRIPT_DIR, "..");
 const REPO_ROOT = resolve(API_ROOT, "..");
 
+export const GIT_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
 export const HARDENED_AUTH_FILES = Object.freeze([
   "http-generic-api/userJwtAuth.js",
   "http-generic-api/runtimeGuards.js",
@@ -24,6 +26,7 @@ function git(args) {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: GIT_MAX_BUFFER_BYTES,
   }).trim();
 }
 
@@ -32,6 +35,7 @@ function gitRefExists(ref) {
     execFileSync("git", ["rev-parse", "--verify", "--quiet", ref], {
       cwd: REPO_ROOT,
       stdio: "ignore",
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
     });
     return true;
   } catch {

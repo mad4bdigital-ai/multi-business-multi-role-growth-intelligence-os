@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-sql-run-reader-row-cardinality",
+  "title": "Spec 014 SQL Run Reader Row Cardinality",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-sql-run-reader-row-cardinality.json",
+      "http-generic-api/hostingerStorageSqlRunReader.js",
+      "http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove zero, one, or multiple durable run rows before returning a run instead of selecting the first SQL candidate.",
+      "e2e_journeys": [
+        {
+          "id": "durable-run-read-cardinality-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant-safe durable run reader",
+          "entrypoint": "Node process invoking the canonical SQL run-reader suite and focused cardinality regression",
+          "terminal_outcome": "Zero rows return not found, one row is normalized only after uniqueness proof, and multiple rows fail closed with STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS.",
+          "steps": [
+            "Normalize the SQL driver response into one bounded row collection.",
+            "Reject more than one row with the existing typed ambiguity error.",
+            "Keep the result null unless exactly one row is proven.",
+            "Destructure and normalize the sole proven row.",
+            "Run the complete SQL run-reader test and focused source-order regression."
+          ],
+          "assertions": [
+            "No direct index-zero SQL candidate selection remains in readRun.",
+            "The existing ambiguity error and connection-release behavior remain fail closed.",
+            "The reader remains unmounted, read-only, non-provider, and non-production.",
+            "No schema, migration, live database, route, worker, deployment, main, or Production authority changes occur."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-run-reader",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-sql-run-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-sql-run-reader-row-cardinality",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-sql-run-reader-row-cardinality.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageSqlRunReader.js",
+            "http-generic-api/test-hostinger-storage-sql-run-reader-row-cardinality.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "The repair changes only an unmounted read-only repository component."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Cardinality rejection is deterministic and introduces no retry state."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database or provider canary is introduced."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The change grants no deployment, migration, provider, or Production authority."
+    }
+  ]
+}

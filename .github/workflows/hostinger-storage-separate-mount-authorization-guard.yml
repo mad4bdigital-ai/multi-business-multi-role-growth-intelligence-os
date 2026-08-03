@@ -1,0 +1,74 @@
+name: Hostinger Storage Separate Mount Authorization Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-separate-mount-authorization.json'
+      - '.github/contracts/spec014/hostinger-storage-separate-mount-authorization.json'
+      - '.github/workflows/hostinger-storage-separate-mount-authorization-guard.yml'
+      - 'http-generic-api/hostingerStorageSeparateMountAuthorization.js'
+      - 'http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs'
+      - 'http-generic-api/hostingerStorageDurableTenantRuntimeBridgeReadiness.js'
+      - 'http-generic-api/hostingerStorageFixedDispatchCertification.js'
+      - 'http-generic-api/hostingerStorageDedicatedWorkerCertification.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-separate-mount-authorization-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  separate-mount-authorization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check authorization syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          node --check http-generic-api/hostingerStorageFixedDispatchCertification.js
+          node --check http-generic-api/hostingerStorageDurableTenantRuntimeBridgeReadiness.js
+          node --check http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          node --check http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs
+
+      - name: Validate prerequisite certifications and separate mount authorization
+        run: |
+          node http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs
+          node http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs
+          node http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs
+          node http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs
+
+      - name: Preserve unpersisted unmounted non-dispatching boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(migrations/|server\.js$|routes/)'
+          ! grep -E "from ['\"](?:node:child_process|node:net|node:tls|ssh2)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageSeparateMountAuthorization.js \
+            http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|resolveCredentialValue|readCredentialValue|connectHostinger|sshConnect|mutateExact|readbackItem)\b' \
+            http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q 'ready_for_authorized_mount_execution' http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q 'authorization_persisted: false' http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q 'mount_performed: false' http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageSeparateMountAuthorization.js
+          grep -q '"authorization_persisted": false' .github/contracts/spec014/hostinger-storage-separate-mount-authorization.json
+          grep -q '"mount_performed": false' .github/contracts/spec014/hostinger-storage-separate-mount-authorization.json
+          grep -q '"provider_dispatch_allowed": false' .github/contracts/spec014/hostinger-storage-separate-mount-authorization.json
+          grep -q '"production_ready": false' .github/contracts/spec014/hostinger-storage-separate-mount-authorization.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-separate-mount-authorization.json

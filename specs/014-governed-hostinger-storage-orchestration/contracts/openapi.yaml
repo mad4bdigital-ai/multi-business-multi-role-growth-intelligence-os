@@ -1,0 +1,576 @@
+openapi: 3.1.0
+info:
+  title: Governed Hostinger Storage Orchestration
+  version: 0.1.0
+  description: >-
+    Specification-only Admin and Tenant surfaces for storage snapshots, immutable
+    cleanup plans, approvals, governed apply, readback, reserve, and release
+    preflight. These paths are not runtime-mounted by this specification package.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Admin Storage
+  - name: Tenant Storage
+  - name: Storage Incidents
+  - name: Release Preflight
+paths:
+  /admin/hosting/storage/targets/{targetId}/snapshot:
+    get:
+      tags: [Admin Storage]
+      operationId: getAdminStorageSnapshot
+      summary: Read or refresh a bounded Admin storage snapshot
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+        - name: refresh
+          in: query
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Admin-bounded storage snapshot
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StorageSnapshot'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /admin/hosting/storage/targets/{targetId}/plans:
+    post:
+      tags: [Admin Storage]
+      operationId: createAdminStoragePlan
+      summary: Create an immutable conservative cleanup plan
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePlanRequest'}
+      responses:
+        '201':
+          description: Plan created
+          content:
+            application/json:
+              schema: {$ref: './storage-plan.schema.json'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /admin/hosting/storage/plans/{planId}:
+    get:
+      tags: [Admin Storage]
+      operationId: inspectAdminStoragePlan
+      summary: Inspect an exact plan and its impact set
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Admin plan projection
+          content:
+            application/json:
+              schema: {$ref: './storage-plan.schema.json'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/hosting/storage/plans/{planId}/request-approval:
+    post:
+      tags: [Admin Storage]
+      operationId: requestAdminStoragePlanApproval
+      summary: Create approval holds without provider dispatch
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApprovalRequest'}
+      responses:
+        '202':
+          description: Approval workflow created or updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalStatus'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /admin/hosting/storage/plans/{planId}/approve:
+    post:
+      tags: [Admin Storage]
+      operationId: decideAdminStoragePlanApproval
+      summary: Record one scope-specific approval decision
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApprovalDecision'}
+      responses:
+        '200':
+          description: Approval state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalStatus'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /admin/hosting/storage/plans/{planId}/apply:
+    post:
+      tags: [Admin Storage]
+      operationId: applyAdminStoragePlan
+      summary: Apply an exact approved plan through certified fixed provider dispatch
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApplyPlanRequest'}
+      responses:
+        '202':
+          description: Operation accepted for governed execution/readback
+          content:
+            application/json:
+              schema: {$ref: './storage-operation.schema.json'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /admin/hosting/storage/runs/{runId}/readback:
+    get:
+      tags: [Admin Storage]
+      operationId: getAdminStorageRunReadback
+      summary: Read same-operation execution and reconciliation evidence
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Storage evidence
+          content:
+            application/json:
+              schema: {$ref: './storage-evidence.schema.json'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/hosting/storage/targets/{targetId}/reserve:
+    get:
+      tags: [Admin Storage]
+      operationId: getStorageReserveStatus
+      summary: Read emergency reserve status
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '200':
+          description: Reserve status
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReserveStatus'}
+    post:
+      tags: [Admin Storage]
+      operationId: createStorageReserve
+      summary: Provision the exact emergency reserve while healthy
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReserveCreateRequest'}
+      responses:
+        '202':
+          description: Governed reserve operation
+          content:
+            application/json:
+              schema: {$ref: './storage-operation.schema.json'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /admin/hosting/storage/targets/{targetId}/reserve/release:
+    post:
+      tags: [Admin Storage]
+      operationId: releaseStorageReserve
+      summary: Release only the exact reserve during an active storage incident
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReserveReleaseRequest'}
+      responses:
+        '202':
+          description: Governed reserve release operation
+          content:
+            application/json:
+              schema: {$ref: './storage-operation.schema.json'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/workspaces/{workspaceId}/resources/{resourceId}/storage/snapshot:
+    get:
+      tags: [Tenant Storage]
+      operationId: getTenantStorageSnapshot
+      summary: Read the selected tenant-owned resource storage projection
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ResourceId'
+        - name: refresh
+          in: query
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Tenant-safe resource snapshot
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantStorageSnapshot'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /tenant/workspaces/{workspaceId}/resources/{resourceId}/storage/plans:
+    post:
+      tags: [Tenant Storage]
+      operationId: createTenantStoragePlan
+      summary: Create an immutable plan for an exclusively owned resource
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePlanRequest'}
+      responses:
+        '201':
+          description: Tenant-safe plan
+          content:
+            application/json:
+              schema: {$ref: './storage-plan.schema.json'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/workspaces/{workspaceId}/storage/plans/{planId}:
+    get:
+      tags: [Tenant Storage]
+      operationId: inspectTenantStoragePlan
+      summary: Inspect a tenant-safe plan projection
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Tenant plan projection
+          content:
+            application/json:
+              schema: {$ref: './storage-plan.schema.json'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /tenant/workspaces/{workspaceId}/storage/plans/{planId}/request-approval:
+    post:
+      tags: [Tenant Storage]
+      operationId: requestTenantStoragePlanApproval
+      summary: Request Workspace Owner approval without dispatch
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApprovalRequest'}
+      responses:
+        '202':
+          description: Approval hold created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalStatus'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/workspaces/{workspaceId}/storage/plans/{planId}/approve:
+    post:
+      tags: [Tenant Storage]
+      operationId: decideTenantStoragePlanApproval
+      summary: Workspace Owner approves or denies the exact plan
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApprovalDecision'}
+      responses:
+        '200':
+          description: Approval status
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalStatus'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /tenant/workspaces/{workspaceId}/storage/plans/{planId}/apply:
+    post:
+      tags: [Tenant Storage]
+      operationId: applyTenantStoragePlan
+      summary: Apply an exact plan to an exclusively owned resource when certified
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApplyPlanRequest'}
+      responses:
+        '202':
+          description: Governed tenant operation
+          content:
+            application/json:
+              schema: {$ref: './storage-operation.schema.json'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /tenant/workspaces/{workspaceId}/storage/runs/{runId}/readback:
+    get:
+      tags: [Tenant Storage]
+      operationId: getTenantStorageRunReadback
+      summary: Read tenant-safe same-operation evidence
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Tenant-safe evidence
+          content:
+            application/json:
+              schema: {$ref: './storage-evidence.schema.json'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/hosting/storage/release-preflight:
+    post:
+      tags: [Release Preflight]
+      operationId: evaluateStorageReleasePreflight
+      summary: Evaluate storage headroom without invoking cleanup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReleasePreflightRequest'}
+      responses:
+        '200':
+          description: Release storage decision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReleasePreflightResult'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TargetId:
+      name: targetId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 64}
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 64}
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 64}
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
+  responses:
+    Forbidden:
+      description: Authority or ownership denied
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    NotFound:
+      description: Resource not found or not visible in selected context
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    Conflict:
+      description: Stale state, missing approvals, lease conflict, or blocked operation
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    Unavailable:
+      description: Dispatch disabled, worker unavailable, or host-key/security failure
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+  schemas:
+    CreatePlanRequest:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, policy_revision, candidate_classes]
+      properties:
+        snapshot_id: {type: string, minLength: 1, maxLength: 128}
+        policy_revision: {type: string, minLength: 1, maxLength: 128}
+        candidate_classes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            enum: [npm_cache, npm_logs, account_rotated_logs, domain_rotated_logs]
+        maximum_files: {type: integer, minimum: 1, maximum: 5000}
+        maximum_bytes: {type: integer, minimum: 1, maximum: 5368709120}
+    ApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [plan_hash, authority_context_hash]
+      properties:
+        plan_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        authority_context_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        support_case_id: {type: [string, 'null'], maxLength: 64}
+        delegation_id: {type: [string, 'null'], maxLength: 64}
+    ApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [decision, plan_hash, authority_context_hash]
+      properties:
+        decision: {enum: [approve, deny]}
+        plan_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        authority_context_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        reason: {type: [string, 'null'], maxLength: 1000}
+    ApprovalStatus:
+      type: object
+      additionalProperties: false
+      required: [plan_id, state, required_slots, satisfied_slots, secrets_included]
+      properties:
+        plan_id: {type: string}
+        state: {enum: [approval_requested, partially_approved, approved, blocked, expired]}
+        required_slots: {type: array, items: {type: string}}
+        satisfied_slots: {type: array, items: {type: string}}
+        missing_workspace_ids: {type: array, items: {type: string}}
+        secrets_included: {const: false}
+    ApplyPlanRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - plan_hash
+        - candidate_set_hash
+        - authority_context_hash
+        - ownership_revision
+        - policy_revision
+        - capability_envelope_id
+        - execution_lease_id
+        - typed_confirmation
+      properties:
+        plan_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        candidate_set_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        authority_context_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+        ownership_revision: {type: string, minLength: 1, maxLength: 128}
+        policy_revision: {type: string, minLength: 1, maxLength: 128}
+        capability_envelope_id: {type: string, minLength: 1, maxLength: 64}
+        resource_authority_id: {type: [string, 'null'], maxLength: 64}
+        execution_lease_id: {type: string, minLength: 1, maxLength: 64}
+        typed_confirmation: {type: string, minLength: 1, maxLength: 512}
+    StorageSnapshot:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, target_id, pressure, completeness, observed_at, secrets_included]
+      properties:
+        snapshot_id: {type: string}
+        target_id: {type: string}
+        resource_id: {type: [string, 'null']}
+        observed_at: {type: string, format: date-time}
+        pressure: {$ref: '#/components/schemas/Pressure'}
+        provider_evidence_fresh: {type: boolean}
+        logical_usage_bytes: {type: integer, minimum: 0}
+        logical_inode_count: {type: integer, minimum: 0}
+        top_directories: {type: array, maxItems: 50, items: {$ref: '#/components/schemas/PathSummary'}}
+        inode_hotspots: {type: array, maxItems: 50, items: {$ref: '#/components/schemas/PathSummary'}}
+        completeness: {enum: [complete, partial, stale, failed]}
+        secrets_included: {const: false}
+    TenantStorageSnapshot:
+      allOf:
+        - $ref: '#/components/schemas/StorageSnapshot'
+        - type: object
+          required: [tenant_id, workspace_id, resource_id]
+          properties:
+            tenant_id: {type: string}
+            workspace_id: {type: string}
+            resource_id: {type: string}
+    PathSummary:
+      type: object
+      additionalProperties: false
+      required: [relative_path]
+      properties:
+        relative_path: {type: string, pattern: '^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$'}
+        size_bytes: {type: integer, minimum: 0}
+        inode_count: {type: integer, minimum: 0}
+        protected: {type: boolean}
+    Pressure:
+      type: object
+      additionalProperties: false
+      required: [byte_state, inode_state, effective_state]
+      properties:
+        byte_state: {enum: [normal, warning, critical, emergency, unknown]}
+        inode_state: {enum: [normal, warning, critical, emergency, unknown]}
+        effective_state: {enum: [normal, warning, critical, emergency, unknown]}
+    ReserveStatus:
+      type: object
+      additionalProperties: false
+      required: [target_id, status, expected_size_bytes, secrets_included]
+      properties:
+        target_id: {type: string}
+        status: {enum: [absent, provisioned, released, invalid]}
+        expected_size_bytes: {type: integer, minimum: 0}
+        fingerprint_ref: {type: [string, 'null']}
+        secrets_included: {const: false}
+    ReserveCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [size_bytes, capability_envelope_id, execution_lease_id, typed_confirmation]
+      properties:
+        size_bytes: {type: integer, minimum: 1048576, maximum: 536870912}
+        capability_envelope_id: {type: string}
+        execution_lease_id: {type: string}
+        typed_confirmation: {type: string}
+    ReserveReleaseRequest:
+      type: object
+      additionalProperties: false
+      required: [fingerprint_ref, active_incident_id, capability_envelope_id, execution_lease_id, typed_confirmation]
+      properties:
+        fingerprint_ref: {type: string}
+        active_incident_id: {type: string}
+        capability_envelope_id: {type: string}
+        execution_lease_id: {type: string}
+        typed_confirmation: {type: string}
+    ReleasePreflightRequest:
+      type: object
+      additionalProperties: false
+      required: [target_id, source_sha, production_sha, predicted_install_bytes]
+      properties:
+        target_id: {type: string}
+        source_sha: {type: string, pattern: '^[a-f0-9]{40}$'}
+        production_sha: {type: string, pattern: '^[a-f0-9]{40}$'}
+        predicted_install_bytes: {type: integer, minimum: 0}
+        predicted_inode_growth: {type: integer, minimum: 0}
+    ReleasePreflightResult:
+      type: object
+      additionalProperties: false
+      required: [decision, snapshot_id, policy_revision, cleanup_dispatched, secrets_included]
+      properties:
+        decision: {enum: [allow, allow_with_attention, block]}
+        snapshot_id: {type: string}
+        policy_revision: {type: string}
+        reason_codes: {type: array, items: {type: string}}
+        cleanup_dispatched: {const: false}
+        secrets_included: {const: false}
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, error, secrets_included]
+      properties:
+        ok: {const: false}
+        operation_id: {type: [string, 'null']}
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code: {type: string, minLength: 1, maxLength: 128}
+            message: {type: string, minLength: 1, maxLength: 1000}
+            retryable: {type: boolean}
+            details: {type: object}
+        secrets_included: {const: false}

@@ -1,0 +1,51 @@
+name: Hostinger Storage SQL Parent Writer Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-sql-parent-writer.json'
+      - '.github/contracts/spec014/hostinger-storage-sql-parent-writer.json'
+      - '.github/workflows/hostinger-storage-sql-parent-writer-guard.yml'
+      - 'http-generic-api/hostingerStorageSqlParentWriter.js'
+      - 'http-generic-api/test-hostinger-storage-sql-parent-writer.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  sql-parent-writer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check parent writer syntax
+        run: |
+          node --check http-generic-api/hostingerStorageSqlParentWriter.js
+          node --check http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+      - name: Validate parent writer transaction contract
+        run: node http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+      - name: Preserve unmounted non-apply boundary
+        run: |
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/migrations/'
+          ! printf '%s\n' "$changed_files" | grep -E '(^|/)(db\.js|server\.js|routes/index\.js|hostingerStorageSqlPersistenceAdapter\.js)$'
+          ! grep -E '\b(governed_migration_execute|bootstrapGovernedMigrationAuthorization|getPool|providerDispatch|dispatchProvider)\b' \
+            http-generic-api/hostingerStorageSqlParentWriter.js \
+            http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+          ! git diff "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
+            | grep -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|"(password|secret_value|private_key|access_token|refresh_token)"[[:space:]]*:'
+          grep -q 'foreign_keys_enabled_by_this_change": false' .github/contracts/spec014/hostinger-storage-sql-parent-writer.json
+          grep -q 'runtime_mounted": false' .github/contracts/spec014/hostinger-storage-sql-parent-writer.json
+          grep -q 'live_database_access_performed: false' http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+          grep -q 'migration_apply_performed: false' http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+          grep -q 'provider_dispatch_performed: false' http-generic-api/test-hostinger-storage-sql-parent-writer.mjs
+          grep -q 'production_ready: false' http-generic-api/test-hostinger-storage-sql-parent-writer.mjs

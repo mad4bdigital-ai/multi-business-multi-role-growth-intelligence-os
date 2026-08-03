@@ -1,0 +1,148 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-tenant-canary-canonical-evidence",
+  "title": "Spec 014 Tenant Canary Canonical Structured Evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
+      ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+      "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+      "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish one exact-head, secret-free canonical JSON/Markdown Tenant Canary artifact while retaining all synthetic, provenance, not-before, ordering, and regression coverage under the canonical GitHub Actions workflow path.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-canary-guard-to-canonical-artifact",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 reviewer and repository evidence publisher",
+          "entrypoint": "The fixed-command Tenant Canary canonical runner and the canonical-path Hostinger Storage Tenant Canary Guard",
+          "terminal_outcome": "The exact PR head executes all eight guard checks, writes a run-bound canonical report with bounded diagnostics, and returns an enforceable pass/fail decision without reconstructing status from Job logs.",
+          "steps": [
+            "Validate the producer/report contract and workflow safety boundary.",
+            "Execute the canonical Tenant Canary runner directly under E2E governance on the exact PR head.",
+            "Run deterministic dependency installation, syntax, synthetic boundary, Base import, runtime provenance, policy not-before, pre-consumption ordering, and the complete Tenant Canary regression suite.",
+            "Redact and bound stdout/stderr tails before storing structured results.",
+            "Write mad4b.hostinger-guard-summary.v1 JSON and Markdown before returning the guard result.",
+            "Upload both files with if:always under a run-bound Artifact name when the canonical-path workflow is scheduled.",
+            "Validate exact SHA, counts, results, first failure, integrity findings, no-secret declaration, no-log decision, and no-mutation/provider/credential declarations before enforcing the outcome."
+          ],
+          "assertions": [
+            "The workflow remains named Hostinger Storage Tenant Canary Guard and is stored at the canonical workflow path.",
+            "The report workflow and guard_key identify Hostinger Storage Tenant Canary Guard and hostinger-storage-tenant-canary.",
+            "The candidate kind is head and candidate SHA equals the exact pull-request head.",
+            "All eight fixed checks execute successfully under the current E2E journey.",
+            "A passed report has eight passes, zero failures, zero integrity findings, and first_failure=null.",
+            "A failed report identifies the first failed check and includes only bounded redacted diagnostics.",
+            "The workflow retains contents:read and receives no issue, pull-request, action, or repository write authority.",
+            "The workflow has no workflow_dispatch, git push, force push, provider call, Hostinger/SSH access, credential access, SQL, migration, deployment, or Production mutation.",
+            "repository_mutation_performed, provider_dispatch_performed, credential_access_performed, job_logs_consulted, and secrets_included remain false.",
+            "Trusted PR-comment publication requires the run-bound canonical Artifact to be consumed by the main-based CI Evidence PR Publisher for the same exact head."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-canonical-report-producer-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-tenant-canary-ci.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-canary-canonical-eight-check-execution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/hostinger-tenant-canary-ci.mjs",
+              "args": [
+                "--report-dir",
+                ".ci-evidence/e2e-tenant-canary"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+            "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Exact-head publication is proven on PR #4660 at SHA ec230596a071f1dad7857284d43b9d903f9204a5 and again at SHA 4481b37543ca3ff7c6c24b535fed9eebccadab56: Tenant Canary produced mad4b.hostinger-guard-summary.v1 with 8/8 passed and zero findings; E2E triggered the trusted fallback; the shared authoritative comment published both sections with the same SHA, Job logs diagnostic-only, and no secret, provider, credential, repository, SQL, migration, deployment, or Production action.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-canary-operational-publication-proof",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 integration reviewer",
+          "entrypoint": "The exact-head Tenant Canary producer contract and fixed eight-check runner after trusted fallback publication has been recorded",
+          "terminal_outcome": "The operational contract remains executable: the producer schema is valid, all eight Tenant Canary checks pass on the candidate head, and the recorded trusted publication evidence binds E2E and Tenant sections to one exact SHA.",
+          "steps": [
+            "Revalidate the canonical report producer and workflow safety contract.",
+            "Execute the fixed Tenant Canary eight-check runner on the exact candidate head.",
+            "Require eight passes, zero failures, zero integrity findings, first_failure=null, secrets_included=false, and job_logs_consulted=false.",
+            "Retain the recorded authoritative-comment evidence for runs 30729924136/30729924130 and 30730011066/30730011073 on their matching exact heads."
+          ],
+          "assertions": [
+            "The operational proof is supported by two independent exact-head publication cycles.",
+            "The current executable runner still selects exactly eight checks and all eight pass.",
+            "The producer and runner perform no provider dispatch, credential access, repository mutation, SQL, migration, deployment, or Production action.",
+            "The authoritative comment remains derived from canonical Artifacts and Job logs remain diagnostic-only."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canary-operational-producer-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-tenant-canary-ci.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-canary-operational-eight-check-execution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/hostinger-tenant-canary-ci.mjs",
+              "args": [
+                "--report-dir",
+                ".ci-evidence/e2e-tenant-canary-operational"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-tenant-canary-canonical-evidence.json",
+            ".github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml",
+            "http-generic-api/scripts/hostinger-tenant-canary-ci.mjs",
+            "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise dependency-install failure, malformed report output, artifact absence, stale remote head, cancelled runs, exact-head discovery absence, branch mismatch, and publisher retry behavior while preserving canonical-first diagnosis."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The change reports a synthetic CI guard and does not execute a live Hostinger canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The change grants no provider dispatch, deployment, migration, Production promotion, or Production mutation authority."
+    }
+  ]
+}

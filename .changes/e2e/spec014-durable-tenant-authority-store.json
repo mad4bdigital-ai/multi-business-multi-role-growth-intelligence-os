@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-tenant-authority-store",
+  "title": "Spec 014 Durable Tenant Authority Store",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-tenant-authority-store.json",
+      ".github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json",
+      ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql",
+      ".github/workflows/hostinger-storage-durable-tenant-authority-store-guard.yml",
+      "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
+      "http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement an unmounted async SQL authority store for Tenant-exclusive allowlists and Workspace Owner approvals while retaining migration and mount boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-authority-current-state-cas-and-token-history",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable bridge reviewer",
+          "entrypoint": "Hostinger Storage Durable Tenant Authority Store Guard",
+          "terminal_outcome": "Allowlists and approvals support exact registration replay, bounded CAS updates, immutable token-history enforcement, readback, rollback, and export without route mount, provider dispatch, or migration apply.",
+          "steps": [
+            "Require signed schema verification bound to the exact three-table authority-store contract and exact deployed runtime parity.",
+            "Create the canonical store without opening a database connection or exposing the raw pool.",
+            "Register a Tenant-exclusive allowlist and persist its initial revision token in immutable history.",
+            "Replay the exact allowlist while rejecting an ID collision with different evidence.",
+            "Advance allowlist revisions through row-version CAS and reject a previously used revision token with rollback.",
+            "Register and replay a Workspace Owner approval, then advance its evidence token through CAS.",
+            "Reject reused approval evidence, shared/platform scope, unsafe fields, and non-Workspace-Owner approval authority.",
+            "Export a secret-free durable snapshot while runtime, route, worker, provider, migration, and production flags remain false."
+          ],
+          "assertions": [
+            "Current authority rows and immutable token history are written in one transaction under the shared advisory lock.",
+            "Every insert and update requires exact same-transaction readback.",
+            "Allowlist revisions and approval evidence digests can never be reused after replacement.",
+            "The contract-local DDL is not placed in the runtime migration directory or promoted into Wave 1 through Wave 3.",
+            "The current synchronous memory-only Tenant Canary is not modified and compatibility remains false.",
+            "No route, server, worker, provider, Hostinger, deployment, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-durable-tenant-authority-store",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-tenant-authority-store.json",
+            ".github/contracts/spec014/sql/hostinger-storage-durable-tenant-authority-store.sql",
+            "http-generic-api/hostingerStorageDurableTenantAuthorityStore.js",
+            "http-generic-api/test-hostinger-storage-durable-tenant-authority-store.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Promote and apply the schema through a separately authorized migration cycle, capture signed live readback, and connect the store through the async Tenant runtime bridge.",
+      "blockers": [
+        "The contract-local DDL has not been promoted into a checksum-bound runtime migration sequence.",
+        "No live migration authorization, dry-run, apply, or same-cycle table/index/constraint readback exists.",
+        "No signed live authority-store schema verification exists.",
+        "The current Tenant Canary remains synchronous and memory-factory-owned.",
+        "No route or worker mount authorization exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove restart reconstruction, concurrent CAS conflicts, interrupted token-history writes, stale readback cycles, and durable revocation behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This slice does not execute a live Tenant or database canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production schema apply, runtime mount, and provider dispatch remain separately governed and blocked."
+    }
+  ]
+}

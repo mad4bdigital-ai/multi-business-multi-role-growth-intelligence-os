@@ -1,0 +1,134 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "frontend-generator-structured-contract",
+  "title": "Frontend Generator Structured Contract Evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/frontend-generator-structured-contract.json",
+      ".github/workflows/frontend-surface-dispatch.yml",
+      "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Run every frontend generator and OpenAPI contract independently, publish a run-bound no-log summary, and enforce the combined decision only after every outcome is captured.",
+      "e2e_journeys": [
+        {
+          "id": "frontend-generator-contract-to-structured-decision",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository CI reviewer",
+          "entrypoint": "Frontend surface dispatch pull-request workflow",
+          "terminal_outcome": "Each generator, parity, route, auth-sync, and deterministic-output contract has an independently attributable outcome in a run-bound secret-free Artifact before the workflow passes or fails.",
+          "steps": [
+            "Generate the source-pinned frontend dispatch plan from the canonical default-branch baseline.",
+            "Run the workflow baseline, operation generator, surface dispatch, auth parity, route coverage, and OpenAPI auth synchronization contracts independently.",
+            "Check committed deterministic generated output independently.",
+            "Build one bounded summary containing only check IDs, outcomes, exact candidate SHA, and safety declarations.",
+            "Upload the summary with a run-bound Artifact name.",
+            "Fail once at the final decision step when any captured outcome is not successful."
+          ],
+          "assertions": [
+            "The original Verify generator contract marker remains present for baseline semantics.",
+            "No individual contract short-circuits collection of later outcomes.",
+            "The summary contract is mad4b.frontend-generator-contract-summary.v1.",
+            "The summary declares consult_job_logs=false, repository_mutation=false, and secrets_included=false.",
+            "Generator implementations and committed generated outputs are unchanged by this governance repair.",
+            "No runtime, provider, credential, migration, deployment, main, or Production authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "frontend-dispatch-workflow-baseline",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-operation-governance-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-dispatch",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-route-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-route-coverage.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-auth-sync-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/openapi-runtime-auth-sync.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "frontend-operation-generated-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/frontend-operation-governance-generator.mjs",
+              "args": ["--check"]
+            },
+            {
+              "id": "frontend-dispatch-generated-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/frontend-surface-dispatch.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/frontend-generator-structured-contract.json",
+            ".github/workflows/frontend-surface-dispatch.yml",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish the structured frontend generator decision into the shared trusted PR evidence comment."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain individual outcomes across runner cancellation and generated-refresh synchronization races."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository CI governance repair performs no live canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no deployment or Production authority."
+    }
+  ]
+}

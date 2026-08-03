@@ -52,6 +52,20 @@ jobs:
           node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
           node http-generic-api/scripts/test-ci-evidence-router.mjs
           node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const workflow = fs.readFileSync('.github/workflows/e2e-phase-governance.yml', 'utf8');
+          const runIdExpression = '$' + '{{ github.run_id }}';
+          const sourceOnlyPattern = `pattern: e2e-phase-e*-${runIdExpression}`;
+          const selfContaminatingPattern = `pattern: e2e-phase-*-${runIdExpression}`;
+          assert.equal(workflow.includes(sourceOnlyPattern), true, 'The canonical summarizer must download only evaluation/execution source artifacts.');
+          assert.equal(workflow.includes(selfContaminatingPattern), false, 'The canonical summarizer must not redownload its own prior summary artifact on a rerun.');
+          assert.equal(workflow.includes(`name: e2e-phase-evaluation-${runIdExpression}`), true, 'Evaluation evidence must retain the governed artifact name.');
+          assert.equal(workflow.includes(`name: e2e-phase-execution-${runIdExpression}`), true, 'Execution evidence must retain the governed artifact name.');
+          assert.equal(workflow.includes(`name: e2e-phase-summary-${runIdExpression}`), true, 'Canonical summaries must remain a separate output artifact.');
+          console.log(JSON.stringify({ ok: true, test: 'e2e_phase_artifact_routing', rerun_summary_self_contamination_blocked: true, secrets_included: false }));
+          NODE
 
       - name: Classify and validate parallel PR mode
         id: parallel
@@ -203,7 +217,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          pattern: e2e-phase-*-${{ github.run_id }}
+          pattern: e2e-phase-e*-${{ github.run_id }}
           path: ${{ runner.temp }}/e2e-phase-reports
           merge-multiple: true
 

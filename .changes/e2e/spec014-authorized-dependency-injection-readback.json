@@ -1,0 +1,132 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-authorized-dependency-injection-readback",
+  "title": "Authorized Tenant runtime dependency injection, exact readback, restart reconciliation, and rollback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-authorized-dependency-injection-readback.json",
+      ".github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json",
+      ".github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml",
+      "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+      "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+      "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Inject only a canonical consumed authorized-mount bundle into an immutable Tenant route dependency snapshot, keep the route fail-closed until exact readback verifies runtime identity, and preserve all non-provider and non-production boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "inject-authorized-runtime-only-after-exact-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed Spec 014 dependency injection coordinator",
+          "entrypoint": "A canonical authorized mount bundle from the durable one-shot executor",
+          "terminal_outcome": "The immutable route dependency snapshot exposes the exact synthetic-only tenantStorageRuntime only after receipt-bound readback verifies object identity; before readback the Tenant route returns HTTP 503.",
+          "steps": [
+            "Reject policy overrides, unbranded bundles, unsafe fields, digest drift, runtime SHA drift, and authorization-generation drift.",
+            "Create one immutable dependency snapshot with a non-enumerable, non-configurable, non-writable tenantStorageRuntime property.",
+            "Record an injection receipt without modifying the live server, route registry, worker, provider, database, or deployment surface.",
+            "Keep resolveRouteDependencies fail-closed until the exact injection receipt and mount bundle digests are read back.",
+            "Verify the dependency descriptor, frozen snapshot, exact runtime object identity, synthetic-only flag, provider-dispatch denial, and production denial.",
+            "Resolve the verified dependency snapshot and prove the existing Tenant route moves from runtime-unavailable HTTP 503 to its bounded request validator without executing provider work."
+          ],
+          "assertions": [
+            "A non-canonical copied bundle is rejected.",
+            "Only one active injection slot is allowed.",
+            "Before exact readback, no tenantStorageRuntime dependency is returned and the route responds with storage_tenant_runtime_unavailable.",
+            "After exact readback, the resolved property value is the same runtime object held by the canonical mount bundle.",
+            "The route dependency snapshot is frozen and the runtime descriptor is non-enumerable, non-configurable, and non-writable.",
+            "No live server or live route registration mutation occurs.",
+            "No provider dispatch, Hostinger access, SSH access, credential access, migration, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "authorized-dependency-injection-readback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json",
+            "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+            "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Persist injection receipt and verified readback through a separately governed durable runtime composition without granting live provider or deployment authority."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Reconstruct the verified dependency snapshot after restart without consuming authorization again, and rollback to the fail-closed HTTP 503 state using the exact active readback digest.",
+      "e2e_journeys": [
+        {
+          "id": "resume-and-rollback-authorized-dependency-without-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "restart reconciliation and rollback controller",
+          "entrypoint": "A serialized injection receipt, serialized verified mount readback, and the reconstructed canonical authorized mount bundle",
+          "terminal_outcome": "Restart reconciliation reproduces the identical readback digest without a second authorization consumption, and rollback removes route dependencies so the Tenant route returns HTTP 503 again.",
+          "steps": [
+            "Verify serialized receipt and readback contracts and recompute their SHA-256 digests.",
+            "Bind authorization, mount bundle, dependency manifest, runtime SHA, source commit, database fingerprint, schema evidence, and readback cycle.",
+            "Recreate the immutable route dependency descriptor from the canonical mount bundle.",
+            "Require the reconstructed readback digest to equal the persisted digest exactly.",
+            "Reject rollback unless it references the exact active verified readback.",
+            "Remove the active dependency snapshot and restore the default runtime-unavailable HTTP 503 response.",
+            "Reject rollback replay and leave automatic retry disabled."
+          ],
+          "assertions": [
+            "Restart reconciliation performs no second durable authorization consumption.",
+            "The reconstructed mount readback digest is identical to the original digest.",
+            "Rollback sets dependency_injected, runtime_mounted, and route_mounted to false.",
+            "Rollback restores fail_closed_route_restored=true and HTTP 503 storage_tenant_runtime_unavailable.",
+            "Rollback replay is rejected.",
+            "Automatic retry, worker mount, provider dispatch, production readiness, and secrets remain false."
+          ],
+          "tests": [
+            {
+              "id": "authorized-dependency-injection-restart-and-rollback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageAuthorizedDependencyInjection.js",
+            "http-generic-api/test-hostinger-storage-authorized-dependency-injection.mjs",
+            ".github/contracts/spec014/hostinger-storage-authorized-dependency-injection-readback.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production route-composition canary using persisted injection and rollback evidence."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only dependency snapshot grants no deployment, provider, migration, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

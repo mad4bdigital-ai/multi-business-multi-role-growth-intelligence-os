@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-sql-child-evidence-writer.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "writer": "http-generic-api/hostingerStorageSqlChildEvidenceWriter.js",
+  "test": "http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs",
+  "parent_writer": "http-generic-api/hostingerStorageSqlParentWriter.js",
+  "shared_advisory_lock": "spec014:hostinger-storage-parent-writer",
+  "owned_child_tables": [
+    "storage_cleanup_run_items",
+    "storage_reconciliation_results"
+  ],
+  "required_parents": [
+    "storage_cleanup_runs",
+    "storage_cleanup_plan_items"
+  ],
+  "journal_contract": {
+    "deterministic_plan_item_id": true,
+    "exact_run_operation_plan_binding": true,
+    "append_only": true,
+    "contiguous_sequence": true,
+    "phase_order": ["prepared", "result", "readback"],
+    "exact_replay_only": true,
+    "same_transaction_readback": true,
+    "legacy_null_plan_item_id_blocks_append": true
+  },
+  "reconciliation_contract": {
+    "exact_run_parent_required": true,
+    "durable_journal_accounting_required": true,
+    "complete_readback_required_for_applied": true,
+    "exact_replay_only": true,
+    "same_transaction_readback": true
+  },
+  "safety_boundary": {
+    "existing_sql_adapter_modified": false,
+    "runtime_mounted": false,
+    "foreign_keys_enabled": false,
+    "migration_authorized": false,
+    "migration_applied": false,
+    "live_database_access_performed": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

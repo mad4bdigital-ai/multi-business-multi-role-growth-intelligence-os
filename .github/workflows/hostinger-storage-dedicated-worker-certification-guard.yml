@@ -1,0 +1,65 @@
+name: Hostinger Storage Dedicated Worker Certification Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-dedicated-worker-certification.json'
+      - '.github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json'
+      - '.github/workflows/hostinger-storage-dedicated-worker-certification-guard.yml'
+      - 'http-generic-api/hostingerStorageDedicatedWorkerCertification.js'
+      - 'http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-dedicated-worker-certification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dedicated-worker-certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check certification syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          node --check http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs
+
+      - name: Validate dedicated worker certification
+        run: node http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs
+
+      - name: Validate downstream bridge readiness remains fail-closed
+        run: node http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs
+
+      - name: Preserve repository-only non-dispatch boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(migrations/|server\.js$|routes/)'
+          ! grep -E "from ['\"](?:node:child_process|node:net|node:tls|ssh2)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDedicatedWorkerCertification.js \
+            http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|resolveCredentialValue|readCredentialValue|connectHostinger|sshConnect|mutateExact|readbackItem)\b' \
+            http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          grep -q 'ready_for_fixed_dispatch_certification' http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDedicatedWorkerCertification.js
+          grep -q '"worker_mounted": false' .github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json
+          grep -q '"provider_dispatch_allowed": false' .github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json
+          grep -q '"production_ready": false' .github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json

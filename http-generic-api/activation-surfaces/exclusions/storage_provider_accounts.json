@@ -1,0 +1,7 @@
+{
+  "surface_key": "storage_provider_accounts",
+  "source_table": "storage_provider_accounts",
+  "reason": "Excluded because this table is the internal ownership and provider-account registry for governed storage orchestration. Raw account references and policy revisions are not activation choices; authorized runtime projections and control-plane services remain the only supported exposure path.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

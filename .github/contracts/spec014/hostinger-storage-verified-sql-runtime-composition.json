@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-verified-sql-runtime-composition.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unmounted",
+  "composition": "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
+  "test": "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+  "composition_key": "hostinger_storage_verified_sql_runtime_composition_v1",
+  "required_components": {
+    "control_plane_repository": "canonical_mysql",
+    "sql_persistence_adapter": "canonical_mysql",
+    "execution_parent_writer": "canonical_mysql",
+    "child_evidence_writer": "canonical_mysql",
+    "sql_run_reader": "canonical_mysql_read_only"
+  },
+  "single_provenance": {
+    "signed_schema_verification_required": true,
+    "zero_blockers_required": true,
+    "exact_runtime_parity_required": true,
+    "same_evidence_digest_required": true,
+    "same_database_fingerprint_required": true,
+    "same_readback_cycle_required": true,
+    "unexpired_required": true
+  },
+  "public_facets": {
+    "control_plane": [
+      "createOperation",
+      "transitionOperation",
+      "persistImmutablePlan",
+      "appendApproval",
+      "invalidateApprovals",
+      "acquireLease",
+      "renewLease",
+      "releaseLease",
+      "consumePlan",
+      "readAggregate",
+      "exportSnapshot"
+    ],
+    "execution_parents": [
+      "registerPlanItems",
+      "startRun",
+      "finalizeRun",
+      "readRun",
+      "readPlanItems"
+    ],
+    "child_evidence": [
+      "appendJournalEvent",
+      "appendReconciliation"
+    ]
+  },
+  "duplicate_path_prevention": {
+    "raw_pool_exposed": false,
+    "raw_adapter_exposed": false,
+    "raw_repository_exposed": false,
+    "raw_parent_writer_exposed": false,
+    "raw_child_writer_exposed": false,
+    "raw_run_reader_exposed": false,
+    "legacy_repository_appendJournalEvent_exposed": false,
+    "legacy_repository_recordReconciliation_exposed": false,
+    "component_override_allowed": false,
+    "child_evidence_has_one_public_write_path": true,
+    "run_read_has_one_public_path": true,
+    "plan_item_read_has_one_public_path": true
+  },
+  "factory_boundary": {
+    "database_connection_during_creation": false,
+    "route_registration": false,
+    "worker_registration": false,
+    "server_import": false,
+    "provider_import": false,
+    "migration_execution": false,
+    "foreign_key_enablement": false
+  },
+  "safety_boundary": {
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "live_database_access_performed_by_factory": false,
+    "foreign_keys_enabled": false,
+    "migration_apply_authorized": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

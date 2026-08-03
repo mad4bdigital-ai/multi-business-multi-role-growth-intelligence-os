@@ -1,0 +1,90 @@
+{
+  "contract_key": "spec014_hostinger_storage_durable_authorized_injection_migration_candidate",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-durable-injection-migration-candidate-v1",
+  "purpose": "Create and inspect one exact additive Wave 4 migration candidate for Durable Authorized Injection State while keeping runtime-sequence promotion, dependency registration, authorization, dry-run, Apply, and live access in later separately reviewed stages.",
+  "source_identity": {
+    "integration_sha": "a67c536785f3006521664019deb2d1d3bedd94b1",
+    "promotion_readiness_pr": 4874,
+    "promotion_readiness_merge_sha": "a67c536785f3006521664019deb2d1d3bedd94b1",
+    "contract_local_ddl_path": ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+    "exact_statement_parity_required": true
+  },
+  "candidate": {
+    "wave": 4,
+    "migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+    "path": "http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+    "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+    "statement_count": 2,
+    "tables": [
+      "storage_authorized_injection_states",
+      "storage_authorized_injection_rollbacks"
+    ],
+    "additive_create_table_only": true,
+    "exact_contract_local_statement_parity": true,
+    "candidate_created": true,
+    "candidate_inspection_passed": true,
+    "secrets_included": false
+  },
+  "dependency": {
+    "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+    "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+    "statement_count": 9,
+    "required_ledger_mode": "apply",
+    "runtime_contract_identity_verified": true
+  },
+  "promotion_boundary": {
+    "runtime_sequence_promoted": false,
+    "dependency_registry_updated": false,
+    "ready_for_promotion_review": true,
+    "ready_for_authorization": false,
+    "ready_for_apply": false,
+    "next_reviewed_step": "promote_wave_4_and_register_exact_dependency"
+  },
+  "required_blockers": [
+    "SEPARATELY_REVIEWED_RUNTIME_SEQUENCE_PROMOTION_REQUIRED",
+    "DEPENDENCY_REGISTRY_UPDATE_REQUIRED",
+    "WAVE_3_APPLY_LEDGER_REQUIRED",
+    "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+    "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+    "SAME_CYCLE_DRY_RUN_REQUIRED",
+    "LIVE_SCHEMA_ABSENCE_OR_COMPATIBILITY_READBACK_REQUIRED",
+    "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
+  ],
+  "forbidden_authority": {
+    "runtime_sequence_mutation": false,
+    "dependency_registry_mutation": false,
+    "capability_envelope_resolved": false,
+    "authorization_created": false,
+    "dry_run_performed": false,
+    "migration_sql_executed": false,
+    "live_database_access_performed": false,
+    "live_schema_readback_performed": false,
+    "signed_schema_verification_created": false,
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "provider_dispatch": false,
+    "worker_mount": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "terminal_state": {
+    "candidate_created": true,
+    "candidate_inspection_passed": true,
+    "runtime_sequence_promoted": false,
+    "dependency_registry_updated": false,
+    "migration_apply_authorized": false,
+    "migration_sql_executed": false,
+    "schema_verified_in_live_database": false,
+    "runtime_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false,
+    "secrets_included": false
+  },
+  "secrets_included": false
+}

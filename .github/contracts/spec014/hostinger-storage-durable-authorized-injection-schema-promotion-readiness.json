@@ -1,0 +1,79 @@
+{
+  "contract_key": "spec014_hostinger_storage_durable_authorized_injection_schema_promotion_readiness",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-durable-injection-schema-promotion-readiness-v1",
+  "purpose": "Verify that the exact contract-local Durable Authorized Injection State DDL is structurally ready to become a separately reviewed checksum-bound migration candidate without creating, promoting, authorizing, or applying that migration.",
+  "source_identity": {
+    "integration_sha": "3a1cc69846ecc2a2984c3fd0d7fefdde1c0bab13",
+    "ddl_contract_path": ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+    "ddl_blob_sha": "f0a5803ef185556338a5dc4cd7b820861c1e797f",
+    "state_contract_path": ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json",
+    "exact_source_binding_required": true
+  },
+  "repository_inspection": {
+    "canonical_statement_parser_required": true,
+    "statement_count": 2,
+    "tables": [
+      "storage_authorized_injection_states",
+      "storage_authorized_injection_rollbacks"
+    ],
+    "state_before_rollback": true,
+    "foreign_key_order_verified": true,
+    "additive_create_table_only": true,
+    "destructive_or_data_mutating_sql_allowed": false,
+    "runtime_material_persisted": false,
+    "secrets_included": false
+  },
+  "readiness": {
+    "contract_local_ddl_verified": true,
+    "ready_for_migration_candidate": true,
+    "ready_for_runtime_sequence_promotion": false,
+    "ready_for_authorization": false,
+    "ready_for_apply": false,
+    "readiness_state": "repository_contract_verified_promotion_not_authorized",
+    "next_reviewed_step": "create_checksum_bound_migration_candidate"
+  },
+  "required_blockers": [
+    "SEPARATELY_REVIEWED_MIGRATION_CANDIDATE_REQUIRED",
+    "RUNTIME_MIGRATION_SEQUENCE_PROMOTION_REQUIRED",
+    "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+    "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+    "SAME_CYCLE_DRY_RUN_REQUIRED",
+    "LIVE_SCHEMA_ABSENCE_OR_COMPATIBILITY_READBACK_REQUIRED",
+    "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
+  ],
+  "forbidden_authority": {
+    "migration_candidate_created": false,
+    "governed_runtime_migration_promoted": false,
+    "capability_envelope_resolved": false,
+    "authorization_created": false,
+    "dry_run_performed": false,
+    "migration_sql_executed": false,
+    "live_database_access_performed": false,
+    "live_schema_readback_performed": false,
+    "signed_schema_verification_created": false,
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "provider_dispatch": false,
+    "worker_mount": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "terminal_state": {
+    "repository_contract_verified": true,
+    "migration_candidate_created": false,
+    "migration_apply_authorized": false,
+    "migration_sql_executed": false,
+    "schema_verified_in_live_database": false,
+    "runtime_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false,
+    "secrets_included": false
+  },
+  "secrets_included": false
+}

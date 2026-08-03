@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_durable_mount_authorization_registry_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "durable_mount_authorization_registry",
+  "capability_status": "implemented_unmounted_schema_unapplied",
+  "purpose": "Persist verified Separate Mount Authorization packets with exact runtime and operation bindings, one-shot generation CAS, immutable consumption receipts, and no automatic retry or mount side effect.",
+  "registry": {
+    "adapter_key": "hostinger_storage_mysql_mount_authorization_v1",
+    "registry_version": "spec014-hostinger-storage-durable-mount-authorization-registry-v1",
+    "durable_sql": true,
+    "async_only": true,
+    "one_shot": true,
+    "generation_cas": true,
+    "immutable_consumption_receipt": true,
+    "automatic_retry_allowed": false,
+    "mount_execution_allowed_by_factory": false,
+    "factory_database_connections": 0,
+    "raw_pool_exposed": false
+  },
+  "schema_contract": {
+    "contract_key": "hostinger_storage_durable_mount_authorization_registry_schema_v1",
+    "ddl_path": ".github/contracts/spec014/sql/hostinger-storage-durable-mount-authorization-registry.sql",
+    "runtime_migration_path": false,
+    "promoted_into_wave_sequence": false,
+    "migration_authorization_created": false,
+    "migration_dry_run_performed": false,
+    "migration_apply_performed": false,
+    "tables": [
+      "storage_mount_authorization_records",
+      "storage_mount_authorization_consumptions"
+    ],
+    "requires_separate_checksum_bound_promotion": true,
+    "requires_same_cycle_live_readback": true,
+    "requires_signed_schema_verification": true
+  },
+  "registration": {
+    "canonical_separate_mount_authorization_verification_required": true,
+    "ready_for_authorized_mount_execution_required": true,
+    "authorization_digest_bound": true,
+    "source_runtime_parity_required": true,
+    "database_fingerprint_bound": true,
+    "schema_verification_digest_bound": true,
+    "readback_cycle_bound": true,
+    "bridge_dispatch_worker_digests_bound": true,
+    "authorization_bundle_hash_bound": true,
+    "target_operation_plan_lease_bound": true,
+    "approval_capability_mount_policy_rollback_bound": true,
+    "route_path": "/tenant/storage-operations/apply-plan",
+    "dependency_key": "tenantStorageRuntime",
+    "initial_state": "unconsumed",
+    "exact_replay_requires_record_digest_match": true,
+    "same_transaction_readback_required": true
+  },
+  "consumption": {
+    "maximum_successful_consumptions": 1,
+    "current_row_lock_required": true,
+    "authorization_digest_match_required": true,
+    "operation_id_match_required": true,
+    "plan_id_match_required": true,
+    "expected_runtime_sha_match_required": true,
+    "expected_generation_required": true,
+    "expiry_must_be_in_future": true,
+    "executor_id_bound": true,
+    "mount_attempt_id_bound": true,
+    "current_row_cas_fields": [
+      "generation",
+      "consumed",
+      "row_version"
+    ],
+    "generation_increment": 1,
+    "immutable_receipt_required": true,
+    "same_transaction_current_and_receipt_readback_required": true,
+    "second_consumption_rejected": true,
+    "automatic_retry_allowed": false,
+    "mount_execution_may_begin_only_after_consumption": true,
+    "mount_performed_by_registry": false
+  },
+  "transactional_guarantees": [
+    "shared_advisory_lock",
+    "current_row_for_update",
+    "generation_and_row_version_compare_and_swap",
+    "immutable_consumption_receipt_insert",
+    "same_transaction_exact_readback",
+    "rollback_on_any_mismatch",
+    "orphan_or_duplicate_receipt_rejected"
+  ],
+  "public_methods": [
+    "register",
+    "read",
+    "readConsumption",
+    "consume",
+    "exportState"
+  ],
+  "integration_boundary": {
+    "tenant_runtime_changed": false,
+    "route_files_modified": false,
+    "server_files_modified": false,
+    "authorization_persisted_in_live_database": false,
+    "mount_performed": false,
+    "dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "next_capability": "authorized_mount_executor",
+  "non_goals": {
+    "live_database_access": false,
+    "migration_promotion": false,
+    "migration_authorization": false,
+    "migration_apply": false,
+    "mount_execution": false,
+    "route_mount": false,
+    "worker_mount": false,
+    "provider_dispatch": false,
+    "hostinger_access": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "database_calls_during_factory_creation": 0,
+    "provider_calls": 0,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "runtime_migration_files_modified": 0,
+    "secrets_included": false
+  }
+}

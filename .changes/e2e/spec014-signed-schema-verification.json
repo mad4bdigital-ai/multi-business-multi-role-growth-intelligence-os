@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-signed-schema-verification",
+  "title": "Spec 014 Signed Schema Verification Contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-signed-schema-verification.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
+      ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql",
+      ".github/workflows/hostinger-storage-schema-verification-guard.yml",
+      "http-generic-api/hostingerStorageSchemaVerification.js",
+      "http-generic-api/test-hostinger-storage-schema-verification.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Refresh the fail-closed Ed25519 schema attestation so it binds all four governed migrations, including Durable Authorized Injection State, and the exact version-4 same-cycle readback without accessing a live database or committing signing material.",
+      "e2e_journeys": [
+        {
+          "id": "four-wave-readback-to-verified-schema-attestation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed schema verifier",
+          "entrypoint": "Hostinger Storage Schema Verification Guard",
+          "terminal_outcome": "A synthetically signed exact schema subject verifies only when all four migration ledger rows, version-4 readback counts, runtime parity, database identity, signer policy, public-key fingerprint, and freshness match; production readiness and operational authority remain false.",
+          "steps": [
+            "Build a canonical secret-free schema subject from the four exact governed migration ledger rows.",
+            "Bind the subject to the exact repository source commit and deployed runtime SHA.",
+            "Bind version-4 same-cycle readback to 17 compatible tables, three views, 68 runtime columns, 31 index positions, and three disabled tools.",
+            "Require the two Durable Authorized Injection tables and their state, rollback, digest, uniqueness, and foreign-key surfaces in the readback contract.",
+            "Hash the normalized migration and readback evidence independently before hashing the complete subject.",
+            "Generate an ephemeral Ed25519 key pair inside the test process and sign only the canonical signature payload.",
+            "Verify the signature with the public JWK and require the exact allowed key fingerprint, signer identity, issuer, freshness, signing delay, and readback duration.",
+            "Reject the retired version-3 readback identity, a three-wave ledger, Wave 4 non-apply evidence, private JWK input, tampered subjects, invalid signatures, stale evidence, runtime drift, database mismatch, incomplete readback, and sensitive fields.",
+            "Prove no live database access, migration execution, provider dispatch, deployment, Production mutation, authority grant, or committed private key occurred."
+          ],
+          "assertions": [
+            "Schema verification becomes true only after a valid Ed25519 signature over the exact canonical subject digest.",
+            "All four migration filenames, checksums, statement counts, apply modes, success statuses, and ledger evidence digests are required.",
+            "The readback contract identity is spec014_hostinger_storage_migration_readback_v4 and the retired v3 identity fails closed.",
+            "Runtime source and deployed SHA parity is mandatory when the policy requires it.",
+            "Readback must prove all 17 expected tables, three views, 68 runtime columns, 31 index positions, and default-off tools with zero provider calls, protected payload reads, external writes, or secrets.",
+            "A valid schema signature does not set production_ready, grant authority, authorize migration apply, or permit provider dispatch.",
+            "No private key material or live schema evidence is committed by this change."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-signed-schema-verification",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-schema-verification.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageSchemaVerification.js",
+            "http-generic-api/test-hostinger-storage-schema-verification.mjs",
+            ".github/contracts/spec014/hostinger-storage-schema-verification.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification-attestation.schema.json",
+            ".github/contracts/spec014/hostinger-storage-schema-verification-readback-v4.sql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "Operational signing requires a separately governed signer and live same-cycle database readback after all four migrations have exact Apply ledger evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Signer rotation, transparency logging, and retry handling belong to the later operational signing vehicle."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database or provider canary is executed by this contract refresh."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production schema verification remains false until live Apply, version-4 same-cycle readback, and an authorized external signature complete."
+    }
+  ]
+}

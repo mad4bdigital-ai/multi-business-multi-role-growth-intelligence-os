@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "registry_key": "hostinger_storage_open_source_toolchain_v1",
+  "selection_mode": "capability_negotiated_fail_closed",
+  "authority": {
+    "platform_policy_remains_authoritative": true,
+    "external_tools_never_grant_authority": true,
+    "filesystem_paths_are_evidence_not_authority": true,
+    "freeform_shell": false,
+    "user_supplied_argv": false,
+    "provider_dispatch_default_off": true
+  },
+  "resource_budgets": {
+    "inventory_timeout_seconds": 900,
+    "duplicate_scan_timeout_seconds": 1800,
+    "backup_timeout_seconds": 7200,
+    "verification_timeout_seconds": 7200,
+    "max_stdout_bytes": 8388608,
+    "max_stderr_bytes": 1048576,
+    "max_candidate_records": 10000,
+    "max_parallel_io": 2,
+    "target_temp_bytes": 0
+  },
+  "risk_profiles": {
+    "read_only": {
+      "checkpoint_required": false,
+      "signed_plan_required": false,
+      "approval_required": false
+    },
+    "tenant_low": {
+      "checkpoint_required": false,
+      "signed_plan_required": true,
+      "approval_required": true
+    },
+    "tenant_high": {
+      "checkpoint_required": true,
+      "restore_sample_required": true,
+      "signed_plan_required": true,
+      "approval_required": true,
+      "execution_lease_required": true
+    },
+    "platform_or_shared": {
+      "checkpoint_required": true,
+      "replica_verification_required": true,
+      "restore_sample_required": true,
+      "signed_plan_required": true,
+      "approval_required": true,
+      "execution_lease_required": true,
+      "impact_set_required": true
+    }
+  },
+  "operation_phases": [
+    "authority_preflight",
+    "transport_attestation",
+    "inventory",
+    "policy_evaluation",
+    "recovery_checkpoint",
+    "immutable_plan",
+    "plan_attestation",
+    "approval_and_lease",
+    "fixed_dispatch",
+    "same_operation_readback",
+    "replica_verification",
+    "outcome_reconciliation"
+  ],
+  "tools": {
+    "openssh": {
+      "role": "pinned_transport",
+      "required_for": ["live_provider_read", "live_provider_write"],
+      "minimum_version": "8.4.0",
+      "executables": ["ssh", "sftp"],
+      "allowed_actions": ["probe", "fixed_exec", "sftp_batch"],
+      "denied_options": ["StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null", "ForwardAgent=yes"],
+      "required_options": ["BatchMode=yes", "StrictHostKeyChecking=yes", "IdentitiesOnly=yes", "ForwardAgent=no"],
+      "binary_digest_required": true,
+      "mutates_target": false
+    },
+    "posix_core": {
+      "role": "baseline_inventory_and_revalidation",
+      "required_for": ["offline_test", "live_provider_read", "live_provider_write"],
+      "minimum_version": "0.0.0",
+      "executables": ["find", "stat", "du", "df", "sha256sum", "sort"],
+      "allowed_actions": ["inventory", "inode_inventory", "candidate_revalidation", "checksum"],
+      "binary_digest_required": false,
+      "mutates_target": false
+    },
+    "ncdu": {
+      "role": "streaming_inventory_accelerator",
+      "required_for": [],
+      "minimum_version": "1.16.0",
+      "executables": ["ncdu"],
+      "allowed_actions": ["export_inventory"],
+      "read_only": true,
+      "output_mode": "stdout_json_export",
+      "target_state_creation_allowed": false,
+      "binary_digest_required": true,
+      "mutates_target": false
+    },
+    "fclones": {
+      "role": "duplicate_advisory",
+      "required_for": [],
+      "minimum_version": "0.34.0",
+      "executables": ["fclones"],
+      "allowed_actions": ["group_json"],
+      "denied_actions": ["remove", "move", "link", "dedupe"],
+      "read_only": true,
+      "cache_allowed": false,
+      "binary_digest_required": true,
+      "mutates_target": false
+    },
+    "restic": {
+      "role": "encrypted_recovery_checkpoint",
+      "required_for": ["tenant_high", "platform_or_shared"],
+      "minimum_version": "0.17.0",
+      "executables": ["restic"],
+      "allowed_actions": ["backup_checkpoint", "snapshot_list", "repository_check", "restore_sample", "snapshot_diff"],
+      "denied_actions": ["forget", "prune", "rewrite", "repair", "unlock"],
+      "repository_backends": ["sftp", "s3", "rest", "rclone"],
+      "sensitive_value_in_argv": false,
+      "binary_digest_required": true,
+      "mutates_target": false,
+      "mutates_backup_repository": true
+    },
+    "rclone": {
+      "role": "remote_replica_and_integrity_verification",
+      "required_for": [],
+      "minimum_version": "1.65.0",
+      "executables": ["rclone"],
+      "allowed_actions": ["copy_evidence", "check_replica", "cryptcheck_replica"],
+      "denied_actions": ["sync", "move", "delete", "deletefile", "purge", "cleanup", "dedupe"],
+      "binary_digest_required": true,
+      "mutates_target": false,
+      "mutates_external_replica": true
+    },
+    "opa": {
+      "role": "policy_conformance_oracle",
+      "required_for": [],
+      "minimum_version": "1.0.0",
+      "executables": ["opa"],
+      "allowed_actions": ["eval_bundle", "test_bundle", "build_signed_bundle"],
+      "runtime_mode": "shadow_until_parity_certified",
+      "decision_logs_must_be_redacted": true,
+      "binary_digest_required": true,
+      "mutates_target": false
+    },
+    "cosign": {
+      "role": "plan_and_evidence_attestation",
+      "required_for": ["tenant_low", "tenant_high", "platform_or_shared"],
+      "minimum_version": "2.4.0",
+      "executables": ["cosign"],
+      "allowed_actions": ["sign_blob_bundle", "verify_blob_bundle"],
+      "signature_envelope": "sigstore_bundle_or_dsse",
+      "key_modes": ["github_oidc_keyless", "kms", "hardware_token"],
+      "binary_digest_required": true,
+      "mutates_target": false
+    },
+    "opentelemetry": {
+      "role": "trace_metric_log_correlation",
+      "required_for": [],
+      "minimum_version": "1.0.0",
+      "executables": [],
+      "allowed_actions": ["emit_span", "emit_metric", "emit_redacted_event"],
+      "required_attributes": ["operation.id", "operation.key", "tenant.id", "workspace.id", "resource.id", "plan.hash", "policy.revision", "tool.id", "tool.version", "outcome.classification"],
+      "sensitive_attributes_denied": true,
+      "binary_digest_required": false,
+      "mutates_target": false
+    }
+  },
+  "selection_rules": {
+    "inventory": ["ncdu", "posix_core"],
+    "inode_inventory": ["posix_core"],
+    "duplicate_advisory": ["fclones"],
+    "transport": ["openssh"],
+    "checkpoint": ["restic"],
+    "replica_verification": ["rclone", "restic"],
+    "policy_conformance": ["opa"],
+    "attestation": ["cosign"],
+    "telemetry": ["opentelemetry"]
+  },
+  "critical_inode_mode": {
+    "target_file_creation_forbidden": true,
+    "target_cache_forbidden": true,
+    "inventory_must_stream_to_stdout": true,
+    "reserve_release_uses_dedicated_exact_unlink_path": true,
+    "generic_toolchain_reserve_release_forbidden": true,
+    "automatic_retry_forbidden": true
+  },
+  "secrets_included": false
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-authorized-mount-executor",
+  "title": "Spec 014 Authorized Mount Executor",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-authorized-mount-executor.json",
+      ".github/contracts/spec014/hostinger-storage-authorized-mount-executor.json",
+      ".github/workflows/hostinger-storage-authorized-mount-executor-guard.yml",
+      "http-generic-api/hostingerStorageAuthorizedMountExecutor.js",
+      "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Consume one durable mount authorization and construct the exact canonical synthetic-only tenantStorageRuntime dependency bundle without injecting it into the live route.",
+      "e2e_journeys": [
+        {
+          "id": "consume-authorization-and-build-runtime-bundle",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 authorized mount executor",
+          "entrypoint": "Hostinger Storage Authorized Mount Executor Guard",
+          "terminal_outcome": "The one-shot authorization is durably consumed and a canonical non-enumerable tenantStorageRuntime bundle becomes ready for a separately governed dependency-injection step.",
+          "steps": [
+            "Validate the canonical durable authorization registry and verified SQL runtime composition.",
+            "Bind the fixed dependency manifest to the authorization mount-policy fingerprint.",
+            "Read the unconsumed authorization and prove runtime, database, schema, readback, operation, plan, generation, and expiry parity.",
+            "Consume the authorization exactly once and verify the immutable receipt.",
+            "Create the canonical durable repository facade and synthetic-only Tenant runtime.",
+            "Return a frozen mount bundle while leaving dependency injection and route mount false."
+          ],
+          "assertions": [
+            "Factory creation performs no SQL connection and no Tenant runtime execution.",
+            "The raw registry, composition, and repository are not exposed.",
+            "The runtime package loader may use only the canonical synthetic adapter and durable Tenant authority components with the same database fingerprint.",
+            "The route, server, worker, provider, and Production boundaries remain unchanged.",
+            "No automatic retry is available after authorization consumption."
+          ],
+          "tests": [
+            {
+              "id": "authorized-mount-executor-lifecycle",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageAuthorizedMountExecutor.js",
+            "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs",
+            ".github/contracts/spec014/hostinger-storage-authorized-mount-executor.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Inject the consumed bundle into the Tenant route only after live schema, runtime, migration, worker, and rollback prerequisites are separately authorized and read back.",
+      "blockers": [
+        "The mount-authorization registry schema remains contract-local and unapplied.",
+        "The Tenant route still uses the fail-closed HTTP 503 default dependency.",
+        "No authorized dependency-injection or mount-readback executor exists.",
+        "Provider dispatch and live credentials remain unavailable."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Reconstruct the exact pending mount bundle from the durable authorization and immutable receipt after restart without a second consumption or mutation retry.",
+      "e2e_journeys": [
+        {
+          "id": "resume-consumed-authorization-without-replay",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 authorized mount executor",
+          "entrypoint": "Hostinger Storage Authorized Mount Executor Guard",
+          "terminal_outcome": "A restart reads the consumed authorization and receipt, proves registered generation N and consumed generation N+1, and reconstructs the same mount-bundle digest without another write.",
+          "steps": [
+            "Read the current authorization and immutable consumption receipt.",
+            "Validate executor, mount attempt, operation, plan, runtime, manifest, and provenance bindings.",
+            "Require the receipt registered generation to equal the requested generation.",
+            "Require the current and consumed generation to equal requested generation plus one.",
+            "Recreate the same canonical mount bundle without invoking consume again."
+          ],
+          "assertions": [
+            "A stale or advanced expected generation fails closed.",
+            "Manifest or database provenance drift fails before a new consumption.",
+            "The immutable receipt count remains one.",
+            "The reconstructed bundle digest equals the original bundle digest.",
+            "No Tenant runtime execution, provider call, dependency injection, or automatic retry occurs."
+          ],
+          "tests": [
+            {
+              "id": "authorized-mount-executor-restart-reconciliation",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageAuthorizedMountExecutor.js",
+            ".github/contracts/spec014/hostinger-storage-authorized-mount-executor.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
