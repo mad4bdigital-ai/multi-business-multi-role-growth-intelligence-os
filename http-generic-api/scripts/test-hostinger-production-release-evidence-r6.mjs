@@ -19,6 +19,11 @@ assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened
 assert.doesNotMatch(workflow, /\n\s+paths:/);
 assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
+assert.match(
+  workflow,
+  /concurrency:\n\s+group: hostinger-production-release-evidence-r6-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\n\s+cancel-in-progress: true/,
+);
+assert.doesNotMatch(workflow, /cancel-in-progress: false/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(workflow, /(?:^|[^A-Za-z0-9_.-])gpt\//m);
 
