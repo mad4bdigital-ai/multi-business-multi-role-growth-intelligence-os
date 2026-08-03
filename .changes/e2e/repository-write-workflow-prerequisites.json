@@ -11,6 +11,7 @@
       ".github/workflows/e2e-contract-reference-integrity.yml",
       ".github/workflows/http-generic-api-fanout-relocation.yml",
       ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+      ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
       ".github/workflows/supervisor-runtime-assurance.yml",
       ".github/workflows/supervisor-runtime-assurance-alert.yml",
       ".specify/pipeline-connectivity-contract.json",
@@ -178,6 +179,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/repository-write-workflow-prerequisites.json",
+            ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
             "docs/runbooks/supervisor-runtime-assurance.md"
           ]
         }
