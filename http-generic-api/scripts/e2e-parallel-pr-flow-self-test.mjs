@@ -25,6 +25,7 @@ fs.writeFileSync(path.join(root, "README.md"), "baseline\n");
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "baseline"], root);
 const baseSha = run("git", ["rev-parse", "HEAD"], root).trim();
+run("git", ["update-ref", "refs/remotes/origin/main", baseSha], root);
 
 fs.mkdirSync(path.join(root, "http-generic-api", "example", "runtime"), { recursive: true });
 fs.mkdirSync(path.join(root, "specs", "001-example"), { recursive: true });
@@ -98,6 +99,24 @@ assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
 assert.equal(gatePass.production_promotion, false);
 
+const defaultBranchDispatchEnv = { ...process.env };
+for (const name of ["GITHUB_BASE_REF", "GITHUB_HEAD_REF", "GITHUB_BASE_SHA", "GITHUB_HEAD_SHA"]) delete defaultBranchDispatchEnv[name];
+const defaultBranchDispatch = spawnSync(process.execPath, [GATE, "--root", root, "--head", headSha, "--head-ref", "main"], { cwd: root, encoding: "utf8", env: defaultBranchDispatchEnv });
+assert.equal(defaultBranchDispatch.status, 0, JSON.stringify({
+  status: defaultBranchDispatch.status,
+  signal: defaultBranchDispatch.signal,
+  stdout: defaultBranchDispatch.stdout,
+  stderr: defaultBranchDispatch.stderr
+}));
+const defaultBranchDispatchReport = JSON.parse(defaultBranchDispatch.stdout);
+assert.equal(defaultBranchDispatchReport.ok, true, JSON.stringify(defaultBranchDispatchReport.findings));
+assert.equal(defaultBranchDispatchReport.pr_mode, "standard");
+
+const undeclaredBranch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/undeclared-a", "--base-ref", "gpt/001-example/integration-a"], { cwd: root, encoding: "utf8" });
+assert.notEqual(undeclaredBranch.status, 0);
+const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
+assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
 const directReport = JSON.parse(directMain.stdout);
@@ -122,4 +141,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 17, flow: "parallel_workstream_to_integration_and_protected_production_promotion", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 21, flow: "parallel_workstream_to_integration_default_branch_and_protected_production_promotion", secrets_included: false }));
