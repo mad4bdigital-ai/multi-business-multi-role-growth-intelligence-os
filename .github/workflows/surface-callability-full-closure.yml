@@ -43,7 +43,7 @@ jobs:
         run: |
           python3 scripts/surface-callability-closure/patch_validator_auth.py
           python3 scripts/surface-callability-closure/patch_generator_policy.py
-          python3 scripts/surface-callability-closure/patch_openapi_authority_v2.py
+          python3 scripts/surface-callability-closure/patch_openapi_authority_v3.py
           python3 scripts/surface-callability-closure/patch_workspace.py
           python3 scripts/surface-callability-closure/patch_agent_surfaces.py
           python3 scripts/surface-callability-closure/patch_infrastructure.py
