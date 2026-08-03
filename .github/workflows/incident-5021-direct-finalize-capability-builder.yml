@@ -1,0 +1,201 @@
+name: Incident 5021 direct finalize capability builder
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/exact-head-approval-guard-20260803
+    paths:
+      - .github/workflows/incident-5021-direct-finalize-capability-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-5021-direct-finalize-capability-builder
+  cancel-in-progress: false
+
+jobs:
+  patch-test-publish:
+    name: Patch, test, and publish direct finalize guard
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      EXPECTED_TARGET_SHA: 67a07736b30721a7306c96bba1da4eb42c9f331b
+    steps:
+      - name: Checkout immutable target
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify target and apply bounded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              path.write_text(text.replace(old, new, 1))
+
+          service = Path("http-generic-api/operationCapabilityLifecycleService.js")
+          replace_once(
+              service,
+              '''function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
+            if (operationKey === "operation.resume") return true;
+          ''',
+              '''function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
+            if (operationKey === "repo.pr.finalize") return true;
+            if (operationKey === "operation.resume") return true;
+          ''',
+              "direct finalize service guard",
+          )
+
+          test = Path("http-generic-api/test-gpt-tools-route-syntax-regression.mjs")
+          replace_once(
+              test,
+              '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "operation.resume",
+              {},
+            ),
+            true,
+          );
+
+          {
+          ''',
+              '''  assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "operation.resume",
+              {},
+            ),
+            true,
+          );
+          assert.equal(
+            _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+              "repo.pr.finalize",
+              {},
+            ),
+            true,
+          );
+
+          {
+          ''',
+              "direct finalize helper assertion",
+          )
+          replace_once(
+              test,
+              '''    assert.equal(createCalls, 0);
+          }
+
+          const renewalRequest = buildCapabilityRenewalRequest({
+          ''',
+              '''    assert.equal(createCalls, 0);
+          }
+
+          {
+            let createCalls = 0;
+            await assert.rejects(
+              () => prepareOperationCapabilityLifecycle({
+                pool: {},
+                auth: { tenant_id: "tenant-a", user_id: "user-a" },
+                input: { operation_key: "repo.pr.finalize", owner: "owner", repo: "repo" },
+                operationKey: "repo.pr.finalize",
+                createEnvelope: async () => { createCalls += 1; return {}; },
+              }),
+              (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+                && error.details?.operation_key === "repo.pr.finalize"
+                && error.details?.automatic_renewal_enabled === false,
+            );
+            assert.equal(createCalls, 0);
+          }
+
+          const renewalRequest = buildCapabilityRenewalRequest({
+          ''',
+              "direct finalize lifecycle rejection",
+          )
+
+          contract = Path(".changes/e2e/repository-lifecycle-draft-merge-guard.json")
+          replace_once(
+              contract,
+              '"Require a separately issued capability envelope for pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."',
+              '"Require a separately issued capability envelope for direct repo.pr.finalize, pr_delivery, full_workstream, and operation resume instead of just-in-time automatic renewal."',
+              "direct finalize e2e journey",
+          )
+          PY
+
+      - name: Run focused tests and boundary checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          node http-generic-api/test-github-repository-lifecycle.mjs
+          git diff --check
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json
+            http-generic-api/operationCapabilityLifecycleService.js
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+          test "${#changed[@]}" -eq 3
+
+      - name: Commit and publish without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/operationCapabilityLifecycleService.js \
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          git commit -m "fix(github): require explicit envelope for direct finalize"
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$(git status --porcelain)" = ""
+          git push origin "HEAD:${TARGET_BRANCH}"
+          cat > /tmp/incident-5021-direct-finalize-result.json <<JSON
+          {
+            "schema_version": 1,
+            "status": "published",
+            "base_sha": "$EXPECTED_TARGET_SHA",
+            "candidate_sha": "$candidate_sha",
+            "target_branch": "$TARGET_BRANCH",
+            "changed_file_count": 3,
+            "tests_passed": true,
+            "diff_check_passed": true,
+            "force_push": false,
+            "secrets_included": false
+          }
+          JSON
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-direct-finalize-${{ github.sha }}
+          path: /tmp/incident-5021-direct-finalize-result.json
+          if-no-files-found: warn
+          retention-days: 7
