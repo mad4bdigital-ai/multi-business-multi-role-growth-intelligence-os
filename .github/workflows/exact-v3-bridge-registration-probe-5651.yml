@@ -1,0 +1,26 @@
+name: Exact V3 Bridge Registration Probe 5651
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-v3-bridge-arm-base-b1e411
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
+      github.event.pull_request.head.sha == 'f27868eb8d10dae117e3628a9950d6722eda1a02'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - name: Record registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "f27868eb8d10dae117e3628a9950d6722eda1a02"
+          echo "V3 bridge ARM base workflow registered"
