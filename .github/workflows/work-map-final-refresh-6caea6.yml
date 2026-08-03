@@ -1,4 +1,4 @@
-name: Work Map Final Refresh 6CAEA6
+name: Work Map Final Refresh 6CAEA6 Revision 2
 
 on:
   push:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - name: Checkout exact launcher head
         uses: actions/checkout@v4
@@ -30,10 +30,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify immutable launcher topology
+      - name: Verify bounded relaunch topology
         shell: bash
         env:
-          EXPECTED_PARENT: 6caea6ca1267a45b8218a9b89af78e2151a3ea02
+          EXPECTED_PARENT: 59ee8035353ea80c2caeb873ee4bea70d18569a4
           LAUNCHER_PATH: .github/workflows/work-map-final-refresh-6caea6.yml
         run: |
           set -euo pipefail
@@ -66,11 +66,9 @@ jobs:
           second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           test "$first_hash" = "$second_hash"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
-
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
             --spec-dir specs/014-governed-hostinger-storage-orchestration \
             --write
-
           unexpected="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json$|\.github/workflows/work-map-final-refresh-6caea6.yml$)' || true)"
           test -z "$unexpected"
           git diff --check
