@@ -124,6 +124,7 @@ const oauthClientPool = {
       durableOAuthCodes.set(params[0], {
         client_id: params[3],
         redirect_uri_hash: params[4],
+        expires_at: params[5],
         status: "issued",
       });
       return [{ affectedRows: 1 }];
@@ -136,6 +137,21 @@ const oauthClientPool = {
         && record.status === "issued";
       if (canConsume) record.status = "consumed";
       return [{ affectedRows: canConsume ? 1 : 0 }];
+    }
+    if (
+      sql.includes("SELECT status, expires_at, consumed_at")
+      && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")
+    ) {
+      const record = durableOAuthCodes.get(params[2]);
+      if (!record) return [[]];
+      return [[{
+        status: record.status,
+        expires_at: record.expires_at,
+        consumed_at: record.status === "consumed" ? new Date() : null,
+        client_matches: record.client_id === params[0] ? 1 : 0,
+        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+        expired_by_store: 0,
+      }]];
     }
     if (sql.includes("INSERT INTO `execution_log`")) {
       oauthTokenDiagnostics.push({
@@ -191,7 +207,10 @@ const oauthClientPool = {
 
 const app = express();
 app.use(express.json());
-app.use(buildTenantGptOAuthMetadataRoutes());
+app.use(buildTenantGptOAuthMetadataRoutes({
+      getPool: () => oauthClientPool,
+      env: process.env,
+    }));
 app.use(buildActivationHostGatewayRoutes());
 app.get("/tenant/activation/probe", (req, res) => res.status(200).json({ ok: true, auth: req.auth || null }));
 app.use("/auth", buildAuthRoutes({
@@ -601,11 +620,13 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 0));
   const invalidClientDiagnostic = oauthTokenDiagnostics.find((row) => row.failure_reason === "invalid_client");
   assert("invalid client token exchange writes diagnostic", Boolean(invalidClientDiagnostic), JSON.stringify(oauthTokenDiagnostics));
-  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));
+    assert("invalid client diagnostic uses governed token endpoint key", invalidClientDiagnostic?.endpoint_key === "auth_oauth_token", JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic marks secret presence only", invalidClientDiagnostic?.runtime_evidence_json?.client?.client_secret_present === true, JSON.stringify(invalidClientDiagnostic));
-  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
-  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures bounded code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds), JSON.stringify(invalidClientDiagnostic));
   assert("invalid client diagnostic excludes raw secret", !JSON.stringify(invalidClientDiagnostic || {}).includes("wrong-secret"), JSON.stringify(invalidClientDiagnostic));
+    assert("invalid client diagnostic excludes raw authorization code", !JSON.stringify(invalidClientDiagnostic || {}).includes(codeResult.body.code), JSON.stringify(invalidClientDiagnostic));
 
   const wrongTarget = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",
@@ -634,10 +655,13 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 0));
   const successDiagnostic = oauthTokenDiagnostics.find((row) => row.execution_status === "success");
   assert("success token exchange writes diagnostic", Boolean(successDiagnostic), JSON.stringify(oauthTokenDiagnostics));
-  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
-  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic uses OAuth v2 action key", successDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(successDiagnostic));
+    assert("success diagnostic records response commitment", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));
+  assert("success diagnostic records prepared access token without token material", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true, JSON.stringify(successDiagnostic));
   assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
-  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures durable code consumption", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));
+    assert("success diagnostic captures protected resource only", successDiagnostic?.runtime_evidence_json?.resource_profile?.resource === ACTIVATION_RESOURCE, JSON.stringify(successDiagnostic));
+    assert("success diagnostic marks secrets excluded", successDiagnostic?.runtime_evidence_json?.secrets_included === false, JSON.stringify(successDiagnostic));
   assert("success diagnostic excludes raw access token", !JSON.stringify(successDiagnostic || {}).includes(exchange.body.access_token), JSON.stringify(successDiagnostic));
   assert("token exchange stores activation context server-side", tenantGptActivationContexts.length === 1, JSON.stringify(tenantGptActivationContexts));
   const storedActivationContext = JSON.parse(tenantGptActivationContexts[0].activation_context_json);
