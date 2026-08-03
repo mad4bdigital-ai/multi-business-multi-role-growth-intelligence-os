@@ -69,7 +69,7 @@ jobs:
           grep -Eq 'ref:.*github\.sha' "$workflow"
           grep -q 'git merge-base --is-ancestor' "$workflow"
           grep -q 'git ls-files --error-unmatch' "$workflow"
-          test "$(grep -Fc 'specs/011-unified-effective-authority-control-plane/e2e-phases.json' "$workflow")" -eq 1
+          grep -Eq '^[[:space:]]+- "specs/011-unified-effective-authority-control-plane/e2e-phases\.json"$' "$workflow"
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
           grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
