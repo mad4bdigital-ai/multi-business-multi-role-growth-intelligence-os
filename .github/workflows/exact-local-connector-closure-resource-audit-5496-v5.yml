@@ -1,0 +1,81 @@
+name: Exact Local Connector Closure Resource Audit 5496 v5
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-local-connector-closure-arm-base-5496-c7f7be81
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Capture exact Resource API audit
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD_SHA: d2d3fbf20998d24fda53eb05e1f0ddd004ace8e7
+      EXPECTED_MAIN_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+      EVIDENCE_DIR: /tmp/resource-audit-5496-${{ github.run_id }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          test "${{ github.event.pull_request.head.sha }}" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "2"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA" | wc -l | tr -d ' ')" = "9"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run audit with validation base
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/validation-base.log" 2>&1
+          printf '%s\n' "$?" > "$EVIDENCE_DIR/validation-base.status"
+          cat "$EVIDENCE_DIR/validation-base.log"
+          exit 0
+
+      - name: Run audit with main base
+        shell: bash
+        continue-on-error: true
+        env:
+          GITHUB_BASE_REF: ""
+        run: |
+          set +e
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/main-base.log" 2>&1
+          printf '%s\n' "$?" > "$EVIDENCE_DIR/main-base.status"
+          cat "$EVIDENCE_DIR/main-base.log"
+          exit 0
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-audit-5496-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce main-baseline result
+        if: always()
+        shell: bash
+        run: test "$(cat "$EVIDENCE_DIR/main-base.status")" = "0"
