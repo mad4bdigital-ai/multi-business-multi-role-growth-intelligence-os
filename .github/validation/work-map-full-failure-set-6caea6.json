@@ -1,0 +1,131 @@
+{
+  "contract": "mad4b.work-map-full-failure-set-exact-validation.v1",
+  "generated_at": "2026-08-03T22:14:11.939Z",
+  "candidate_sha": "6caea6ca1267a45b8218a9b89af78e2151a3ea02",
+  "checks": [
+    {
+      "name": "syntax-platform-work-map-generator",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "syntax-platform-work-map-schema-intelligence",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "syntax-work-map-schema-classification",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "syntax-work-map-schema-classification-contract",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "syntax-pipeline-connectivity-check",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "pipeline-connectivity-check",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "pipeline-connectivity-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "schema-classification-contract",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "schema-classification",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "schema-classification-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "schema-classification-contract-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "complete-failure-set-regression",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "generated-work-maps-current",
+      "outcome": "passed",
+      "exit_code": 0
+    },
+    {
+      "name": "spec014-final-work-map-readback",
+      "outcome": "passed",
+      "exit_code": 0
+    }
+  ],
+  "check_count": 14,
+  "failures": [],
+  "failed_count": 0,
+  "complete_failure_set_regression": true,
+  "generated_work_maps_current": true,
+  "spec014_final_readback": {
+    "contract": "mad4b.spec014-final-work-map-readback.v1",
+    "generated_at": "2026-08-03T22:14:11.889Z",
+    "candidate_sha": "6caea6ca1267a45b8218a9b89af78e2151a3ea02",
+    "workflow_event_sha": "1bb4f2e2b2aeea3152bdd13578ffedbcb1edfb90",
+    "feature_key": "014-governed-hostinger-storage-orchestration",
+    "manifest_path": "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+    "ok": true,
+    "current_registry": {
+      "fingerprint": "e0654c66fcf5e86ebd6528a5572e80ca39190ed24b422b26a21fbeb48f7e8285",
+      "index_source_hash": "19b6cd24637d1f5ed3ebdda66cfb1bcd638a61b3625e74ba0909e4007c067325",
+      "coverage_source_hash": "dce7f9950edf563067f4a805573400ba9311c28dc997fa11a6226d583471477e",
+      "schema_classification_registry_hash": "c5669a765fa718428aa977cae2f452b1a8d3d941ca393e1420aa6e9309fc19c2",
+      "map_count": 19,
+      "domain_count": 16,
+      "uncategorized_count": 0,
+      "taxonomy_gap_cluster_count": 0,
+      "globally_classified_schema_objects": 0,
+      "intentionally_unclassified_schema_objects": 0
+    },
+    "manifest_registry": {
+      "fingerprint": "e0654c66fcf5e86ebd6528a5572e80ca39190ed24b422b26a21fbeb48f7e8285",
+      "index_source_hash": "19b6cd24637d1f5ed3ebdda66cfb1bcd638a61b3625e74ba0909e4007c067325",
+      "coverage_source_hash": "dce7f9950edf563067f4a805573400ba9311c28dc997fa11a6226d583471477e",
+      "map_count": 19,
+      "domain_count": 16,
+      "uncategorized_count": 0,
+      "taxonomy_gap_cluster_count": 0
+    },
+    "classification": {
+      "ok": true,
+      "coverage_percent": 100,
+      "unresolved_count": 0,
+      "intentionally_unclassified_count": 0,
+      "registry_hash": "c5669a765fa718428aa977cae2f452b1a8d3d941ca393e1420aa6e9309fc19c2"
+    },
+    "findings": [],
+    "repository_mutation": false,
+    "provider_dispatch": false,
+    "live_database_access": false,
+    "migration_apply": false,
+    "secrets_included": false
+  },
+  "repository_mutation": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
