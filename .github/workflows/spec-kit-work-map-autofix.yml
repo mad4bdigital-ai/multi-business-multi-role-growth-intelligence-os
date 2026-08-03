@@ -19,7 +19,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}
+  group: ${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->') && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:

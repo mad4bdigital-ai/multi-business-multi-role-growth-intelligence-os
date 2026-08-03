@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec-kit-work-map-shared-concurrency-restoration",
+  "title": "Restore shared concurrency for Work Map generated artifacts",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec-kit-work-map-shared-concurrency-restoration.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "http-generic-api/scripts/spec-kit-work-map-shared-concurrency-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore the policy-declared shared concurrency key for every Spec Kit Work Map writer while preserving exact-head and protected-branch guards.",
+      "e2e_journeys": [
+        {
+          "id": "serialize-spec-kit-work-map-generated-artifact-writes",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository automation overlap governor",
+          "entrypoint": "The Spec Kit Work Map Autofix workflow is evaluated as a writer of docs/work-maps generated artifacts.",
+          "terminal_outcome": "The workflow uses the exact shared resource concurrency expression, does not cancel an active writer, and retains bounded work-branch publication guards.",
+          "steps": [
+            "Read the Work Map Autofix workflow from the exact candidate tree.",
+            "Require the policy-declared shared concurrency expression for dispatch and authorized pull-request contexts.",
+            "Require cancel-in-progress to remain false.",
+            "Retain exact remote-head verification, protected-branch rejection, and non-force work-branch publication.",
+            "Execute Automation Overlap Guard and the focused concurrency regression."
+          ],
+          "assertions": [
+            "The dispatch-only concurrency key is absent.",
+            "The exact policy-declared shared resource concurrency key is present.",
+            "In-progress mutation runs are not cancelled.",
+            "main and Production remain invalid mutation targets.",
+            "Remote branch head must equal expected_head_sha before publication.",
+            "No provider call, deployment, database mutation, migration Apply, Production mutation, external send, or force push is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "spec-kit-work-map-shared-concurrency-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/spec-kit-work-map-shared-concurrency-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/scripts/spec-kit-work-map-shared-concurrency-self-test.mjs",
+            ".changes/e2e/spec-kit-work-map-shared-concurrency-restoration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Verify the overlap analyzer reports no critical resource-group concurrency mismatch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject future divergence from the canonical generated-artifact writer concurrency key."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Prove exact-head Draft and Ready workflow cycles."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Confirm main retains the canonical concurrency expression after merge."
+    }
+  ],
+  "secrets_included": false
+}
