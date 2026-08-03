@@ -1,4 +1,4 @@
-name: T016 Evidence Path Repair
+name: T016 Candidate Main Synchronization
 
 on:
   pull_request:
@@ -10,78 +10,74 @@ permissions:
   contents: write
 
 concurrency:
-  group: t016-evidence-path-repair-${{ github.event.pull_request.number }}
+  group: t016-candidate-main-sync-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  repair:
-    name: Repair T016 Artifact pagination and safe evidence fields
+  sync:
+    name: Merge exact current main into T016 candidate
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2'
+      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
+      github.event.pull_request.head.sha == '52c855aaca1bdc976dfd6350b6f77c33489d1449'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
       TARGET_BRANCH: agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      EVIDENCE_DIR: /tmp/t016-evidence-path-repair-${{ github.run_id }}
+      EXPECTED_HEAD: 52c855aaca1bdc976dfd6350b6f77c33489d1449
+      EXPECTED_MAIN: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
+      EVIDENCE_DIR: /tmp/t016-main-sync-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate branch
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify immutable event head
-        shell: bash
-        run: test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-
-      - name: Fetch trusted section-bounded repair script
+      - name: Verify immutable heads
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --depth=1 origin agent/validate-t016-readiness-artifact-base-435c001
-          git show FETCH_HEAD:.github/ops/t016-evidence-path-repair.mjs > /tmp/t016-evidence-path-repair.mjs
-          node --check /tmp/t016-evidence-path-repair.mjs
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD}"
 
-      - name: Apply bounded evidence-path repairs
-        run: node /tmp/t016-evidence-path-repair.mjs
+      - name: Merge exact main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git merge --no-ff --no-edit "${EXPECTED_MAIN}"
 
-      - name: Validate evidence-path repairs
+      - name: Validate synchronized candidate
         shell: bash
         run: |
           set -euo pipefail
           node --check .github/ops/sprint69-1043-runtime-readiness.mjs
           node --check .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          node --check http-generic-api/routes/adminCliRoutes.js
           node http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
-          git diff --check
+          git diff --check "${EXPECTED_MAIN}...HEAD"
           mkdir -p "${EVIDENCE_DIR}"
-          git diff > "${EVIDENCE_DIR}/t016-evidence-path-repair.patch"
-          git diff --stat > "${EVIDENCE_DIR}/stat.txt"
+          git log --oneline --decorate -8 > "${EVIDENCE_DIR}/log.txt"
+          git diff --stat "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/stat.txt"
+          printf '%s\n' "$(git rev-parse HEAD)" > "${EVIDENCE_DIR}/candidate.txt"
+          printf '%s\n' "${EXPECTED_MAIN}" > "${EVIDENCE_DIR}/main.txt"
 
-      - name: Commit and push when changed
+      - name: Push synchronized candidate
         shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo 'T016 evidence-path repairs are already applied.'
-            exit 0
-          fi
-          git config user.name 'mad4bdigital-ai'
-          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
-          git add .github/ops/sprint69-1043-runtime-readiness.mjs \
-            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs \
-            http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
-          git commit -m 'fix(ops): harden T016 readiness evidence discovery'
-          git push origin "HEAD:${TARGET_BRANCH}"
+        run: git push origin "HEAD:${TARGET_BRANCH}"
 
-      - name: Upload bounded repair evidence
+      - name: Upload bounded synchronization evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t016-evidence-path-repair-${{ github.run_id }}
+          name: t016-main-sync-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
