@@ -1,0 +1,238 @@
+name: Hostinger Production Release Evidence R6 - 42177d36
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-release-evidence-r6-42177d36-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify-trigger:
+    name: Classify exact read-only trigger
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      eligible: ${{ steps.scope.outputs.eligible }}
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-42177d36-trigger.json
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+      PR_DRAFT: ${{ github.event.pull_request.draft }}
+    steps:
+      - name: Require internal Draft one-file trigger
+        id: scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "${HEAD_REPOSITORY}" != "${REPOSITORY}" || "${PR_AUTHOR_ID}" != "${AUTHORIZATION_USER_ID}" || "${PR_DRAFT}" != "true" ]]; then
+            echo "eligible=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
+          if [[ "${#files[@]}" -eq 1 && "${files[0]}" == "${TRIGGER_PATH}" ]]; then
+            echo "eligible=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "eligible=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  collect-evidence:
+    name: Collect exact GET-only release evidence
+    needs: classify-trigger
+    if: needs.classify-trigger.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      AUTHORIZATION_USER_ID: '271942579'
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_42177D36_6134C0F8_R6
+      EXPECTED_PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      PRODUCTION_MERGED_AT: '2026-08-03T22:37:32Z'
+      ACCOUNT_USERNAME: u338416126
+      DOMAIN: auth.mad4b.com
+      REPORTER_PATH: http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs
+      REPORTER_BLOB_SHA: 6134c0f8a454a5f8f1533f3f2a29ed6af77aa020
+      REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
+      REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
+      TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-42177d36-trigger.json
+    steps:
+      - name: Checkout exact trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable trigger authorization and bindings
+        id: binding
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${BASE_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${BASE_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(git rev-parse "HEAD:${REPORTER_PATH}")" = "${REPORTER_BLOB_SHA}"
+          test "$(git rev-parse "HEAD:${REPORTER_TEST_PATH}")" = "${REPORTER_TEST_BLOB_SHA}"
+
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${TRIGGER_PATH}"
+
+          trigger="${RUNNER_TEMP}/r6-42177d36-trigger.json"
+          gh api "/repos/${REPOSITORY}/contents/${TRIGGER_PATH}?ref=${HEAD_SHA}" --jq '.content' | tr -d '\n' | base64 --decode > "${trigger}"
+          jq -e '
+            .contract == "mad4b.hostinger-production-release-evidence-r6-trigger.v2" and
+            (.authorization_comment_id | type == "number" and . > 0) and
+            (.binding_id | type == "string" and length > 20) and
+            (.trigger_nonce | type == "string" and length >= 16) and
+            .expected_trigger_branch == $head_ref and
+            .expected_tooling_sha == $base and
+            .expected_production_sha == $production and
+            .production_merged_at == $merged and
+            .reporter_blob_sha == $reporter and
+            .reporter_test_blob_sha == $reporter_test and
+            .provider_method == "GET" and
+            .provider_mutation == false and
+            .build_creation == false and
+            .deployment == false and
+            .release_activation == false and
+            .restart == false and
+            .sql == false and
+            .migration_apply == false and
+            .database_mutation == false and
+            .external_send == false and
+            .secrets_included == false
+          ' --arg head_ref "${HEAD_REF}" --arg base "${BASE_SHA}" --arg production "${EXPECTED_PRODUCTION_SHA}" \
+            --arg merged "${PRODUCTION_MERGED_AT}" --arg reporter "${REPORTER_BLOB_SHA}" \
+            --arg reporter_test "${REPORTER_TEST_BLOB_SHA}" "${trigger}" >/dev/null
+
+          comment_id="$(jq -r '.authorization_comment_id' "${trigger}")"
+          binding_id="$(jq -r '.binding_id' "${trigger}")"
+          nonce="$(jq -r '.trigger_nonce' "${trigger}")"
+          test "${binding_id}" = "${EXPECTED_PRODUCTION_SHA}:${REPORTER_BLOB_SHA}:${comment_id}:R6"
+
+          auth="${RUNNER_TEMP}/r6-42177d36-authorization.json"
+          gh api "/repos/${REPOSITORY}/issues/comments/${comment_id}" > "${auth}"
+          test "$(jq -r '.user.id' "${auth}")" = "${AUTHORIZATION_USER_ID}"
+          body="$(jq -r '.body' "${auth}")"
+          for exact in "${AUTHORIZATION_TOKEN}" "${BASE_SHA}" "${EXPECTED_PRODUCTION_SHA}" "${PRODUCTION_MERGED_AT}" "${ACCOUNT_USERNAME}" "${DOMAIN}" "${REPORTER_BLOB_SHA}" "${REPORTER_TEST_BLOB_SHA}" "${HEAD_REF}" "${nonce}"; do
+            grep -Fq "${exact}" <<<"${body}"
+          done
+          grep -Fq 'trigger mode: `internal_draft_pull_request_read_only`' <<<"${body}"
+          grep -Fq 'provider method: `GET` only' <<<"${body}"
+          grep -Fq 'provider mutation: `false`' <<<"${body}"
+          grep -Fq 'build creation: `false`' <<<"${body}"
+          grep -Fq 'deployment: `false`' <<<"${body}"
+          grep -Fq 'release activation: `false`' <<<"${body}"
+          grep -Fq 'restart: `false`' <<<"${body}"
+          grep -Fq 'SQL execution: `false`' <<<"${body}"
+          grep -Fq 'migration dry-run/Apply: `false`' <<<"${body}"
+          grep -Fq 'database mutation: `false`' <<<"${body}"
+          grep -Fq 'secrets included: `false`' <<<"${body}"
+
+          echo "binding_id=${binding_id}" >> "${GITHUB_OUTPUT}"
+          echo "authorization_comment_id=${comment_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate canonical Hostinger reporter
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-build-evidence.mjs
+
+      - name: Generate authenticated GET-only provider evidence
+        id: provider
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_ACCOUNT_USERNAME: ${{ env.ACCOUNT_USERNAME }}
+          HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
+          EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
+          PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
+          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ runner.temp }}/r6-42177d36/provider
+        run: node scripts/hostinger-nodejs-build-evidence.mjs
+
+      - name: Collect bounded public runtime evidence
+        id: runtime
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          out="${RUNNER_TEMP}/r6-42177d36/runtime"
+          mkdir -p "${out}"
+          for endpoint in health version deployment-info connector-agent/version; do
+            name="${endpoint//\//-}"
+            raw="${out}/${name}.raw"
+            status="$(curl --silent --show-error --max-time 20 --proto '=https' --tlsv1.2 --header 'accept: application/json' --output "${raw}" --write-out '%{http_code}' "https://${DOMAIN}/${endpoint}" || true)"
+            [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+            printf '%s\n' "${status}" > "${out}/${name}.http-status"
+            if [[ -s "${raw}" && "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
+              jq 'walk(if type == "object" then with_entries(if (.key == "secrets_included" and (.value | type) == "boolean") then . elif (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${out}/${name}.json"
+            else
+              jq -n --arg endpoint "${endpoint}" --arg status "${status}" '{ok:false,endpoint:$endpoint,http_status:($status|tonumber? // 0),error:"bounded_json_response_unavailable",secrets_included:false}' > "${out}/${name}.json"
+            fi
+            rm -f "${raw}"
+          done
+
+      - name: Write fail-closed release summary
+        if: always()
+        shell: bash
+        env:
+          PROVIDER_OUTCOME: ${{ steps.provider.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          BINDING_ID: ${{ steps.binding.outputs.binding_id }}
+          AUTHORIZATION_COMMENT_ID: ${{ steps.binding.outputs.authorization_comment_id }}
+        run: |
+          set -Eeuo pipefail
+          root="${RUNNER_TEMP}/r6-42177d36"
+          mkdir -p "${root}/provider" "${root}/runtime"
+          report="${root}/provider/hostinger-nodejs-build-evidence.json"
+          if [[ ! -s "${report}" ]]; then
+            jq -n --arg sha "${EXPECTED_PRODUCTION_SHA}" --arg outcome "${PROVIDER_OUTCOME}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",expected_production_sha:$sha,outcome:$outcome,classification:"provider_evidence_unavailable",request:{method:"GET",token_returned:false},side_effects:{repository_mutation_performed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_send_performed:false},secrets_included:false}' > "${report}"
+          fi
+          jq -n \
+            --arg binding_id "${BINDING_ID:-unavailable}" \
+            --arg authorization_comment_id "${AUTHORIZATION_COMMENT_ID:-unavailable}" \
+            --arg expected_production_sha "${EXPECTED_PRODUCTION_SHA}" \
+            --arg production_merged_at "${PRODUCTION_MERGED_AT}" \
+            --arg provider_outcome "${PROVIDER_OUTCOME}" \
+            --arg runtime_outcome "${RUNTIME_OUTCOME}" \
+            '{contract:"mad4b.hostinger-production-release-evidence-r6-42177d36.v1",binding_id:$binding_id,authorization_comment_id:$authorization_comment_id,expected_production_sha:$expected_production_sha,production_merged_at:$production_merged_at,provider_step_outcome:$provider_outcome,runtime_step_outcome:$runtime_outcome,repository_write_performed:false,provider_method:"GET",provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_send_performed:false,secrets_included:false}' > "${root}/release-summary.json"
+          jq -e '.expected_production_sha == "42177d360e9c6d76b4f09eaf06bd98ac26d09abe" and .repository_write_performed == false and .provider_method == "GET" and .provider_mutation_performed == false and .build_creation_performed == false and .deployment_performed == false and .release_activation_performed == false and .restart_performed == false and .sql_execution_performed == false and .migration_apply_performed == false and .database_mutation_performed == false and .external_send_performed == false and .secrets_included == false' "${root}/release-summary.json" >/dev/null
+
+      - name: Upload structured exact R6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-release-evidence-r6-42177d36-${{ github.run_id }}
+          path: ${{ runner.temp }}/r6-42177d36/**
+          if-no-files-found: error
+          retention-days: 30
