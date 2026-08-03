@@ -129,10 +129,12 @@ export function buildWorkspaceResourceRoutes() {
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_create
   router.post("/me/workspaces/:tenant_id/resource-grants", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
     try {
-      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
-      if (!owner) return;
+      const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!authority) return;
       const granteeUserId = String(req.body?.grantee_user_id || "").trim();
       const resourceType = normalizeResourceType(req.body?.resource_type);
       const resourceRef = normalizeResourceRef(req.body?.resource_ref || (resourceType === "workspace" ? req.params.tenant_id : ""));
@@ -140,35 +142,54 @@ export function buildWorkspaceResourceRoutes() {
       if (!granteeUserId) return res.status(400).json({ ok: false, error: { code: "grantee_user_id_required", message: "grantee_user_id is required." }, secrets_included: false });
       if (!resourceType) return res.status(400).json({ ok: false, error: { code: "invalid_resource_type", message: "Valid resource_type is required." }, secrets_included: false });
       if (!resourceRef) return res.status(400).json({ ok: false, error: { code: "resource_ref_required", message: "resource_ref is required." }, secrets_included: false });
-      const [memberRows] = await getPool().query(
-        "SELECT user_id, role, status FROM memberships WHERE tenant_id=? AND user_id=? AND status='active' LIMIT 1",
-        [req.params.tenant_id, granteeUserId]
-      );
-      if (!memberRows[0]) return res.status(403).json({ ok: false, error: { code: "grantee_membership_required", message: "Grantee must be an active workspace member." }, secrets_included: false });
-      const grantId = randomUUID();
-      await getPool().query(
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_resource_grant_create
+      const [memberRows] = await connection.query("SELECT user_id, role, status FROM memberships WHERE tenant_id=? AND user_id=? AND status='active' LIMIT 2 FOR UPDATE", [req.params.tenant_id, granteeUserId]);
+      if (memberRows.length !== 1) throw Object.assign(new Error("Grantee must resolve exactly one active workspace membership."), { status: 403, code: "grantee_membership_required" });
+      const candidateGrantId = randomUUID();
+      await connection.query(
         `INSERT INTO workspace_resource_grants (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, expires_at, metadata_json)
          VALUES (?, ?, ?, ?, ?, ?, 'active', 'owner_assignment', ?, ?, ?)
-         ON DUPLICATE KEY UPDATE status='active', granted_by=VALUES(granted_by), expires_at=VALUES(expires_at), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
-        [grantId, req.params.tenant_id, granteeUserId, resourceType, resourceRef, permission, req.auth.user_id, req.body?.expires_at || null, jsonMeta(req.body?.metadata_json)]
+         ON DUPLICATE KEY UPDATE status='active', permission=VALUES(permission), granted_by=VALUES(granted_by), expires_at=VALUES(expires_at), metadata_json=VALUES(metadata_json), revoked_by=NULL, revoked_at=NULL, updated_at=NOW()`,
+        [candidateGrantId, req.params.tenant_id, granteeUserId, resourceType, resourceRef, permission, req.auth.user_id, req.body?.expires_at || null, jsonMeta(req.body?.metadata_json)]
       );
-      return res.status(201).json({ ok: true, tenant_id: req.params.tenant_id, grant: { grant_id: grantId, grantee_user_id: granteeUserId, resource_type: resourceType, resource_ref: resourceRef, permission, status: "active" }, secrets_included: false });
+      const [readbackRows] = await connection.query(
+        "SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, expires_at, updated_at FROM workspace_resource_grants WHERE tenant_id=? AND grantee_user_id=? AND resource_type=? AND resource_ref=? AND permission=? AND status='active' ORDER BY updated_at DESC LIMIT 2",
+        [req.params.tenant_id, granteeUserId, resourceType, resourceRef, permission]
+      );
+      if (readbackRows.length !== 1) throw Object.assign(new Error("Workspace resource grant readback must resolve exactly one active grant."), { status: 409, code: "workspace_resource_grant_create_readback_invalid" }); // MUTATION_READBACK: workspace_resource_grant_create
+      const grant = readbackRows[0];
+      await connection.commit();
+      return res.status(201).json({ ok: true, tenant_id: grant.tenant_id, grant, secrets_included: false });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_resource_grant_create_failed", message: err.message }, secrets_included: false });
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_resource_grant_create_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_revoke
   router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
     try {
-      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
-      if (!owner) return;
-      const [result] = await getPool().query(
-        "UPDATE workspace_resource_grants SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND grant_id=? AND status='active'",
-        [req.auth.user_id, req.params.tenant_id, req.params.grant_id]
-      );
-      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, grant_id: req.params.grant_id, status: result.affectedRows ? "revoked" : "not_found", secrets_included: false });
+      const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!authority) return;
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_resource_grant_revoke
+      const [lockedRows] = await connection.query("SELECT grant_id, tenant_id, status FROM workspace_resource_grants WHERE tenant_id=? AND grant_id=? LIMIT 2 FOR UPDATE", [req.params.tenant_id, req.params.grant_id]);
+      if (lockedRows.length !== 1) throw Object.assign(new Error("Workspace resource grant was not found."), { status: 404, code: "workspace_resource_grant_not_found" });
+      if (lockedRows[0].status !== "active") throw Object.assign(new Error("Only active grants may be revoked."), { status: 409, code: "workspace_resource_grant_not_active" });
+      const [result] = await connection.query("UPDATE workspace_resource_grants SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND grant_id=? AND status='active'", [req.auth.user_id, req.params.tenant_id, req.params.grant_id]);
+      if (result.affectedRows !== 1) throw Object.assign(new Error("Workspace resource grant revoke lost its active state."), { status: 409, code: "workspace_resource_grant_state_changed" });
+      const [readbackRows] = await connection.query("SELECT grant_id, tenant_id, status, revoked_by, revoked_at, updated_at FROM workspace_resource_grants WHERE tenant_id=? AND grant_id=? LIMIT 2", [req.params.tenant_id, req.params.grant_id]);
+      if (readbackRows.length !== 1 || readbackRows[0].status !== "revoked") throw Object.assign(new Error("Workspace resource grant revoke readback did not reach revoked state."), { status: 409, code: "workspace_resource_grant_revoke_readback_invalid" }); // MUTATION_READBACK: workspace_resource_grant_revoke
+      const grant = readbackRows[0];
+      await connection.commit();
+      return res.json({ ok: true, tenant_id: grant.tenant_id, grant_id: grant.grant_id, status: grant.status, revoked_by: grant.revoked_by, revoked_at: grant.revoked_at, secrets_included: false });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "workspace_resource_grant_revoke_failed", message: err.message }, secrets_included: false });
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_resource_grant_revoke_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 
