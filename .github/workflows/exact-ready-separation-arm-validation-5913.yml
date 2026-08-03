@@ -1,0 +1,164 @@
+name: Exact Ready Separation ARM Validation 5913
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ready-separation-arm-base-97e4ee7e
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ready-separation-arm-validation-5913-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-candidate:
+    name: Exact Ready Separation Full Validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/incident-5021/remove-auto-mark-ready-97e4ee7e-20260804' &&
+      github.event.pull_request.head.sha == 'f38daa328f23237885b3a598cd57913af25e8921'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_HEAD_SHA: f38daa328f23237885b3a598cd57913af25e8921
+      EXPECTED_HEAD_REF: gpt/incident-5021/remove-auto-mark-ready-97e4ee7e-20260804
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 1
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}^")" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/repository-automation-ready-separation-mitigation.json'
+          test "${files[1]}" = 'http-generic-api/repositoryAutomationControlPlane.js'
+          test "${files[2]}" = 'http-generic-api/test-repository-automation-control-plane.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/repository-automation-ready-separation-mitigation.json")" = 'a33a463f7b2989fa1fb44ba8b658fd7151f7b3fd'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/repositoryAutomationControlPlane.js")" = '18f037e8da34b231a78182e359a40691d4b39a26'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-repository-automation-control-plane.mjs")" = '432c5924094c482420d64d63d0502ba39af479e3'
+
+      - name: Run canonical syntax and governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
+          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          node --check http-generic-api/repositoryAutomationControlPlane.js
+          node --check http-generic-api/test-repository-automation-control-plane.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused Ready separation regression
+        working-directory: http-generic-api
+        run: node test-repository-automation-control-plane.mjs
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Verify exact test report provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in \
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Install root dependencies and run Execution Resolver Gate
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run exact E2E phase evaluation and execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Publish exact no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.exact-ready-separation-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,test_report_provenance_verified:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${RUNNER_TEMP}/exact-ready-separation-arm-validation-summary.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ready-separation-arm-validation-5913-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/exact-ready-separation-arm-validation-summary.json
+            ${{ runner.temp }}/e2e-phase-*.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
