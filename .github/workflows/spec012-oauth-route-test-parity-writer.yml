@@ -18,15 +18,15 @@ jobs:
     name: Validate and publish exact OAuth request-injection repair
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-request-injection-fix-a61cd9e8-v1' &&
-      github.event.pull_request.head.sha == 'e37d926a60bfe7cbca4a2968c99d039523a886ce'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-request-injection-fix-a61cd9e8-v2' &&
+      github.event.pull_request.head.sha == 'eb483f3619e40ac120ab2d6c4feb5e9d373741ef'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     env:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: e37d926a60bfe7cbca4a2968c99d039523a886ce
-      TARGET_BRANCH: gpt/spec012-oauth-request-injection-fix-a61cd9e8-v1
-      MARKER_PATH: .github/validation/spec012-oauth-request-injection-writer.txt
+      EXPECTED_HEAD_SHA: eb483f3619e40ac120ab2d6c4feb5e9d373741ef
+      TARGET_BRANCH: gpt/spec012-oauth-request-injection-fix-a61cd9e8-v2
+      MARKER_PATH: .github/validation/spec012-oauth-request-injection-writer-v2.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       SCRIPT_COMMIT_SHA: b3eed7a469070fb1abf3a156a59bb774458a1227
     steps:
