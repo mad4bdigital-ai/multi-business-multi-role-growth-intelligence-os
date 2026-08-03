@@ -1,0 +1,103 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-control-plane-contract-alignment",
+  "title": "Align Work Map writer and recovery control-plane contracts",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-control-plane-contract-alignment.json",
+      ".specify/pipeline-connectivity-contract.json",
+      "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Realign repository contracts, regression tests, and operator documentation with the current split between a trusted authorization/dispatch control plane and a workflow_dispatch-only sole Work Map writer.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-dispatch-and-run-exact-head-work-map-writer",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted Work Map recovery dispatcher and sole remote Work Map writer",
+          "entrypoint": "An authorized, current, same-repository pull request requires generated Work Map repair.",
+          "terminal_outcome": "The non-writer recovery control plane consumes one-time authorization and dispatches the workflow_dispatch-only writer with the exact branch head; the writer alone may generate and publish docs/work-maps changes, then dispatch verification.",
+          "steps": [
+            "Validate the recovery control plane from trusted default-branch workflow code without candidate checkout or Work Map generation.",
+            "Require an open, ready, same-repository pull request targeting main and current with main.",
+            "Consume the one-time authorization marker and verify removal.",
+            "Dispatch Spec Kit Work Map Autofix with the exact branch and expected_head_sha.",
+            "Require the writer to pin local, remote, and pull-request identity before generation.",
+            "Generate twice, prove idempotency, reject changes outside docs/work-maps, and publish without force only to the governed work branch.",
+            "Dispatch CI and Work Map Integration against the resulting exact head."
+          ],
+          "assertions": [
+            "Spec Kit Work Map Autofix exposes workflow_dispatch only.",
+            "Pull-request authorization, permission checks, marker consumption, and delegated-run observation belong to Spec Kit Work Map Autofix Recovery Dispatch.",
+            "The recovery dispatcher contains no checkout, Work Map generation, git commit, or git push path.",
+            "The writer rejects main and Production and requires exact local and remote head equality.",
+            "Docs Agent, OpenAPI Auto Sync, Work Map Integration, and the recovery dispatcher remain non-writers.",
+            "Pipeline connectivity validation reports no disconnected trigger, permission, command, producer, consumer, or writer-policy finding.",
+            "No provider, deployment, Production, runtime, credential, SQL, migration Apply, database, external-send, protected-ref, or force-push action is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-contract-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "supervisor-runtime-assurance-automation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".specify/pipeline-connectivity-contract.json",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".github/workflows/docs-agent.yml",
+            "docs/runbooks/supervisor-runtime-assurance.md",
+            "http-generic-api/test-pipeline-connectivity-check.mjs",
+            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe Docs Agent connectivity validation and the full CI manifest pass on the exact combined pull-request head."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject future drift that moves pull-request authorization back into the writer or grants a second Work Map remote writer."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-control contract performs no runtime or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-control contract performs no Production, provider, deployment, or database mutation."
+    }
+  ],
+  "secrets_included": false
+}
