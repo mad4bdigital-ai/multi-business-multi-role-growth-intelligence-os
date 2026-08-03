@@ -1,0 +1,161 @@
+name: E2E Classifier Candidate Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-e2e-classifier-windows-20260803
+    paths:
+      - .changes/e2e/e2e-classifier-candidate-windows-validation.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-classifier-candidate-windows-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact E2E classifier candidate
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      EXPECTED_CANDIDATE_SHA: 1d264c4316c48e8c132dd2332a3d83bc869eca50
+      EXPECTED_BASE_SHA: 85365f286b7ab001ef9eaad526af118fb73c2886
+      EXPECTED_CANDIDATE_BRANCH: gpt/ci/e2e-default-branch-classifier-v3-20260803
+      EXPECTED_BASE_BRANCH: main
+      REPORT_DIR: artifacts/e2e-classifier-windows-validation
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Enforce immutable candidate identity and closed scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          git fetch --no-tags origin \
+            "+refs/heads/${EXPECTED_BASE_BRANCH}:refs/remotes/origin/${EXPECTED_BASE_BRANCH}" \
+            "+refs/heads/${EXPECTED_CANDIDATE_BRANCH}:refs/remotes/origin/${EXPECTED_CANDIDATE_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_BASE_BRANCH})" = "${EXPECTED_BASE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_CANDIDATE_BRANCH})" = "${EXPECTED_CANDIDATE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}...${EXPECTED_CANDIDATE_SHA}" > candidate-files.txt
+          test "$(wc -l < candidate-files.txt | tr -d ' ')" = "3"
+          cat > expected-files.txt <<'FILES'
+          .changes/e2e/e2e-default-branch-and-production-promotion-classification.json
+          http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          FILES
+          sort candidate-files.txt > candidate-files.sorted.txt
+          sort expected-files.txt > expected-files.sorted.txt
+          diff -u expected-files.sorted.txt candidate-files.sorted.txt
+
+      - name: Run governance and evidence self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
+          node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
+          node http-generic-api/scripts/test-ci-evidence-router.mjs
+          node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
+
+      - name: Classify exact pull request and evaluate complete phase
+        shell: bash
+        env:
+          GITHUB_BASE_SHA: ${{ env.EXPECTED_BASE_SHA }}
+          GITHUB_HEAD_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          GITHUB_BASE_REF: ${{ env.EXPECTED_BASE_BRANCH }}
+          GITHUB_HEAD_REF: ${{ env.EXPECTED_CANDIDATE_BRANCH }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_CANDIDATE_SHA}" \
+            --head-ref "${EXPECTED_CANDIDATE_BRANCH}" \
+            --base-ref "${EXPECTED_BASE_BRANCH}" \
+            --report-file "${REPORT_DIR}/e2e-parallel-work-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_CANDIDATE_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-phase-evaluation.json"
+
+      - name: Execute declared current-phase journey
+        shell: bash
+        env:
+          GITHUB_BASE_SHA: ${{ env.EXPECTED_BASE_SHA }}
+          GITHUB_HEAD_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          GITHUB_BASE_REF: ${{ env.EXPECTED_BASE_BRANCH }}
+          GITHUB_HEAD_REF: ${{ env.EXPECTED_CANDIDATE_BRANCH }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_CANDIDATE_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-phase-evaluation.json" \
+            --execution-report-file "${REPORT_DIR}/e2e-phase-execution.json"
+
+      - name: Validate E2E contract references and tracked object modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_CANDIDATE_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${REPORT_DIR}/e2e-contract-reference-integrity.json"
+
+      - name: Record bounded validation summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "${REPORT_DIR}"
+          node --input-type=module - <<'NODE' > "${REPORT_DIR}/summary.json"
+          console.log(JSON.stringify({
+            schema_version: 1,
+            validation: 'e2e_classifier_exact_candidate_windows',
+            candidate_sha: process.env.EXPECTED_CANDIDATE_SHA,
+            base_sha: process.env.EXPECTED_BASE_SHA,
+            candidate_branch: process.env.EXPECTED_CANDIDATE_BRANCH,
+            base_branch: process.env.EXPECTED_BASE_BRANCH,
+            runner_pool: 'windows-latest',
+            validation_only: true,
+            required_checks_replaced: false,
+            repository_mutation: false,
+            protected_ref_mutation: false,
+            provider_mutation: false,
+            database_mutation: false,
+            migration_apply: false,
+            deployment: false,
+            production_mutation: false,
+            secrets_included: false
+          }, null, 2));
+          NODE
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-classifier-candidate-windows-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}/*.json
+            candidate-files.txt
+          if-no-files-found: error
+          retention-days: 14
