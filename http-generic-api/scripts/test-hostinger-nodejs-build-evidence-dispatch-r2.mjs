@@ -15,10 +15,14 @@ const target = readFileSync(
 );
 
 for (const marker of [
+  "workflow_dispatch:",
+  "expected_head_sha:",
+  "github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner",
   "issue_comment:",
   "github.event.issue.pull_request == null",
   "github.event.issue.number == 4953",
   "RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2 expected_head_sha=",
+  "INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}",
   "AUTHORIZATION_COMMENT_ID: '5162066131'",
   "AUTHORIZATION_USER_ID: '271942579'",
   "AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2",
@@ -29,6 +33,9 @@ for (const marker of [
   "2026-08-03T00:53:07Z",
   "MUTATION_TARGET_BRANCH: issue-and-actions-metadata-only",
   '"main" || "${MUTATION_TARGET_BRANCH}" == "Production"',
+  'if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]',
+  'EXPECTED_HEAD_SHA="${INPUT_EXPECTED_HEAD_SHA}"',
+  '[[ "${EXPECTED_HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]',
   "CURRENT_HEAD_SHA=",
   'test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"',
   "WORKFLOW_BLOB=",
