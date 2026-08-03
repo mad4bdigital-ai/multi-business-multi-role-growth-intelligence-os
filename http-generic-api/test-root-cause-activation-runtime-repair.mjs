@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { assertNoSecretBearingFields } from "./capabilityEnvelopeSecretPolicy.js";
 import { redactDangerousKeys } from "./scripts/capability-resolution-envelope-create.mjs";
-import { generateDeploymentManifest, isDirectExecution } from "./scripts/generate-deployment-manifest.mjs";
+import {
+  generateDeploymentManifest,
+  isDirectExecution,
+  ROOT_ENTRYPOINT_BRANCH_LOCK_ENV,
+} from "./scripts/generate-deployment-manifest.mjs";
 
 const activationSource = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 assert.match(
@@ -36,6 +40,8 @@ assert.equal(
 
 const dir = mkdtempSync(join(tmpdir(), "mad4b-root-cause-manifest-"));
 const manifestPath = join(dir, "deployment-manifest.json");
+const lockedManifestPath = join(dir, "deployment-manifest-locked.json");
+const explicitManifestPath = join(dir, "deployment-manifest-explicit.json");
 const commitSha = "0123456789abcdef0123456789abcdef01234567";
 try {
   const result = generateDeploymentManifest({
@@ -55,6 +61,42 @@ try {
   assert.equal(manifest.commit_sha, commitSha);
   assert.equal(manifest.commit_source, "env:DEPLOYMENT_COMMIT_SHA");
   assert.equal(manifest.deployed_at, "2026-06-14T00:00:00.000Z");
+
+  const lockedResult = generateDeploymentManifest({
+    env: {
+      [ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]: "Production",
+      DEPLOYMENT_BRANCH: "main",
+      ACTIVATION_GITHUB_BRANCH: "main",
+      DEPLOYMENT_COMMIT_SHA: commitSha,
+    },
+    argv: [],
+    outputPath: lockedManifestPath,
+    deployedAt: "2026-08-03T08:52:07.532Z",
+  });
+  assert.equal(lockedResult.ok, true);
+  const lockedManifest = JSON.parse(readFileSync(lockedManifestPath, "utf8"));
+  assert.equal(lockedManifest.branch, "Production");
+  assert.equal(
+    lockedManifest.branch_source,
+    `env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}`,
+    "nested startup must preserve the authoritative root branch instead of overwriting it with stale main metadata"
+  );
+  assert.equal(lockedManifest.commit_sha, commitSha);
+
+  const explicitResult = generateDeploymentManifest({
+    env: {
+      [ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]: "main",
+      DEPLOYMENT_BRANCH: "main",
+      DEPLOYMENT_COMMIT_SHA: commitSha,
+    },
+    argv: ["--branch=Production"],
+    outputPath: explicitManifestPath,
+    deployedAt: "2026-08-03T08:52:08.000Z",
+  });
+  assert.equal(explicitResult.ok, true);
+  const explicitManifest = JSON.parse(readFileSync(explicitManifestPath, "utf8"));
+  assert.equal(explicitManifest.branch, "Production");
+  assert.equal(explicitManifest.branch_source, "arg:--branch");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

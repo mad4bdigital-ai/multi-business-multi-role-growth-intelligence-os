@@ -9,14 +9,16 @@ const testFile = fileURLToPath(import.meta.url);
 const runtimeCwd = dirname(testFile);
 const repositoryRoot = resolve(runtimeCwd, "..");
 const rootEntrypoint = resolve(repositoryRoot, "server.js");
-const deploymentBranch = String(
+const staleDeploymentBranch = String(
   process.env.DEPLOYMENT_BRANCH ||
   process.env.GITHUB_REF_NAME ||
-  "Production"
+  "main"
 ).trim();
 
 // Emulate Hostinger's platform loader: the root entrypoint is required by a
-// wrapper instead of being the process main module.
+// wrapper instead of being the process main module. The environment may carry
+// stale source-branch metadata, but the production root entrypoint remains the
+// authoritative deployment provenance source.
 const child = spawn(
   process.execPath,
   ["-e", "require(process.argv[1]);", rootEntrypoint],
@@ -25,7 +27,8 @@ const child = spawn(
     env: {
       ...process.env,
       NODE_ENV: "production",
-      DEPLOYMENT_BRANCH: deploymentBranch,
+      DEPLOYMENT_BRANCH: staleDeploymentBranch,
+      ACTIVATION_GITHUB_BRANCH: staleDeploymentBranch,
       PORT: String(port),
       BACKEND_API_KEY: "startup_smoke_key",
       QUEUE_WORKER_ENABLED: "FALSE",
@@ -90,8 +93,13 @@ try {
   assert.ok(body?.deployment?.deployed_commit_sha, "runtime exposes generated deployment commit evidence");
   assert.equal(
     body?.deployment?.manifest?.branch,
-    deploymentBranch,
-    "runtime preserves explicit deployment branch evidence through the root entrypoint"
+    "Production",
+    "Hostinger root startup preserves authoritative Production provenance despite stale branch environment metadata"
+  );
+  assert.equal(
+    body?.deployment?.manifest?.branch_source,
+    "env:DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH",
+    "nested startup proves it preserved the process-local branch lock established by the root entrypoint"
   );
 } finally {
   child.kill("SIGTERM");

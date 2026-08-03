@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-completed-build-log-evidence-r3c-windows",
+  "title": "Windows fallback for exact Hostinger completed-build log evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-completed-build-log-evidence-r3c-windows.json",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml",
+      "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-r3c-windows.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Execute the canonical GET-only completed-build log reporter on the independent Windows runner pool when the ARM push run has not reached its first durable claim.",
+      "e2e_journeys": [
+        {
+          "id": "collect-exact-build-provenance-on-windows",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner, GitHub Actions Windows runner, and configured Hostinger read credential",
+          "entrypoint": "A squash merge changes only the exact R3C Windows marker on main with the fixed first-line trigger token.",
+          "terminal_outcome": "A secret-free artifact and Incident #4953 result prove whether the exact Production SHA occurs in completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 logs.",
+          "steps": [
+            "Checkout the exact event SHA and verify it remains remote main.",
+            "Verify protected Production, one changed marker, exact marker content, and canonical reporter blob identities.",
+            "Verify Incident #4953 is open and the R3C binding is unused.",
+            "Record a durable claim after all immutable checks.",
+            "Run the canonical reporter contract without credential access.",
+            "Perform one authenticated GET for exact completed-build logs.",
+            "Scrub the configured token from persisted evidence using PowerShell.",
+            "Upload JSON and Markdown evidence.",
+            "Validate the evidence contract and publish the bounded result.",
+            "Succeed only when the expected Production SHA is found."
+          ],
+          "assertions": [
+            "The runner is windows-latest and exact event SHA is checked out.",
+            "The workflow has contents read and issues write only.",
+            "No workflow_dispatch, issue_comment, pull-request, or pull_request_target trigger exists.",
+            "The provider method is GET only.",
+            "No provider mutation, build creation, deployment, release activation, restart, SQL, migration Apply, database mutation, protected-ref mutation, force update, or external business send occurs.",
+            "The exact provider token is removed before artifact upload.",
+            "The result declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-evidence-r3c-windows-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-completed-build-log-evidence-r3c-windows.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-completed-build-log-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml",
+            "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-r3c-windows.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge inert registration, then merge exactly one marker-only trigger and read the evidence result."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Use an independent runner pool and fail closed on ref, marker, blob, Production, incident, or one-time binding drift."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "GET-only evidence performs no provider mutation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The workflow does not deploy, activate, or restart Production."
+    }
+  ],
+  "secrets_included": false
+}

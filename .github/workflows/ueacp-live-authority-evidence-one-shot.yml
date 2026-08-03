@@ -1,0 +1,261 @@
+name: UEACP Live Authority Evidence One Shot
+
+on:
+  push:
+    branches:
+      - gpt/ueacp-live-authority-evidence-trigger-20260803
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ueacp-live-authority-evidence-one-shot-push
+  cancel-in-progress: true
+
+jobs:
+  collect-live-authority-evidence:
+    name: Collect governed live authority evidence
+    if: github.ref_name == 'gpt/ueacp-live-authority-evidence-trigger-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      TRIGGER_HEAD_SHA: ${{ github.sha }}
+      PR_NUMBER: "5152"
+      ARTIFACT_NAME: ueacp-live-authority-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+      AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-authorization.json
+      IDENTITY_PATH: ${{ runner.temp }}/ueacp-live-identity.json
+      CENSUS_PATH: ${{ runner.temp }}/ueacp-live-census.json
+      EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-evidence-packet.json
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify marker-only trigger and switch to trusted main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TRIGGER_HEAD_SHA"
+          git fetch --no-tags --depth=1 origin main
+          trusted_base_sha="$(git rev-parse origin/main)"
+          [[ "$trusted_base_sha" =~ ^[0-9a-f]{40}$ ]]
+          mapfile -t changed_files < <(git diff --name-only "$trusted_base_sha"...HEAD)
+          test "${#changed_files[@]}" -eq 1
+          test "${changed_files[0]}" = ".changes/ueacp/live-authority-evidence-trigger-20260803.json"
+          marker_contract="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.contract')"
+          marker_live_read="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.live_database_read_authorized')"
+          marker_merge="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.merge_authorized')"
+          marker_mutation="$(git show HEAD:.changes/ueacp/live-authority-evidence-trigger-20260803.json | jq -r '.sql_mutation_authorized')"
+          test "$marker_contract" = "mad4b.ueacp.live-authority-evidence-trigger.v1"
+          test "$marker_live_read" = "true"
+          test "$marker_merge" = "false"
+          test "$marker_mutation" = "false"
+          echo "TRUSTED_BASE_SHA=$trusted_base_sha" >> "$GITHUB_ENV"
+          git checkout --detach "$trusted_base_sha"
+          test "$(git rev-parse HEAD)" = "$trusted_base_sha"
+          test -f .github/scripts/authority-live-census-observation.mjs
+          test -f http-generic-api/scripts/authority-live-evidence-collect.mjs
+          test -f specs/011-unified-effective-authority-control-plane/contracts/authority-live-evidence-authorization.schema.json
+          node --check .github/scripts/authority-live-census-observation.mjs
+          node --check http-generic-api/scripts/authority-live-evidence-collect.mjs
+          echo "UEACP_TRUSTED_BASE_SHA=$trusted_base_sha"
+
+      - name: Publish bounded run start marker
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="UEACP_LIVE_AUTHORITY_EVIDENCE_RUN status=started run_id=${GITHUB_RUN_ID} run_attempt=${GITHUB_RUN_ATTEMPT} trigger_head_sha=${TRIGGER_HEAD_SHA} trusted_base_sha=${TRUSTED_BASE_SHA} artifact_name=${ARTIFACT_NAME} live_database_read=true sql_mutation=false migration_apply=false provider_calls=false credential_payload_read=false external_business_write=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body"
+
+      - name: Read database identity and issue bounded authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { promises as fs } from "node:fs";
+
+          const baseUrl = String(process.env.RUNTIME_BASE_URL || "").trim().replace(/\/$/, "");
+          const backendApiKey = String(process.env.BACKEND_API_KEY || "").trim();
+          const identityPath = String(process.env.IDENTITY_PATH || "").trim();
+          const authorizationPath = String(process.env.AUTHORIZATION_PATH || "").trim();
+          const runId = String(process.env.GITHUB_RUN_ID || "").trim();
+          const runAttempt = String(process.env.GITHUB_RUN_ATTEMPT || "1").trim();
+          const tokenPattern = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
+
+          function assert(condition, message) {
+            if (!condition) throw new Error(message);
+          }
+
+          assert(baseUrl, "RUNTIME_BASE_URL is required.");
+          assert(backendApiKey, "BACKEND_API_KEY is required.");
+          assert(identityPath, "IDENTITY_PATH is required.");
+          assert(authorizationPath, "AUTHORIZATION_PATH is required.");
+          assert(/^\d+$/.test(runId), "GITHUB_RUN_ID must be numeric.");
+          assert(/^\d+$/.test(runAttempt), "GITHUB_RUN_ATTEMPT must be numeric.");
+
+          const sql = "SELECT DATABASE() AS schema_name, UTC_TIMESTAMP(6) AS observed_at";
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 30_000);
+          let response;
+          try {
+            response = await fetch(`${baseUrl}/admin/cli/control`, {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${backendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ tool: "db", action: "run", sql, params: [] }),
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+          const text = await response.text();
+          let payload;
+          try { payload = text ? JSON.parse(text) : {}; } catch { payload = { non_json_response: true }; }
+          assert(response.ok, `Database identity preflight failed with HTTP ${response.status}.`);
+          assert(payload?.ok === true, "Database identity preflight was not successful.");
+          assert(payload?.tool === "db", "Database identity preflight did not use DB control.");
+          assert(payload?.result?.statement_result_type === "rows", "Database identity preflight did not return rows.");
+          assert(payload?.result?.secrets_included === false, "Database identity preflight did not preserve no-secret status.");
+          const rows = Array.isArray(payload.result.rows) ? payload.result.rows : [];
+          assert(rows.length === 1, "Database identity preflight must return exactly one row.");
+          const schemaName = String(rows[0]?.schema_name || "").trim();
+          const observedAt = new Date(rows[0]?.observed_at || Date.now()).toISOString();
+          assert(tokenPattern.test(schemaName), "Database schema identity is not a bounded canonical token.");
+
+          const issuedAt = new Date();
+          const expiresAt = new Date(issuedAt.getTime() + 45 * 60 * 1000);
+          const operationRef = `ueacp.live-evidence.${runId}.${runAttempt}`;
+          assert(tokenPattern.test(operationRef), "Generated operation_ref is invalid.");
+
+          const identity = {
+            contract: "mad4b.ueacp.live-authority-identity-preflight.v1",
+            status: "observed_for_authorization_only",
+            schema_name: schemaName,
+            observed_at: observedAt,
+            read_only: true,
+            applies_sql: false,
+            database_mutation_executed: false,
+            provider_calls: false,
+            credential_payload_read: false,
+            external_writes: false,
+            secrets_included: false,
+          };
+          const authorization = {
+            contract: "mad4b.ueacp.authority-live-evidence-authorization.v1",
+            operation_mode: "read_only_live_authority_evidence",
+            operation_ref: operationRef,
+            environment: "production_runtime",
+            target_schema: schemaName,
+            issued_at: issuedAt.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            approved: true,
+            read_only: true,
+            applies_sql: false,
+            provider_calls: false,
+            credential_payload_read: false,
+            external_writes: false,
+            secrets_included: false,
+          };
+
+          await fs.writeFile(identityPath, `${JSON.stringify(identity, null, 2)}\n`, { mode: 0o600 });
+          await fs.writeFile(authorizationPath, `${JSON.stringify(authorization, null, 2)}\n`, { mode: 0o600 });
+          console.log(`UEACP_LIVE_SCHEMA=${schemaName}`);
+          console.log(`UEACP_LIVE_OPERATION=${operationRef}`);
+          NODE
+
+      - name: Run hardened live authority catalog census
+        shell: bash
+        run: |
+          set -euo pipefail
+          export EVIDENCE_PATH="$CENSUS_PATH"
+          export REPOSITORY="$GITHUB_REPOSITORY"
+          export OBSERVED_REF="$TRUSTED_BASE_SHA"
+          node .github/scripts/authority-live-census-observation.mjs
+
+      - name: Collect all eight live authority source families
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/authority-live-evidence-collect.mjs
+
+      - name: Verify bounded no-effect artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { promises as fs } from "node:fs";
+
+          for (const [name, filePath] of Object.entries({
+            identity: process.env.IDENTITY_PATH,
+            authorization: process.env.AUTHORIZATION_PATH,
+            census: process.env.CENSUS_PATH,
+            packet: process.env.EVIDENCE_PATH,
+          })) {
+            const parsed = JSON.parse(await fs.readFile(filePath, "utf8"));
+            if (parsed.secrets_included !== false) throw new Error(`${name} artifact is not no-secret.`);
+            if (parsed.read_only !== true && name !== "authorization") throw new Error(`${name} artifact is not read-only.`);
+            if (parsed.applies_sql !== false) throw new Error(`${name} artifact does not preserve applies_sql=false.`);
+            if (parsed.provider_calls !== false) throw new Error(`${name} artifact does not preserve provider_calls=false.`);
+            if (parsed.credential_payload_read !== false) throw new Error(`${name} artifact does not preserve credential_payload_read=false.`);
+            if (parsed.external_writes !== false) throw new Error(`${name} artifact does not preserve external_writes=false.`);
+          }
+          const packet = JSON.parse(await fs.readFile(process.env.EVIDENCE_PATH, "utf8"));
+          if (packet.source_bundle?.source_family_count !== 8) throw new Error("Live evidence packet did not include all eight source families.");
+          if (!/^[a-f0-9]{64}$/.test(String(packet.packet_sha256 || ""))) throw new Error("Live evidence packet hash is invalid.");
+          console.log(`UEACP_LIVE_PACKET_STATUS=${packet.status}`);
+          console.log(`UEACP_LIVE_SOURCE_COUNT=${packet.source_bundle.source_family_count}`);
+          console.log(`UEACP_LIVE_PATH_COUNT=${packet.source_bundle.inventory.summary.canonical_path_count}`);
+          console.log(`UEACP_LIVE_BLOCKING_GAPS=${packet.source_bundle.blocking_gap_count}`);
+          console.log(`UEACP_LIVE_PACKET_SHA256=${packet.packet_sha256}`);
+          NODE
+
+      - name: Upload governed no-secret live evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            ${{ env.IDENTITY_PATH }}
+            ${{ env.AUTHORIZATION_PATH }}
+            ${{ env.CENSUS_PATH }}
+            ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish bounded run completion marker
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_OUTCOME: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          packet_status="unavailable"
+          source_count="unavailable"
+          path_count="unavailable"
+          blocking_gaps="unavailable"
+          packet_sha256="unavailable"
+          if [[ -s "$EVIDENCE_PATH" ]]; then
+            packet_status="$(jq -r '.status // "unknown"' "$EVIDENCE_PATH")"
+            source_count="$(jq -r '.source_bundle.source_family_count // "unknown"' "$EVIDENCE_PATH")"
+            path_count="$(jq -r '.source_bundle.inventory.summary.canonical_path_count // "unknown"' "$EVIDENCE_PATH")"
+            blocking_gaps="$(jq -r '.source_bundle.blocking_gap_count // "unknown"' "$EVIDENCE_PATH")"
+            packet_sha256="$(jq -r '.packet_sha256 // "unknown"' "$EVIDENCE_PATH")"
+          fi
+          body="UEACP_LIVE_AUTHORITY_EVIDENCE_RUN status=completed outcome=${JOB_OUTCOME} run_id=${GITHUB_RUN_ID} run_attempt=${GITHUB_RUN_ATTEMPT} trigger_head_sha=${TRIGGER_HEAD_SHA} trusted_base_sha=${TRUSTED_BASE_SHA:-unavailable} artifact_name=${ARTIFACT_NAME} packet_status=${packet_status} source_family_count=${source_count} canonical_path_count=${path_count} blocking_gap_count=${blocking_gaps} packet_sha256=${packet_sha256} sql_mutation=false migration_apply=false provider_calls=false credential_payload_read=false external_business_write=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body"

@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec011/phase8-goal-filtered-operational-intelligence.schema.json",
+  "title": "Spec 011 Goal-Filtered Operational Intelligence Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "generated_at",
+    "goal",
+    "summary",
+    "blockers",
+    "next_actions",
+    "linked_operations",
+    "attention",
+    "detail_references",
+    "source_health",
+    "completeness",
+    "policy",
+    "secrets_included",
+    "projection_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "version": { "const": "spec011-goal-filtered-operational-intelligence-v1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["goal_id", "title", "intent", "goal_fingerprint_sha256", "state"],
+      "properties": {
+        "goal_id": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "intent": { "type": ["string", "null"], "maxLength": 2000 },
+        "goal_fingerprint_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "state": { "enum": ["not_started", "in_progress", "attention_required", "blocked", "completed", "unknown"] }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "total_operations",
+        "linked_operations",
+        "primary_operations",
+        "supporting_operations",
+        "unrelated_operations",
+        "attention_total",
+        "attention_by_class",
+        "full_diagnostic_operation_count",
+        "full_diagnostic_attention_count"
+      ],
+      "properties": {
+        "total_operations": { "type": "integer", "minimum": 0 },
+        "linked_operations": { "type": "integer", "minimum": 0 },
+        "primary_operations": { "type": "integer", "minimum": 0 },
+        "supporting_operations": { "type": "integer", "minimum": 0 },
+        "unrelated_operations": { "type": "integer", "minimum": 0 },
+        "blocked_operations": { "type": "integer", "minimum": 0 },
+        "active_operations": { "type": "integer", "minimum": 0 },
+        "approval_operations": { "type": "integer", "minimum": 0 },
+        "completed_operations": { "type": "integer", "minimum": 0 },
+        "attention_total": { "type": "integer", "minimum": 0 },
+        "attention_by_class": { "$ref": "#/$defs/classCounts" },
+        "inline_linked_operations": { "type": "integer", "minimum": 0 },
+        "inline_attention": { "type": "integer", "minimum": 0 },
+        "full_diagnostic_operation_count": { "type": "integer", "minimum": 0 },
+        "full_diagnostic_attention_count": { "type": "integer", "minimum": 0 },
+        "degraded_operational_surface_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "blockers": { "type": "array", "items": { "type": "object" } },
+    "next_actions": { "type": "array", "items": { "type": "object" } },
+    "linked_operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/operationSummary" }
+    },
+    "attention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocking", "related_risk", "platform_wide"],
+      "properties": {
+        "blocking": { "type": "array", "items": { "$ref": "#/$defs/attentionSummary" } },
+        "related_risk": { "type": "array", "items": { "$ref": "#/$defs/attentionSummary" } },
+        "platform_wide": { "type": "array", "items": { "$ref": "#/$defs/attentionSummary" } }
+      }
+    },
+    "detail_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operations", "attention", "unrelated_attention", "unrelated_operations"],
+      "properties": {
+        "operations": { "type": "array", "items": { "$ref": "#/$defs/diagnosticReference" } },
+        "attention": { "type": "array", "items": { "$ref": "#/$defs/diagnosticReference" } },
+        "unrelated_attention": { "type": "array", "items": { "$ref": "#/$defs/diagnosticReference" } },
+        "unrelated_operations": { "type": "array", "items": { "$ref": "#/$defs/diagnosticReference" } }
+      }
+    },
+    "source_health": {
+      "type": "object",
+      "required": ["activation_operational_intelligence_ok", "activation_layer", "source_authority", "degraded_surfaces"],
+      "properties": {
+        "activation_operational_intelligence_ok": { "type": "boolean" },
+        "activation_layer": { "type": ["string", "null"] },
+        "source_authority": { "type": ["string", "null"] },
+        "degraded_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["surface", "diagnostic_ref_required"],
+            "properties": {
+              "surface": { "type": "string" },
+              "diagnostic_ref_required": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_first",
+        "full_diagnostic_detail_inline",
+        "every_operation_has_governed_reference",
+        "every_attention_item_has_governed_reference",
+        "unrelated_items_counted_not_discarded",
+        "complete"
+      ],
+      "properties": {
+        "summary_first": { "const": true },
+        "full_diagnostic_detail_inline": { "const": false },
+        "every_operation_has_governed_reference": { "type": "boolean" },
+        "every_attention_item_has_governed_reference": { "type": "boolean" },
+        "unrelated_items_counted_not_discarded": { "const": true },
+        "complete": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_correlation_only",
+        "tenant_only_match_is_insufficient",
+        "unrelated_attention_not_inlined",
+        "full_diagnostics_preserved_by_governed_reference",
+        "response_is_read_only",
+        "provider_calls_made",
+        "external_mutations_executed",
+        "secrets_included"
+      ],
+      "properties": {
+        "exact_correlation_only": { "const": true },
+        "tenant_only_match_is_insufficient": { "const": true },
+        "unrelated_attention_not_inlined": { "const": true },
+        "full_diagnostics_preserved_by_governed_reference": { "const": true },
+        "response_is_read_only": { "const": true },
+        "provider_calls_made": { "const": false },
+        "external_mutations_executed": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    },
+    "secrets_included": { "const": false },
+    "projection_fingerprint_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "classification": { "enum": ["blocking", "related_risk", "platform_wide", "unrelated"] },
+    "classCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocking", "related_risk", "platform_wide", "unrelated"],
+      "properties": {
+        "blocking": { "type": "integer", "minimum": 0 },
+        "related_risk": { "type": "integer", "minimum": 0 },
+        "platform_wide": { "type": "integer", "minimum": 0 },
+        "unrelated": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnosticReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "read_tool_key", "digest_sha256", "item_id", "kind", "secrets_included"],
+      "properties": {
+        "reference": { "type": "string", "pattern": "^(diagnostic|evidence|operation|attention|activation)://" },
+        "read_tool_key": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "item_id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["operation", "attention"] },
+        "secrets_included": { "const": false }
+      }
+    },
+    "operationSummary": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "operation_key",
+        "status",
+        "correlation_class",
+        "correlation_score",
+        "correlation_reasons",
+        "blockers",
+        "next_action",
+        "diagnostic_ref",
+        "secrets_included"
+      ],
+      "properties": {
+        "operation_id": { "type": "string" },
+        "operation_key": { "type": ["string", "null"] },
+        "status": { "type": "string" },
+        "correlation_class": { "enum": ["primary", "supporting"] },
+        "correlation_score": { "type": "number", "minimum": 0 },
+        "correlation_reasons": { "type": "array", "items": { "type": "string" } },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "next_action": {},
+        "diagnostic_ref": { "$ref": "#/$defs/diagnosticReference" },
+        "secrets_included": { "const": false }
+      }
+    },
+    "attentionSummary": {
+      "type": "object",
+      "required": [
+        "attention_id",
+        "classification",
+        "goal_impact",
+        "severity",
+        "source",
+        "reason_code",
+        "title",
+        "recommended_action_key",
+        "requires_confirmation",
+        "correlation_reasons",
+        "linked_operation_ids",
+        "diagnostic_ref",
+        "secrets_included"
+      ],
+      "properties": {
+        "attention_id": { "type": "string" },
+        "classification": { "$ref": "#/$defs/classification" },
+        "goal_impact": { "enum": ["direct", "potential", "none"] },
+        "severity": { "type": "string" },
+        "source": { "type": ["string", "null"] },
+        "reason_code": { "type": "string" },
+        "title": { "type": "string" },
+        "recommended_action_key": { "type": ["string", "null"] },
+        "requires_confirmation": { "type": "boolean" },
+        "correlation_reasons": { "type": "array", "items": { "type": "string" } },
+        "linked_operation_ids": { "type": "array", "items": { "type": "string" } },
+        "diagnostic_ref": { "$ref": "#/$defs/diagnosticReference" },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
