@@ -1,14 +1,14 @@
-# synchronize-trigger: production-topology-2669991a-v3
+# synchronize-trigger: production-topology-2669991a-v4
 name: Read Back Production Topology 2669991A
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/dispatch-production-runtime-parity-5e5178bb.yml"
+  push:
+    branches:
+      - gpt/dispatch-production-runtime-parity-5e5178bb-20260803
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: readback-production-topology-2669991a
@@ -18,18 +18,20 @@ jobs:
   public-get-only-topology:
     name: Public GET-only Production topology
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/dispatch-production-runtime-parity-5e5178bb-20260803' &&
-      github.event.pull_request.user.id == 271942579
+      github.actor_id == 271942579 &&
+      github.ref == 'refs/heads/gpt/dispatch-production-runtime-parity-5e5178bb-20260803'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
       EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      PRODUCTION_MERGED_AT: '2026-08-03T10:14:37Z'
       REPORT_DIR: ${{ runner.temp }}/production-topology-2669991a
+      RESULT_MARKER: PRODUCTION_TOPOLOGY_2669991A
+
     steps:
-      - name: Verify current protected authority
+      - name: Verify protected authority and one-time binding
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -37,6 +39,9 @@ jobs:
           set -euo pipefail
           test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+          existing="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"${RESULT_MARKER} status=completed source_commit=${GITHUB_SHA}\")) | .id")"
+          test -z "${existing}"
 
       - name: Fetch bounded public endpoint responses
         shell: bash
@@ -49,16 +54,31 @@ jobs:
             local url="$2"
             local raw="${REPORT_DIR}/${name}.raw"
             local safe="${REPORT_DIR}/${name}.json"
-            local status
+            local status curl_exit bytes body_hash
+            printf '{}\n' > "${raw}"
+            set +e
             status="$(curl --silent --show-error --max-time 20 --proto '=https' --tlsv1.2 \
               --header 'accept: application/json' \
+              --header 'user-agent: mad4b-production-topology-readback/1' \
               --output "${raw}" \
               --write-out '%{http_code}' \
               "${url}")"
-            printf '%s\n' "${status}" > "${REPORT_DIR}/${name}.http-status"
-            test "$(wc -c < "${raw}")" -le 65536
-            jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' \
-              "${raw}" > "${safe}"
+            curl_exit=$?
+            set -e
+            if [[ ${curl_exit} -ne 0 ]]; then
+              status='000'
+            fi
+            printf '%s\n' "${status:-000}" > "${REPORT_DIR}/${name}.http-status"
+            bytes="$(wc -c < "${raw}")"
+            test "${bytes}" -le 65536
+            if jq -e . "${raw}" >/dev/null 2>&1; then
+              jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' \
+                "${raw}" > "${safe}"
+            else
+              body_hash="$(sha256sum "${raw}" | awk '{print $1}')"
+              jq -n --arg body_sha256 "${body_hash}" --argjson body_bytes "${bytes}" \
+                '{ok:false,error:"non_json_response",body_sha256:$body_sha256,body_bytes:$body_bytes,secrets_included:false}' > "${safe}"
+            fi
             rm -f "${raw}"
           }
 
@@ -67,29 +87,101 @@ jobs:
           fetch_json deployment-info https://auth.mad4b.com/deployment-info
           fetch_json connector-agent-version https://auth.mad4b.com/connector-agent/version
 
+          health_status="$(cat "${REPORT_DIR}/health.http-status")"
+          version_status="$(cat "${REPORT_DIR}/version.http-status")"
+          deployment_status="$(cat "${REPORT_DIR}/deployment-info.http-status")"
+          connector_status="$(cat "${REPORT_DIR}/connector-agent-version.http-status")"
+
+          version_sha="$(jq -r '.deployment.deployed_commit_sha // .deployment.commit_sha // .commit_sha // .commit // .sha // empty' "${REPORT_DIR}/version.json")"
+          version_branch="$(jq -r '.deployment.manifest.branch // .deployment.branch // .branch // empty' "${REPORT_DIR}/version.json")"
+          deployment_sha="$(jq -r '.commit_sha // .commit // .deployment.commit_sha // .deployment.commit // empty' "${REPORT_DIR}/deployment-info.json")"
+          deployment_branch="$(jq -r '.branch // .deployment.branch // empty' "${REPORT_DIR}/deployment-info.json")"
+          deployment_branch_source="$(jq -r '.branch_source // empty' "${REPORT_DIR}/deployment-info.json")"
+          manifest_branch_source="$(jq -r '.deployment.branch_source // empty' "${REPORT_DIR}/deployment-info.json")"
+          deployed_at="$(jq -r '.deployed_at // .deployment.deployed_at // empty' "${REPORT_DIR}/deployment-info.json")"
+          canonical_manifest="$(jq -r '.evidence.canonical_manifest_detected // false' "${REPORT_DIR}/deployment-info.json")"
+          response_secrets="$(jq -r '.evidence.secrets_included // .deployment.secrets_included // false' "${REPORT_DIR}/deployment-info.json")"
+          connector_service="$(jq -r '.service // .name // empty' "${REPORT_DIR}/connector-agent-version.json")"
+          connector_version="$(jq -r '.version // .service_version // empty' "${REPORT_DIR}/connector-agent-version.json")"
+          timestamp_after_merge="$(node -e 'const deployed=Date.parse(process.argv[1]); const merged=Date.parse(process.argv[2]); process.stdout.write(String(Number.isFinite(deployed) && Number.isFinite(merged) && deployed >= merged));' "${deployed_at}" "${PRODUCTION_MERGED_AT}")"
+
+          outcome='pending'
+          classification='production_runtime_not_yet_converged'
+          if [[ "${health_status}" == '200' && "${version_status}" == '200' && "${deployment_status}" == '200' && "${connector_status}" == '200' && \
+                "${version_sha}" == "${EXPECTED_PRODUCTION_SHA}" && "${deployment_sha}" == "${EXPECTED_PRODUCTION_SHA}" && \
+                "${deployment_branch}" == 'Production' && "${manifest_branch_source}" == 'env:DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH' && \
+                "${canonical_manifest}" == 'true' && "${response_secrets}" == 'false' && "${timestamp_after_merge}" == 'true' ]]; then
+            outcome='passed'
+            classification='production_runtime_exact_parity'
+          fi
+
           jq -n \
             --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg run_id "${GITHUB_RUN_ID}" \
+            --arg source_commit "${GITHUB_SHA}" \
             --arg expected_sha "${EXPECTED_PRODUCTION_SHA}" \
-            --arg health_status "$(cat "${REPORT_DIR}/health.http-status")" \
-            --arg version_status "$(cat "${REPORT_DIR}/version.http-status")" \
-            --arg deployment_status "$(cat "${REPORT_DIR}/deployment-info.http-status")" \
-            --arg connector_status "$(cat "${REPORT_DIR}/connector-agent-version.http-status")" \
+            --arg production_merged_at "${PRODUCTION_MERGED_AT}" \
+            --arg health_status "${health_status}" \
+            --arg version_status "${version_status}" \
+            --arg deployment_status "${deployment_status}" \
+            --arg connector_status "${connector_status}" \
+            --arg version_sha "${version_sha}" \
+            --arg version_branch "${version_branch}" \
+            --arg deployment_sha "${deployment_sha}" \
+            --arg deployment_branch "${deployment_branch}" \
+            --arg deployment_branch_source "${deployment_branch_source}" \
+            --arg manifest_branch_source "${manifest_branch_source}" \
+            --arg deployed_at "${deployed_at}" \
+            --arg canonical_manifest "${canonical_manifest}" \
+            --arg response_secrets "${response_secrets}" \
+            --arg timestamp_after_merge "${timestamp_after_merge}" \
+            --arg connector_service "${connector_service}" \
+            --arg connector_version "${connector_version}" \
+            --arg outcome "${outcome}" \
+            --arg classification "${classification}" \
             '{
-              contract: "mad4b.production-topology-public-readback.v1",
+              contract: "mad4b.production-topology-public-readback.v2",
               generated_at: $generated_at,
               run_id: $run_id,
-              expected_production_sha: $expected_sha,
+              source_commit: $source_commit,
+              identity: {
+                expected_production_sha: $expected_sha,
+                production_merged_at: $production_merged_at
+              },
               http_status: {
                 health: ($health_status | tonumber),
                 version: ($version_status | tonumber),
                 deployment_info: ($deployment_status | tonumber),
                 connector_agent_version: ($connector_status | tonumber)
               },
+              runtime: {
+                version_sha: $version_sha,
+                version_branch: $version_branch,
+                deployment_sha: $deployment_sha,
+                deployment_branch: $deployment_branch,
+                deployment_branch_source: $deployment_branch_source,
+                manifest_branch_source: $manifest_branch_source,
+                deployed_at: $deployed_at,
+                canonical_manifest_detected: ($canonical_manifest == "true"),
+                response_secrets_included: ($response_secrets == "true"),
+                deployment_after_merge: ($timestamp_after_merge == "true"),
+                connector_agent_service: $connector_service,
+                connector_agent_version: $connector_version
+              },
+              outcome: $outcome,
+              classification: $classification,
               public_get_only: true,
               credential_access_performed: false,
               provider_mutation_performed: false,
+              build_creation_performed: false,
+              deployment_performed: false,
+              release_activation_performed: false,
               restart_performed: false,
+              sql_execution_performed: false,
+              migration_apply_performed: false,
+              database_mutation_performed: false,
+              protected_ref_mutation_performed: false,
+              external_send_performed: false,
               secrets_included: false
             }' > "${REPORT_DIR}/metadata.json"
 
@@ -101,16 +193,39 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Prove secret-free no-mutation boundary
+      - name: Publish bounded incident readback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          outcome="$(jq -r '.outcome' "${REPORT_DIR}/metadata.json")"
+          classification="$(jq -r '.classification' "${REPORT_DIR}/metadata.json")"
+          version_sha="$(jq -r '.runtime.version_sha // "none"' "${REPORT_DIR}/metadata.json")"
+          deployment_sha="$(jq -r '.runtime.deployment_sha // "none"' "${REPORT_DIR}/metadata.json")"
+          branch="$(jq -r '.runtime.deployment_branch // "none"' "${REPORT_DIR}/metadata.json")"
+          branch_source="$(jq -r '.runtime.manifest_branch_source // "none"' "${REPORT_DIR}/metadata.json")"
+          deployed_at="$(jq -r '.runtime.deployed_at // "none"' "${REPORT_DIR}/metadata.json")"
+          canonical="$(jq -r '.runtime.canonical_manifest_detected' "${REPORT_DIR}/metadata.json")"
+          statuses="$(jq -r '[.http_status.health,.http_status.version,.http_status.deployment_info,.http_status.connector_agent_version] | map(tostring) | join(",")' "${REPORT_DIR}/metadata.json")"
+          body="${RESULT_MARKER} status=completed source_commit=${GITHUB_SHA} run_id=${GITHUB_RUN_ID} artifact=production-topology-2669991a-${GITHUB_RUN_ID} expected_sha=${EXPECTED_PRODUCTION_SHA} outcome=${outcome} classification=${classification} http_statuses=${statuses} version_sha=${version_sha} deployment_sha=${deployment_sha} branch=${branch} manifest_branch_source=${branch_source} canonical_manifest=${canonical} deployed_at=${deployed_at} public_get_only=true credential_access=false provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false protected_ref_mutation=false external_send=false secrets_included=false"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
+            -f body="${body}"
+
+      - name: Enforce exact runtime parity
         shell: bash
         run: |
           set -euo pipefail
           jq -e '
-            .contract == "mad4b.production-topology-public-readback.v1" and
-            .expected_production_sha == "2669991a882c7f7939510fbbace17f462a42517c" and
+            .contract == "mad4b.production-topology-public-readback.v2" and
+            .identity.expected_production_sha == "2669991a882c7f7939510fbbace17f462a42517c" and
             .public_get_only == true and
             .credential_access_performed == false and
             .provider_mutation_performed == false and
             .restart_performed == false and
-            .secrets_included == false
+            .secrets_included == false and
+            .outcome == "passed"
           ' "${REPORT_DIR}/metadata.json" >/dev/null
