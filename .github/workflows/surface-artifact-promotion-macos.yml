@@ -136,13 +136,30 @@ jobs:
           }));
           NODE
 
-      - name: Remove temporary workflow and enforce bounded write set
+      - name: Capture generated write set
         shell: bash
         run: |
           set -Eeuo pipefail
           rm "${WORKFLOW_PATH}"
-          changed="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /' | sort -u)"
-          printf '%s\n' "$changed"
+          git status --porcelain=v1 --untracked-files=all > /tmp/generated-write-set-raw.txt
+          sed -E 's/^...//' /tmp/generated-write-set-raw.txt | sed -E 's/.* -> /' | sort -u > /tmp/generated-write-set.txt
+          cat /tmp/generated-write-set.txt
+
+      - name: Upload generated write set
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-write-set-${{ github.event.pull_request.head.sha }}
+          path: |
+            /tmp/generated-write-set.txt
+            /tmp/generated-write-set-raw.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce bounded write set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          changed="$(cat /tmp/generated-write-set.txt)"
           count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
           test "$count" -ge 2
           test "$count" -le 4
