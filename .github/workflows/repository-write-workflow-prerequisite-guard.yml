@@ -1,0 +1,106 @@
+name: Repository Write Workflow Prerequisite Guard
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '.changes/e2e/repository-write-workflow-prerequisites.json'
+      - '.github/workflows/e2e-contract-reference-integrity.yml'
+      - '.github/workflows/http-generic-api-fanout-relocation.yml'
+      - '.github/workflows/http-generic-api-fanout-relocation-apply.yml'
+      - '.github/workflows/repository-write-workflow-prerequisite-guard.yml'
+      - '.github/workflows/supervisor-runtime-assurance.yml'
+      - '.github/workflows/supervisor-runtime-assurance-alert.yml'
+      - '.specify/pipeline-connectivity-contract.json'
+      - 'docs/runbooks/supervisor-runtime-assurance.md'
+      - 'http-generic-api/test-fanout-relocation-ci.mjs'
+      - 'http-generic-api/test-pipeline-connectivity-check.mjs'
+      - 'http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-write-workflow-prerequisite-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Exact-head read/write boundary validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact checkout and JSON contracts
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          node -e "JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/repository-write-workflow-prerequisites.json','utf8'))"
+
+      - name: Run focused repository write-boundary regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check test-pipeline-connectivity-check.mjs
+          node --check test-fanout-relocation-ci.mjs
+          node --check test-supervisor-runtime-assurance-automation.mjs
+          node test-pipeline-connectivity-check.mjs
+          node test-fanout-relocation-ci.mjs
+          node test-supervisor-runtime-assurance-automation.mjs
+
+      - name: Run repository-tool lifecycle regression
+        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
+      - name: Prepare exact changed-file inventory
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${BASE_SHA}"
+          git diff --name-status "${BASE_SHA}" "${HEAD_SHA}" > /tmp/repository-tool-changes.tsv
+
+      - name: Evaluate repository tool lifecycle
+        id: governance
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir .artifacts/repository-write-workflow-prerequisite
+
+      - name: Publish canonical prerequisite report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-workflow-prerequisite-${{ github.run_id }}
+          path: .artifacts/repository-write-workflow-prerequisite/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish bounded step summary
+        if: always()
+        run: cat .artifacts/repository-write-workflow-prerequisite/repository-tool-lifecycle-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce repository write-workflow prerequisite
+        if: steps.governance.outcome != 'success'
+        run: |
+          echo "Repository write-workflow prerequisite failed. Read the canonical report artifact first."
+          exit 1
