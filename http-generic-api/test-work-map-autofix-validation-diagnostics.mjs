@@ -9,12 +9,19 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const workflowPath = path.join(repoRoot, ".github", "workflows", "spec-kit-work-map-autofix.yml");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 
+const initializationStart = workflow.indexOf("      - name: Initialize diagnostics and validate inputs");
+const checkoutStart = workflow.indexOf("      - name: Checkout exact authorized head");
 const validationStart = workflow.indexOf("      - name: Validate generator and governance contracts");
 const generationStart = workflow.indexOf("      - name: Regenerate and prove idempotency");
+assert.notEqual(initializationStart, -1, "diagnostic initialization step is missing");
+assert.notEqual(checkoutStart, -1, "checkout step is missing");
 assert.notEqual(validationStart, -1, "validation step is missing");
 assert.notEqual(generationStart, -1, "generation step is missing");
+assert.ok(checkoutStart > initializationStart, "checkout must follow input and diagnostic initialization");
+assert.ok(validationStart > checkoutStart, "validation must follow checkout");
 assert.ok(generationStart > validationStart, "validation step must precede generation");
 
+const initializationBlock = workflow.slice(initializationStart, checkoutStart);
 const validationBlock = workflow.slice(validationStart, generationStart);
 const contractNames = [
   "syntax-platform-work-map-generator",
@@ -29,6 +36,19 @@ const contractNames = [
   "schema-classification-regression",
   "schema-classification-contract-regression",
 ];
+
+assert.match(
+  initializationBlock,
+  /diagnostic_root="\$\{RUNNER_TEMP\}\/work-map-autofix-diagnostics-\$\{GITHUB_RUN_ID\}"/,
+  "diagnostics must live outside GITHUB_WORKSPACE so checkout cannot remove them",
+);
+assert.doesNotMatch(initializationBlock, /GITHUB_WORKSPACE.*work-map-autofix-diagnostics/);
+assert.match(
+  workflow,
+  /path: \$\{\{ runner\.temp \}\}\/work-map-autofix-diagnostics-\$\{\{ github\.run_id \}\}/,
+  "artifact upload must read the checkout-safe diagnostic directory",
+);
+assert.match(workflow, /if-no-files-found: error/);
 
 assert.match(validationBlock, /run_contract\(\) \{/);
 assert.match(validationBlock, /failed-validation-contract\.txt/);
