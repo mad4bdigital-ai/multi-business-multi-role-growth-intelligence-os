@@ -41,7 +41,6 @@ jobs:
       REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
       REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
 
     steps:
       - name: Checkout exact trusted main tooling
@@ -50,6 +49,12 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Initialize runner-scoped evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
 
       - name: Verify trigger scope, authorization, and immutable bindings
         id: binding
@@ -109,27 +114,17 @@ jobs:
           AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
           AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
           test "${AUTH_USER_ID}" = "${AUTHORIZATION_USER_ID}"
-          grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${AUTH_BODY}"
-          grep -Fq "${BASE_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${PRODUCTION_MERGED_AT}" <<<"${AUTH_BODY}"
-          grep -Fq "${ACCOUNT_USERNAME}" <<<"${AUTH_BODY}"
-          grep -Fq "${DOMAIN}" <<<"${AUTH_BODY}"
-          grep -Fq "${REPORTER_BLOB_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${REPORTER_TEST_BLOB_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${HEAD_REF}" <<<"${AUTH_BODY}"
-          grep -Fq "${TRIGGER_NONCE}" <<<"${AUTH_BODY}"
-          grep -Fq 'trigger mode: `internal_draft_pull_request_read_only`' <<<"${AUTH_BODY}"
-          grep -Fq 'provider method: `GET` only' <<<"${AUTH_BODY}"
-          grep -Fq 'provider mutation: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'build creation: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'deployment: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'release activation: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'restart: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'SQL execution: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'migration dry-run/Apply: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'database mutation: `false`' <<<"${AUTH_BODY}"
-          grep -Fq 'secrets included: `false`' <<<"${AUTH_BODY}"
+          for required in \
+            "${AUTHORIZATION_TOKEN}" "${BASE_SHA}" "${EXPECTED_PRODUCTION_SHA}" "${PRODUCTION_MERGED_AT}" \
+            "${ACCOUNT_USERNAME}" "${DOMAIN}" "${REPORTER_BLOB_SHA}" "${REPORTER_TEST_BLOB_SHA}" \
+            "${HEAD_REF}" "${TRIGGER_NONCE}" \
+            'trigger mode: `internal_draft_pull_request_read_only`' \
+            'provider method: `GET` only' 'provider mutation: `false`' \
+            'build creation: `false`' 'deployment: `false`' 'release activation: `false`' \
+            'restart: `false`' 'SQL execution: `false`' 'migration dry-run/Apply: `false`' \
+            'database mutation: `false`' 'secrets included: `false`'; do
+            grep -Fq "${required}" <<<"${AUTH_BODY}"
+          done
 
           test "$(git rev-parse "HEAD:${REPORTER_PATH}")" = "${REPORTER_BLOB_SHA}"
           test "$(git rev-parse "HEAD:${REPORTER_TEST_PATH}")" = "${REPORTER_TEST_BLOB_SHA}"
@@ -190,8 +185,10 @@ jobs:
           HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
           EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
-          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}/build
-        run: node scripts/hostinger-nodejs-build-evidence.mjs
+        run: |
+          set -Eeuo pipefail
+          export HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR="${EVIDENCE_DIR}/build"
+          node scripts/hostinger-nodejs-build-evidence.mjs
 
       - name: Fetch bounded public runtime topology
         id: topology
@@ -286,7 +283,8 @@ jobs:
           const build = JSON.parse(fs.readFileSync(buildPath,"utf8"));
           const topology = JSON.parse(fs.readFileSync(topologyPath,"utf8"));
           const effects = build.side_effects || {};
-          const buildSafe = ["repository_mutation_performed","provider_dispatch_performed","provider_mutation_performed","sql_execution_performed","migration_apply_performed","database_mutation_performed","restart_performed","external_send_performed"].every((key)=>effects[key]===false);
+          const safeKeys = ["repository_mutation_performed","provider_dispatch_performed","provider_mutation_performed","sql_execution_performed","migration_apply_performed","database_mutation_performed","restart_performed","external_send_performed"];
+          const buildSafe = safeKeys.every((key)=>effects[key]===false);
           const providerGet = build.request?.method === "GET" || build.contract === "mad4b.hostinger-nodejs-build-evidence-fallback.v1";
           const tokenReturned = build.request?.token_returned === true;
           const secretUnsafe = build.secrets_included === true || topology.secrets_included === true;
@@ -309,7 +307,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-production-release-evidence-r6-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/**
+          path: ${{ runner.temp }}/hostinger-production-release-evidence-r6/**
           if-no-files-found: error
           retention-days: 30
 
