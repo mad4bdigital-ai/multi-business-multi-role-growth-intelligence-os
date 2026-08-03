@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  statuses: write
 
 concurrency:
   group: temporary-oauth-baseline-blob-${{ github.repository }}
@@ -39,7 +40,6 @@ jobs:
 
           path = Path("http-generic-api/test-auth-oauth-routes.mjs")
           source = path.read_text(encoding="utf-8")
-
           replacements = [
               (
                   '''      durableOAuthCodes.set(params[0], {
@@ -128,14 +128,13 @@ jobs:
                   raise SystemExit(f"{label}: expected exactly one match, found {count}")
               source = source.replace(old, new, 1)
 
-          forbidden = [
+          for marker in [
               "app.use(buildTenantGptOAuthMetadataRoutes());",
               'action_key === "tenant_gpt_oauth_token_exchange"',
               "runtime_evidence_json?.code_timing",
               "runtime_evidence_json?.access_token?.token_type",
               "runtime_evidence_json?.requested_scope?.count",
-          ]
-          for marker in forbidden:
+          ]:
               if marker in source:
                   raise SystemExit(f"stale marker remains: {marker}")
 
@@ -169,6 +168,7 @@ jobs:
           test "$(git status --porcelain | wc -l | tr -d ' ')" = "1"
 
       - name: Publish tested unreachable Git blob
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -181,6 +181,8 @@ jobs:
             | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha')"
           test -n "${blob_sha}"
           digest="$(sha256sum "${target}" | awk '{print $1}')"
+          printf 'blob_sha=%s\n' "${blob_sha}" >> "${GITHUB_OUTPUT}"
+          printf 'digest=%s\n' "${digest}" >> "${GITHUB_OUTPUT}"
           printf '%s\n' "${blob_sha}" > /tmp/oauth-baseline-blob/blob-sha.txt
           cp "${target}" /tmp/oauth-baseline-blob/test-auth-oauth-routes.mjs
           cp /tmp/oauth-baseline-test.log /tmp/oauth-baseline-blob/test.log
@@ -200,3 +202,25 @@ jobs:
           path: /tmp/oauth-baseline-blob
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish readable terminal status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOB_SHA: ${{ steps.publish.outputs.blob_sha }}
+          DIGEST: ${{ steps.publish.outputs.digest }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="failure"
+          description="OAuth baseline patch validation failed"
+          if [ "${JOB_STATUS}" = "success" ] && [ -n "${BLOB_SHA}" ]; then
+            state="success"
+            description="blob=${BLOB_SHA} sha256=${DIGEST:0:12}"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="${state}" \
+            -f context="oauth-baseline-tested-blob" \
+            -f description="${description}" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
