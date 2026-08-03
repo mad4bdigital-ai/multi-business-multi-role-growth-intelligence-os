@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "phase": "phase5_validation_lab_and_structured_ci",
+  "status": "implementation_ready_for_exact_head_certification",
+  "tasks": ["T180", "T181", "T182", "T183", "T184", "T185", "T186", "T187", "T188", "T189"],
+  "delivery_mode": "integrated_phase_wave",
+  "validation_version": "spec011-phase5-validation-ci-v1",
+  "diagnosis_schema_version": "spec011-structured-ci-diagnosis-v1",
+  "reused_disposable_workflow": ".github/workflows/spec-011-delegation-mariadb-certification.yml",
+  "reused_migration_certifier": "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs",
+  "validation_kernel": "http-generic-api/spec011Phase5ValidationCi.js",
+  "validation_lab": "http-generic-api/scripts/spec011-phase5-validation-lab.mjs",
+  "test": "http-generic-api/test-spec011-phase5-validation-ci.mjs",
+  "schema": "schemas/phase5-structured-ci-diagnosis.schema.json",
+  "required_gate_ids": [
+    "migration_engine_validation",
+    "contract_drift",
+    "state_machine_model",
+    "idempotency_unknown_outcome",
+    "delegation_boundary_policy_drift",
+    "semantic_file_mutation"
+  ],
+  "migration_apply_requires_engine_validation": true,
+  "failed_checks_require_structured_diagnosis": true,
+  "production_mutation": false,
+  "production_authorized": false,
+  "provider_write": false,
+  "deployment": false,
+  "public_route": false,
+  "runtime_authority_changed": false,
+  "automatic_unknown_outcome_retry": false,
+  "secrets_included": false
+}
