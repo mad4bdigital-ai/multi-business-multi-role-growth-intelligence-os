@@ -1,0 +1,9 @@
+Temporary exact-head currentness probe for the governed Spec Kit Work Map Integration gate.
+
+Recovery cycle: final-20260803
+Authorized protected-main SHA: f2bedc488fbbfffe7b87e1c8d00a493edada19f9
+Replaces stale PR #5066 and failed delegated writer run 30830207371.
+
+This path triggers the governed E2E Contract Reference Integrity recovery bridge but is not part of platform-work-map-generator.mjs sourceFiles. Delete it before merge.
+
+No SQL or migration Apply, database mutation, Production/Hostinger/deployment/provider/credential/device/runtime mutation, force push, protected-branch mutation, or external send is authorized.
