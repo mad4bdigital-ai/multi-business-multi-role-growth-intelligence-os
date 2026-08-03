@@ -19,7 +19,7 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/arm-trigger-work-map-writer-reconcile-20260804' &&
-      github.event.pull_request.head.sha == '3f15080c4f6374c877a0a7f6ee748c863b04e175'
+      github.event.pull_request.head.sha == 'd7bdaa6b1099c8c03f4ebc28ab8b84d046f5eb20'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
