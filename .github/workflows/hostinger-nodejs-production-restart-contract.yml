@@ -84,3 +84,74 @@ jobs:
           assert.doesNotMatch(productionWorkflow, /body\.includes\(['"]status=/u);
           console.log('strict trusted-marker parser tests: passed');
           NODE
+
+      - name: Reject conflicting direct runtime identity fields
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { executeGovernedRestart } from './scripts/hostinger-nodejs-production-restart-coherent.mjs';
+
+          const expectedSha = 'f5c1ae8840b4d4452f2908bb0f23051880bb6896';
+          const oldSha = 'ca1e1cfe6697d251d2c50db7fa48246f18ab118f';
+          const response = (body) => new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+          let posts = 0;
+          const fetchImpl = async (url, init = {}) => {
+            const value = String(url);
+            if (value.includes('/nodejs/builds')) {
+              return response({ data: [{
+                uuid: '019fc51c-3947-7255-aa4d-f55cb8df7658',
+                state: 'completed',
+                created_at: '2026-08-03T00:53:09Z',
+                updated_at: '2026-08-03T00:53:35Z',
+                options: { source_type: 'git', entry_file: 'server.js' },
+              }] });
+            }
+            if (init.method === 'POST') {
+              posts += 1;
+              return response({ ok: true });
+            }
+            if (value.endsWith('/health')) return response({ ok: true });
+            if (value.endsWith('/version')) {
+              return response({ deployed_commit_sha: oldSha, deployment_branch: 'main' });
+            }
+            if (value.endsWith('/deployment-info')) {
+              return response({
+                commit_sha: expectedSha,
+                deployed_commit_sha: oldSha,
+                branch: 'Production',
+                deployment_branch: 'main',
+              });
+            }
+            throw new Error(`Unexpected URL ${value}`);
+          };
+          const report = await executeGovernedRestart({
+            accountUsername: 'u338416126',
+            domain: 'auth.mad4b.com',
+            expectedSha,
+            expectedBuildUuid: '019fc51c-3947-7255-aa4d-f55cb8df7658',
+            productionMergedAt: '2026-08-03T00:53:07Z',
+            outputDir: '/tmp/hostinger-conflicting-direct-identity',
+            timeoutMs: 5000,
+            pollAttempts: 1,
+            pollIntervalMs: 0,
+            token: 'test-secret-token',
+          }, {
+            fetchImpl,
+            sleepImpl: async () => {},
+            beforeProviderMutation: async () => ({
+              contract: 'mad4b.hostinger-pre-mutation-authority.v1',
+              status: 'passed',
+              marker_parser: 'strict_single_line_exact_fields_v1',
+              secrets_included: false,
+            }),
+          });
+          assert.equal(report.pre_runtime.current, false, 'conflicting direct identity must not be current');
+          assert.equal(posts, 1, 'conflicting identity must not skip the authorized restart path');
+          assert.equal(report.outcome, 'failed');
+          assert.equal(report.classification, 'restart_completed_runtime_stale');
+          console.log('conflicting direct runtime identity test: passed');
+          NODE
