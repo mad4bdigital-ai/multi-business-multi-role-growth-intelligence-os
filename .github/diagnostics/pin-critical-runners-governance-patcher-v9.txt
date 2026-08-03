@@ -1,0 +1,12 @@
+pin_critical_runners_governance_patcher_v9
+main_sha=14433d15184bd7e7658281a356a7540e3d2d6dfe
+pinned_workflows=9
+pr_read_only_workflows=3
+isolated_write_workflows=3
+ref_update=false
+branch_push=false
+main_mutation=false
+production_mutation=false
+provider_mutation=false
+database_mutation=false
+secrets_included=false
