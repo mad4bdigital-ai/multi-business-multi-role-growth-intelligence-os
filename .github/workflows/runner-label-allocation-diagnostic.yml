@@ -1,0 +1,77 @@
+name: Runner Label Allocation Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/runner-label-allocation-base-d2feb-20260803
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-label-allocation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  ubuntu-latest:
+    name: Allocate ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record allocation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/runner-label"
+          {
+            echo "requested_label=ubuntu-latest"
+            echo "runner_name=${RUNNER_NAME:-}"
+            echo "runner_os=${RUNNER_OS:-}"
+            echo "runner_arch=${RUNNER_ARCH:-}"
+            echo "image_os=${ImageOS:-}"
+            echo "image_version=${ImageVersion:-}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "job=${GITHUB_JOB}"
+            echo "sha=${GITHUB_SHA}"
+            echo "event=${GITHUB_EVENT_NAME}"
+          } | tee "${RUNNER_TEMP}/runner-label/ubuntu-latest.txt"
+      - name: Upload ubuntu-latest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-label-ubuntu-latest-${{ github.run_id }}
+          path: ${{ runner.temp }}/runner-label/ubuntu-latest.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  ubuntu-24-04:
+    name: Allocate ubuntu-24.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Record allocation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/runner-label"
+          {
+            echo "requested_label=ubuntu-24.04"
+            echo "runner_name=${RUNNER_NAME:-}"
+            echo "runner_os=${RUNNER_OS:-}"
+            echo "runner_arch=${RUNNER_ARCH:-}"
+            echo "image_os=${ImageOS:-}"
+            echo "image_version=${ImageVersion:-}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "job=${GITHUB_JOB}"
+            echo "sha=${GITHUB_SHA}"
+            echo "event=${GITHUB_EVENT_NAME}"
+          } | tee "${RUNNER_TEMP}/runner-label/ubuntu-24.04.txt"
+      - name: Upload ubuntu-24.04 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-label-ubuntu-24.04-${{ github.run_id }}
+          path: ${{ runner.temp }}/runner-label/ubuntu-24.04.txt
+          if-no-files-found: error
+          retention-days: 7
