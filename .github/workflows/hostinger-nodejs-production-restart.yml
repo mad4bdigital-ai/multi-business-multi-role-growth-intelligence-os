@@ -53,7 +53,6 @@ jobs:
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
     steps:
       - name: Resolve explicit authorization binding
         id: authorization
@@ -207,7 +206,7 @@ jobs:
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
           HOSTINGER_RESTART_POLL_ATTEMPTS: '12'
           HOSTINGER_RESTART_POLL_INTERVAL_MS: '10000'
-          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}
+          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
         run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
 
       - name: Upload structured restart evidence
@@ -215,7 +214,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-nodejs-production-restart-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/*
+          path: ${{ runner.temp }}/hostinger-nodejs-production-restart/*
           if-no-files-found: error
           retention-days: 30
 
@@ -224,8 +223,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
-          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
-          ATTEMPT_JOURNAL_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart-attempt.json
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+          ATTEMPT_JOURNAL_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart-attempt.json
         shell: bash
         run: |
           set -euo pipefail
@@ -311,7 +310,7 @@ jobs:
       - name: Enforce exact post-restart Production parity
         if: always() && steps.claim.outputs.claimed == 'true'
         env:
-          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
         run: |
           node --input-type=module -e '
             import fs from "node:fs";
