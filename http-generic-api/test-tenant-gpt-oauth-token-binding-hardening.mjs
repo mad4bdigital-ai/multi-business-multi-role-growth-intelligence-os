@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import express from "express";
 import jwt from "jsonwebtoken";
+import { TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS } from "./tenantGptAccessTokenProfile.js";
 import { TENANT_GPT_OAUTH_CLIENT_ID } from "./tenantGptOAuthPreset.js";
 import {
   BINDING_LIMITS,
@@ -42,13 +43,14 @@ for (const [claim, max] of Object.entries({
 }
 
 const deps = buildTenantGptOAuthTokenExchangeDeps({}, { JWT_SECRET });
+assert.equal(deps.accessTokenTtlSeconds, TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS);
 const issued = deps.issueAccessToken(
   { user_id: PAYLOAD.user_id, tenant_id: PAYLOAD.tenant_id },
   {
     clientId: PAYLOAD.client_id,
     jwtid: "access-jti-1",
     resource: PAYLOAD.resource,
-    expiresIn: 300,
+    expiresIn: 7 * 24 * 60 * 60,
   },
 );
 const verified = jwt.verify(issued, JWT_SECRET);
@@ -58,6 +60,34 @@ assert.equal(verified.azp, TENANT_GPT_OAUTH_CLIENT_ID);
 assert.equal(verified.sub, "tenant:tenant-1:user:user-1");
 assert.equal(verified.jti, "access-jti-1");
 assert.equal(verified.purpose, "tenant_gpt_access");
+assert.equal(verified.exp - verified.iat, 3600,
+  "caller-provided seven-day TTL must be replaced by the governed one-hour profile");
+
+const boundedDeps = buildTenantGptOAuthTokenExchangeDeps({}, {
+  JWT_SECRET,
+  TENANT_GPT_ACCESS_TOKEN_TTL_SECONDS: "300",
+});
+assert.equal(boundedDeps.accessTokenTtlSeconds, 300);
+const boundedIssued = boundedDeps.issueAccessToken(
+  { user_id: PAYLOAD.user_id, tenant_id: PAYLOAD.tenant_id },
+  {
+    clientId: PAYLOAD.client_id,
+    jwtid: "access-jti-300",
+    resource: PAYLOAD.resource,
+    expiresIn: 3600,
+  },
+);
+const boundedVerified = jwt.verify(boundedIssued, JWT_SECRET);
+assert.equal(boundedVerified.exp - boundedVerified.iat, 300);
+
+assert.throws(
+  () => buildTenantGptOAuthTokenExchangeDeps({}, {
+    JWT_SECRET,
+    TENANT_GPT_ACCESS_TOKEN_TTL_SECONDS: "3601",
+  }),
+  (error) => error?.code === "tenant_gpt_access_token_ttl_invalid",
+  "invalid configured TTL must fail before route construction or token issuance",
+);
 
 const unavailable = buildTenantGptOAuthTokenExchangeDeps({}, {});
 assert.throws(
