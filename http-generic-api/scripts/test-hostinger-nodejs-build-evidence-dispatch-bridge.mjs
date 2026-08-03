@@ -43,6 +43,11 @@ for (const marker of [
   "HOSTINGER_NODEJS_BUILD_EVIDENCE_DISPATCH status=completed",
   "hostinger-nodejs-build-evidence-${TARGET_RUN_ID}",
   "mad4b.hostinger-nodejs-build-evidence.v1",
+  "const reportMergedAtMs = Date.parse(report.identity?.production_merged_at ?? '');",
+  "const expectedMergedAtMs = Date.parse(mergedAt);",
+  "Number.isFinite(reportMergedAtMs)",
+  "Number.isFinite(expectedMergedAtMs)",
+  "reportMergedAtMs === expectedMergedAtMs",
   "report.request?.method === 'GET'",
   "report.request?.token_returned === false",
   "effects.provider_dispatch_performed === false",
@@ -57,6 +62,7 @@ for (const marker of [
   assert(bridge.includes(marker), `dispatch bridge missing ${marker}`);
 }
 
+assert.doesNotMatch(bridge, /report\.identity\?\.production_merged_at === mergedAt/);
 assert.doesNotMatch(bridge, /pull_request(?:_target)?:/);
 assert.doesNotMatch(bridge, /secrets\./);
 assert.doesNotMatch(bridge, /HOSTINGER_API_TOKEN/);
