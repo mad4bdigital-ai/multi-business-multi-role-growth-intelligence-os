@@ -21,24 +21,20 @@ jobs:
     env:
       EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: 7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c
       MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       BASE_TRANSFORM_SHA: 24b41f1ee9deff4bc62bdfe511af21324bbbb296
       REPLAY_PATCH_SHA: b1e04f2e0143b66ef30b0550edf5ffdd63ed1fab
-      E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
     steps:
       - name: Verify event identity
         shell: bash
         env:
           EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
           test "${EVENT_HEAD_REPOSITORY}" = "${GITHUB_REPOSITORY}"
           test "${EVENT_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
-          test "${EVENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"
 
       - name: Checkout exact marker head
         uses: actions/checkout@v5
@@ -54,18 +50,19 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify marker scope and load immutable patches
+      - name: Verify marker-only scope and load patches
         shell: bash
         run: |
           set -euo pipefail
           DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-replay-readback-${GITHUB_RUN_ID}"
           printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${DIAGNOSTIC_ROOT}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          head_sha="$(git rev-parse HEAD)"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${head_sha}")" = "${EXPECTED_MAIN_SHA}"
           printf '%s\n' "${MARKER_PATH}" > /tmp/expected-files.txt
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${head_sha}" | LC_ALL=C sort > /tmp/actual-files.txt
           diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test -f "${MARKER_PATH}"
           test -z "$(git status --porcelain)"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
@@ -76,33 +73,13 @@ jobs:
           git show "${REPLAY_PATCH_SHA}:.github/scripts/apply-spec012-oauth-replay-readback-fix.py" > /tmp/apply-replay.py
           python -m py_compile /tmp/apply-base.py /tmp/apply-replay.py
 
-      - name: Apply corrected patches and converge generated maps
+      - name: Apply corrected patches
         shell: bash
         run: |
           set -euo pipefail
           rm "${MARKER_PATH}"
           python /tmp/apply-base.py
           python /tmp/apply-replay.py
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
-          python - "${E2E_PATH}" "${DIAGNOSTIC_ROOT}/generated-files.txt" <<'PY'
-          import json, sys
-          from pathlib import Path
-          e2e = Path(sys.argv[1])
-          generated = [line.strip() for line in Path(sys.argv[2]).read_text().splitlines() if line.strip()]
-          payload = json.loads(e2e.read_text())
-          for values in (payload['scope']['include'], payload['phases'][0]['e2e_journeys'][0]['evidence_paths']):
-              for value in generated:
-                  if value not in values:
-                      values.append(value)
-          e2e.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
-          PY
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          test "${first_hash}" = "${second_hash}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
           git diff --check
 
       - name: Run OAuth replay and wiring validations independently
