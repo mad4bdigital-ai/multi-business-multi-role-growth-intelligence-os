@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "hostinger-nodejs-build-evidence",
-  "title": "Hostinger Node.js build history evidence",
+  "title": "Hostinger Node.js build history and completed-build log evidence",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -20,35 +20,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace inference from stale public runtime identity with bounded authenticated read-only evidence from Hostinger Node.js build history and failed-build logs, without creating builds, deploying, restarting, or exposing credentials.",
+      "objective": "Collect bounded authenticated GET-only Hostinger build history and redacted logs for the selected completed or failed post-merge build, extracting source provenance and activation signals without creating builds, deploying, restarting, or exposing credentials.",
       "e2e_journeys": [
         {
-          "id": "inspect-hostinger-nodejs-build-history",
+          "id": "inspect-hostinger-completed-build-provenance",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "trusted release operator and GitHub Actions",
           "entrypoint": "Hostinger Node.js Build Evidence workflow contract test or trusted workflow dispatch from main",
-          "terminal_outcome": "A structured JSON and Markdown artifact classifies whether a Hostinger Node.js build exists after the protected Production merge, identifies its state and bounded source provenance when exposed, and includes a redacted log excerpt only for the newest failed build.",
+          "terminal_outcome": "A structured JSON and Markdown artifact identifies the newest post-merge build, reads its logs when completed or failed, redacts secrets, extracts source-context Git revisions and bounded activation/error signals, and classifies expected, conflicting, other, or unverified source provenance.",
           "steps": [
             "Validate the Hostinger account username, fixed auth.mad4b.com domain, exact protected Production SHA, and Production merge timestamp.",
-            "Build the official Hostinger Node.js build-list URL using encoded path parameters.",
-            "Authenticate with HOSTINGER_API_TOKEN without returning the token in logs or artifacts.",
-            "Perform an authenticated GET request for page one of Node.js builds.",
-            "Normalize collection response variants and sort builds by provider timestamps.",
-            "Select the newest build created or updated after the protected Production merge.",
-            "Classify pending, running, failed, completed exact-SHA, completed other-SHA, completed source-unverified, and no-build outcomes.",
-            "When the newest build failed, perform one authenticated GET for its logs and retain only a bounded redacted excerpt.",
+            "Perform an authenticated GET for page one of Node.js builds and select the newest build created or updated after the protected merge.",
+            "For a completed or failed selected build, perform one authenticated GET for logs from line zero.",
+            "Bound and redact the log response before persistence.",
+            "Extract full Git SHA values only from source-context lines and retain short revision candidates for expected-prefix matching.",
+            "Extract at most thirty bounded activation and error signal lines.",
+            "Classify expected revision from logs, another full SHA, metadata/log conflict, source unverified, build failed, or pending outcomes.",
             "Upload the structured artifact before enforcing the evidence decision."
           ],
           "assertions": [
-            "The report contract is mad4b.hostinger-nodejs-build-evidence.v1.",
-            "The API base URL is exactly https://developers.hostinger.com.",
-            "The live domain is restricted to auth.mad4b.com.",
-            "Only GET requests are performed.",
-            "The Authorization bearer token is never returned by the report, Markdown, console result, or failure messages.",
-            "Provider responses and failed-build logs are bounded before persistence.",
-            "A completed build is not treated as exact-SHA proof unless the provider response exposes the expected Production SHA.",
-            "Completed builds without source SHA are classified as partial rather than passed.",
+            "The report contract remains mad4b.hostinger-nodejs-build-evidence.v1.",
+            "The API base URL is exactly https://developers.hostinger.com and the live domain is restricted to auth.mad4b.com.",
+            "Only GET requests are performed against build-list and selected-build-log endpoints.",
+            "The Authorization bearer token is never returned by the report, Markdown, console result, failure messages, or bounded signals.",
+            "Provider responses and logs are bounded before persistence.",
+            "A completed build may pass when source-context logs expose the exact expected SHA or an expected SHA prefix of at least seven characters.",
+            "A different full source SHA fails, while completed builds with no source evidence remain partial.",
+            "Metadata and log provenance conflicts fail closed.",
             "No build, deploy, restart, provider mutation, repository mutation, SQL execution, migration Apply, database mutation, or external send occurs.",
             "The report declares secrets_included=false."
           ],
@@ -71,23 +70,23 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Configure a least-privilege Hostinger API token in the trusted secret store and dispatch the merged workflow for Production f5c1ae8840b4d4452f2908bb0f23051880bb6896."
+      "status": "implemented",
+      "objective": "Use the configured least-privilege Hostinger token to inspect the completed build created immediately after Production f5c1ae8840b4d4452f2908bb0f23051880bb6896."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Add bounded pagination, rate-limit retry guidance, correlation-ID preservation, and multi-page build discovery without increasing provider write authority."
+      "objective": "Add bounded pagination and provider correlation-ID preservation without increasing provider write authority."
     },
     {
       "id": "canary",
-      "status": "planned",
-      "objective": "Validate the reporter against an authorized non-production Hostinger Node.js application before using any future provider mutation action."
+      "status": "not_applicable",
+      "objective": "This evidence path performs no Hostinger mutation or provider canary."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Make authenticated Hostinger build-history evidence a required companion to public runtime parity after every protected Production promotion."
+      "objective": "Require authenticated build and selected-build-log evidence alongside public runtime parity after protected Production promotions."
     }
   ],
   "secrets_included": false
