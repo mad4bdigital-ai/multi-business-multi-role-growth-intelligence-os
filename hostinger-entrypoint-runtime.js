@@ -22,12 +22,22 @@ async function refreshDeploymentManifest({
   if (typeof generatorModule?.generateDeploymentManifest !== "function") {
     throw new Error("Hostinger deployment manifest generator export is unavailable.");
   }
+  if (!generatorModule?.ROOT_ENTRYPOINT_BRANCH_LOCK_ENV) {
+    throw new Error("Hostinger deployment manifest branch-lock contract is unavailable.");
+  }
 
-  return generatorModule.generateDeploymentManifest({
+  const result = generatorModule.generateDeploymentManifest({
     env,
     argv: ["--branch=Production"],
     outputPath: resolve(applicationRoot, "deployment-manifest.json"),
   });
+
+  if (result?.manifest?.branch !== "Production") {
+    throw new Error("Hostinger root deployment manifest did not resolve Production branch provenance.");
+  }
+
+  env[generatorModule.ROOT_ENTRYPOINT_BRANCH_LOCK_ENV] = "Production";
+  return result;
 }
 
 async function startApplication({
