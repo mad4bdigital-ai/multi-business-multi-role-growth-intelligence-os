@@ -32,13 +32,13 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 458/464 (98.71%)
-- Documentation gap migrations: 6
-- Gap severity: high=21, medium=1, low=4
+- Documentation complete migrations: 459/464 (98.92%)
+- Documentation gap migrations: 5
+- Gap severity: high=21, medium=1, low=3
 - SQL route coverage in OpenAPI: 31/31 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 673/704
 - SQL routes missing OpenAPI path coverage: 0
-- Migrations without explicit `secrets_included=false` marker: 2
+- Migrations without explicit `secrets_included=false` marker: 1
 
 ### Surface Totals
 
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 6 |
-| `deployment_parity_checklist.md` | 6 |
-| `docs/ai-docs-agent-governance.md` | 6 |
-| `docs/auto-docs-agent/README.md` | 6 |
-| `docs/change-documentation-governance.md` | 6 |
+| `Updating Registry Patch Index.md` | 5 |
+| `deployment_parity_checklist.md` | 5 |
+| `docs/ai-docs-agent-governance.md` | 5 |
+| `docs/auto-docs-agent/README.md` | 5 |
+| `docs/change-documentation-governance.md` | 5 |
 
 ### Safety Marker Coverage
 
@@ -66,10 +66,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | no_provider_call | 461 |
 | no_credential_payload_read | 460 |
-| no_raw_secrets | 459 |
-| no_external_send | 459 |
-| no_external_write | 460 |
-| secrets_included_false | 462 |
+| no_raw_secrets | 460 |
+| no_external_send | 460 |
+| no_external_write | 461 |
+| secrets_included_false | 463 |
 
 ### Route Classification Coverage
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 26
+- Total queue items: 25
 - Critical review: 21
 - High review: 1
-- Medium review: 4
+- Medium review: 3
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
