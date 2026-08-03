@@ -1,0 +1,86 @@
+name: Build Repository Write Workflow Prerequisite V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/repository-write-prerequisite-builder-94f9d786-v2
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repository-write-prerequisite-builder-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
+  EXPECTED_BASE_REF: gpt/diag/repository-write-prerequisite-builder-94f9d786-v2
+  EXPECTED_HEAD_REF: gpt/diag/trigger-repository-write-prerequisite-94f9d786-v2
+  CANDIDATE_BRANCH: gpt/ci/repository-write-workflow-prerequisite-94f9d786-20260804
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Validate immutable trigger identity
+        shell: bash
+        env:
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_BASE_REF}" = "${EXPECTED_BASE_REF}"
+          test "${ACTUAL_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
+          test "${ACTUAL_HEAD_REPO}" = "${GITHUB_REPOSITORY}"
+
+      - name: Checkout trusted builder
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_BASE_REF }}
+          path: builder
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact protected-main snapshot
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          path: candidate
+          fetch-depth: 0
+
+      - name: Verify protected main has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main_sha="$(git -C candidate ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          test "${current_main_sha}" = "${EXPECTED_MAIN_SHA}"
+          test "$(git -C candidate rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Build and validate exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/repository-write-prerequisite"
+          base64 --decode builder/.github/builders/repository-write-prerequisite.py.gz.b64 \
+            | gzip --decompress > "${RUNNER_TEMP}/repository-write-prerequisite.py"
+          python3 -m py_compile "${RUNNER_TEMP}/repository-write-prerequisite.py"
+          python3 "${RUNNER_TEMP}/repository-write-prerequisite.py" \
+            --repo candidate \
+            --main-sha "${EXPECTED_MAIN_SHA}" \
+            --candidate-branch "${CANDIDATE_BRANCH}" \
+            --report-file "${RUNNER_TEMP}/repository-write-prerequisite/report.json" \
+            2>&1 | tee "${RUNNER_TEMP}/repository-write-prerequisite-builder.log"
+
+      - name: Upload bounded builder evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-prerequisite-v2-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/repository-write-prerequisite/
+            ${{ runner.temp }}/repository-write-prerequisite-builder.log
+          if-no-files-found: error
+          retention-days: 14
