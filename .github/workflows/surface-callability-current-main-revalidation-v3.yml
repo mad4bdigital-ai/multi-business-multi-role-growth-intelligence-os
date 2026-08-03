@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Revalidation V3
+name: Surface Callability Current Main Revalidation V3 Exact Head
 
 on:
   pull_request:
@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      BASE_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
+      BASE_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
       OLD_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
       V2_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v2.yml
       WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v3.yml
