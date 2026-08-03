@@ -1,0 +1,87 @@
+name: Incident 5021 approval builder diagnostic v10
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/draft-merge-guard-v2-20260803
+    paths:
+      - .github/scripts/incident-5021-diagnostic-v10.py
+      - .github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v10.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: incident-5021-approval-builder-diagnostic-v10
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose refreshed exact-head approval candidate without publishing
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-v2-20260803
+      EXPECTED_TARGET_SHA: 2b7cf14b23c03df97a962b6451cbb4579a39d628
+      REPORT_PATH: incident-5021-builder-diagnostic-v10.json
+    steps:
+      - name: Checkout immutable target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify target and fetch compiled diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$BUILDER_BRANCH"
+          git show "origin/${BUILDER_BRANCH}:.github/scripts/incident-5021-diagnostic-v10.py" > /tmp/incident-5021-diagnostic-v10.py
+          python -m py_compile /tmp/incident-5021-diagnostic-v10.py
+
+      - name: Run refreshed structured diagnostic
+        shell: bash
+        run: python /tmp/incident-5021-diagnostic-v10.py
+
+      - name: Upload refreshed structured diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-builder-diagnostic-v10-${{ github.sha }}
+          path: incident-5021-builder-diagnostic-v10.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail unless refreshed candidate is fully clean
+        shell: bash
+        run: |
+          python - <<'PYCHECK'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("incident-5021-builder-diagnostic-v10.json").read_text())
+          checks = [
+              report.get("diagnostic_completed") is True,
+              report.get("patch_returncode") == 0,
+              report.get("all_tests_passed") is True,
+              report.get("diff_check_returncode") == 0,
+              report.get("exact_six_file_boundary") is True,
+              report.get("actual_target_sha") == "2b7cf14b23c03df97a962b6451cbb4579a39d628",
+              report.get("expected_target_sha") == "2b7cf14b23c03df97a962b6451cbb4579a39d628",
+          ]
+          if not all(checks):
+              raise SystemExit("refreshed candidate diagnostic is not fully clean; inspect structured artifact")
+          print("refreshed candidate diagnostic fully clean")
+          PYCHECK
