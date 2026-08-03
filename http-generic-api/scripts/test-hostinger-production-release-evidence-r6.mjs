@@ -15,11 +15,7 @@ const authorizationToken = "AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669
 const triggerPath = ".github/ops/hostinger-production-release-evidence-r6-trigger.json";
 
 assert.match(workflow, /name: Hostinger Production Release Evidence R6/);
-assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened, reopened, synchronize\]/);
-assert.doesNotMatch(workflow, /\n\s+paths:/);
-assert.doesNotMatch(workflow, /^\s{6}EVIDENCE_DIR: \$\{\{ runner\.temp \}\}/m);
-assert.match(workflow, /echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/);
-assert.match(workflow, /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/);
+assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened\]/);
 assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -53,6 +49,12 @@ assert.match(workflow, /persist-credentials: false/);
 assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
+assert.match(workflow, /EVIDENCE_DIR: \/tmp\/hostinger-production-release-evidence-r6/);
+assert.doesNotMatch(
+  workflow,
+  /^\s+EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/m,
+  "runner context is unavailable in job-level env and would prevent workflow registration",
+);
 
 for (const marker of [
   "repository_write_performed:false",
