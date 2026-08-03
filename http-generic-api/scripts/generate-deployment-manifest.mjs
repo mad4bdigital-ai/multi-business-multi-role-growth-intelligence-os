@@ -7,6 +7,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(__dirname, "..");
 const repoRoot = resolve(appDir, "..");
 
+export const ROOT_ENTRYPOINT_BRANCH_LOCK_ENV = "DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH";
+
 function git(args, cwd = repoRoot) {
   try {
     return execFileSync("git", args, {
@@ -48,6 +50,7 @@ export function generateDeploymentManifest({
   const gitBranch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
   const branchCandidates = [
     ["arg:--branch", argValue(argv, "--branch")],
+    [`env:${ROOT_ENTRYPOINT_BRANCH_LOCK_ENV}`, env[ROOT_ENTRYPOINT_BRANCH_LOCK_ENV]],
     ["env:DEPLOYMENT_BRANCH", env.DEPLOYMENT_BRANCH],
     ["env:DEPLOY_BRANCH", env.DEPLOY_BRANCH],
     ["env:BRANCH_NAME", env.BRANCH_NAME],
