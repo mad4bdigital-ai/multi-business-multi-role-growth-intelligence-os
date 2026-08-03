@@ -105,13 +105,12 @@ jobs:
         working-directory: http-generic-api
         shell: bash
         env:
-          GITHUB_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
         run: |
           set -euo pipefail
           git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
           node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
-          npm test
+          GITHUB_SHA="${EXPECTED_HEAD_SHA}" npm test
           test -f "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
           test -f "${TEST_SUITE_REPORT_DIR}/test-suite.json"
           jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha' "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
@@ -208,8 +207,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs
+          mkdir -p artifacts
+          node http-generic-api/scripts/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/scripts/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --report-file artifacts/e2e-contract-reference-integrity.json \
+            --base "${BASE_SHA}" \
+            --head "${CANDIDATE_SHA}"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file artifacts/e2e-contract-reference-integrity.json
 
   final:
     name: Exact Draft validation final
