@@ -1,0 +1,141 @@
+name: Retail Commerce T004 Final Windows Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/retail-commerce-t004-final-windows-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  final-validation:
+    name: Validate final synced T004 fallback candidate
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CANDIDATE_SHA: 1f97dc53da60b581f4240fa6c53c2494e6576bd0
+      CANDIDATE_BASE_SHA: f2bedc488fbbfffe7b87e1c8d00a493edada19f9
+      CANDIDATE_HEAD_REF: gpt/retail-commerce-t004-runtime-readback-fallback-20260803
+      CANDIDATE_BASE_REF: main
+    steps:
+      - name: Checkout exact validation head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.VALIDATION_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify candidate ancestry and exact Retail Commerce diff
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:VALIDATION_HEAD_SHA) { throw "Validation SHA mismatch" }
+          git merge-base --is-ancestor $env:CANDIDATE_SHA $env:VALIDATION_HEAD_SHA
+          if ($LASTEXITCODE -ne 0) { throw "Candidate is not an ancestor of validation head" }
+          $files = @(git diff --name-only "$env:CANDIDATE_BASE_SHA...$env:CANDIDATE_SHA")
+          $expected = @(
+            '.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml',
+            'http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs',
+            'http-generic-api/test-retail-commerce-production-schema-baseline.mjs',
+            'http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs',
+            'http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs',
+            'specs/014-retail-commerce-operations-growth-os/e2e-phases.json'
+          ) | Sort-Object
+          $actualFiles = @($files | Sort-Object)
+          if (($actualFiles -join "`n") -ne ($expected -join "`n")) {
+            throw "Candidate diff is not the exact six-file Retail Commerce scope"
+          }
+
+      - name: Initialize evidence directory
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'retail-commerce-t004-final-validation'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          "EVIDENCE_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate focused syntax and contracts
+        working-directory: http-generic-api
+        shell: pwsh
+        run: |
+          node --check scripts/retail-commerce-production-schema-baseline.mjs
+          node --check test-retail-commerce-production-schema-baseline.mjs
+          node --check test-retail-commerce-production-schema-runtime-gap-readback.mjs
+          node --check test-retail-commerce-production-schema-baseline-pr-trigger.mjs
+          node test-retail-commerce-production-schema-baseline.mjs
+          node test-retail-commerce-production-schema-runtime-gap-readback.mjs
+          node test-retail-commerce-production-schema-baseline-pr-trigger.mjs
+          node test-retail-commerce-specification-baseline.mjs
+
+      - name: Classify exact candidate E2E mode
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check `
+            --head-ref $env:CANDIDATE_HEAD_REF `
+            --base-ref $env:CANDIDATE_BASE_REF `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_SHA `
+            --report-file (Join-Path $env:EVIDENCE_DIR 'e2e-parallel-work-evaluation.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Evaluate exact candidate E2E phase contract
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs check `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_SHA `
+            --report-file (Join-Path $env:EVIDENCE_DIR 'e2e-phase-evaluation.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Execute exact candidate E2E journeys
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs run `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_SHA `
+            --report-file (Join-Path $env:EVIDENCE_DIR 'e2e-phase-evaluation.json') `
+            --execution-report-file (Join-Path $env:EVIDENCE_DIR 'e2e-phase-execution.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Write bounded final evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $report = [ordered]@{
+            contract = 'mad4b.retail-commerce-t004-final-validation.v1'
+            candidate_sha = $env:CANDIDATE_SHA
+            candidate_base_sha = $env:CANDIDATE_BASE_SHA
+            validation_head_sha = $env:VALIDATION_HEAD_SHA
+            exact_six_file_scope = $true
+            production_call_executed = $false
+            credential_values_read = $false
+            sql_execution = $false
+            migration_apply = $false
+            database_mutation = $false
+            provider_call = $false
+            external_write = $false
+            secrets_included = $false
+          }
+          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $env:EVIDENCE_DIR 'validation.json')
+
+      - name: Upload bounded final evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retail-commerce-t004-final-windows-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/retail-commerce-t004-final-validation
+          if-no-files-found: error
+          retention-days: 14
