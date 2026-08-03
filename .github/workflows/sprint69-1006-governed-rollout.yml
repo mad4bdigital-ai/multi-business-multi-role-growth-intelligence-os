@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmation_comment_id:
-        description: Fresh exact readiness authorization comment ID on Issue #4122
+        description: Exact readiness authorization comment ID 5170518874 on Issue #4122
         required: true
         type: string
       expected_main_sha:
