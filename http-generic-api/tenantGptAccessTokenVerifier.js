@@ -6,33 +6,60 @@ import {
   normalizeTenantGptOAuthResource,
   tenantGptLegacyAudienceCutoffMs,
 } from "./tenantGptOAuthResourceProfile.js";
+import {
+  classifyTenantGptAudienceCompatibility,
+  recordTenantGptAudienceCompatibilityEvidence,
+  rejectTenantGptAudienceCompatibilityForResourceMismatch,
+} from "./tenantGptAudienceCompatibilityPolicy.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const JWT_SECRET_MAX_LENGTH = 4096;
 
-function tokenFailure(code, message) {
+function tokenFailure(code, message, status = 401) {
   const error = new Error(message);
   error.code = code;
-  error.status = 401;
+  error.status = status;
   return error;
 }
 
-function audienceValues(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
-  const normalized = String(value || "").trim();
-  return normalized ? [normalized] : [];
+function requireTenantGptJwtSecret() {
+  const secret = String(process.env.JWT_SECRET || "").trim();
+  if (!secret || secret.length > JWT_SECRET_MAX_LENGTH) {
+    throw tokenFailure(
+      "tenant_gpt_verifier_unavailable",
+      "Tenant GPT token verification is temporarily unavailable.",
+      503,
+    );
+  }
+  return secret;
+}
+
+function emitCompatibilityEvidence(evidence, callback) {
+  if (typeof callback !== "function") return;
+  try {
+    callback(evidence);
+  } catch (error) {
+    console.warn("tenant_gpt_audience_compatibility_evidence_failed", {
+      code: String(error?.code || "compatibility_evidence_failed").slice(0, 64),
+      secrets_included: false,
+    });
+  }
 }
 
 export function verifyTenantGptAccessToken(token, {
   expectedResource = TENANT_GPT_ACTIVATION_RESOURCE,
   nowMs = Date.now(),
   allowLegacyAudience = true,
+  legacyAudienceCutoffMs = tenantGptLegacyAudienceCutoffMs(),
+  compatibilityClockSkewMs,
+  onCompatibilityEvidence = recordTenantGptAudienceCompatibilityEvidence,
 } = {}) {
   const resource = normalizeTenantGptOAuthResource(expectedResource);
   if (!resource) throw tokenFailure("tenant_gpt_resource_invalid", "Protected resource configuration is invalid.");
 
+  const jwtSecret = requireTenantGptJwtSecret();
   let payload;
   try {
-    payload = jwt.verify(String(token || ""), JWT_SECRET, {
+    payload = jwt.verify(String(token || ""), jwtSecret, {
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
     });
   } catch {
@@ -46,31 +73,43 @@ export function verifyTenantGptAccessToken(token, {
     throw tokenFailure("tenant_gpt_token_subject_invalid", "Tenant GPT access token is missing tenant subject claims.");
   }
 
-  const audiences = audienceValues(payload.aud);
-  const strictAudienceMatch = audiences.length === 1 && audiences[0] === resource;
-  let legacyAudienceAccepted = false;
+  const compatibility = classifyTenantGptAudienceCompatibility({
+    audience: payload.aud,
+    expectedResource: resource,
+    legacyAudience: TENANT_GPT_LEGACY_AUDIENCE,
+    allowLegacyAudience,
+    cutoffMs: legacyAudienceCutoffMs,
+    nowMs,
+    issuedAtSeconds: payload.iat,
+    ...(compatibilityClockSkewMs === undefined ? {} : { clockSkewMs: compatibilityClockSkewMs }),
+  });
 
-  if (!strictAudienceMatch && allowLegacyAudience && audiences.length === 1 && audiences[0] === TENANT_GPT_LEGACY_AUDIENCE) {
-    const cutoffMs = tenantGptLegacyAudienceCutoffMs();
-    const issuedAtMs = Number.isFinite(Number(payload.iat)) ? Number(payload.iat) * 1000 : Number.POSITIVE_INFINITY;
-    legacyAudienceAccepted = cutoffMs > 0 && nowMs <= cutoffMs && issuedAtMs <= cutoffMs;
-  }
-
-  if (!strictAudienceMatch && !legacyAudienceAccepted) {
+  if (!compatibility.accepted) {
+    emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
     throw tokenFailure("tenant_gpt_token_audience_invalid", "User token is not valid for the Activation protected resource.");
   }
 
   if (payload.resource && normalizeTenantGptOAuthResource(payload.resource) !== resource) {
+    emitCompatibilityEvidence(
+      rejectTenantGptAudienceCompatibilityForResourceMismatch(compatibility),
+      onCompatibilityEvidence,
+    );
     throw tokenFailure("tenant_gpt_token_resource_invalid", "User token resource claim does not match the Activation protected resource.");
   }
 
+  emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
   return {
     payload,
     verification: {
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
-      audience: strictAudienceMatch ? resource : TENANT_GPT_LEGACY_AUDIENCE,
+      audience: compatibility.audience_mode === "strict" ? resource : TENANT_GPT_LEGACY_AUDIENCE,
       expected_resource: resource,
-      legacy_audience_accepted: legacyAudienceAccepted,
+      audience_mode: compatibility.audience_mode,
+      audience_compatibility_classification: compatibility.classification,
+      legacy_audience_accepted: compatibility.legacy_audience_accepted,
+      legacy_audience_cutoff_state: compatibility.cutoff_state,
+      legacy_audience_cutoff_at: compatibility.cutoff_at,
+      compatibility_metric_name: compatibility.metric.name,
       secrets_included: false,
     },
   };
@@ -101,7 +140,12 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
       token_purpose: verified.payload.purpose,
       token_audience: verified.verification.audience,
       token_resource: verified.verification.expected_resource,
+      audience_mode: verified.verification.audience_mode,
+      audience_compatibility_classification: verified.verification.audience_compatibility_classification,
       legacy_audience_accepted: verified.verification.legacy_audience_accepted,
+      legacy_audience_cutoff_state: verified.verification.legacy_audience_cutoff_state,
+      legacy_audience_cutoff_at: verified.verification.legacy_audience_cutoff_at,
+      compatibility_metric_name: verified.verification.compatibility_metric_name,
     };
     return next();
   } catch (error) {
@@ -116,3 +160,5 @@ export function requireActivationTenantGptAccessToken(req, res, next) {
     });
   }
 }
+
+export { JWT_SECRET_MAX_LENGTH };
