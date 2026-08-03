@@ -1,0 +1,10 @@
+phase=completed_build_log_evidence_r3c_windows
+control_issue=4953
+domain=auth.mad4b.com
+account_username=u338416126
+build_uuid=019fc51c-3947-7255-aa4d-f55cb8df7658
+expected_production_sha=f5c1ae8840b4d4452f2908bb0f23051880bb6896
+provider_method=GET
+provider_mutation=false
+restart=false
+secrets_included=false
