@@ -23,6 +23,7 @@ fs.mkdirSync(path.join(root, ".changes", "e2e"), { recursive: true });
 fs.mkdirSync(path.join(root, "http-generic-api", "scripts"), { recursive: true });
 fs.copyFileSync(path.join(REPO_ROOT, ".specify", "e2e-phase-governance.json"), path.join(root, ".specify", "e2e-phase-governance.json"));
 fs.writeFileSync(path.join(root, gatePath), "export const version = 1;\n");
+fs.writeFileSync(path.join(root, fixtureTestPath), "export const fixtureVersion = 1;\n");
 run("git", ["init"], root);
 run("git", ["config", "user.email", "ci@example.invalid"], root);
 run("git", ["config", "user.name", "CI"], root);
