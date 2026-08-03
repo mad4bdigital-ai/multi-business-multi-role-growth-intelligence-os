@@ -24,7 +24,6 @@ assert.match(runnerSource, /AUTHORITY_LIVE_EVIDENCE_PACKET_SHA256/);
 assert.doesNotMatch(runnerSource, /request_body|provider\/|hostinger|credential_payload\s*:/i);
 
 assert.match(collectorsSource, /AUTHORITY_LIVE_SOURCE_ROW_LIMIT\s*=\s*8192/);
-assert.match(collectorsSource, /LIMIT 8193/g);
 assert.match(collectorsSource, /admin_platform_endpoint_tools/);
 assert.match(collectorsSource, /tenant_platform_endpoint_tools/);
 assert.match(collectorsSource, /platform_endpoint_tool_exports/);
@@ -33,7 +32,17 @@ assert.match(collectorsSource, /app_integration_tool_bindings/);
 assert.match(collectorsSource, /FROM endpoints/);
 assert.match(collectorsSource, /FROM actions/);
 assert.doesNotMatch(collectorsSource, /COLUMN_DEFAULT|VIEW_DEFINITION/);
-assert.doesNotMatch(collectorsSource, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE)\b(?=[^"`]*")/i);
+
+const sqlLiterals = [...collectorsSource.matchAll(/sql:\s*"([^"]+)"/g)].map((match) => match[1]);
+assert.equal(sqlLiterals.length, 8);
+for (const sql of sqlLiterals) {
+  assert.match(sql, /^SELECT\b/i);
+  assert.match(sql, /LIMIT 8193$/);
+  assert.doesNotMatch(
+    sql,
+    /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|CALL|DO|SET|LOAD|HANDLER|LOCK|UNLOCK)\b/i,
+  );
+}
 
 const expectedFamilies = [
   "system_tool_registry",
