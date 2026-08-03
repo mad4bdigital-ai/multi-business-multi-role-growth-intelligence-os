@@ -10,5 +10,6 @@ export const testCommands = Object.freeze([
   "node test-spec012-policy-closeout-and-t026-readiness.mjs",
   "node test-spec012-task-ledger-reconciliation.mjs",
   "node test-spec012-t009-data-governance-readiness.mjs",
+  "node test-spec012-t007a-t029d-slo-baseline-readiness.mjs",
   "node test-execution-capsule-mutation-and-rollout.mjs",
 ]);
