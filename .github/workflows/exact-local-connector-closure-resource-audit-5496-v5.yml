@@ -46,22 +46,24 @@ jobs:
 
       - name: Run audit with validation base
         shell: bash
+        working-directory: http-generic-api
         continue-on-error: true
         run: |
           set +e
-          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/validation-base.log" 2>&1
+          node scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/validation-base.log" 2>&1
           printf '%s\n' "$?" > "$EVIDENCE_DIR/validation-base.status"
           cat "$EVIDENCE_DIR/validation-base.log"
           exit 0
 
       - name: Run audit with main base
         shell: bash
+        working-directory: http-generic-api
         continue-on-error: true
         env:
           GITHUB_BASE_REF: ""
         run: |
           set +e
-          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/main-base.log" 2>&1
+          node scripts/resource-api-coverage-audit.mjs --ci --changed > "$EVIDENCE_DIR/main-base.log" 2>&1
           printf '%s\n' "$?" > "$EVIDENCE_DIR/main-base.status"
           cat "$EVIDENCE_DIR/main-base.log"
           exit 0
