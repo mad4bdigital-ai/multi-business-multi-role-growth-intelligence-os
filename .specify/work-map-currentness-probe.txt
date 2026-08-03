@@ -1,7 +1,8 @@
 Temporary exact-head currentness probe for the governed Spec Kit Work Map Integration gate.
 
-Authorized recovery cycle: 2026-08-03T15:33:00Z
-Authorized protected-main SHA: 415557d31e0533b8156e8058aa2a20fb844bc121
-Previous feature head: c7ac0ea67743e5c2e918525c13a0339b3d475a30
+Authorized recovery cycle: 2026-08-03T15:51:00Z
+Authorized protected-main SHA: 8537aa8cef6a375a514eb9c31389de1afba0d923
+Previous feature head: 9d80069cb90b0c04ef20fcc3eb0f796320c66515
+Prior delegated writer run 30828882719 is stale and performed no generation, commit, or push.
 
-This path triggers the governed PR Generated Artifact Refresh recovery activation but is not part of platform-work-map-generator.mjs sourceFiles. Delete it before merge. No runtime, deployment, provider, credential, database, migration, Production, protected-branch mutation, force push, or external-send action is authorized.
+This path triggers the governed E2E Contract Reference Integrity recovery bridge but is not part of platform-work-map-generator.mjs sourceFiles. Delete it before merge. No runtime, deployment, provider, credential, database, migration, Production, protected-branch mutation, force push, or external-send action is authorized.
