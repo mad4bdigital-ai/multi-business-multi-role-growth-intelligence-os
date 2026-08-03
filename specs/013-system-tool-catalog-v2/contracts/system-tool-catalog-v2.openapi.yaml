@@ -7,6 +7,7 @@ servers:
   - url: https://auth.mad4b.com
 security:
   - bearerAuth: []
+  - backendApiKeyAuth: []
 paths:
   /system/tools:
     get:
@@ -45,6 +46,7 @@ paths:
       summary: Read no-secret Catalog V2 counters and descriptor/runtime parity
       security:
         - bearerAuth: [admin]
+        - backendApiKeyAuth: []
       responses:
         '200':
           description: Catalog counters and parity evidence
@@ -107,6 +109,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
   schemas:
     ToolDescriptor:
       type: object
