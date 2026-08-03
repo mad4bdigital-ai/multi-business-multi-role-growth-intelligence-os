@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { executeGovernedRestart } from "./hostinger-nodejs-production-restart-coherent.mjs";
 import {
-  executeGovernedRestart,
   HOSTINGER_NODEJS_PRODUCTION_RESTART_CONTRACT,
   validateConfiguration,
 } from "./hostinger-nodejs-production-restart.mjs";
@@ -43,6 +43,14 @@ function runtimeBody(sha, branch) {
   return { service: "http_generic_api_connector", deployed_commit_sha: sha, deployment_branch: branch };
 }
 
+function assertCoherentAuthority(report) {
+  assert.equal(report.runtime_identity_authority.contract, "mad4b.hostinger-runtime-identity-authority.v1");
+  assert.equal(report.runtime_identity_authority.authoritative_endpoint, "/deployment-info");
+  assert.equal(report.runtime_identity_authority.cross_endpoint_composition_allowed, false);
+  assert.equal(report.runtime_identity_authority.version_endpoint_authoritative, false);
+  assert.equal(report.runtime_identity_authority.mode, "deployment_info_coherent_pair");
+}
+
 async function testAlreadyCurrentSkipsRestart() {
   let posts = 0;
   const fetchImpl = async (url, init = {}) => {
@@ -58,6 +66,7 @@ async function testAlreadyCurrentSkipsRestart() {
   assert.equal(report.classification, "runtime_already_current");
   assert.equal(report.restart.performed, false);
   assert.equal(posts, 0);
+  assertCoherentAuthority(report);
 }
 
 async function testRestartConverges() {
@@ -77,6 +86,7 @@ async function testRestartConverges() {
   assert.equal(report.side_effects.build_creation_performed, false);
   assert.equal(report.side_effects.deployment_performed, false);
   assert.equal(report.secrets_included, false);
+  assertCoherentAuthority(report);
 }
 
 async function testDifferentLatestBuildFailsClosed() {
@@ -91,6 +101,7 @@ async function testDifferentLatestBuildFailsClosed() {
   assert.equal(report.classification, "restart_precondition_failed");
   assert.equal(report.first_failure.code, "newer_or_different_build_detected");
   assert.equal(posts, 0);
+  assertCoherentAuthority(report);
 }
 
 async function testRestartStaysStale() {
@@ -106,6 +117,28 @@ async function testRestartStaysStale() {
   assert.equal(report.classification, "restart_completed_runtime_stale");
   assert.equal(report.restart.performed, true);
   assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+  assertCoherentAuthority(report);
+}
+
+async function testSplitEndpointIdentityNeverPasses() {
+  let posts = 0;
+  const fetchImpl = async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes("/nodejs/builds")) return response(200, buildList());
+    if (init.method === "POST") { posts += 1; return response(200, { ok: true }); }
+    if (value.endsWith("/health")) return response(200, { ok: true });
+    if (value.endsWith("/version")) return response(200, runtimeBody(EXPECTED_SHA, "unavailable"));
+    if (value.endsWith("/deployment-info")) return response(200, runtimeBody(OLD_SHA, "Production"));
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  assert.equal(report.pre_runtime.current, false);
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_completed_runtime_stale");
+  assert.equal(report.restart.performed, true);
+  assert.equal(posts, 1);
+  assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+  assertCoherentAuthority(report);
 }
 
 function testConfigurationGuards() {
@@ -118,6 +151,7 @@ function testWorkflowContract() {
   const workflowPath = path.resolve(process.cwd(), "../.github/workflows/hostinger-nodejs-production-restart.yml");
   const workflow = fs.readFileSync(workflowPath, "utf8");
   const implementation = fs.readFileSync(path.resolve(process.cwd(), "scripts/hostinger-nodejs-production-restart.mjs"), "utf8");
+  const coherentWrapper = fs.readFileSync(path.resolve(process.cwd(), "scripts/hostinger-nodejs-production-restart-coherent.mjs"), "utf8");
   assert.match(workflow, /workflow_dispatch:/u);
   assert.match(workflow, /expected_head_sha:/u);
   assert.match(workflow, /expected_build_uuid:/u);
@@ -131,6 +165,9 @@ function testWorkflowContract() {
   assert.match(workflow, /f5c1ae8840b4d4452f2908bb0f23051880bb6896/u);
   assert.match(workflow, /019fc51c-3947-7255-aa4d-f55cb8df7658/u);
   assert.match(implementation, /nodejs\/server\/restart/u);
+  assert.match(coherentWrapper, /deployment_info_coherent_pair/u);
+  assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
+  assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
   assert.match(workflow, /HOSTINGER_API_TOKEN/u);
   assert.match(workflow, /issues: write/u);
   assert.doesNotMatch(workflow, /contents: write/u);
@@ -144,6 +181,7 @@ await testAlreadyCurrentSkipsRestart();
 await testRestartConverges();
 await testDifferentLatestBuildFailsClosed();
 await testRestartStaysStale();
+await testSplitEndpointIdentityNeverPasses();
 testConfigurationGuards();
 testWorkflowContract();
 console.log("hostinger-nodejs-production-restart tests: passed");
