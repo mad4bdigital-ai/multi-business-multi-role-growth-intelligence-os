@@ -1,0 +1,153 @@
+name: Temporary Certified Release ARM Validation d5e380fd
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/tmp-certified-release-arm-validation-d5e380fd.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tmp-certified-release-arm-validation-d5e380fd
+  cancel-in-progress: true
+
+jobs:
+  certified-release-arm-validation:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      CANDIDATE_SHA: 15f196419a3bc75930ae393117355f7866687eeb
+      CERTIFIED_CUT_SHA: d5e380fd23ae788890ff2f727278a66756a0e094
+      EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
+      CANDIDATE_BRANCH: gpt/validate-certified-release-candidate-20260803-d5e380fd-f5c1ae88-v1
+      CERTIFIED_BASE_BRANCH: gpt/validate-certified-release-base-20260803-d5e380fd-v1
+      REPORT_DIR: ${{ runner.temp }}/certified-release-arm-validation
+    steps:
+      - name: Checkout exact immutable candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 15f196419a3bc75930ae393117355f7866687eeb
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable topology and protected-ref freshness
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production' \
+            "+refs/heads/${CANDIDATE_BRANCH}:refs/remotes/origin/${CANDIDATE_BRANCH}" \
+            "+refs/heads/${CERTIFIED_BASE_BRANCH}:refs/remotes/origin/${CERTIFIED_BASE_BRANCH}"
+
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "refs/remotes/origin/${CANDIDATE_BRANCH}")" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "refs/remotes/origin/${CERTIFIED_BASE_BRANCH}")" = "$CERTIFIED_CUT_SHA"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "$EXPECTED_PRODUCTION_SHA"
+          test "$(git rev-parse "${CANDIDATE_SHA}^1")" = "$CERTIFIED_CUT_SHA"
+          test "$(git rev-list --parents -n 1 "$CANDIDATE_SHA" | awk '{print NF-1}')" -ge 2
+          git diff --quiet "$CERTIFIED_CUT_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$EXPECTED_PRODUCTION_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$CERTIFIED_CUT_SHA" refs/remotes/origin/main
+          test "$(git rev-parse "${CANDIDATE_SHA}^{tree}")" = "$(git rev-parse "${CERTIFIED_CUT_SHA}^{tree}")"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate canonical sources and JavaScript syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node validate-memory-schema.mjs
+          node --check find-canonical-domain.mjs
+          git diff --check
+          cd http-generic-api
+          node scripts/schema-docs-change-guard.mjs
+          node scripts/migration-placement-guard.mjs
+          node scripts/user-jwt-auth-governance.mjs
+          node scripts/spec-kit-completion-gate.mjs --ci --changed
+          shopt -s nullglob
+          for file in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+            node --check "$file"
+          done
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run HTTP API unit integration and architecture validation
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: release/production-candidate-20260803-d5e380fd-v1
+          DEPLOYMENT_COMMIT_SHA: d5e380fd23ae788890ff2f727278a66756a0e094
+        run: |
+          set -Eeuo pipefail
+          npm test
+          npm run validate
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Validate execution resolver
+        run: |
+          set -Eeuo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+
+      - name: Write no-effect evidence summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          cat > "$REPORT_DIR/summary.json" <<EOF
+          {
+            "contract": "mad4b.certified-release-arm-one-shot.v1",
+            "candidate_sha": "$CANDIDATE_SHA",
+            "certified_cut_sha": "$CERTIFIED_CUT_SHA",
+            "expected_production_sha": "$EXPECTED_PRODUCTION_SHA",
+            "runner_pool": "ubuntu-24.04-arm",
+            "tree_policy": "exact_certified_cut_tree",
+            "repository_mutation_performed": false,
+            "production_merge_executed": false,
+            "deployment_executed": false,
+            "migration_executed": false,
+            "database_mutation_executed": false,
+            "provider_call_executed": false,
+            "credential_payload_read": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload certified release ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-release-arm-d5e380fd-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.REPORT_DIR }}/summary.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: error
+          retention-days: 30
