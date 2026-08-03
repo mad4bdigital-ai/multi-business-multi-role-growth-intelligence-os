@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-runtime-migration-promotion",
+  "title": "Spec 014 Governed Runtime Migration Promotion",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-runtime-migration-promotion.json",
+      ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+      ".github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml",
+      "http-generic-api/config/governed-migration-dependencies.json",
+      "http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql",
+      "http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Promote the three reviewed Spec 014 SQL candidates into the governed runtime migration directory with exact executable-statement parity, checksum and statement-count evidence, pinned preflight findings, and a fail-closed dependency chain, without authorizing or applying any migration.",
+      "e2e_journeys": [
+        {
+          "id": "reviewed-candidate-to-governed-runtime-sequence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed migration reviewer",
+          "entrypoint": "Hostinger Storage Runtime Migration Promotion Guard",
+          "terminal_outcome": "Three ordered runtime migrations match the reviewed candidate statements exactly, expose stable checksum, statement-count, preflight, and dependency evidence, and remain unapplied and unauthorized; Wave 3's four non-idempotent-object warnings remain explicit apply blockers rather than being hidden by silent replacement or ignore semantics.",
+          "steps": [
+            "Load the three contract-local reviewed SQL candidates and their promoted runtime migration files.",
+            "Split executable SQL with the same repository parser used by governed migration authorization.",
+            "Require exact executable-statement parity for every wave.",
+            "Run repository migration preflight and require the exact pinned status and risk-code set for each wave.",
+            "Verify exact tables, views, disabled tool seeds, and absence of destructive or secret-bearing SQL.",
+            "Compute and pin SHA-256 checksum and statement count for each promoted migration.",
+            "Validate the ordered dependency chain from foundation to control plane to execution evidence.",
+            "Require Wave 3 view and tool-key absence evidence before any later apply authorization.",
+            "Prove no authorization bootstrap, migration execution, live database access, provider dispatch, credential access, deployment, or Production mutation occurred."
+          ],
+          "assertions": [
+            "Wave 1 creates exactly four foundation tables and passes preflight with zero risks.",
+            "Wave 2 creates exactly six control-plane tables, depends on Wave 1, and passes preflight with zero risks.",
+            "Wave 3 creates exactly five execution/evidence tables, three views, and three disabled tools; it depends on Wave 2 and retains exactly four known apply-blocking warnings.",
+            "All promoted executable statements equal their reviewed contract-local candidates.",
+            "Checksums, statement counts, preflight statuses, risk codes, and dependencies are pinned and fail closed on drift.",
+            "No migration is authorized, dry-run, applied, or read from a live database in this PR."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-runtime-migration-promotion",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+            "http-generic-api/config/governed-migration-dependencies.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "Operational apply requires separately merged main, authorization bootstrap, dependency readback, dry-run, typed confirmation, and live schema readback."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Failure recovery belongs to the separately governed apply and reconciliation cycle."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No database or provider canary is executed by promotion."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production migration apply and runtime mounting remain separately governed and blocked."
+    }
+  ]
+}

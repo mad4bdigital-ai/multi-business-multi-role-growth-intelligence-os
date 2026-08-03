@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-deferred-child-fk-readiness.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "evaluator": "http-generic-api/hostingerStorageDeferredChildFkReadiness.js",
+  "test": "http-generic-api/test-hostinger-storage-deferred-child-fk-readiness.mjs",
+  "candidate": {
+    "path": ".github/contracts/spec014/deferred-schema/deferred-child-parent-foreign-keys.sql",
+    "checksum_sha256": "492a25d0b0202d133936fd73675e5c0f9c3ca8fafaef39ef0312e7e9c263e8d8",
+    "statement_count": 3,
+    "promoted_to_runtime_migrations": false,
+    "constraints": [
+      "fk_storage_cleanup_run_items_run",
+      "fk_storage_cleanup_run_items_plan_item",
+      "fk_storage_reconciliation_results_run"
+    ]
+  },
+  "readback": {
+    "path": ".github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql",
+    "checksum_sha256": "699e1750f4aa4864a29745fc054a461c32f0296006068893cce210347c3cfc1e",
+    "read_only": true,
+    "row_payloads_returned": false,
+    "required_zero_metrics": [
+      "journal_null_plan_item_id_count",
+      "journal_orphan_run_count",
+      "journal_orphan_plan_item_count",
+      "journal_operation_mismatch_count",
+      "journal_plan_mismatch_count",
+      "journal_duplicate_runtime_sequence_count",
+      "journal_duplicate_parent_sequence_count",
+      "journal_row_version_violation_count",
+      "reconciliation_orphan_run_count",
+      "reconciliation_operation_mismatch_count",
+      "reconciliation_row_version_violation_count"
+    ]
+  },
+  "safety_boundary": {
+    "authorization_created": false,
+    "migration_apply_authorized": false,
+    "foreign_keys_enabled": false,
+    "live_database_access_performed_by_evaluator": false,
+    "runtime_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

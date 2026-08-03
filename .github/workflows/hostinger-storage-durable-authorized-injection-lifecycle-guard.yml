@@ -1,0 +1,129 @@
+name: Hostinger Storage Durable Authorized Injection Lifecycle Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-authorized-injection-lifecycle.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json'
+      - '.github/workflows/hostinger-storage-durable-authorized-injection-lifecycle-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js'
+      - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-authorized-injection-lifecycle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-authorized-injection-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPORT_DIR: .ci-evidence/spec014-durable-authorized-injection-lifecycle
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check lifecycle and test syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs
+
+      - name: Execute activation, restart, rollback, and reconciliation lifecycle
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs \
+            | tee "${REPORT_DIR}/focused-test.json"
+
+      - name: Preserve canonical ownership and fail-closed ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'createHostingerStorageAuthorizedDependencyInjectionCoordinator' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'isCanonicalHostingerStorageDurableAuthorizedInjectionStateRegistry' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'registerVerifiedInjection' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'resumeAuthorizedInjection' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'recordRollback' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'active = null' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'STORAGE_DURABLE_LIFECYCLE_DURABLE_ROLLBACK_PENDING' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q 'explicit_pending_rollback_reconciliation: true' http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs
+
+      - name: Preserve repository-only authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! printf '%s\n' "$changed_files" | grep -E '^\.github/workflows/.*(?:migration|production|deploy|provider)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js
+          grep -q '"route_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json
+          grep -q '"server_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json
+          grep -q '"migration_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json
+          grep -q '"provider_dispatch_allowed": false' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json
+          grep -q '"production_ready": false' .github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json
+
+      - name: Build structured guard summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = {
+            'contract': 'mad4b.hostinger-durable-authorized-injection-lifecycle-guard.v1',
+            'outcome': 'passed',
+            'candidate_kind': 'head',
+            'exact_candidate_sha': '${{ github.event.pull_request.head.sha }}',
+            'canonical_coordinator_factory_owned': True,
+            'canonical_durable_registry_required': True,
+            'durable_activation_before_route_availability': True,
+            'restart_reconstruction_supported': True,
+            'rollback_route_fail_closed_before_durable_commit': True,
+            'explicit_pending_rollback_reconciliation': True,
+            'runtime_material_persisted': False,
+            'live_server_modified': False,
+            'live_route_registration_performed': False,
+            'migration_apply_authorized': False,
+            'worker_mounted': False,
+            'provider_dispatch_allowed': False,
+            'production_ready': False,
+            'automatic_retry_allowed': False,
+            'repository_mutation': False,
+            'secrets_included': False,
+          }
+          path = Path('.ci-evidence/spec014-durable-authorized-injection-lifecycle/summary.json')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Upload structured guard evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-durable-authorized-injection-lifecycle-${{ github.run_id }}
+          path: .ci-evidence/spec014-durable-authorized-injection-lifecycle/
+          if-no-files-found: error
+          retention-days: 14

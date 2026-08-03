@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/storage-operation.schema.json",
+  "title": "Governed Hostinger Storage Operation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation_id",
+    "operation_key",
+    "context",
+    "target_binding",
+    "authority_context_hash",
+    "idempotency_key",
+    "state",
+    "secrets_included"
+  ],
+  "properties": {
+    "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "operation_key": {
+      "enum": [
+        "hostinger_storage_scan",
+        "hostinger_storage_plan",
+        "hostinger_storage_inspect_plan",
+        "hostinger_storage_request_apply",
+        "hostinger_storage_approve_plan",
+        "hostinger_storage_apply_plan",
+        "hostinger_storage_readback",
+        "hostinger_storage_reserve_status",
+        "hostinger_storage_reserve_create",
+        "hostinger_storage_reserve_release",
+        "hostinger_storage_policy_manage"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["admin", "tenant"]},
+        "tenant_id": {"type": ["string", "null"], "maxLength": 64},
+        "workspace_id": {"type": ["string", "null"], "maxLength": 64},
+        "resource_id": {"type": ["string", "null"], "maxLength": 64}
+      }
+    },
+    "target_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "hosting_account_id",
+        "resource_id",
+        "ownership_scope",
+        "ownership_revision",
+        "policy_revision"
+      ],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "hosting_account_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "resource_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "ownership_scope": {"enum": ["platform", "tenant", "shared"]},
+        "account_ownership_scope": {"enum": ["platform", "tenant", "shared"]},
+        "tenant_id": {"type": ["string", "null"], "maxLength": 64},
+        "workspace_id": {"type": ["string", "null"], "maxLength": 64},
+        "ownership_revision": {"type": "string", "minLength": 1, "maxLength": 128},
+        "policy_revision": {"type": "string", "minLength": 1, "maxLength": 128},
+        "storage_root_ref": {"type": ["string", "null"], "maxLength": 128}
+      }
+    },
+    "authority_context_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "capability_envelope_id": {"type": ["string", "null"], "maxLength": 64},
+    "resource_authority_id": {"type": ["string", "null"], "maxLength": 64},
+    "execution_lease_id": {"type": ["string", "null"], "maxLength": 64},
+    "plan_id": {"type": ["string", "null"], "maxLength": 128},
+    "plan_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "candidate_set_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "state": {
+      "enum": [
+        "observed",
+        "classified",
+        "planned",
+        "inspected",
+        "approval_requested",
+        "partially_approved",
+        "approved",
+        "lease_acquired",
+        "executing",
+        "readback_pending",
+        "reconciling",
+        "completed",
+        "blocked",
+        "expired",
+        "cancelled",
+        "unknown_outcome",
+        "failed"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 128},
+      "uniqueItems": true
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "secrets_included": {"const": false}
+  }
+}

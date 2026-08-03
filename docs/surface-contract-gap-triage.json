@@ -3,17 +3,18 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 25,
+  "total_triaged_items": 26,
   "class_counts": {
-    "new_surface_immediate_review": 4,
+    "new_surface_immediate_review": 5,
     "legacy_baseline_backlog": 17,
     "safety_marker_review": 3,
     "standard_backlog_review": 1
   },
-  "gate_candidate_count": 4,
+  "gate_candidate_count": 5,
   "gate_candidate_files": [
     "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
     "1030_sprint69_generic_platform_resource_context.sql",
+    "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
     "1029_sprint69_minimal_dynamic_brand_resolution.sql",
     "20260730_hostinger_production_resync_policy.sql"
   ],
@@ -305,6 +306,51 @@
       }
     },
     {
+      "migration_file": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "score": 803,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "1029_sprint69_minimal_dynamic_brand_resolution.sql",
       "score": 771,
       "queue_class": "critical_review",
@@ -420,7 +466,7 @@
     },
     {
       "migration_file": "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
-      "score": 731,
+      "score": 730,
       "queue_class": "critical_review",
       "triage_class": "legacy_baseline_backlog",
       "gate_scope": "legacy_baseline_candidate",

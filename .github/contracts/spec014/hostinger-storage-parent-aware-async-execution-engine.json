@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_parent_aware_async_execution_engine_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "parent_aware_async_execution_engine",
+  "capability_status": "implemented_unmounted_synthetic_only",
+  "purpose": "Execute the canonical synthetic storage protocol asynchronously through the durable Tenant facade while preserving plan-item and run parents, ordered child evidence, governed operation/run transitions, reconciliation, and terminal readback without Provider dispatch.",
+  "dependencies": {
+    "facade_key": "hostinger_storage_durable_tenant_repository_facade_v1",
+    "facade_version": "spec014-hostinger-storage-durable-tenant-repository-facade-v1",
+    "adapter_key": "hostinger_storage_synthetic_memory_adapter_v1",
+    "adapter_version": "spec014-hostinger-storage-synthetic-adapter-v1",
+    "protocol_version": "spec014-hostinger-storage-executor-v1",
+    "canonical_factories_required": true,
+    "provider_adapter_allowed": false
+  },
+  "execution_order": [
+    "verify_protocol_digest_and_safety_identity",
+    "validate_protocol_preparation_parent_bindings",
+    "prepare_durable_execution_and_run_parent",
+    "append_prepared_event",
+    "execute_exact_non_provider_mutation",
+    "append_result_event",
+    "perform_exact_readback",
+    "append_readback_event",
+    "advance_run_and_operation_to_readback_pending",
+    "advance_run_and_operation_to_reconciling",
+    "append_parent_aware_reconciliation",
+    "finalize_run_and_operation_terminal_state"
+  ],
+  "journal_contract": {
+    "phases_per_item": ["prepared", "result", "readback"],
+    "global_contiguous_sequence": true,
+    "deterministic_event_ids": true,
+    "deterministic_execution_epoch_required": true,
+    "result_receipt_digest_required": true,
+    "readback_evidence_digest_required": true,
+    "single_child_writer_path": true
+  },
+  "state_contract": {
+    "run_path": ["executing", "readback_pending", "reconciling", "completed_or_failed_or_unknown_outcome"],
+    "operation_path": ["executing", "readback_pending", "reconciling", "completed_or_blocked_or_unknown_outcome"],
+    "raw_transition_access": false,
+    "canonical_policy_required": true,
+    "checkpoint_compare_and_swap_required": true,
+    "fresh_readback_required_by_facade": true
+  },
+  "outcomes": {
+    "applied": "all items deleted and read back missing",
+    "partially_applied": "one or more items deleted or safely skipped without conflict",
+    "conflict": "receipt and readback cannot be reconciled",
+    "still_unknown": "reserved for separately governed interrupted execution recovery",
+    "automatic_retry_allowed": false
+  },
+  "reconciliation_contract": {
+    "deterministic_reconciliation_id": true,
+    "protocol_digest_bound": true,
+    "preparation_digest_bound": true,
+    "journal_digest_bound": true,
+    "readback_digest_bound": true,
+    "item_accounting_bound": true,
+    "terminal_result_digest_bound": true
+  },
+  "safety_boundary": {
+    "async_only": true,
+    "synthetic_only": true,
+    "live_provider": false,
+    "filesystem_access": false,
+    "shell_access": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "migration_apply_authorized": false,
+    "production_ready": false,
+    "secrets_included": false
+  },
+  "remaining_bridge_capabilities": [
+    "durable_authority_store",
+    "durable_enablement_registry",
+    "tenant_safe_durable_projection",
+    "dedicated_worker_certification",
+    "fixed_dispatch_certification",
+    "crash_safe_restart_reconciliation",
+    "separate_mount_authorization"
+  ]
+}

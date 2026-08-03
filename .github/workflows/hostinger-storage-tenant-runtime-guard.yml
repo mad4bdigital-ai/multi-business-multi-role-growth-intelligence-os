@@ -1,0 +1,52 @@
+name: Hostinger Storage Tenant Runtime Guard
+
+on:
+  pull_request:
+    paths:
+      - 'http-generic-api/hostingerStorageTenantRuntime.js'
+      - 'http-generic-api/routes/hostingerStorageTenantRoutes.js'
+      - 'http-generic-api/routes/index.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs'
+      - '.changes/e2e/spec014-tenant-runtime-bridge.json'
+      - '.github/workflows/hostinger-storage-tenant-runtime-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tenant-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check runtime and route syntax
+        run: |
+          node --check http-generic-api/hostingerStorageTenantRuntime.js
+          node --check http-generic-api/routes/hostingerStorageTenantRoutes.js
+          node --check http-generic-api/routes/index.js
+          node --check http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs
+      - name: Enforce synthetic and fail-closed boundary
+        run: |
+          ! grep -R -E "from ['\"]node:(child_process|fs|fs/promises|net|tls|http|https)['\"]|require\(['\"](child_process|fs|net|tls|http|https)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(|shell\s*:\s*true|StrictHostKeyChecking=no|rm\s+-rf" \
+            http-generic-api/hostingerStorageTenantRuntime.js \
+            http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q "createExecutionCapsuleMutationDispatchGate" http-generic-api/hostingerStorageTenantRuntime.js
+          grep -q "executeHostingerStorageTenantCanary" http-generic-api/hostingerStorageTenantRuntime.js
+          grep -q "provider_dispatch_allowed: false" http-generic-api/hostingerStorageTenantRuntime.js
+          grep -q "production_ready: false" http-generic-api/hostingerStorageTenantRuntime.js
+          grep -q "Only operation_id and expected_sha are accepted" http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q "storage_tenant_runtime_unavailable" http-generic-api/routes/hostingerStorageTenantRoutes.js
+          grep -q "buildHostingerStorageTenantRoutes(deps)" http-generic-api/routes/index.js
+      - name: Validate mounted Tenant runtime journey
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-tenant-runtime-route.mjs

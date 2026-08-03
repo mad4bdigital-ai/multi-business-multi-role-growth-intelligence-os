@@ -1,0 +1,5 @@
+version: 1
+contracts:
+  "POST /tenant/storage-operations/apply-plan":
+    path_item_ref: ./openapi/hostinger-storage-tenant-runtime.yaml#/hostingerStorageTenantApplyPlanPath
+    route_file: routes/hostingerStorageTenantRoutes.js

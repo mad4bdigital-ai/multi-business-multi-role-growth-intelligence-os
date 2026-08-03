@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-sql-parent-writer",
+  "title": "Spec 014 SQL Execution Parent Writer",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-sql-parent-writer.json",
+      ".github/contracts/spec014/hostinger-storage-sql-parent-writer.json",
+      ".github/workflows/hostinger-storage-sql-parent-writer-guard.yml",
+      "http-generic-api/hostingerStorageSqlParentWriter.js",
+      "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a dedicated unmounted SQL writer for storage_cleanup_plan_items and storage_cleanup_runs so execution evidence can gain durable parents before the deferred child foreign keys are enabled, without changing the existing six-table state adapter or applying migrations.",
+      "e2e_journeys": [
+        {
+          "id": "verified-plan-to-durable-execution-parents",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed storage execution parent writer",
+          "entrypoint": "Hostinger Storage SQL Parent Writer Guard",
+          "terminal_outcome": "The complete immutable plan-item set and its execution run parent are transactionally persisted and read back only after signed schema verification, exact plan totals, plan consumption, operation state, lease, snapshot, generation, checkpoint, and accounting checks pass.",
+          "steps": [
+            "Bind the writer factory to a successful unexpired signed schema verification result with exact runtime parity and database fingerprint.",
+            "Normalize canonical plan items into deterministic parent IDs without accepting absolute paths, protected classifications, or sensitive fields.",
+            "Lock and read the immutable plan with SELECT FOR UPDATE and require the exact plan hash, item count, and total bytes.",
+            "Insert the complete append-only plan-item set or accept only an exact same-set replay.",
+            "Read back the plan-item parents in the same transaction and return the runtime-item to parent-item mapping.",
+            "Require the exact plan to be consumed by the requested run, the operation to be executing, every plan-item parent to exist, and the exact active lease and before snapshot to remain current.",
+            "Insert only the next monotonic run generation or accept an exact same-envelope replay.",
+            "Advance run state only through the bounded transition graph using checkpoint compare-and-swap, bounded item accounting, snapshot existence, and same-transaction readback.",
+            "Prove no migration apply, live database access, provider dispatch, runtime mounting, existing adapter expansion, or foreign-key enablement occurred."
+          ],
+          "assertions": [
+            "The existing canonical SQL persistence adapter remains unchanged and continues to own only its six existing tables.",
+            "Plan-item parent rows are append-only, deterministic, contiguous, unique, non-protected, and exactly bound to immutable plan totals.",
+            "Run creation fails unless the same run consumed the plan and holds the exact active unexpired lease.",
+            "Run generation advances monotonically and exact replay is idempotent while mismatched replay fails closed.",
+            "Run updates require the expected checkpoint digest and terminal accounting covers every plan item.",
+            "The writer remains unmounted and production_ready=false; deferred child foreign keys remain disabled."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-parent-writer",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageSqlParentWriter.js",
+            "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs",
+            ".github/contracts/spec014/hostinger-storage-sql-parent-writer.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "Operational mounting requires live migration apply, signed current schema verification, canonical factory composition, and child writer integration."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Crash-safe restart and child foreign-key reconciliation remain separate production slices."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database or provider canary is executed by this unmounted writer slice."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production mounting and deferred foreign-key enablement remain blocked."
+    }
+  ]
+}

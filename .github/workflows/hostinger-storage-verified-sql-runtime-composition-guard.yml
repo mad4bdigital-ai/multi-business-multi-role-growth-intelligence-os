@@ -1,0 +1,77 @@
+name: Hostinger Storage Verified SQL Runtime Composition Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-verified-sql-runtime-composition.json'
+      - '.github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json'
+      - '.github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml'
+      - 'http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js'
+      - 'http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/hostingerStorageSqlPersistenceAdapter.js'
+      - 'http-generic-api/hostingerStorageSqlParentWriter.js'
+      - 'http-generic-api/hostingerStorageSqlChildEvidenceWriter.js'
+      - 'http-generic-api/hostingerStorageSqlRunReader.js'
+      - 'http-generic-api/test-hostinger-storage-sql-run-reader.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-verified-sql-runtime-composition-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verified-sql-runtime-composition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check composition syntax
+        run: |
+          node --check http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          node --check http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+          node --check http-generic-api/hostingerStorageSqlRunReader.js
+          node --check http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+
+      - name: Validate canonical composition and unique read/write paths
+        run: |
+          node http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          node http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+
+      - name: Preserve unmounted non-apply boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(migrations/|server\.js$|routes/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js \
+            http-generic-api/hostingerStorageSqlRunReader.js \
+            http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs \
+            http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js \
+            http-generic-api/hostingerStorageSqlRunReader.js
+          grep -q 'legacy_child_write_paths_exposed: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q 'duplicate_write_paths_allowed: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q 'foreign_keys_enabled: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          grep -q '"raw_run_reader_exposed": false' .github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json
+          grep -q '"legacy_repository_appendJournalEvent_exposed": false' .github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json
+          grep -q '"migration_apply_authorized": false' .github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json

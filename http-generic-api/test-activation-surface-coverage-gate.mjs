@@ -14,6 +14,22 @@ const invalidationMigration = readFileSync(
   new URL("./migrations/20260731_growth_control_typed_invalidation_consumer.sql", import.meta.url),
   "utf8",
 );
+const storageProviderAccountsExclusion = JSON.parse(
+  readFileSync(
+    new URL("./activation-surfaces/exclusions/storage_provider_accounts.json", import.meta.url),
+    "utf8",
+  ),
+);
+const storageTargetBindingsExclusion = JSON.parse(
+  readFileSync(
+    new URL("./activation-surfaces/exclusions/storage_target_bindings.json", import.meta.url),
+    "utf8",
+  ),
+);
+const storageFoundationMigration = readFileSync(
+  new URL("./migrations/20260802_01_spec014_hostinger_storage_foundation.sql", import.meta.url),
+  "utf8",
+);
 
 assert.match(script, /activation-surfaces/);
 assert.match(script, /exclusions/);
@@ -42,5 +58,24 @@ assert.match(invalidationExclusion.reason, /internal revision and cache-invalida
 assert.match(invalidationExclusion.reason, /does not grant authority/i);
 assert.match(invalidationExclusion.review_after, /^\d{4}-\d{2}-\d{2}$/);
 assert.doesNotMatch(JSON.stringify(invalidationExclusion), /(secret|credential|token|password|private_key)/i);
+
+assert.match(storageFoundationMigration, /CREATE TABLE IF NOT EXISTS `?storage_provider_accounts`?/i);
+assert.match(storageFoundationMigration, /CREATE TABLE IF NOT EXISTS `?storage_target_bindings`?/i);
+
+assert.equal(storageProviderAccountsExclusion.surface_key, "storage_provider_accounts");
+assert.equal(storageProviderAccountsExclusion.source_table, "storage_provider_accounts");
+assert.equal(storageProviderAccountsExclusion.owner, "platform-governance");
+assert.match(storageProviderAccountsExclusion.reason, /internal ownership and provider-account registry/i);
+assert.match(storageProviderAccountsExclusion.reason, /not activation choices/i);
+assert.match(storageProviderAccountsExclusion.review_after, /^\d{4}-\d{2}-\d{2}$/);
+assert.doesNotMatch(JSON.stringify(storageProviderAccountsExclusion), /(secret|credential|token|password|private_key)/i);
+
+assert.equal(storageTargetBindingsExclusion.surface_key, "storage_target_bindings");
+assert.equal(storageTargetBindingsExclusion.source_table, "storage_target_bindings");
+assert.equal(storageTargetBindingsExclusion.owner, "platform-governance");
+assert.match(storageTargetBindingsExclusion.reason, /internal revisioned authority-binding and evidence ledger/i);
+assert.match(storageTargetBindingsExclusion.reason, /not exposed through activation responses/i);
+assert.match(storageTargetBindingsExclusion.review_after, /^\d{4}-\d{2}-\d{2}$/);
+assert.doesNotMatch(JSON.stringify(storageTargetBindingsExclusion), /(secret|credential|token|password|private_key)/i);
 
 console.log("Activation surface coverage gate guard passed");
