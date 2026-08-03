@@ -29,28 +29,75 @@ const DIRECT_BRANCH_FIELDS = Object.freeze([
   "deployment_branch",
 ]);
 
-function firstDirectString(body, fields) {
-  if (!body || Array.isArray(body) || typeof body !== "object") return null;
-  for (const field of fields) {
-    const value = body[field];
-    if (typeof value !== "string") continue;
-    const normalized = value.trim();
-    if (normalized) return normalized;
+function collectDirectFields(body, fields) {
+  if (!body || Array.isArray(body) || typeof body !== "object") return [];
+  return fields
+    .filter((field) => Object.hasOwn(body, field))
+    .map((field) => ({ field, raw: body[field] }));
+}
+
+function resolveDirectConsensus(body, fields, normalize, validate) {
+  const entries = collectDirectFields(body, fields);
+  if (entries.length === 0) {
+    return { value: null, present: false, invalid: false, conflict: false, fields: [] };
   }
-  return null;
+  const normalized = [];
+  let invalid = false;
+  for (const entry of entries) {
+    if (typeof entry.raw !== "string") {
+      invalid = true;
+      continue;
+    }
+    const value = normalize(entry.raw);
+    if (!value || !validate(value)) {
+      invalid = true;
+      continue;
+    }
+    normalized.push(value);
+  }
+  const unique = [...new Set(normalized)];
+  const conflict = unique.length > 1;
+  return {
+    value: !invalid && !conflict && unique.length === 1 ? unique[0] : null,
+    present: true,
+    invalid,
+    conflict,
+    fields: entries.map((entry) => entry.field),
+  };
 }
 
 function extractDirectIdentity(body) {
-  const rawSha = firstDirectString(body, DIRECT_SHA_FIELDS);
-  const rawBranch = firstDirectString(body, DIRECT_BRANCH_FIELDS);
-  const sha = rawSha && SHA_PATTERN.test(rawSha.toLowerCase()) ? rawSha.toLowerCase() : null;
-  const branch = rawBranch || null;
-  return { sha, branch };
+  const shaConsensus = resolveDirectConsensus(
+    body,
+    DIRECT_SHA_FIELDS,
+    (value) => value.trim().toLowerCase(),
+    (value) => SHA_PATTERN.test(value),
+  );
+  const branchConsensus = resolveDirectConsensus(
+    body,
+    DIRECT_BRANCH_FIELDS,
+    (value) => value.trim(),
+    (value) => Boolean(value),
+  );
+  return {
+    sha: shaConsensus.value,
+    branch: branchConsensus.value,
+    sha_invalid: shaConsensus.invalid,
+    branch_invalid: branchConsensus.invalid,
+    sha_conflict: shaConsensus.conflict,
+    branch_conflict: branchConsensus.conflict,
+    sha_fields: shaConsensus.fields,
+    branch_fields: branchConsensus.fields,
+  };
 }
 
 function hasCoherentExpectedIdentity(body, configuration) {
   const identity = extractDirectIdentity(body);
-  return identity.sha === configuration.expectedSha
+  return identity.sha_invalid === false
+    && identity.branch_invalid === false
+    && identity.sha_conflict === false
+    && identity.branch_conflict === false
+    && identity.sha === configuration.expectedSha
     && identity.branch === configuration.expectedBranch;
 }
 
@@ -398,6 +445,9 @@ export async function executeGovernedRestart(options, dependencies = {}) {
     schema_scope: "top_level_direct_identity_fields",
     accepted_sha_fields: [...DIRECT_SHA_FIELDS],
     accepted_branch_fields: [...DIRECT_BRANCH_FIELDS],
+    direct_field_consensus_required: true,
+    conflicting_direct_fields_allowed: false,
+    invalid_direct_fields_allowed: false,
     cross_endpoint_composition_allowed: false,
     cross_object_composition_allowed: false,
     version_endpoint_authoritative: false,
@@ -429,6 +479,9 @@ function fallbackReport(error, options = {}) {
       schema_scope: "top_level_direct_identity_fields",
       accepted_sha_fields: [...DIRECT_SHA_FIELDS],
       accepted_branch_fields: [...DIRECT_BRANCH_FIELDS],
+      direct_field_consensus_required: true,
+      conflicting_direct_fields_allowed: false,
+      invalid_direct_fields_allowed: false,
       cross_endpoint_composition_allowed: false,
       cross_object_composition_allowed: false,
       version_endpoint_authoritative: false,
