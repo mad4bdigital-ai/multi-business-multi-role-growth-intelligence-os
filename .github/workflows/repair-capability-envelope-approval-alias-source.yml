@@ -1,0 +1,98 @@
+name: Repair Capability Envelope Approval Alias Source
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - http-generic-api/routes/adminCliRoutes.js
+      - http-generic-api/test-capability-envelope-approval-alias-path.mjs
+      - .github/workflows/repair-capability-envelope-approval-alias-source.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-capability-envelope-approval-alias-source
+  cancel-in-progress: false
+
+jobs:
+  exact-source-repair:
+    if: github.event.pull_request.head.ref == 'gpt/fix-capability-envelope-approval-alias-path-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Apply exact cwd-independent approval alias repair
+        id: patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/routes/adminCliRoutes.js')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = 'import { spawn } from "child_process";\n'
+          import_line = 'import { fileURLToPath } from "url";\n'
+          constant_anchor = 'const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";\n'
+          constant_line = 'export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));\n'
+          old_alias = 'capability_resolution_envelope_approve: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true }'
+          new_alias = 'capability_resolution_envelope_approve: { command: process.execPath, args: [CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true }'
+
+          already_patched = import_line in text and constant_line in text and new_alias in text and old_alias not in text
+          if already_patched:
+              print('source_already_patched=true')
+              raise SystemExit(0)
+
+          if text.count(import_anchor) != 1:
+              raise SystemExit(f'import anchor count mismatch: {text.count(import_anchor)}')
+          if import_line in text:
+              raise SystemExit('fileURLToPath import exists without complete approved patch')
+          if text.count(constant_anchor) != 1:
+              raise SystemExit(f'constant anchor count mismatch: {text.count(constant_anchor)}')
+          if constant_line in text:
+              raise SystemExit('approval script constant exists without complete approved patch')
+          if text.count(old_alias) != 1:
+              raise SystemExit(f'stale approval alias count mismatch: {text.count(old_alias)}')
+          if new_alias in text:
+              raise SystemExit('new approval alias exists alongside stale form')
+
+          text = text.replace(import_anchor, import_anchor + import_line, 1)
+          text = text.replace(constant_anchor, constant_anchor + constant_line, 1)
+          text = text.replace(old_alias, new_alias, 1)
+          path.write_text(text, encoding='utf-8')
+          print('source_patched=true')
+          PY
+
+          if git diff --quiet -- http-generic-api/routes/adminCliRoutes.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run targeted regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/routes/adminCliRoutes.js
+          node http-generic-api/test-capability-envelope-approval-alias-path.mjs
+
+      - name: Commit exact source repair
+        if: steps.patch.outputs.changed == 'true'
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add http-generic-api/routes/adminCliRoutes.js
+          git diff --cached --check
+          git commit -m "fix(admin-cli): resolve approval alias independently of cwd"
+          git push origin "HEAD:${HEAD_REF}"
