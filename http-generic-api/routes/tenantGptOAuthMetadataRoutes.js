@@ -18,6 +18,11 @@ import {
   resolveRemoteMcpAllowedRedirectOrigins,
   resolveRemoteMcpAuthorizationIssuer,
 } from "../remoteMcpOAuthProfile.js";
+import {
+  buildTenantGptOAuthTokenExchangeDeps,
+  buildTenantGptOAuthTokenRequestBindingGuard,
+} from "../tenantGptOAuthTokenExchangeBindingGuard.js";
+import { buildTenantGptOAuthTokenExchangeRoutes } from "./tenantGptOAuthTokenExchangeRoutes.js";
 
 function requestHost(req) {
   return normalizeTenantGptRequestHost(
@@ -63,6 +68,13 @@ function remoteMcpAuthorizationServerMetadata(env) {
 export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   const router = Router();
   const env = deps.env || process.env;
+  const tokenDeps = buildTenantGptOAuthTokenExchangeDeps(deps, env);
+
+  // The request guard and governed Tenant GPT token exchange must mount before
+  // the legacy /auth router. They own only POST /auth/oauth/token and leave
+  // every other auth route to the existing implementation.
+  router.use(buildTenantGptOAuthTokenRequestBindingGuard(deps));
+  router.use(buildTenantGptOAuthTokenExchangeRoutes(tokenDeps));
 
   // RFC 8414 path-scoped metadata is a child of the existing governed public
   // discovery family. Using the prefix middleware preserves one explicit public
