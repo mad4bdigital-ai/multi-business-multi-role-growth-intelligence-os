@@ -1,0 +1,1 @@
+Temporary exact-head authorization for the governed Growth Control schema classification patch. This file must be removed by the same fast-forward repair commit and must never reach main.
