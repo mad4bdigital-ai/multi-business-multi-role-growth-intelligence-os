@@ -103,34 +103,33 @@ jobs:
         run: |
           set -euo pipefail
           validation_results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          validation_summary="${DIAGNOSTIC_ROOT}/validation-summary.md"
           failed_contract_file="${DIAGNOSTIC_ROOT}/failed-validation-contract.txt"
           failed_exit_code_file="${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt"
+          failed_contracts_file="${DIAGNOSTIC_ROOT}/failed-validation-contracts.tsv"
+          : > "${failed_contracts_file}"
 
           run_contract() {
             local contract_name="$1"
             shift
+            local log_file="${DIAGNOSTIC_ROOT}/validation-${contract_name}.log"
 
             echo "::group::${contract_name}"
             set +e
-            "$@"
+            "$@" >"${log_file}" 2>&1
             local exit_code=$?
             set -e
+            cat "${log_file}"
             echo "::endgroup::"
 
             if [[ "${exit_code}" -ne 0 ]]; then
               printf '%s\tfailed\t%s\n' "${contract_name}" "${exit_code}" >> "${validation_results}"
-              printf '%s\n' "${contract_name}" > "${failed_contract_file}"
-              printf '%s\n' "${exit_code}" > "${failed_exit_code_file}"
-              cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
-
-          ## Validation failure
-
-          | Field | Value |
-          |---|---|
-          | Contract | \`${contract_name}\` |
-          | Exit code | \`${exit_code}\` |
-          EOF
-              return "${exit_code}"
+              printf '%s\t%s\n' "${contract_name}" "${exit_code}" >> "${failed_contracts_file}"
+              if [[ ! -s "${failed_contract_file}" ]]; then
+                printf '%s\n' "${contract_name}" > "${failed_contract_file}"
+                printf '%s\n' "${exit_code}" > "${failed_exit_code_file}"
+              fi
+              return 0
             fi
 
             printf '%s\tpassed\t0\n' "${contract_name}" >> "${validation_results}"
@@ -158,6 +157,37 @@ jobs:
             node http-generic-api/test-work-map-schema-classification.mjs
           run_contract "schema-classification-contract-regression" \
             node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+          {
+            echo "## Validation outcomes"
+            echo
+            echo "| Contract | Outcome | Exit code | Log |"
+            echo "|---|---|---:|---|"
+            while IFS=$'\t' read -r contract outcome exit_code; do
+              printf '| `%s` | `%s` | `%s` | `validation-%s.log` |\n' \
+                "${contract}" "${outcome}" "${exit_code}" "${contract}"
+            done < "${validation_results}"
+          } > "${validation_summary}"
+          cat "${validation_summary}"
+
+          failed_count="$(awk -F '\t' '$2 == "failed" { count += 1 } END { print count + 0 }' "${validation_results}")"
+          if [[ "${failed_count}" -ne 0 ]]; then
+            {
+              echo
+              echo "## Validation failure set"
+              echo
+              echo "All validation contracts were evaluated before this fail-closed gate stopped generation."
+              echo
+              echo "| Contract | Exit code |"
+              echo "|---|---:|"
+              while IFS=$'\t' read -r contract exit_code; do
+                printf '| `%s` | `%s` |\n' "${contract}" "${exit_code}"
+              done < "${failed_contracts_file}"
+              echo
+              echo "Failed contract count: \`${failed_count}\`"
+            } >> "${DIAGNOSTIC_ROOT}/report.md"
+            exit 1
+          fi
 
       - name: Regenerate and prove idempotency
         id: generate
@@ -234,11 +264,17 @@ jobs:
 
           failed_validation_contract="none"
           failed_validation_exit_code="none"
+          failed_validation_contracts_count="0"
+          failed_validation_contracts="none"
           if [[ -s "${DIAGNOSTIC_ROOT}/failed-validation-contract.txt" ]]; then
             failed_validation_contract="$(tr -d '\r\n' < "${DIAGNOSTIC_ROOT}/failed-validation-contract.txt")"
           fi
           if [[ -s "${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt" ]]; then
             failed_validation_exit_code="$(tr -d '\r\n' < "${DIAGNOSTIC_ROOT}/failed-validation-exit-code.txt")"
+          fi
+          if [[ -s "${DIAGNOSTIC_ROOT}/failed-validation-contracts.tsv" ]]; then
+            failed_validation_contracts_count="$(wc -l < "${DIAGNOSTIC_ROOT}/failed-validation-contracts.tsv" | tr -d '[:space:]')"
+            failed_validation_contracts="$(awk -F '\t' 'BEGIN { first=1 } { if (!first) printf ","; printf "%s:%s", $1, $2; first=0 } END { print "" }' "${DIAGNOSTIC_ROOT}/failed-validation-contracts.tsv" | tr -d '\r\n')"
           fi
 
           cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
@@ -250,6 +286,8 @@ jobs:
           | Job status | \`${JOB_STATUS}\` |
           | Failed validation contract | \`${failed_validation_contract}\` |
           | Failed validation exit code | \`${failed_validation_exit_code}\` |
+          | Failed validation contracts count | \`${failed_validation_contracts_count}\` |
+          | Failed validation contracts | \`${failed_validation_contracts}\` |
           | Generated changes | \`${CHANGED:-unknown}\` |
           | Result head | \`${RESULT_HEAD_SHA:-unresolved}\` |
           | Protected branch mutation | \`false\` |
@@ -263,13 +301,15 @@ jobs:
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
             --arg failed_validation_contract "${failed_validation_contract}" \
             --arg failed_validation_exit_code "${failed_validation_exit_code}" \
+            --arg failed_validation_contracts_count "${failed_validation_contracts_count}" \
+            --arg failed_validation_contracts "${failed_validation_contracts}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             --arg changed "${CHANGED:-unknown}" \
-            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 

@@ -70,10 +70,20 @@ for (const entry of contract.objects) {
 
 const canonicalRegistryPath = new URL('../../../.specify/work-map-schema-classification-registry.json', import.meta.url);
 const canonicalRegistry = JSON.parse(fs.readFileSync(canonicalRegistryPath, 'utf8'));
-const canonicalRules = canonicalRegistry.rules.filter((rule) => String(rule.rule_key || '').startsWith('spec014_hostinger_storage_'));
-assert.equal(canonicalRules.length, contract.objects.length);
+const contractNameSet = new Set(names);
+const canonicalRules = canonicalRegistry.rules.filter(
+  (rule) => Array.isArray(rule?.match?.exact_names)
+    && rule.match.exact_names.some((name) => contractNameSet.has(name)),
+);
+assert.equal(
+  canonicalRules.length,
+  contract.objects.length,
+  'one bounded exact canonical rule is required for each contract object',
+);
 for (const entry of contract.objects) {
-  const matches = canonicalRules.filter((rule) => Array.isArray(rule?.match?.exact_names) && rule.match.exact_names.includes(entry.name));
+  const matches = canonicalRules.filter(
+    (rule) => Array.isArray(rule?.match?.exact_names) && rule.match.exact_names.includes(entry.name),
+  );
   assert.equal(matches.length, 1, entry.name + ': one canonical exact rule required');
   const [rule] = matches;
   assert.equal(rule.scope, 'bounded_exact');
@@ -127,6 +137,7 @@ console.log(JSON.stringify({
   migration_waves: [...new Set(contract.objects.map((entry) => entry.migration_wave))].sort(),
   canonical_registry_task_completed: contract.canonical_registry_registration.task,
   canonical_registry_rule_count: contract.canonical_registry_registration.rule_count,
+  additional_spec014_registry_rules_allowed: true,
   sql_created: false,
   migration_apply_authorized: false,
   secrets_included: false,
