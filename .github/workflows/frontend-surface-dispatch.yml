@@ -2,253 +2,262 @@ name: Frontend surface dispatch
 
 on:
   pull_request:
-    paths:
-      - "http-generic-api/routes/**"
-      - "http-generic-api/dynamicContainerRolloutSafety.js"
-      - "http-generic-api/tenantConnectBootstrapService.js"
-      - "http-generic-api/tenantConnectBootstrapTransaction.js"
-      - "http-generic-api/userJwtAuth.js"
-      - "http-generic-api/requestSecretBoundary.js"
-      - "http-generic-api/src/application/resourceApi/**"
-      - "http-generic-api/src/infrastructure/resourceApi/**"
-      - "http-generic-api/openapi.yaml"
-      - "http-generic-api/openapi/**"
-      - "http-generic-api/openapi-route-coverage.allowlist.json"
-      - "http-generic-api/resource-api-coverage.manifest.json"
-      - "http-generic-api/frontend-surface-policy.json"
-      - "http-generic-api/frontend-operation-governance.generated.json"
-      - "http-generic-api/frontend-operation-governance-tests.json"
-      - "http-generic-api/frontend-surface-dispatch.generated.json"
-      - "http-generic-api/public/connect/**"
-      - "http-generic-api/public/platform/**"
-      - "http-generic-api/package.json"
-      - "http-generic-api/package-lock.json"
-      - "http-generic-api/scripts/frontend-surface-dispatch.mjs"
-      - "http-generic-api/scripts/frontend-operation-governance-generator.mjs"
-      - "http-generic-api/scripts/openapi-route-coverage.mjs"
-      - "http-generic-api/scripts/openapi-runtime-auth-sync.mjs"
-      - "http-generic-api/scripts/test-manifest.mjs"
-      - "http-generic-api/scripts/user-jwt-auth-governance.mjs"
-      - "http-generic-api/test-*.mjs"
-      - "canonicals/openapi/custom-gpt-surfaces.yaml"
-      - "specs/010-unified-platform-frontend/**"
-      - ".github/workflows/frontend-surface-dispatch.yml"
-  workflow_dispatch:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: surface-latest-main-materialization-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
 
 jobs:
-  dispatch-plan:
+  materialize-validate-and-push:
+    if: >-
+      github.event.pull_request.head.ref == 'gpt/pr5210-latest-main-materialization-20260803' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: http-generic-api
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/pr5210-latest-main-materialization-20260803
+      PINNED_MAIN_HEAD: 876e6ecdb81b0d50cad8e5feb939e236690f4f48
+      SOURCE_COMMIT: 36cc5245116fdbfb26208e8e0e40bc3b75f92ef3
+      SOURCE_BRANCH: gpt/surface-callability-main-reconstruction-20260803
+      WORKFLOW_PATH: .github/workflows/frontend-surface-dispatch.yml
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out exact materialization branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify exact latest-main trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PINNED_MAIN_HEAD"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$WORKFLOW_PATH"
+          test "$(git rev-parse "$PINNED_MAIN_HEAD^{tree}")" = "$(git rev-parse "origin/main^{tree}")"
+
+      - name: Fetch certified historical source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$SOURCE_BRANCH"
+          git cat-file -e "$SOURCE_COMMIT^{commit}"
+
+      - name: Transplant bounded Surface source scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout "$SOURCE_COMMIT" -- \
+            .changes/e2e/surface-callability-main-reconstruction.json \
+            http-generic-api/agentSurfaceRuntimeService.js \
+            http-generic-api/routes/agentSurfaceRoutes.js \
+            http-generic-api/routes/tenantInfrastructureRoutes.js \
+            http-generic-api/routes/tenantLifecycleRoutes.js \
+            http-generic-api/routes/workspaceResourceRoutes.js \
+            http-generic-api/scripts/resource-api-callability-contracts.mjs \
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/test-resource-api-callability-effect-classes.mjs \
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Apply startup, cardinality, and E2E repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(path_value, old, new, label):
+              path = Path(path_value)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}_marker_count:{count}')
+              path.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              '    if (!Array.isArray(rows) || rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              '    if (!Array.isArray(rows)) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row.");\n    if (rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              'deployment_readback_cardinality',
+          )
+
+          replace_once(
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              '  const pool = deps.pool || getPool();\n  const executionFacade = deps.executionFacade || null;\n',
+              '''  let resolvedPool = deps.pool || null;
+  const pool = new Proxy({}, {
+    get(_target, property) {
+      if (!resolvedPool) resolvedPool = getPool();
+      const value = Reflect.get(resolvedPool, property, resolvedPool);
+      return typeof value === "function" ? value.bind(resolvedPool) : value;
+    },
+  });
+  const executionFacade = deps.executionFacade || null;
+''',
+              'tenant_infrastructure_lazy_pool',
+          )
+
+          contract_path = Path('.changes/e2e/surface-callability-main-reconstruction.json')
+          contract = json.loads(contract_path.read_text())
+          journey = contract['phases'][0]['e2e_journeys'][0]
+          startup_test = {
+              'id': 'surface-server-startup-without-database-environment',
+              'runner': 'node',
+              'working_directory': 'http-generic-api',
+              'path': 'test-server-startup-smoke.mjs',
+              'args': [],
+          }
+          if not any(item.get('id') == startup_test['id'] for item in journey['tests']):
+              journey['tests'].append(startup_test)
+          startup_assertion = 'Building and starting the HTTP API without database environment variables still exposes the deployment identity endpoints; tenant infrastructure database access is resolved lazily only when an authenticated infrastructure route is invoked.'
+          if startup_assertion not in journey['assertions']:
+              journey['assertions'].append(startup_assertion)
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
-      - run: npm ci
-      - name: Generate source-pinned dispatch plan
-        id: generate_plan
-        continue-on-error: true
-        env:
-          CANONICAL_BASELINE_REF: ${{ github.event.repository.default_branch || 'main' }}
-          TARGET_REF: ${{ github.event.pull_request.base.ref || github.ref_name || '' }}
-        run: |
-          echo "Generating canonical baseline ${CANONICAL_BASELINE_REF} for target ${TARGET_REF}"
-          npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
-      - name: Verify generator contract
-        id: workflow_baseline
-        continue-on-error: true
-        run: node test-frontend-dispatch-workflow-baseline.mjs
-      - name: Verify operation governance generator
-        id: operation_generator
-        continue-on-error: true
-        run: node test-frontend-operation-governance-generator.mjs
-      - name: Verify frontend surface dispatch
-        id: surface_dispatch
-        continue-on-error: true
-        run: node test-frontend-surface-dispatch.mjs
-      - name: Verify frontend auth OpenAPI parity
-        id: auth_openapi
-        continue-on-error: true
-        run: node test-frontend-auth-openapi-parity.mjs
-      - name: Verify OpenAPI route coverage
-        id: route_coverage
-        continue-on-error: true
-        run: node test-openapi-route-coverage.mjs
-      - name: Verify OpenAPI auth synchronization
-        id: openapi_auth
-        continue-on-error: true
-        run: npm run openapi:auth:check
-      - name: Check committed deterministic output
-        id: deterministic_output
-        continue-on-error: true
-        run: |
-          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          if [[ -n "${UNEXPECTED}" ]]; then
-            echo "::error::generator changed files outside the bounded Frontend evidence set"
-            printf '%s\n' "${UNEXPECTED}"
-            exit 1
-          fi
-          if [[ -n "$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)" ]]; then
-            git diff --no-ext-diff --unified=1 -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml || true
-            exit 1
-          fi
-      - name: Build structured generator-contract summary
-        if: always()
-        env:
-          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
-          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
-          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
-          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
-          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
-          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
-          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
-          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
-          CANDIDATE_SHA: ${{ github.sha }}
-          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          mkdir -p .ci-evidence/frontend-generator-contract
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const checks = [
-            ['workflow_baseline', process.env.WORKFLOW_BASELINE],
-            ['operation_generator', process.env.OPERATION_GENERATOR],
-            ['surface_dispatch', process.env.SURFACE_DISPATCH],
-            ['auth_openapi', process.env.AUTH_OPENAPI],
-            ['route_coverage', process.env.ROUTE_COVERAGE],
-            ['openapi_auth', process.env.OPENAPI_AUTH],
-            ['deterministic_output', process.env.DETERMINISTIC_OUTPUT],
-          ].map(([id, outcome]) => ({ id, outcome }));
-          const generation = { id: 'generate_plan', outcome: process.env.GENERATE_PLAN };
-          const failed = [generation, ...checks].filter((check) => check.outcome !== 'success');
-          const report = {
-            contract: 'mad4b.frontend-generator-contract-summary.v1',
-            candidate_sha: process.env.CANDIDATE_SHA,
-            source_head_sha: process.env.SOURCE_HEAD_SHA,
-            generation,
-            checks,
-            outcome: failed.length === 0 ? 'passed' : 'blocked',
-            failed_check_ids: failed.map((check) => check.id),
-            consult_job_logs: false,
-            repository_mutation: false,
-            secrets_included: false,
-          };
-          fs.writeFileSync('.ci-evidence/frontend-generator-contract/summary.json', `${JSON.stringify(report, null, 2)}\n`);
-          NODE
-      - name: Upload structured generator-contract summary
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-generator-contract-${{ github.run_id }}
-          path: http-generic-api/.ci-evidence/frontend-generator-contract/summary.json
-          if-no-files-found: error
-          retention-days: 14
-      - name: Build trusted workflow-run source evidence
-        if: always()
-        env:
-          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
-          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
-          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
-          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
-          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
-          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
-          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
-          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
-          CANDIDATE_KIND: ${{ github.event_name == 'pull_request' && 'merge_candidate' || 'head' }}
-          CANDIDATE_SHA: ${{ github.sha }}
-          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_REF: ${{ github.head_ref || github.ref_name }}
-          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'main' }}
-        run: |
-          mkdir -p .ci-evidence/frontend-dispatch-verification
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
 
-          const stages = [
-            ['generate_dispatch_plan', process.env.GENERATE_PLAN],
-            ['workflow_baseline', process.env.WORKFLOW_BASELINE],
-            ['operation_generator', process.env.OPERATION_GENERATOR],
-            ['surface_dispatch', process.env.SURFACE_DISPATCH],
-            ['auth_openapi', process.env.AUTH_OPENAPI],
-            ['route_coverage', process.env.ROUTE_COVERAGE],
-            ['openapi_auth', process.env.OPENAPI_AUTH],
-            ['committed_generated_parity', process.env.DETERMINISTIC_OUTPUT],
-          ].map(([stage_id, outcome]) => ({ stage_id, outcome }));
-          const firstFailure = stages.find((stage) => stage.outcome !== 'success') || null;
-          const fullSha = /^[0-9a-f]{40}$/u;
-          const identityValid = fullSha.test(process.env.CANDIDATE_SHA || '')
-            && fullSha.test(process.env.SOURCE_HEAD_SHA || '')
-            && Boolean(process.env.HEAD_REF)
-            && Boolean(process.env.BASE_REF);
-          const report = {
-            contract: 'mad4b.frontend-dispatch-verification-evidence.v1',
-            outcome: firstFailure || !identityValid ? 'failed' : 'passed',
-            identity: {
-              workflow: 'Frontend surface dispatch',
-              candidate_kind: process.env.CANDIDATE_KIND,
-              candidate_sha: process.env.CANDIDATE_SHA,
-              source_head_sha: process.env.SOURCE_HEAD_SHA,
-              head_ref: process.env.HEAD_REF,
-              base_ref: process.env.BASE_REF,
-            },
-            stages,
-            first_failure: firstFailure || (identityValid ? null : {
-              stage_id: 'candidate_identity',
-              outcome: 'failure',
-            }),
-            routing: {
-              consult_job_logs: false,
-              delegated_writer: 'governed-generated-artifact-refresh.yml',
-              dispatch_workflow: 'frontend-parity-refresh-dispatch.yml',
-            },
-            direct_repository_mutation: false,
-            protected_branch_mutation: false,
-            force_push: false,
-            secrets_included: false,
-          };
-          fs.writeFileSync(
-            '.ci-evidence/frontend-dispatch-verification/frontend-dispatch-verification-evidence.json',
-            `${JSON.stringify(report, null, 2)}\n`,
-          );
-          NODE
-      - name: Upload trusted workflow-run source evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dispatch-verification-evidence-${{ github.run_id }}
-          path: http-generic-api/.ci-evidence/frontend-dispatch-verification/frontend-dispatch-verification-evidence.json
-          if-no-files-found: error
-          retention-days: 30
-      - name: Upload dispatch evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-surface-dispatch
-          path: |
-            http-generic-api/frontend-operation-governance.generated.json
-            http-generic-api/frontend-surface-dispatch.generated.json
-            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          if-no-files-found: error
-          retention-days: 14
-      - name: Enforce structured generator-contract decision
-        if: always()
-        env:
-          GENERATE_PLAN: ${{ steps.generate_plan.outcome }}
-          WORKFLOW_BASELINE: ${{ steps.workflow_baseline.outcome }}
-          OPERATION_GENERATOR: ${{ steps.operation_generator.outcome }}
-          SURFACE_DISPATCH: ${{ steps.surface_dispatch.outcome }}
-          AUTH_OPENAPI: ${{ steps.auth_openapi.outcome }}
-          ROUTE_COVERAGE: ${{ steps.route_coverage.outcome }}
-          OPENAPI_AUTH: ${{ steps.openapi_auth.outcome }}
-          DETERMINISTIC_OUTPUT: ${{ steps.deterministic_output.outcome }}
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate current-main frontend evidence
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate
+
+      - name: Materialize Surface discovery queue
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs
+
+      - name: Materialize scoped callability closure
+        working-directory: http-generic-api
+        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Reconcile discovery after closure
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs
+
+      - name: Restore official workflow and create product commit
+        shell: bash
         run: |
-          for outcome in "${GENERATE_PLAN}" "${WORKFLOW_BASELINE}" "${OPERATION_GENERATOR}" "${SURFACE_DISPATCH}" "${AUTH_OPENAPI}" "${ROUTE_COVERAGE}" "${OPENAPI_AUTH}" "${DETERMINISTIC_OUTPUT}"; do
-            [[ "${outcome}" == "success" ]] || exit 1
-          done
+          set -euo pipefail
+          git show "$PINNED_MAIN_HEAD:$WORKFLOW_PATH" > "$WORKFLOW_PATH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: materialize scoped Surface closure on latest main'
+
+      - name: Enforce bounded product write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$PINNED_MAIN_HEAD" HEAD > /tmp/surface-latest-main-files.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          changed = {line.strip() for line in Path('/tmp/surface-latest-main-files.txt').read_text().splitlines() if line.strip()}
+          allowed = {
+              '.changes/e2e/surface-callability-main-reconstruction.json',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-gap-queue.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-safety-attestations.json',
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/routes/agentSurfaceRoutes.js',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              'http-generic-api/routes/tenantLifecycleRoutes.js',
+              'http-generic-api/routes/workspaceResourceRoutes.js',
+              'http-generic-api/scripts/resource-api-callability-contracts.mjs',
+              'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/scripts/test-manifest.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-resource-api-callability-effect-classes.mjs',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+          }
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit('surface_latest_main_unexpected_write_set:' + ','.join(sorted(unexpected)))
+          if '.github/workflows/frontend-surface-dispatch.yml' in changed:
+              raise SystemExit('temporary_workflow_not_restored')
+          core = {
+              '.changes/e2e/surface-callability-main-reconstruction.json',
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+          }
+          missing = core - changed
+          if missing:
+              raise SystemExit('surface_latest_main_core_write_missing:' + ','.join(sorted(missing)))
+          print({'changed_files': len(changed), 'unexpected': 0})
+          PY
+
+      - name: Validate syntax and focused Surface regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check agentSurfaceRuntimeService.js
+          node --check routes/agentSurfaceRoutes.js
+          node --check routes/tenantInfrastructureRoutes.js
+          node --check routes/tenantLifecycleRoutes.js
+          node --check routes/workspaceResourceRoutes.js
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-multi-surface-agent-runtime.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Prove startup without database environment
+        working-directory: http-generic-api
+        env:
+          DB_HOST: ''
+          DB_NAME: ''
+          DB_USER: ''
+          DB_PASSWORD: ''
+        run: node test-server-startup-smoke.mjs
+
+      - name: Prove hardcoding ratchet on exact product scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$PINNED_MAIN_HEAD"...HEAD > /tmp/context-kernel-changed-files.txt
+          cd http-generic-api
+          node test-context-kernel-hardcoding-scan.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --changed-files-from=/tmp/context-kernel-changed-files.txt \
+            --fail-on=runtime \
+            --output=/tmp/context-kernel-hardcoding-latest-main.json
+
+      - name: Prove deterministic generated output
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate
+          git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          node scripts/surface-contract-discovery.mjs
+          git diff --exit-code -- ../docs/surface-contract-discovery-status.json ../docs/surface-contract-discovery-status.md ../docs/surface-contract-gap-queue.json ../docs/surface-contract-gap-queue.md ../docs/surface-contract-safety-attestations.json surface-contract-classification-evidence.json resource-api-surface-callability.manifest.json test-surface-callability-full-closure.mjs scripts/test-manifest.mjs
+
+      - name: Push certified product commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:${TARGET_BRANCH}"
