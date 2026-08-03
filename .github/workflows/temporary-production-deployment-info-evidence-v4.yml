@@ -1,0 +1,163 @@
+name: Temporary Production Deployment Info Evidence V4
+
+on:
+  pull_request:
+    branches:
+      - gpt/prod-deployment-info-evidence-base-v4-20260803
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPORT_DIR: ${{ runner.temp }}/production-deployment-info-evidence-v4
+      EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
+      EXPECTED_BRANCH: Production
+      EXPECTED_DEPLOYED_AFTER: '2026-08-03T06:16:38Z'
+    steps:
+      - name: Verify protected Production authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api '/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/git/ref/heads/Production' --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(gh api '/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4953' --jq '.state')" = "open"
+
+      - name: Collect public GET-only deployment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          python3 - <<'PY'
+          import hashlib, json, os, re, ssl, urllib.error, urllib.request
+          from datetime import datetime, timezone
+
+          expected_sha = os.environ['EXPECTED_PRODUCTION_SHA']
+          expected_branch = os.environ['EXPECTED_BRANCH']
+          expected_after = os.environ['EXPECTED_DEPLOYED_AFTER']
+          report_dir = os.environ['REPORT_DIR']
+          sensitive = re.compile(r'authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential', re.I)
+          urls = {
+              'health': 'https://auth.mad4b.com/health',
+              'version': 'https://auth.mad4b.com/version',
+              'deployment_info': 'https://auth.mad4b.com/deployment-info',
+              'connector_agent_version': 'https://auth.mad4b.com/connector-agent/version',
+          }
+
+          def sanitize(value, depth=0):
+              if depth > 8: return '[MAX_DEPTH]'
+              if isinstance(value, dict):
+                  return {str(k): ('[REDACTED]' if sensitive.search(str(k)) else sanitize(v, depth + 1)) for k, v in list(value.items())[:200]}
+              if isinstance(value, list): return [sanitize(v, depth + 1) for v in value[:100]]
+              if isinstance(value, str):
+                  value = re.sub(r'\bBearer\s+\S+', 'Bearer [REDACTED]', value, flags=re.I)
+                  value = re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED_JWT]', value)
+                  return value[:12000]
+              return value
+
+          def fetch(name, url):
+              started = datetime.now(timezone.utc)
+              req = urllib.request.Request(url, headers={'Accept':'application/json'}, method='GET')
+              status, ctype, raw, error = 0, None, b'', None
+              try:
+                  with urllib.request.urlopen(req, timeout=20, context=ssl.create_default_context()) as res:
+                      status, ctype, raw = int(res.status), res.headers.get('content-type'), res.read(65537)
+              except urllib.error.HTTPError as exc:
+                  status = int(exc.code)
+                  ctype = exc.headers.get('content-type') if exc.headers else None
+                  raw = exc.read(65537)
+                  error = f'http_error:{exc.code}'
+              except Exception as exc:
+                  error = f'transport_error:{str(exc)[:800]}'
+              if len(raw) > 65536:
+                  raw, error = raw[:65536], 'response_truncated'
+              body, parse_error = None, None
+              if raw:
+                  try: body = json.loads(raw.decode('utf-8'))
+                  except Exception as exc:
+                      parse_error = str(exc)[:500]
+                      body = {'non_json_body': raw.decode('utf-8', errors='replace')[:12000]}
+              return {
+                  'name': name, 'url': url, 'http_status': status, 'content_type': ctype,
+                  'body_bytes': len(raw), 'body_sha256': hashlib.sha256(raw).hexdigest() if raw else None,
+                  'duration_ms': int((datetime.now(timezone.utc)-started).total_seconds()*1000),
+                  'error': error, 'parse_error': parse_error, 'body': sanitize(body),
+              }
+
+          endpoints = {name: fetch(name, url) for name, url in urls.items()}
+          direct = endpoints['deployment_info']['body'] if isinstance(endpoints['deployment_info']['body'], dict) else {}
+          def pick(keys):
+              for key in keys:
+                  value = direct.get(key)
+                  if isinstance(value, str) and value.strip(): return {'key':key, 'value':value.strip()}
+              return {'key':None, 'value':None}
+
+          branch = pick(['branch','deployment_branch','git_branch','source_branch'])
+          sha = pick(['commit_sha','deployed_commit_sha','git_sha','sha'])
+          deployed_at = pick(['deployed_at','deployment_timestamp','deployment_time','manifest_generated_at','generated_at','updated_at'])
+          release_path = pick(['release_path','release_directory','deployment_path','manifest_path','deployment_manifest_path'])
+          timestamp_current = False
+          if deployed_at['value']:
+              try:
+                  timestamp_current = datetime.fromisoformat(deployed_at['value'].replace('Z','+00:00')) >= datetime.fromisoformat(expected_after.replace('Z','+00:00'))
+              except Exception: pass
+
+          checks = {
+              'health_http_ok': endpoints['health']['http_status'] == 200,
+              'version_http_ok': endpoints['version']['http_status'] == 200,
+              'deployment_info_http_ok': endpoints['deployment_info']['http_status'] == 200,
+              'connector_agent_http_ok': endpoints['connector_agent_version']['http_status'] == 200,
+              'deployment_info_branch_exact': branch['value'] == expected_branch,
+              'deployment_info_sha_exact': sha['value'] == expected_sha,
+              'deployment_timestamp_present': deployed_at['value'] is not None,
+              'deployment_timestamp_current': timestamp_current,
+          }
+          order = [
+              ('health_http_ok','health_http_failed'),('version_http_ok','version_http_failed'),
+              ('deployment_info_http_ok','deployment_info_http_failed'),('connector_agent_http_ok','connector_agent_http_failed'),
+              ('deployment_info_branch_exact','deployment_info_branch_mismatch'),('deployment_info_sha_exact','deployment_info_sha_mismatch'),
+              ('deployment_timestamp_present','deployment_timestamp_missing'),('deployment_timestamp_current','deployment_timestamp_stale'),
+          ]
+          first_failure = next(({'code':code,'check':check} for check, code in order if not checks[check]), None)
+          report = {
+              'contract':'mad4b.production-deployment-info-evidence.v1',
+              'generated_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+              'identity':{'expected_production_sha':expected_sha,'expected_branch':expected_branch,'expected_deployed_after':expected_after,'workflow_run_id':os.environ.get('GITHUB_RUN_ID')},
+              'outcome':'passed' if first_failure is None else 'failed','first_failure':first_failure,
+              'coherent_direct_top_level_identity':{
+                  'branch_key':branch['key'],'branch':branch['value'],'sha_key':sha['key'],'sha':sha['value'],
+                  'deployed_at_key':deployed_at['key'],'deployed_at':deployed_at['value'],
+                  'release_path_key':release_path['key'],'release_path':release_path['value']},
+              'checks':checks,'endpoints':endpoints,
+              'side_effects':{'repository_mutation_performed':False,'provider_dispatch_performed':False,'credential_access_performed':False,'provider_mutation_performed':False,'deployment_performed':False,'restart_performed':False,'sql_execution_performed':False,'migration_apply_performed':False,'database_mutation_performed':False,'external_send_performed':False},
+              'secrets_included':False,
+          }
+          with open(os.path.join(report_dir,'production-deployment-info-evidence.json'),'w',encoding='utf-8') as f: json.dump(report,f,indent=2,ensure_ascii=False)
+          print(json.dumps({'outcome':report['outcome'],'first_failure':first_failure,'identity':report['coherent_direct_top_level_identity'],'http_status':{k:v['http_status'] for k,v in endpoints.items()}}))
+          PY
+
+      - name: Upload structured evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-info-evidence-v4-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-deployment-info-evidence-v4/production-deployment-info-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce no-mutation contract
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="${REPORT_DIR}/production-deployment-info-evidence.json"
+          test "$(jq -r '.contract' "${REPORT}")" = "mad4b.production-deployment-info-evidence.v1"
+          test "$(jq -r '.identity.expected_production_sha' "${REPORT}")" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(jq -r '.identity.expected_branch' "${REPORT}")" = "Production"
+          test "$(jq -r '.secrets_included' "${REPORT}")" = "false"
+          jq -e '.side_effects | all(.[]; . == false)' "${REPORT}" >/dev/null
+          jq '{outcome, first_failure, identity: .coherent_direct_top_level_identity, checks, secrets_included}' "${REPORT}"
