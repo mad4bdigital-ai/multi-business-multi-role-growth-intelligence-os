@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-write-workflow-separation",
+  "title": "Separate pull-request validation from repository mutation workflows",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-write-workflow-separation.json",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+      ".github/workflows/http-generic-api-fanout-relocation.yml",
+      ".github/workflows/supervisor-runtime-assurance.yml",
+      ".specify/pipeline-connectivity-contract.json",
+      "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/test-fanout-relocation-ci.mjs",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep pull-request-triggered E2E, fanout, and supervisor validation read-only while retaining only explicitly dispatched, SHA-bound fanout mutation.",
+      "e2e_journeys": [
+        {
+          "id": "enforce-read-only-pr-and-governed-manual-mutation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions repository governance",
+          "entrypoint": "A pull request changes one of the three governed workflow surfaces.",
+          "terminal_outcome": "Pull-request jobs have no write authority, the obsolete Work Map bridge is removed, fanout apply is explicitly dispatched and exact-head guarded, and supervisor assurance publishes evidence without issue mutation.",
+          "steps": [
+            "Remove the pull-request-triggered Work Map mutation bridge and its connectivity registration.",
+            "Split fanout reporting from the explicitly dispatched apply workflow.",
+            "Require exact target-branch head identity and reject main and Production before fanout mutation.",
+            "Remove issue mutation from the pull-request-capable supervisor assurance workflow.",
+            "Run connectivity, fanout, supervisor, lifecycle, and changed-range E2E integrity checks."
+          ],
+          "assertions": [
+            "E2E reference integrity remains pull-request-triggered and read-only.",
+            "Fanout pull-request reporting has contents read only and no push path.",
+            "Fanout apply has workflow_dispatch, expected_head_sha verification, protected-branch rejection, and no force push.",
+            "Supervisor assurance has contents read only and no issue mutation.",
+            "No Production, provider, credential, SQL, Migration Apply, database, deployment, protected-ref, Work Map publication, or external mutation is authorized.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "fanout-relocation-split",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-fanout-relocation-ci.mjs",
+              "args": []
+            },
+            {
+              "id": "supervisor-read-only-assurance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-write-workflow-separation.json",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/http-generic-api-fanout-relocation.yml",
+            ".github/workflows/http-generic-api-fanout-relocation-apply.yml",
+            ".github/workflows/supervisor-runtime-assurance.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Confirm exact-head pull-request jobs execute read-only and the manual fanout writer remains dormant without explicit dispatch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject any reintroduction of pull-request write permissions, stale expected-head mutation, protected-branch targeting, or force push."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one read-only pull-request cycle and one report-only manual cycle without invoking fanout apply."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Retain repository validation availability without granting Production or external runtime authority."
+    }
+  ],
+  "secrets_included": false
+}
