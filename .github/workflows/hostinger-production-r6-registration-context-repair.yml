@@ -145,3 +145,5 @@ assert.match(workflow, /name: Initialize runner-scoped evidence directory[\\s\\S
           git diff --cached --check
           git commit -m 'fix(ops): restore Hostinger R6 workflow registration context'
           git push origin HEAD:fix/hostinger-production-r6-registration-context-20260803
+
+# registration retry after workflow file exists on branch
