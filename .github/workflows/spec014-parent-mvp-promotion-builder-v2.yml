@@ -137,6 +137,18 @@ jobs:
           fs.writeFileSync(contractPath, `${JSON.stringify(document)}\n`, 'utf8');
           NODE
 
+      - name: Diagnose shared-operation-state child contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-mvp-shared-operation-state.mjs
+
+      - name: Diagnose mounted Tenant route child contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-tenant-runtime-route.mjs
+
+      - name: Diagnose durable repository child contract
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-control-plane-repository.mjs
+
       - name: Run exact shared-state journey
         working-directory: http-generic-api
         run: node test-hostinger-storage-e2e.mjs
