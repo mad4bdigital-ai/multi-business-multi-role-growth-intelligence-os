@@ -1,0 +1,98 @@
+name: Exact V3 Bridge ARM 5651
+run-name: Exact V3 Bridge ARM 5651 · ${{ github.event.pull_request.head.sha }}
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: 81f8a6e8766550a7d205b9c5178f830f75f03379
+      BASE_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
+      TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and four-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "${actual_sha}" = "${CANDIDATE_SHA}"
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git cat-file -e "${CANDIDATE_SHA}^{commit}"
+          git diff --name-only "${BASE_SHA}" "${CANDIDATE_SHA}" | sort > "${RUNNER_TEMP}/actual-files.txt"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'FILES'
+          .changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json
+          .github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml
+          .github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+          FILES
+          sort -o "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/expected-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+
+      - name: Parse workflows and check focused test syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0)); YAML.load_file(ARGV.fetch(1))' \
+            .github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml \
+            .github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Run V3 bridge contract regression
+        shell: bash
+        run: node http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run complete Unit and Integration suite on exact candidate
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ env.CANDIDATE_SHA }}
+        run: npm test
+
+      - name: Publish bounded validation summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/exact-v3-bridge-arm-5651"
+          jq -n \
+            --arg contract "mad4b.exact-v3-bridge-arm-5651.v1" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --arg base_sha "${BASE_SHA}" \
+            --arg job_status "${{ job.status }}" \
+            '{contract:$contract,candidate_sha:$candidate_sha,base_sha:$base_sha,job_status:$job_status,repository_mutation_performed:false,protected_branch_mutation:false,workflow_dispatch_performed:false,provider_call_performed:false,database_mutation_performed:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/exact-v3-bridge-arm-5651/summary.json"
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-v3-bridge-arm-5651-${{ github.run_id }}
+          path: ${{ runner.temp }}/exact-v3-bridge-arm-5651/
+          if-no-files-found: error
+          retention-days: 14
