@@ -1,0 +1,1 @@
+Temporary never-merge trigger for governed Pipeline Connectivity V3 alignment on canonical PR #5983.
