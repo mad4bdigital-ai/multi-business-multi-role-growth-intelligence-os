@@ -23,7 +23,7 @@ const policy = read("http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.j
 const legacyAuthRoutes = read("http-generic-api/routes/authRoutes.js");
 
 assert.equal(record.task_id, "T031");
-assert.equal(record.status, "route_wiring_complete_live_readback_required");
+assert.equal(record.status, "route_wiring_validated_live_readback_required");
 assert.equal(record.route_contract.method, "POST");
 assert.equal(record.route_contract.path, "/auth/oauth/token");
 assert.equal(record.route_contract.mounted_before_legacy_auth_router, true);
@@ -31,10 +31,20 @@ assert.equal(record.route_contract.active_user_prevalidated, true);
 assert.equal(record.route_contract.active_tenant_membership_prevalidated, true);
 assert.equal(record.route_contract.access_token_prepared_before_consumption, true);
 assert.equal(record.route_contract.atomic_code_consumption_after_prevalidation, true);
+assert.equal(record.route_contract.success_evidence_after_response_finish, true);
+assert.equal(record.route_contract.early_response_close_classified_unknown, true);
+assert.equal(record.route_contract.terminal_evidence_deduplicated, true);
 assert.equal(record.outcome_contract.preconsumption_same_code_retry_allowed, true);
 assert.equal(record.outcome_contract.unknown_consumption_same_code_retry_allowed, false);
 assert.equal(record.outcome_contract.post_consumption_failure_same_code_retry_allowed, false);
+assert.equal(record.validation.route_level_regression_complete, true);
+assert.equal(record.validation.api_dependencies_installed_from_lockfile, true);
+assert.equal(record.validation.http_integration_complete, true);
+assert.equal(record.validation.shared_canary_complete, true);
+assert.equal(record.validation.temporary_workflow_change_retired_before_ready, true);
 assert.equal(record.completion_gate.route_wiring_complete, true);
+assert.equal(record.completion_gate.route_level_regression_complete, true);
+assert.equal(record.completion_gate.exact_head_ci_complete, false);
 assert.equal(record.completion_gate.production_deployed, false);
 assert.equal(record.completion_gate.live_success_exchange_readback_complete, false);
 assert.equal(record.completion_gate.task_completion_allowed, false);
@@ -65,12 +75,18 @@ assert.equal(
 assert.match(route, /error\?\.oauth_consumption/u);
 assert.match(route, /operator_reconciliation_required/u);
 assert.match(route, /response_transport_interrupted/u);
+assert.match(route, /res\.once\("finish"/u);
+assert.match(route, /res\.once\("close"/u);
+assert.match(route, /terminalEvidenceRecorded/u);
+assert.match(route, /phase: "response_committed"/u);
 assert.match(route, /secrets_included: false/u);
 
 const subjectRead = route.indexOf("const subject = await resolveSubject");
 const tokenPrepared = route.indexOf("const accessToken = issueAccessToken");
 const consumeGate = route.indexOf("const codeConsumption = await consumeCode");
 const contextWrite = route.indexOf("const activationContext = await recordActivationContext");
+const finishListener = route.indexOf('res.once("finish"');
+const responseWrite = route.indexOf("return res.status(200).json(tokenResponse)");
 assert.equal(subjectRead >= 0, true);
 assert.equal(tokenPrepared > subjectRead, true,
   "active subject validation must precede token preparation");
@@ -78,6 +94,10 @@ assert.equal(consumeGate > tokenPrepared, true,
   "access-token preparation must precede atomic code consumption");
 assert.equal(contextWrite > consumeGate, true,
   "activation context recording must follow successful code consumption");
+assert.equal(finishListener > contextWrite, true,
+  "response-commit evidence listener must be registered after post-consumption work");
+assert.equal(responseWrite > finishListener, true,
+  "success evidence must be bound to finish before the token response is written");
 
 assert.match(policy, /oauth_token_exchange_preconsumption_unavailable/u);
 assert.match(policy, /retry_same_code: codeStillAvailable/u);
