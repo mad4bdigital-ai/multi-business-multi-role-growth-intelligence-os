@@ -1,0 +1,133 @@
+name: ARM OAuth Fixture Repair 5921 V1
+run-name: ARM OAuth fixture repair · PR 5921
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/arm-oauth-fixture-repair-5921-v1-20260804.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: arm-oauth-fixture-repair-5921-v1
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Repair inherited OAuth test fixture
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/arm-oauth-fixture-repair-5921-v1-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      TARGET_PR: '5921'
+      TARGET_BRANCH: gpt/ci-pr-stale-cancellation-main-97e4ee7e-20260804
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_TARGET_HEAD: 440ceb3dfe3c05cf48144b5fdc4fc4ac454115f1
+      TARGET_FILE: http-generic-api/test-auth-oauth-routes.mjs
+      WORKFLOW_PATH: .github/workflows/arm-oauth-fixture-repair-5921-v1-20260804.yml
+
+    steps:
+      - name: Verify one-file repair surface and immutable target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t validator_files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#validator_files[@]}" -eq 1
+          test "${validator_files[0]}" = "${WORKFLOW_PATH}"
+
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          pr_json="$(gh api "repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr_json}")" = 'true'
+          test "$(jq -r '.base.sha' <<<"${pr_json}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${EXPECTED_TARGET_HEAD}"
+
+          compare_json="$(gh api "repos/${REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${EXPECTED_TARGET_HEAD}")"
+          test "$(jq -r '.ahead_by' <<<"${compare_json}")" = '2'
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = '0'
+          test "$(jq '.files | length' <<<"${compare_json}")" = '6'
+
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_TARGET_HEAD }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply exact one-line fixture repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_TARGET_HEAD}"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'http-generic-api/test-auth-oauth-routes.mjs';
+          const before = 'app.use(buildTenantGptOAuthMetadataRoutes());';
+          const after = 'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));';
+          const source = fs.readFileSync(path, 'utf8');
+          const count = source.split(before).length - 1;
+          if (count !== 1 || source.includes(after)) {
+            throw new Error(`unexpected fixture state: before_count=${count} after_present=${source.includes(after)}`);
+          }
+          fs.writeFileSync(path, source.replace(before, after));
+          NODE
+          git diff --check
+          git diff --exit-code -- . ':!http-generic-api/test-auth-oauth-routes.mjs'
+          test "$(git diff --numstat -- "${TARGET_FILE}" | awk '{print $1 ":" $2}')" = '1:1'
+          node --check "${TARGET_FILE}"
+
+      - name: Install dependencies and run focused OAuth route test
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm ci
+          node test-auth-oauth-routes.mjs
+
+      - name: Commit and fast-forward push fixture repair
+        id: push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${TARGET_FILE}"
+          git diff --cached --check
+          git commit -m 'test(oauth): inject governed token-route fixture dependencies'
+          new_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "${remote_head}" = "${new_head}"
+          echo "new_head=${new_head}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish no-secret repair evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_HEAD: ${{ steps.push.outputs.new_head }}
+        run: |
+          set -euo pipefail
+          outcome=passed
+          [[ "${{ job.status }}" == 'success' ]] || outcome=blocked
+          body="OAUTH_FIXTURE_ARM_REPAIR outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_old_head=${EXPECTED_TARGET_HEAD} new_head=${NEW_HEAD:-none} target_file=${TARGET_FILE} focused_test_required=true focused_test_passed=$([[ \"${outcome}\" == passed ]] && echo true || echo false) protected_branch_mutation=false force_push=false production_mutation=false secrets_included=false"
+          gh api --method POST "repos/${REPOSITORY}/issues/${TARGET_PR}/comments" -f body="${body}" >/dev/null
+          gh api --method POST "repos/${REPOSITORY}/issues/${VALIDATOR_PR}/comments" -f body="${body}" >/dev/null
