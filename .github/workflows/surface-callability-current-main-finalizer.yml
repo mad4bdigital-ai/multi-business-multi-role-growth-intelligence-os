@@ -82,15 +82,19 @@ jobs:
           node scripts/surface-contract-discovery.mjs
           npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
 
-      - name: Restore permanent frontend dispatch regression
+      - name: Restore permanent frontend regressions
         shell: bash
         run: |
           set -Eeuo pipefail
-          git show "${BASE_SHA}:http-generic-api/test-frontend-surface-dispatch.mjs" > http-generic-api/test-frontend-surface-dispatch.mjs
-          if grep -Fq 'surface_artifact_export_complete_intentional_test_failure' http-generic-api/test-frontend-surface-dispatch.mjs; then
-            echo '::error::temporary exporter remained in permanent test'
-            exit 1
-          fi
+          for test_path in \
+            http-generic-api/test-frontend-surface-dispatch.mjs \
+            http-generic-api/test-frontend-auth-openapi-parity.mjs; do
+            git show "${BASE_SHA}:${test_path}" > "${test_path}"
+            if grep -Fq 'surface_artifact_export_complete_intentional_test_failure' "${test_path}"; then
+              echo "::error::temporary exporter remained in permanent test: ${test_path}"
+              exit 1
+            fi
+          done
 
       - name: Run focused closure regressions
         working-directory: http-generic-api
@@ -100,6 +104,7 @@ jobs:
           node --check routes/tenantLifecycleRoutes.js
           node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
           node --check scripts/resource-api-callability-contracts.mjs
+          node test-workspace-invitation-controls.mjs
           node test-surface-contract-sql-registry-extractor.mjs
           node test-resource-api-callability-effect-classes.mjs
           node test-resource-api-coverage.mjs
@@ -148,6 +153,7 @@ jobs:
           http-generic-api/routes/tenantLifecycleRoutes.js
           http-generic-api/scripts/test-manifest.mjs
           http-generic-api/surface-contract-classification-evidence.json
+          http-generic-api/test-frontend-auth-openapi-parity.mjs
           http-generic-api/test-frontend-surface-dispatch.mjs
           http-generic-api/test-surface-callability-full-closure.mjs
           EOF
@@ -167,6 +173,7 @@ jobs:
             http-generic-api/routes/tenantLifecycleRoutes.js \
             http-generic-api/scripts/test-manifest.mjs \
             http-generic-api/surface-contract-classification-evidence.json \
+            http-generic-api/test-frontend-auth-openapi-parity.mjs \
             http-generic-api/test-frontend-surface-dispatch.mjs \
             http-generic-api/test-surface-callability-full-closure.mjs; do
             grep -Fxq "${required}" /tmp/changed-paths.txt || { echo "::error::required finalizer output missing: ${required}"; exit 1; }
