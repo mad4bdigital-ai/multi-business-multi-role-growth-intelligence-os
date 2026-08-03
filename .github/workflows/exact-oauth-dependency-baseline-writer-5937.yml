@@ -19,11 +19,12 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804' &&
-      github.event.pull_request.head.sha == '97e4ee7ec790844ad20ee2349125579353c693d5'
+      github.event.pull_request.head.sha == 'ee86cdf75d2d4ed6e25cb5c0a74b805137c21840'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_TARGET_SHA: ee86cdf75d2d4ed6e25cb5c0a74b805137c21840
       TARGET_BRANCH: gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804
     steps:
       - name: Checkout exact target branch
@@ -37,10 +38,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git diff --quiet HEAD^ HEAD; echo $?)" -eq 0
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
-          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
           case "$TARGET_BRANCH" in main|Production) exit 1 ;; esac
 
       - name: Apply three exact dependency-injection corrections
@@ -109,7 +112,7 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
-          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
           git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
