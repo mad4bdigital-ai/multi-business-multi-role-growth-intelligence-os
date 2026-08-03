@@ -3,9 +3,7 @@ name: Hostinger Production Release Evidence R6
 on:
   pull_request:
     branches: [main]
-    types: [opened]
-    paths:
-      - '.github/ops/hostinger-production-release-evidence-r6-trigger.json'
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
@@ -43,18 +41,19 @@ jobs:
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
 
     steps:
-      - name: Initialize runtime-safe evidence directory
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
-
       - name: Checkout exact trusted main tooling
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Initialize runtime evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
+          mkdir -p "${RUNNER_TEMP}/hostinger-production-release-evidence-r6"
 
       - name: Verify trigger scope, authorization, and immutable bindings
         id: binding
@@ -111,9 +110,10 @@ jobs:
           TRIGGER_NONCE="$(jq -r '.trigger_nonce' "${TRIGGER_JSON}")"
           test "${BINDING_ID}" = "${EXPECTED_PRODUCTION_SHA}:${REPORTER_BLOB_SHA}:${AUTHORIZATION_COMMENT_ID}:R6"
 
-          AUTH_BODY="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
-          AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
-          test "${AUTH_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          AUTH_JSON="${RUNNER_TEMP}/r6-authorization.json"
+          gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" > "${AUTH_JSON}"
+          test "$(jq -r '.user.id' "${AUTH_JSON}")" = "${AUTHORIZATION_USER_ID}"
+          AUTH_BODY="$(jq -r '.body' "${AUTH_JSON}")"
           grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${AUTH_BODY}"
           grep -Fq "${BASE_SHA}" <<<"${AUTH_BODY}"
           grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${AUTH_BODY}"
@@ -280,7 +280,7 @@ jobs:
           BUILD_REPORT="${EVIDENCE_DIR}/build/hostinger-nodejs-build-evidence.json"
           TOPOLOGY_REPORT="${EVIDENCE_DIR}/topology/topology-evidence.json"
           if [[ ! -s "${BUILD_REPORT}" ]]; then
-            jq -n --arg step "${BUILD_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_step_outcome:$step,identity:{expected_sha:$sha,expected_branch:"Production"},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
+            jq -n --arg step "${BUILD_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_step_outcome:$step,identity:{expected_sha:$sha,expected_branch:"Production"},request:{method:"GET",token_returned:false},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
           fi
           if [[ ! -s "${TOPOLOGY_REPORT}" ]]; then
             jq -n --arg step "${TOPOLOGY_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-production-topology-evidence.v1",expected_production_sha:$sha,classification:"topology_evidence_missing",production_current:false,topology_step_outcome:$step,public_get_only:true,credential_access_performed:false,provider_mutation_performed:false,restart_performed:false,secrets_included:false}' > "${TOPOLOGY_REPORT}"
