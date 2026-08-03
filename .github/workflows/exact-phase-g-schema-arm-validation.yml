@@ -7,179 +7,235 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: work-map-lifecycle-fix-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: work-map-input-governance-final-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
-  repair:
-    name: Publish Work Map lifecycle-safe diagnostics
+  validate:
+    name: Exact Work Map Input Governance Final Validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/work-map-autofix-full-failure-set-20260804'
+      github.event.pull_request.head.ref == 'gpt/work-map-input-driven-branch-governance-20260804' &&
+      github.event.pull_request.head.sha == 'a8952e2d22f3f99063b057db3b31b506b55ef799'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 180
     env:
-      EXPECTED_MAIN_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
-      EXPECTED_PREVIOUS_HEAD: e123688d3346a0d173d81989354de4cdc7bf44b4
-      TARGET_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
-      TRIGGER_MARKER: .github/arm-markers/work-map-lifecycle-fix-trigger.txt
-      SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
-      SCRIPT_COMMIT_SHA: 205ee3dc3f1149d3575f6cb0edcf92ed3bbcc8a6
+      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
+      EXPECTED_HEAD_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
+      GITHUB_BASE_REF: main
+      CI_CANDIDATE_KIND: head
+      CI_CANDIDATE_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
+      CI_SOURCE_HEAD_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
     steps:
-      - name: Checkout exact marker head
+      - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
 
-      - name: Verify immutable ancestry and marker-only trigger
+      - name: Verify immutable identity synchronization and exact scope
         shell: bash
         run: |
           set -euo pipefail
-          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-lifecycle-fix-${GITHUB_RUN_ID}"
-          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
-          mkdir -p "${DIAGNOSTIC_ROOT}"
-
-          test "$(git rev-parse HEAD)" = "${TARGET_HEAD_SHA}"
-          test "$(git merge-base "${EXPECTED_PREVIOUS_HEAD}" "${TARGET_HEAD_SHA}")" = "${EXPECTED_PREVIOUS_HEAD}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_PREVIOUS_HEAD}")" = "${EXPECTED_MAIN_SHA}"
-
-          printf '%s\n' "${TRIGGER_MARKER}" > /tmp/expected-trigger-files.txt
-          git diff --name-only "${EXPECTED_PREVIOUS_HEAD}" "${TARGET_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-trigger-files.txt
-          diff -u /tmp/expected-trigger-files.txt /tmp/actual-trigger-files.txt
-          test -f "${TRIGGER_MARKER}"
-
-          cat > /tmp/expected-durable-files.txt <<'EOF'
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          git update-ref refs/remotes/origin/main "${EXPECTED_MAIN_SHA}"
+          cat > /tmp/expected-files.txt <<'EOF'
           .changes/e2e/work-map-autofix-validation-diagnostics.json
           .github/workflows/spec-kit-work-map-autofix.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
+          http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
           http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_PREVIOUS_HEAD}" | LC_ALL=C sort > /tmp/actual-durable-files.txt
-          diff -u /tmp/expected-durable-files.txt /tmp/actual-durable-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test -z "$(git status --porcelain --untracked-files=no)"
 
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TARGET_HEAD_SHA}"
-          test -z "$(git status --porcelain)"
-
-      - name: Load immutable lifecycle transformer
+      - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
-          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
-          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-work-map-lifecycle-fix.py" > /tmp/apply-work-map-lifecycle-fix.py
-          python -m py_compile /tmp/apply-work-map-lifecycle-fix.py
+          npm ci
+          npm ci --prefix http-generic-api
 
-      - name: Apply lifecycle repair and remove trigger marker
-        shell: bash
-        run: |
-          set -euo pipefail
-          python /tmp/apply-work-map-lifecycle-fix.py
-          rm "${TRIGGER_MARKER}"
-
-          cp /tmp/expected-durable-files.txt "${DIAGNOSTIC_ROOT}/expected-files.txt"
-          git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          git diff --check "${EXPECTED_MAIN_SHA}"
-          git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
-
-      - name: Validate durable workflow and regression
+      - name: Validate Work Map governance regression and parity
         shell: bash
         run: |
           set -euo pipefail
           ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          node --check http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
           node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
           grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
           grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
           ! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml
+          git diff --check "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
 
-      - name: Create local lifecycle-safe commit and payload
+      - name: Run all eleven governed Work Map validation contracts
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TARGET_HEAD_SHA}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- .changes/e2e/work-map-autofix-validation-diagnostics.json .github/workflows/spec-kit-work-map-autofix.yml http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          git add -u -- "${TRIGGER_MARKER}"
-          git commit -m "fix(ci): make Work Map branch governance input-driven"
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
 
-          new_head="$(git rev-parse HEAD)"
-          printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${new_head}" | LC_ALL=C sort > /tmp/final-files.txt
-          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" /tmp/final-files.txt
-          test -z "$(git status --porcelain)"
+      - name: Run Syntax and repository governance gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          (
+            cd http-generic-api
+            node scripts/user-jwt-auth-governance.mjs
+            node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          )
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          (
+            cd http-generic-api
+            shopt -s nullglob
+            for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f"; done
+          )
 
-          payload="${DIAGNOSTIC_ROOT}/validated-payload"
-          mkdir -p "${payload}"
-          printf '%s\n' "${new_head}" > "${payload}/local-commit-sha.txt"
-          git show -s --format=%T "${new_head}" > "${payload}/local-tree-sha.txt"
-          git show -s --format=%P "${new_head}" > "${payload}/local-parent-shas.txt"
-          git diff --binary "${EXPECTED_MAIN_SHA}" "${new_head}" > "${payload}/validated.patch"
-
-      - name: Run exact lifecycle and E2E gates on local commit
+      - name: Run Context Kernel and Unit Integration suite
+        working-directory: http-generic-api
         shell: bash
         env:
-          BASE_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
+          npm test
+
+      - name: Prove Runtime Startup and explicit governance contracts
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/work-map-input-driven-branch-governance-20260804
+          DEPLOYMENT_COMMIT_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+          node test-custom-gpt-schemas.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+
+      - name: Run Execution Resolver Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
+
+      - name: Run Architecture Drift gates
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run validate
+          test "$(wc -l < server.js)" -le 6000
+          node -e "import('./wordpress/index.js').then(m => { if (Object.keys(m).length < 545) process.exit(1); })"
+
+      - name: Run exact E2E evaluation execution and reference integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
+
+      - name: Run Repository Tool Lifecycle governance
+        shell: bash
+        env:
+          BASE_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
+          CANDIDATE_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
         run: |
           set -euo pipefail
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          git diff --name-status "${BASE_SHA}" "${NEW_HEAD_SHA}" > /tmp/repository-tool-changes.tsv
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > /tmp/repository-tool-changes.tsv
           node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
             --changed-files /tmp/repository-tool-changes.tsv \
             --policy .github/repository-maintenance-tool-governance.json \
-            --output-dir "${DIAGNOSTIC_ROOT}/repository-tool-lifecycle"
-          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.DIAGNOSTIC_ROOT + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
+            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
 
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-phase-evaluation.json"
-          test -z "$(git status --porcelain)"
-
-      - name: Attempt fast-forward push and capture result
+      - name: Run deterministic Frontend parity
+        working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          printf '%s\n' "${remote_before}" > "${DIAGNOSTIC_ROOT}/remote-before-push.txt"
-          test "${remote_before}" = "${TARGET_HEAD_SHA}"
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          test -z "$(git status --porcelain --untracked-files=no)"
 
-          set +e
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}" > "${DIAGNOSTIC_ROOT}/push.log" 2>&1
-          push_status=$?
-          set -e
-          printf '%s\n' "${push_status}" > "${DIAGNOSTIC_ROOT}/push-status.txt"
-          remote_after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          printf '%s\n' "${remote_after}" > "${DIAGNOSTIC_ROOT}/remote-after-push.txt"
-          cat "${DIAGNOSTIC_ROOT}/push.log"
-
-      - name: Upload lifecycle repair evidence
+      - name: Upload exact-head evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-lifecycle-fix-${{ github.run_id }}
-          path: ${{ runner.temp }}/work-map-lifecycle-fix-${{ github.run_id }}
-          if-no-files-found: error
+          name: work-map-input-governance-final-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/test-suite-reports/*.json
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-phase-execution.json
+            ${{ runner.temp }}/e2e-contract-reference-integrity.json
+            ${{ runner.temp }}/repository-tool-lifecycle/
+          if-no-files-found: warn
           retention-days: 14
-
-      - name: Enforce exact published head
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(cat "${DIAGNOSTIC_ROOT}/push-status.txt")" = "0"
-          test "$(cat "${DIAGNOSTIC_ROOT}/remote-after-push.txt")" = "${NEW_HEAD_SHA}"
