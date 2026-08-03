@@ -69,7 +69,8 @@ jobs:
         run: npm --prefix http-generic-api run frontend:dispatch:check
 
       - name: Verify Surface full closure
-        run: node http-generic-api/test-surface-callability-full-closure.mjs
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
 
       - name: Verify Hostinger closure safety
         run: node http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
