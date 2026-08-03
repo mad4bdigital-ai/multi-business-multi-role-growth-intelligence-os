@@ -46,7 +46,9 @@ function runtimeBody(sha, branch) {
 function assertCoherentAuthority(report) {
   assert.equal(report.runtime_identity_authority.contract, "mad4b.hostinger-runtime-identity-authority.v1");
   assert.equal(report.runtime_identity_authority.authoritative_endpoint, "/deployment-info");
+  assert.equal(report.runtime_identity_authority.schema_scope, "top_level_direct_identity_fields");
   assert.equal(report.runtime_identity_authority.cross_endpoint_composition_allowed, false);
+  assert.equal(report.runtime_identity_authority.cross_object_composition_allowed, false);
   assert.equal(report.runtime_identity_authority.version_endpoint_authoritative, false);
   assert.equal(report.runtime_identity_authority.mode, "deployment_info_coherent_pair");
 }
@@ -141,6 +143,36 @@ async function testSplitEndpointIdentityNeverPasses() {
   assertCoherentAuthority(report);
 }
 
+async function testCrossObjectDeploymentIdentityNeverPasses() {
+  let posts = 0;
+  const deploymentBody = {
+    branch: "main",
+    commit_sha: OLD_SHA,
+    deployment: {
+      branch: "Production",
+      commit_sha: EXPECTED_SHA,
+      historical: true,
+    },
+  };
+  const fetchImpl = async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes("/nodejs/builds")) return response(200, buildList());
+    if (init.method === "POST") { posts += 1; return response(200, { ok: true }); }
+    if (value.endsWith("/health")) return response(200, { ok: true });
+    if (value.endsWith("/version")) return response(200, runtimeBody(OLD_SHA, "main"));
+    if (value.endsWith("/deployment-info")) return response(200, deploymentBody);
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  assert.equal(report.pre_runtime.current, false);
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_completed_runtime_stale");
+  assert.equal(report.restart.performed, true);
+  assert.equal(posts, 1);
+  assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+  assertCoherentAuthority(report);
+}
+
 function testConfigurationGuards() {
   assert.throws(() => validateConfiguration(options({ token: "" })), /HOSTINGER_API_TOKEN/u);
   assert.throws(() => validateConfiguration(options({ domain: "example.com" })), /restricted/u);
@@ -166,7 +198,9 @@ function testWorkflowContract() {
   assert.match(workflow, /019fc51c-3947-7255-aa4d-f55cb8df7658/u);
   assert.match(implementation, /nodejs\/server\/restart/u);
   assert.match(coherentWrapper, /deployment_info_coherent_pair/u);
+  assert.match(coherentWrapper, /schema_scope:\s*"top_level_direct_identity_fields"/u);
   assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
+  assert.match(coherentWrapper, /cross_object_composition_allowed:\s*false/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
   assert.match(workflow, /HOSTINGER_API_TOKEN/u);
   assert.match(workflow, /issues: write/u);
@@ -186,6 +220,7 @@ await testRestartConverges();
 await testDifferentLatestBuildFailsClosed();
 await testRestartStaysStale();
 await testSplitEndpointIdentityNeverPasses();
+await testCrossObjectDeploymentIdentityNeverPasses();
 testConfigurationGuards();
 testWorkflowContract();
 console.log("hostinger-nodejs-production-restart tests: passed");
