@@ -9,6 +9,8 @@
     "include": [
       ".changes/e2e/hostinger-nodejs-completed-build-log-evidence.json",
       ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+      "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
       "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
       "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
     ]
@@ -56,6 +58,8 @@
           ],
           "evidence_paths": [
             ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
             "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
             "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
           ]
