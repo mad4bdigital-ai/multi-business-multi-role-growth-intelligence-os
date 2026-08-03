@@ -11,6 +11,7 @@
       ".github/workflows/hostinger-nodejs-production-restart.yml",
       ".github/workflows/hostinger-nodejs-production-restart-contract.yml",
       "http-generic-api/scripts/hostinger-nodejs-production-restart.mjs",
+      "http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs",
       "http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs"
     ]
   },
@@ -21,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, and requires public runtime parity afterward.",
+      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, and requires a coherent Production branch and SHA pair from deployment-info afterward.",
       "e2e_journeys": [
         {
           "id": "restart-completed-production-build-and-prove-runtime-parity",
@@ -29,7 +30,7 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions runner",
           "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
-          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, or duplicate-execution bindings differ; otherwise it restarts only the existing Hostinger Node.js server, uploads secret-free evidence, and passes only when auth.mad4b.com reports Production at f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, duplicate-execution, or coherent runtime identity bindings differ; otherwise it restarts only the existing Hostinger Node.js server, uploads secret-free evidence, and passes only when deployment-info reports Production at f5c1ae8840b4d4452f2908bb0f23051880bb6896 in the same response.",
           "steps": [
             "Receive owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
             "Resolve and validate the explicitly supplied full expected_head_sha and expected_build_uuid before any write.",
@@ -37,9 +38,9 @@
             "Verify current main equals the explicitly supplied full SHA and protected Production remains f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
             "Reject duplicate execution for the exact Production SHA and Hostinger build UUID binding.",
             "Fetch Hostinger build history and require the latest build after the Production merge to be completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
-            "Read health, version, and deployment-info before mutation and skip restart if exact Production runtime parity already exists.",
+            "Read health, version, and deployment-info before mutation and skip restart only if deployment-info itself contains the exact Production branch and SHA pair.",
             "Call only POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
-            "Poll bounded public runtime endpoints and require exact Production SHA and branch identity.",
+            "Poll bounded public runtime endpoints and require the exact Production SHA and branch pair from deployment-info without composing identity across endpoints.",
             "Upload structured secret-free evidence and publish a bounded issue marker while keeping the incident open."
           ],
           "assertions": [
@@ -50,9 +51,10 @@
             "The workflow explicitly rejects main and Production as repository branch mutation targets.",
             "The implementation rejects any newer or different Hostinger build and any non-completed authorized build before POST.",
             "The only Hostinger provider mutation is the official Node.js server restart endpoint.",
+            "Version observations may not supply a missing SHA or branch to deployment-info; cross-endpoint identity composition is forbidden.",
+            "Success requires deployment-info to contain Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 together in the same response.",
             "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, or mutates a database.",
-            "The Hostinger token is never returned and all artifacts declare secrets_included=false.",
-            "Success requires public runtime identity Production at exact SHA f5c1ae8840b4d4452f2908bb0f23051880bb6896."
+            "The Hostinger token is never returned and all artifacts declare secrets_included=false."
           ],
           "tests": [
             {
@@ -67,6 +69,7 @@
             ".github/workflows/hostinger-nodejs-production-restart.yml",
             ".github/workflows/hostinger-nodejs-production-restart-contract.yml",
             "http-generic-api/scripts/hostinger-nodejs-production-restart.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-production-restart-coherent.mjs",
             "http-generic-api/scripts/test-hostinger-nodejs-production-restart.mjs"
           ]
         }
@@ -80,7 +83,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider failure, and post-restart stale runtime cases while remaining fail-closed."
+      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider failure, split endpoint identity, and post-restart stale runtime cases while remaining fail-closed."
     },
     {
       "id": "canary",
@@ -90,7 +93,7 @@
     {
       "id": "production",
       "status": "planned",
-      "objective": "Record exact runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
+      "objective": "Record exact coherent runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
     }
   ],
   "secrets_included": false
