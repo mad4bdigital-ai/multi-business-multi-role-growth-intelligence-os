@@ -53,6 +53,7 @@ jobs:
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
+      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
     steps:
       - name: Resolve explicit authorization binding
         id: authorization
@@ -102,6 +103,7 @@ jobs:
           const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
           const binding = `binding=${process.env.BINDING_ID}`;
           const relevant = comments
+            .filter((comment) => comment?.user?.login === 'github-actions[bot]' && comment?.user?.type === 'Bot')
             .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
             .sort((left, right) => Number(left.id) - Number(right.id));
 
@@ -153,6 +155,45 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-hostinger-nodejs-production-restart.mjs
 
+      - name: Revalidate repository state and claim immediately before provider mutation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+
+          gh api --paginate --slurp "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" > "${RUNNER_TEMP}/restart-comments-before-provider.json"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const pages = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/restart-comments-before-provider.json`, 'utf8'));
+          const prefix = 'HOSTINGER_PRODUCTION_NODEJS_RESTART status=';
+          const binding = `binding=${process.env.BINDING_ID}`;
+          const runBinding = `run_id=${process.env.GITHUB_RUN_ID}`;
+          const relevant = pages.flat()
+            .filter((comment) => typeof comment?.body === 'string')
+            .filter((comment) => comment?.user?.login === 'github-actions[bot]' && comment?.user?.type === 'Bot')
+            .filter((comment) => comment.body.includes(prefix) && comment.body.includes(binding))
+            .sort((left, right) => Number(left.id) - Number(right.id));
+          const consumed = relevant.some((comment) =>
+            comment.body.includes('status=completed') ||
+            comment.body.includes('restart_attempted=true') ||
+            comment.body.includes('restart_performed=true'));
+          if (consumed) {
+            console.error('Exact Hostinger restart binding became consumed before provider mutation.');
+            process.exit(1);
+          }
+          const lastClaim = relevant.filter((comment) => comment.body.includes('status=claiming')).at(-1);
+          const lastRelevant = relevant.at(-1);
+          if (!lastClaim || !lastClaim.body.includes(runBinding) || Number(lastRelevant?.id) !== Number(lastClaim.id)) {
+            console.error('Current run no longer owns the latest unresolved Hostinger restart claim.');
+            process.exit(1);
+          }
+          NODE
+
       - name: Execute one governed Hostinger Node.js restart
         id: restart
         continue-on-error: true
@@ -166,7 +207,7 @@ jobs:
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
           HOSTINGER_RESTART_POLL_ATTEMPTS: '12'
           HOSTINGER_RESTART_POLL_INTERVAL_MS: '10000'
-          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
+          HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}
         run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
 
       - name: Upload structured restart evidence
@@ -174,7 +215,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-nodejs-production-restart-${{ github.run_id }}
-          path: ${{ runner.temp }}/hostinger-nodejs-production-restart/*
+          path: ${{ env.EVIDENCE_DIR }}/*
           if-no-files-found: error
           retention-days: 30
 
@@ -183,26 +224,54 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
-          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
+          ATTEMPT_JOURNAL_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart-attempt.json
         shell: bash
         run: |
           set -euo pipefail
           marker="$(node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const reportPath = process.env.REPORT_PATH;
-          const fallback = {
-            outcome: 'failed',
-            classification: 'restart_report_missing',
-            restart: { attempted: false, performed: false },
-            side_effects: { provider_mutation_attempted: false },
-            first_failure: { code: 'restart_report_missing' },
-            post_runtime: null,
-            runtime_identity_authority: null,
-            secrets_included: false,
-          };
-          const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : fallback;
-          const restartAttempted = report.restart?.attempted === true;
-          const retryableWithoutProviderMutation = report.outcome !== 'passed' && !restartAttempted;
+          const journalPath = process.env.ATTEMPT_JOURNAL_PATH;
+          const reportExists = fs.existsSync(reportPath);
+          const attemptJournalExists = fs.existsSync(journalPath);
+          let report = null;
+          let reportParseFailed = false;
+          if (reportExists) {
+            try {
+              report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            } catch {
+              reportParseFailed = true;
+            }
+          }
+          if (!report) {
+            const attempted = attemptJournalExists ? true : (reportParseFailed ? 'unknown' : false);
+            report = {
+              outcome: 'failed',
+              classification: attemptJournalExists
+                ? 'restart_report_missing_after_provider_attempt'
+                : (reportParseFailed ? 'restart_report_invalid_attempt_unknown' : 'restart_report_missing_before_provider_attempt'),
+              restart: { attempted, performed: false },
+              side_effects: { provider_mutation_attempted: attempted === true },
+              first_failure: { code: attemptJournalExists
+                ? 'restart_report_missing_after_provider_attempt'
+                : (reportParseFailed ? 'restart_report_invalid_attempt_unknown' : 'restart_report_missing_before_provider_attempt') },
+              post_runtime: null,
+              pre_runtime: null,
+              runtime_identity_authority: null,
+              secrets_included: false,
+            };
+          }
+          const restartAttempted = typeof report.restart?.attempted === 'boolean'
+            ? report.restart.attempted
+            : 'unknown';
+          const providerMutationAttemptedState = typeof report.side_effects?.provider_mutation_attempted === 'boolean'
+            ? report.side_effects.provider_mutation_attempted
+            : 'unknown';
+          const retryableWithoutProviderMutation = report.outcome !== 'passed' && !restartAttempted
+            && restartAttempted !== 'unknown'
+            && providerMutationAttemptedState === false
+            && !attemptJournalExists;
           const fields = [
             'HOSTINGER_PRODUCTION_NODEJS_RESTART',
             `status=${report.outcome === 'passed' ? 'completed' : 'failed'}`,
@@ -212,6 +281,10 @@ jobs:
             `restart_attempted=${restartAttempted}`,
             `restart_performed=${report.restart?.performed === true}`,
             `provider_mutation_attempted=${report.side_effects?.provider_mutation_attempted === true}`,
+            `provider_mutation_attempt_state=${providerMutationAttemptedState}`,
+            `attempt_journal_present=${attemptJournalExists}`,
+            `report_present=${reportExists}`,
+            `report_parse_failed=${reportParseFailed}`,
             `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
             `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
@@ -220,6 +293,7 @@ jobs:
             `cross_object_composition=${report.runtime_identity_authority?.cross_object_composition_allowed === true}`,
             `first_failure=${report.first_failure?.code || 'none'}`,
             `run_id=${process.env.GITHUB_RUN_ID}`,
+            'marker_authority=github-actions-bot-only',
             'provider_method=POST',
             'build_created=false',
             'deployment=false',
@@ -237,7 +311,7 @@ jobs:
       - name: Enforce exact post-restart Production parity
         if: always() && steps.claim.outputs.claimed == 'true'
         env:
-          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
+          REPORT_PATH: ${{ env.EVIDENCE_DIR }}/hostinger-nodejs-production-restart.json
         run: |
           node --input-type=module -e '
             import fs from "node:fs";
