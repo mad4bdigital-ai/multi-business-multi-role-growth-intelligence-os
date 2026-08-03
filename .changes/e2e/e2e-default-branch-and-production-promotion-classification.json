@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "e2e-default-branch-and-production-promotion-classification",
+  "title": "E2E default-branch and protected Production promotion classification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/e2e-default-branch-and-production-promotion-classification.json",
+      "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify trusted default-branch execution, declared parallel pull requests, and the exact protected main-to-Production promotion without inheriting unrelated pull-request environment state or weakening fail-closed branch rules.",
+      "e2e_journeys": [
+        {
+          "id": "classify-default-branch-parallel-pr-and-protected-promotion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "E2E Phase Governance runner",
+          "entrypoint": "The parallel PR flow self-test invokes the canonical E2E PR gate in isolated synthetic Git contexts.",
+          "terminal_outcome": "Default-branch/manual execution is classified as standard, declared workstreams retain their bounded mode, undeclared PR branches fail closed, and only exact same-repository main-to-Production identity is accepted as a protected promotion.",
+          "steps": [
+            "Create a synthetic repository baseline and bind a local origin/main ref.",
+            "Remove inherited pull-request base/head environment variables for the default-branch fixture.",
+            "Invoke the canonical gate for main without a PR base ref and require standard mode.",
+            "Invoke the gate for an undeclared branch with an Integration base and require a bounded rejection.",
+            "Retain direct workstream-to-main rejection and valid declared workstream classification.",
+            "Retain exact main-to-Production acceptance and spoofed promotion rejection."
+          ],
+          "assertions": [
+            "Default-branch/manual execution does not inherit enclosing pull-request identity.",
+            "The undeclared-branch guard is enforced only when a pull-request base ref exists.",
+            "Declared workstream and Integration branch rules remain fail closed.",
+            "Merge-queue refs remain excluded from ordinary PR classification.",
+            "Only exact protected main-to-Production identity is treated as a Production promotion.",
+            "No repository write, protected-ref update, deployment, provider call, credential read, SQL, migration Apply, database mutation, or external send occurs.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "e2e-parallel-pr-flow-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-parallel-pr-flow-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/e2e-default-branch-and-production-promotion-classification.json",
+            "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the classifier across protected pull requests, workflow dispatches, and default-branch runs using canonical structured E2E evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain bounded diagnostics for inherited environment variables, missing refs, spoofed promotion identities, stale SHAs, and malformed parallel-work contracts."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate one non-production default-branch/manual run and one declared parallel pull-request flow before relying on the classification in later protected promotion cycles."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require the exact classifier and self-test evidence for every protected main-to-Production promotion without granting merge or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
