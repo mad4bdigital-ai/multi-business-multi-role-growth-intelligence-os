@@ -149,6 +149,43 @@ async function main() {
     }),
     "github://owner/repo",
   );
+  assert.equal(
+    _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+      "repo.change.execute",
+      {},
+    ),
+    true,
+  );
+  assert.equal(
+    _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+      "repo.change.execute",
+      { automation_key: "branch_cleanup" },
+    ),
+    false,
+  );
+  assert.equal(
+    _testingOperationCapabilityLifecycleService.protectedFinalizationRequiresExplicitEnvelope(
+      "operation.resume",
+      {},
+    ),
+    true,
+  );
+
+  {
+    let createCalls = 0;
+    await assert.rejects(
+      () => prepareOperationCapabilityLifecycle({
+        pool: {},
+        auth: { tenant_id: "tenant-a", user_id: "user-a" },
+        input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },
+        operationKey: "repo.change.execute",
+        createEnvelope: async () => { createCalls += 1; return {}; },
+      }),
+      (error) => error.code === "OPERATION_CAPABILITY_ENVELOPE_REQUIRED"
+        && error.details?.automatic_renewal_enabled === false,
+    );
+    assert.equal(createCalls, 0);
+  }
 
   const renewalRequest = buildCapabilityRenewalRequest({
     auth: { tenant_id: "tenant-a", user_id: "user-a" },
@@ -184,6 +221,7 @@ async function main() {
       auth: { tenant_id: "tenant-a", user_id: "user-a" },
       input: {
         operation_key: "repo.change.execute",
+        automation_key: "branch_cleanup",
         capability_envelope_id: "env-expired",
         owner: "owner",
         repo: "repo",
@@ -218,7 +256,7 @@ async function main() {
     () => prepareOperationCapabilityLifecycle({
       pool: {},
       auth: { tenant_id: "tenant-a", user_id: "user-a" },
-      input: { operation_key: "repo.change.execute", owner: "owner", repo: "repo" },
+      input: { operation_key: "repo.change.execute", automation_key: "branch_cleanup", owner: "owner", repo: "repo" },
       operationKey: "repo.change.execute",
       createEnvelope: async () => ({
         ok: true,
@@ -280,6 +318,7 @@ async function main() {
   assert.match(lifecycleOpenApi, /automatic_capability_renewal/);
   assert.match(lifecycleOpenApi, /capability_ttl_minutes/);
   assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_RENEWAL_REQUIRES_APPROVAL/);
+  assert.match(lifecycleOpenApi, /OPERATION_CAPABILITY_ENVELOPE_REQUIRED/);
   assert.match(lifecycleOpenApi, /capability_lifecycle/);
 }
 

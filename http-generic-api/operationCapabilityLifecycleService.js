@@ -100,6 +100,16 @@ function renewalAllowed(input = {}) {
     && input.automaticCapabilityRenewal !== false;
 }
 
+function protectedFinalizationRequiresExplicitEnvelope(operationKey, input = {}) {
+  if (operationKey === "operation.resume") return true;
+  if (operationKey !== "repo.change.execute") return false;
+  const automationKey = compact(
+    input.automation_key || input.automationKey || input.recipe_key || input.recipeKey || "pr_delivery",
+    64,
+  ).toLowerCase();
+  return ["pr_delivery", "full_workstream"].includes(automationKey);
+}
+
 function publicFailure(failure = {}) {
   return {
     status: failure.status || "capability_resolution_envelope_rejected",
@@ -173,6 +183,21 @@ export async function prepareOperationCapabilityLifecycle({
         publicFailure(resolved),
       );
     }
+  }
+
+  if (protectedFinalizationRequiresExplicitEnvelope(operationKey, input)) {
+    throw lifecycleError(
+      409,
+      "OPERATION_CAPABILITY_ENVELOPE_REQUIRED",
+      "Protected pull-request finalization requires a separately issued capability envelope; automatic renewal is disabled.",
+      {
+        operation_key: operationKey,
+        previous_envelope_id: existingEnvelopeId || null,
+        automatic_renewal_enabled: false,
+        next_action: "supply_explicit_approved_capability_envelope",
+        secrets_included: false,
+      },
+    );
   }
 
   if (!renewalAllowed(input)) {
@@ -320,5 +345,6 @@ export const _testingOperationCapabilityLifecycleService = {
   repositoryResourceUri,
   renewalProfile,
   renewalAllowed,
+  protectedFinalizationRequiresExplicitEnvelope,
   publicFailure,
 };
