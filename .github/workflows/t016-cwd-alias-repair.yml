@@ -1,4 +1,4 @@
-name: T016 CWD Alias Repair
+name: T016 CWD Alias Patch Builder
 
 on:
   pull_request:
@@ -7,15 +7,15 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: t016-cwd-alias-repair-${{ github.event.pull_request.number }}
+  group: t016-cwd-alias-patch-builder-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  repair:
-    name: Patch exact T016 aliases on existing candidate branch
+  build:
+    name: Build and validate exact T016 alias patch
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
@@ -25,21 +25,18 @@ jobs:
     env:
       TARGET_BRANCH: agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2
       EXPECTED_HEAD: a886140f30b15695016baabe9e2cfcbdac40255d
+      PATCH_DIR: /tmp/t016-cwd-alias-patch-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate branch
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 0
-          persist-credentials: true
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Verify immutable target head
         shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${EXPECTED_HEAD}"
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
 
       - name: Apply bounded CWD-independent alias patch
         shell: bash
@@ -57,9 +54,7 @@ jobs:
             approvalConstant,
           ].join('\n');
           if (!source.includes(approvalConstant)) throw new Error('approval constant anchor missing');
-          if (!source.includes('CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT')) {
-            source = source.replace(approvalConstant, constants);
-          }
+          if (!source.includes('CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT')) source = source.replace(approvalConstant, constants);
 
           const staleDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
           const fixedDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: [CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
@@ -77,18 +72,8 @@ import { fileURLToPath } from 'node:url';
 const routesPath = fileURLToPath(new URL('./routes/adminCliRoutes.js', import.meta.url));
 const source = await readFile(routesPath, 'utf8');
 const cases = [
-  {
-    name: 'dry_run',
-    constant: 'CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT',
-    file: 'capability-resolution-dry-run.mjs',
-    stale: 'args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"]',
-  },
-  {
-    name: 'envelope_create',
-    constant: 'CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT',
-    file: 'capability-resolution-envelope-create.mjs',
-    stale: 'args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"]',
-  },
+  { name: 'dry_run', constant: 'CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT', file: 'capability-resolution-dry-run.mjs', stale: 'args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"]' },
+  { name: 'envelope_create', constant: 'CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT', file: 'capability-resolution-envelope-create.mjs', stale: 'args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"]' },
 ];
 for (const item of cases) {
   const declaration = \`export const \${item.constant} = fileURLToPath(new URL("../scripts/\${item.file}", import.meta.url));\`;
@@ -112,14 +97,16 @@ console.log(JSON.stringify({ ok: true, cwd_independent_aliases: cases.map((item)
           node --check http-generic-api/routes/adminCliRoutes.js
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
           git diff --check
-          git diff --stat
+          mkdir -p "${PATCH_DIR}/http-generic-api/routes" "${PATCH_DIR}/http-generic-api"
+          cp http-generic-api/routes/adminCliRoutes.js "${PATCH_DIR}/http-generic-api/routes/adminCliRoutes.js"
+          cp http-generic-api/test-capability-envelope-create-alias-path.mjs "${PATCH_DIR}/http-generic-api/test-capability-envelope-create-alias-path.mjs"
+          git diff > "${PATCH_DIR}/t016-cwd-alias.patch"
+          git diff --stat > "${PATCH_DIR}/stat.txt"
 
-      - name: Commit and push exact repair
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'mad4bdigital-ai'
-          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
-          git add http-generic-api/routes/adminCliRoutes.js http-generic-api/test-capability-envelope-create-alias-path.mjs
-          git commit -m 'fix(admin-cli): resolve T016 envelope aliases independently of cwd'
-          git push origin "HEAD:${TARGET_BRANCH}"
+      - name: Upload validated patch files
+        uses: actions/upload-artifact@v4
+        with:
+          name: t016-cwd-alias-patch-${{ github.run_id }}
+          path: ${{ env.PATCH_DIR }}
+          if-no-files-found: error
+          retention-days: 30
