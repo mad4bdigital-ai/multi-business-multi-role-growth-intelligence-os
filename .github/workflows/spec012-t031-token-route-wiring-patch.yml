@@ -7,6 +7,13 @@ on:
     paths:
       - .github/workflows/spec012-t031-token-route-wiring-patch.yml
       - http-generic-api/scripts/apply-spec012-t031-token-route-wiring.mjs
+  pull_request:
+    types: [opened]
+    branches: [main]
+    paths:
+      - .github/workflows/spec012-t031-token-route-wiring-patch.yml
+      - http-generic-api/scripts/apply-spec012-t031-token-route-wiring.mjs
+      - http-generic-api/test-tenant-gpt-oauth-token-route-ambiguity.mjs
 
 permissions:
   contents: write
@@ -18,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: gpt/spec-012-t031-token-route-ambiguity-wiring-20260804
           fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
