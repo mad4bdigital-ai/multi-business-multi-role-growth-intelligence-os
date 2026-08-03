@@ -3,7 +3,7 @@
   "feature_key": "012-tenant-activation-lifecycle",
   "phase_key": "legacy-audience-compatibility",
   "task_id": "T032",
-  "status": "repository_policy_and_telemetry_ready_live_metric_readback_required",
+  "status": "repository_policy_and_telemetry_validated_live_metric_readback_required",
   "observed_main_sha": "97e4ee7ec790844ad20ee2349125579353c693d5",
   "observed_at": "2026-08-04",
   "authority": {
@@ -66,9 +66,18 @@
     "token_resource_mismatch_rejected"
   ],
   "validation": {
-    "policy_regression_complete_on_current_head": false,
-    "verifier_regression_complete_on_current_head": false,
-    "readiness_regression_complete_on_current_head": false,
+    "policy_regression_complete_on_current_head": true,
+    "verifier_regression_complete_on_current_head": true,
+    "readiness_regression_complete_on_current_head": true,
+    "validation_head_sha": "03381d19ab55052ea243c20ab652f683b46e4ee2",
+    "validation_run_id": 30860890407,
+    "validation_job_id": 91842398377,
+    "validation_mode": "github_actions_exact_head",
+    "dependencies_installed_from_lockfile": true,
+    "syntax_complete": true,
+    "temporary_workflow_change_retired_before_ready": true,
+    "post_validation_workflow_restore_commit": "6476f688efd8fa84dd75f19fd7e347c0c7c7f221",
+    "production_code_changed_by_workflow_restore": false,
     "exact_head_ci_complete": false,
     "production_deployed": false,
     "live_metric_readback_complete": false,
@@ -77,7 +86,7 @@
   "completion_gate": {
     "repository_policy_complete": true,
     "verifier_wiring_complete": true,
-    "deterministic_regression_complete": false,
+    "deterministic_regression_complete": true,
     "exact_head_ci_complete": false,
     "production_deployed": false,
     "live_strict_acceptance_metric_readback_complete": false,
@@ -86,7 +95,6 @@
     "live_multi_audience_rejection_metric_readback_complete": false,
     "task_completion_allowed": false,
     "required_before_completion": [
-      "pass policy, verifier, and readiness regressions on the reviewed head",
       "complete remaining repository CI gates",
       "deploy the reviewed merge SHA through the governed release path",
       "read back the strict single-audience metric from the deployed runtime",
