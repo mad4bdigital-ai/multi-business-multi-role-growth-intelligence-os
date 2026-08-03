@@ -1,0 +1,11 @@
+critical_runner_object_publisher_v4
+main_sha=cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+allowlisted_workflows=9
+requested_label=ubuntu-24.04
+ref_update=false
+branch_push=false
+main_mutation=false
+production_mutation=false
+provider_mutation=false
+database_mutation=false
+secrets_included=false
