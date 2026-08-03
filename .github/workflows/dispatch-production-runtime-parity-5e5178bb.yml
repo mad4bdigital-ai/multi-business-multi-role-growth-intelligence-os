@@ -1,4 +1,4 @@
-name: Dispatch Production Runtime Parity 5E5178BB
+name: Read Back Production Topology 5E5178BB
 
 on:
   pull_request:
@@ -10,131 +10,106 @@ permissions:
   contents: read
 
 concurrency:
-  group: dispatch-production-runtime-parity-5e5178bb
+  group: readback-production-topology-5e5178bb
   cancel-in-progress: false
 
 jobs:
-  dispatch-public-get-only-parity:
-    name: Dispatch public GET-only Production parity
+  public-get-only-topology:
+    name: Public GET-only Production topology
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/dispatch-production-runtime-parity-5e5178bb-20260803' &&
       github.event.pull_request.user.id == 271942579
-    permissions:
-      contents: read
-      actions: write
-      issues: write
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
-      TARGET_WORKFLOW: production-runtime-parity-evidence.yml
-      TARGET_WORKFLOW_PATH: .github/workflows/production-runtime-parity-evidence.yml
-      EXPECTED_WORKFLOW_BLOB_SHA: 7fdfc30c46949b11374231c47d653976ee6324aa
-      TARGET_REF: main
       EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
-      EXPECTED_BRANCH: Production
-      AUTH_URL: https://auth.mad4b.com/version
-      BINDING_ID: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb:7fdfc30c46949b11374231c47d653976ee6324aa:public-get-only-v1
+      REPORT_DIR: ${{ runner.temp }}/production-topology-5e5178bb
     steps:
-      - name: Verify immutable repository and workflow bindings
-        id: binding
+      - name: Verify current protected authority
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
 
-          ISSUE_STATE="$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')"
-          test "${ISSUE_STATE}" = "open"
-
-          PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          test "${PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
-
-          WORKFLOW_BLOB="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_WORKFLOW_PATH}?ref=${TARGET_REF}" --jq '.sha')"
-          test "${WORKFLOW_BLOB}" = "${EXPECTED_WORKFLOW_BLOB_SHA}"
-
-          WORKFLOW_STATE="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}" --jq '.state')"
-          test "${WORKFLOW_STATE}" = "active"
-
-          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
-          [[ "${CURRENT_MAIN_SHA}" =~ ^[a-f0-9]{40}$ ]]
-
-          CLAIM_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"PRODUCTION_RUNTIME_PARITY_5E5178BB_DISPATCH status=claiming binding=${BINDING_ID}\")) | .id")"
-          DISPATCHED_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"PRODUCTION_RUNTIME_PARITY_5E5178BB_DISPATCH status=dispatched binding=${BINDING_ID}\")) | .id")"
-          test -z "${CLAIM_MARKERS}"
-          test -z "${DISPATCHED_MARKERS}"
-
-          BEFORE_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=30" \
-            --jq '[.workflow_runs[].id] | max // 0')"
-
-          echo "current_main_sha=${CURRENT_MAIN_SHA}" >> "${GITHUB_OUTPUT}"
-          echo "before_run_id=${BEFORE_RUN_ID}" >> "${GITHUB_OUTPUT}"
-
-      - name: Record one-time diagnostic claim
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CURRENT_MAIN_SHA: ${{ steps.binding.outputs.current_main_sha }}
+      - name: Fetch bounded public endpoint responses
         shell: bash
         run: |
           set -euo pipefail
-          BODY="PRODUCTION_RUNTIME_PARITY_5E5178BB_DISPATCH status=claiming binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} bridge_pr=${{ github.event.pull_request.number }} target_main_sha=${CURRENT_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} target_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} public_get_only=true credential_access=false provider_mutation=false deployment=false restart=false sql=false migration_apply=false database_mutation=false secrets_included=false"
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}"
+          mkdir -p "${REPORT_DIR}"
 
-      - name: Dispatch trusted main parity workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
+          fetch_json() {
+            local name="$1"
+            local url="$2"
+            local raw="${REPORT_DIR}/${name}.raw"
+            local safe="${REPORT_DIR}/${name}.json"
+            local status
+            status="$(curl --silent --show-error --max-time 20 --proto '=https' --tlsv1.2 \
+              --header 'accept: application/json' \
+              --output "${raw}" \
+              --write-out '%{http_code}' \
+              "${url}")"
+            printf '%s\n' "${status}" > "${REPORT_DIR}/${name}.http-status"
+            test "$(wc -c < "${raw}")" -le 65536
+            jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' \
+              "${raw}" > "${safe}"
+            rm -f "${raw}"
+          }
+
+          fetch_json health https://auth.mad4b.com/health
+          fetch_json version https://auth.mad4b.com/version
+          fetch_json deployment-info https://auth.mad4b.com/deployment-info
+          fetch_json connector-agent-version https://auth.mad4b.com/connector-agent/version
+
           jq -n \
-            --arg ref "${TARGET_REF}" \
+            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg run_id "${GITHUB_RUN_ID}" \
             --arg expected_sha "${EXPECTED_PRODUCTION_SHA}" \
-            --arg expected_branch "${EXPECTED_BRANCH}" \
-            --arg auth_url "${AUTH_URL}" \
-            '{ref:$ref,inputs:{expected_sha:$expected_sha,expected_branch:$expected_branch,auth_url:$auth_url}}' \
-            | gh api --method POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/dispatches" \
-                --input -
+            --arg health_status "$(cat "${REPORT_DIR}/health.http-status")" \
+            --arg version_status "$(cat "${REPORT_DIR}/version.http-status")" \
+            --arg deployment_status "$(cat "${REPORT_DIR}/deployment-info.http-status")" \
+            --arg connector_status "$(cat "${REPORT_DIR}/connector-agent-version.http-status")" \
+            '{
+              contract: "mad4b.production-topology-public-readback.v1",
+              generated_at: $generated_at,
+              run_id: $run_id,
+              expected_production_sha: $expected_sha,
+              http_status: {
+                health: ($health_status | tonumber),
+                version: ($version_status | tonumber),
+                deployment_info: ($deployment_status | tonumber),
+                connector_agent_version: ($connector_status | tonumber)
+              },
+              public_get_only: true,
+              credential_access_performed: false,
+              provider_mutation_performed: false,
+              restart_performed: false,
+              secrets_included: false
+            }' > "${REPORT_DIR}/metadata.json"
 
-      - name: Resolve dispatched parity run
-        id: target
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BEFORE_RUN_ID: ${{ steps.binding.outputs.before_run_id }}
-          TARGET_MAIN_SHA: ${{ steps.binding.outputs.current_main_sha }}
+      - name: Upload public topology evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-topology-5e5178bb-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-topology-5e5178bb/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prove secret-free no-mutation boundary
         shell: bash
         run: |
           set -euo pipefail
-          RUN_ID=""
-          for _ in $(seq 1 60); do
-            RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=${TARGET_REF}&per_page=30" \
-              --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID} and .head_sha == \"${TARGET_MAIN_SHA}\")) | sort_by(.id) | .[0].id // empty")"
-            if [[ -n "${RUN_ID}" ]]; then break; fi
-            sleep 5
-          done
-          test -n "${RUN_ID}"
-          echo "run_id=${RUN_ID}" >> "${GITHUB_OUTPUT}"
-
-          BODY="PRODUCTION_RUNTIME_PARITY_5E5178BB_DISPATCH status=dispatched binding=${BINDING_ID} target_run_id=${RUN_ID} bridge_run_id=${GITHUB_RUN_ID} bridge_pr=${{ github.event.pull_request.number }} target_main_sha=${TARGET_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} public_get_only=true credential_access=false provider_mutation=false deployment=false restart=false sql=false migration_apply=false database_mutation=false secrets_included=false issue_remains_open=true"
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
-            -f body="${BODY}"
-
-      - name: Publish target run identity
-        shell: bash
-        run: |
-          echo "TARGET_RUN_ID=${{ steps.target.outputs.run_id }}"
-          echo "EXPECTED_PRODUCTION_SHA=${EXPECTED_PRODUCTION_SHA}"
-          echo "PUBLIC_GET_ONLY=true"
+          jq -e '
+            .contract == "mad4b.production-topology-public-readback.v1" and
+            .expected_production_sha == "5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb" and
+            .public_get_only == true and
+            .credential_access_performed == false and
+            .provider_mutation_performed == false and
+            .restart_performed == false and
+            .secrets_included == false
+          ' "${REPORT_DIR}/metadata.json" >/dev/null
