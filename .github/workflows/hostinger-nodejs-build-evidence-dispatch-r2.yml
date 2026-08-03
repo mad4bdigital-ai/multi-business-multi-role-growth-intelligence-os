@@ -1,10 +1,10 @@
-name: Hostinger Node.js Build Evidence Dispatch R2
+name: Hostinger Completed Build Log Evidence Dispatch R3B
 
 on:
   workflow_dispatch:
     inputs:
       expected_head_sha:
-        description: Exact current main SHA authorized for this R2 dispatch
+        description: Exact current main SHA authorized for this R3B dispatch
         required: true
         type: string
   issue_comment:
@@ -14,18 +14,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: hostinger-nodejs-build-evidence-dispatch-r2-f5c1ae88
+  group: hostinger-completed-build-log-evidence-dispatch-r3b-f5c1ae88
   cancel-in-progress: false
 
 jobs:
-  dispatch-read-only-evidence-r2:
-    name: Dispatch authenticated GET-only Hostinger build evidence R2
+  dispatch-completed-build-log-evidence-r3b:
+    name: Dispatch authenticated GET-only completed-build log evidence R3B
     if: >-
       (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
        github.event.issue.number == 4953 &&
-       startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2 expected_head_sha=') &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_F5C1AE88_94321B27 expected_head_sha=') &&
        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     permissions:
       contents: read
@@ -36,19 +36,19 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
-      AUTHORIZATION_COMMENT_ID: '5162066131'
+      AUTHORIZATION_COMMENT_ID: '5162389651'
       AUTHORIZATION_USER_ID: '271942579'
-      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2
-      TRIGGER_TOKEN: RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2
-      TARGET_WORKFLOW: hostinger-nodejs-build-evidence.yml
-      TARGET_WORKFLOW_PATH: .github/workflows/hostinger-nodejs-build-evidence.yml
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_BRIDGE_R3B_F5C1AE88_94321B27
+      TRIGGER_TOKEN: RUN_HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_F5C1AE88_94321B27
+      TARGET_WORKFLOW: hostinger-nodejs-completed-build-log-evidence.yml
+      TARGET_WORKFLOW_PATH: .github/workflows/hostinger-nodejs-completed-build-log-evidence.yml
       TARGET_REF: main
-      EXPECTED_WORKFLOW_BLOB_SHA: 09578a2c9adcd0d1254b345248c33d2ba214d41f
+      EXPECTED_WORKFLOW_BLOB_SHA: 94321b273e70f96180c0f058adbb291b035fd237
       ACCOUNT_USERNAME: u338416126
       DOMAIN: auth.mad4b.com
+      COMPLETED_BUILD_UUID: 019fc51c-3947-7255-aa4d-f55cb8df7658
       EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
-      PRODUCTION_MERGED_AT: '2026-08-03T00:53:07Z'
-      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:09578a2c9adcd0d1254b345248c33d2ba214d41f:5162066131:R2
+      BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:94321b273e70f96180c0f058adbb291b035fd237:019fc51c-3947-7255-aa4d-f55cb8df7658:5162389651:R3B
       MUTATION_TARGET_BRANCH: issue-and-actions-metadata-only
       EVENT_COMMENT_BODY: ${{ github.event.comment.body || '' }}
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
@@ -97,16 +97,20 @@ jobs:
           AUTH_USER_ID="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
           test "${AUTH_USER_ID}" = "${AUTHORIZATION_USER_ID}"
           grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${AUTH_BODY}"
+          grep -Fq "${TARGET_WORKFLOW_PATH}" <<<"${AUTH_BODY}"
           grep -Fq "${EXPECTED_WORKFLOW_BLOB_SHA}" <<<"${AUTH_BODY}"
           grep -Fq "${ACCOUNT_USERNAME}" <<<"${AUTH_BODY}"
           grep -Fq "${DOMAIN}" <<<"${AUTH_BODY}"
+          grep -Fq "${COMPLETED_BUILD_UUID}" <<<"${AUTH_BODY}"
           grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${AUTH_BODY}"
-          grep -Fq "${PRODUCTION_MERGED_AT}" <<<"${AUTH_BODY}"
           grep -Fq 'HOSTINGER_API_TOKEN' <<<"${AUTH_BODY}"
           grep -Fq 'provider method: `GET` only' <<<"${AUTH_BODY}"
           grep -Fq 'provider mutation: `false`' <<<"${AUTH_BODY}"
+          grep -Fq 'build creation: `false`' <<<"${AUTH_BODY}"
           grep -Fq 'deployment: `false`' <<<"${AUTH_BODY}"
+          grep -Fq 'release activation: `false`' <<<"${AUTH_BODY}"
           grep -Fq 'restart: `false`' <<<"${AUTH_BODY}"
+          grep -Fq 'secrets included: `false`' <<<"${AUTH_BODY}"
 
           CURRENT_HEAD_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
           test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"
@@ -121,9 +125,9 @@ jobs:
           test "${PRODUCTION_SHA}" = "${EXPECTED_PRODUCTION_SHA}"
 
           CLAIM_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"HOSTINGER_NODEJS_BUILD_EVIDENCE_R2_DISPATCH status=claiming binding=${BINDING_ID}\")) | .id")"
+            --jq ".[] | select(.body | contains(\"HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_DISPATCH status=claiming binding=${BINDING_ID}\")) | .id")"
           DISPATCHED_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
-            --jq ".[] | select(.body | contains(\"HOSTINGER_NODEJS_BUILD_EVIDENCE_R2_DISPATCH status=dispatched binding=${BINDING_ID}\")) | .id")"
+            --jq ".[] | select(.body | contains(\"HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_DISPATCH status=dispatched binding=${BINDING_ID}\")) | .id")"
           test -z "${CLAIM_MARKERS}"
           test -z "${DISPATCHED_MARKERS}"
 
@@ -132,14 +136,14 @@ jobs:
           echo "before_run_id=${BEFORE_RUN_ID}" >> "${GITHUB_OUTPUT}"
           echo "target_main_sha=${CURRENT_HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
-      - name: Record one-time R2 dispatch claim
+      - name: Record one-time R3B dispatch claim
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD_SHA: ${{ steps.expected.outputs.expected_head_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          BODY="HOSTINGER_NODEJS_BUILD_EVIDENCE_R2_DISPATCH status=claiming binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} trigger_comment_id=${EVENT_COMMENT_ID} expected_head_sha=${EXPECTED_HEAD_SHA} target_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} provider_get_only=true provider_mutation=false deployment=false restart=false secrets_included=false"
+          BODY="HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_DISPATCH status=claiming binding=${BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} authorization_comment_id=${AUTHORIZATION_COMMENT_ID} trigger_comment_id=${EVENT_COMMENT_ID} expected_head_sha=${EXPECTED_HEAD_SHA} target_workflow_blob=${EXPECTED_WORKFLOW_BLOB_SHA} completed_build_uuid=${COMPLETED_BUILD_UUID} expected_production_sha=${EXPECTED_PRODUCTION_SHA} provider_get_only=true provider_mutation=false build_creation=false deployment=false release_activation=false restart=false secrets_included=false"
           gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -155,9 +159,9 @@ jobs:
           jq -n \
             --arg ref "${TARGET_REF}" \
             --arg account "${ACCOUNT_USERNAME}" \
+            --arg build "${COMPLETED_BUILD_UUID}" \
             --arg expected "${EXPECTED_PRODUCTION_SHA}" \
-            --arg merged "${PRODUCTION_MERGED_AT}" \
-            '{ref:$ref,inputs:{account_username:$account,expected_sha:$expected,production_merged_at:$merged}}' \
+            '{ref:$ref,inputs:{account_username:$account,build_uuid:$build,expected_sha:$expected}}' \
             | gh api --method POST \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -183,7 +187,7 @@ jobs:
           test -n "${RUN_ID}"
           echo "run_id=${RUN_ID}" >> "${GITHUB_OUTPUT}"
 
-          BODY="HOSTINGER_NODEJS_BUILD_EVIDENCE_R2_DISPATCH status=dispatched binding=${BINDING_ID} target_run_id=${RUN_ID} bridge_run_id=${GITHUB_RUN_ID} target_main_sha=${TARGET_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} provider_get_only=true provider_mutation=false deployment=false restart=false secrets_included=false issue_remains_open=true"
+          BODY="HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3B_DISPATCH status=dispatched binding=${BINDING_ID} target_run_id=${RUN_ID} bridge_run_id=${GITHUB_RUN_ID} target_main_sha=${TARGET_MAIN_SHA} completed_build_uuid=${COMPLETED_BUILD_UUID} expected_production_sha=${EXPECTED_PRODUCTION_SHA} provider_get_only=true provider_mutation=false build_creation=false deployment=false release_activation=false restart=false secrets_included=false issue_remains_open=true"
           gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
