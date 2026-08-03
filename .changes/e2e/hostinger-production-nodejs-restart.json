@@ -21,17 +21,19 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a one-time owner-authorized, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, and requires public runtime parity afterward.",
+      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, and requires public runtime parity afterward.",
       "e2e_journeys": [
         {
           "id": "restart-completed-production-build-and-prove-runtime-parity",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions runner",
-          "entrypoint": "Exact owner-authored Issue #4953 trigger bound to the current main head and completed Hostinger build 019fc51c-3947-7255-aa4d-f55cb8df7658",
+          "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
           "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, or duplicate-execution bindings differ; otherwise it restarts only the existing Hostinger Node.js server, uploads secret-free evidence, and passes only when auth.mad4b.com reports Production at f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
           "steps": [
-            "Receive the exact owner trigger on open Issue #4953.",
+            "Receive owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
+            "Resolve and validate the explicitly supplied full expected_head_sha and expected_build_uuid before any write.",
+            "Reject main and Production as repository mutation targets; only issue metadata and the existing Hostinger runtime process are eligible for mutation.",
             "Verify current main equals the explicitly supplied full SHA and protected Production remains f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
             "Reject duplicate execution for the exact Production SHA and Hostinger build UUID binding.",
             "Fetch Hostinger build history and require the latest build after the Production merge to be completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
@@ -41,9 +43,11 @@
             "Upload structured secret-free evidence and publish a bounded issue marker while keeping the incident open."
           ],
           "assertions": [
-            "The production workflow has only the issue_comment entrypoint and no pull_request_target trigger.",
-            "Only the authorized repository owner user ID and exact issue trigger can enter the restart job.",
+            "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target trigger.",
+            "workflow_dispatch requires exact expected_head_sha and expected_build_uuid inputs.",
+            "Only the repository owner workflow dispatch or authorized owner Issue #4953 trigger can enter the restart job.",
             "The workflow grants contents:read and issues:write only; it cannot mutate repository contents or protected refs.",
+            "The workflow explicitly rejects main and Production as repository branch mutation targets.",
             "The implementation rejects any newer or different Hostinger build and any non-completed authorized build before POST.",
             "The only Hostinger provider mutation is the official Node.js server restart endpoint.",
             "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, or mutates a database.",
