@@ -1,0 +1,156 @@
+name: Surface Artifact Promotion macOS
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/surface-artifact-promotion-macos.yml
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: surface-artifact-promotion-macos-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  promote:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.number == 5685 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/surface-current-main-clean-v2-20260803' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/surface-current-main-clean-v2-20260803
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      WORKFLOW_PATH: .github/workflows/surface-artifact-promotion-macos.yml
+      ARTIFACT_ID: '8871320090'
+      EXPECTED_SHA256: eb86cbb73a9214c2366c87f1063beb547c568445ba884bfeee738fd4ece8e88c
+      EXPECTED_GIT_BLOB: ce4d3603f5f45a7fe5f7c47c1832227e5df35df1
+      TARGET_FILE: http-generic-api/frontend-surface-dispatch.generated.json
+
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact bounded trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Download official Frontend artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          rm -rf /tmp/surface-artifact /tmp/surface-artifact.zip
+          mkdir -p /tmp/surface-artifact
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/surface-artifact.zip
+          unzip -q /tmp/surface-artifact.zip -d /tmp/surface-artifact
+          test -f /tmp/surface-artifact/frontend-surface-dispatch.generated.json
+          test "$(find /tmp/surface-artifact -type f | wc -l | tr -d ' ')" -eq 3
+
+      - name: Verify artifact bytes and current authority hashes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          candidate=/tmp/surface-artifact/frontend-surface-dispatch.generated.json
+          test "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "${EXPECTED_SHA256}"
+          test "$(git hash-object "$candidate")" = "${EXPECTED_GIT_BLOB}"
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const repositoryRoot = process.cwd();
+          const apiRoot = path.join(repositoryRoot, 'http-generic-api');
+          const artifactPath = '/tmp/surface-artifact/frontend-surface-dispatch.generated.json';
+          const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+          if (artifact.schema_version !== 'frontend-surface-dispatch-v1') throw new Error('artifact_schema_mismatch');
+          if (artifact?.baseline?.ref !== 'main') throw new Error('artifact_baseline_ref_mismatch');
+          const authority = artifact?.baseline?.authority;
+          if (!Array.isArray(authority) || authority.length === 0) throw new Error('artifact_authority_missing');
+          const mismatches = [];
+          for (const entry of authority) {
+            if (!entry?.present || typeof entry.file !== 'string' || typeof entry.sha256 !== 'string') {
+              mismatches.push({ file: entry?.file ?? null, reason: 'invalid_authority_entry' });
+              continue;
+            }
+            const resolved = path.resolve(apiRoot, entry.file);
+            if (!resolved.startsWith(repositoryRoot + path.sep)) {
+              mismatches.push({ file: entry.file, reason: 'authority_path_escape' });
+              continue;
+            }
+            if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+              mismatches.push({ file: entry.file, reason: 'authority_file_missing' });
+              continue;
+            }
+            const actual = crypto.createHash('sha256').update(fs.readFileSync(resolved)).digest('hex');
+            if (actual !== entry.sha256) mismatches.push({ file: entry.file, expected: entry.sha256, actual });
+          }
+          if (mismatches.length) {
+            console.error(JSON.stringify({ ok: false, mismatches }, null, 2));
+            throw new Error(`artifact_authority_mismatch:${mismatches.length}`);
+          }
+          console.log(JSON.stringify({ ok: true, authority_files: authority.length, source_digest: artifact.baseline.source_digest, secrets_included: false }));
+          NODE
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Promote and verify deterministic output
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cp /tmp/surface-artifact/frontend-surface-dispatch.generated.json "${TARGET_FILE}"
+          npm --prefix http-generic-api run frontend:dispatch:check
+          test "$(git hash-object "${TARGET_FILE}")" = "${EXPECTED_GIT_BLOB}"
+
+      - name: Remove temporary workflow and enforce bounded write set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm "${WORKFLOW_PATH}"
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /' | sort -u)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${WORKFLOW_PATH}"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${TARGET_FILE}"
+
+      - name: Commit product-only result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$before" = "$(git rev-parse HEAD)"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore(frontend): promote verified Surface dispatch artifact'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$after" = "$(git rev-parse HEAD)"
+          test ! -e "${WORKFLOW_PATH}"
+          test "$(git hash-object "${TARGET_FILE}")" = "${EXPECTED_GIT_BLOB}"
