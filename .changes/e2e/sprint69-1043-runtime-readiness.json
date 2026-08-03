@@ -10,6 +10,8 @@
       ".changes/e2e/sprint69-1043-runtime-readiness.json",
       ".github/ops/sprint69-1043-runtime-readiness.mjs",
       ".github/workflows/sprint69-1043-runtime-readiness.yml",
+      ".github/ops/sprint69-1043-runtime-readiness-backfill.mjs",
+      ".github/workflows/sprint69-1043-runtime-readiness-backfill.yml",
       "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
     ]
   },
@@ -20,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an explicitly authorized, checksum-bound runtime-readiness path that verifies exact Production parity, performs readback-first duplicate prevention, records governed migration authorization when required, and executes a zero-risk dry-run without exposing or executing Migration Apply.",
+      "objective": "Provide an explicitly authorized, checksum-bound runtime-readiness path that verifies exact Production parity, records governed migration authorization when required, executes a zero-risk dry-run without Apply, and publishes the exact run-bound Artifact back to the control issue without consulting Job logs.",
       "e2e_journeys": [
         {
           "id": "authorize-and-prove-migration-1043-runtime-readiness-without-apply",
@@ -69,18 +71,59 @@
             ".github/workflows/sprint69-1043-runtime-readiness.yml",
             "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
           ]
+        },
+        {
+          "id": "backfill-runtime-readiness-artifact-to-control-issue",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Trusted main backfill publisher",
+          "entrypoint": "Push of the reviewed backfill contract to main or an explicit workflow_dispatch retry",
+          "terminal_outcome": "The publisher verifies authorization comment #5160291051, discovers the first matching issue_comment workflow run, downloads only its exact run-bound Artifact, publishes a bounded idempotent result to issue #4449, and fails closed when the run, Artifact, contract, or no-secret declaration is missing.",
+          "steps": [
+            "Read authorization comment #5160291051 and require the exact Migration 1043 readiness confirmation, issue #4449, owner identity, and allowed author association.",
+            "List runs for sprint69-1043-runtime-readiness.yml using event=issue_comment and select the first trusted-main run created after the exact authorization comment.",
+            "Poll only the selected run with a bounded window and never consult Job logs.",
+            "Require the exact Artifact name sprint69-1043-runtime-readiness-<run_id> and download it through actions/download-artifact.",
+            "Accept only the bounded readiness summary or failure contract with secrets_included=false.",
+            "Create or update one marker-bound issue comment containing allowlisted status fields, SHA/checksum evidence, dry-run status, and explicit no-Apply declarations.",
+            "Upload discovery and publication evidence and fail the publisher when Runtime Readiness did not pass."
+          ],
+          "assertions": [
+            "The backfill workflow runs only from trusted main push paths or explicit workflow_dispatch and has actions:read, contents:read, and issues:write without repository write authority.",
+            "Authorization is pinned to comment #5160291051 and the exact checksum-derived confirmation; no new authorization comment is created.",
+            "The backfill performs no Runtime call, Admin Control request, capability-envelope creation, authorization bootstrap, migration dry-run, or Migration Apply.",
+            "The publisher uses the Actions API and run-bound Artifact rather than Job logs.",
+            "A missing, incomplete, skipped, or artifact-less run is published as a bounded failure and never retriggered automatically.",
+            "Issue publication is idempotent through a run- or comment-bound marker.",
+            "The published evidence always reports Apply authorization, Apply send, migration execution, activation registry synchronization, provider call, credential payload access, and external business write status.",
+            "No repository mutation, provider call, credential payload access, external business write, or secret persistence occurs."
+          ],
+          "tests": [
+            {
+              "id": "migration-1043-runtime-readiness-backfill-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-runtime-readiness-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/sprint69-1043-runtime-readiness-backfill.mjs",
+            ".github/workflows/sprint69-1043-runtime-readiness-backfill.yml",
+            "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "After explicit operator authorization, execute the runtime-readiness workflow and retain exact Production, authorization-bootstrap, dry-run, and no-secret Artifact evidence."
+      "objective": "Retain the exact run-bound Production, authorization-bootstrap, dry-run, and no-secret Artifact evidence on issue #4449 after explicit operator authorization."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Keep Production drift, migration blob drift, runtime parity failure, authorization ambiguity, checksum rotation, and dry-run preflight risks fail-closed with bounded evidence."
+      "objective": "Keep Production drift, migration blob drift, runtime parity failure, authorization ambiguity, missing workflow runs, missing Artifacts, checksum rotation, and dry-run preflight risks fail-closed with bounded evidence."
     },
     {
       "id": "canary",
