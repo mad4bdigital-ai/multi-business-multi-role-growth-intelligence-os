@@ -98,7 +98,6 @@ jobs:
       DEVICE_ID: mohammedlap
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
-      EVIDENCE_PATH: ${{ runner.temp }}/governed-local-connector-production-closure.json
     steps:
       - name: Checkout trusted default branch
         uses: actions/checkout@v5
@@ -133,6 +132,8 @@ jobs:
 
       - name: Execute bounded trusted closure
         id: closure
+        env:
+          EVIDENCE_PATH: ${{ runner.temp }}/governed-local-connector-production-closure.json
         run: node .github/scripts/governed-local-connector-production-closure.mjs
 
       - name: Upload bounded closure evidence
@@ -140,7 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: governed-local-connector-production-closure-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_PATH }}
+          path: ${{ runner.temp }}/governed-local-connector-production-closure.json
           if-no-files-found: error
           retention-days: 30
 
