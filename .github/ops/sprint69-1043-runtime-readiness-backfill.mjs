@@ -16,6 +16,7 @@ const SOURCE_DIR = String(process.env.SOURCE_DIR || '.artifacts/sprint69-1043-ru
 const TOKEN = String(process.env.GH_TOKEN || '').trim();
 const OUTPUT_PATH = String(process.env.GITHUB_OUTPUT || '').trim();
 const ALLOWED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const ALLOWED_AUTHORIZATION_COMMENT_IDS = new Set([5160291051, 5169156192]);
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
 
@@ -23,8 +24,10 @@ function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
-    key,
-    sensitiveKey.test(key) && key !== 'authorization_created' && key !== 'authorization_bootstrap'
+    sensitiveKey.test(key) && !['authorization_created', 'authorization_bootstrap', 'authorization_comment_id'].includes(key)
+      ? key
+      : key,
+    sensitiveKey.test(key) && !['authorization_created', 'authorization_bootstrap', 'authorization_comment_id'].includes(key)
       ? '[redacted]'
       : sanitize(child),
   ]));
@@ -74,7 +77,7 @@ function isoMs(value) {
 async function discover() {
   assert.equal(REPOSITORY, 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os');
   assert.equal(ISSUE_NUMBER, 4449);
-  assert.equal(AUTHORIZATION_COMMENT_ID, 5160291051);
+  assert.ok(ALLOWED_AUTHORIZATION_COMMENT_IDS.has(AUTHORIZATION_COMMENT_ID), 'Authorization comment is not an approved immutable T016 binding');
 
   const comment = await githubJson(`/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}`);
   assert.equal(String(comment?.body || '').trim(), AUTHORIZATION_COMMENT);
@@ -120,7 +123,7 @@ async function discover() {
         : 'artifact_ready';
 
   const report = {
-    contract: 'sprint69_1043_runtime_readiness_backfill_discovery.v1',
+    contract: 'sprint69_1043_runtime_readiness_backfill_discovery.v2',
     outcome,
     repository: REPOSITORY,
     issue_number: ISSUE_NUMBER,
@@ -274,23 +277,17 @@ async function publish() {
 
   const comments = await githubJson(`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments?per_page=100`);
   const existing = (comments || []).find((comment) => String(comment?.body || '').includes(marker));
-  let published;
-  if (existing) {
-    published = await githubJson(`/repos/${REPOSITORY}/issues/comments/${existing.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body }),
-    });
-  } else {
-    published = await githubJson(`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body }),
-    });
-  }
+  const request = existing
+    ? [`/repos/${REPOSITORY}/issues/comments/${existing.id}`, 'PATCH']
+    : [`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments`, 'POST'];
+  const published = await githubJson(request[0], {
+    method: request[1],
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  });
 
   const publication = {
-    contract: 'sprint69_1043_runtime_readiness_backfill_publication.v1',
+    contract: 'sprint69_1043_runtime_readiness_backfill_publication.v2',
     outcome: runtime.status,
     issue_number: ISSUE_NUMBER,
     authorization_comment_id: AUTHORIZATION_COMMENT_ID,
