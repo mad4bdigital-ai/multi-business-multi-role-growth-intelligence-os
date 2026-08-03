@@ -70,6 +70,8 @@ jobs:
           grep -Eq 'ref:.*github\.sha' "$workflow"
           grep -q 'git merge-base --is-ancestor' "$workflow"
           grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
+          grep -q 'source manifest must be a regular repository file' "$workflow"
+          grep -q 'source manifest escaped repository root' "$workflow"
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
@@ -115,7 +117,17 @@ jobs:
           git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
-          const manifest = JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST_FILE, 'utf8'));
+          import path from 'node:path';
+          const root = fs.realpathSync('.');
+          const declared = String(process.env.SOURCE_MANIFEST_FILE || '').replaceAll('\\', '/');
+          const manifestPath = path.resolve(root, declared);
+          const stat = fs.lstatSync(manifestPath);
+          if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('source manifest must be a regular repository file');
+          if (stat.size > 1024 * 1024) throw new Error('source manifest exceeds bounded maximum size');
+          const realManifestPath = fs.realpathSync(manifestPath);
+          const repositoryRelative = path.relative(root, realManifestPath).replaceAll('\\', '/');
+          if (repositoryRelative !== declared) throw new Error('source manifest escaped repository root');
+          const manifest = JSON.parse(fs.readFileSync(realManifestPath, 'utf8'));
           if (manifest.contract !== 'mad4b.ueacp.authority-evidence-repository-manifest.v1') throw new Error('invalid source manifest contract');
           if (manifest.repository !== process.env.REPOSITORY) throw new Error('source manifest repository mismatch');
           NODE
