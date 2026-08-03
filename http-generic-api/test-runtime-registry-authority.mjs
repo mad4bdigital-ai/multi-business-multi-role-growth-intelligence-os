@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import {
-  resolveRuntimeRegistry
-} from "./runtimeRegistryAuthority.js";
 import { resolveExecutionRequest } from "./executionResolution.js";
 
 const registry = {
@@ -10,7 +7,7 @@ const registry = {
   hostingAccounts: [],
   actionRows: [],
   endpointRows: [],
-  policies: {},
+  policies: [],
   siteRuntimeInventoryRows: [],
   siteSettingsInventoryRows: [],
   pluginInventoryRows: [],
@@ -37,7 +34,8 @@ function makeExecutionDeps(overrides = {}) {
     validateTopLevelRoutingFields: () => ({ ok: true }),
     dataSourceMode: "sql",
     registrySpreadsheetId: "",
-    loadSqlRegistry: async () => registry,
+    getRegistry: async () => registry,
+    reloadRegistry: async () => registry,
     getRequiredHttpExecutionPolicyKeys: () => [],
     requirePolicySet: () => ({ ok: true }),
     policyValue: (_policies, _group, _key, fallback = "") => fallback,
@@ -69,89 +67,131 @@ function makeExecutionDeps(overrides = {}) {
   };
 }
 
-{
-  let sheetsCalls = 0;
-  const result = await resolveRuntimeRegistry({
-    authority: "sql",
-    registrySpreadsheetId: "",
-    loadSqlRegistry: async () => registry,
-    getSheetsRegistry: async () => {
-      sheetsCalls += 1;
-      return registry;
-    }
-  });
-
-  assert.equal(result.ok, true);
-  assert.equal(result.metadata.runtime_authority, "sql");
-  assert.equal(sheetsCalls, 0);
-}
+const githubRequest = {
+  parent_action_key: "github_api_mcp",
+  endpoint_key: "github_get_branch_reference",
+  method: "GET"
+};
 
 {
-  const result = await resolveRuntimeRegistry({
-    authority: "dual",
-    registrySpreadsheetId: "",
-    loadSqlRegistry: async () => registry
-  });
-
-  assert.equal(result.ok, true);
-  assert.equal(result.metadata.runtime_authority, "sql");
-  assert.equal(result.metadata.sheets_fallback_attempted, false);
-  assert.equal(result.metadata.degraded_dependencies[0]?.code, "registry_spreadsheet_id_not_configured");
-}
-
-{
-  const result = await resolveRuntimeRegistry({
-    authority: "sheets",
-    registrySpreadsheetId: ""
-  });
-
-  assert.equal(result.ok, false);
-  assert.equal(result.response.status, 503);
-  assert.equal(result.response.body.error.code, "registry_spreadsheet_id_required");
-  assert.equal(result.response.body.error.details.operation_class, "registry_sheet_read");
-}
-
-{
-  let sheetsCalls = 0;
-  const result = await resolveRuntimeRegistry({
-    authority: "dual",
-    registrySpreadsheetId: "configured-but-recovery-not-authorized",
-    loadSqlRegistry: async () => {
-      const error = new Error("sql unavailable");
-      error.code = "sql_unavailable";
-      throw error;
-    },
-    getSheetsRegistry: async () => {
-      sheetsCalls += 1;
-      return registry;
-    }
-  });
-
-  assert.equal(result.ok, false);
-  assert.equal(result.response.body.error.code, "registry_sql_unavailable");
-  assert.equal(result.response.body.error.details.sheets_fallback_attempted, false);
-  assert.equal(sheetsCalls, 0);
-}
-
-{
-  const result = await resolveRuntimeRegistry({ authority: "unsupported" });
-  assert.equal(result.ok, false);
-  assert.equal(result.response.body.error.code, "invalid_registry_data_source");
-}
-
-{
+  let registryReads = 0;
   const result = await resolveExecutionRequest(
-    {
-      parent_action_key: "github_api_mcp",
-      endpoint_key: "github_get_branch_reference",
-      method: "GET"
-    },
-    makeExecutionDeps()
+    githubRequest,
+    makeExecutionDeps({
+      dataSourceMode: "sql",
+      registrySpreadsheetId: "",
+      getRegistry: async () => {
+        registryReads += 1;
+        return registry;
+      }
+    })
   );
 
   assert.equal(result.ok, true);
   assert.equal(result.parent_action_key, "github_api_mcp");
   assert.equal(result.endpoint_key, "github_get_branch_reference");
+  assert.equal(registryReads, 1);
+}
+
+{
+  let registryReads = 0;
+  const result = await resolveExecutionRequest(
+    githubRequest,
+    makeExecutionDeps({
+      dataSourceMode: "dual",
+      registrySpreadsheetId: "",
+      getRegistry: async () => {
+        registryReads += 1;
+        return registry;
+      }
+    })
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(registryReads, 1);
+}
+
+{
+  let registryReads = 0;
+  const result = await resolveExecutionRequest(
+    githubRequest,
+    makeExecutionDeps({
+      dataSourceMode: "sheets",
+      registrySpreadsheetId: "",
+      getRegistry: async () => {
+        registryReads += 1;
+        return registry;
+      }
+    })
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.response.status, 503);
+  assert.equal(result.response.body.error.code, "registry_spreadsheet_id_required");
+  assert.equal(result.response.body.error.details.data_source, "sheets");
+  assert.equal(result.response.body.error.details.operation_class, "registry_sheet_read");
+  assert.equal(registryReads, 0);
+}
+
+{
+  let registryReads = 0;
+  const result = await resolveExecutionRequest(
+    githubRequest,
+    makeExecutionDeps({
+      dataSourceMode: "unsupported",
+      getRegistry: async () => {
+        registryReads += 1;
+        return registry;
+      }
+    })
+  );
+
+  assert.equal(result.ok, false);
+  assert.equal(result.response.status, 503);
+  assert.equal(result.response.body.error.code, "invalid_registry_data_source");
+  assert.equal(registryReads, 0);
+}
+
+{
+  let normalReads = 0;
+  let refreshReads = 0;
+  const result = await resolveExecutionRequest(
+    { ...githubRequest, force_refresh: true },
+    makeExecutionDeps({
+      dataSourceMode: "sql",
+      registrySpreadsheetId: "",
+      getRegistry: async () => {
+        normalReads += 1;
+        return registry;
+      },
+      reloadRegistry: async () => {
+        refreshReads += 1;
+        return registry;
+      }
+    })
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(normalReads, 0);
+  assert.equal(refreshReads, 1);
+}
+
+{
+  let registryReads = 0;
+  const result = await resolveExecutionRequest(
+    githubRequest,
+    makeExecutionDeps({
+      dataSourceMode: "sheets",
+      registrySpreadsheetId: "configured-registry-workbook",
+      getRegistry: async () => {
+        registryReads += 1;
+        return registry;
+      }
+    })
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(registryReads, 1);
 }
 
 {
@@ -165,6 +205,8 @@ function makeExecutionDeps(overrides = {}) {
       path_params: { spreadsheetId, range }
     },
     makeExecutionDeps({
+      dataSourceMode: "sql",
+      registrySpreadsheetId: "",
       resolveHttpExecutionContext: ({ requestPayload }) => ({
         action: {},
         endpoint: {},
