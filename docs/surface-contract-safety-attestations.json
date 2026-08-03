@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-safety-attestations-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
-  "item_count": 148,
+  "item_count": 150,
   "items": [
     {
       "migration_file": "1003_sprint68_supervisor_chain_runtime_guards.sql",
@@ -2449,6 +2449,50 @@
           "action_key": "verify_tool_registry_binding",
           "targets": [
             "provider_dispatch_allowed"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "migration_sha256": "a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_static_contract",
+      "queue_class_at_attestation": "medium_review",
+      "gap_severity_at_attestation": "low",
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "statement_count": 4,
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 1,
+        "policies": 0,
+        "routes": 0
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_managed_execution_lifecycle_readiness"
           ]
         }
       ],
@@ -6937,6 +6981,93 @@
         "writes_database": false,
         "external_sends": false,
         "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "migration_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "checksum_canonicalization": "utf8_lf_v1",
+      "attestation_status": "verified_static_no_external_side_effects",
+      "evidence_mode": "checksum_bound_human_review",
+      "review_status": "approved_checksum_bound_internal_sql",
+      "reviewed_by": "platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4",
+      "reviewed_at": "2026-08-03T11:31:00Z",
+      "rationale": "Human review confirmed that the checksum-bound Spec 014 Wave 3 migration performs only internal schema creation, internal readback-view creation, and disabled admin tool registry insertion. The three CREATE VIEW and one plain INSERT preflight warnings are intentionally fail-closed and remain blocked behind absence, compatibility, authorization, dry-run, typed-confirmation, apply-ledger, and same-cycle readback gates. The SQL itself does not execute a provider call, read credential payloads, include raw secrets, send or write externally, deploy, or authorize migration execution.",
+      "execution_authorized": false,
+      "queue_class_at_attestation": "critical_review",
+      "gap_severity_at_attestation": "high",
+      "preflight_status": "warn",
+      "preflight_risk_count": 4,
+      "statement_count": 9,
+      "accepted_preflight_risks": {
+        "create_view_without_or_replace": 3,
+        "insert_without_ignore_or_on_duplicate": 1
+      },
+      "accepted_forbidden_patterns": [],
+      "required_sql_fragments": [
+        "CREATE TABLE IF NOT EXISTS storage_cleanup_runs (",
+        "CREATE TABLE IF NOT EXISTS storage_cleanup_run_items (",
+        "CREATE TABLE IF NOT EXISTS storage_reconciliation_results (",
+        "CREATE TABLE IF NOT EXISTS storage_emergency_reserves (",
+        "CREATE TABLE IF NOT EXISTS storage_pressure_incidents (",
+        "CREATE VIEW v_storage_admin_target_readiness AS",
+        "CREATE VIEW v_storage_tenant_target_readiness AS",
+        "CREATE VIEW v_storage_cleanup_operation_readback AS",
+        "INSERT INTO admin_platform_endpoint_tools (",
+        "'hostinger_storage_snapshot_read'",
+        "'hostinger_storage_plan_inspect'",
+        "'hostinger_storage_plan_apply'",
+        "All three tool registrations remain disabled until separate runtime certification."
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 3,
+        "views": 3,
+        "policies": 0,
+        "routes": 3
+      },
+      "runtime_reviews": [
+        {
+          "action_key": "verify_readback_view",
+          "targets": [
+            "v_storage_admin_target_readiness",
+            "v_storage_cleanup_operation_readback",
+            "v_storage_tenant_target_readiness"
+          ]
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "targets": [
+            "hostinger_storage_plan_apply",
+            "hostinger_storage_plan_inspect",
+            "hostinger_storage_snapshot_read"
+          ]
+        }
+      ],
+      "safety_markers": {
+        "no_provider_call": true,
+        "no_credential_payload_read": true,
+        "no_raw_secrets": true,
+        "no_external_send": true,
+        "no_external_write": true,
+        "secrets_included_false": true
+      },
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      },
+      "migration_effects": {
+        "internal_database_write": true,
+        "schema_mutation": true,
+        "external_write": false,
+        "provider_call": false,
+        "credential_payload_read": false,
         "secrets_included": false
       }
     },
