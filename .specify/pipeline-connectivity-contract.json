@@ -35,7 +35,10 @@
         "git push origin",
         "git rev-parse HEAD",
         "cancel-in-progress: false",
-        "docs/work-maps",
+        "WORK_MAP_ROOT: docs",
+        "WORK_MAP_NAME: work-maps",
+        "work_map_dir=\"${WORK_MAP_ROOT}/${WORK_MAP_NAME}\"",
+        "git add \"${work_map_dir}\"",
         "TARGET_BRANCH",
         "EXPECTED_HEAD_SHA"
       ],
