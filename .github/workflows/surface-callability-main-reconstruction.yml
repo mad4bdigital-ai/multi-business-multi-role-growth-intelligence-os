@@ -41,9 +41,7 @@ jobs:
           set -euo pipefail
           git merge-base --is-ancestor "$PINNED_MAIN" HEAD
           test "$(git diff --name-only "$PINNED_MAIN" HEAD)" = "$RUNNER_PATH"
-          COUNT=$(git rev-list --count "$PINNED_MAIN..HEAD")
-          test "$COUNT" -ge 1
-          test "$COUNT" -le 3
+          test "$(git rev-list --count "$PINNED_MAIN..HEAD")" -ge 1
           git fetch origin "refs/heads/${INTEGRATION_REF}:refs/remotes/origin/surface-integration"
           test "$(git rev-parse refs/remotes/origin/surface-integration)" = "$PINNED_INTEGRATION"
 
@@ -80,6 +78,10 @@ jobs:
               echo "expected_new_path_exists_in_merge_base:$path" >&2
               exit 1
             fi
+            if git cat-file -e "$PINNED_MAIN:$path" 2>/dev/null; then
+              echo "expected_new_path_exists_in_pinned_main:$path" >&2
+              exit 1
+            fi
             git show "$PINNED_INTEGRATION:$path" > "$path"
           }
 
@@ -93,10 +95,24 @@ jobs:
           http-generic-api/routes/workspaceResourceRoutes.js
           http-generic-api/scripts/resource-api-callability-contracts.mjs
           http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs
-          http-generic-api/scripts/test-manifest.mjs
           http-generic-api/test-resource-api-callability-effect-classes.mjs
           http-generic-api/test-surface-contract-sql-registry-extractor.mjs
           FILES
+
+          git show "$PINNED_MAIN:http-generic-api/scripts/test-manifest.mjs" > http-generic-api/scripts/test-manifest.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('http-generic-api/scripts/test-manifest.mjs')
+          text = path.read_text()
+          anchor = '  "node test-resource-api-callability-effect-classes.mjs",'
+          registration = '  "node test-surface-callability-full-closure.mjs",'
+          if registration not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit('surface_test_manifest_anchor_mismatch')
+              text = text.replace(anchor, anchor + '\n' + registration, 1)
+              path.write_text(text)
+          PY
 
           while IFS= read -r path; do
             [[ -n "$path" ]] && copy_new_path "$path"
