@@ -1,0 +1,175 @@
+name: Surface Callability Product Finalizer V3
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-callability-product-finalizer-v3-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: >-
+      github.event.pull_request.head.ref == 'gpt/surface-callability-main-reconstruction-20260803' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
+      PINNED_CAPTURE_HEAD: 7261efda1c2722a8cdace9c3cc73943afe749e07
+      VALIDATOR_PATH: .github/workflows/surface-callability-product-validation.yml
+      FINALIZER_V1_PATH: .github/workflows/surface-callability-product-finalizer.yml
+      DIAGNOSTIC_PATH: .github/workflows/surface-callability-write-set-diagnostic.yml
+      FINALIZER_V2_PATH: .github/workflows/surface-callability-product-finalizer-v2.yml
+      FINALIZER_V3_PATH: .github/workflows/surface-callability-product-finalizer-v3.yml
+      REPORT_PATH: docs/surface-finalizer-write-set.txt
+    steps:
+      - name: Check out exact Surface branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify exact finalization trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PINNED_CAPTURE_HEAD"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$FINALIZER_V3_PATH"
+
+      - name: Apply reviewed scoped queue patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          validator = Path('.github/workflows/surface-callability-product-validation.yml').read_text()
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = validator.find(start_marker)
+          if start < 0:
+              raise SystemExit('validator_patch_start_missing')
+          start += len(start_marker)
+          end = validator.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('validator_patch_end_missing')
+          Path('/tmp/apply_surface_queue_scope.py').write_text(textwrap.dedent(validator[start:end]))
+          PY
+          python3 /tmp/apply_surface_queue_scope.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate canonical Surface evidence
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          npm run frontend:dispatch:generate
+          node scripts/surface-contract-discovery.mjs --write
+
+      - name: Validate focused Surface regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check agentSurfaceRuntimeService.js
+          node --check routes/agentSurfaceRoutes.js
+          node --check routes/tenantInfrastructureRoutes.js
+          node --check routes/tenantLifecycleRoutes.js
+          node --check routes/workspaceResourceRoutes.js
+          node --check scripts/resource-api-callability-contracts.mjs
+          node --check scripts/surface-contract-sql-registry-extractor.mjs
+          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-multi-surface-agent-runtime.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Enforce scoped contract and residual invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const queue = JSON.parse(fs.readFileSync('docs/surface-contract-gap-queue.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('http-generic-api/resource-api-surface-callability.manifest.json', 'utf8'));
+          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_source_item_count:${manifest.source_queue_item_count}`);
+          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error(`surface_tool_count:${(manifest.source_queue_tool_keys || []).length}`);
+          const scoped = queue.top_items.filter((item) => (item.remediation || []).some((action) => action.action_key === 'verify_tool_registry_binding' && (action.targets || []).some((key) => manifest.source_queue_tool_keys.includes(key))));
+          if (scoped.length) {
+            console.error(JSON.stringify(scoped, null, 2));
+            process.exit(1);
+          }
+          console.log(JSON.stringify({ surface_queue_items: 0, surface_source_items: 20, surface_tool_keys: 41, repository_queue_items: queue.total_items }));
+          NODE
+
+      - name: Enforce captured write set and remove temporary files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$VALIDATOR_PATH" "$FINALIZER_V1_PATH" "$DIAGNOSTIC_PATH" "$FINALIZER_V2_PATH" "$FINALIZER_V3_PATH" "$REPORT_PATH"
+          git diff --name-only > /tmp/surface-finalizer-v3-files.txt
+          python3 - <<'PY'
+          from pathlib import Path
+
+          changed = {line.strip() for line in Path('/tmp/surface-finalizer-v3-files.txt').read_text().splitlines() if line.strip()}
+          generated = {
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-gap-queue.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-safety-attestations.json',
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+          }
+          cleanup = {
+              '.github/workflows/surface-callability-product-finalizer-v3.yml',
+              '.github/workflows/surface-callability-product-finalizer-v2.yml',
+              '.github/workflows/surface-callability-product-finalizer.yml',
+              '.github/workflows/surface-callability-product-validation.yml',
+              '.github/workflows/surface-callability-write-set-diagnostic.yml',
+              'docs/surface-finalizer-write-set.txt',
+          }
+          allowed = generated | cleanup
+          unexpected = sorted(changed - allowed)
+          if unexpected:
+              raise SystemExit('unexpected_surface_finalizer_v3_writes:' + ','.join(unexpected))
+          missing_generated = sorted(generated - changed)
+          if missing_generated:
+              raise SystemExit('missing_captured_surface_writes:' + ','.join(missing_generated))
+          missing_cleanup = sorted(cleanup - changed)
+          if missing_cleanup:
+              raise SystemExit('missing_surface_cleanup_writes:' + ','.join(missing_cleanup))
+          print({'changed_files': len(changed), 'captured_generated_files': len(generated), 'cleanup_files': len(cleanup), 'unexpected': 0})
+          PY
+
+      - name: Commit certified Surface product and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: certify scoped Surface callability closure on current main'
+          git push origin "HEAD:${TARGET_BRANCH}"
