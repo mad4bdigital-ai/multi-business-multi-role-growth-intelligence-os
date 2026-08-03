@@ -15,7 +15,7 @@ const STAGE_INDEX = new Map(
 );
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/i;
-const FORBIDDEN_KEY_PATTERN = /(^|_)(authorization|cookie|credential|password|secret|token|raw|email|display_name)(_|$)/i;
+const FORBIDDEN_KEY_PATTERN = /^(authorization|cookie|credential|password|secret|token|raw|email|display_name)$/i;
 const ALLOWED_KEYS = new Set([
   "schema_version",
   "operation_id",
@@ -117,22 +117,22 @@ function envelopeDigest(input) {
   return sha256(JSON.stringify(stableObject(material)));
 }
 
-function assertNoForbiddenShape(value, path = "correlation") {
+function assertAllowedShape(value, path = "correlation") {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     failure("oauth_correlation_shape_invalid", `${path} must be an object.`);
   }
   for (const key of Object.keys(value)) {
     if (!ALLOWED_KEYS.has(key)) {
-      failure("oauth_correlation_field_not_allowed", `${path}.${key} is not an allowed correlation field.`);
-    }
-    if (FORBIDDEN_KEY_PATTERN.test(key)) {
-      failure("oauth_correlation_sensitive_field_forbidden", `${path}.${key} is forbidden.`);
+      const code = FORBIDDEN_KEY_PATTERN.test(key)
+        ? "oauth_correlation_sensitive_field_forbidden"
+        : "oauth_correlation_field_not_allowed";
+      failure(code, `${path}.${key} is not an allowed correlation field.`);
     }
   }
 }
 
 function normalizeEnvelope(input = {}, { verifyDigest = true } = {}) {
-  assertNoForbiddenShape(input);
+  assertAllowedShape(input);
   if (Number(input.schema_version) !== TENANT_GPT_OAUTH_CORRELATION_SCHEMA_VERSION) {
     failure("oauth_correlation_schema_version_invalid", "Unsupported OAuth correlation schema version.");
   }
