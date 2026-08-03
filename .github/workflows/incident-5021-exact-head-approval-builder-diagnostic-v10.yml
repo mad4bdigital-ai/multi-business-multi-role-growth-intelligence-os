@@ -1,4 +1,4 @@
-name: Incident 5021 approval builder diagnostic v10
+name: Incident 5021 approval builder diagnostic v11
 
 on:
   pull_request:
@@ -6,24 +6,25 @@ on:
       - gpt/incident-5021/draft-merge-guard-v2-20260803
     paths:
       - .github/scripts/incident-5021-diagnostic-v10.py
+      - .github/scripts/incident-5021-diagnostic-v11.py
       - .github/workflows/incident-5021-exact-head-approval-builder-diagnostic-v10.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: incident-5021-approval-builder-diagnostic-v10
+  group: incident-5021-approval-builder-diagnostic-v11
   cancel-in-progress: false
 
 jobs:
   diagnose:
-    name: Diagnose refreshed exact-head approval candidate without publishing
+    name: Diagnose pinned-source exact-head approval candidate without publishing
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
       BUILDER_BRANCH: gpt/incident-5021/exact-head-approval-guard-builder-v2-20260803
       EXPECTED_TARGET_SHA: 2b7cf14b23c03df97a962b6451cbb4579a39d628
-      REPORT_PATH: incident-5021-builder-diagnostic-v10.json
+      REPORT_PATH: incident-5021-builder-diagnostic-v11.json
     steps:
       - name: Checkout immutable target branch
         uses: actions/checkout@v5
@@ -42,7 +43,7 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Verify target and fetch compiled diagnostic
+      - name: Verify target and fetch compiled diagnostics
         shell: bash
         run: |
           set -euo pipefail
@@ -50,28 +51,29 @@ jobs:
           test "$(git status --porcelain)" = ""
           git fetch --no-tags origin "$BUILDER_BRANCH"
           git show "origin/${BUILDER_BRANCH}:.github/scripts/incident-5021-diagnostic-v10.py" > /tmp/incident-5021-diagnostic-v10.py
-          python -m py_compile /tmp/incident-5021-diagnostic-v10.py
+          git show "origin/${BUILDER_BRANCH}:.github/scripts/incident-5021-diagnostic-v11.py" > /tmp/incident-5021-diagnostic-v11.py
+          python -m py_compile /tmp/incident-5021-diagnostic-v10.py /tmp/incident-5021-diagnostic-v11.py
 
-      - name: Run refreshed structured diagnostic
+      - name: Run pinned-source structured diagnostic
         shell: bash
-        run: python /tmp/incident-5021-diagnostic-v10.py
+        run: python /tmp/incident-5021-diagnostic-v11.py
 
-      - name: Upload refreshed structured diagnostic
+      - name: Upload pinned-source structured diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: incident-5021-builder-diagnostic-v10-${{ github.sha }}
-          path: incident-5021-builder-diagnostic-v10.json
+          name: incident-5021-builder-diagnostic-v11-${{ github.sha }}
+          path: incident-5021-builder-diagnostic-v11.json
           if-no-files-found: error
           retention-days: 7
 
-      - name: Fail unless refreshed candidate is fully clean
+      - name: Fail unless pinned-source candidate is fully clean
         shell: bash
         run: |
           python - <<'PYCHECK'
           import json
           from pathlib import Path
-          report = json.loads(Path("incident-5021-builder-diagnostic-v10.json").read_text())
+          report = json.loads(Path("incident-5021-builder-diagnostic-v11.json").read_text())
           checks = [
               report.get("diagnostic_completed") is True,
               report.get("patch_returncode") == 0,
@@ -82,6 +84,6 @@ jobs:
               report.get("expected_target_sha") == "2b7cf14b23c03df97a962b6451cbb4579a39d628",
           ]
           if not all(checks):
-              raise SystemExit("refreshed candidate diagnostic is not fully clean; inspect structured artifact")
-          print("refreshed candidate diagnostic fully clean")
+              raise SystemExit("pinned-source candidate diagnostic is not fully clean; inspect structured artifact")
+          print("pinned-source candidate diagnostic fully clean")
           PYCHECK
