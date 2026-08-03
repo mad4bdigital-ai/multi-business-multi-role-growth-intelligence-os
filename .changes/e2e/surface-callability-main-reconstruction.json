@@ -1,0 +1,145 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "surface-callability-main-reconstruction",
+  "title": "Scoped Surface callability reconstruction and certification on current main",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/surface-callability-main-reconstruction.json",
+      "docs/surface-contract-discovery-status.json",
+      "docs/surface-contract-discovery-status.md",
+      "docs/surface-contract-gap-queue.json",
+      "docs/surface-contract-gap-queue.md",
+      "docs/surface-contract-safety-attestations.json",
+      "http-generic-api/agentSurfaceRuntimeService.js",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/resource-api-surface-callability.manifest.json",
+      "http-generic-api/routes/agentSurfaceRoutes.js",
+      "http-generic-api/routes/tenantInfrastructureRoutes.js",
+      "http-generic-api/routes/tenantLifecycleRoutes.js",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/scripts/resource-api-callability-contracts.mjs",
+      "http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs",
+      "http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/surface-contract-classification-evidence.json",
+      "http-generic-api/test-resource-api-callability-effect-classes.mjs",
+      "http-generic-api/test-surface-callability-full-closure.mjs",
+      "http-generic-api/test-surface-contract-sql-registry-extractor.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the historical Surface callability closure can be reconstructed on current main with bounded source transfer, canonical evidence regeneration, complete scoped runtime coverage, and no Production or external mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "reconstruct-discover-and-certify-scoped-surface-callability",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed platform Surface operator",
+          "entrypoint": "The reconstructed Surface runtime, routes, SQL registry extractor, callability contract generator, and current-main test manifest",
+          "terminal_outcome": "All 20 scoped migration surfaces and 41 governed tool keys resolve through canonical runtime and API evidence with zero Surface-scoped residual queue, while unrelated repository queue items remain visible and no Production, deployment, provider, credential, database, or external-send mutation occurs.",
+          "steps": [
+            "Load the reconstructed Surface runtime service and tenant, workspace, infrastructure, lifecycle, and agent-surface routes on the synchronized current-main tree.",
+            "Extract governed SQL registry bindings and regenerate the bounded resource API callability manifest and classification evidence.",
+            "Regenerate frontend operation governance, frontend dispatch, discovery status, gap queue, and safety attestations from canonical repository sources.",
+            "Exercise effect-class, multi-surface runtime, resource API coverage, SQL extraction, and full-closure regressions through the current test manifest.",
+            "Verify exactly 20 scoped migration items and 41 scoped tool keys, then prove that no queue item remains whose registry targets intersect the certified Surface tool-key set.",
+            "Preserve newer unrelated queue items, current-main test registrations, protected-branch authority, and all explicit no-deploy/no-database/no-provider/no-secret boundaries."
+          ],
+          "assertions": [
+            "Every changed http-generic-api runtime, route, generator, manifest, evidence, and regression file is covered by this exact phase contract.",
+            "The resource API callability manifest represents exactly 20 historical scoped migration items and 41 governed Surface tool keys.",
+            "The remaining discovery queue contains no item whose verify_tool_registry_binding targets intersect the certified Surface tool-key set.",
+            "Repository-wide queue items outside the Surface scope remain visible and are not rewritten as completed.",
+            "The current-main test manifest retains newer registrations and adds the Surface full-closure regression exactly once.",
+            "The certification performs no Production mutation, deployment, restart, migration or database apply, provider write, credential payload readback, external send, protected-branch bypass, force update, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "surface-sql-registry-extractor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-surface-contract-sql-registry-extractor.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-resource-effect-classes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-resource-api-callability-effect-classes.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-multi-runtime",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-multi-surface-agent-runtime.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-resource-api-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-resource-api-coverage.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-full-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-surface-callability-full-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-current-test-manifest",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-test-manifest-runner.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/surface-callability-main-reconstruction.json",
+            "docs/surface-contract-discovery-status.json",
+            "docs/surface-contract-gap-queue.json",
+            "docs/surface-contract-safety-attestations.json",
+            "http-generic-api/resource-api-surface-callability.manifest.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/surface-contract-classification-evidence.json",
+            "http-generic-api/test-surface-callability-full-closure.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Exercise the same governed Surface contracts against an authorized non-production runtime and record exact endpoint and tool-registry readback."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove stable behavior under stale generated evidence, repository queue growth, unavailable optional surfaces, duplicate discovery, and ambiguous runtime readback without hiding unrelated gaps."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run one authorized live non-production canary covering tenant, workspace, infrastructure, lifecycle, credential-intake, and agent-surface callability."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production deployment and runtime parity only after a separately governed release candidate and explicit candidate-specific authorization."
+    }
+  ]
+}
