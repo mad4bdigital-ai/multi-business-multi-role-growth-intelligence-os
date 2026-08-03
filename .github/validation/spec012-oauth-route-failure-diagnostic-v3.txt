@@ -1,0 +1,6 @@
+issue=5937
+base=a61cd9e83070618001676bbc679bc937f0551875
+scope=safe_dependency_failure_diagnostic
+repository_write=false
+production=false
+secrets_included=false
