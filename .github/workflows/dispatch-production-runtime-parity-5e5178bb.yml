@@ -1,4 +1,4 @@
-# synchronize-trigger: production-topology-2669991a-v4
+# synchronize-trigger: production-topology-2669991a-v5
 name: Read Back Production Topology 2669991A
 
 on:
@@ -18,7 +18,8 @@ jobs:
   public-get-only-topology:
     name: Public GET-only Production topology
     if: >-
-      github.actor_id == 271942579 &&
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.repository_owner == 'mad4bdigital-ai' &&
       github.ref == 'refs/heads/gpt/dispatch-production-runtime-parity-5e5178bb-20260803'
     runs-on: ubuntu-latest
     timeout-minutes: 10
