@@ -86,17 +86,14 @@ async function runWithAuthorizationCodeTableRecovery(execute, operation) {
   }
 }
 
-function classifyAuthorizationCodeRow(row, nowMs = Date.now()) {
+function classifyAuthorizationCodeRow(row) {
   if (!row) return "not_found";
   if (!Boolean(Number(row.client_matches)) || !Boolean(Number(row.redirect_matches))) {
     return "binding_mismatch";
   }
   if (row.status === "consumed" || row.consumed_at) return "already_consumed";
   if (row.status === "revoked") return "revoked";
-  const expiresAtMs = new Date(row.expires_at).getTime();
-  if (row.status === "expired" || !Number.isFinite(expiresAtMs) || expiresAtMs <= nowMs) {
-    return "expired";
-  }
+  if (row.status === "expired" || Boolean(Number(row.expired_by_store))) return "expired";
   return "issued_not_consumed";
 }
 
@@ -104,12 +101,12 @@ async function readAuthorizationCodeState(execute, {
   codeJtiHash,
   clientId,
   redirectUriHash,
-  nowMs = Date.now(),
 } = {}) {
   const result = await execute(
     `SELECT status, expires_at, consumed_at,
             CASE WHEN client_id = ? THEN 1 ELSE 0 END AS client_matches,
-            CASE WHEN redirect_uri_hash = ? THEN 1 ELSE 0 END AS redirect_matches
+            CASE WHEN redirect_uri_hash = ? THEN 1 ELSE 0 END AS redirect_matches,
+            CASE WHEN expires_at <= UTC_TIMESTAMP(3) THEN 1 ELSE 0 END AS expired_by_store
        FROM \`tenant_gpt_oauth_authorization_codes\`
       WHERE code_jti_hash = ?
       LIMIT 1`,
@@ -117,11 +114,45 @@ async function readAuthorizationCodeState(execute, {
   );
   const row = rowsFromQueryResult(result)[0] || null;
   return {
-    outcome: classifyAuthorizationCodeRow(row, nowMs),
+    outcome: classifyAuthorizationCodeRow(row),
     status: row?.status || null,
     consumed_at_present: Boolean(row?.consumed_at),
     expires_at: mysqlTimestamp(row?.expires_at),
   };
+}
+
+function safeConsumptionReadback({ readback, error }) {
+  const readbackOutcome = readback?.outcome || null;
+  const outcome = readbackOutcome === "already_consumed"
+    ? "consumption_outcome_unknown"
+    : readbackOutcome === "issued_not_consumed"
+      ? "store_unavailable_code_still_issued"
+      : readbackOutcome || "consumption_outcome_unknown";
+  return Object.freeze({
+    consumed: false,
+    outcome,
+    readback_outcome: readbackOutcome,
+    replay_allowed: readbackOutcome === "issued_not_consumed",
+    store_error_code: safeErrorCode(error),
+    table_recovered: false,
+    secrets_included: false,
+  });
+}
+
+function attachConsumptionReadback(error, consumption) {
+  try {
+    Object.defineProperty(error, "oauth_consumption", {
+      value: consumption,
+      enumerable: true,
+      configurable: false,
+      writable: false,
+    });
+  } catch {
+    try {
+      error.oauth_consumption = consumption;
+    } catch {}
+  }
+  return error;
 }
 
 export async function inspectTenantGptOAuthAuthorizationCode({
@@ -129,7 +160,6 @@ export async function inspectTenantGptOAuthAuthorizationCode({
   jti,
   client_id,
   redirect_uri,
-  now_ms = Date.now(),
 } = {}) {
   const execute = requireQuery(query);
   const normalizedJti = requireText("jti", jti);
@@ -139,7 +169,6 @@ export async function inspectTenantGptOAuthAuthorizationCode({
     codeJtiHash: sha256(normalizedJti),
     clientId: normalizedClientId,
     redirectUriHash: sha256(normalizedRedirectUri),
-    nowMs: now_ms,
   }));
   return {
     ...readback.result,
@@ -188,7 +217,6 @@ export async function consumeTenantGptOAuthAuthorizationCode({
   jti,
   client_id,
   redirect_uri,
-  now_ms = Date.now(),
 } = {}) {
   const execute = requireQuery(query);
   const normalizedJti = requireText("jti", jti);
@@ -218,26 +246,11 @@ export async function consumeTenantGptOAuthAuthorizationCode({
         codeJtiHash,
         clientId: normalizedClientId,
         redirectUriHash,
-        nowMs: now_ms,
       });
     } catch {
       readback = null;
     }
-    const readbackShowsConsumed = readback?.outcome === "already_consumed";
-    const readbackShowsIssued = readback?.outcome === "issued_not_consumed";
-    return {
-      consumed: false,
-      outcome: readbackShowsConsumed
-        ? "consumption_outcome_unknown"
-        : readbackShowsIssued
-          ? "store_unavailable_code_still_issued"
-          : "consumption_outcome_unknown",
-      readback_outcome: readback?.outcome || null,
-      replay_allowed: readbackShowsIssued,
-      store_error_code: safeErrorCode(error),
-      table_recovered: false,
-      secrets_included: false,
-    };
+    throw attachConsumptionReadback(error, safeConsumptionReadback({ readback, error }));
   }
 
   const result = resultFromQueryResult(consumed.result);
@@ -257,7 +270,6 @@ export async function consumeTenantGptOAuthAuthorizationCode({
     codeJtiHash,
     clientId: normalizedClientId,
     redirectUriHash,
-    nowMs: now_ms,
   });
   return {
     consumed: false,
