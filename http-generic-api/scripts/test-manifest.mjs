@@ -28,6 +28,7 @@ const staticDiscoveryCommands = [
   "node test-agent-capability-admin-tool-registry.mjs",
   "node test-agent-capability-coverage.mjs",
   "node test-audit-payload-evidence.mjs",
+  "node test-authority-evidence-repository-snapshot-collector.mjs",
   "node test-canonical-execution-intent-isolation.mjs",
   "node test-capability-assurance-graph.mjs",
   "node test-capability-envelope-template-resolver.mjs",
