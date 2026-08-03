@@ -85,11 +85,11 @@
 
 ## Phase 7 — Evidence Auto-Closeout
 
-- [ ] T220 Add authoritative evidence collector.
-- [ ] T221 Add schemas for manifest, completion, checklist, tasks, and delivery-state updates.
-- [ ] T222 Generate closeout changes with semantic mutations.
-- [ ] T223 Validate generated evidence before commit and in CI.
-- [ ] T224 Create closeout PR through governed repository automation.
+- [x] T220 Add authoritative evidence collector.
+- [x] T221 Add schemas for manifest, completion, checklist, tasks, and delivery-state updates.
+- [x] T222 Generate closeout changes with semantic mutations.
+- [x] T223 Validate generated evidence before commit and in CI.
+- [x] T224 Create closeout PR through governed repository automation.
 
 ## Phase 8 — Goal-Filtered Operational Intelligence
 

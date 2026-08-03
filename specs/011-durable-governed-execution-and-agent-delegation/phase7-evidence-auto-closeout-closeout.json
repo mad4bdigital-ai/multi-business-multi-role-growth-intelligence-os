@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "phase": "phase7_evidence_auto_closeout",
+  "status": "complete_on_main",
+  "tasks": ["T220", "T221", "T222", "T223", "T224"],
+  "implementation": {
+    "pull_request": 5219,
+    "branch": "gpt/spec-011-phase7-evidence-auto-closeout-20260803",
+    "head_sha": "23ee2eb870f640530c269de654407f0c70f119f5",
+    "merge_sha": "703b3874abe2b49f9d12262b45c55fd91b0c73b8",
+    "merged_at": "2026-08-03T09:56:36Z",
+    "merge_method": "squash",
+    "changed_files": 9,
+    "additions": 1776,
+    "human_contract_review_id": 4842864396
+  },
+  "focused_certification": {
+    "workflow": "Spec 011 Evidence Auto-Closeout",
+    "run_id": 30803279538,
+    "head_sha": "23ee2eb870f640530c269de654407f0c70f119f5",
+    "conclusion": "success",
+    "syntax": "success",
+    "authoritative_evidence_and_semantic_closeout_lifecycle": "success",
+    "phase7_schema_validation": "success",
+    "artifact_write": "success",
+    "artifact_upload": "success",
+    "artifact": {
+      "artifact_id": 8851700715,
+      "name": "spec011-evidence-auto-closeout",
+      "digest": "sha256:74dcd6f7b16610282094d86b47c6cea4d3a719575ee6a5612f9bf7b18b6235c6",
+      "expires_at": "2026-09-02T09:53:29Z"
+    }
+  },
+  "e2e_phase_governance": {
+    "initial_blocked_run": {
+      "run_id": 30802475435,
+      "head_sha": "c8e3e306ba3b4315e5fa67eafa27b49eabf764d9",
+      "conclusion": "failure",
+      "first_failure": "missing_spec_e2e_phase_contract",
+      "missing_contract_path": "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "remediation": "Added a bounded MVP synthetic-runtime E2E contract covering every changed runtime file and both executable Phase 7 tests."
+    },
+    "successful_run": {
+      "run_id": 30803278719,
+      "head_sha": "23ee2eb870f640530c269de654407f0c70f119f5",
+      "conclusion": "success",
+      "evaluate_changed_feature_phases": "success",
+      "execute_current_phase_journeys": "success",
+      "publish_canonical_evidence_report": "success",
+      "declared_journey": "authoritative-evidence-to-governed-closeout-pr",
+      "declared_tests_executed": [
+        "test-spec011-evidence-auto-closeout.mjs",
+        "test-spec011-evidence-auto-closeout-schemas.mjs"
+      ],
+      "artifacts": {
+        "evaluation": {
+          "artifact_id": 8851698217,
+          "digest": "sha256:f3113972eaaafcf5c9d8aeda8dabfe3c3bebb7218d5cf4436364caa9ba8ba158"
+        },
+        "execution": {
+          "artifact_id": 8851710767,
+          "digest": "sha256:22806fa74786f938bdc376c32aca81b6bd057497b5296280958b3e369d30a355"
+        },
+        "canonical_summary": {
+          "artifact_id": 8851732754,
+          "digest": "sha256:d54bef029d7268b63548190c54dd2f9880e85e47423d44a75a527d16d2ed055f"
+        }
+      }
+    }
+  },
+  "certified_contract": {
+    "authoritative_evidence_families": [
+      "pull_request",
+      "workflow_run",
+      "workflow_artifact",
+      "main_readback",
+      "migration_ledger",
+      "production_parity",
+      "post_merge_audit"
+    ],
+    "governed_document_kinds": [
+      "manifest_json",
+      "completion_json",
+      "checklist_markdown",
+      "tasks_markdown",
+      "delivery_state_json"
+    ],
+    "semantic_json_pointer_updates": true,
+    "semantic_markdown_anchor_updates": true,
+    "task_and_checklist_closure_requires_evidence": true,
+    "terminal_completion_requires_all_tasks": true,
+    "terminal_completion_requires_migration_ledger": true,
+    "terminal_completion_requires_production_parity": true,
+    "terminal_completion_requires_post_merge_audit": true,
+    "atomic_patch_tool": "repo_patch_batch_apply",
+    "pull_request_create_endpoint": "github_create_pull_request",
+    "pull_request_readback_endpoint": "github_get_pull_request",
+    "unknown_outcome_read_before_retry": true,
+    "automatic_unknown_outcome_retry": false,
+    "force_push_allowed": false,
+    "protected_branch_bypass_allowed": false
+  },
+  "supporting_checks": {
+    "platform_completion_cleanup_readback": "success",
+    "repository_tool_lifecycle_governance": "success",
+    "platform_remaining_scope_scorecard": "success",
+    "docs_agent": "success",
+    "hostinger_storage_shared_canary_guard": "success",
+    "e2e_contract_reference_integrity": "success",
+    "hostinger_storage_control_plane_guard": "success",
+    "context_kernel_hardcoding_report": "success",
+    "runtime_startup_deployment_evidence": "success",
+    "frontend_surface_dispatch": "success",
+    "spec011_delegation_mariadb_certification": "success"
+  },
+  "main_readback": {
+    "kernel": {
+      "path": "http-generic-api/spec011EvidenceAutoCloseout.js",
+      "blob_sha": "16062385b0c3e3e610587589d9425694169136e1",
+      "version": "spec011-evidence-auto-closeout-v1"
+    },
+    "e2e_contract": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "blob_sha": "3f467ba3a83ce7c6827aee9d5b9b8d9c605e5fc8",
+      "current_phase": "mvp",
+      "status": "implemented"
+    },
+    "delivery_contract": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
+      "blob_sha": "f628194905b61a9c428f7f86e9e30399994c5495"
+    },
+    "verified": true
+  },
+  "boundaries": {
+    "new_persistence_model": false,
+    "new_public_route": false,
+    "production_database_write": false,
+    "production_migration_authorization": false,
+    "provider_write_by_certification": false,
+    "deployment_by_certification": false,
+    "real_repository_write_by_certification": false,
+    "real_pull_request_created_by_certification": false,
+    "runtime_authority_changed": false,
+    "force_push_used": false,
+    "protected_branch_bypass_used": false,
+    "raw_http_authority_added": false,
+    "secrets_included": false
+  }
+}
