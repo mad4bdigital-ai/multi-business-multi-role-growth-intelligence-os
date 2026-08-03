@@ -1,0 +1,131 @@
+name: Exact Final Review-State TOCTOU Writer v3
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-review-state-toctou-writer-base-97e4ee7e
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-final-review-state-writer-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  patch-and-validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/incident-5021/review-state-toctou-97e4ee7e-20260804' &&
+      github.event.pull_request.head.sha == '9c0edd629ebedfb35b6b74ac56f95ab1daec079c'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_HEAD_SHA: 9c0edd629ebedfb35b6b74ac56f95ab1daec079c
+      EXPECTED_HEAD_REF: gpt/incident-5021/review-state-toctou-97e4ee7e-20260804
+    steps:
+      - name: Checkout trusted writer base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: writer
+          persist-credentials: false
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact candidate and current main
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA")
+          test "${#files[@]}" -eq 7
+          test "${files[0]}" = '.changes/e2e/repository-lifecycle-draft-merge-guard.json'
+          test "${files[1]}" = '.changes/e2e/repository-lifecycle-final-review-state-readback.json'
+          test "${files[2]}" = 'http-generic-api/githubRepositoryLifecycle.js'
+          test "${files[3]}" = 'http-generic-api/repositoryAutomationControlPlane.js'
+          test "${files[4]}" = 'http-generic-api/test-github-final-review-state-readback.mjs'
+          test "${files[5]}" = 'http-generic-api/test-github-repository-lifecycle.mjs'
+          test "${files[6]}" = 'http-generic-api/test-repository-automation-control-plane.mjs'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-lifecycle-draft-merge-guard.json")" = 'f822dea0c91347b3921cbb05302654ac7a5ba728'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-lifecycle-final-review-state-readback.json")" = '478ebb3f92c50fb8aebafcb6e3b5efb1ef6d8e1a'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/githubRepositoryLifecycle.js")" = '33e185d997554afe4a8d1d8c0f6e31283ffa96e3'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/repositoryAutomationControlPlane.js")" = '18f037e8da34b231a78182e359a40691d4b39a26'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-final-review-state-readback.mjs")" = 'a19683f3c50dfe2ed258d5a705c37eb51c00f076'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-repository-lifecycle.mjs")" = 'f3f97ff29db2f8414ca36ce5f8b63842554127d3'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-repository-automation-control-plane.mjs")" = '432c5924094c482420d64d63d0502ba39af479e3'
+
+      - name: Apply bounded final review-state repair
+        working-directory: candidate
+        run: python ../writer/.github/ops/patch-final-review-state-toctou.py
+
+      - name: Verify working-tree scope and syntax
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only)
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 2
+          test "${files[0]}" = 'http-generic-api/githubRepositoryLifecycle.js'
+          test "${files[1]}" = 'http-generic-api/test-github-repository-lifecycle.mjs'
+          git diff --check
+          node --check http-generic-api/githubRepositoryLifecycle.js
+          node --check http-generic-api/test-github-repository-lifecycle.mjs
+          node --check http-generic-api/test-github-final-review-state-readback.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/repository-lifecycle-final-review-state-readback.json','utf8'))"
+
+      - name: Install HTTP API dependencies
+        working-directory: candidate/http-generic-api
+        run: npm ci
+
+      - name: Run focused finalization regressions
+        working-directory: candidate/http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-github-final-review-state-readback.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Commit and push repaired candidate
+        working-directory: candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/$EXPECTED_HEAD_REF:refs/remotes/origin/$EXPECTED_HEAD_REF"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_HEAD_REF)" = "$EXPECTED_HEAD_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add http-generic-api/githubRepositoryLifecycle.js http-generic-api/test-github-repository-lifecycle.mjs
+          git diff --cached --quiet && { echo 'refusing empty writer commit' >&2; exit 1; }
+          git commit -m 'fix(github): revalidate approvals at final merge boundary'
+          new_sha="$(git rev-parse HEAD)"
+          auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$auth_url" "HEAD:refs/heads/$EXPECTED_HEAD_REF"
+          readback="$(git ls-remote "$auth_url" "refs/heads/$EXPECTED_HEAD_REF" | awk '{print $1}')"
+          test "$readback" = "$new_sha"
+          {
+            echo '## Final review-state TOCTOU writer v3'
+            echo
+            echo "- previous head: \`$EXPECTED_HEAD_SHA\`"
+            echo "- repaired head: \`$new_sha\`"
+            echo '- working-tree patch paths: 2'
+            echo '- finalization regressions: passed'
+            echo '- force push: false'
+            echo '- protected refs mutated: false'
+            echo '- secrets included: false'
+          } >> "$GITHUB_STEP_SUMMARY"
