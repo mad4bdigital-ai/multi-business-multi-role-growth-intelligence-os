@@ -50,7 +50,27 @@ jobs:
       - name: Run focused T031 tests
         working-directory: http-generic-api
         run: |
+          cp test-tenant-gpt-oauth-token-route-ambiguity.mjs /tmp/t031-route-test.mjs
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = 'test-tenant-gpt-oauth-token-route-ambiguity.mjs';
+          let source = fs.readFileSync(path, 'utf8');
+          source = source.replace(
+            'throw new Error(`Unexpected token-route query: ${sql} ${JSON.stringify(params)}`);',
+            'console.error("T031_UNEXPECTED_QUERY", sql, JSON.stringify(params)); throw new Error(`Unexpected token-route query: ${sql} ${JSON.stringify(params)}`);',
+          );
+          source = source.replace(
+            'assert.equal(success.status, 200, JSON.stringify(success));',
+            'if (success.status !== 200) { await new Promise((resolve) => setTimeout(resolve, 0)); console.error("T031_SUCCESS_FAILURE", JSON.stringify({ success, diagnostics: harness.diagnostics }, null, 2)); }\n  assert.equal(success.status, 200, JSON.stringify(success));',
+          );
+          fs.writeFileSync(path, source);
+          NODE
+          set +e
           node test-tenant-gpt-oauth-token-route-ambiguity.mjs
+          route_status=$?
+          cp /tmp/t031-route-test.mjs test-tenant-gpt-oauth-token-route-ambiguity.mjs
+          set -e
+          test "$route_status" -eq 0
           node test-spec012-t031-oauth-code-consumption-foundation.mjs
       - name: Commit verified patch
         run: |
