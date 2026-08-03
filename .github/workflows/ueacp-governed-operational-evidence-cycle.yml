@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - ".changes/e2e/ueacp-governed-operational-evidence-cycle.json"
       - ".github/workflows/ueacp-governed-operational-evidence-cycle.yml"
       - "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js"
       - "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs"
@@ -65,6 +66,7 @@ jobs:
           grep -q "vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true'" "$workflow"
           grep -q 'environment: ueacp-live-evidence' "$workflow"
           grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE' "$workflow"
+          grep -q 'ref: ${{ github.sha }}' "$workflow"
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
@@ -84,10 +86,10 @@ jobs:
       TARGET_SCHEMA: ${{ inputs.target_schema }}
       EVIDENCE_DIR: ${{ runner.temp }}/ueacp-governed-operational-evidence
     steps:
-      - name: Checkout trusted current main
+      - name: Checkout exact trusted dispatch SHA
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Set up Node.js 22
@@ -99,11 +101,11 @@ jobs:
         run: |
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "main"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
           [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
           [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
           test -f "${SOURCE_MANIFEST_FILE}"
-          HEAD_SHA="$(git rev-parse HEAD)"
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const manifest = JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST_FILE, 'utf8'));
