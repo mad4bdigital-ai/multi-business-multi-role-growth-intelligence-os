@@ -1,0 +1,54 @@
+name: Spec 012 T031 Token Route Patch
+
+on:
+  push:
+    branches:
+      - gpt/spec-012-t031-token-route-ambiguity-wiring-20260804
+    paths:
+      - .github/workflows/spec012-t031-token-route-wiring-patch.yml
+      - http-generic-api/scripts/apply-spec012-t031-token-route-wiring.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Apply bounded route patch
+        run: node http-generic-api/scripts/apply-spec012-t031-token-route-wiring.mjs
+      - name: Verify allowed patch scope
+        run: |
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            http-generic-api/routes/authRoutes.js \
+            http-generic-api/test-spec012-t031-oauth-code-consumption-foundation.mjs | sort)"
+          test "$changed" = "$expected"
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/routes/authRoutes.js
+          node --check http-generic-api/test-tenant-gpt-oauth-token-route-ambiguity.mjs
+          node --check http-generic-api/test-spec012-t031-oauth-code-consumption-foundation.mjs
+      - name: Run focused T031 tests
+        working-directory: http-generic-api
+        run: |
+          node test-tenant-gpt-oauth-token-route-ambiguity.mjs
+          node test-spec012-t031-oauth-code-consumption-foundation.mjs
+      - name: Commit verified patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add http-generic-api/routes/authRoutes.js \
+            http-generic-api/test-spec012-t031-oauth-code-consumption-foundation.mjs
+          git commit -m "fix(spec-012): wire token exchange ambiguity policy"
+          git push origin HEAD:gpt/spec-012-t031-token-route-ambiguity-wiring-20260804
