@@ -6,6 +6,10 @@ on:
       - gpt/surface-callability-main-clean-20260803
     paths:
       - .github/workflows/surface-callability-main-reconcile-once.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +21,7 @@ concurrency:
 
 jobs:
   reconcile:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref == 'gpt/surface-callability-main-clean-20260803'
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
