@@ -16,13 +16,10 @@ concurrency:
 jobs:
   validate:
     name: Exact Corrected Spec 012 OAuth Validation
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
-      github.event.pull_request.head.sha == '7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
+      EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       EXPECTED_HEAD_SHA: 7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c
       MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
@@ -30,6 +27,18 @@ jobs:
       SCRIPT_COMMIT_SHA: 24b41f1ee9deff4bc62bdfe511af21324bbbb296
       E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
     steps:
+      - name: Verify event identity before checkout
+        shell: bash
+        env:
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "${EVENT_HEAD_REPOSITORY}" = "${GITHUB_REPOSITORY}"
+          test "${EVENT_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
+          test "${EVENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"
+
       - name: Checkout exact marker head
         uses: actions/checkout@v5
         with:
