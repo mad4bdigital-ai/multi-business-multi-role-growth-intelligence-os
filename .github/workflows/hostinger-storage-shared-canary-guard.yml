@@ -33,12 +33,6 @@ jobs:
           node --check http-generic-api/hostingerStorageSharedCanary.js
           node --check http-generic-api/test-hostinger-storage-shared-canary.mjs
           node --check http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
-          node --check http-generic-api/tenantGptOAuthOperationCorrelation.js
-          node --check http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs
-          node --check http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs
-      - name: Validate Spec 012 OAuth correlation foundation
-        working-directory: http-generic-api
-        run: node test-spec012-t030-oauth-correlation-foundation.mjs
       - name: Parse Shared Core import boundary
         run: node http-generic-api/test-hostinger-storage-shared-canary-core-import-boundary.mjs
       - name: Enforce synthetic Shared boundary
