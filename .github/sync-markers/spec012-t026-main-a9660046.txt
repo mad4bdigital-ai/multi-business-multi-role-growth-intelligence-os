@@ -1,3 +1,0 @@
-main_sha=a9660046e9d7169d90a418752c4045edae469516
-purpose=sync-main-into-pr-5049
-mutation_scope=repository-only
