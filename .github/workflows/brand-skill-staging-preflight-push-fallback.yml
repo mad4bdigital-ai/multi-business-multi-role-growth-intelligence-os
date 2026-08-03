@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC') && 'brand-skill-staging-preflight-push-fallback-3809-v3' || format('brand-skill-staging-preflight-observation-{0}', github.run_id) }}
+  group: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC') && 'brand-skill-staging-preflight-execution-3809-v3' || format('brand-skill-staging-preflight-observation-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
@@ -125,6 +125,13 @@ jobs:
           if [[ -n "${COMPLETED_MARKERS}" ]]; then
             echo "skip=true" >> "${GITHUB_OUTPUT}"
             echo "skip_reason=already_completed" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          DISPATCHED_ATTEMPT_MARKERS="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100"             --jq ".[] | select((.body | contains(\"BRAND_SKILL_STAGING_PREFLIGHT_DISPATCH status=dispatched binding=${BINDING_ID}\")) and (.body | contains(\"authorization_comment_id=${AUTHORIZATION_COMMENT_ID}\"))) | .id")"
+          if [[ -n "${DISPATCHED_ATTEMPT_MARKERS}" ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "skip_reason=authorization_already_dispatched" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
