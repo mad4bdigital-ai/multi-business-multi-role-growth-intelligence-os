@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "spec014-mvp-convergence-journey",
-  "title": "Spec 014 synthetic-runtime MVP convergence journey",
+  "title": "Spec 014 synthetic-runtime contract convergence gate",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -18,33 +18,33 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove one synthetic Tenant storage request from mounted HTTP entrypoint through Context Kernel authority, immutable plan and fixed execution contracts to durable journal, reconciliation guards, and Tenant-safe readback.",
+      "objective": "Run the canonical mounted Tenant-route suite and durable control-plane repository suite in one fail-closed runner, validate both structured safety contracts, and explicitly avoid claiming that the suites share one operation state or complete the parent Spec 014 MVP.",
       "e2e_journeys": [
         {
-          "id": "tenant-storage-request-to-reconciled-readback",
+          "id": "tenant-storage-route-and-repository-contract-convergence",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "tenant_workspace_owner",
-          "entrypoint": "POST /tenant/storage-operations/apply-plan",
-          "terminal_outcome": "The exact synthetic operation returns Tenant-safe reconciled readback while immutable plan, append-only journal, retry, SHA, and cross-Tenant guards remain enforced.",
+          "actor": "repository_ci_reviewer",
+          "entrypoint": "node http-generic-api/test-hostinger-storage-e2e.mjs",
+          "terminal_outcome": "The independent mounted-route and durable-repository suites both return their expected secret-free structured gates; the result remains contract-level evidence and does not promote the parent Spec 014 MVP.",
           "steps": [
-            "Execute the mounted Tenant HTTP runtime journey through Context Kernel and effective-authority dynamic evidence.",
-            "Bind the request to the exact operation and expected SHA while rejecting request-side authority injection and cross-Tenant context.",
-            "Consume one manual enablement only after all checks and dispatch the fixed synthetic worker path without free-form shell input.",
-            "Require the durable control-plane contract to preserve immutable plans, append-only approvals, CAS lease generations, and restart-safe journal ordering.",
-            "Require single-use plan consumption and unknown-outcome retry protection.",
-            "Return only Tenant-safe evidence with provider dispatch, live mutation, Production readiness, and secrets disabled."
+            "Run the mounted Tenant HTTP route suite in an isolated child process and require its exact structured gate.",
+            "Validate Context Kernel, effective-authority, expected-SHA, request-injection, Admin, cross-Tenant, one-shot enablement, and Tenant-safe projection assertions from the route suite.",
+            "Run the durable control-plane repository suite in a separate isolated child process and require its exact structured gate.",
+            "Validate immutable-plan, append-only approval, CAS lease, restart-safe journal, single-use plan, and unknown-outcome retry assertions from the repository suite.",
+            "Fail closed if either child suite exits non-zero, emits no structured report, changes its gate identity, reports secrets, permits provider dispatch, or claims Production readiness.",
+            "Declare that no shared operation instance or shared repository state is passed between the two child suites and that the parent feature remains blocked pending a real shared-state journey."
           ],
           "assertions": [
-            "The mounted route reports Context Kernel and effective-authority evidence success.",
-            "Expected-SHA mismatch, authority injection, Admin use, and cross-Tenant access fail before mutation consumption.",
-            "Immutable plan, append-only approvals, CAS leases, restart-safe journal, single-use plan, and unknown-outcome retry guards all pass.",
-            "The journey is synthetic-only and cannot call a provider, deploy, apply SQL, or become Production-ready.",
-            "No secret or raw credential field is emitted."
+            "Both canonical child suites pass under one bounded fail-closed runner.",
+            "The mounted route and durable repository reports remain independently attributable.",
+            "The evidence is contract convergence only; shared_operation_state is false.",
+            "The parent feature 014-governed-hostinger-storage-orchestration is not promoted by this gate.",
+            "Provider dispatch, live mutation, SQL apply, deployment, Production readiness, and secrets remain disabled."
           ],
           "tests": [
             {
-              "id": "hostinger-storage-mvp-e2e",
+              "id": "hostinger-storage-mvp-contract-convergence",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-hostinger-storage-e2e.mjs",
@@ -54,7 +54,8 @@
           "evidence_paths": [
             "http-generic-api/test-hostinger-storage-e2e.mjs",
             "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
-            "http-generic-api/test-hostinger-storage-control-plane-repository.mjs"
+            "http-generic-api/test-hostinger-storage-control-plane-repository.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json"
           ]
         }
       ]
@@ -62,22 +63,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Extend the journey with cancellation, approval revocation, bounded retry, and operator-visible transitions."
+      "objective": "Add a composable shared-state test seam that executes one mounted request through the canonical durable repository, journal, reconciliation, and Tenant-safe readback before considering parent MVP promotion."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Extend the journey with fault injection, worker restart recovery, and checkpoint restoration."
+      "objective": "Extend the future shared-state journey with fault injection, worker restart recovery, and checkpoint restoration."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Run the journey against one separately authorized non-production Tenant target."
+      "objective": "Run the future shared-state journey against one separately authorized non-production Tenant target."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This bounded change supplies synthetic MVP evidence only and grants no Production authority."
+      "objective": "This bounded contract-convergence gate grants no live, deployment, migration, provider, or Production authority."
     }
   ],
   "secrets_included": false
