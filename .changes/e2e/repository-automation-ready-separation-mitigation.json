@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-automation-ready-separation-mitigation",
+  "title": "Repository automation Ready transition separation mitigation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-automation-ready-separation-mitigation.json",
+      "http-generic-api/repositoryAutomationControlPlane.js",
+      "http-generic-api/test-repository-automation-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent repository automation from changing a Draft pull request to Ready and invoking finalization in the same automatic plan while the final review-state boundary remains under repair.",
+      "e2e_journeys": [
+        {
+          "id": "automatic-delivery-requires-external-ready-state",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation operator",
+          "entrypoint": "buildRepositoryAutomationPlan",
+          "terminal_outcome": "pr_delivery and full_workstream plans may retain separately authorized finalization but never contain an automatic mark_ready step.",
+          "steps": [
+            "Build the pr_delivery automation plan.",
+            "Build the full_workstream automation plan.",
+            "Verify both plans omit mark_ready.",
+            "Verify both plans retain pr_finalize as a separately authorized mutation.",
+            "Keep direct finalization blocked by the unresolved review-state P0 and independent approval gates."
+          ],
+          "assertions": [
+            "No automatic plan can transition Draft to Ready and finalize in one apply cycle.",
+            "The mitigation does not claim to repair final review-state TOCTOU.",
+            "No repository protected ref, Production, provider, deployment, credential, SQL, migration, database, or external-send authority is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "repository-automation-ready-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-automation-ready-separation-mitigation.json",
+            "http-generic-api/repositoryAutomationControlPlane.js",
+            "http-generic-api/test-repository-automation-control-plane.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Deliver the final review-state reread and server-side required-review enforcement proof tracked in issue 5872."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove automatic-plan safety across retries, resume operations, and stale persisted plans."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-only mitigation performs no provider or runtime canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This mitigation grants no deployment, Production, provider, database, migration, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
