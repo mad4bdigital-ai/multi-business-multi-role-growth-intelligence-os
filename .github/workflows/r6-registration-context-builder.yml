@@ -1,0 +1,92 @@
+name: Temporary R6 Registration Context Builder
+
+on:
+  push:
+    branches:
+      - gpt/hostinger-r6-registration-context-fix-v2-20260803
+    paths:
+      - .github/workflows/r6-registration-context-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-r6-registration-context-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact builder branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/hostinger-r6-registration-context-fix-v2-20260803
+          fetch-depth: 0
+
+      - name: Verify immutable builder scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git branch --show-current)" = "gpt/hostinger-r6-registration-context-fix-v2-20260803"
+          test "$(git merge-base HEAD faf9b16f29e85c4007cc0866aae9883be587a990)" = "faf9b16f29e85c4007cc0866aae9883be587a990"
+          mapfile -t FILES < <(git diff --name-only faf9b16f29e85c4007cc0866aae9883be587a990...HEAD)
+          test "${#FILES[@]}" -eq 1
+          test "${FILES[0]}" = ".github/workflows/r6-registration-context-builder.yml"
+
+      - name: Apply bounded registration repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow_path = Path('.github/workflows/hostinger-production-release-evidence-r6.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          old = '      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6\n'
+          new = '      EVIDENCE_DIR: /tmp/hostinger-production-release-evidence-r6\n'
+          if workflow.count(old) != 1:
+              raise SystemExit('expected exactly one invalid job-level runner.temp binding')
+          workflow_path.write_text(workflow.replace(old, new), encoding='utf-8')
+
+          test_path = Path('http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs')
+          test = test_path.read_text(encoding='utf-8')
+          anchor = 'assert.match(workflow, /repository_read_only:true/);\n'
+          if test.count(anchor) != 1:
+              raise SystemExit('R6 contract assertion anchor not found exactly once')
+          regression = r'''
+
+          const jobEnv = workflow.match(/    env:\n(?<env>[\s\S]*?)\n\n    steps:/)?.groups?.env ?? "";
+          assert.ok(jobEnv, "R6 job-level env block must be present");
+          assert.doesNotMatch(
+            jobEnv,
+            /\$\{\{\s*runner\./,
+            "runner context is unavailable in job-level env and prevents workflow registration",
+          );
+          assert.match(workflow, /EVIDENCE_DIR: \/tmp\/hostinger-production-release-evidence-r6/);
+          '''
+          test_path.write_text(test.replace(anchor, anchor + regression), encoding='utf-8')
+          PY
+
+      - name: Validate repaired contract
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-production-release-evidence-r6.mjs
+
+      - name: Finalize self-deleting repair commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git rm .github/workflows/r6-registration-context-builder.yml
+          mapfile -t EFFECTIVE < <(git diff --name-only faf9b16f29e85c4007cc0866aae9883be587a990)
+          printf '%s\n' "${EFFECTIVE[@]}"
+          test "${#EFFECTIVE[@]}" -eq 2
+          test "${EFFECTIVE[0]}" = ".github/workflows/hostinger-production-release-evidence-r6.yml"
+          test "${EFFECTIVE[1]}" = "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/hostinger-production-release-evidence-r6.yml http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs
+          git commit -m "fix(ops): restore R6 workflow registration context"
+          git push origin HEAD:gpt/hostinger-r6-registration-context-fix-v2-20260803
