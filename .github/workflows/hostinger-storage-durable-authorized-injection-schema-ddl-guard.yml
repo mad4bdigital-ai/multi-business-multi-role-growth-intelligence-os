@@ -51,10 +51,14 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
           node --input-type=module <<'NODE'
           import { appendFileSync, readFileSync } from 'node:fs';
           import { createHash } from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
 
           const raw = readFileSync(process.env.PHASE_CONTRACT, 'utf8');
           const contract = JSON.parse(raw);
@@ -64,10 +68,53 @@ jobs:
             && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
             && contract.parallel_work?.no_partial_feature_merge === true;
           const isGovernedRollup = process.env.BASE_REF === 'main' && governedContract;
-          const isGovernedRelease = process.env.BASE_REF === 'Production'
+          const sameRepository = process.env.HEAD_REPOSITORY === process.env.REPOSITORY;
+          const directMainRelease = process.env.BASE_REF === 'Production'
             && process.env.HEAD_REF === 'main'
-            && process.env.HEAD_REPOSITORY === process.env.REPOSITORY
+            && sameRepository
             && governedContract;
+
+          const runGit = (args) => execFileSync('git', args, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+          }).trim();
+          const releaseBranchPattern = /^release\/production-candidate-\d{8}-([0-9a-f]{8})-v[1-9]\d*$/;
+          let materializedRelease = false;
+          if (process.env.BASE_REF === 'Production'
+            && sameRepository
+            && governedContract
+            && releaseBranchPattern.test(process.env.HEAD_REF || '')) {
+            try {
+              const branchMatch = releaseBranchPattern.exec(process.env.HEAD_REF || '');
+              const parents = runGit(['show', '-s', '--format=%P', process.env.HEAD_SHA]).split(/\s+/).filter(Boolean);
+              const firstParent = parents[0] || '';
+              const messageLines = runGit(['show', '-s', '--format=%B', process.env.HEAD_SHA]).split(/\r?\n/);
+              const headTree = runGit(['rev-parse', `${process.env.HEAD_SHA}^{tree}`]);
+              const firstParentTree = runGit(['rev-parse', `${firstParent}^{tree}`]);
+              let mainContainsFirstParent = false;
+              try {
+                execFileSync('git', ['merge-base', '--is-ancestor', firstParent, 'refs/remotes/origin/main'], {
+                  stdio: 'ignore',
+                });
+                mainContainsFirstParent = true;
+              } catch {
+                mainContainsFirstParent = false;
+              }
+              materializedRelease = (parents.length === 2 || parents.length === 3)
+                && parents[1] === process.env.BASE_SHA
+                && branchMatch?.[1] === process.env.HEAD_SHA.slice(0, 8)
+                && headTree === firstParentTree
+                && mainContainsFirstParent
+                && messageLines[0] === 'release: build governed Production promotion candidate'
+                && messageLines.includes(`main=${firstParent}`)
+                && messageLines.includes(`production=${process.env.BASE_SHA}`)
+                && messageLines.includes('tree_policy=exact_main_tree');
+            } catch {
+              materializedRelease = false;
+            }
+          }
+
+          const isGovernedRelease = directMainRelease || materializedRelease;
           const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
           const digest = createHash('sha256').update(raw).digest('hex');
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
