@@ -1,0 +1,68 @@
+name: TEMP Reproduce Work Map Verification Dispatch
+
+on:
+  pull_request:
+    branches:
+      - gpt/repro-work-map-dispatch-arm-base-97e4ee7e
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  reproduce:
+    name: Capture gh workflow run results
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: gpt/repro-work-map-verification-target-97e4ee7e
+      REPORT_DIR: ${{ runner.temp }}/dispatch-reproduction
+    steps:
+      - name: Verify trigger identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-repro-work-map-dispatch-97e4ee7e"
+          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+
+      - name: Reproduce both dispatch commands independently
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          mkdir -p "${REPORT_DIR}"
+
+          set +e
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}" > "${REPORT_DIR}/ci.stdout" 2> "${REPORT_DIR}/ci.stderr"
+          ci_status=$?
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}" > "${REPORT_DIR}/integration.stdout" 2> "${REPORT_DIR}/integration.stderr"
+          integration_status=$?
+          set -e
+
+          printf '%s\n' "${ci_status}" > "${REPORT_DIR}/ci.exit-code"
+          printf '%s\n' "${integration_status}" > "${REPORT_DIR}/integration.exit-code"
+          jq -n \
+            --arg target_branch "${TARGET_BRANCH}" \
+            --argjson ci_exit_code "${ci_status}" \
+            --argjson integration_exit_code "${integration_status}" \
+            '{contract:"mad4b.work-map-dispatch-reproduction.v1",target_branch:$target_branch,ci_exit_code:$ci_exit_code,integration_exit_code:$integration_exit_code,repository_mutated:false,protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_payload_read:false,sql_executed:false,migration_apply:false,database_mutated:false,secrets_included:false}' \
+            > "${REPORT_DIR}/summary.json"
+
+          echo "CI exit code: ${ci_status}"
+          cat "${REPORT_DIR}/ci.stdout" || true
+          cat "${REPORT_DIR}/ci.stderr" || true
+          echo "Integration exit code: ${integration_status}"
+          cat "${REPORT_DIR}/integration.stdout" || true
+          cat "${REPORT_DIR}/integration.stderr" || true
+
+      - name: Upload exact reproduction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-dispatch-reproduction-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
