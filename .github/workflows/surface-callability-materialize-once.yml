@@ -1,0 +1,133 @@
+name: Surface Callability Materialize Once
+
+on:
+  push:
+    branches:
+      - gpt/surface-callability-wave1-clean-20260731
+    paths:
+      - .github/workflows/surface-callability-materialize-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-callability-materialize-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee -a ../surface-wave.log
+
+      - name: Materialize fail-closed patches
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            python3 scripts/surface-callability-closure/patch_agent_surfaces.py
+            python3 scripts/surface-callability-closure/patch_infrastructure.py
+            python3 scripts/surface-callability-closure/patch_workspace.py
+            python3 scripts/surface-callability-closure/patch_validator_auth.py
+            python3 scripts/surface-callability-closure/patch_generator_policy.py
+          } 2>&1 | tee -a ../surface-wave.log
+
+      - name: Generate closure contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs 2>&1 | tee -a ../surface-wave.log
+
+      - name: Recompute governed surface queue
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/surface-contract-discovery.mjs 2>&1 | tee -a ../surface-wave.log
+
+      - name: Resource API contract tests
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            node test-resource-api-callability-effect-classes.mjs
+            node test-surface-contract-sql-registry-extractor.mjs
+            node test-surface-callability-full-closure.mjs
+            node test-surface-contract-discovery.mjs
+          } 2>&1 | tee -a ../surface-wave.log
+
+      - name: Tenant and agent runtime checks
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            node test-tenant-database-query-readonly.mjs
+            node test-tenant-ssh-cli-allowlisted-execute.mjs
+            node test-agent-surface-runtime-service.mjs
+          } 2>&1 | tee -a ../surface-wave.log
+
+      - name: Resource API Coverage
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/resource-api-coverage-audit.mjs --ci 2>&1 | tee -a ../surface-wave.log
+
+      - name: Remove one-time migration helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            http-generic-api/scripts/surface-callability-closure/patch_agent_surfaces.py \
+            http-generic-api/scripts/surface-callability-closure/patch_generator_policy.py \
+            http-generic-api/scripts/surface-callability-closure/patch_infrastructure.py \
+            http-generic-api/scripts/surface-callability-closure/patch_validator_auth.py \
+            http-generic-api/scripts/surface-callability-closure/patch_workspace.py \
+            .github/workflows/surface-callability-materialize-once.yml
+          git diff --check 2>&1 | tee -a surface-wave.log
+
+      - name: Commit materialized product changes
+        shell: bash
+        env:
+          BRANCH_NAME: gpt/surface-callability-wave1-clean-20260731
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short | tee -a surface-wave.log
+          git commit -m "fix: materialize surface callability closure contracts" 2>&1 | tee -a surface-wave.log
+          git push origin "HEAD:${BRANCH_NAME}" 2>&1 | tee -a surface-wave.log
+
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-callability-materialize-log
+          path: surface-wave.log
+          if-no-files-found: warn
+          retention-days: 7
