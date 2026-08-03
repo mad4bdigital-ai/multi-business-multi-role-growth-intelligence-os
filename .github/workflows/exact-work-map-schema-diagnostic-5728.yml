@@ -1,0 +1,129 @@
+name: Exact Work Map Schema Diagnostic 5728
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [gpt/validate-work-map-schema-5728-base-v1]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Exact schema and generated-map diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      CANDIDATE_SHA: 49cac439baa51312fbe3f3b61af181f6476a8d9f
+      EXPECTED_BLOB: f30ce5690ed0e8402090afca11b2a53e4fb655be
+      REGISTRY_PATH: .specify/work-map-schema-classification-registry.json
+      EVIDENCE_ROOT: ${{ runner.temp }}/work-map-schema-5728
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse HEAD^)" = "${MAIN_SHA}"
+          test "$(git rev-parse "${CANDIDATE_SHA}:${REGISTRY_PATH}")" = "${EXPECTED_BLOB}"
+          mapfile -t changed < <(git diff --name-only "${MAIN_SHA}" "${CANDIDATE_SHA}")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${REGISTRY_PATH}"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate canonical classification contracts
+        run: |
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+
+      - name: Run focused classification regressions
+        run: |
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "${EVIDENCE_ROOT}"
+          mkdir -p "${EVIDENCE_ROOT}"
+
+      - name: Check generated Work Map currentness
+        id: currentness
+        continue-on-error: true
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Generate bounded repair candidate
+        if: steps.currentness.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            printf 'Unexpected generated paths:\n%s\n' "${unexpected}"
+            exit 1
+          fi
+          cp -R docs/work-maps "${EVIDENCE_ROOT}/docs-work-maps"
+          git diff --name-only -- docs/work-maps > "${EVIDENCE_ROOT}/changed-files.txt"
+          git diff --stat -- docs/work-maps > "${EVIDENCE_ROOT}/diff-stat.txt"
+
+      - name: Validate generated or current integration state
+        run: |
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+
+      - name: Write diagnostic report
+        if: always()
+        env:
+          CURRENTNESS_OUTCOME: ${{ steps.currentness.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE_ROOT}"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.EVIDENCE_ROOT;
+          const changedPath = path.join(root, 'changed-files.txt');
+          const changedFiles = fs.existsSync(changedPath)
+            ? fs.readFileSync(changedPath, 'utf8').split(/\r?\n/).filter(Boolean)
+            : [];
+          const report = {
+            contract: 'mad4b.exact-work-map-schema-diagnostic.v1',
+            main_sha: process.env.MAIN_SHA,
+            candidate_sha: process.env.CANDIDATE_SHA,
+            registry_blob: process.env.EXPECTED_BLOB,
+            currentness_outcome: process.env.CURRENTNESS_OUTCOME,
+            generated_repair_required: process.env.CURRENTNESS_OUTCOME === 'failure',
+            generated_changed_files: changedFiles,
+            generated_changed_count: changedFiles.length,
+            repository_write_executed: false,
+            work_map_publication_executed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(root, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Upload bounded diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-schema-5728-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-schema-5728
+          if-no-files-found: error
+          retention-days: 14
