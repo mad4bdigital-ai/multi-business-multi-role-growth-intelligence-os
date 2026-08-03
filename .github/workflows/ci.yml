@@ -7,10 +7,8 @@ on:
     branches: [main, Production]
 
 concurrency:
-  group: >-
-    ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_CI_V18_PR_3945_792FF63A') && 'ci-local-connector-closure-v18' || format('ci-{0}', github.ref) }}
-  cancel-in-progress: >-
-    ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, 'RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_CI_V18_PR_3945_792FF63A')) }}
+  group: ci-${{ github.ref }}-local-connector-v18
+  cancel-in-progress: false
 
 jobs:
   syntax:
