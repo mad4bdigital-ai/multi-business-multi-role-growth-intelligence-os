@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-completed-build-log-evidence-push-r3b",
+  "title": "Trusted-main push fallback for completed Hostinger build-log evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
+      "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one trusted-main marker-only ARM fallback that executes the already merged canonical completed-build log reporter after connector-created issue comments failed to register the R3B bridge run.",
+      "e2e_journeys": [
+        {
+          "id": "collect-exact-completed-build-source-provenance-from-main-push",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner, GitHub Actions, and the configured Hostinger read credential",
+          "entrypoint": "A squash merge to main changes only the exact R3B marker and uses the fixed trigger token as the first commit-message line.",
+          "terminal_outcome": "A secret-free artifact and Incident #4953 result bind exact main, protected Production, completed build UUID, canonical workflow/reporter/test blobs, extracted source SHA and branch hints, and a deterministic pass/fail classification.",
+          "steps": [
+            "Validate the event is an exact main push and current checkout equals remote main.",
+            "Validate protected Production still equals f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+            "Validate the push changed only the exact marker and its content matches the reviewed contract.",
+            "Validate the canonical workflow, reporter, and test Git blob identities on trusted main.",
+            "Validate Incident #4953 remains open and no claim or completed marker exists for the binding.",
+            "Record a durable one-time claim after all immutable checks pass.",
+            "Run the canonical reporter regression without Hostinger credential access.",
+            "Perform one authenticated GET for build 019fc51c-3947-7255-aa4d-f55cb8df7658 logs.",
+            "Scrub the exact configured provider token from all persisted JSON and Markdown evidence files.",
+            "Upload the structured artifact before final outcome enforcement.",
+            "Validate the evidence contract and publish the bounded result to Incident #4953.",
+            "Require expected Production SHA provenance before the workflow succeeds."
+          ],
+          "assertions": [
+            "The execution runner is ubuntu-24.04-arm.",
+            "The workflow has contents read and issues write only.",
+            "No workflow_dispatch, issue_comment, pull_request, or pull_request_target execution surface exists.",
+            "Current main, event SHA, remote main, protected Production, marker content, and canonical blob identities are verified before the claim write.",
+            "Only the canonical reporter reads secrets.HOSTINGER_API_TOKEN.",
+            "The Hostinger provider method is GET only.",
+            "No build creation, deployment, release activation, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, force update, or external business send occurs.",
+            "The exact provider token is removed from persisted evidence before artifact upload.",
+            "The result comment contains bounded identifiers and provenance only and declares secrets_included=false.",
+            "The binding cannot be reused after claiming or completion."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-evidence-push-r3b-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-hostinger-completed-build-log-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
+            "http-generic-api/scripts/test-hostinger-completed-build-log-evidence-push-r3b.mjs",
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the inert workflow registration and then merge exactly one marker-only trigger to obtain the completed-build source-provenance artifact."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on ref, marker, commit token, blob, Production, issue, or one-time binding drift while preserving evidence on reporter failure."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The workflow is GET-only evidence and performs no Hostinger mutation canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The workflow does not deploy, activate, restart, or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}
