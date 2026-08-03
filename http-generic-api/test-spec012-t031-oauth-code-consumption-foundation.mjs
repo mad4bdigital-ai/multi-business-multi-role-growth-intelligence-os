@@ -28,11 +28,15 @@ assert.equal(record.effects.authorization_code_store_runtime_behavior_changed, t
 assert.equal(record.effects.classified_consumption_readback_active, true);
 assert.equal(record.effects.zero_row_conflict_readback_active, true);
 assert.equal(record.effects.transport_error_readback_active, true);
+assert.equal(record.effects.transport_error_rethrown_with_safe_readback, true);
 assert.equal(record.effects.route_policy_runtime_wired, false);
 assert.equal(record.effects.oauth_response_contract_changed, false);
 assert.equal(record.consumption_contract.atomic_update, true);
+assert.equal(record.consumption_contract.expiry_clock_authority, "database_utc_timestamp_3");
 assert.equal(record.consumption_contract.readback_after_zero_affected_rows, true);
 assert.equal(record.consumption_contract.readback_after_store_transport_error, true);
+assert.equal(record.consumption_contract.store_transport_error_preserved, true);
+assert.equal(record.consumption_contract.safe_readback_attached_to_error, true);
 assert.equal(record.consumption_contract.raw_code_returned, false);
 assert.equal(record.ambiguity_policy.unknown_consumption_replay_allowed, false);
 assert.equal(record.ambiguity_policy.consumed_code_replay_allowed, false);
@@ -47,14 +51,18 @@ assert.match(narrative, /does \*\*not\*\* close T031/u);
 assert.match(narrative, /Route integration still required/u);
 assert.match(narrative, /store's runtime behavior is changed/u);
 assert.match(narrative, /live route does not import this policy/u);
+assert.match(narrative, /original database error is preserved and rethrown/u);
 
 assert.match(store, /SET status = 'consumed', consumed_at = UTC_TIMESTAMP\(3\)/u);
 assert.match(store, /status = 'issued'/u);
 assert.match(store, /consumed_at IS NULL/u);
 assert.match(store, /expires_at > UTC_TIMESTAMP\(3\)/u);
+assert.match(store, /expires_at <= UTC_TIMESTAMP\(3\)/u);
 assert.match(store, /SELECT status, expires_at, consumed_at/u);
 assert.match(store, /consumption_outcome_unknown/u);
 assert.match(store, /store_unavailable_code_still_issued/u);
+assert.match(store, /Object\.defineProperty\(error, "oauth_consumption"/u);
+assert.match(store, /throw attachConsumptionReadback\(error/u);
 assert.doesNotMatch(store, /return \{[^}]*jti:/su, "store results must not expose raw JTI");
 
 assert.match(policy, /oauth_token_response_not_committed/u);
