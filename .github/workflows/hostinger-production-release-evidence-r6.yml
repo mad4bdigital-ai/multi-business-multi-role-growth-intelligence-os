@@ -167,7 +167,7 @@ jobs:
           HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
           EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
-          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}/build
+          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6/build
         run: node scripts/hostinger-nodejs-build-evidence.mjs
 
       - name: Fetch bounded public runtime topology
