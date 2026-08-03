@@ -19,7 +19,7 @@ env:
   EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-97e4ee7e-20260804-v3
   EXPECTED_VALIDATOR_REF: gpt/exact-repository-write-prerequisite-arm-validation-5927-v1
   CANONICAL_PR_NUMBER: '5927'
-  EVIDENCE_DIR: ${{ runner.temp }}/exact-repository-write-prerequisite-arm-validation-5927
+  EVIDENCE_DIR: /tmp/exact-repository-write-prerequisite-arm-validation-5927
 
 jobs:
   exact-candidate:
