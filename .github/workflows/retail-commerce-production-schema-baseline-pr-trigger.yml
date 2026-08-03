@@ -1,0 +1,353 @@
+name: Retail Commerce Production Schema Baseline PR Trigger
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: retail-commerce-production-schema-baseline-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  production-schema-baseline:
+    name: Collect PR-triggered SELECT-only Production schema evidence
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.id == 271942579 &&
+      github.event.pull_request.draft == true &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/retail-commerce-production-schema-baseline-trigger-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_CONNECTION_LIMIT: "1"
+      DB_CONNECT_TIMEOUT_MS: "10000"
+      TRIGGER_PATH: .github/ops/retail-commerce-production-schema-baseline-trigger.json
+      REQUIRED_CONFIRMATION: READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE
+
+    steps:
+      - name: Checkout exact trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Initialize bounded evidence report
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/retail-commerce-production-schema-baseline"
+          report_path="${report_dir}/retail-commerce-production-schema-baseline.json"
+          mkdir -p "${report_dir}"
+          jq -n \
+            --arg base_sha "${BASE_SHA}" \
+            --arg trigger_sha "${HEAD_SHA}" \
+            --arg trigger_branch "${HEAD_REF}" \
+            '{
+              contract: "mad4b.retail-commerce-production-schema-baseline-evidence.v1",
+              generated_at: (now | todateiso8601),
+              status: "initialized",
+              source_repository_sha: $base_sha,
+              execution_current_main_sha: $base_sha,
+              non_executable_main_drift_accepted: false,
+              accepted_main_drift_files: [],
+              trigger_sha: $trigger_sha,
+              trigger_branch: $trigger_branch,
+              authoritative_database_connection_succeeded: false,
+              baseline_collected: false,
+              parity_status: "not_collected",
+              gaps: [],
+              missing_secret_bindings: [],
+              safety: {
+                select_only: true,
+                row_data_read: false,
+                freeform_sql_accepted: false,
+                migration_dry_run: false,
+                migration_apply: false,
+                database_mutation: false,
+                provider_call: false,
+                credential_values_returned: false,
+                external_send: false,
+                secrets_included: false
+              }
+            }' > "${report_path}"
+          echo "REPORT_PATH=${report_path}" >> "${GITHUB_ENV}"
+
+      - name: Verify trigger scope and immutable read-only binding
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${BASE_SHA}"
+
+          current_main_sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          drift_accepted=false
+          accepted_drift_files='[]'
+
+          if [[ "${current_main_sha}" != "${BASE_SHA}" ]]; then
+            comparison_json="${RUNNER_TEMP}/retail-commerce-main-drift.json"
+            gh api "/repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${current_main_sha}" > "${comparison_json}"
+            jq -e --arg base "${BASE_SHA}" '
+              .status == "ahead" and
+              .merge_base_commit.sha == $base and
+              .behind_by == 0 and
+              (.ahead_by >= 1 and .ahead_by <= 20) and
+              (.total_commits >= 1 and .total_commits <= 20) and
+              (.files | type == "array") and
+              all(.files[].filename; . == "docs/repo-maintenance-status.md")
+            ' "${comparison_json}" >/dev/null
+            accepted_drift_files="$(jq -c '[.files[].filename]' "${comparison_json}")"
+            drift_accepted=true
+          fi
+
+          jq \
+            --arg current_main_sha "${current_main_sha}" \
+            --argjson drift_accepted "${drift_accepted}" \
+            --argjson accepted_drift_files "${accepted_drift_files}" \
+            '.execution_current_main_sha = $current_main_sha
+             | .non_executable_main_drift_accepted = $drift_accepted
+             | .accepted_main_drift_files = $accepted_drift_files' \
+            "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+          mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
+
+          mapfile -t changed_files < <(gh api --paginate "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
+          test "${#changed_files[@]}" -eq 1
+          test "${changed_files[0]}" = "${TRIGGER_PATH}"
+
+          trigger_json="${RUNNER_TEMP}/retail-commerce-schema-trigger.json"
+          gh api "/repos/${GITHUB_REPOSITORY}/contents/${TRIGGER_PATH}?ref=${HEAD_SHA}" --jq '.content' \
+            | tr -d '\n' | base64 --decode > "${trigger_json}"
+
+          jq -e '
+            .contract == "mad4b.retail-commerce-production-schema-baseline-trigger.v1" and
+            .expected_main_sha == $base and
+            .expected_trigger_branch == $head_ref and
+            .confirmation == $confirmation and
+            (.trigger_nonce | type == "string" and length >= 16) and
+            .select_only == true and
+            .row_data_read == false and
+            .freeform_sql_accepted == false and
+            .migration_dry_run == false and
+            .migration_apply == false and
+            .database_mutation == false and
+            .provider_call == false and
+            .credential_values_returned == false and
+            .external_send == false and
+            .secrets_included == false
+          ' --arg base "${BASE_SHA}" --arg head_ref "${HEAD_REF}" --arg confirmation "${REQUIRED_CONFIRMATION}" "${trigger_json}" >/dev/null
+
+          echo "BASELINE_SOURCE_SHA=${BASE_SHA}" >> "${GITHUB_ENV}"
+          echo "EXECUTION_CURRENT_MAIN_SHA=${current_main_sha}" >> "${GITHUB_ENV}"
+          echo "NON_EXECUTABLE_MAIN_DRIFT_ACCEPTED=${drift_accepted}" >> "${GITHUB_ENV}"
+          echo "ACCEPTED_MAIN_DRIFT_FILES=${accepted_drift_files}" >> "${GITHUB_ENV}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Prove collector and trigger fail-closed contracts
+        working-directory: http-generic-api
+        run: |
+          node test-retail-commerce-production-schema-baseline.mjs
+          node test-retail-commerce-production-schema-baseline-pr-trigger.mjs
+
+      - name: Preflight Production database secret bindings
+        id: db_preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in DB_HOST DB_NAME DB_USER DB_PASSWORD; do
+            if [[ -z "${!key:-}" ]]; then
+              missing+=("${key}")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            missing_json="$(printf '%s\n' "${missing[@]}" | jq -R . | jq -s .)"
+            jq \
+              --arg status "blocked_missing_secret_bindings" \
+              --argjson missing_secret_bindings "${missing_json}" \
+              '.status = $status
+               | .missing_secret_bindings = $missing_secret_bindings
+               | .authoritative_database_connection_succeeded = false
+               | .baseline_collected = false
+               | .parity_status = "not_collected"
+               | .safety.credential_values_returned = false
+               | .safety.secrets_included = false' \
+              "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+            mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+            printf 'Missing Production DB secret binding: %s\n' "${missing[@]}"
+            exit 0
+          fi
+
+          jq \
+            '.status = "credential_bindings_available"
+             | .missing_secret_bindings = []' \
+            "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+          mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
+          echo "ready=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Collect authoritative Production schema and migration-ledger baseline
+        id: collect
+        if: steps.db_preflight.outputs.ready == 'true'
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/retail-commerce-production-schema-baseline.mjs --report="${REPORT_PATH}"
+          jq \
+            --arg sha "${BASELINE_SOURCE_SHA}" \
+            --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" \
+            --argjson drift_accepted "${NON_EXECUTABLE_MAIN_DRIFT_ACCEPTED}" \
+            --argjson accepted_drift_files "${ACCEPTED_MAIN_DRIFT_FILES}" \
+            '.source_repository_sha = $sha
+             | .execution_current_main_sha = $current_main_sha
+             | .non_executable_main_drift_accepted = $drift_accepted
+             | .accepted_main_drift_files = $accepted_drift_files' \
+            "${REPORT_PATH}" > "${REPORT_PATH}.tmp"
+          mv "${REPORT_PATH}.tmp" "${REPORT_PATH}"
+
+      - name: Ensure bounded evidence report exists
+        if: always()
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if [[ ! -s "${REPORT_PATH}" ]]; then
+            jq -n \
+              --arg base_sha "${BASE_SHA}" \
+              --arg trigger_sha "${HEAD_SHA}" \
+              --arg trigger_branch "${HEAD_REF}" \
+              '{
+                contract: "mad4b.retail-commerce-production-schema-baseline-evidence.v1",
+                generated_at: (now | todateiso8601),
+                status: "report_recovery_required",
+                source_repository_sha: $base_sha,
+                execution_current_main_sha: $base_sha,
+                non_executable_main_drift_accepted: false,
+                accepted_main_drift_files: [],
+                trigger_sha: $trigger_sha,
+                trigger_branch: $trigger_branch,
+                authoritative_database_connection_succeeded: false,
+                baseline_collected: false,
+                parity_status: "not_collected",
+                gaps: [],
+                missing_secret_bindings: [],
+                safety: {
+                  select_only: true,
+                  row_data_read: false,
+                  freeform_sql_accepted: false,
+                  migration_dry_run: false,
+                  migration_apply: false,
+                  database_mutation: false,
+                  provider_call: false,
+                  credential_values_returned: false,
+                  external_send: false,
+                  secrets_included: false
+                }
+              }' > "${REPORT_PATH}"
+          fi
+
+      - name: Publish bounded evidence summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq '{
+            contract,
+            generated_at,
+            status,
+            source_repository_sha,
+            execution_current_main_sha,
+            non_executable_main_drift_accepted,
+            accepted_main_drift_files,
+            authoritative_database_connection_succeeded,
+            baseline_collected,
+            parity_status,
+            gap_count:(.gaps|length? // 0),
+            missing_secret_bindings,
+            safety
+          }' "${REPORT_PATH}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Production schema baseline Artifact
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retail-commerce-production-schema-baseline-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.base.sha }}
+          path: ${{ runner.temp }}/retail-commerce-production-schema-baseline
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail closed after publishing evidence
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_READY: ${{ steps.db_preflight.outputs.ready }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+        run: |
+          set -euo pipefail
+          test -s "${REPORT_PATH}"
+          test "${UPLOAD_OUTCOME}" = "success"
+
+          if [[ "${PREFLIGHT_READY}" != "true" ]]; then
+            jq -e '
+              .status == "blocked_missing_secret_bindings" and
+              (.missing_secret_bindings | type == "array" and length > 0) and
+              .authoritative_database_connection_succeeded == false and
+              .baseline_collected == false and
+              .safety.credential_values_returned == false and
+              .safety.secrets_included == false
+            ' "${REPORT_PATH}" >/dev/null
+            echo "Production schema evidence is blocked by missing secret bindings; bounded evidence was uploaded."
+            exit 1
+          fi
+
+          test "${COLLECT_OUTCOME}" = "success"
+          jq -e --arg sha "${BASELINE_SOURCE_SHA}" --arg current_main_sha "${EXECUTION_CURRENT_MAIN_SHA}" '
+            .source_repository_sha == $sha and
+            .execution_current_main_sha == $current_main_sha and
+            (.non_executable_main_drift_accepted | type == "boolean") and
+            (.accepted_main_drift_files | type == "array") and
+            .authoritative_database_connection_succeeded == true and
+            .baseline_collected == true and
+            .safety.select_only == true and
+            .safety.row_data_read == false and
+            .safety.migration_apply == false and
+            .safety.database_mutation == false and
+            .safety.secrets_included == false
+          ' "${REPORT_PATH}" >/dev/null
