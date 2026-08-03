@@ -2,3 +2,4 @@ Trigger full exact-head ARM validation for canonical PR #5990.
 Retry after removing unsupported completion-gate flags.
 Retry with isolated governance steps and main-bound Spec Kit diff.
 Run OAuth baseline dependency-injection diagnostic.
+Capture patched OAuth diagnostic output independently.
