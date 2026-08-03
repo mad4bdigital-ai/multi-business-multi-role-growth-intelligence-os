@@ -7,15 +7,15 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  work-map-diagnostic:
-    name: Exact Work Map Generator Diagnostic
+  publish-work-maps:
+    name: Publish bounded canonical Work Maps
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
@@ -25,13 +25,13 @@ jobs:
     env:
       EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
       EXPECTED_HEAD_SHA: 40b391871fa3ee361e954bf4db2084daf1b7da9a
+      TARGET_BRANCH: gpt/work-map-phase-g-schema-classification-20260803
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact candidate branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: gpt/work-map-phase-g-schema-classification-20260803
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -40,84 +40,74 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify immutable identity and exact scope
+      - name: Verify immutable identity and source scope
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          cat > /tmp/expected.txt <<'EOF'
+          cat > /tmp/expected-source-files.txt <<'EOF'
           .specify/work-map-schema-classification-registry.json
           http-generic-api/test-work-map-schema-classification.mjs
           specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json
           EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | sort > /tmp/actual.txt
-          diff -u /tmp/expected.txt /tmp/actual.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-source-files.txt
+          diff -u /tmp/expected-source-files.txt /tmp/actual-source-files.txt
           test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Capture two-pass Work Map generation
+      - name: Generate twice and enforce exact generated scope
         shell: bash
         run: |
-          set -uo pipefail
-          report="${RUNNER_TEMP}/work-map-diagnostic.txt"
-          pass1_diff="${RUNNER_TEMP}/work-map-pass1.diff"
-          pass2_diff="${RUNNER_TEMP}/work-map-pass2.diff"
-          : > "${report}"
-          : > "${pass1_diff}"
-          : > "${pass2_diff}"
+          set -euo pipefail
+          cat > /tmp/expected-generated-files.txt <<'EOF'
+          docs/work-maps/README.md
+          docs/work-maps/activation-access-map.md
+          docs/work-maps/connector-provider-map.md
+          docs/work-maps/data-model-domain-map.md
+          docs/work-maps/delivery-support-map.md
+          docs/work-maps/observability-release-map.md
+          docs/work-maps/platform-resource-graph-map.md
+          docs/work-maps/policy-authority-map.md
+          docs/work-maps/repository-automation-map.md
+          docs/work-maps/work-map-coverage-matrix.md
+          docs/work-maps/workflow-task-orchestration-map.md
+          EOF
 
-          echo '===== BEFORE =====' | tee -a "${report}"
-          git status --porcelain --untracked-files=all | tee -a "${report}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write | tee /tmp/work-map-pass1.json
+          grep -q '"ok": true' /tmp/work-map-pass1.json
+          grep -q '"secrets_included": false' /tmp/work-map-pass1.json
+          git diff --name-only | LC_ALL=C sort > /tmp/actual-generated-files.txt
+          diff -u /tmp/expected-generated-files.txt /tmp/actual-generated-files.txt
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
 
-          echo '===== PASS 1 =====' | tee -a "${report}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee -a "${report}"
-          pass1_rc=${PIPESTATUS[0]}
-          echo "pass1_exit=${pass1_rc}" | tee -a "${report}"
-          git status --porcelain --untracked-files=all | tee -a "${report}"
-          echo '--- names ---' | tee -a "${report}"
-          git diff --name-status | tee -a "${report}"
-          echo '--- numstat ---' | tee -a "${report}"
-          git diff --numstat | tee -a "${report}"
-          echo '--- stat ---' | tee -a "${report}"
-          git diff --stat | tee -a "${report}"
-          git diff --binary -- docs/work-maps > "${pass1_diff}"
-          pass1_hash="$(sha256sum "${pass1_diff}" | awk '{print $1}')"
-          echo "pass1_diff_sha256=${pass1_hash}" | tee -a "${report}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write | tee /tmp/work-map-pass2.json
+          grep -q '"ok": true' /tmp/work-map-pass2.json
+          grep -q '"secrets_included": false' /tmp/work-map-pass2.json
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          grep -q '"drift_files": \[\]' /tmp/work-map-pass2.json
 
-          echo '===== PASS 2 =====' | tee -a "${report}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee -a "${report}"
-          pass2_rc=${PIPESTATUS[0]}
-          echo "pass2_exit=${pass2_rc}" | tee -a "${report}"
-          git status --porcelain --untracked-files=all | tee -a "${report}"
-          git diff --binary -- docs/work-maps > "${pass2_diff}"
-          pass2_hash="$(sha256sum "${pass2_diff}" | awk '{print $1}')"
-          echo "pass2_diff_sha256=${pass2_hash}" | tee -a "${report}"
-          if [ "${pass1_hash}" = "${pass2_hash}" ]; then echo 'two_pass_idempotent=yes' | tee -a "${report}"; else echo 'two_pass_idempotent=no' | tee -a "${report}"; fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee /tmp/work-map-check.json
+          grep -q '"ok": true' /tmp/work-map-check.json
+          grep -q '"drift_files": \[\]' /tmp/work-map-check.json
+          grep -q '"secrets_included": false' /tmp/work-map-check.json
+          git diff --check
+          git diff --name-only | LC_ALL=C sort > /tmp/final-generated-files.txt
+          diff -u /tmp/expected-generated-files.txt /tmp/final-generated-files.txt
+          test -z "$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -v '^docs/work-maps/' || true)"
 
-          echo '===== CHECK MODE =====' | tee -a "${report}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check 2>&1 | tee -a "${report}"
-          check_rc=${PIPESTATUS[0]}
-          echo "check_exit=${check_rc}" | tee -a "${report}"
-
-          echo '===== FINAL =====' | tee -a "${report}"
-          git status --porcelain --untracked-files=all | tee -a "${report}"
-          git diff --name-status | tee -a "${report}"
-          git diff --numstat | tee -a "${report}"
-          gzip -9 -f "${pass1_diff}" "${pass2_diff}"
-
-      - name: Upload bounded Work Map diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: exact-work-map-diagnostic-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/work-map-diagnostic.txt
-            ${{ runner.temp }}/work-map-pass1.diff.gz
-            ${{ runner.temp }}/work-map-pass2.diff.gz
-          if-no-files-found: error
-          retention-days: 14
+      - name: Commit and push generated Work Maps without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/work-maps
+          git diff --cached --quiet && { echo 'No canonical Work Map refresh to commit'; exit 1; }
+          git commit -m "docs(work-map): regenerate Phase G classification maps"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
