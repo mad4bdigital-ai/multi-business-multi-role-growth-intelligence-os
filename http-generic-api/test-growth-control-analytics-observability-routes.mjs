@@ -67,8 +67,20 @@ let backendChecks = 0;
 let adminChecks = 0;
 function requireBackendApiKey(req, res, next) {
   backendChecks += 1;
-  if (req.headers["x-api-key"] !== "test-backend") return res.status(401).json({ error: { code: "missing_backend_api_key", message: "Missing backend key.", details: [], requestId: "test" }, secretsIncluded: false });
-  return next();
+  const bearer = String(req.headers.authorization || "").match(/^Bearer\s+([^\s]+)$/i)?.[1] || "";
+  if (req.headers["x-api-key"] === "test-backend" || bearer === "test-backend") {
+    req.auth = { mode: "backend_api_key", principal_id: "admin-1", is_admin: true };
+    return next();
+  }
+  if (bearer === "test-user-jwt") {
+    req.auth = { mode: "user_jwt", user_id: "user-1", tenant_id: "tenant-1", is_admin: false };
+    return next();
+  }
+  if (bearer === "pk_test0001_credential") {
+    req.auth = { mode: "api_credential", user_id: "user-1", tenant_id: "tenant-1", is_admin: false };
+    return next();
+  }
+  return res.status(401).json({ error: { code: "missing_backend_api_key", message: "Missing backend key.", details: [], requestId: "test" }, secretsIncluded: false });
 }
 function requireAdminPrincipal(req, res, next) {
   adminChecks += 1;
@@ -80,7 +92,6 @@ const app = express();
 app.use(express.json());
 app.use((req, _res, next) => {
   if (req.path.startsWith("/tenant/")) req.auth = { mode: "user_jwt", user_id: "user-1", tenant_id: "tenant-1", is_admin: false };
-  else req.auth = { mode: "backend_api_key", principal_id: "admin-1", is_admin: true };
   next();
 });
 app.use(buildDynamicGrowthControlPlaneRoutes({
@@ -97,11 +108,15 @@ await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 const base = `http://127.0.0.1:${address.port}`;
 async function request(path, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (!path.startsWith("/tenant/")) headers["x-api-key"] = headers["x-api-key"] || "test-backend";
-  if (options.body && !headers["content-type"]) headers["content-type"] = "application/json";
-  return fetch(`${base}${path}`, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
+  const { backendAuth = true, ...fetchOptions } = options;
+  const headers = { ...(fetchOptions.headers || {}) };
+  if (!path.startsWith("/tenant/") && backendAuth && !headers.authorization) headers["x-api-key"] = headers["x-api-key"] || "test-backend";
+  if (fetchOptions.body && !headers["content-type"]) headers["content-type"] = "application/json";
+  return fetch(`${base}${path}`, { ...fetchOptions, headers, body: fetchOptions.body ? JSON.stringify(fetchOptions.body) : undefined });
 }
+
+const sampleBody = { sampleId: "sample-1", metricKey: "growth_control.read_catalog.availability", environment: "development", value: 1, observedAt: "2026-07-31T00:00:00.000Z", sourceEvidenceSha256: "a".repeat(64) };
+const decisionEvidenceBody = { requestId: "request-1", traceId: "trace-1", gateResults: [], reasonCodes: [], durationMs: 1, resultClassification: "applied", readbackStatus: "confirmed" };
 
 try {
   let response = await request("/admin/control-plane/analytics/kpis?normalizedKpiKeys=portfolio.revenue");
@@ -126,10 +141,32 @@ try {
   const tenantHealthCall = calls.find((item) => item[0] === "projectTenantOperationalHealth");
   assert.equal(tenantHealthCall[2].includePortfolio, true);
 
+  const samplesBeforeRejectedUser = calls.filter((item) => item[0] === "recordObservabilitySample").length;
+  response = await request("/internal/control-plane/operations/samples", {
+    method: "POST",
+    backendAuth: false,
+    headers: { authorization: "Bearer test-user-jwt", "idempotency-key": "sample-user-jwt-rejected" },
+    body: sampleBody,
+  });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "BACKEND_SERVICE_AUTH_REQUIRED");
+  assert.equal(calls.filter((item) => item[0] === "recordObservabilitySample").length, samplesBeforeRejectedUser);
+
+  const observationsBeforeRejectedCredential = calls.filter((item) => item[0] === "recordMetricObservation").length;
+  response = await request("/internal/control-plane/analytics/observations", {
+    method: "POST",
+    backendAuth: false,
+    headers: { authorization: "Bearer pk_test0001_credential", "idempotency-key": "observation-api-credential-rejected" },
+    body: {},
+  });
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "BACKEND_SERVICE_AUTH_REQUIRED");
+  assert.equal(calls.filter((item) => item[0] === "recordMetricObservation").length, observationsBeforeRejectedCredential);
+
   response = await request("/internal/control-plane/operations/samples", {
     method: "POST",
     headers: { "idempotency-key": "sample-route-1" },
-    body: { sampleId: "sample-1", metricKey: "growth_control.read_catalog.availability", environment: "development", value: 1, observedAt: "2026-07-31T00:00:00.000Z", sourceEvidenceSha256: "a".repeat(64) },
+    body: sampleBody,
   });
   assert.equal(response.status, 201);
   const sampleCall = calls.find((item) => item[0] === "recordObservabilitySample");
@@ -137,8 +174,9 @@ try {
 
   response = await request("/internal/control-plane/operations/decision-evidence", {
     method: "POST",
-    headers: { "idempotency-key": "evidence-route-1" },
-    body: { requestId: "request-1", traceId: "trace-1", gateResults: [], reasonCodes: [], durationMs: 1, resultClassification: "applied", readbackStatus: "confirmed" },
+    backendAuth: false,
+    headers: { authorization: "Bearer test-backend", "idempotency-key": "evidence-route-1" },
+    body: decisionEvidenceBody,
   });
   assert.equal(response.status, 201);
   assert.equal((await response.json()).telemetrySpanRecorded, true);
@@ -168,6 +206,7 @@ assert.deepEqual(openApi.paths["/internal/control-plane/operations/samples"].pos
   { backendBearerAuth: [] },
   { backendApiKeyAuth: [] },
 ]);
+assert.equal(openApi.components.securitySchemes.backendBearerAuth.bearerFormat, "Backend API key");
 const operationIds = Object.values(openApi.paths).flatMap((pathItem) => Object.values(pathItem).map((operation) => operation.operationId));
 assert.equal(new Set(operationIds).size, operationIds.length);
 assert.equal(openApi.components.schemas.AlertProjection.properties.autoRemediationAllowed.const, false);
