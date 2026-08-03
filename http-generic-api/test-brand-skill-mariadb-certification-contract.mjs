@@ -110,7 +110,7 @@ for (const marker of [
   "brand-skill-staging-preflight-execution-3809-v3",
   "TRIGGER_ACTOR_ID: ${{ github.actor_id }}",
   "authorized_marker_push",
-  ".body == \"${AUTHORIZATION_TOKEN}\"",
+  ".body == \\\"${AUTHORIZATION_TOKEN}\\\"",
   "authorization_comment_id=${AUTHORIZATION_COMMENT_ID}",
   ...commonBindingMarkers,
 ]) assert(pushFallback.includes(marker), `push fallback missing ${marker}`);
