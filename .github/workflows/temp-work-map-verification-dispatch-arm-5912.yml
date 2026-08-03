@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912-v2"
           test "$(git rev-parse HEAD)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804:refs/remotes/origin/candidate"
           test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
