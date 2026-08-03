@@ -10,10 +10,13 @@
       ".changes/e2e/ueacp-governed-operational-evidence-cycle.json",
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
-      "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
     ]
   },
@@ -45,7 +48,8 @@
             "Adapt the catalog observation and compose the canonical governed evidence packet.",
             "Scan every available JSON evidence file for regular-file identity, root containment, bounded size, valid JSON, and sensitive values.",
             "Upload evidence only when the independent artifact safety step publishes safe=true.",
-            "Enforce the read-only packet decision after the guarded upload step."
+            "Enforce the read-only packet decision after the guarded upload step.",
+            "Regenerate frontend governance and dispatch artifacts through the governed generated-artifact refresh workflow when test-manifest identity changes."
           ],
           "assertions": [
             "Pull requests run only contract tests and cannot execute the live job.",
@@ -58,6 +62,7 @@
             "No artifact is uploaded when no evidence exists or any evidence file is malformed, sensitive, escaped, unsafe, or oversized.",
             "The live observer remains SELECT/WITH/SHOW-only and performs same-cycle readback.",
             "The packet keeps T001 and T002 incomplete and migration_apply_authorized false.",
+            "Generated frontend artifacts are refreshed only by the governed expected-head workflow and OpenAPI remains unchanged when its blob already matches.",
             "No SQL mutation, provider call outside the explicitly approved observer, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
           ],
           "tests": [
@@ -72,7 +77,10 @@
           "evidence_paths": [
             ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
             "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
           ]
         }
