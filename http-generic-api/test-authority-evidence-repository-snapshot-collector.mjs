@@ -209,6 +209,27 @@ function expectCode(fn, code) {
 
 {
   const fixture = createFixture();
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-evidence-linked-directory-"));
+  try {
+    const originalBinding = fixture.manifest.sources[0];
+    const originalPath = path.join(fixture.root, originalBinding.source_file);
+    const sourceText = fs.readFileSync(originalPath, "utf8");
+    const linkedSourceFile = "linked/source.json";
+    fs.writeFileSync(path.join(externalRoot, "source.json"), sourceText);
+    fs.symlinkSync(externalRoot, path.join(fixture.root, "linked"), "dir");
+    const manifest = structuredClone(fixture.manifest);
+    manifest.sources[0].source_file = linkedSourceFile;
+    manifest.sources[0].content_sha256 = sha256Text(sourceText);
+    fixture.blobByFile.set(linkedSourceFile, originalBinding.blob_sha);
+    expectCode(() => collect(fixture, manifest), "authority_evidence_repository_source_path_escape");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
   try {
     const sourcePath = path.join(fixture.root, fixture.manifest.sources[0].source_file);
     fs.writeFileSync(sourcePath, Buffer.alloc((8 * 1024 * 1024) + 1, 0x20));
