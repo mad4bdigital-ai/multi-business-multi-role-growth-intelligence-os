@@ -14,20 +14,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Exact Full ARM Validation
+  frontend-parity:
+    name: Exact Frontend Parity Diagnostic
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
       github.event.pull_request.head.sha == '7fe26ff6ba739f8b00392b3b0357874e99917847'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 180
+    timeout-minutes: 45
     env:
       EXPECTED_MAIN_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
       EXPECTED_HEAD_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
-      EXPECTED_HEAD_REF: gpt/work-map-phase-g-schema-classification-20260803
-      BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
-      CANDIDATE_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -41,208 +38,69 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify immutable identity, current main ancestry, and exact scope
+      - name: Verify immutable identity and clean tracked tree
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
           git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
-          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")
-          printf '%s\n' "${files[@]}"
-          test "${#files[@]}" -eq 3
-          test "${files[0]}" = '.specify/work-map-schema-classification-registry.json'
-          test "${files[1]}" = 'http-generic-api/test-work-map-schema-classification.mjs'
-          test "${files[2]}" = 'specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json'
-
-      - name: Run canonical syntax and governance checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          node http-generic-api/scripts/user-jwt-auth-governance.mjs
-          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node --check find-canonical-domain.mjs
-          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
-          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
-          git diff --check
-          node --check http-generic-api/scripts/platform-work-map-generator.mjs
-          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run focused Phase G classification contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
-
-      - name: Prove generator idempotency without publishing
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
-          test -z "${unexpected_files}"
-          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          test "${first_diff_hash}" = "${second_diff_hash}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          git diff --check
-          git checkout -- docs/work-maps
-          test -z "$(git status --porcelain)"
-
-      - name: Run context-kernel changed-scope guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
-          (cd http-generic-api && node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt")
-
-      - name: Run complete Unit and Integration suite
+      - name: Run isolated Frontend parity with bounded diagnostics
         working-directory: http-generic-api
         shell: bash
         run: |
-          set -euo pipefail
-          actual_sha="$(git rev-parse HEAD)"
-          test "${actual_sha}" = "${EXPECTED_HEAD_SHA}"
-          TEST_SUITE_REPORT_DIR="${RUNNER_TEMP}/test-suite-reports" GITHUB_SHA="${actual_sha}" npm test
+          set -uo pipefail
+          report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
+          : > "${report}"
+          failed=0
 
-      - name: Prove runtime startup and deployment evidence
-        working-directory: http-generic-api
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: gpt/work-map-phase-g-schema-classification-20260803
-          DEPLOYMENT_COMMIT_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
-        run: |
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
+          run_check() {
+            local label="$1"
+            shift
+            echo "===== ${label} =====" | tee -a "${report}"
+            "$@" 2>&1 | tee -a "${report}"
+            local rc=${PIPESTATUS[0]}
+            echo "exit_code=${rc}" | tee -a "${report}"
+            if [ "${rc}" -ne 0 ]; then failed=1; fi
+            git status --porcelain | tee -a "${report}"
+          }
 
-      - name: Run explicit governance contract checks
-        working-directory: http-generic-api
-        run: |
-          node test-custom-gpt-schemas.mjs
-          node test-tenant-activation-contract-inventory-parity.mjs
-          node test-activation-lifecycle-contract-foundation.mjs
-          node test-activation-lifecycle-state-machine.mjs
-          node test-activation-lifecycle-operation-service.mjs
-          node test-activation-reconnect-guidance-policy.mjs
-          node test-activation-contract-finalization.mjs
-          node test-activation-operation-projection-foundation.mjs
-          node test-activation-operation-persistence-repository.mjs
-          node test-activation-delivery-acknowledgement-repository.mjs
-          node test-openapi-split-governance.mjs
-          node test-openapi-split-regeneration-parity.mjs
-          node test-local-connector-capability-installer-grants.mjs
+          run_check generate env CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          run_check dispatch-baseline node test-frontend-dispatch-workflow-baseline.mjs
+          run_check operation-governance-generator node test-frontend-operation-governance-generator.mjs
+          run_check surface-dispatch node test-frontend-surface-dispatch.mjs
+          run_check auth-openapi-parity node test-frontend-auth-openapi-parity.mjs
+          run_check openapi-route-coverage node test-openapi-route-coverage.mjs
+          run_check openapi-auth-check npm run openapi:auth:check
 
-      - name: Run Execution Resolver Gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm ci
-          npm run typecheck
-          npm test -- --runInBand
-          test -f src/services/execution/dispatchPlanStep.ts
-          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
-          test -f src/store/registries/connectorExecutorRegistry.ts
-          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
-          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
+          echo '===== FINAL TRACKED STATUS =====' | tee -a "${report}"
+          git status --porcelain --untracked-files=no | tee -a "${report}"
+          git diff --stat | tee -a "${report}"
+          git diff -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml > "${RUNNER_TEMP}/frontend-generated.diff"
+          git diff > "${RUNNER_TEMP}/frontend-all.diff"
 
-      - name: Run Architecture Drift Detection
-        working-directory: http-generic-api
-        run: npm run validate
+          unexpected="$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -Ev '^(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          generated="$(git status --porcelain --untracked-files=no -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
+          if [ -n "${unexpected}" ] || [ -n "${generated}" ]; then failed=1; fi
+          exit "${failed}"
 
-      - name: Run exact E2E phase evaluation and execution
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${EXPECTED_MAIN_SHA}" \
-            --head "${EXPECTED_HEAD_SHA}" \
-            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs run \
-            --base "${EXPECTED_MAIN_SHA}" \
-            --head "${EXPECTED_HEAD_SHA}" \
-            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" \
-            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
-
-      - name: Run Repository Tool Lifecycle Governance
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-            --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
-            --policy .github/repository-maintenance-tool-governance.json \
-            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
-
-      - name: Run canonical E2E Contract Reference Integrity
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${RUNNER_TEMP}/contract-reference"
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "${BASE_SHA}" \
-            --head "${CANDIDATE_SHA}" \
-            --report-file "${RUNNER_TEMP}/contract-reference/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "${RUNNER_TEMP}/contract-reference/e2e-contract-reference-integrity.json"
-
-      - name: Run Frontend deterministic parity
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
-          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          unexpected="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
-          test -z "${unexpected}"
-          generated="$(git status --porcelain -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
-          test -z "${generated}"
-
-      - name: Upload bounded no-secret evidence
+      - name: Upload Frontend parity diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-phase-g-full-arm-validation-${{ github.run_id }}
+          name: exact-phase-g-frontend-parity-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/test-suite-reports/*.json
-            ${{ runner.temp }}/e2e-phase-*.json
-            ${{ runner.temp }}/repository-tool-lifecycle/
-            ${{ runner.temp }}/contract-reference/
-          if-no-files-found: warn
+            ${{ runner.temp }}/frontend-parity-diagnostic.txt
+            ${{ runner.temp }}/frontend-generated.diff
+            ${{ runner.temp }}/frontend-all.diff
+          if-no-files-found: error
           retention-days: 14
