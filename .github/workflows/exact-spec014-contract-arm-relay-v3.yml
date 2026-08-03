@@ -1,0 +1,171 @@
+name: Exact Spec014 Contract ARM Relay V3
+
+on:
+  push:
+    branches:
+      - gpt/validate-spec014-contract-arm-base-773179a2-v1
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: exact-spec014-contract-arm-relay-v3
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    env:
+      BASE_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      HEAD_SHA: c09051e8ff4628acf8029119ed1b16e3b0210335
+      HEAD_REF: gpt/fix-spec014-schema-contract-rule-scope-20260804
+      TARGET_PATH: .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+      REPORT_DIR: ${{ runner.temp }}/spec014-relay
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity
+        id: identity
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$HEAD_REF)" = "$HEAD_SHA"
+          test "$(git rev-parse "$HEAD_SHA^1")" = "$BASE_SHA"
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "$TARGET_PATH"
+
+      - name: Install dependencies
+        if: steps.identity.outcome == 'success'
+        run: |
+          npm ci
+          npm ci --prefix http-generic-api
+
+      - name: Validate Spec014 and canonical contracts
+        id: contracts
+        if: steps.identity.outcome == 'success'
+        continue-on-error: true
+        run: |
+          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
+      - name: Run complete Unit and Integration suite
+        id: unit
+        if: steps.identity.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: GITHUB_SHA="$HEAD_SHA" npm test
+
+      - name: Verify test provenance
+        id: provenance
+        if: steps.identity.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in "$RUNNER_TEMP/test-suite-reports/test-manifest.json" "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test "$(jq -r '.status' "$report")" = passed
+            test "$(jq -r '.commitSha' "$report")" = "$HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = null
+            test "$(jq -r '.secretsIncluded' "$report")" = false
+          done
+
+      - name: Run runtime, lifecycle, resolver and architecture
+        id: governance
+        if: steps.identity.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          node http-generic-api/test-server-startup-smoke.mjs
+          node http-generic-api/test-hostinger-root-entrypoint.mjs
+          node http-generic-api/test-hostinger-storage-execution-authorization.mjs
+          node http-generic-api/test-hostinger-storage-control-plane-repository.mjs
+          node http-generic-api/test-hostinger-storage-shared-canary.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          npm run typecheck
+          npm test -- --runInBand
+          (cd http-generic-api && npm run validate)
+
+      - name: Run E2E evaluation and execution
+        id: e2e
+        if: steps.identity.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$BASE_SHA" --head "$HEAD_SHA" --report-file "$REPORT_DIR/e2e-check.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$BASE_SHA" --head "$HEAD_SHA" --report-file "$REPORT_DIR/e2e-run.json" --execution-report-file "$REPORT_DIR/e2e-execution.json"
+
+      - name: Publish exact-head checkpoint
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IDENTITY: ${{ steps.identity.outcome }}
+          CONTRACTS: ${{ steps.contracts.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          PROVENANCE: ${{ steps.provenance.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          result=failure
+          if [[ "$IDENTITY" = success && "$CONTRACTS" = success && "$UNIT" = success && "$PROVENANCE" = success && "$GOVERNANCE" = success && "$E2E" = success ]]; then result=success; fi
+          body=$(cat <<EOF
+          ## Exact Spec014 ARM validation v3
+
+          - candidate: \`$HEAD_SHA\`
+          - base: \`$BASE_SHA\`
+          - run: \`$GITHUB_RUN_ID\`
+          - result: **$result**
+          - identity: $IDENTITY
+          - contracts: $CONTRACTS
+          - unit/integration: $UNIT
+          - report provenance: $PROVENANCE
+          - runtime/lifecycle/resolver/architecture: $GOVERNANCE
+          - E2E: $E2E
+          - Production mutated: false
+          - deployment/provider/credential/SQL/Migration Apply/database/external send: false
+          - secrets included: false
+          EOF
+          )
+          gh api "repos/$GITHUB_REPOSITORY/issues/5777/comments" -f body="$body"
+          gh api "repos/$GITHUB_REPOSITORY/issues/5787/comments" -f body="$body"
+
+      - name: Enforce success
+        if: always()
+        env:
+          IDENTITY: ${{ steps.identity.outcome }}
+          CONTRACTS: ${{ steps.contracts.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          PROVENANCE: ${{ steps.provenance.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        shell: bash
+        run: |
+          for outcome in "$IDENTITY" "$CONTRACTS" "$UNIT" "$PROVENANCE" "$GOVERNANCE" "$E2E"; do test "$outcome" = success; done
