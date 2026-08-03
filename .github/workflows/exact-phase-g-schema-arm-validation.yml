@@ -16,14 +16,15 @@ jobs:
   validate:
     runs-on: ubuntu-24.04-arm
     env:
-      EXPECTED_HEAD_SHA: 2497c8553c94f02a33cd654d386ce00ef826d8d3
-      EXPECTED_MAIN_SHA: f2bedc488fbbfffe7b87e1c8d00a493edada19f9
+      EXPECTED_HEAD_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
+      EXPECTED_MAIN_SHA: d2feb29071823bc706916387b178bc0429be96d1
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v4
         with:
           ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify immutable identity and scope
         shell: bash
@@ -71,8 +72,16 @@ jobs:
           git diff --check
           git diff --stat -- docs/work-maps
 
-      - name: Validate E2E contract references
+      - name: Validate canonical E2E contract reference integrity
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/validate-e2e-contract-references.mjs
+          mkdir -p artifacts
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file artifacts/e2e-contract-reference-integrity.json
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file artifacts/e2e-contract-reference-integrity.json
