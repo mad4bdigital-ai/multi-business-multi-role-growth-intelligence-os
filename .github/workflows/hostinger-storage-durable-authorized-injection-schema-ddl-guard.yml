@@ -48,6 +48,9 @@ jobs:
         continue-on-error: true
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           node --input-type=module <<'NODE'
           import { appendFileSync, readFileSync } from 'node:fs';
@@ -55,13 +58,17 @@ jobs:
 
           const raw = readFileSync(process.env.PHASE_CONTRACT, 'utf8');
           const contract = JSON.parse(raw);
-          const isGovernedRollup = process.env.BASE_REF === 'main'
-            && contract.feature_key === '014-governed-hostinger-storage-orchestration'
+          const governedContract = contract.feature_key === '014-governed-hostinger-storage-orchestration'
             && contract.delivery_mode === 'multi_pr'
             && contract.parallel_work?.enabled === true
             && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
             && contract.parallel_work?.no_partial_feature_merge === true;
-          const mode = isGovernedRollup ? 'integration' : 'feature';
+          const isGovernedRollup = process.env.BASE_REF === 'main' && governedContract;
+          const isGovernedRelease = process.env.BASE_REF === 'Production'
+            && process.env.HEAD_REF === 'main'
+            && process.env.HEAD_REPOSITORY === process.env.REPOSITORY
+            && governedContract;
+          const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
           const digest = createHash('sha256').update(raw).digest('hex');
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `phase_contract_digest=${digest}\n`);
@@ -110,8 +117,8 @@ jobs:
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
           allowed='^(\.changes/e2e/spec014-durable-authorized-injection-schema-ddl(-rollup-boundary)?\.json|\.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state\.json|\.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state\.sql|\.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard\.yml|http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl(-workflow)?\.mjs)$'
           candidate_mode="${CANDIDATE_MODE:-feature}"
-          [[ "${candidate_mode}" == "feature" || "${candidate_mode}" == "integration" ]]
-          if [[ "${candidate_mode}" != "integration" ]]; then
+          [[ "${candidate_mode}" == "feature" || "${candidate_mode}" == "integration" || "${candidate_mode}" == "release" ]]
+          if [[ "${candidate_mode}" == "feature" ]]; then
             unexpected="$(printf '%s\n' "${changed_files}" | grep -Ev "${allowed}" || true)"
             [[ -z "${unexpected}" ]]
             ! printf '%s\n' "${changed_files}" | grep -E '(^|/)(migrations?|deploy|production|provider)(/|$)'
@@ -165,7 +172,7 @@ jobs:
           except Exception:
             focused = {}
           candidate_mode = os.environ.get('CANDIDATE_MODE') or 'unknown'
-          if candidate_mode not in ('feature', 'integration'):
+          if candidate_mode not in ('feature', 'integration', 'release'):
             failed.insert(0, 'candidate_mode_invalid')
           ddl_matches_registry_sql = (
             stages['module_ddl_parity'] == 'success'
@@ -201,6 +208,7 @@ jobs:
             'contract_local_only': contract_local_only,
             'feature_scope_allowlist_enforced': candidate_mode == 'feature',
             'rollup_scope_allowlist_skipped': candidate_mode == 'integration',
+            'release_scope_allowlist_skipped': candidate_mode == 'release',
             'governed_runtime_migration_promoted': False,
             'migration_apply_authorized': False,
             'live_database_access': False,
