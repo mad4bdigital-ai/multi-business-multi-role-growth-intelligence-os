@@ -93,12 +93,12 @@ jobs:
             && governedContract
             && (directMainRelease || immutableMainSnapshot);
           const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
-          const releaseIdentity = directMainRelease
-            ? 'protected_main'
-            : immutableMainSnapshot
-              ? 'immutable_main_snapshot'
-              : 'none';
-          const modeSource = immutableMainSnapshot
+          const releaseIdentity = isGovernedRelease
+            ? directMainRelease
+              ? 'protected_main'
+              : 'immutable_main_snapshot'
+            : 'none';
+          const modeSource = isGovernedRelease && immutableMainSnapshot
             ? 'governed_phase_contract_and_git_ancestry'
             : 'governed_phase_contract';
           const digest = createHash('sha256').update(raw).digest('hex');
