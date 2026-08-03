@@ -91,7 +91,7 @@ jobs:
                 'Resolve effective resource authority and reject request-side authority injection or cross-Tenant access before mutation.',
                 'Execute through the mounted Tenant route using one canonical repository instance, an expected-SHA-bound immutable plan, append-only approval evidence, one-shot enablement, and the fixed synthetic executor.',
                 'Re-read the exact operation from the same repository and prove completed state, unchanged immutable plan bindings, unchanged append-only approval digests, prepared/result/readback journal phases, and one reconciliation result.',
-                'Bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest while provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets remain disabled.',
+                'Bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest while provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets remain disabled.'
               ],
               assertions: [
                 'The mounted request and post-request readback use the same repository object and operation ID.',
@@ -101,7 +101,7 @@ jobs:
                 'Exactly one reconciliation result matches the Tenant-safe response outcome and result digest.',
                 'The Tenant-safe response is bound to the same operation, run, plan, outcome, and result digest.',
                 'Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.',
-                'Provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets remain false.',
+                'Provider dispatch, live mutation, SQL Apply, deployment, Production readiness, and secrets remain false.'
               ],
               tests: [
                 {
@@ -109,8 +109,8 @@ jobs:
                   runner: 'node',
                   working_directory: 'http-generic-api',
                   path: 'test-hostinger-storage-e2e.mjs',
-                  args: [],
-                },
+                  args: []
+                }
               ],
               evidence_paths: [
                 '.changes/e2e/spec014-mvp-convergence-journey.json',
@@ -118,15 +118,15 @@ jobs:
                 'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
                 'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs',
                 'http-generic-api/hostingerStorageTenantRuntime.js',
-                'http-generic-api/hostingerStorageControlPlaneRepository.js',
-              ],
-            },
+                'http-generic-api/hostingerStorageControlPlaneRepository.js'
+              ]
+            }
           ];
           mvp.safety = {
             synthetic_only: true,
             provider_dispatch_allowed: false,
             production_ready: false,
-            secrets_included: false,
+            secrets_included: false
           };
 
           assert.equal(
@@ -137,21 +137,13 @@ jobs:
           fs.writeFileSync(contractPath, `${JSON.stringify(document)}\n`, 'utf8');
           NODE
 
-      - name: Diagnose shared-operation-state child contract
+      - name: Run exact parent and child proof
         working-directory: http-generic-api
-        run: node test-hostinger-storage-mvp-shared-operation-state.mjs
-
-      - name: Diagnose mounted Tenant route child contract
-        working-directory: http-generic-api
-        run: node test-hostinger-storage-tenant-runtime-route.mjs
-
-      - name: Diagnose durable repository child contract
-        working-directory: http-generic-api
-        run: node test-hostinger-storage-control-plane-repository.mjs
-
-      - name: Run exact shared-state journey
-        working-directory: http-generic-api
-        run: node test-hostinger-storage-e2e.mjs
+        run: |
+          node test-hostinger-storage-mvp-shared-operation-state.mjs
+          node test-hostinger-storage-tenant-runtime-route.mjs
+          node test-hostinger-storage-control-plane-repository.mjs
+          node test-hostinger-storage-e2e.mjs
 
       - name: Enforce one-file final write set
         shell: bash
