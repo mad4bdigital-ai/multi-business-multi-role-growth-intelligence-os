@@ -35,8 +35,11 @@ function buildOpenApiEvidenceIndex() {
     }
   };
   const authority = canonicalOpenApiAuthority({ apiRoot: ROOT });
-  for (const file of authority.files) register(file, 0);
-  register(path.join(ROOT, "openapi", "frontend-runtime-routes.generated.yaml"), 1);
+  const rootOpenApi = path.resolve(ROOT, "openapi.yaml");
+  for (const file of authority.files) {
+    register(file, path.resolve(file) === rootOpenApi ? 0 : 1);
+  }
+  register(path.join(ROOT, "openapi", "frontend-runtime-routes.generated.yaml"), 2);
   return index;
 }
 const OPENAPI_EVIDENCE_INDEX = buildOpenApiEvidenceIndex();
