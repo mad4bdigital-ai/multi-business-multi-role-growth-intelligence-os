@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: hostinger-production-release-evidence-r6-${{ github.event.pull_request.number || github.ref }}
+  group: hostinger-production-release-evidence-r6-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -41,7 +41,6 @@ jobs:
       REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
       REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
 
     steps:
       - name: Checkout exact trusted main tooling
@@ -74,6 +73,7 @@ jobs:
           TRIGGER_JSON="${RUNNER_TEMP}/r6-trigger.json"
           gh api "/repos/${REPOSITORY}/contents/${TRIGGER_PATH}?ref=${HEAD_SHA}" --jq '.content' \
             | tr -d '\n' | base64 --decode > "${TRIGGER_JSON}"
+
           jq -e '
             .contract == "mad4b.hostinger-production-release-evidence-r6-trigger.v2" and
             (.authorization_comment_id | type == "number" and . > 0) and
@@ -145,9 +145,21 @@ jobs:
           echo "trigger_head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
           echo "trigger_branch=${HEAD_REF}" >> "${GITHUB_OUTPUT}"
 
-      - name: Write immutable R6 execution context
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate canonical Hostinger build reporter
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-build-evidence.mjs
+
+      - name: Collect and scrub R6 evidence
+        id: evidence
         shell: bash
         env:
+          EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
           AUTHORIZATION_COMMENT_ID: ${{ steps.binding.outputs.authorization_comment_id }}
           BINDING_ID: ${{ steps.binding.outputs.binding_id }}
           TRIGGER_NONCE: ${{ steps.binding.outputs.trigger_nonce }}
@@ -156,7 +168,8 @@ jobs:
           TRIGGER_BRANCH: ${{ steps.binding.outputs.trigger_branch }}
         run: |
           set -Eeuo pipefail
-          mkdir -p "${EVIDENCE_DIR}"
+          mkdir -p "${EVIDENCE_DIR}/build" "${EVIDENCE_DIR}/topology"
+
           jq -n \
             --arg binding_id "${BINDING_ID}" \
             --argjson authorization_comment_id "${AUTHORIZATION_COMMENT_ID}" \
@@ -171,45 +184,26 @@ jobs:
             '{contract:"mad4b.hostinger-production-release-evidence-r6-context.v1",binding_id:$binding_id,authorization_comment_id:$authorization_comment_id,trigger_nonce:$trigger_nonce,tooling_sha:$tooling_sha,trigger_head_sha:$trigger_head_sha,trigger_branch:$trigger_branch,expected_production_sha:$expected_production_sha,production_merged_at:$production_merged_at,source_run_id:$source_run_id,trigger_pr:$trigger_pr,repository_write_performed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_send_performed:false,secrets_included:false}' \
             > "${EVIDENCE_DIR}/execution-context.json"
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
+          set +e
+          HOSTINGER_ACCOUNT_USERNAME="${ACCOUNT_USERNAME}" \
+          HOSTINGER_NODEJS_DOMAIN="${DOMAIN}" \
+          EXPECTED_PRODUCTION_SHA="${EXPECTED_PRODUCTION_SHA}" \
+          PRODUCTION_MERGED_AT="${PRODUCTION_MERGED_AT}" \
+          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR="${EVIDENCE_DIR}/build" \
+            node http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs
+          REPORTER_EXIT=$?
+          set -e
+          printf '%s\n' "${REPORTER_EXIT}" > "${EVIDENCE_DIR}/build/reporter-exit-code"
 
-      - name: Validate canonical Hostinger build reporter
-        working-directory: http-generic-api
-        run: node scripts/test-hostinger-nodejs-build-evidence.mjs
-
-      - name: Generate authenticated GET-only build evidence
-        id: build_evidence
-        continue-on-error: true
-        working-directory: http-generic-api
-        env:
-          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
-          HOSTINGER_ACCOUNT_USERNAME: ${{ env.ACCOUNT_USERNAME }}
-          HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
-          EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
-          PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
-          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}/build
-        run: node scripts/hostinger-nodejs-build-evidence.mjs
-
-      - name: Fetch bounded public runtime topology
-        id: topology
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          TOPOLOGY_DIR="${EVIDENCE_DIR}/topology"
-          mkdir -p "${TOPOLOGY_DIR}"
           fetch_json() {
-            local name="$1" url="$2" raw="${TOPOLOGY_DIR}/${1}.raw" safe="${TOPOLOGY_DIR}/${1}.json" status rc
+            local name="$1" url="$2" raw="${EVIDENCE_DIR}/topology/${1}.raw" safe="${EVIDENCE_DIR}/topology/${1}.json" status rc
             set +e
             status="$(curl --silent --show-error --max-time 20 --proto '=https' --tlsv1.2 \
               --header 'accept: application/json' --output "${raw}" --write-out '%{http_code}' "${url}")"
             rc=$?
             set -e
             [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
-            printf '%s\n' "${status}" > "${TOPOLOGY_DIR}/${name}.http-status"
+            printf '%s\n' "${status}" > "${EVIDENCE_DIR}/topology/${name}.http-status"
             if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
               jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
             else
@@ -218,12 +212,13 @@ jobs:
             fi
             rm -f "${raw}"
           }
+
           fetch_json health https://auth.mad4b.com/health
           fetch_json version https://auth.mad4b.com/version
           fetch_json deployment-info https://auth.mad4b.com/deployment-info
           fetch_json connector-agent-version https://auth.mad4b.com/connector-agent/version
 
-          node --input-type=module - "${TOPOLOGY_DIR}" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
+          node --input-type=module - "${EVIDENCE_DIR}/topology" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
           import fs from "node:fs";
           import path from "node:path";
           const [directory, expectedSha] = process.argv.slice(2);
@@ -237,7 +232,12 @@ jobs:
           };
           const version = readJson("version");
           const deployment = readJson("deployment-info");
-          const statuses = {health:readStatus("health"),version:readStatus("version"),deployment_info:readStatus("deployment-info"),connector_agent_version:readStatus("connector-agent-version")};
+          const statuses = {
+            health: readStatus("health"),
+            version: readStatus("version"),
+            deployment_info: readStatus("deployment-info"),
+            connector_agent_version: readStatus("connector-agent-version"),
+          };
           const manifest = deployment?.deployment && typeof deployment.deployment === "object" ? deployment.deployment : {};
           const deploymentSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || "").toLowerCase();
           const branch = String(deployment?.branch || manifest?.branch || "");
@@ -245,78 +245,179 @@ jobs:
           const deployedAt = String(deployment?.deployed_at || manifest?.deployed_at || "");
           const versionShas = collectShas(version);
           const checks = {
-            all_http_success:Object.values(statuses).every((status)=>status===200),
-            version_sha_exact:versionShas.includes(expectedSha),
-            deployment_sha_exact:deploymentSha===expectedSha,
-            branch_exact:branch==="Production",
-            branch_source_explicit:branchSource!=="" && !["unavailable","dev_hostname_fallback","derived"].includes(branchSource),
-            canonical_manifest_detected:deployment?.evidence?.canonical_manifest_detected===true || manifest?.present===true,
-            manifest_secret_free:deployment?.evidence?.secrets_included===false,
+            all_http_success: Object.values(statuses).every((status) => status === 200),
+            version_sha_exact: versionShas.includes(expectedSha),
+            deployment_sha_exact: deploymentSha === expectedSha,
+            branch_exact: branch === "Production",
+            branch_source_explicit: branchSource !== "" && !["unavailable", "dev_hostname_fallback", "derived"].includes(branchSource),
+            canonical_manifest_detected: deployment?.evidence?.canonical_manifest_detected === true || manifest?.present === true,
+            manifest_secret_free: deployment?.evidence?.secrets_included === false,
           };
           const productionCurrent = Object.values(checks).every(Boolean);
           let classification = "runtime_parity_incomplete";
           if (productionCurrent) classification = "production_current";
           else if (checks.version_sha_exact && checks.deployment_sha_exact && !checks.branch_exact) classification = "runtime_sha_current_branch_provenance_mismatch";
           else if (!checks.version_sha_exact || !checks.deployment_sha_exact) classification = "runtime_activation_pending_or_sha_mismatch";
-          const report = {contract:"mad4b.hostinger-production-topology-evidence.v1",generated_at:new Date().toISOString(),expected_production_sha:expectedSha,statuses,observations:{version_shas:versionShas,deployment_commit_sha:deploymentSha||null,deployment_branch:branch||null,deployment_branch_source:branchSource||null,deployed_at:deployedAt||null,canonical_manifest_detected:checks.canonical_manifest_detected,manifest_secret_free:checks.manifest_secret_free},checks,classification,production_current:productionCurrent,public_get_only:true,credential_access_performed:false,provider_mutation_performed:false,restart_performed:false,secrets_included:false};
-          fs.writeFileSync(path.join(directory,"topology-evidence.json"),`${JSON.stringify(report,null,2)}\n`);
+          const report = {
+            contract: "mad4b.hostinger-production-topology-evidence.v1",
+            generated_at: new Date().toISOString(),
+            expected_production_sha: expectedSha,
+            statuses,
+            observations: {
+              version_shas: versionShas,
+              deployment_commit_sha: deploymentSha || null,
+              deployment_branch: branch || null,
+              deployment_branch_source: branchSource || null,
+              deployed_at: deployedAt || null,
+              canonical_manifest_detected: checks.canonical_manifest_detected,
+              manifest_secret_free: checks.manifest_secret_free,
+            },
+            checks,
+            classification,
+            production_current: productionCurrent,
+            public_get_only: true,
+            credential_access_performed: false,
+            provider_mutation_performed: false,
+            restart_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(directory, "topology-evidence.json"), `${JSON.stringify(report, null, 2)}\n`);
           NODE
 
-      - name: Build and scrub combined release evidence
-        if: always()
-        shell: bash
-        env:
-          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
-          BUILD_STEP_OUTCOME: ${{ steps.build_evidence.outcome }}
-          TOPOLOGY_STEP_OUTCOME: ${{ steps.topology.outcome }}
-        run: |
-          set -Eeuo pipefail
-          mkdir -p "${EVIDENCE_DIR}/build" "${EVIDENCE_DIR}/topology"
           BUILD_REPORT="${EVIDENCE_DIR}/build/hostinger-nodejs-build-evidence.json"
           TOPOLOGY_REPORT="${EVIDENCE_DIR}/topology/topology-evidence.json"
           if [[ ! -s "${BUILD_REPORT}" ]]; then
-            jq -n --arg step "${BUILD_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_step_outcome:$step,identity:{expected_sha:$sha,expected_branch:"Production"},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
+            jq -n --argjson reporter_exit "${REPORTER_EXIT}" --arg sha "${EXPECTED_PRODUCTION_SHA}" \
+              '{contract:"mad4b.hostinger-nodejs-build-evidence-fallback.v1",outcome:"error",classification:"build_evidence_missing",reporter_exit:$reporter_exit,identity:{expected_sha:$sha,expected_branch:"Production"},request:{method:"GET",token_returned:false},side_effects:{credential_access_performed:false,repository_mutation_performed:false,provider_dispatch_performed:false,provider_mutation_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,restart_performed:false,external_send_performed:false},secrets_included:false}' > "${BUILD_REPORT}"
           fi
           if [[ ! -s "${TOPOLOGY_REPORT}" ]]; then
-            jq -n --arg step "${TOPOLOGY_STEP_OUTCOME}" --arg sha "${EXPECTED_PRODUCTION_SHA}" '{contract:"mad4b.hostinger-production-topology-evidence.v1",expected_production_sha:$sha,classification:"topology_evidence_missing",production_current:false,topology_step_outcome:$step,public_get_only:true,credential_access_performed:false,provider_mutation_performed:false,restart_performed:false,secrets_included:false}' > "${TOPOLOGY_REPORT}"
+            jq -n --arg sha "${EXPECTED_PRODUCTION_SHA}" \
+              '{contract:"mad4b.hostinger-production-topology-evidence.v1",expected_production_sha:$sha,classification:"topology_evidence_missing",production_current:false,public_get_only:true,credential_access_performed:false,provider_mutation_performed:false,restart_performed:false,secrets_included:false}' > "${TOPOLOGY_REPORT}"
           fi
+
           node --input-type=module - "${BUILD_REPORT}" "${TOPOLOGY_REPORT}" "${EVIDENCE_DIR}/release-evidence-summary.json" <<'NODE'
           import fs from "node:fs";
           const [buildPath, topologyPath, outputPath] = process.argv.slice(2);
-          const build = JSON.parse(fs.readFileSync(buildPath,"utf8"));
-          const topology = JSON.parse(fs.readFileSync(topologyPath,"utf8"));
+          const build = JSON.parse(fs.readFileSync(buildPath, "utf8"));
+          const topology = JSON.parse(fs.readFileSync(topologyPath, "utf8"));
           const effects = build.side_effects || {};
-          const buildSafe = ["repository_mutation_performed","provider_dispatch_performed","provider_mutation_performed","sql_execution_performed","migration_apply_performed","database_mutation_performed","restart_performed","external_send_performed"].every((key)=>effects[key]===false);
+          const buildSafe = [
+            "repository_mutation_performed",
+            "provider_dispatch_performed",
+            "provider_mutation_performed",
+            "sql_execution_performed",
+            "migration_apply_performed",
+            "database_mutation_performed",
+            "restart_performed",
+            "external_send_performed",
+          ].every((key) => effects[key] === false);
           const providerGet = build.request?.method === "GET" || build.contract === "mad4b.hostinger-nodejs-build-evidence-fallback.v1";
           const tokenReturned = build.request?.token_returned === true;
           const secretUnsafe = build.secrets_included === true || topology.secrets_included === true;
           const current = topology.production_current === true && buildSafe && providerGet && !tokenReturned && !secretUnsafe;
-          const summary = {contract:"mad4b.hostinger-production-release-evidence-r6.v1",generated_at:new Date().toISOString(),expected_production_sha:process.env.EXPECTED_PRODUCTION_SHA,production_merged_at:process.env.PRODUCTION_MERGED_AT,build:{outcome:build.outcome||"unknown",classification:build.classification||"unknown",uuid:build.latest_build_after_merge?.uuid||null,state:build.latest_build_after_merge?.state||null,created_at:build.latest_build_after_merge?.created_at||null,updated_at:build.latest_build_after_merge?.updated_at||null,source_shas:build.latest_build_after_merge?.source_shas||[],first_failure:build.first_failure?.code||null},topology:{classification:topology.classification||"unknown",production_current:topology.production_current===true,statuses:topology.statuses||{},observations:topology.observations||{},checks:topology.checks||{}},classification:current?"production_current":(topology.classification||build.classification||"evidence_incomplete"),production_current:current,safety:{repository_read_only:true,provider_method_get_only:providerGet,token_returned:tokenReturned,build_side_effects_safe:buildSafe,topology_public_get_only:topology.public_get_only===true,secrets_included:secretUnsafe},repository_write_performed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_send_performed:false,secrets_included:false};
-          fs.writeFileSync(outputPath,`${JSON.stringify(summary,null,2)}\n`);
+          const summary = {
+            contract: "mad4b.hostinger-production-release-evidence-r6.v1",
+            generated_at: new Date().toISOString(),
+            expected_production_sha: process.env.EXPECTED_PRODUCTION_SHA,
+            production_merged_at: process.env.PRODUCTION_MERGED_AT,
+            build: {
+              outcome: build.outcome || "unknown",
+              classification: build.classification || "unknown",
+              uuid: build.latest_build_after_merge?.uuid || null,
+              state: build.latest_build_after_merge?.state || null,
+              created_at: build.latest_build_after_merge?.created_at || null,
+              updated_at: build.latest_build_after_merge?.updated_at || null,
+              source_shas: build.latest_build_after_merge?.source_shas || [],
+              first_failure: build.first_failure?.code || null,
+            },
+            topology: {
+              classification: topology.classification || "unknown",
+              production_current: topology.production_current === true,
+              statuses: topology.statuses || {},
+              observations: topology.observations || {},
+              checks: topology.checks || {},
+            },
+            classification: current ? "production_current" : (topology.classification || build.classification || "evidence_incomplete"),
+            production_current: current,
+            safety: {
+              repository_read_only: true,
+              provider_method_get_only: providerGet,
+              token_returned: tokenReturned,
+              build_side_effects_safe: buildSafe,
+              topology_public_get_only: topology.public_get_only === true,
+              secrets_included: secretUnsafe,
+            },
+            repository_write_performed: false,
+            provider_mutation_performed: false,
+            build_creation_performed: false,
+            deployment_performed: false,
+            release_activation_performed: false,
+            restart_performed: false,
+            sql_execution_performed: false,
+            migration_apply_performed: false,
+            database_mutation_performed: false,
+            external_send_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`);
           NODE
+
           node --input-type=module - "${EVIDENCE_DIR}" <<'NODE'
           import fs from "node:fs";
           import path from "node:path";
           const [root] = process.argv.slice(2);
           const token = process.env.HOSTINGER_API_TOKEN || "";
-          const walk = (dir) => { for (const entry of fs.readdirSync(dir,{withFileTypes:true})) { const file=path.join(dir,entry.name); if(entry.isDirectory()) walk(file); else { const before=fs.readFileSync(file,"utf8"); const after=token?before.split(token).join("[REDACTED]"):before; fs.writeFileSync(file,after,"utf8"); if(token&&after.includes(token)) throw new Error(`provider token remained in ${file}`); } } };
+          const walk = (directory) => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const file = path.join(directory, entry.name);
+              if (entry.isDirectory()) walk(file);
+              else {
+                const before = fs.readFileSync(file, "utf8");
+                const after = token ? before.split(token).join("[REDACTED]") : before;
+                fs.writeFileSync(file, after, "utf8");
+                if (token && after.includes(token)) throw new Error(`provider token remained in ${file}`);
+              }
+            }
+          };
           walk(root);
           NODE
-          jq -e '.contract=="mad4b.hostinger-production-release-evidence-r6.v1" and .expected_production_sha=="2669991a882c7f7939510fbbace17f462a42517c" and .safety.repository_read_only==true and .safety.token_returned==false and .safety.build_side_effects_safe==true and .safety.topology_public_get_only==true and .safety.secrets_included==false and .repository_write_performed==false and .provider_mutation_performed==false and .build_creation_performed==false and .deployment_performed==false and .release_activation_performed==false and .restart_performed==false and .sql_execution_performed==false and .migration_apply_performed==false and .database_mutation_performed==false and .external_send_performed==false and .secrets_included==false' "${EVIDENCE_DIR}/release-evidence-summary.json" >/dev/null
+
+          jq -e '
+            .contract == "mad4b.hostinger-production-release-evidence-r6.v1" and
+            .expected_production_sha == "2669991a882c7f7939510fbbace17f462a42517c" and
+            .safety.repository_read_only == true and
+            .safety.provider_method_get_only == true and
+            .safety.token_returned == false and
+            .safety.build_side_effects_safe == true and
+            .safety.topology_public_get_only == true and
+            .safety.secrets_included == false and
+            .repository_write_performed == false and
+            .provider_mutation_performed == false and
+            .build_creation_performed == false and
+            .deployment_performed == false and
+            .release_activation_performed == false and
+            .restart_performed == false and
+            .sql_execution_performed == false and
+            .migration_apply_performed == false and
+            .database_mutation_performed == false and
+            .external_send_performed == false and
+            .secrets_included == false
+          ' "${EVIDENCE_DIR}/release-evidence-summary.json" >/dev/null
 
       - name: Upload structured R6 release evidence
-        if: always()
+        if: always() && steps.evidence.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-production-release-evidence-r6-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/**
+          path: ${{ runner.temp }}/hostinger-production-release-evidence-r6/**
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish read-only R6 step summary
-        if: always()
+        if: always() && steps.evidence.outcome != 'skipped'
         shell: bash
         env:
+          EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
           BINDING_ID: ${{ steps.binding.outputs.binding_id }}
           AUTHORIZATION_COMMENT_ID: ${{ steps.binding.outputs.authorization_comment_id }}
           TOOLING_SHA: ${{ steps.binding.outputs.tooling_sha }}
