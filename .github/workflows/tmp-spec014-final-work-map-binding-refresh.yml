@@ -1,0 +1,114 @@
+name: Temporary Spec014 Work Map Binding Refresh
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - .github/workflows/tmp-spec014-final-work-map-binding-refresh.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-spec014-work-map-binding-${{ github.repository }}-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'fix/spec014-final-work-map-binding-refresh-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      EXPECTED_BASE_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      TEMP_WORKFLOW: .github/workflows/tmp-spec014-final-work-map-binding-refresh.yml
+      MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Verify exact event identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git merge-base "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = "$EXPECTED_BASE_SHA"
+          remote_head="$(git ls-remote --heads origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+
+      - name: Run official deterministic refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "$RUNNER_TEMP/spec014-refresh.json"
+
+      - name: Enforce bounded candidate mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(git diff -- "$MANIFEST")"
+          git diff --check
+          unexpected="$(git diff --name-only | grep -Ev "^(${MANIFEST}|${TASKS})$" || true)"
+          if [ -n "$unexpected" ]; then
+            printf 'Unexpected refresh paths:\n%s\n' "$unexpected" >&2
+            exit 1
+          fi
+
+      - name: Prove refreshed readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_PATH="$RUNNER_TEMP/spec014-final-work-map-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --all
+
+      - name: Remove temporary vehicle and publish without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --heads origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+          git rm "$TEMP_WORKFLOW"
+          git add "$MANIFEST" "$TASKS"
+          effective="$(git diff --cached --name-only "$EXPECTED_BASE_SHA" | sort)"
+          unexpected="$(printf '%s\n' "$effective" | grep -Ev "^(${MANIFEST}|${TASKS})$" || true)"
+          if [ -n "$unexpected" ]; then
+            printf 'Unexpected effective paths:\n%s\n' "$unexpected" >&2
+            exit 1
+          fi
+          printf '%s\n' "$effective" | grep -Fx "$MANIFEST"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "fix(spec014): refresh final Work Map registry binding"
+          git push origin "HEAD:refs/heads/$HEAD_REF"
+
+      - name: Publish bounded summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Spec 014 Work Map binding refresh'
+            echo
+            echo "- Initial head: \`$EXPECTED_HEAD_SHA\`"
+            echo "- Branch: \`$HEAD_REF\`"
+            echo "- Official refresh tool: \`spec014-refresh-final-work-map-binding.mjs\`"
+            echo "- Allowed final paths: \`$MANIFEST\`, optional \`$TASKS\`"
+            echo '- Force push: false'
+            echo '- Protected branch mutation: false'
+            echo '- Provider/database/runtime/Production mutation: false'
+            echo '- Secrets included: false'
+          } >> "$GITHUB_STEP_SUMMARY"
