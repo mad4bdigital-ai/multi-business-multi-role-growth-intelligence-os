@@ -22,7 +22,7 @@ jobs:
       EXPECTED_HEAD_REF: gpt/ci/retire-local-connector-closure-final-one-commit-20260803
       EXPECTED_HEAD_SHA: 8d6251cc9e63dd4579e4aa5c1e0b731e67b4a2eb
       EXPECTED_MAIN_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
-      EVIDENCE_DIR: ${{ runner.temp }}/local-connector-closure-5496
+      EVIDENCE_DIR: /tmp/local-connector-closure-5496-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate with read-only token
         uses: actions/checkout@v5
