@@ -1,0 +1,120 @@
+# Repository Source Materialization Phase
+
+## Purpose
+
+This phase closes the preparation gap between a successful no-secret authority source snapshot artifact and the reviewed repository source documents required by the governed operational evidence cycle.
+
+It does not execute a live collector, query Production, write to GitHub, commit files, finalize human ownership, close T001/T002, generate migration SQL, apply migrations, or change runtime authority.
+
+## Inputs
+
+The materializer accepts one JSON array containing exactly one complete snapshot for each canonical source family:
+
+1. `system_tool_registry`
+2. `admin_endpoint_catalog`
+3. `direct_http_routes`
+4. `runtime_action_registry`
+5. `descriptor_catalog`
+6. `provider_binding_catalog`
+7. `local_device_catalog`
+8. `compatibility_alias_registry`
+
+The snapshots must already satisfy the canonical `authorityEvidenceSourceAdapters.js` contract. Materialization fails closed when a family is missing or duplicated, pagination is incomplete, counts differ, path contracts conflict, required path controls are absent, unsafe effects are declared, or sensitive values appear.
+
+## Source document materialization
+
+`authorityEvidenceRepositorySourceMaterializer.js` converts the validated normalized bundle into eight deterministic JSON documents using:
+
+`mad4b.ueacp.authority-evidence-repository-source.v1`
+
+Each document contains:
+
+- canonical source family, source key, and source identity;
+- original observation timestamp for review context;
+- bounded evidence references;
+- normalized no-secret authority path records;
+- explicit read-only/no-provider/no-credential/no-external-write/no-secret safety markers.
+
+The module produces exact canonical JSON bytes, record hashes, file-content hashes, bundle hash, inventory hash, and a materialization report using:
+
+`mad4b.ueacp.authority-evidence-repository-source-materialization.v1`
+
+The output status is only `ready_for_repository_review`. It does not claim that the documents were reviewed or committed.
+
+## CLI stage one
+
+`http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs` requires:
+
+- `--sources-file`
+- `--output-dir`
+- `--report-file`
+- optional `--repository-root`
+
+It writes only new regular files beneath the selected repository root and refuses to overwrite an existing path. It performs no Git add, commit, push, API call, database query, provider call, credential read, or external publication.
+
+## Reviewed commit boundary
+
+The eight generated documents must be reviewed and committed in a dedicated source-document commit before a manifest is finalized.
+
+This two-stage boundary prevents a self-referential manifest. The reviewed source commit becomes `observed_ref`; the later manifest commit may descend from that ref while the source bytes remain unchanged.
+
+## Manifest finalization
+
+`http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs` requires:
+
+- `--materialization-report`
+- `--repository`
+- `--observed-ref`
+- `--manifest-output`
+- optional `--repository-root`
+
+The finalizer verifies:
+
+- the observed ref is a full commit SHA and an ancestor of current HEAD;
+- the report contains exactly one document for every registered source family;
+- every source path remains repository-relative, regular, non-symlinked, realpath-contained, and at most 8 MiB;
+- current source bytes match the reviewed materialization hash;
+- each document still uses the canonical source contract and matching family;
+- bytes committed at `observed_ref` are exactly identical to current source bytes;
+- each source file has an exact Git blob SHA at the reviewed ref.
+
+Only after those checks does it emit a canonical repository manifest using:
+
+`mad4b.ueacp.authority-evidence-repository-manifest.v1`
+
+The CLI refuses to overwrite an existing manifest and performs no Git mutation.
+
+## Review and execution sequence
+
+```text
+successful no-secret source snapshot artifact
+  -> materialize eight deterministic repository source documents
+  -> review source records and evidence references
+  -> commit the eight documents and materialization report
+  -> use that source commit as observed_ref
+  -> finalize exact blob/content manifest
+  -> review and commit the manifest separately
+  -> configure protected ueacp-live-evidence Environment
+  -> explicitly authorize the existing bounded read-only operational cycle
+  -> human ownership review
+  -> separate T001/T002 closeout decision
+```
+
+## Fail-closed conditions
+
+The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate families, missing files, symlinks, path escapes, oversized documents, stale report hashes, malformed source JSON, source contract mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
+
+## Safety and task state
+
+All outputs declare:
+
+- `repository_mutation_performed=false`
+- `read_only=true`
+- `applies_sql=false`
+- `runtime_authority_changed=false`
+- `provider_calls=false`
+- `credential_payload_read=false`
+- `external_writes=false`
+- `secrets_included=false`
+
+T001, T002, and T021–T024 remain open. No live workflow is dispatched by this phase.
