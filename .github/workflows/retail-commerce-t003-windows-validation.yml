@@ -1,0 +1,61 @@
+name: Retail Commerce T003 Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/retail-commerce-t003-brownfield-rescan-20260803
+    paths:
+      - ".github/workflows/retail-commerce-t003-windows-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-t003:
+    name: Validate T003 exact candidate
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact T003 candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 8064906e963d6ffee68d1a2252510681913e4fdb
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact identity and two-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "8064906e963d6ffee68d1a2252510681913e4fdb"
+          git diff --name-only f56e8713e7e3041b0db9e34daf96de903fcb8ee6...HEAD > "${RUNNER_TEMP}/changed-files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/changed-files.txt" | tr -d ' ')" = "2"
+          grep -Fxq 'specs/014-retail-commerce-operations-growth-os/business-activity-brownfield-rescan-20260803.md' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'specs/014-retail-commerce-operations-growth-os/tasks.md' "${RUNNER_TEMP}/changed-files.txt"
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run Retail Commerce specification baseline
+        working-directory: http-generic-api
+        run: node test-retail-commerce-specification-baseline.mjs
+
+      - name: Verify T003 report bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          report='specs/014-retail-commerce-operations-growth-os/business-activity-brownfield-rescan-20260803.md'
+          grep -Fq 'f56e8713e7e3041b0db9e34daf96de903fcb8ee6' "$report"
+          grep -Fq 'T003 is complete' "$report"
+          grep -Fq 'Database query: not performed.' "$report"
+          grep -Fq 'Migration dry-run or Apply: not performed.' "$report"
+          grep -Fq 'Secrets included: `false`.' "$report"
+          grep -Fq -- '- [x] T003 Re-scan current `main` before implementation and update Brownfield inventory.' 'specs/014-retail-commerce-operations-growth-os/tasks.md'
