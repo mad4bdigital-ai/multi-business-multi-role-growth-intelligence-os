@@ -1,0 +1,140 @@
+name: One-shot OAuth route test pool writer
+run-name: Governed OAuth test wiring writer
+
+on:
+  pull_request:
+    branches:
+      - gpt/write-oauth-route-test-pool-base-a61cd9e8-20260804
+    types: [opened, reopened, synchronize]
+    paths:
+      - .changes/e2e/oauth-route-test-pool-writer-trigger.json
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: write-oauth-route-test-pool-a61cd9e8
+  cancel-in-progress: false
+
+jobs:
+  bounded-writer:
+    name: Apply exact test wiring patch
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-route-test-pool-a61cd9e8-20260804' &&
+      github.event.pull_request.head.sha == '7e5651c3e6d40dd32e4c7f911268e75c3597360a'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_SOURCE_HEAD: 7e5651c3e6d40dd32e4c7f911268e75c3597360a
+      TARGET_BRANCH: gpt/fix-oauth-route-test-pool-a61cd9e8-20260804
+      TRIGGER_FILE: .changes/e2e/oauth-route-test-pool-writer-trigger.json
+      TARGET_FILE: http-generic-api/test-auth-oauth-routes.mjs
+
+    steps:
+      - name: Verify authorization and immutable identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "${{ github.event.pull_request.base.ref }}" = 'gpt/write-oauth-route-test-pool-base-a61cd9e8-20260804'
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
+          test "${{ github.event.pull_request.head.sha }}" = "${EXPECTED_SOURCE_HEAD}"
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files?per_page=100" --jq '.[].filename')
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 2
+          printf '%s\n' "${files[@]}" | grep -Fxq '.github/workflows/write-oauth-route-test-pool-a61cd9e8.yml'
+          printf '%s\n' "${files[@]}" | grep -Fxq "${TRIGGER_FILE}"
+
+      - name: Checkout exact authorized source head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_SOURCE_HEAD }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply exact bounded replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_HEAD}"
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('http-generic-api/test-auth-oauth-routes.mjs')
+          trigger = Path('.changes/e2e/oauth-route-test-pool-writer-trigger.json')
+          old = 'app.use(buildTenantGptOAuthMetadataRoutes());'
+          new = 'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));'
+          content = target.read_text(encoding='utf-8')
+          count = content.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one old expression, found {count}')
+          if new in content:
+              raise SystemExit('new expression already present before authorized replacement')
+          target.write_text(content.replace(old, new, 1), encoding='utf-8')
+          if not trigger.is_file():
+              raise SystemExit('authorization trigger is missing')
+          trigger.unlink()
+          PY
+          test "$(grep -Fxc 'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));' "${TARGET_FILE}")" -eq 1
+          mapfile -t status < <(git status --short)
+          printf '%s\n' "${status[@]}"
+          test "${#status[@]}" -eq 2
+          printf '%s\n' "${status[@]}" | grep -Fxq " D ${TRIGGER_FILE}"
+          printf '%s\n' "${status[@]}" | grep -Fxq " M ${TARGET_FILE}"
+          git diff --check
+
+      - name: Install dependencies and prove focused regression
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          node test-auth-oauth-routes.mjs
+
+      - name: Commit and push ordinary fast-forward update
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_HEAD}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${TARGET_FILE}" "${TRIGGER_FILE}"
+          git diff --cached --check
+          git commit -m 'test(oauth): inject token exchange pool in route integration test'
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          echo "RESULT_HEAD_SHA=${result_head}" >> "$GITHUB_ENV"
+
+      - name: Publish no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/oauth-test-writer"
+          jq -n \
+            --arg contract 'mad4b.oauth-route-test-pool-writer.v1' \
+            --arg base_sha "${EXPECTED_MAIN_SHA}" \
+            --arg source_head_sha "${EXPECTED_SOURCE_HEAD}" \
+            --arg result_head_sha "${RESULT_HEAD_SHA:-}" \
+            '{contract:$contract,base_sha:$base_sha,source_head_sha:$source_head_sha,result_head_sha:$result_head_sha,target_file:"http-generic-api/test-auth-oauth-routes.mjs",replacement_count:1,focused_test:"passed",protected_branch_mutation:false,force_push:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/oauth-test-writer/summary.json"
+
+      - name: Upload writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-route-test-pool-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-test-writer
+          if-no-files-found: error
+          retention-days: 14
