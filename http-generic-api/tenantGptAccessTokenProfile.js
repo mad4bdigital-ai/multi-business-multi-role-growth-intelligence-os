@@ -3,6 +3,7 @@ export const TENANT_GPT_ACCESS_TOKEN_MAX_TTL_SECONDS = 60 * 60;
 export const TENANT_GPT_ACCESS_TOKEN_MIN_TTL_SECONDS = 60;
 export const TENANT_GPT_LEGACY_ACCESS_TOKEN_MAX_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const TENANT_GPT_ACCESS_TOKEN_MAX_FUTURE_IAT_SKEW_SECONDS = 5 * 60;
+export const TENANT_GPT_ACCESS_TOKEN_PROFILE_METRIC = "tenant_gpt_access_token_profile_total";
 
 function profileError(code, message) {
   const error = new Error(message);
@@ -58,6 +59,8 @@ function evidence({
   remainingSeconds,
   maxLifetimeSeconds,
 } = {}) {
+  const outcome = accepted ? "accepted" : "rejected";
+  const shortLived = accepted === true && audienceMode === "strict";
   return Object.freeze({
     accepted: accepted === true,
     classification,
@@ -72,7 +75,17 @@ function evidence({
     lifetime_seconds: Number.isFinite(lifetimeSeconds) ? lifetimeSeconds : null,
     remaining_seconds: Number.isFinite(remainingSeconds) ? remainingSeconds : null,
     max_lifetime_seconds: Number.isFinite(maxLifetimeSeconds) ? maxLifetimeSeconds : null,
-    short_lived: accepted === true && audienceMode === "strict",
+    short_lived: shortLived,
+    metric: Object.freeze({
+      name: TENANT_GPT_ACCESS_TOKEN_PROFILE_METRIC,
+      value: 1,
+      labels: Object.freeze({
+        classification,
+        outcome,
+        audience_mode: audienceMode || "unknown",
+        short_lived: shortLived ? "true" : "false",
+      }),
+    }),
     secrets_included: false,
   });
 }
@@ -161,4 +174,32 @@ export function validateTenantGptAccessTokenProfile(payload, {
       ? "legacy_transition_token_verified"
       : "short_lived_bearer_verified",
   });
+}
+
+export function recordTenantGptAccessTokenProfileEvidence(input, {
+  logger = console,
+} = {}) {
+  const profile = input && typeof input === "object" ? input : null;
+  if (!profile?.metric || profile.secrets_included !== false) return false;
+  if (profile.accepted && profile.audience_mode === "strict") return true;
+
+  const method = profile.accepted ? "info" : "warn";
+  const writer = typeof logger?.[method] === "function" ? logger[method].bind(logger) : null;
+  if (!writer) return false;
+  writer("tenant_gpt_access_token_profile", {
+    metric_name: profile.metric.name,
+    metric_value: profile.metric.value,
+    labels: profile.metric.labels,
+    issuer_verified: profile.issuer_verified,
+    audience_verified: profile.audience_verified,
+    subject_verified: profile.subject_verified,
+    user_claim_present: profile.user_claim_present,
+    tenant_claim_present: profile.tenant_claim_present,
+    issued_at_present: profile.issued_at_present,
+    expiry_present: profile.expiry_present,
+    lifetime_seconds: profile.lifetime_seconds,
+    max_lifetime_seconds: profile.max_lifetime_seconds,
+    secrets_included: false,
+  });
+  return true;
 }
