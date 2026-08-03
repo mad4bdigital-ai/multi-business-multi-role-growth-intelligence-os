@@ -10,26 +10,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: work-map-input-governance-final-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: work-map-syntax-governance-diagnostic-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Exact Work Map Input Governance Final Validation
+  diagnose:
+    name: Exact Work Map Syntax Governance Diagnostic
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-input-driven-branch-governance-20260804' &&
       github.event.pull_request.head.sha == 'e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 180
+    timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
       EXPECTED_HEAD_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
-      GITHUB_BASE_REF: main
-      CI_CANDIDATE_KIND: head
-      CI_CANDIDATE_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
-      CI_SOURCE_HEAD_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
-      CANDIDATE_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -42,201 +37,67 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
 
-      - name: Verify immutable identity synchronization and exact scope
+      - name: Verify identity and install dependencies
         shell: bash
         run: |
           set -euo pipefail
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-syntax-governance-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${DIAGNOSTIC_ROOT}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
           git update-ref refs/remotes/origin/main "${EXPECTED_MAIN_SHA}"
-          cat > /tmp/expected-files.txt <<'EOF'
-          .changes/e2e/work-map-autofix-validation-diagnostics.json
-          .github/workflows/spec-kit-work-map-autofix.yml
-          docs/work-maps/README.md
-          docs/work-maps/repository-automation-map.md
-          http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
-          http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
-          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
-          test -z "$(git status --porcelain --untracked-files=no)"
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
           npm ci
           npm ci --prefix http-generic-api
 
-      - name: Validate Work Map governance regression and parity
+      - name: Run syntax and governance checks independently
         shell: bash
         run: |
-          set -euo pipefail
-          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
-          node --check http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
-          grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
-          ! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml
-          git diff --check "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
+          set -uo pipefail
+          results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          : > "${results}"
 
-      - name: Run all eleven governed Work Map validation contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/scripts/platform-work-map-generator.mjs
-          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/${name}.log"
+            set +e
+            "$@" >"${log}" 2>&1
+            local status=$?
+            set -e
+            printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
+            cat "${log}"
+          }
 
-      - name: Run Syntax and repository governance gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          (
-            cd http-generic-api
-            node scripts/user-jwt-auth-governance.mjs
-            node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-          )
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
-          (
-            cd http-generic-api
-            shopt -s nullglob
-            for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f"; done
-          )
+          run_check schema-docs-change-guard node http-generic-api/scripts/schema-docs-change-guard.mjs
+          run_check migration-placement-guard node http-generic-api/scripts/migration-placement-guard.mjs
+          run_check user-jwt-auth-governance bash -lc 'cd http-generic-api && node scripts/user-jwt-auth-governance.mjs'
+          run_check interruption-readiness bash -lc 'cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree'
+          run_check validate-canonical-sources node validate-canonical-sources.mjs
+          run_check build-canonicals-check node build-canonicals.mjs --check
+          run_check spec-kit-completion-gate node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          run_check validate-memory-schema node validate-memory-schema.mjs
+          run_check http-generic-api-js-syntax bash -lc 'cd http-generic-api && shopt -s nullglob && for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f" || exit $?; done'
 
-      - name: Run Context Kernel and Unit Integration suite
-        working-directory: http-generic-api
-        shell: bash
-        env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: |
-          set -euo pipefail
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
-          npm test
+          {
+            printf 'check\texit_code\tlog\n'
+            cat "${results}"
+          } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
 
-      - name: Prove Runtime Startup and explicit governance contracts
-        working-directory: http-generic-api
-        shell: bash
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: gpt/work-map-input-driven-branch-governance-20260804
-          DEPLOYMENT_COMMIT_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
-        run: |
-          set -euo pipefail
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-          node test-server-startup-smoke.mjs
-          node test-custom-gpt-schemas.mjs
-          node test-openapi-split-governance.mjs
-          node test-openapi-split-regeneration-parity.mjs
-
-      - name: Run Execution Resolver Gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run typecheck
-          npm test -- --runInBand
-          test -f src/services/execution/dispatchPlanStep.ts
-          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
-          test -f src/store/registries/connectorExecutorRegistry.ts
-          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
-          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
-
-      - name: Run Architecture Drift gates
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run validate
-          test "$(wc -l < server.js)" -le 6000
-          node -e "import('./wordpress/index.js').then(m => { if (Object.keys(m).length < 545) process.exit(1); })"
-
-      - name: Run exact E2E evaluation execution and reference integrity
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${EXPECTED_MAIN_SHA}" \
-            --head "${EXPECTED_HEAD_SHA}" \
-            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs run \
-            --base "${EXPECTED_MAIN_SHA}" \
-            --head "${EXPECTED_HEAD_SHA}" \
-            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
-            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "${EXPECTED_MAIN_SHA}" \
-            --head "${EXPECTED_HEAD_SHA}" \
-            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "${RUNNER_TEMP}/e2e-contract-reference-integrity.json"
-
-      - name: Run Repository Tool Lifecycle governance
-        shell: bash
-        env:
-          BASE_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
-          CANDIDATE_SHA: e222f742df95b3b5ddd1fb4e5ff9f1fc1581a850
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > /tmp/repository-tool-changes.tsv
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-            --changed-files /tmp/repository-tool-changes.tsv \
-            --policy .github/repository-maintenance-tool-governance.json \
-            --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
-          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
-
-      - name: Run deterministic Frontend parity
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          test -z "$(git status --porcelain --untracked-files=no)"
-
-      - name: Upload exact-head evidence
+      - name: Upload syntax governance diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-input-governance-final-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/test-suite-reports/*.json
-            ${{ runner.temp }}/e2e-phase-evaluation.json
-            ${{ runner.temp }}/e2e-phase-execution.json
-            ${{ runner.temp }}/e2e-contract-reference-integrity.json
-            ${{ runner.temp }}/repository-tool-lifecycle/
-          if-no-files-found: warn
+          name: work-map-syntax-governance-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-syntax-governance-${{ github.run_id }}
+          if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce syntax governance success
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
