@@ -240,8 +240,6 @@ jobs:
       - name: Check for inline function redefinitions in server.js
         working-directory: http-generic-api
         run: |
-          # Detect if any function name that exists in an extracted module is also defined inline in server.js.
-          # This catches the class of drift where a module is added but server.js is not updated.
           MODULES="normalization mutationGovernance governedChangeControl jobRunner jobUtils executionRouting auth"
           FAIL=0
           for mod in $MODULES; do
@@ -264,11 +262,6 @@ jobs:
         working-directory: http-generic-api
         run: |
           set +e
-          # Permitted consumers of execution.js:
-          #   execution.js itself, validate-architecture.mjs (reads the allowlist),
-          #   test-*.mjs files (test suite consumers), and one-off tooling scripts.
-          # Keep this aligned with EXECUTION_IMPORT_ALLOWLIST in validate-architecture.mjs.
-          # test-*.mjs is a wildcard so new test files never break this check.
           MATCHES=$(grep -RInE "from [\"']\\./execution(\\.js)?[\"']|import\\([\"']\\./execution(\\.js)?[\"']\\)|require\\([\"']\\./execution(\\.js)?[\"']\\)" . \
             --include='*.js' --include='*.mjs' \
             --exclude='execution.js' \
@@ -310,3 +303,240 @@ jobs:
             exit 1
           fi
           echo "WordPress barrel export count within floor"
+
+  surface-latest-main-materialization:
+    name: Surface Latest Main Materialization
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-latest-main-ci-materialization-20260803'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/pr5210-latest-main-ci-materialization-20260803
+      PINNED_MAIN_HEAD: 1793518f11f77ec266e831b537320bf3231cfdec
+      SOURCE_BRANCH: gpt/surface-callability-main-reconstruction-20260803
+      SOURCE_COMMIT: 36cc5245116fdbfb26208e8e0e40bc3b75f92ef3
+      WORKFLOW_PATH: .github/workflows/ci.yml
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify exact governed trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PINNED_MAIN_HEAD"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$WORKFLOW_PATH"
+
+      - name: Fetch certified Surface source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$SOURCE_BRANCH"
+          git cat-file -e "$SOURCE_COMMIT^{commit}"
+
+      - name: Transplant bounded Surface source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout "$SOURCE_COMMIT" -- \
+            .changes/e2e/surface-callability-main-reconstruction.json \
+            http-generic-api/agentSurfaceRuntimeService.js \
+            http-generic-api/routes/agentSurfaceRoutes.js \
+            http-generic-api/routes/tenantInfrastructureRoutes.js \
+            http-generic-api/routes/tenantLifecycleRoutes.js \
+            http-generic-api/routes/workspaceResourceRoutes.js \
+            http-generic-api/scripts/resource-api-callability-contracts.mjs \
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs \
+            http-generic-api/test-resource-api-callability-effect-classes.mjs \
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Apply startup cardinality and E2E repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(path_value, old, new, label):
+              path = Path(path_value)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}_marker_count:{count}')
+              path.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              '    if (!Array.isArray(rows) || rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              '    if (!Array.isArray(rows)) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row.");\n    if (rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              'agent_surface_readback_cardinality',
+          )
+
+          replace_once(
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              '  const pool = deps.pool || getPool();\n  const executionFacade = deps.executionFacade || null;\n',
+              '''  let resolvedPool = deps.pool || null;
+  const pool = new Proxy({}, {
+    get(_target, property) {
+      if (!resolvedPool) resolvedPool = getPool();
+      const value = Reflect.get(resolvedPool, property, resolvedPool);
+      return typeof value === "function" ? value.bind(resolvedPool) : value;
+    },
+  });
+  const executionFacade = deps.executionFacade || null;
+''',
+              'tenant_infrastructure_lazy_pool',
+          )
+
+          contract_path = Path('.changes/e2e/surface-callability-main-reconstruction.json')
+          contract = json.loads(contract_path.read_text())
+          journey = contract['phases'][0]['e2e_journeys'][0]
+          startup_test = {
+              'id': 'surface-server-startup-without-database-environment',
+              'runner': 'node',
+              'working_directory': 'http-generic-api',
+              'path': 'test-server-startup-smoke.mjs',
+              'args': [],
+          }
+          if not any(item.get('id') == startup_test['id'] for item in journey['tests']):
+              journey['tests'].append(startup_test)
+          assertion = 'Building and starting the HTTP API without database environment variables still exposes the deployment identity endpoints; tenant infrastructure database access is resolved lazily only when an authenticated infrastructure route is invoked.'
+          if assertion not in journey['assertions']:
+              journey['assertions'].append(assertion)
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+          PY
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate frontend and Surface evidence
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate
+          node scripts/surface-contract-discovery.mjs
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs
+
+      - name: Restore canonical CI workflow and commit product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$PINNED_MAIN_HEAD:$WORKFLOW_PATH" > "$WORKFLOW_PATH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: materialize scoped Surface closure on latest main'
+
+      - name: Enforce bounded product write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$PINNED_MAIN_HEAD" HEAD > "$RUNNER_TEMP/surface-product-files.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          changed = {line.strip() for line in Path(os.environ['RUNNER_TEMP'], 'surface-product-files.txt').read_text().splitlines() if line.strip()}
+          allowed = {
+              '.changes/e2e/surface-callability-main-reconstruction.json',
+              'docs/surface-contract-discovery-status.json',
+              'docs/surface-contract-discovery-status.md',
+              'docs/surface-contract-gap-queue.json',
+              'docs/surface-contract-gap-queue.md',
+              'docs/surface-contract-safety-attestations.json',
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/routes/agentSurfaceRoutes.js',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              'http-generic-api/routes/tenantLifecycleRoutes.js',
+              'http-generic-api/routes/workspaceResourceRoutes.js',
+              'http-generic-api/scripts/resource-api-callability-contracts.mjs',
+              'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/scripts/test-manifest.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/test-resource-api-callability-effect-classes.mjs',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+          }
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit('surface_product_write_set_violation:' + ','.join(sorted(unexpected)))
+          required = {
+              '.changes/e2e/surface-callability-main-reconstruction.json',
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+          }
+          missing = required - changed
+          if missing:
+              raise SystemExit('surface_product_required_file_missing:' + ','.join(sorted(missing)))
+          if '.github/workflows/ci.yml' in changed:
+              raise SystemExit('temporary_ci_workflow_not_restored')
+          print({'changed_files': len(changed), 'unexpected': 0})
+          PY
+
+      - name: Validate focused Surface closure
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check agentSurfaceRuntimeService.js
+          node --check routes/agentSurfaceRoutes.js
+          node --check routes/tenantInfrastructureRoutes.js
+          node --check routes/tenantLifecycleRoutes.js
+          node --check routes/workspaceResourceRoutes.js
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-multi-surface-agent-runtime.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Prove startup and hardcoding ratchet
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          DB_HOST='' DB_NAME='' DB_USER='' DB_PASSWORD='' node test-server-startup-smoke.mjs
+          git diff --name-only "$PINNED_MAIN_HEAD"...HEAD > "$RUNNER_TEMP/context-kernel-changed-files.txt"
+          node test-context-kernel-hardcoding-scan.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt" \
+            --fail-on=runtime \
+            --output="$RUNNER_TEMP/context-kernel-hardcoding-surface.json"
+
+      - name: Prove deterministic frontend output
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate
+          git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+
+      - name: Push certified product commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_sha" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${TARGET_BRANCH}"
