@@ -1,4 +1,4 @@
-name: Diagnose Spec014 Work Map Binding 5776 V1 20260804
+name: Diagnose Spec014 Work Map Binding 5776 V2 20260804
 
 on:
   pull_request:
@@ -12,12 +12,12 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: diagnose-spec014-work-map-binding-5776-v1-20260804
+  group: diagnose-spec014-work-map-binding-5776-v2-20260804
   cancel-in-progress: false
 
 jobs:
   diagnose:
-    name: Diagnose exact Spec014 binding refresh
+    name: Diagnose exact Spec014 binding refresh compactly
     if: >-
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -65,111 +65,155 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Execute labeled binding diagnostic
+      - name: Collect compact diagnostic JSON
+        id: collect
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          result="${RUNNER_TEMP}/spec014-binding-diagnostic.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          root = Path.cwd()
+          runner_temp = Path(os.environ['RUNNER_TEMP'])
+          result_path = runner_temp / 'spec014-binding-diagnostic.json'
+          readback_path = runner_temp / 'spec014-binding-readback.json'
+
+          def run(label, argv, extra_env=None):
+              env = os.environ.copy()
+              if extra_env:
+                  env.update(extra_env)
+              completed = subprocess.run(
+                  argv,
+                  cwd=root,
+                  env=env,
+                  text=True,
+                  capture_output=True,
+                  check=False,
+              )
+              return {
+                  'label': label,
+                  'exit_code': completed.returncode,
+                  'stdout_tail': completed.stdout[-900:],
+                  'stderr_tail': completed.stderr[-900:],
+              }
+
+          result = {
+              'target_sha': os.environ['TARGET_SHA'],
+              'expected_main_sha': os.environ['EXPECTED_MAIN_SHA'],
+              'commands': {},
+              'changed_paths': [],
+              'status_paths': [],
+              'current_fingerprint': None,
+              'manifest_fingerprint': None,
+              'findings': [],
+              'manifest_registry_after_refresh': None,
+          }
+
+          result['commands']['generator_precheck'] = run(
+              'generator_precheck',
+              ['node', 'http-generic-api/scripts/platform-work-map-generator.mjs', '--check'],
+          )
+          result['commands']['refresh'] = run(
+              'official_refresh',
+              ['node', 'http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs'],
+          )
+
+          changed = subprocess.run(
+              ['git', 'diff', '--name-only'], cwd=root, text=True, capture_output=True, check=False
+          )
+          result['changed_paths'] = sorted(filter(None, changed.stdout.splitlines()))
+          status = subprocess.run(
+              ['git', 'status', '--short'], cwd=root, text=True, capture_output=True, check=False
+          )
+          result['status_paths'] = status.stdout.splitlines()
+
+          manifest_path = root / os.environ['MANIFEST']
+          try:
+              manifest = json.loads(manifest_path.read_text())
+              registry = manifest.get('work_map_registry') or manifest.get('registry') or {}
+              result['manifest_registry_after_refresh'] = {
+                  'fingerprint': registry.get('fingerprint'),
+                  'total_objects': registry.get('total_objects'),
+                  'unresolved_objects': registry.get('unresolved_objects'),
+              }
+          except Exception as exc:
+              result['manifest_parse_error'] = str(exc)
+
+          result['commands']['readback'] = run(
+              'official_final_readback',
+              ['node', 'http-generic-api/scripts/spec014-final-work-map-readback.mjs'],
+              {'REPORT_PATH': str(readback_path)},
+          )
+          if readback_path.exists():
+              try:
+                  readback = json.loads(readback_path.read_text())
+                  result['current_fingerprint'] = (readback.get('current_registry') or {}).get('fingerprint')
+                  result['manifest_fingerprint'] = (readback.get('manifest_registry') or {}).get('fingerprint')
+                  result['findings'] = (readback.get('findings') or [])[:8]
+                  result['readback_ok'] = readback.get('ok')
+              except Exception as exc:
+                  result['readback_parse_error'] = str(exc)
+
+          result['commands']['governance'] = run(
+              'changed_scope_governance',
+              ['node', 'http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs', '--ci', '--changed'],
+          )
+          result['commands']['diff_check'] = run('git_diff_check', ['git', 'diff', '--check'])
+          result_path.write_text(json.dumps(result, indent=2) + '\n')
+          PY
+          test -s "${result}"
+          echo "result_path=${result}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish compact diagnostic result
+        if: always()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RESULT_PATH: ${{ steps.collect.outputs.result_path }}
         run: |
           set -Eeuo pipefail
-          diagnostic_dir="${RUNNER_TEMP}/spec014-binding-diagnostic"
-          mkdir -p "${diagnostic_dir}/readback"
-          log="${diagnostic_dir}/diagnostic.log"
+          test -s "${RESULT_PATH}"
+          python3 - <<'PY' > "${RUNNER_TEMP}/compact-comment.md"
+          import json
+          import os
+          from pathlib import Path
 
-          set +e
-          (
-            checkpoint() { printf '\n===== %s =====\n' "$1"; }
+          data = json.loads(Path(os.environ['RESULT_PATH']).read_text())
+          commands = data.get('commands') or {}
+          codes = {name: item.get('exit_code') for name, item in commands.items()}
+          findings = data.get('findings') or []
+          finding_codes = []
+          for finding in findings:
+              if isinstance(finding, dict):
+                  finding_codes.append(str(finding.get('code') or finding.get('finding') or finding.get('message') or finding)[:180])
+              else:
+                  finding_codes.append(str(finding)[:180])
+          refresh = commands.get('refresh') or {}
+          readback = commands.get('readback') or {}
+          diagnostic_tail = (refresh.get('stderr_tail') or refresh.get('stdout_tail') or readback.get('stderr_tail') or readback.get('stdout_tail') or 'none')
+          diagnostic_tail = diagnostic_tail.replace('```', "'''")[-1200:]
 
-            checkpoint 'exact target and initial status'
-            printf 'HEAD=%s\n' "$(git rev-parse HEAD)"
-            git status --short
-            test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
-
-            checkpoint 'generated Work Map currentness before refresh'
-            node http-generic-api/scripts/platform-work-map-generator.mjs --check
-            printf 'generator_status=%s\n' "$?"
-
-            checkpoint 'official Spec014 binding refresh tool'
-            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-              > "${diagnostic_dir}/refresh.stdout.json" \
-              2> "${diagnostic_dir}/refresh.stderr.txt"
-            refresh_status=$?
-            printf 'refresh_status=%s\n' "${refresh_status}"
-            printf '%s\n' '--- refresh stdout ---'
-            cat "${diagnostic_dir}/refresh.stdout.json" 2>/dev/null || true
-            printf '%s\n' '--- refresh stderr ---'
-            cat "${diagnostic_dir}/refresh.stderr.txt" 2>/dev/null || true
-
-            checkpoint 'changed paths after refresh attempt'
-            git status --short
-            git diff --name-only | sort
-            printf '%s\n' '--- diff stat ---'
-            git diff --stat
-
-            checkpoint 'manifest binding after refresh attempt'
-            node --input-type=module <<'NODE'
-            import { readFileSync } from 'node:fs';
-            const manifest = JSON.parse(readFileSync(process.env.MANIFEST, 'utf8'));
-            const registry = manifest.work_map_registry || manifest.registry || {};
-            const metadata = manifest.generated_work_map_metadata || {};
-            console.log(JSON.stringify({
-              registry_fingerprint: registry.fingerprint ?? null,
-              registry_total_objects: registry.total_objects ?? null,
-              registry_unresolved_objects: registry.unresolved_objects ?? null,
-              generated_work_map_metadata: metadata,
-            }, null, 2));
-            NODE
-
-            checkpoint 'official final Work Map readback after refresh attempt'
-            REPORT_PATH="${diagnostic_dir}/readback/summary.json" \
-              node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
-              > "${diagnostic_dir}/readback/stdout.json" \
-              2> "${diagnostic_dir}/readback/stderr.txt"
-            readback_status=$?
-            printf 'readback_status=%s\n' "${readback_status}"
-            printf '%s\n' '--- readback summary ---'
-            cat "${diagnostic_dir}/readback/summary.json" 2>/dev/null || true
-            printf '%s\n' '--- readback stdout ---'
-            cat "${diagnostic_dir}/readback/stdout.json" 2>/dev/null || true
-            printf '%s\n' '--- readback stderr ---'
-            cat "${diagnostic_dir}/readback/stderr.txt" 2>/dev/null || true
-
-            checkpoint 'changed-scope Work Map governance after refresh attempt'
-            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-            governance_status=$?
-            printf 'governance_status=%s\n' "${governance_status}"
-
-            checkpoint 'final diagnostic status'
-            git diff --check
-            diff_check_status=$?
-            printf 'diff_check_status=%s\n' "${diff_check_status}"
-            printf 'refresh_status=%s readback_status=%s governance_status=%s diff_check_status=%s\n' \
-              "${refresh_status}" "${readback_status}" "${governance_status}" "${diff_check_status}"
-            exit 0
-          ) >"${log}" 2>&1
-          diagnostic_status=$?
-          set -e
-          cat "${log}"
-
-          current_fingerprint="$(jq -r '.current_registry.fingerprint // "unresolved"' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo unresolved)"
-          manifest_fingerprint="$(jq -r '.manifest_registry.fingerprint // "unresolved"' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo unresolved)"
-          findings="$(jq -c '.findings // []' "${diagnostic_dir}/readback/summary.json" 2>/dev/null || echo '[]')"
-          changed_paths="$(git diff --name-only | sort | paste -sd ',' -)"
-
-          {
-            echo '## Spec 014 binding refresh diagnostic'
-            echo
-            echo "- Target head: \`${TARGET_SHA}\`"
-            echo "- Protected main: \`${EXPECTED_MAIN_SHA}\`"
-            echo "- Current fingerprint after refresh attempt: \`${current_fingerprint}\`"
-            echo "- Manifest fingerprint after refresh attempt: \`${manifest_fingerprint}\`"
-            echo "- Changed paths after refresh attempt: \`${changed_paths:-none}\`"
-            echo "- Readback findings: \`${findings}\`"
-            echo '- No commit, push, repository write, protected-ref mutation, SQL, migration, database, provider, deployment, credential, or external-send action occurred.'
-            echo
-            echo '```text'
-            tail -n 320 "${log}"
-            echo '```'
-          } > "${diagnostic_dir}/comment.md"
-          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${diagnostic_dir}/comment.md"
-          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${diagnostic_dir}/comment.md"
-          exit "${diagnostic_status}"
+          print('## Spec 014 binding refresh compact diagnostic')
+          print()
+          print(f"- Target head: `{data.get('target_sha')}`")
+          print(f"- Protected main: `{data.get('expected_main_sha')}`")
+          print(f"- Exit codes: `{json.dumps(codes, sort_keys=True)}`")
+          print(f"- Changed paths: `{', '.join(data.get('changed_paths') or []) or 'none'}`")
+          print(f"- Current fingerprint: `{data.get('current_fingerprint') or 'unresolved'}`")
+          print(f"- Manifest fingerprint: `{data.get('manifest_fingerprint') or 'unresolved'}`")
+          print(f"- Manifest registry after refresh: `{json.dumps(data.get('manifest_registry_after_refresh'), sort_keys=True)}`")
+          print(f"- Findings: `{'; '.join(finding_codes) or 'none'}`")
+          print('- Remote repository mutation: none')
+          print()
+          print('```text')
+          print(diagnostic_tail)
+          print('```')
+          PY
+          wc -c "${RUNNER_TEMP}/compact-comment.md"
+          test "$(wc -c < "${RUNNER_TEMP}/compact-comment.md")" -lt 5000
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/compact-comment.md"
+          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/compact-comment.md"
