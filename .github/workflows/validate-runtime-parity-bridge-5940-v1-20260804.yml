@@ -1,4 +1,4 @@
-name: Validate Runtime Parity Bridge 5940 V1
+name: Validate Runtime Parity Bridge 5940 V2
 
 on:
   pull_request:
@@ -9,15 +9,15 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 concurrency:
-  group: validate-runtime-parity-bridge-5940-v1-20260804
+  group: validate-runtime-parity-bridge-5940-v2-20260804
   cancel-in-progress: false
 
 jobs:
   validate:
-    name: Validate exact runtime parity bridge head
+    name: Diagnose exact runtime parity bridge head
     if: >-
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -33,6 +33,7 @@ jobs:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-20260804
       TARGET_SHA: c5a560f33722c64ed867736d579b93f8fa7b2941
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      DIAGNOSTIC_DIR: ${{ runner.temp }}/runtime-parity-bridge-5940-diagnostic
 
     steps:
       - name: Verify one-file validator and exact target
@@ -80,40 +81,134 @@ jobs:
           node http-generic-api/scripts/test-production-runtime-parity-evidence.mjs
           git diff --check "${EXPECTED_MAIN_SHA}" "${TARGET_SHA}"
 
-      - name: Run E2E phase and reference contracts
+      - name: Collect compact E2E and reference diagnostic
+        id: e2e
+        continue-on-error: true
         shell: bash
         run: |
-          set -Eeuo pipefail
-          phase_report="${RUNNER_TEMP}/phase.json"
-          execution_report="${RUNNER_TEMP}/phase-execution.json"
+          set -u
+          mkdir -p "${DIAGNOSTIC_DIR}"
+          phase_report="${DIAGNOSTIC_DIR}/phase.json"
+          execution_report="${DIAGNOSTIC_DIR}/phase-execution.json"
+
+          set +e
           node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" --report-file "${phase_report}"
+            --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" --report-file "${phase_report}" \
+            >"${DIAGNOSTIC_DIR}/phase-check.stdout" 2>"${DIAGNOSTIC_DIR}/phase-check.stderr"
+          phase_check_status=$?
+
           node http-generic-api/scripts/e2e-phase-governance.mjs run \
             --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" \
-            --report-file "${phase_report}" --execution-report-file "${execution_report}"
-          jq -e '.ok == true' "${phase_report}"
-          jq -e '.ok == true' "${execution_report}"
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs
-          node build-canonicals.mjs --check
+            --report-file "${phase_report}" --execution-report-file "${execution_report}" \
+            >"${DIAGNOSTIC_DIR}/phase-run.stdout" 2>"${DIAGNOSTIC_DIR}/phase-run.stderr"
+          phase_run_status=$?
 
-      - name: Diagnose generated Work Map currentness
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            >"${DIAGNOSTIC_DIR}/reference.stdout" 2>"${DIAGNOSTIC_DIR}/reference.stderr"
+          reference_status=$?
+
+          node build-canonicals.mjs --check \
+            >"${DIAGNOSTIC_DIR}/canonicals.stdout" 2>"${DIAGNOSTIC_DIR}/canonicals.stderr"
+          canonicals_status=$?
+          set -e
+
+          phase_ok="$(jq -r '.ok // false' "${phase_report}" 2>/dev/null || echo false)"
+          execution_ok="$(jq -r '.ok // false' "${execution_report}" 2>/dev/null || echo false)"
+          phase_findings="$(jq -c '.findings // .errors // []' "${phase_report}" 2>/dev/null || echo '[]')"
+          execution_findings="$(jq -c '.findings // .errors // []' "${execution_report}" 2>/dev/null || echo '[]')"
+
+          jq -n \
+            --argjson phase_check_status "${phase_check_status}" \
+            --argjson phase_run_status "${phase_run_status}" \
+            --argjson reference_status "${reference_status}" \
+            --argjson canonicals_status "${canonicals_status}" \
+            --argjson phase_ok "${phase_ok}" \
+            --argjson execution_ok "${execution_ok}" \
+            --argjson phase_findings "${phase_findings}" \
+            --argjson execution_findings "${execution_findings}" \
+            '{phase_check_status:$phase_check_status,phase_run_status:$phase_run_status,reference_status:$reference_status,canonicals_status:$canonicals_status,phase_ok:$phase_ok,execution_ok:$execution_ok,phase_findings:$phase_findings,execution_findings:$execution_findings}' \
+            > "${DIAGNOSTIC_DIR}/e2e-summary.json"
+
+          if (( phase_check_status != 0 || phase_run_status != 0 || reference_status != 0 || canonicals_status != 0 )); then
+            exit 1
+          fi
+
+      - name: Collect generated Work Map diagnostic
         id: work_maps
         continue-on-error: true
         shell: bash
         run: |
+          set -u
+          mkdir -p "${DIAGNOSTIC_DIR}"
+          set +e
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check >"${DIAGNOSTIC_DIR}/generator.stdout" 2>"${DIAGNOSTIC_DIR}/generator.stderr"
+          generator_status=$?
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs >"${DIAGNOSTIC_DIR}/classification-contract.stdout" 2>"${DIAGNOSTIC_DIR}/classification-contract.stderr"
+          classification_contract_status=$?
+          node http-generic-api/scripts/work-map-schema-classification.mjs >"${DIAGNOSTIC_DIR}/classification.stdout" 2>"${DIAGNOSTIC_DIR}/classification.stderr"
+          classification_status=$?
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed >"${DIAGNOSTIC_DIR}/governance.stdout" 2>"${DIAGNOSTIC_DIR}/governance.stderr"
+          governance_status=$?
+          set -e
+          jq -n \
+            --argjson generator_status "${generator_status}" \
+            --argjson classification_contract_status "${classification_contract_status}" \
+            --argjson classification_status "${classification_status}" \
+            --argjson governance_status "${governance_status}" \
+            '{generator_status:$generator_status,classification_contract_status:$classification_contract_status,classification_status:$classification_status,governance_status:$governance_status}' \
+            > "${DIAGNOSTIC_DIR}/work-map-summary.json"
+          if (( generator_status != 0 || classification_contract_status != 0 || classification_status != 0 || governance_status != 0 )); then
+            exit 1
+          fi
+
+      - name: Publish compact diagnostic
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+          WORK_MAP_OUTCOME: ${{ steps.work_maps.outcome }}
+        run: |
           set -Eeuo pipefail
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          e2e_summary="$(jq -c . "${DIAGNOSTIC_DIR}/e2e-summary.json" 2>/dev/null || echo '{}')"
+          work_map_summary="$(jq -c . "${DIAGNOSTIC_DIR}/work-map-summary.json" 2>/dev/null || echo '{}')"
+          reference_tail="$(cat "${DIAGNOSTIC_DIR}/reference.stderr" "${DIAGNOSTIC_DIR}/reference.stdout" 2>/dev/null | tail -n 30 | head -c 5000 || true)"
+          phase_tail="$(cat "${DIAGNOSTIC_DIR}/phase-check.stderr" "${DIAGNOSTIC_DIR}/phase-check.stdout" 2>/dev/null | tail -n 30 | head -c 5000 || true)"
+          generator_tail="$(cat "${DIAGNOSTIC_DIR}/generator.stderr" "${DIAGNOSTIC_DIR}/generator.stdout" 2>/dev/null | tail -n 20 | head -c 3000 || true)"
+          {
+            echo '## Runtime parity bridge exact-head diagnostic'
+            echo
+            echo "- Target: #${TARGET_PR} at \`${TARGET_SHA}\`"
+            echo "- E2E outcome: \`${E2E_OUTCOME}\`"
+            echo "- Work Map outcome: \`${WORK_MAP_OUTCOME}\`"
+            echo "- E2E summary: \`${e2e_summary}\`"
+            echo "- Work Map summary: \`${work_map_summary}\`"
+            echo
+            echo '### Phase diagnostic tail'
+            echo '```text'
+            printf '%s\n' "${phase_tail}"
+            echo '```'
+            echo '### Reference diagnostic tail'
+            echo '```text'
+            printf '%s\n' "${reference_tail}"
+            echo '```'
+            echo '### Work Map diagnostic tail'
+            echo '```text'
+            printf '%s\n' "${generator_tail}"
+            echo '```'
+            echo 'No repository, protected-ref, provider, runtime, credential, SQL, migration, database, deployment, restart, or external-send mutation occurred.'
+          } > "${DIAGNOSTIC_DIR}/comment.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${DIAGNOSTIC_DIR}/comment.md"
+          gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${DIAGNOSTIC_DIR}/comment.md"
 
       - name: Enforce final validator decision
         if: always()
         shell: bash
         env:
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
           WORK_MAP_OUTCOME: ${{ steps.work_maps.outcome }}
         run: |
           set -Eeuo pipefail
-          echo "work_map_outcome=${WORK_MAP_OUTCOME}"
+          test "${E2E_OUTCOME}" = success
           test "${WORK_MAP_OUTCOME}" = success
           test -z "$(git status --short)"
