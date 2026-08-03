@@ -14,17 +14,17 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
-      github.event.pull_request.head.sha == 'f27868eb8d10dae117e3628a9950d6722eda1a02'
+      github.event.pull_request.head.sha == '33328e71227f9f61b4e7d40e6db322b76b381a2e'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_BASE_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
-      EXPECTED_HEAD_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+      EXPECTED_BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      EXPECTED_HEAD_SHA: 33328e71227f9f61b4e7d40e6db322b76b381a2e
     steps:
       - name: Checkout exact V3 candidate
         uses: actions/checkout@v5
         with:
-          ref: f27868eb8d10dae117e3628a9950d6722eda1a02
+          ref: 33328e71227f9f61b4e7d40e6db322b76b381a2e
           fetch-depth: 0
           persist-credentials: false
 
@@ -63,6 +63,6 @@ jobs:
       - name: Run complete Unit and Integration suite
         working-directory: http-generic-api
         env:
-          GITHUB_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+          GITHUB_SHA: 33328e71227f9f61b4e7d40e6db322b76b381a2e
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
         run: npm test
