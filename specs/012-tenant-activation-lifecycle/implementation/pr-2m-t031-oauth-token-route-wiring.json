@@ -4,7 +4,7 @@
   "phase_key": "oauth-token-route-wiring",
   "task_id": "T031",
   "status": "route_wiring_validated_live_readback_required",
-  "observed_main_sha": "4a049185f8eff3232bf1a6ed0a176525e72d980d",
+  "observed_main_sha": "db55d091f755abd00df2fe6b36cb4d3dedc0849a",
   "observed_at": "2026-08-04",
   "authority": {
     "requirements": ["FR-003", "FR-004"],
@@ -15,10 +15,12 @@
   },
   "implementation": {
     "route": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+    "binding_guard": "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
     "mount": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
     "mount_order_authority": "http-generic-api/routes/index.js",
     "store": "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
     "outcome_policy": "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+    "binding_guard_test": "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
     "route_test": "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
     "policy_test": "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
     "readiness_test": "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
@@ -32,6 +34,10 @@
     "cache_control": "no-store",
     "pragma": "no-cache",
     "request_id_header": "x-request-id",
+    "request_redirect_uri_required": true,
+    "signed_binding_claims_required": true,
+    "required_signed_binding_claims": ["jti", "user_id", "tenant_id", "redirect_uri", "client_id", "resource"],
+    "jwt_secret_fail_closed": true,
     "registered_host_and_resource_required": true,
     "client_credentials_validated": true,
     "authorization_code_signature_validated": true,
@@ -64,6 +70,9 @@
   },
   "test_coverage": [
     "metadata router intercepts token exchange before legacy auth handler",
+    "missing token-request redirect_uri is rejected before signature verification or consumption",
+    "missing signed jti, user_id, tenant_id, redirect_uri, client_id, or resource is rejected before subject lookup and consumption",
+    "missing JWT_SECRET fails as a pre-consumption dependency rather than invalid_grant",
     "success response preserves no-store, pragma, and request-id headers",
     "active subject validation precedes token preparation and consumption",
     "access token preparation precedes atomic code consumption",
@@ -80,6 +89,7 @@
   ],
   "validation": {
     "route_level_regression_complete": true,
+    "binding_guard_regression_complete_on_current_head": false,
     "validation_mode": "github_actions_http_integration_and_shared_canary",
     "api_dependencies_installed_from_lockfile": true,
     "syntax_complete": true,
@@ -99,7 +109,7 @@
     "live_post_consumption_failure_readback_complete": false,
     "task_completion_allowed": false,
     "required_before_completion": [
-      "complete the remaining exact-head repository CI gates",
+      "complete the binding-guard regression and remaining exact-head repository CI gates",
       "deploy the reviewed merge SHA through the governed release path",
       "prove a successful live exchange on the deployed SHA",
       "prove replay is rejected without a second token",
