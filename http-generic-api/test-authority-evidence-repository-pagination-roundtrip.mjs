@@ -22,6 +22,22 @@ function hash(value) {
   return crypto.createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
 }
 
+function textHash(value) {
+  return crypto.createHash("sha256").update(String(value)).digest("hex");
+}
+
+function canonicalJson(value) {
+  return `${JSON.stringify(stable(value), null, 2)}\n`;
+}
+
+function resignReport(report) {
+  const { materialization_sha256: _declared, ...unsigned } = report;
+  return {
+    ...unsigned,
+    materialization_sha256: hash(unsigned),
+  };
+}
+
 function pathRecord(sourceRegistry) {
   return {
     path_key: "authority.connector.inventory.read",
@@ -88,6 +104,14 @@ function git(root, args) {
   return String(result.stdout || "").trim();
 }
 
+function expectCanonicalReportFailure(callback) {
+  assert.throws(
+    callback,
+    (error) => error instanceof AuthorityEvidenceRepositorySourceMaterializationError
+      && error.code === "authority_evidence_repository_materialization_noncanonical_report",
+  );
+}
+
 const paginatedFamily = AUTHORITY_EVIDENCE_SOURCE_FAMILIES[0];
 const sources = AUTHORITY_EVIDENCE_SOURCE_FAMILIES.map(source);
 const materialized = materializeAuthorityEvidenceRepositorySourceDocuments({ sources });
@@ -130,25 +154,75 @@ try {
   assert.equal(finalized.inventory_sha256, materialized.report.inventory_sha256);
   assert.equal(finalized.materialization_sha256, materialized.report.materialization_sha256);
 
-  const forgedUnsignedReport = {
+  const forgedReport = resignReport({
     ...materialized.report,
     source_bundle_sha256: "0".repeat(64),
+  });
+  expectCanonicalReportFailure(() => finalizeAuthorityEvidenceRepositoryManifest({
+    materialization_report: forgedReport,
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    observed_ref: observedRef,
+    repository_root: root,
+  }));
+
+  const reorderedReport = resignReport({
+    ...materialized.report,
+    source_files: [...materialized.report.source_files].reverse(),
+  });
+  expectCanonicalReportFailure(() => finalizeAuthorityEvidenceRepositoryManifest({
+    materialization_report: reorderedReport,
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    observed_ref: observedRef,
+    repository_root: root,
+  }));
+
+  const first = materialized.documents[0];
+  const firstPath = path.join(root, first.source_file);
+  const extraFieldDocument = {
+    ...JSON.parse(first.content),
+    unexpected_field: true,
   };
-  delete forgedUnsignedReport.materialization_sha256;
-  const forgedReport = {
-    ...forgedUnsignedReport,
-    materialization_sha256: hash(forgedUnsignedReport),
-  };
-  assert.throws(
-    () => finalizeAuthorityEvidenceRepositoryManifest({
-      materialization_report: forgedReport,
-      repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-      observed_ref: observedRef,
-      repository_root: root,
-    }),
-    (error) => error instanceof AuthorityEvidenceRepositorySourceMaterializationError
-      && error.code === "authority_evidence_repository_materialization_noncanonical_report",
-  );
+  const extraFieldText = canonicalJson(extraFieldDocument);
+  fs.writeFileSync(firstPath, extraFieldText);
+  git(root, ["add", first.source_file]);
+  git(root, ["commit", "-qm", "test: add forbidden noncanonical source field"]);
+  const extraFieldObservedRef = git(root, ["rev-parse", "HEAD"]);
+  const extraFieldReport = resignReport({
+    ...materialized.report,
+    source_files: materialized.report.source_files.map((entry) => (
+      entry.source_file === first.source_file
+        ? { ...entry, content_sha256: textHash(extraFieldText) }
+        : entry
+    )),
+  });
+  expectCanonicalReportFailure(() => finalizeAuthorityEvidenceRepositoryManifest({
+    materialization_report: extraFieldReport,
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    observed_ref: extraFieldObservedRef,
+    repository_root: root,
+  }));
+
+  const alteredPaginationDocument = JSON.parse(first.content);
+  alteredPaginationDocument.pagination.page_count += 1;
+  const alteredPaginationText = canonicalJson(alteredPaginationDocument);
+  fs.writeFileSync(firstPath, alteredPaginationText);
+  git(root, ["add", first.source_file]);
+  git(root, ["commit", "-qm", "test: alter reviewed pagination identity"]);
+  const alteredPaginationObservedRef = git(root, ["rev-parse", "HEAD"]);
+  const alteredPaginationReport = resignReport({
+    ...materialized.report,
+    source_files: materialized.report.source_files.map((entry) => (
+      entry.source_file === first.source_file
+        ? { ...entry, content_sha256: textHash(alteredPaginationText) }
+        : entry
+    )),
+  });
+  expectCanonicalReportFailure(() => finalizeAuthorityEvidenceRepositoryManifest({
+    materialization_report: alteredPaginationReport,
+    repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    observed_ref: alteredPaginationObservedRef,
+    repository_root: root,
+  }));
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
