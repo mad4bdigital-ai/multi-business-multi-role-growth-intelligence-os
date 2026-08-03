@@ -1,25 +1,22 @@
 name: T016 Envelope Create Read-only Diagnostic
 
 on:
-  pull_request:
+  push:
     branches:
       - agent/validate-t016-readiness-artifact-base-435c001
-    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/t016-envelope-create-readonly-diagnostic.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: t016-envelope-readonly-diagnostic-${{ github.event.pull_request.number }}
+  group: t016-envelope-readonly-diagnostic
   cancel-in-progress: true
 
 jobs:
   diagnose:
     name: Diagnose envelope schema and resolver without writes
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
-      github.event.pull_request.head.sha == 'a886140f30b15695016baabe9e2cfcbdac40255d'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
@@ -31,7 +28,7 @@ jobs:
       - name: Checkout exact protected Production source
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.PRODUCTION_SHA }}
+          ref: 2669991a882c7f7939510fbbace17f462a42517c
           fetch-depth: 1
           persist-credentials: false
 
