@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   CONTRACT,
   HOSTINGER_API_BASE_URL,
@@ -9,6 +10,49 @@ import {
   sanitizeStructured,
   validateConfiguration,
 } from "./hostinger-completed-build-forensics.mjs";
+
+const scriptSource = readFileSync(new URL("./hostinger-completed-build-forensics.mjs", import.meta.url), "utf8");
+const workflowSource = readFileSync(
+  new URL("../../.github/workflows/hostinger-completed-build-forensics.yml", import.meta.url),
+  "utf8",
+);
+
+for (const required of [
+  /name: Hostinger Completed Build Forensics/,
+  /workflow_dispatch:/,
+  /expected_head_sha:/,
+  /\.github\/hostinger-runtime-recovery\/triggers\/completed-build-forensics-f5c1ae88\.txt/,
+  /RUN_HOSTINGER_COMPLETED_BUILD_FORENSICS_F5C1AE88_V1/,
+  /test "\$\{INPUT_EXPECTED_HEAD_SHA\}" = "\$\{CURRENT_MAIN_SHA\}"/,
+  /test "\$\{CURRENT_PRODUCTION_SHA\}" = "\$\{EXPECTED_PRODUCTION_SHA\}"/,
+  /continue-on-error: true/,
+  /if: always\(\)/,
+  /HOSTINGER_API_TOKEN: \$\{\{ secrets\.HOSTINGER_API_TOKEN \}\}/,
+  /provider_method=GET/,
+  /provider_mutation=false/,
+  /active_slot_changed=false/,
+  /restart=false/,
+  /secrets_included=false/,
+]) assert.match(workflowSource, required);
+
+for (const forbidden of [
+  /actions:\s*write/,
+  /pull_request:/,
+  /nodejs\/server\/restart/,
+  /nodejs\/builds\/from-archive/,
+  /provider_mutation=true/,
+  /active_slot_changed=true/,
+  /restart=true/,
+  /git push\s+--force/,
+  /force-with-lease/,
+]) assert.doesNotMatch(workflowSource, forbidden);
+
+assert.match(scriptSource, /method: "GET"/);
+assert.match(scriptSource, /hostinger_build_logs/);
+assert.match(scriptSource, /provider_mutation_performed: false/);
+assert.doesNotMatch(scriptSource, /method: "POST"/);
+assert.doesNotMatch(scriptSource, /nodejs\/server\/restart/);
+assert.doesNotMatch(scriptSource, /nodejs\/builds\/from-archive/);
 
 const expectedSha = "f5c1ae8840b4d4452f2908bb0f23051880bb6896";
 const staleSha = "ca1e1cfe6697d251d2c50db7fa48246f18ab118f";
