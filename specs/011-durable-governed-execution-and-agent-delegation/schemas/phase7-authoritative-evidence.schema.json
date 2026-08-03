@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec011/phase7-authoritative-evidence.schema.json",
+  "title": "Spec 011 Phase 7 Authoritative Evidence Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "subject",
+    "required_families",
+    "optional_families",
+    "observations",
+    "collected_at",
+    "evidence_fingerprint_sha256",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "version": { "const": "spec011-evidence-auto-closeout-v1" },
+    "subject": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "required_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/family" }
+    },
+    "optional_families": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/family" }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "collected_at": { "type": "string", "format": "date-time" },
+    "evidence_fingerprint_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "family": {
+      "enum": [
+        "pull_request",
+        "workflow_run",
+        "workflow_artifact",
+        "main_readback",
+        "migration_ledger",
+        "production_parity",
+        "post_merge_audit"
+      ]
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "family",
+        "subject",
+        "source_ref",
+        "digest_sha256",
+        "observed_at",
+        "status",
+        "authoritative",
+        "immutable",
+        "payload",
+        "secrets_included"
+      ],
+      "properties": {
+        "evidence_id": { "type": "string", "minLength": 1, "maxLength": 191 },
+        "family": { "$ref": "#/$defs/family" },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "^(github://|git://|migration://|production://|runtime://|audit://)"
+        },
+        "digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "status": {
+          "enum": ["pass", "success", "verified", "merged", "complete", "complete_on_main"]
+        },
+        "authoritative": { "const": true },
+        "immutable": { "const": true },
+        "payload": { "type": "object" },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
