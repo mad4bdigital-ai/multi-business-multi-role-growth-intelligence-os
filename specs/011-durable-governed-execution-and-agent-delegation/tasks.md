@@ -100,8 +100,8 @@
 
 ## Completion governance
 
-- [ ] T260 Record every implementation PR and merge SHA.
+- [x] T260 Record every implementation PR and merge SHA.
 - [ ] T261 Record migrations, checksums, authorization, and ledger evidence.
-- [ ] T262 Record delegation and fault-injection certification evidence.
+- [x] T262 Record delegation and fault-injection certification evidence.
 - [ ] T263 Record CI, staging, and production parity for every rollout phase.
 - [ ] T264 Complete post-merge audit and closeout PR.
