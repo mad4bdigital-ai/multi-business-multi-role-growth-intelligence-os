@@ -19,26 +19,30 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Restore the policy-declared shared concurrency key for every Spec Kit Work Map writer while preserving exact-head and protected-branch guards.",
+      "objective": "Restore the policy-declared shared concurrency key for every Spec Kit Work Map writer while preserving generic governed branch input, exact-head verification, and protected-branch rejection.",
       "e2e_journeys": [
         {
           "id": "serialize-spec-kit-work-map-generated-artifact-writes",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Repository automation overlap governor",
-          "entrypoint": "The Spec Kit Work Map Autofix workflow is evaluated as a writer of docs/work-maps generated artifacts.",
-          "terminal_outcome": "The workflow uses the exact shared resource concurrency expression, does not cancel an active writer, and retains bounded work-branch publication guards.",
+          "actor": "Repository automation overlap and lifecycle governors",
+          "entrypoint": "The Spec Kit Work Map Autofix workflow is evaluated as a permanent writer of docs/work-maps generated artifacts.",
+          "terminal_outcome": "The workflow uses the exact shared resource concurrency expression, does not cancel an active writer, accepts a generic governed Git branch input without embedded work-branch literals, and retains bounded publication guards.",
           "steps": [
             "Read the Work Map Autofix workflow from the exact candidate tree.",
             "Require the policy-declared shared concurrency expression for dispatch and authorized pull-request contexts.",
             "Require cancel-in-progress to remain false.",
-            "Retain exact remote-head verification, protected-branch rejection, and non-force work-branch publication.",
-            "Execute Automation Overlap Guard and the focused concurrency regression."
+            "Validate TARGET_BRANCH with git check-ref-format instead of an embedded branch-prefix allowlist.",
+            "Reject main and Production explicitly and require the remote branch head to equal expected_head_sha.",
+            "Retain non-force work-branch publication.",
+            "Execute Automation Overlap Guard, Repository Tool Lifecycle Governance, and the focused regression."
           ],
           "assertions": [
             "The dispatch-only concurrency key is absent.",
             "The exact policy-declared shared resource concurrency key is present.",
             "In-progress mutation runs are not cancelled.",
+            "The permanent workflow contains no embedded gpt, fix, feat, chore, docs, or release work-branch literal.",
+            "TARGET_BRANCH must pass git check-ref-format.",
             "main and Production remain invalid mutation targets.",
             "Remote branch head must equal expected_head_sha before publication.",
             "No provider call, deployment, database mutation, migration Apply, Production mutation, external send, or force push is introduced.",
@@ -64,12 +68,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Verify the overlap analyzer reports no critical resource-group concurrency mismatch."
+      "objective": "Verify the overlap analyzer reports no critical resource-group concurrency mismatch and lifecycle reports no branch-specific workflow literal."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject future divergence from the canonical generated-artifact writer concurrency key."
+      "objective": "Reject future divergence from the canonical concurrency key or reintroduction of embedded work-branch names."
     },
     {
       "id": "canary",
@@ -79,7 +83,7 @@
     {
       "id": "production",
       "status": "planned",
-      "objective": "Confirm main retains the canonical concurrency expression after merge."
+      "objective": "Confirm main retains the canonical concurrency expression and generic governed branch input after merge."
     }
   ],
   "secrets_included": false
