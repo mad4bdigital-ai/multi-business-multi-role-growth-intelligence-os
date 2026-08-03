@@ -167,6 +167,43 @@
       "rationale": "Compiled policy and plan snapshots preserve immutable governed decisions and execution inputs, so each object is explicitly tied to authority, workflow, and evidence maps."
     },
     {
+      "rule_key": "growth_control_kpi_analytics_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_kpi_definitions",
+          "growth_control_activity_kpi_bindings"
+        ]
+      },
+      "domain": "Agents & intelligence",
+      "existing_map_refs": [
+        "agent-skill-plugin-map",
+        "platform-resource-graph-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Growth Control KPI definitions and activity KPI bindings are governed analytics and intelligence resources already represented by the agent, resource graph, and data-model maps."
+    },
+    {
+      "rule_key": "growth_control_analytics_evidence_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_normalized_metric_observations",
+          "growth_control_observability_samples",
+          "growth_control_decision_evidence",
+          "growth_control_reconciliation_findings"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Normalized observations, observability samples, decision evidence, and reconciliation findings are governed evidence and readback surfaces covered by existing observability, authority, workflow, and data-model maps."
+    },
+    {
       "rule_key": "growth_dashboard_intelligence",
       "scope": "governed_family",
       "match": {
