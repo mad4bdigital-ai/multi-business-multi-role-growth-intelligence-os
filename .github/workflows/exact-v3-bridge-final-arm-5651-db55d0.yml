@@ -1,0 +1,154 @@
+name: Exact V3 Bridge Final ARM 5651 db55d0
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-v3-bridge-final-arm-base-db55d0
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-v3-bridge-final-arm-5651-db55d0-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  final-validation:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
+      github.event.pull_request.head.sha == '30be00e45f89b26d4e27808375c55751ef5d7f7c'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_BASE_SHA: db55d091f755abd00df2fe6b36cb4d3dedc0849a
+      EXPECTED_HEAD_SHA: 30be00e45f89b26d4e27808375c55751ef5d7f7c
+      EXPECTED_HEAD_REF: gpt/governed-generated-refresh-pr-target-v3-20260802
+    steps:
+      - name: Checkout exact final V3 candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 30be00e45f89b26d4e27808375c55751ef5d7f7c
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact identity and four-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_BASE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}" | sort > "${RUNNER_TEMP}/files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/files.txt")" -eq 4
+          grep -Fx '.changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json' "${RUNNER_TEMP}/files.txt"
+          grep -Fx '.github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml' "${RUNNER_TEMP}/files.txt"
+          grep -Fx '.github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml' "${RUNNER_TEMP}/files.txt"
+          grep -Fx 'http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs' "${RUNNER_TEMP}/files.txt"
+          git diff --check "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}"
+
+      - name: Run focused V3 syntax and contract regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+          node http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run full Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          GITHUB_SHA: 30be00e45f89b26d4e27808375c55751ef5d7f7c
+        run: npm test
+
+      - name: Run E2E governance self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
+          node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
+          node http-generic-api/scripts/test-ci-evidence-router.mjs
+          node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
+
+      - name: Validate parallel mode and complete phase contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --head-ref "${EXPECTED_HEAD_REF}" \
+            --base-ref main \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --github-output "${RUNNER_TEMP}/e2e-parallel-output" \
+            --report-file "${RUNNER_TEMP}/e2e-parallel-work-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+
+      - name: Execute declared current-phase journeys
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Run E2E reference integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/reference-integrity"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/reference-integrity/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/reference-integrity/e2e-contract-reference-integrity.json"
+
+      - name: Run repository-tool lifecycle governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          CANDIDATE_SHA="${EXPECTED_HEAD_SHA}" BASE_SHA="${EXPECTED_BASE_SHA}" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+      - name: Upload bounded final evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-v3-bridge-final-arm-5651-db55d0-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/test-suite-reports/
+            ${{ runner.temp }}/e2e-parallel-work-evaluation.json
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-phase-execution.json
+            ${{ runner.temp }}/reference-integrity/
+            ${{ runner.temp }}/repository-tool-lifecycle/
+          if-no-files-found: error
+          retention-days: 14
