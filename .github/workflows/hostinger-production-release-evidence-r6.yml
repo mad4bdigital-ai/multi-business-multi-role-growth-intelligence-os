@@ -39,7 +39,6 @@ jobs:
       REPORTER_TEST_PATH: http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs
       REPORTER_TEST_BLOB_SHA: 6e37c838129d38d6aee0ffe77d522dcf1d00d0cc
       TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6
 
     steps:
       - name: Checkout exact trusted main tooling
@@ -48,6 +47,12 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Initialize runner-scoped evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
 
       - name: Verify trigger scope, authorization, and immutable bindings
         id: binding
@@ -161,8 +166,10 @@ jobs:
           HOSTINGER_NODEJS_DOMAIN: ${{ env.DOMAIN }}
           EXPECTED_PRODUCTION_SHA: ${{ env.EXPECTED_PRODUCTION_SHA }}
           PRODUCTION_MERGED_AT: ${{ env.PRODUCTION_MERGED_AT }}
-          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ env.EVIDENCE_DIR }}/build
-        run: node scripts/hostinger-nodejs-build-evidence.mjs
+        run: |
+          set -Eeuo pipefail
+          export HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR="${EVIDENCE_DIR}/build"
+          node scripts/hostinger-nodejs-build-evidence.mjs
 
       - name: Fetch bounded public runtime topology
         id: topology
@@ -249,7 +256,8 @@ jobs:
           const build = JSON.parse(fs.readFileSync(buildPath,"utf8"));
           const topology = JSON.parse(fs.readFileSync(topologyPath,"utf8"));
           const effects = build.side_effects || {};
-          const buildSafe = ["repository_mutation_performed","provider_dispatch_performed","provider_mutation_performed","sql_execution_performed","migration_apply_performed","database_mutation_performed","restart_performed","external_send_performed"].every((key)=>effects[key]===false);
+          const safeKeys = ["repository_mutation_performed","provider_dispatch_performed","provider_mutation_performed","sql_execution_performed","migration_apply_performed","database_mutation_performed","restart_performed","external_send_performed"];
+          const buildSafe = safeKeys.every((key)=>effects[key]===false);
           const providerGet = build.request?.method === "GET" || build.contract === "mad4b.hostinger-nodejs-build-evidence-fallback.v1";
           const tokenReturned = build.request?.token_returned === true;
           const secretUnsafe = build.secrets_included === true || topology.secrets_included === true;
@@ -272,7 +280,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-production-release-evidence-r6-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/**
+          path: ${{ runner.temp }}/hostinger-production-release-evidence-r6/**
           if-no-files-found: error
           retention-days: 30
 
