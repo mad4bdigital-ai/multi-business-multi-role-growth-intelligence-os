@@ -6,20 +6,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authPath = path.resolve(__dirname, "..", "routes", "authRoutes.js");
 let source = fs.readFileSync(authPath, "utf8");
 
-const marker = `      return res.status(decision.http_status).json(
+function replaceOnce(before, after, label) {
+  const occurrences = source.split(before).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(`spec012_t031_cache_header_patch_failed: ${label} expected once, found ${occurrences}`);
+  }
+  source = source.replace(before, after);
+}
+
+const nonConsumedMarker = `        return res.status(decision.http_status).json(
+          buildTenantGptOAuthTokenErrorResponse(decision, { request_id: requestId }),
+        );`;
+const nonConsumedReplacement = `        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Pragma", "no-cache");
+        return res.status(decision.http_status).json(
+          buildTenantGptOAuthTokenErrorResponse(decision, { request_id: requestId }),
+        );`;
+
+const catchMarker = `      return res.status(decision.http_status).json(
         buildTenantGptOAuthTokenErrorResponse(decision, { request_id: requestId }),
       );`;
-const replacement = `      res.setHeader("Cache-Control", "no-store");
+const catchReplacement = `      res.setHeader("Cache-Control", "no-store");
       res.setHeader("Pragma", "no-cache");
       return res.status(decision.http_status).json(
         buildTenantGptOAuthTokenErrorResponse(decision, { request_id: requestId }),
       );`;
 
-const occurrences = source.split(marker).length - 1;
-if (occurrences !== 2) {
-  throw new Error(`spec012_t031_cache_header_patch_failed: expected 2 policy responses, found ${occurrences}`);
-}
-source = source.split(marker).join(replacement);
+replaceOnce(nonConsumedMarker, nonConsumedReplacement, "non-consumed policy response");
+replaceOnce(catchMarker, catchReplacement, "exception policy response");
 
 for (const required of [
   'res.setHeader("Cache-Control", "no-store");',
