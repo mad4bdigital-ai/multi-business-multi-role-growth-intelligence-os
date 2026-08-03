@@ -15,7 +15,8 @@ const authorizationToken = "AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669
 const triggerPath = ".github/ops/hostinger-production-release-evidence-r6-trigger.json";
 
 assert.match(workflow, /name: Hostinger Production Release Evidence R6/);
-assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened\]/);
+assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened, reopened, synchronize\]/);
+assert.doesNotMatch(workflow, /\n\s+paths:/);
 assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -50,11 +51,12 @@ assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
 
-assert.match(workflow, /- name: Initialize runtime-safe evidence directory/);
+assert.match(workflow, /- name: Initialize runtime evidence directory/);
 assert.match(
   workflow,
   /echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/,
 );
+assert.match(workflow, /mkdir -p "\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6"/);
 assert.doesNotMatch(
   workflow,
   /^\s{6}EVIDENCE_DIR:\s*\$\{\{\s*runner\./m,
@@ -64,10 +66,26 @@ assert.match(
   workflow,
   /HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/build/,
 );
+assert.doesNotMatch(workflow, /HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: \$\{\{ env\.EVIDENCE_DIR \}\}/);
 assert.match(
   workflow,
   /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/,
 );
+
+assert.match(workflow, /mad4b\.hostinger-production-release-evidence-r6-context\.v1/);
+assert.match(workflow, /execution-context\.json/);
+assert.match(workflow, /trigger_nonce:\$trigger_nonce/);
+assert.match(workflow, /trigger_branch:\$trigger_branch/);
+assert.match(workflow, /source_run_id:\$source_run_id/);
+assert.match(workflow, /trigger_pr:\$trigger_pr/);
+assert.match(workflow, /deployed_at:deployedAt\|\|null/);
+assert.match(workflow, /runtime_sha_current_branch_provenance_mismatch/);
+assert.match(workflow, /created_at:build\.latest_build_after_merge\?\.created_at\|\|null/);
+assert.match(workflow, /updated_at:build\.latest_build_after_merge\?\.updated_at\|\|null/);
+assert.match(workflow, /classification:"build_evidence_missing"/);
+assert.match(workflow, /classification:"topology_evidence_missing"/);
+assert.match(workflow, /request:\{method:"GET",token_returned:false\}/);
+assert.match(workflow, /echo "- deployed_at: \$\{DEPLOYED_AT\}"/);
 
 for (const marker of [
   "repository_write_performed:false",
@@ -98,6 +116,8 @@ for (const pattern of providerMutationPatterns) assert.doesNotMatch(workflow, pa
 
 const issueWriteCount = (workflow.match(/gh api --method\s+(?:POST|PUT|PATCH|DELETE)/gi) || []).length;
 assert.equal(issueWriteCount, 0, "R6 pull-request workflow must remain repository read-only");
+const authorizationReadCount = (workflow.match(/\/issues\/comments\/\$\{AUTHORIZATION_COMMENT_ID\}/g) || []).length;
+assert.equal(authorizationReadCount, 1, "R6 must read the immutable authorization comment exactly once");
 const issueCommentReadCount = (workflow.match(/\/issues\/\$\{CONTROL_ISSUE\}\/comments\?per_page=100/g) || []).length;
 assert.equal(issueCommentReadCount, 1, "R6 may read the control issue once for duplicate-terminal protection");
 
