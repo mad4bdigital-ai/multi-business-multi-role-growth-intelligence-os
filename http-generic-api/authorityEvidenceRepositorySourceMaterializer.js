@@ -19,6 +19,7 @@ export {
   AuthorityEvidenceRepositorySourceMaterializationError,
 };
 
+const EXPECTED_SOURCE_DOCUMENT_COUNT = 8;
 const MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024;
 
 function stable(value) {
@@ -163,8 +164,11 @@ function sourceFromDocument(document, entry) {
 }
 
 function readCanonicalContext(materializationReport, root) {
-  if (!Array.isArray(materializationReport?.source_files)) {
-    throw new Error("source_files unavailable");
+  if (
+    !Array.isArray(materializationReport?.source_files)
+    || materializationReport.source_files.length !== EXPECTED_SOURCE_DOCUMENT_COUNT
+  ) {
+    throw new Error("exactly eight source_files are required");
   }
   const documents = materializationReport.source_files.map((entry) => {
     const sourceFile = String(entry?.source_file ?? "").trim().replaceAll("\\", "/");
