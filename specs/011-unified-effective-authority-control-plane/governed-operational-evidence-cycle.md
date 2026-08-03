@@ -43,6 +43,8 @@ A source manifest binds every document to:
 - the exact SHA-256 of the source file bytes;
 - one canonical source family.
 
+Each source must be a regular file, not a symbolic link or another file type, and must not exceed 8 MiB. The manifest itself must be a regular repository file, stay within the repository real path, and must not exceed 1 MiB.
+
 The collector reads only the checked-out repository. It performs no network request, provider call, credential read, database query, external write, or repository mutation.
 
 It never infers missing actor, subject, Tenant, Workspace, resource, capability, provider, credential-scope, risk, revision, freshness, revocation, invalidation, atomicity, readback, idempotency, or rollback sources. Missing controls remain blocking inventory gaps.
@@ -70,6 +72,8 @@ The live job exists only under `workflow_dispatch` and additionally requires:
 After those gates, the workflow creates an authorization valid for thirty minutes and binds it to the GitHub run ID, exact dispatch SHA, Production runtime environment, and target schema.
 
 No push, pull-request, schedule, issue-comment, or workflow-run event can execute the live job. Pull requests execute the contract job only.
+
+Temporary evidence is created beneath the runner-provided `RUNNER_TEMP` directory and exported through `GITHUB_ENV`; no job-level `runner.temp` expression is used.
 
 ## Live catalog boundary
 
@@ -105,6 +109,8 @@ The cycle blocks when:
 
 - any canonical source family is missing or duplicated;
 - a source path escapes the repository root;
+- a source or manifest is a symbolic link or non-regular file;
+- a source exceeds 8 MiB or the manifest exceeds 1 MiB;
 - the reviewed ref is absent or not an ancestor of the dispatch SHA;
 - the source file is absent at the reviewed ref;
 - Git blob SHA or current content SHA-256 differs;
