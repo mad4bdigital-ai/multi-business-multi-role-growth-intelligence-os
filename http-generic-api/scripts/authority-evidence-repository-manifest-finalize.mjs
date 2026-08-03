@@ -49,17 +49,88 @@ function readJson(filePath, label) {
   }
 }
 
-function writeNewFile(repositoryRoot, relativePath, content) {
-  const normalized = relativePath.replaceAll("\\", "/");
+function lstatOrNull(filePath) {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function prepareNewFile(repositoryRoot, relativePath) {
+  const normalized = String(relativePath ?? "").trim().replaceAll("\\", "/");
+  const segments = normalized.split("/");
+  if (
+    !normalized
+    || normalized.startsWith("/")
+    || normalized.includes("\0")
+    || segments.some((segment) => !segment || segment === "." || segment === ".." || segment === ".git")
+  ) {
+    throw new Error(`Unsafe repository output path: ${relativePath}`);
+  }
   const absolutePath = path.resolve(repositoryRoot, normalized);
   if (path.relative(repositoryRoot, absolutePath).replaceAll("\\", "/") !== normalized) {
     throw new Error(`Output path escaped repository root: ${relativePath}`);
   }
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  if (fs.existsSync(absolutePath)) throw new Error(`Refusing to overwrite existing file: ${relativePath}`);
-  const temporary = `${absolutePath}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, content);
-  fs.renameSync(temporary, absolutePath);
+
+  let current = repositoryRoot;
+  for (const segment of segments.slice(0, -1)) {
+    current = path.join(current, segment);
+    const stat = lstatOrNull(current);
+    if (stat && (stat.isSymbolicLink() || !stat.isDirectory())) {
+      throw new Error(`Unsafe intermediate output directory: ${path.relative(repositoryRoot, current)}`);
+    }
+  }
+  if (lstatOrNull(absolutePath)) throw new Error(`Refusing to overwrite existing file: ${relativePath}`);
+  return { normalized, absolutePath, parentPath: path.dirname(absolutePath) };
+}
+
+function ensureSafeParent(repositoryRoot, parentPath, createdDirectories) {
+  const relative = path.relative(repositoryRoot, parentPath).replaceAll("\\", "/");
+  const segments = relative === "" ? [] : relative.split("/");
+  let current = repositoryRoot;
+  for (const segment of segments) {
+    current = path.join(current, segment);
+    const existing = lstatOrNull(current);
+    if (!existing) {
+      fs.mkdirSync(current);
+      createdDirectories.push(current);
+    }
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error(`Unsafe intermediate output directory: ${path.relative(repositoryRoot, current)}`);
+    }
+    if (fs.realpathSync(current) !== path.resolve(current)) {
+      throw new Error(`Intermediate output directory escaped repository root: ${path.relative(repositoryRoot, current)}`);
+    }
+  }
+}
+
+function writeNewFile(repositoryRoot, relativePath, content) {
+  const prepared = prepareNewFile(repositoryRoot, relativePath);
+  const createdDirectories = [];
+  let temporary = null;
+  try {
+    ensureSafeParent(repositoryRoot, prepared.parentPath, createdDirectories);
+    if (lstatOrNull(prepared.absolutePath)) {
+      throw new Error(`Refusing to overwrite existing file: ${prepared.normalized}`);
+    }
+    temporary = `${prepared.absolutePath}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, String(content), { flag: "wx" });
+    fs.linkSync(temporary, prepared.absolutePath);
+    fs.unlinkSync(temporary);
+    temporary = null;
+  } catch (error) {
+    if (temporary) {
+      try { fs.unlinkSync(temporary); } catch {}
+    }
+    try { fs.unlinkSync(prepared.absolutePath); } catch {}
+    for (const directory of createdDirectories.reverse()) {
+      try { fs.rmdirSync(directory); } catch {}
+    }
+    throw error;
+  }
 }
 
 export function runAuthorityEvidenceRepositoryManifestFinalize(argv = process.argv.slice(2)) {
@@ -88,7 +159,11 @@ function directExecution() {
     && pathToFileURL(path.resolve(process.argv[1])).href === pathToFileURL(fileURLToPath(import.meta.url)).href;
 }
 
-export const _testingAuthorityEvidenceRepositoryManifestFinalize = Object.freeze({ parseArgs });
+export const _testingAuthorityEvidenceRepositoryManifestFinalize = Object.freeze({
+  parseArgs,
+  prepareNewFile,
+  writeNewFile,
+});
 
 if (directExecution()) {
   try {
