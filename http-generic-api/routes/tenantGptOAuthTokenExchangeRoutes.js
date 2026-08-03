@@ -2,9 +2,11 @@ import express, { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
-import { TENANT_GPT_OAUTH_CLIENT_ID, TENANT_GPT_SCOPE } from "../tenantGptOAuthPreset.js";
 import {
-  TENANT_GPT_AUTHORIZATION_SERVER,
+  resolveTenantGptAccessTokenTtlSeconds,
+  validateTenantGptAccessTokenTtlSeconds,
+} from "../tenantGptAccessTokenProfile.js";
+import {
   normalizeTenantGptOAuthResource,
   resolveTenantGptOAuthResourceProfile,
   tenantGptRequestHostFromHeaders,
@@ -17,8 +19,6 @@ import {
 } from "../tenantGptOAuthTokenExchangeOutcomePolicy.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
 
@@ -28,6 +28,12 @@ function sha256(value) {
 
 function text(value, max = 128) {
   return String(value || "").trim().slice(0, max) || null;
+}
+
+function dependencyUnavailable(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function parseRedirectUri(value) {
@@ -128,43 +134,6 @@ function safeCodeEvidence(code, nowMs) {
   };
 }
 
-function defaultVerifyCode(code) {
-  return jwt.verify(String(code || ""), JWT_SECRET);
-}
-
-function defaultIssueAccessToken(payload, {
-  clientId,
-  jwtid,
-  resource,
-  expiresIn = USER_TOKEN_TTL_SECONDS,
-} = {}) {
-  const userId = text(payload?.user_id, 64);
-  const tenantId = text(payload?.tenant_id, 64);
-  const normalizedClientId = text(clientId || TENANT_GPT_OAUTH_CLIENT_ID, 191);
-  const normalizedResource = normalizeTenantGptOAuthResource(resource);
-  if (!userId || !tenantId || !normalizedClientId || !normalizedResource) {
-    const error = new Error("Tenant GPT access-token subject, client, and resource are required.");
-    error.code = "tenant_gpt_access_token_input_invalid";
-    throw error;
-  }
-  return jwt.sign(
-    {
-      iss: TENANT_GPT_AUTHORIZATION_SERVER,
-      aud: normalizedResource,
-      azp: normalizedClientId,
-      client_id: normalizedClientId,
-      resource: normalizedResource,
-      sub: `tenant:${tenantId}:user:${userId}`,
-      user_id: userId,
-      tenant_id: tenantId,
-      scope: TENANT_GPT_SCOPE,
-      purpose: "tenant_gpt_access",
-    },
-    JWT_SECRET,
-    { expiresIn, jwtid },
-  );
-}
-
 async function resolveActiveTokenSubject(pool, { user_id, tenant_id = null } = {}) {
   const userId = text(user_id, 64);
   if (!userId) return { ok: false, outcome: "payload_invalid" };
@@ -227,6 +196,7 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       client: event.client || null,
       client_validation_source: event.client_validation_source || null,
       resource_profile: event.resource_profile || null,
+      bearer_profile: event.bearer_profile || null,
       subject_prevalidated: event.subject_prevalidated === true,
       access_token_prepared: event.access_token_prepared === true,
       code_consumption: event.code_consumption || null,
@@ -285,13 +255,20 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const router = Router();
   const resolvePool = typeof deps.getPool === "function" ? deps.getPool : getPool;
   const validateClientCredentials = deps.validateClientCredentials || validateTenantGptOAuthClientCredentials;
-  const verifyCode = deps.verifyCode || defaultVerifyCode;
-  const issueAccessToken = deps.issueAccessToken || defaultIssueAccessToken;
+  const verifyCode = typeof deps.verifyCode === "function"
+    ? deps.verifyCode
+    : () => { throw dependencyUnavailable("oauth_token_exchange_verifier_unavailable", "OAuth code verifier is unavailable."); };
+  const issueAccessToken = typeof deps.issueAccessToken === "function"
+    ? deps.issueAccessToken
+    : () => { throw dependencyUnavailable("oauth_token_exchange_issuer_unavailable", "OAuth access-token issuer is unavailable."); };
   const consumeCode = deps.consumeCode || consumeTenantGptOAuthAuthorizationCode;
   const recordActivationContext = deps.recordActivationContext || recordTenantGptActivationContext;
   const resolveSubject = deps.resolveActiveSubject || resolveActiveTokenSubject;
   const createId = deps.randomUUID || randomUUID;
   const now = deps.now || (() => Date.now());
+  const accessTokenTtlSeconds = deps.accessTokenTtlSeconds === undefined
+    ? resolveTenantGptAccessTokenTtlSeconds(deps.env || process.env)
+    : validateTenantGptAccessTokenTtlSeconds(deps.accessTokenTtlSeconds);
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     const startedAtMs = now();
@@ -306,6 +283,17 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       code: safeCodeEvidence(req.body?.code, startedAtMs),
       redirect_uri: safeRedirectEvidence(req.body?.redirect_uri),
       client: safeClientEvidence(oauthClientCredentials(req)),
+      bearer_profile: {
+        ttl_seconds: accessTokenTtlSeconds,
+        issuer_claim_required: true,
+        audience_claim_required: true,
+        subject_claim_required: true,
+        expiry_claim_required: true,
+        user_claim_required: true,
+        tenant_claim_required: true,
+        short_lived: true,
+        secrets_included: false,
+      },
     };
 
     delete req.headers.cookie;
@@ -458,14 +446,14 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       tokenLogContext.subject_prevalidated = true;
 
       const accessJti = createId();
-      const accessExpiresAt = new Date(now() + USER_TOKEN_TTL_SECONDS * 1000);
+      const accessExpiresAt = new Date(now() + accessTokenTtlSeconds * 1000);
       const accessToken = issueAccessToken(
         { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
         {
           clientId: clientValidation.client_id,
           jwtid: accessJti,
           resource: resourceProfile.resource,
-          expiresIn: USER_TOKEN_TTL_SECONDS,
+          expiresIn: accessTokenTtlSeconds,
         },
       );
       tokenLogContext.access_token_prepared = true;
@@ -513,7 +501,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       const tokenResponse = {
         access_token: accessToken,
         token_type: "bearer",
-        expires_in: USER_TOKEN_TTL_SECONDS,
+        expires_in: accessTokenTtlSeconds,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
 
