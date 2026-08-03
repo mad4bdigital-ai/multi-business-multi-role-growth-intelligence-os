@@ -35,7 +35,8 @@
           "terminal_outcome": "A SHA-bound no-secret packet reaches ready_for_human_ownership_review without migration, authority, provider, credential, deployment, Production, or task mutation.",
           "steps": [
             "Validate the source manifest contract, exact dispatch SHA, reviewed ancestor identity, and exact eight source-family bindings.",
-            "Verify every source path, Git blob SHA, and current file content SHA-256.",
+            "Reject symbolic links, non-regular files, repository escapes, a manifest larger than 1 MiB, or a source larger than 8 MiB.",
+            "Verify every source Git blob SHA and current file content SHA-256.",
             "Convert reviewed repository definitions into current-observation canonical source snapshots.",
             "Reject incomplete or conflicting authority path contracts.",
             "Create a thirty-minute read-only authorization after variable, typed-confirmation, and Environment gates.",
@@ -48,7 +49,8 @@
             "No push, schedule, issue-comment, or workflow-run event can execute the live job.",
             "The source manifest must pin an ancestor of the exact dispatch SHA and exactly eight canonical source families.",
             "A source change after the reviewed ref fails the current content binding.",
-            "Missing control fields, blob drift, content drift, path escape, duplicate families, and sensitive values fail closed.",
+            "Missing control fields, blob drift, content drift, path escape, symlinks, unsafe file types, oversized files, duplicate families, and sensitive values fail closed.",
+            "Temporary evidence is rooted in RUNNER_TEMP and propagated through GITHUB_ENV.",
             "The live observer remains SELECT/WITH/SHOW-only and performs same-cycle readback.",
             "The packet keeps T001 and T002 incomplete and migration_apply_authorized false.",
             "No SQL mutation, provider call, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
