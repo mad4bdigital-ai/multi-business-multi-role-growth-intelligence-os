@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "oauth-code-consumption-hardening",
+  "task_id": "T031",
+  "status": "foundation_complete_live_token_route_wiring_required",
+  "observed_main_sha": "773179a2dee3523c8af25262475ac83b92e46f21",
+  "observed_at": "2026-08-04",
+  "requirements": [
+    "FR-003",
+    "FR-004",
+    "C-007",
+    "OP-003"
+  ],
+  "implementation": {
+    "authorization_code_store": "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
+    "outcome_policy": "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+    "store_test": "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+    "policy_test": "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
+    "readiness_test": "http-generic-api/test-spec012-t031-oauth-code-consumption-readiness.mjs"
+  },
+  "foundation_capabilities": {
+    "atomic_compare_and_set_consumption": true,
+    "one_success_per_concurrent_race": true,
+    "post_failure_status_readback": true,
+    "verified_invalid_grant_classification": true,
+    "post_commit_disconnect_classification": true,
+    "pre_commit_disconnect_classification": true,
+    "same_code_replay_blocked_when_outcome_unknown": true,
+    "bounded_no_secret_error_response": true,
+    "raw_code_returned": false,
+    "raw_token_returned": false,
+    "raw_client_secret_returned": false,
+    "secrets_included": false
+  },
+  "consumption_outcomes": [
+    "consumed",
+    "not_found",
+    "binding_mismatch",
+    "expired",
+    "already_consumed",
+    "revoked",
+    "issued_not_consumed",
+    "consumption_outcome_unknown",
+    "store_unavailable_code_still_issued"
+  ],
+  "ambiguous_exchange_policy": {
+    "consumed_without_committed_token_response": {
+      "oauth_error": "temporarily_unavailable",
+      "retry_same_code": false,
+      "restart_authorization": false,
+      "operator_reconciliation_required": true
+    },
+    "code_consumption_outcome_unknown": {
+      "oauth_error": "temporarily_unavailable",
+      "retry_same_code": false,
+      "restart_authorization": false,
+      "operator_reconciliation_required": true
+    },
+    "code_store_unavailable_issued_readback": {
+      "oauth_error": "temporarily_unavailable",
+      "retry_same_code": true,
+      "restart_authorization": false,
+      "operator_reconciliation_required": false
+    },
+    "verified_invalid_grant": {
+      "oauth_error": "invalid_grant",
+      "retry_same_code": false,
+      "restart_authorization": true,
+      "operator_reconciliation_required": false
+    }
+  },
+  "live_integration_gate": {
+    "auth_token_route_imports_outcome_policy": false,
+    "auth_token_route_uses_classified_store_result": false,
+    "subject_and_membership_checks_complete_before_consumption": false,
+    "jwt_minting_failure_after_consumption_is_classified": false,
+    "response_commit_boundary_is_recorded": false,
+    "runtime_diagnostic_uses_bounded_classification": false,
+    "route_regression_covers_post_consumption_failure": false,
+    "route_regression_covers_consumption_transport_ambiguity": false,
+    "exact_head_ci_passed_after_live_wiring": false,
+    "production_smoke_passed": false,
+    "required_before_completion": [
+      "Wire the outcome policy into POST /auth/oauth/token.",
+      "Complete client, callback, resource, user, tenant, membership, and issuer readiness checks before code consumption.",
+      "Treat code consumption as the last irreversible authorization gate before token minting.",
+      "Classify any failure after successful consumption as consumed_without_committed_token_response.",
+      "Do not map store transport ambiguity blindly to invalid_grant.",
+      "Persist bounded exchange evidence without raw code, token, authorization, or client-secret values.",
+      "Add route-level race and post-consumption fault-injection regressions.",
+      "Pass exact-head CI and protected-path smoke before checking T031 complete."
+    ]
+  },
+  "non_effects": {
+    "auth_route_changed": false,
+    "jwt_claim_changed": false,
+    "database_schema_changed": false,
+    "database_mutation_performed": false,
+    "migration_applied": false,
+    "production_deployed": false,
+    "credential_read_performed": false,
+    "provider_call_performed": false,
+    "external_send_performed": false,
+    "task_marked_complete": false,
+    "secrets_included": false
+  }
+}
