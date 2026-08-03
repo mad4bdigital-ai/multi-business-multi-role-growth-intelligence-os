@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "r5-trigger-metadata-diagnostic",
+  "title": "R5 GitHub Actions trigger metadata diagnostic",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/r5-trigger-metadata-diagnostic.json",
+      ".github/workflows/r5-trigger-metadata-diagnostic.yml",
+      "http-generic-api/scripts/test-r5-trigger-metadata-diagnostic.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Inspect only GitHub Actions metadata for the merged R5 evidence workflow and distinguish inactive workflow registration, missing issue-comment runs, skipped jobs, and pre-claim failures without Hostinger access or provider mutation.",
+      "e2e_journeys": [
+        {
+          "id": "diagnose-r5-trigger-without-provider-access",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Incident evidence operator",
+          "entrypoint": "Open the exact diagnostic pull request so its same-repository pull_request workflow reads bounded GitHub Actions and Issue metadata.",
+          "terminal_outcome": "A secret-free artifact and bounded Issue #4953 comment identify workflow state, issue-comment run count, latest run status and conclusion, and job allocation state while performing no R5 trigger, workflow dispatch, Hostinger request, provider mutation, restart, deployment, SQL, migration Apply, database mutation, or protected-ref mutation.",
+          "steps": [
+            "Checkout the exact diagnostic pull-request head and execute its static safety contract.",
+            "Read current main and Production refs through GitHub metadata APIs.",
+            "Read the registered R5 workflow state and latest issue_comment runs without dispatching it.",
+            "Read bounded job summaries for the latest R5 issue_comment run when one exists.",
+            "Count exact R5 trigger, claiming, and completed markers on Issue #4953 without returning credential or provider payloads.",
+            "Upload one bounded JSON artifact and publish one diagnostic Issue comment."
+          ],
+          "assertions": [
+            "The workflow has actions: read and issues: write only; it has no actions: write permission.",
+            "No workflow dispatch, repository dispatch, provider endpoint, Hostinger token, secret read, deployment, restart, build creation, SQL, migration Apply, database mutation, force push, or protected-ref write is present.",
+            "The diagnostic pull request is temporary and must not be merged into main.",
+            "The artifact and Issue comment contain metadata only and declare secrets_included false."
+          ],
+          "tests": [
+            {
+              "id": "r5-trigger-metadata-diagnostic-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-r5-trigger-metadata-diagnostic.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/r5-trigger-metadata-diagnostic.json",
+            ".github/workflows/r5-trigger-metadata-diagnostic.yml",
+            "http-generic-api/scripts/test-r5-trigger-metadata-diagnostic.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain the diagnostic artifact only until the R5 trigger failure is classified."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Fail closed when workflow metadata or job metadata is unavailable and report that absence without substituting a provider call."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Use the one temporary diagnostic pull request as the bounded canary and close it unmerged after evidence collection."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "No Production execution is authorized by this diagnostic contract."
+    }
+  ],
+  "secrets_included": false
+}
