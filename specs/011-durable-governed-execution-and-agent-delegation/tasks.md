@@ -93,15 +93,15 @@
 
 ## Phase 8 — Goal-Filtered Operational Intelligence
 
-- [ ] T240 Add goal-to-operation correlation.
-- [ ] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
-- [ ] T242 Add summary-first bounded goal projection.
-- [ ] T243 Preserve full diagnostic detail through governed references.
+- [x] T240 Add goal-to-operation correlation.
+- [x] T241 Classify blocking, related risk, platform-wide, and unrelated attention.
+- [x] T242 Add summary-first bounded goal projection.
+- [x] T243 Preserve full diagnostic detail through governed references.
 
 ## Completion governance
 
-- [ ] T260 Record every implementation PR and merge SHA.
+- [x] T260 Record every implementation PR and merge SHA.
 - [ ] T261 Record migrations, checksums, authorization, and ledger evidence.
-- [ ] T262 Record delegation and fault-injection certification evidence.
+- [x] T262 Record delegation and fault-injection certification evidence.
 - [ ] T263 Record CI, staging, and production parity for every rollout phase.
 - [ ] T264 Complete post-merge audit and closeout PR.

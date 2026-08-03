@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_normalized_metric_observations",
+  "source_table": "growth_control_normalized_metric_observations",
+  "reason": "Excluded because this table is an internal append-only analytics observation ledger with governed normalization lineage. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; projections remain tenant-scoped through dedicated services.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}

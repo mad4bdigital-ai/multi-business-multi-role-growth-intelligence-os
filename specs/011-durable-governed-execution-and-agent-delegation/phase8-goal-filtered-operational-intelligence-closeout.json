@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "phase": "phase8_goal_filtered_operational_intelligence",
+  "status": "complete_on_main",
+  "tasks": ["T240", "T241", "T242", "T243"],
+  "implementation": {
+    "pull_request": 5239,
+    "branch": "gpt/spec-011-phase8-goal-filtered-intelligence-20260803",
+    "head_sha": "cd9b875c020de08cf997069ad979cac272510890",
+    "merge_sha": "ec83f81fce165a71c309e6607ce127aae369da54",
+    "merged_at": "2026-08-03T10:25:06Z",
+    "merge_method": "squash",
+    "changed_files": 8,
+    "additions": 1761,
+    "deletions": 7,
+    "human_contract_review_id": 4843075468
+  },
+  "focused_certification": {
+    "workflow": "Spec 011 Goal-Filtered Operational Intelligence",
+    "initial_failed_run": {
+      "run_id": 30804981855,
+      "head_sha": "968de9e7a7bd88bf67916fc6fbd2a77e1d204c2f",
+      "conclusion": "failure",
+      "first_failure": "fixture_parent_link_shadowed_by_direct_workspace_match",
+      "remediation": "Removed the direct workspace anchor from the parent-child fixture so the test isolates relationship propagation without changing the runtime kernel."
+    },
+    "successful_run": {
+      "run_id": 30805201308,
+      "head_sha": "cd9b875c020de08cf997069ad979cac272510890",
+      "conclusion": "success",
+      "syntax": "success",
+      "goal_correlation_and_bounded_projection": "success",
+      "phase8_output_schema": "success",
+      "artifact_write": "success",
+      "artifact_upload": "success",
+      "artifact": {
+        "artifact_id": 8852454034,
+        "name": "spec011-goal-filtered-operational-intelligence",
+        "digest": "sha256:b2b096146f21e818560ab31c937ba49338af20acda3abb2afeab330d45f2cd4e",
+        "expires_at": "2026-09-02T10:21:13Z"
+      }
+    }
+  },
+  "e2e_phase_governance": {
+    "run_id": 30805201999,
+    "head_sha": "cd9b875c020de08cf997069ad979cac272510890",
+    "conclusion": "success",
+    "evaluate_changed_feature_phases": "success",
+    "execute_current_phase_journeys": "success",
+    "publish_canonical_evidence_report": "success",
+    "declared_journeys": [
+      "authoritative-evidence-to-governed-closeout-pr",
+      "goal-to-bounded-operational-projection"
+    ],
+    "phase8_declared_tests": [
+      "test-spec011-goal-filtered-operational-intelligence.mjs",
+      "test-spec011-goal-filtered-operational-intelligence-schema.mjs"
+    ],
+    "artifacts": {
+      "evaluation": {
+        "artifact_id": 8852464928,
+        "digest": "sha256:c94e97417cd7002050dfa4790f8c25754299679a95d46d7ec950a902483e8973"
+      },
+      "execution": {
+        "artifact_id": 8852482707,
+        "digest": "sha256:436a87ac76b0de18f6054c2e4c3679f4c0ae5d94609dd35a48969bb16e17bd97"
+      },
+      "canonical_summary": {
+        "artifact_id": 8852509084,
+        "digest": "sha256:90cf0e2ff763fc422dabb97e2cd7f99f512c1021cd3dbf2fe192eb211f7162ce"
+      }
+    }
+  },
+  "certified_contract": {
+    "exact_goal_operation_correlation": true,
+    "correlation_dimensions": [
+      "explicit_goal_reference",
+      "resource_ref",
+      "container_key",
+      "workspace_id",
+      "brand_key",
+      "system_id",
+      "operation_key_and_tag",
+      "compatible_parent_child_operation"
+    ],
+    "fuzzy_keyword_matching": false,
+    "tenant_only_match_is_sufficient": false,
+    "attention_classes": [
+      "blocking",
+      "related_risk",
+      "platform_wide",
+      "unrelated"
+    ],
+    "direct_goal_match_precedes_platform_scope": true,
+    "summary_first": true,
+    "bounded_inline_projection": true,
+    "full_diagnostic_detail_inline": false,
+    "every_operation_has_governed_reference": true,
+    "every_attention_item_has_governed_reference": true,
+    "unrelated_items_counted_not_discarded": true,
+    "degraded_sources_visible": true,
+    "response_is_read_only": true,
+    "provider_calls_made": false,
+    "external_mutations_executed": false,
+    "secrets_included": false
+  },
+  "supporting_checks": {
+    "hostinger_storage_shared_canary_guard": "success",
+    "frontend_surface_dispatch": "success",
+    "spec011_delegation_mariadb_certification": "success",
+    "runtime_startup_deployment_evidence": "success",
+    "repository_tool_lifecycle_governance": "success",
+    "platform_completion_cleanup_readback": "success",
+    "e2e_contract_reference_integrity": "success",
+    "docs_agent": "success",
+    "platform_remaining_scope_scorecard": "success",
+    "hostinger_storage_control_plane_guard": "success",
+    "context_kernel_hardcoding_report": "success"
+  },
+  "main_readback": {
+    "kernel": {
+      "path": "http-generic-api/spec011GoalFilteredOperationalIntelligence.js",
+      "blob_sha": "375fd65679c430fed3f38696a80c49d1a51bcdc8",
+      "version": "spec011-goal-filtered-operational-intelligence-v1"
+    },
+    "delivery_contract": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence-delivery.json",
+      "blob_sha": "2f48a7f8e171882812cc57684d77a6477df34eaf"
+    },
+    "e2e_contract": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "blob_sha": "06991e93e0696ce64d256e62252450406e097ce1",
+      "current_phase": "mvp",
+      "status": "implemented"
+    },
+    "verified": true
+  },
+  "boundaries": {
+    "new_persistence_model": false,
+    "new_public_route": false,
+    "production_database_write": false,
+    "production_authorization": false,
+    "provider_calls": false,
+    "external_mutation": false,
+    "deployment": false,
+    "runtime_authority_changed": false,
+    "force_push_used": false,
+    "protected_branch_bypass_used": false,
+    "raw_diagnostic_detail_inlined": false,
+    "secrets_included": false
+  }
+}
