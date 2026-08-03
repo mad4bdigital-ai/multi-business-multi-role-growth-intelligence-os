@@ -94,11 +94,23 @@ jobs:
           for id in validate_generator_syntax validate_schema_intelligence_syntax validate_schema_classification_syntax validate_schema_contract_syntax validate_connectivity_syntax validate_connectivity_graph test_connectivity_contract validate_schema_contract validate_schema_classification test_schema_classification test_schema_classification_contract validate; do
             grep -q "        id: ${id}$" "${TARGET_WORKFLOW}"
           done
-          grep -q 'validation-summary.md' "${TARGET_WORKFLOW}"
-          grep -q 'failed-validation-contract.txt' "${TARGET_WORKFLOW}"
-          grep -q 'failed-validation-exit-code.txt' "${TARGET_WORKFLOW}"
-          grep -Fq 'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}' "${TARGET_WORKFLOW}"
-          grep -Fq 'if-no-files-found: error' "${TARGET_WORKFLOW}"
+          python - "${TARGET_WORKFLOW}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          text = Path(sys.argv[1]).read_text(encoding="utf-8")
+          required = [
+              "validation-summary.md",
+              "failed-validation-contract.txt",
+              "failed-validation-exit-code.txt",
+              "if-no-files-found: error",
+              "path: $" + "{{ runner.temp }}/work-map-autofix-diagnostics-$" + "{{ github.run_id }}",
+          ]
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit(f"Missing required workflow fragments: {missing}")
+          print("workflow structural assertions passed")
+          PY
 
       - name: Commit merge and push without force
         shell: bash
