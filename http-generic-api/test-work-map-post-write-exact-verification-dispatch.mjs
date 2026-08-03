@@ -5,14 +5,20 @@ const ciWorkflow = readFileSync("../.github/workflows/ci.yml", "utf8");
 const integrationWorkflow = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
 const writerWorkflow = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 
+const shellCommittedHead = /\$(?:\{COMMITTED_HEAD_SHA\}|COMMITTED_HEAD_SHA)/u;
+const shellTargetBranch = /\$(?:\{TARGET_BRANCH\}|TARGET_BRANCH)/u;
+
 assert.match(
   writerWorkflow,
-  /gh workflow run ci\.yml[\s\S]*-f expected_head_sha="\$\{COMMITTED_HEAD_SHA\}"/u,
+  new RegExp(`gh workflow run ci\\.yml[\\s\\S]*-f expected_head_sha="${shellCommittedHead.source}"`, "u"),
   "The governed writer must dispatch CI with the committed exact head SHA.",
 );
 assert.match(
   writerWorkflow,
-  /gh workflow run spec-kit-work-map-integration\.yml[\s\S]*-f branch="\$\{TARGET_BRANCH\}"[\s\S]*-f expected_head_sha="\$\{COMMITTED_HEAD_SHA\}"/u,
+  new RegExp(
+    `gh workflow run spec-kit-work-map-integration\\.yml[\\s\\S]*-f branch="${shellTargetBranch.source}"[\\s\\S]*-f expected_head_sha="${shellCommittedHead.source}"`,
+    "u",
+  ),
   "The governed writer must dispatch Work Map integration with branch and exact head SHA.",
 );
 
