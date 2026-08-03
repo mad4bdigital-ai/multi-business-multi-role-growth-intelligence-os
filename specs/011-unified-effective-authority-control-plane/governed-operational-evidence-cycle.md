@@ -10,7 +10,7 @@ It does not create another authority inventory, catalog, ownership review, or mi
 
 ```text
 reviewed repository source documents
-  -> exact main commit and Git blob bindings
+  -> reviewed ancestor commit and Git blob bindings
   -> eight canonical repository snapshots
   -> canonical Authority Evidence Source Bundle
   -> typed short-lived operation authorization
@@ -37,9 +37,9 @@ The cycle requires exactly one reviewed JSON source document for each canonical 
 
 A source manifest binds every document to:
 
-- one full `main` commit SHA;
+- one reviewed full commit SHA that is an ancestor of the dispatch SHA;
 - one repository-relative file path;
-- the exact Git blob SHA at that commit;
+- the exact Git blob SHA at that reviewed commit;
 - the exact SHA-256 of the source file bytes;
 - one canonical source family.
 
@@ -49,9 +49,11 @@ It never infers missing actor, subject, Tenant, Workspace, resource, capability,
 
 ## Freshness model
 
-The reviewed source files are immutable repository definitions. Their blob and content identities remain historical facts. `observed_at` is the time the trusted workflow reads those exact definitions from the pinned `main` commit.
+The reviewed source files are immutable repository definitions. Their blob and content identities remain historical facts. `observed_at` is the time the trusted workflow reads those exact definitions during the dispatch.
 
-The manifest must pin the exact current `main` SHA used by the workflow. If `main` moves after review, the cycle fails closed and a new manifest review is required.
+The workflow checks out the exact dispatch SHA with full ancestry, verifies the manifest ref is a commit and an ancestor of that dispatch SHA, verifies each source blob at the reviewed ref, and hashes the current checked-out source bytes. Any source-file change after the reviewed ref therefore fails the content binding and requires a new manifest review.
+
+This avoids an impossible self-referential manifest while preventing an unrelated later `main` commit from invalidating unchanged reviewed sources.
 
 The repository snapshot observation and live SQL observation must still fit the existing ten-minute evidence-cycle bound.
 
@@ -63,9 +65,9 @@ The live job exists only under `workflow_dispatch` and additionally requires:
 - typed input `I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE`;
 - approval through the `ueacp-live-evidence` GitHub Environment;
 - an exact target schema token;
-- a reviewed source manifest present on current `main`.
+- a reviewed source manifest present on the exact dispatch SHA.
 
-After those gates, the workflow creates an authorization valid for thirty minutes and binds it to the GitHub run ID, exact `main` SHA, Production runtime environment, and target schema.
+After those gates, the workflow creates an authorization valid for thirty minutes and binds it to the GitHub run ID, exact dispatch SHA, Production runtime environment, and target schema.
 
 No push, pull-request, schedule, issue-comment, or workflow-run event can execute the live job. Pull requests execute the contract job only.
 
@@ -103,11 +105,11 @@ The cycle blocks when:
 
 - any canonical source family is missing or duplicated;
 - a source path escapes the repository root;
-- the source file is absent at the pinned ref;
-- Git blob SHA or content SHA-256 differs;
+- the reviewed ref is absent or not an ancestor of the dispatch SHA;
+- the source file is absent at the reviewed ref;
+- Git blob SHA or current content SHA-256 differs;
 - a source document contains sensitive values;
 - a path contract is incomplete or conflicting;
-- the manifest does not pin current `main`;
 - authorization is absent, expired, too long, or unsafe;
 - source and SQL observations exceed the bounded cycle window;
 - the target schema differs from the authorization;
