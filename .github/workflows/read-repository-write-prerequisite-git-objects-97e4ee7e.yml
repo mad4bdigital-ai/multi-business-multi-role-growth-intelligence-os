@@ -1,0 +1,94 @@
+name: Read Repository Write Prerequisite Git Objects 97e4ee7e
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: read-repository-write-prerequisite-git-objects-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+  HISTORICAL_CANDIDATE_SHA: 74a0871c4f57cee753835ca655b0ca42d205ed7d
+  EXPECTED_HEAD_REF: gpt/repository-write-prerequisite-main-97e4ee7e-20260804-v3-test
+
+jobs:
+  read-objects:
+    name: Read immutable tree and blob identities
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Validate temporary PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+
+      - name: Checkout exact temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read exact main tree and candidate blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          git cat-file -e "$HISTORICAL_CANDIDATE_SHA^{commit}"
+          mkdir -p git-object-evidence
+          main_tree_sha="$(git rev-parse "$EXPECTED_MAIN_SHA^{tree}")"
+          cat > git-object-evidence/paths.txt <<'EOF'
+          .changes/e2e/repository-write-workflow-prerequisites.json
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/http-generic-api-fanout-relocation-apply.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-write-workflow-prerequisite-guard.yml
+          .github/workflows/supervisor-runtime-assurance-alert.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          .specify/pipeline-connectivity-contract.json
+          docs/runbooks/supervisor-runtime-assurance.md
+          http-generic-api/scripts/pipeline-connectivity-check.mjs
+          http-generic-api/test-fanout-relocation-ci.mjs
+          http-generic-api/test-pipeline-connectivity-check.mjs
+          http-generic-api/test-supervisor-runtime-assurance-automation.mjs
+          EOF
+          sed -i 's/^          //' git-object-evidence/paths.txt
+          : > git-object-evidence/blobs.tsv
+          while IFS= read -r path; do
+            line="$(git ls-tree "$HISTORICAL_CANDIDATE_SHA" -- "$path")"
+            test -n "$line"
+            mode="$(awk '{print $1}' <<<"$line")"
+            type="$(awk '{print $2}' <<<"$line")"
+            sha="$(awk '{print $3}' <<<"$line")"
+            test "$mode" = "100644"
+            test "$type" = "blob"
+            printf '%s\t%s\t%s\t%s\n' "$path" "$mode" "$type" "$sha" >> git-object-evidence/blobs.tsv
+          done < git-object-evidence/paths.txt
+          test "$(wc -l < git-object-evidence/blobs.tsv)" -eq 13
+          jq -Rn \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --arg main_tree_sha "$main_tree_sha" \
+            --arg historical_candidate_sha "$HISTORICAL_CANDIDATE_SHA" \
+            '[inputs | split("\t") | {path:.[0],mode:.[1],type:.[2],sha:.[3]}] as $entries | {main_sha:$main_sha,main_tree_sha:$main_tree_sha,historical_candidate_sha:$historical_candidate_sha,entries:$entries,repository_mutation:false,secrets_included:false}' \
+            < git-object-evidence/blobs.tsv > git-object-evidence/object-manifest.json
+          cat git-object-evidence/object-manifest.json
+
+      - name: Upload immutable object manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-prerequisite-git-objects-${{ github.run_id }}
+          path: git-object-evidence/object-manifest.json
+          if-no-files-found: error
+          retention-days: 7
