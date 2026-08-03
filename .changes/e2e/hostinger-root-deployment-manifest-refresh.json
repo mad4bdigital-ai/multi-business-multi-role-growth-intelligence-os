@@ -9,7 +9,9 @@
     "include": [
       ".changes/e2e/hostinger-root-deployment-manifest-refresh.json",
       "hostinger-entrypoint-runtime.js",
-      "http-generic-api/test-hostinger-root-entrypoint.mjs"
+      "http-generic-api/scripts/generate-deployment-manifest.mjs",
+      "http-generic-api/test-hostinger-root-entrypoint.mjs",
+      "http-generic-api/test-root-cause-activation-runtime-repair.mjs"
     ]
   },
   "merge_contract": {
@@ -19,39 +21,50 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Ensure the Hostinger root entrypoint regenerates the canonical Production deployment manifest before importing the nested HTTP API server, instead of bypassing the nested npm prestart lifecycle and retaining stale deployment identity.",
+      "objective": "Ensure the Hostinger root entrypoint regenerates the canonical Production deployment manifest before importing the nested HTTP API server and prevents the nested startup call from overwriting that authoritative branch with stale main provenance.",
       "e2e_journeys": [
         {
-          "id": "refresh-hostinger-root-deployment-manifest-before-startup",
+          "id": "refresh-and-lock-hostinger-root-deployment-manifest-before-startup",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Hostinger Node.js application wrapper",
           "entrypoint": "repository-root server.js loading hostinger-entrypoint-runtime.js",
-          "terminal_outcome": "The root runtime imports the canonical deployment-manifest generator, writes a Production-scoped manifest in the nested application directory, and only then changes the working directory and imports the nested server; manifest-generation failure prevents stale-identity startup.",
+          "terminal_outcome": "The root runtime writes a Production-scoped manifest, establishes a process-local authoritative branch lock, and only then imports the nested server; the nested server may regenerate commit and timestamp evidence but cannot replace Production with stale main metadata during the same startup.",
           "steps": [
             "Resolve the nested http-generic-api application directory and canonical manifest generator path.",
             "Import the existing deployment-manifest generator without duplicating its commit-source resolution logic.",
-            "Generate http-generic-api/deployment-manifest.json with the exact Production branch identity and the available deployment commit provenance.",
-            "Fail startup before changing the working directory or importing the server when manifest refresh fails.",
-            "Change the process working directory to the nested application directory only after manifest generation succeeds.",
-            "Import the nested server entrypoint and preserve the existing startup error boundary."
+            "Generate http-generic-api/deployment-manifest.json with the explicit Production branch identity and available deployment commit provenance.",
+            "Reject root startup if the generated manifest does not resolve branch Production.",
+            "Set a process-local authoritative branch lock only after the Production manifest write succeeds.",
+            "Change the process working directory and import the nested server after the branch lock is present.",
+            "Let direct nested startup continue using normal environment and Git provenance when the root branch lock is absent.",
+            "Require explicit --branch arguments to retain precedence over all environment candidates."
           ],
           "assertions": [
             "The Hostinger root startup path does not depend on npm invoking the nested package prestart script.",
             "The canonical scripts/generate-deployment-manifest.mjs implementation remains the only manifest writer.",
             "The manifest output path is exactly http-generic-api/deployment-manifest.json.",
-            "The manifest branch argument is exactly Production.",
-            "Manifest refresh completes before process.chdir and nested server import.",
-            "Manifest refresh failure prevents both process.chdir and nested server import.",
-            "No repository mutation, provider dispatch, credential access, SQL execution, migration apply, deployment command, restart command, or external send is introduced.",
+            "The root manifest branch argument is exactly Production.",
+            "The process-local branch lock is set to Production before nested server import.",
+            "A stale DEPLOYMENT_BRANCH=main or ACTIVATION_GITHUB_BRANCH=main cannot overwrite the root Production branch during the same startup.",
+            "Direct nested startup without the root lock preserves its existing branch-resolution behavior.",
+            "Manifest refresh failure or a non-Production root result prevents process.chdir and nested server import.",
+            "No repository mutation outside the candidate branch, provider dispatch, credential access, SQL execution, migration apply, deployment command, restart command, or external send is introduced.",
             "No secrets are included."
           ],
           "tests": [
             {
-              "id": "hostinger-root-deployment-manifest-refresh-order",
+              "id": "hostinger-root-deployment-manifest-refresh-order-and-lock",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-hostinger-root-entrypoint.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-nested-manifest-branch-overwrite-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-root-cause-activation-runtime-repair.mjs",
               "args": []
             }
           ],
@@ -59,7 +72,8 @@
             "hostinger-entrypoint-runtime.js",
             "http-generic-api/scripts/generate-deployment-manifest.mjs",
             "http-generic-api/deploymentManifest.js",
-            "http-generic-api/test-hostinger-root-entrypoint.mjs"
+            "http-generic-api/test-hostinger-root-entrypoint.mjs",
+            "http-generic-api/test-root-cause-activation-runtime-repair.mjs"
           ]
         }
       ]
