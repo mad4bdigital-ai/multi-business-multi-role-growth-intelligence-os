@@ -19,15 +19,15 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
-      github.event.pull_request.head.sha == '349ea1de31b75486e372067e256d9ee5bca3b114'
+      github.event.pull_request.head.sha == '7fe26ff6ba739f8b00392b3b0357874e99917847'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     env:
-      EXPECTED_MAIN_SHA: d2feb29071823bc706916387b178bc0429be96d1
-      EXPECTED_HEAD_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
+      EXPECTED_MAIN_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      EXPECTED_HEAD_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
       EXPECTED_HEAD_REF: gpt/work-map-phase-g-schema-classification-20260803
-      BASE_SHA: d2feb29071823bc706916387b178bc0429be96d1
-      CANDIDATE_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
+      BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      CANDIDATE_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -136,7 +136,7 @@ jobs:
         env:
           FORCE_ROUTE_RUNTIME_TESTS: 'true'
           DEPLOYMENT_BRANCH: gpt/work-map-phase-g-schema-classification-20260803
-          DEPLOYMENT_COMMIT_SHA: 349ea1de31b75486e372067e256d9ee5bca3b114
+          DEPLOYMENT_COMMIT_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment
