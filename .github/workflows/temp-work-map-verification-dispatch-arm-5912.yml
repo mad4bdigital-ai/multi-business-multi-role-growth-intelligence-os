@@ -99,19 +99,21 @@ jobs:
           marker = '    if (sql.includes("INSERT INTO `execution_log`")) {'
           if text.count(marker) != 1:
             raise SystemExit(f'expected one SQL insertion marker, found {text.count(marker)}')
-          readback = '''    if (sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
-              const record = durableOAuthCodes.get(params[2]);
-              if (!record) return [[]];
-              return [[{
-                status: record.status,
-                expires_at: new Date(Date.now() + 300_000),
-                consumed_at: record.status === "consumed" ? new Date() : null,
-                client_matches: record.client_id === params[0] ? 1 : 0,
-                redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
-                expired_by_store: 0,
-              }]];
-            }
-'''
+          readback = '\n'.join([
+            '    if (sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {',
+            '      const record = durableOAuthCodes.get(params[2]);',
+            '      if (!record) return [[]];',
+            '      return [[{',
+            '        status: record.status,',
+            '        expires_at: new Date(Date.now() + 300_000),',
+            '        consumed_at: record.status === "consumed" ? new Date() : null,',
+            '        client_matches: record.client_id === params[0] ? 1 : 0,',
+            '        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,',
+            '        expired_by_store: 0,',
+            '      }]];',
+            '    }',
+            '',
+          ])
           text = text.replace(marker, readback + marker)
           path.write_text(text)
           PY
