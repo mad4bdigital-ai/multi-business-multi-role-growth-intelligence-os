@@ -1,0 +1,178 @@
+name: Repository Write Boundary Stderr Diagnostic 5804
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/repository-write-boundary-stderr-base-2e7df840-v2
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-write-boundary-stderr-diagnostic-5804-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
+  EXPECTED_CANDIDATE_SHA: 3305fee5f3c84984a32a91ac82062faaa854118a
+  EXPECTED_HEAD_REF: gpt/repository-write-workflow-prerequisites-20260804
+  EXPECTED_BASE_REF: gpt/diag/repository-write-boundary-stderr-base-2e7df840-v2
+
+jobs:
+  diagnose:
+    name: Capture six focused regression outputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Validate immutable pull request identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_SHA" = "$EXPECTED_CANDIDATE_SHA"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$EXPECTED_BASE_REF"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify current protected main and candidate ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Capture Work Map autofix connectivity
+        id: autofix_connectivity
+        shell: bash
+        run: |
+          set +e
+          mkdir -p diagnostic
+          node http-generic-api/test-spec-kit-work-map-autofix-connectivity.mjs > diagnostic/autofix-connectivity.log 2>&1
+          rc=$?
+          cat diagnostic/autofix-connectivity.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Capture Fanout relocation boundary
+        id: fanout
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-fanout-relocation-ci.mjs > diagnostic/fanout.log 2>&1
+          rc=$?
+          cat diagnostic/fanout.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Capture Pipeline connectivity boundary
+        id: pipeline
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-pipeline-connectivity-check.mjs > diagnostic/pipeline.log 2>&1
+          rc=$?
+          cat diagnostic/pipeline.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Capture Supervisor assurance boundary
+        id: supervisor
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-supervisor-runtime-assurance-automation.mjs > diagnostic/supervisor.log 2>&1
+          rc=$?
+          cat diagnostic/supervisor.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Capture repository write PR diagnostics
+        id: pr_diagnostics
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-repository-write-pr-diagnostics.mjs > diagnostic/pr-diagnostics.log 2>&1
+          rc=$?
+          cat diagnostic/pr-diagnostics.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Capture Work Map recovery dispatch
+        id: recovery_dispatch
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-spec-kit-work-map-recovery-dispatch.mjs > diagnostic/recovery-dispatch.log 2>&1
+          rc=$?
+          cat diagnostic/recovery-dispatch.log
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Build diagnostic manifest
+        if: always()
+        shell: bash
+        env:
+          AUTOFIX_CONNECTIVITY_RC: ${{ steps.autofix_connectivity.outputs.exit_code }}
+          FANOUT_RC: ${{ steps.fanout.outputs.exit_code }}
+          PIPELINE_RC: ${{ steps.pipeline.outputs.exit_code }}
+          SUPERVISOR_RC: ${{ steps.supervisor.outputs.exit_code }}
+          PR_DIAGNOSTICS_RC: ${{ steps.pr_diagnostics.outputs.exit_code }}
+          RECOVERY_DISPATCH_RC: ${{ steps.recovery_dispatch.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostic
+          jq -n \
+            --arg expected_main_sha "$EXPECTED_MAIN_SHA" \
+            --arg expected_candidate_sha "$EXPECTED_CANDIDATE_SHA" \
+            --argjson autofix_connectivity "${AUTOFIX_CONNECTIVITY_RC:-255}" \
+            --argjson fanout "${FANOUT_RC:-255}" \
+            --argjson pipeline "${PIPELINE_RC:-255}" \
+            --argjson supervisor "${SUPERVISOR_RC:-255}" \
+            --argjson pr_diagnostics "${PR_DIAGNOSTICS_RC:-255}" \
+            --argjson recovery_dispatch "${RECOVERY_DISPATCH_RC:-255}" \
+            '{expected_main_sha:$expected_main_sha,expected_candidate_sha:$expected_candidate_sha,exit_codes:{autofix_connectivity:$autofix_connectivity,fanout:$fanout,pipeline:$pipeline,supervisor:$supervisor,pr_diagnostics:$pr_diagnostics,recovery_dispatch:$recovery_dispatch},repository_mutation:false,secrets_included:false}' \
+            | tee diagnostic/results.json
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-boundary-stderr-5804-${{ github.run_id }}
+          path: diagnostic/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail if any focused regression failed
+        if: always()
+        shell: bash
+        env:
+          AUTOFIX_CONNECTIVITY_RC: ${{ steps.autofix_connectivity.outputs.exit_code }}
+          FANOUT_RC: ${{ steps.fanout.outputs.exit_code }}
+          PIPELINE_RC: ${{ steps.pipeline.outputs.exit_code }}
+          SUPERVISOR_RC: ${{ steps.supervisor.outputs.exit_code }}
+          PR_DIAGNOSTICS_RC: ${{ steps.pr_diagnostics.outputs.exit_code }}
+          RECOVERY_DISPATCH_RC: ${{ steps.recovery_dispatch.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          for rc in "$AUTOFIX_CONNECTIVITY_RC" "$FANOUT_RC" "$PIPELINE_RC" "$SUPERVISOR_RC" "$PR_DIAGNOSTICS_RC" "$RECOVERY_DISPATCH_RC"; do
+            test "$rc" = "0"
+          done
