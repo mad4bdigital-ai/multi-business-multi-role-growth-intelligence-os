@@ -62,14 +62,22 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Regenerate from current repository authority
+      - name: Generate frontend dispatch
+        run: npm --prefix http-generic-api run frontend:dispatch:generate
+
+      - name: Check frontend dispatch
+        run: npm --prefix http-generic-api run frontend:dispatch:check
+
+      - name: Verify Surface full closure
+        run: node http-generic-api/test-surface-callability-full-closure.mjs
+
+      - name: Verify Hostinger closure safety
+        run: node http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: Verify generated artifact authority
         shell: bash
         run: |
           set -Eeuo pipefail
-          npm --prefix http-generic-api run frontend:dispatch:generate
-          npm --prefix http-generic-api run frontend:dispatch:check
-          node http-generic-api/test-surface-callability-full-closure.mjs
-          node http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
