@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
+const workMapRecoveryBridge = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
 const assurance = readFileSync("../.github/workflows/supervisor-runtime-assurance.yml", "utf8");
 const runbook = readFileSync("../docs/runbooks/supervisor-runtime-assurance.md", "utf8");
@@ -107,8 +108,40 @@ assert.ok(writerPolicy, "platform Work Map writer policy is required");
 assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
 assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
+  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
 );
+
+const recoveryBridgePolicy = writerPolicy.non_writer_pipelines.find(
+  (row) => row.pipeline === "work-map-recovery-bridge",
+);
+assert.ok(recoveryBridgePolicy, "Work Map recovery bridge must remain a governed non-writer");
+for (const marker of [
+  "Validate immutable PR snapshot and dispatch sole writer",
+  "work-map-autofix:authorized",
+  "authorization_consumed=true",
+  "spec-kit-work-map-autofix.yml/dispatches",
+  "direct_repository_content_mutation=false",
+  "protected_branch_mutation=false",
+  "force_push=false",
+]) {
+  assert.ok(
+    recoveryBridgePolicy.required_commands.includes(marker),
+    `Work Map recovery bridge policy missing ${marker}`,
+  );
+  assert.ok(workMapRecoveryBridge.includes(marker), `Work Map recovery bridge workflow missing ${marker}`);
+}
+for (const marker of [
+  "platform-work-map-generator.mjs --write",
+  "git add docs/work-maps",
+  "git push origin",
+  "git commit",
+]) {
+  assert.ok(
+    recoveryBridgePolicy.forbidden_commands.includes(marker),
+    `Work Map recovery bridge policy must forbid ${marker}`,
+  );
+  assert.ok(!workMapRecoveryBridge.includes(marker), `Work Map recovery bridge must not contain ${marker}`);
+}
 
 for (const marker of [
   "schedule:",
