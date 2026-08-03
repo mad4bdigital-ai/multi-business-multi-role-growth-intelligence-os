@@ -1,20 +1,22 @@
 name: UEACP Live Authority Evidence One Shot
 
 on:
-  pull_request_target:
+  pull_request:
+    branches: [main]
     types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ueacp-live-authority-evidence-one-shot
-  cancel-in-progress: false
+  group: ueacp-live-authority-evidence-one-shot-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
   collect-live-authority-evidence:
     name: Collect governed live authority evidence
     if: >-
+      github.actor == 'mad4bdigital-ai' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/ueacp-live-authority-evidence-trigger-20260803' &&
       github.event.pull_request.base.ref == 'main'
