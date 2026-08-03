@@ -1,0 +1,102 @@
+name: Spec 011 Evidence Auto-Closeout
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "http-generic-api/spec011EvidenceAutoCloseout.js"
+      - "http-generic-api/test-spec011-evidence-auto-closeout*.mjs"
+      - ".github/workflows/spec-011-evidence-auto-closeout.yml"
+      - "specs/011-durable-governed-execution-and-agent-delegation/phase7-*"
+      - "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-evidence-auto-closeout-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-auto-closeout-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Phase 7 syntax
+        run: |
+          node --check spec011EvidenceAutoCloseout.js
+          node --check test-spec011-evidence-auto-closeout.mjs
+          node --check test-spec011-evidence-auto-closeout-schemas.mjs
+
+      - name: Validate authoritative evidence and semantic closeout lifecycle
+        run: node test-spec011-evidence-auto-closeout.mjs
+
+      - name: Validate Phase 7 JSON Schemas
+        run: node test-spec011-evidence-auto-closeout-schemas.mjs
+
+      - name: Write bounded certification evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const ok = process.env.JOB_STATUS === 'success';
+          fs.writeFileSync('artifacts/spec011-evidence-auto-closeout.json', JSON.stringify({
+            schema_version: 1,
+            report_type: 'spec011_evidence_auto_closeout_certification',
+            version: 'spec011-evidence-auto-closeout-v1',
+            source_sha: process.env.GITHUB_SHA,
+            status: ok ? 'pass' : 'failed',
+            tasks: ['T220', 'T221', 'T222', 'T223', 'T224'],
+            authoritative_evidence_collector: true,
+            governed_document_schemas: [
+              'manifest_json',
+              'completion_json',
+              'checklist_markdown',
+              'tasks_markdown',
+              'delivery_state_json'
+            ],
+            semantic_change_generation: true,
+            pre_commit_validation: true,
+            atomic_patch_tool: 'repo_patch_batch_apply',
+            pull_request_endpoint: 'github_create_pull_request',
+            pull_request_readback_endpoint: 'github_get_pull_request',
+            unknown_outcome_read_before_retry: true,
+            automatic_unknown_outcome_retry: false,
+            force_push_allowed: false,
+            protected_branch_bypass_allowed: false,
+            real_repository_write_performed: false,
+            real_pull_request_created: false,
+            production_mutation: false,
+            provider_write_performed_by_certification: false,
+            secrets_included: false
+          }, null, 2) + '\n');
+          NODE
+        env:
+          JOB_STATUS: ${{ job.status }}
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-evidence-auto-closeout
+          path: http-generic-api/artifacts/spec011-evidence-auto-closeout.json
+          if-no-files-found: error
+          retention-days: 30
