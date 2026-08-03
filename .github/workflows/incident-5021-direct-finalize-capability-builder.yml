@@ -1,4 +1,4 @@
-name: Incident 5021 direct finalize lifecycle diagnostic
+name: Incident 5021 direct finalize capability publisher
 
 on:
   pull_request:
@@ -9,21 +9,20 @@ on:
       - .github/scripts/incident-5021-direct-finalize-builder.py
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: incident-5021-direct-finalize-lifecycle-diagnostic
+  group: incident-5021-direct-finalize-capability-publisher
   cancel-in-progress: false
 
 jobs:
-  diagnose:
-    name: Diagnose lifecycle source before and after capability test
+  patch-test-publish:
+    name: Patch, test, and publish direct finalize capability guard
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
       BUILDER_BRANCH: gpt/incident-5021/direct-finalize-capability-builder-v2-20260803
       EXPECTED_TARGET_SHA: 67a07736b30721a7306c96bba1da4eb42c9f331b
-      LIFECYCLE_TEST: http-generic-api/test-github-repository-lifecycle.mjs
     steps:
       - name: Checkout immutable target
         uses: actions/checkout@v5
@@ -42,7 +41,7 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Verify target and fetch patch script
+      - name: Verify target and fetch certified patch script
         shell: bash
         run: |
           set -euo pipefail
@@ -52,87 +51,53 @@ jobs:
           test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
           git show "origin/${BUILDER_BRANCH}:.github/scripts/incident-5021-direct-finalize-builder.py" > /tmp/incident-5021-direct-finalize-builder.py
           python -m py_compile /tmp/incident-5021-direct-finalize-builder.py
-          git show "${EXPECTED_TARGET_SHA}:${LIFECYCLE_TEST}" > /tmp/lifecycle-from-commit.mjs
-          sha256sum /tmp/lifecycle-from-commit.mjs > /tmp/lifecycle-commit.sha256
 
       - name: Apply bounded patch
         run: python /tmp/incident-5021-direct-finalize-builder.py
 
-      - name: Capture and run tests in both orders
+      - name: Run focused tests and enforce boundary
         shell: bash
         run: |
-          set -u
-          capture() {
-            stage="$1"
-            {
-              echo "stage=${stage}"
-              echo "head=$(git rev-parse HEAD)"
-              echo "worktree_sha256=$(sha256sum "$LIFECYCLE_TEST" | awk '{print $1}')"
-              echo "commit_sha256=$(awk '{print $1}' /tmp/lifecycle-commit.sha256)"
-              echo "git_blob=$(git hash-object "$LIFECYCLE_TEST")"
-              echo "phrase_matches:"
-              grep -n -F "Success path should return the final protected base oid" "$LIFECYCLE_TEST" || true
-              echo "lines_385_415:"
-              nl -ba "$LIFECYCLE_TEST" | sed -n '385,415p'
-              echo "changed_files:"
-              git diff --name-status
-              echo "lifecycle_diff:"
-              git diff -- "$LIFECYCLE_TEST"
-            } > "/tmp/${stage}.txt" 2>&1
-          }
+          set -euo pipefail
+          node http-generic-api/test-github-repository-lifecycle.mjs
+          node http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          node http-generic-api/test-github-repository-lifecycle.mjs
+          git diff --check
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json
+            http-generic-api/operationCapabilityLifecycleService.js
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+          test "${#changed[@]}" -eq 3
 
-          capture after-patch-before-tests
+      - name: Commit and publish without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/operationCapabilityLifecycleService.js \
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          git commit -m "fix(github): require capability for direct finalize"
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$(git status --porcelain)" = ""
+          git push origin "HEAD:${TARGET_BRANCH}"
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$candidate_sha"
+          printf '{"schema_version":1,"status":"published","base_sha":"%s","candidate_sha":"%s","target_branch":"%s","changed_file_count":3,"tests_passed":true,"lifecycle_repeated_after_capability":true,"diff_check_passed":true,"force_push":false,"secrets_included":false}\n' "$EXPECTED_TARGET_SHA" "$candidate_sha" "$TARGET_BRANCH" > /tmp/incident-5021-direct-finalize-result.json
 
-          set +e
-          node "$LIFECYCLE_TEST" > /tmp/lifecycle-before-capability.log 2>&1
-          lifecycle_before_rc=$?
-          set -e
-          printf '%s\n' "$lifecycle_before_rc" > /tmp/lifecycle-before-capability.rc
-          capture after-first-lifecycle
-
-          set +e
-          node http-generic-api/test-gpt-tools-route-syntax-regression.mjs > /tmp/capability-test.log 2>&1
-          capability_rc=$?
-          set -e
-          printf '%s\n' "$capability_rc" > /tmp/capability-test.rc
-          capture after-capability
-
-          set +e
-          node "$LIFECYCLE_TEST" > /tmp/lifecycle-after-capability.log 2>&1
-          lifecycle_after_rc=$?
-          set -e
-          printf '%s\n' "$lifecycle_after_rc" > /tmp/lifecycle-after-capability.rc
-          capture after-second-lifecycle
-
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          result = {
-              "schema_version": 1,
-              "target_sha": "67a07736b30721a7306c96bba1da4eb42c9f331b",
-              "lifecycle_before_capability_rc": int(Path("/tmp/lifecycle-before-capability.rc").read_text().strip()),
-              "capability_test_rc": int(Path("/tmp/capability-test.rc").read_text().strip()),
-              "lifecycle_after_capability_rc": int(Path("/tmp/lifecycle-after-capability.rc").read_text().strip()),
-              "target_published": False,
-              "secrets_included": False,
-          }
-          Path("/tmp/incident-5021-lifecycle-diagnostic.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
-          PY
-
-      - name: Upload diagnostic evidence
+      - name: Upload publisher evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: incident-5021-lifecycle-source-diagnostic-${{ github.sha }}
-          path: |
-            /tmp/incident-5021-lifecycle-diagnostic.json
-            /tmp/lifecycle-commit.sha256
-            /tmp/after-patch-before-tests.txt
-            /tmp/after-first-lifecycle.txt
-            /tmp/after-capability.txt
-            /tmp/after-second-lifecycle.txt
-            /tmp/lifecycle-before-capability.log
-            /tmp/capability-test.log
-            /tmp/lifecycle-after-capability.log
-          if-no-files-found: error
+          name: incident-5021-direct-finalize-publisher-${{ github.sha }}
+          path: /tmp/incident-5021-direct-finalize-result.json
+          if-no-files-found: warn
           retention-days: 7
