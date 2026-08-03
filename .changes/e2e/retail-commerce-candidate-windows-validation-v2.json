@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "feature_key": "retail-commerce-candidate-windows-validation-v2",
+  "base_sha": "118c25118f4eb89a5975f9a5d4787549c6da544d",
+  "candidate_sha": "69e32d69c818101016d84d355097e10bc260a413",
+  "candidate_branch": "gpt/retail-commerce-reference-package-cleanroom-20260803",
+  "purpose": "Run read-only exact-head Work Map, Spec Kit, and E2E phase evaluation and execution on Windows runner capacity.",
+  "repository_mutation": false,
+  "provider_mutation": false,
+  "database_mutation": false,
+  "deployment": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
