@@ -19,7 +19,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace the non-starting R5 issue-comment trigger with an authorization-bound, repository-read-only internal Draft PR trigger while preserving the exact Production, provider GET-only, secret, and no-mutation boundaries.",
+      "objective": "Run an authorization-bound, repository-read-only internal Draft PR trigger with workflow-registration-safe runtime paths while preserving the exact Production, provider GET-only, secret, and no-mutation boundaries.",
       "e2e_journeys": [
         {
           "id": "collect-current-production-build-and-runtime-evidence-r6-via-read-only-internal-pr",
@@ -27,9 +27,10 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted main GitHub Actions workflow",
           "entrypoint": "same-repository Draft PR changing only the governed trigger JSON, with its exact trigger branch and nonce supplied by the authorization-bound trigger contract rather than embedded in the permanent workflow",
-          "terminal_outcome": "Trusted main verifies the exact PR actor, one-file trigger scope, current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence before collecting GET-only Hostinger and public runtime evidence, uploading a secret-free Artifact, and writing only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
+          "terminal_outcome": "Trusted main registers the workflow, verifies the exact PR actor, one-file trigger scope, current main, protected Production, authorization comment, reporter blobs, dynamic trigger branch, nonce, and terminal-marker absence before collecting GET-only Hostinger and public runtime evidence, uploading a secret-free Artifact, and writing only a GitHub Step Summary. An authenticated administrative reader inspects the Artifact and publishes the bounded Incident #4953 decision separately.",
           "steps": [
             "Load the workflow only from protected main on one internal pull_request opened event targeting main.",
+            "Use a registration-safe static ephemeral evidence directory and reject job-level runner context expressions.",
             "Require the trigger pull request to originate from the same repository, repository owner user ID, and remain Draft.",
             "Checkout the exact pull request base SHA with persisted credentials disabled and require it to remain current main.",
             "Require the trigger pull request to change exactly .github/ops/hostinger-production-release-evidence-r6-trigger.json and no other path.",
@@ -43,6 +44,7 @@
           "assertions": [
             "R6 has no issue_comment or workflow_dispatch trigger.",
             "The pull_request workflow has no write permission and performs no GitHub API mutation.",
+            "The workflow contains no job-level runner.temp expression and uses a registration-safe ephemeral evidence path.",
             "The trigger PR must originate from the same repository, be owned by the repository owner ID, and remain Draft.",
             "The permanent workflow embeds no work-branch literal; the exact trigger branch and nonce are supplied by the governed trigger JSON and matched against the authorization comment.",
             "Only the governed trigger JSON may differ from current main.",
@@ -76,7 +78,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge R6 to main, record a fresh immutable read-only authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
+      "objective": "Merge the registration repair to main, record a fresh immutable read-only authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
     }
   ],
   "secrets_included": false
