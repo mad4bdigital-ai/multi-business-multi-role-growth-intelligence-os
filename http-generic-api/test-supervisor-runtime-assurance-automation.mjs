@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
-const workMapRecoveryBridge = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
+const referenceIntegrity = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
 const assurance = readFileSync("../.github/workflows/supervisor-runtime-assurance.yml", "utf8");
 const runbook = readFileSync("../docs/runbooks/supervisor-runtime-assurance.md", "utf8");
@@ -55,7 +55,7 @@ for (const marker of [
   "workflow_dispatch:",
   "Existing same-repository pull-request branch to update",
   "expected_head_sha:",
-  "Initialize diagnostics and validate inputs",
+  "Initialize diagostics and validate inputs",
   "Checkout exact authorized head",
   "Pin branch and pull request identity",
   "Validate generator and governance contracts",
@@ -81,7 +81,7 @@ assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.
 assert.match(workMapAutofix, /cancel-in-progress: false/);
 assert.match(workMapAutofix, /TARGET_BRANCH: \$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /EXPECTED_HEAD_SHA: \$\{\{ inputs\.expected_head_sha \}\}/);
-assert.match(workMapAutofix, /\[\[ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\]/);
+assert.match(workMapAutofix, /\[\ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\/);
 assert.match(workMapAutofix, /-f state=open/);
 assert.match(workMapAutofix, /-f base=main/);
 assert.match(workMapAutofix, /head="\$\{GITHUB_REPOSITORY_OWNER\}:\$\{TARGET_BRANCH\}"/);
@@ -108,39 +108,42 @@ assert.ok(writerPolicy, "platform Work Map writer policy is required");
 assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
 assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
-  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
+  ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration"].sort(),
+);
+assert.equal(
+  pipelineContract.pipelines.some((row) => row.key === "work-map-recovery-bridge"),
+  false,
+  "retired Work Map recovery bridge must not remain registered",
+);
+assert.equal(
+  pipelineContract.edges.some((row) => row.from === "work-map-recovery-bridge" || row.to === "work-map-recovery-bridge"),
+  false,
+  "retired Work Map recovery bridge must not remain connected",
 );
 
-const recoveryBridgePolicy = writerPolicy.non_writer_pipelines.find(
-  (row) => row.pipeline === "work-map-recovery-bridge",
-);
-assert.ok(recoveryBridgePolicy, "Work Map recovery bridge must remain a governed non-writer");
+for (const marker of [
+  "Run reference integrity regression tests",
+  "Evaluate contract references",
+  "Upload canonical integrity report",
+]) {
+  assert.ok(referenceIntegrity.includes(marker), `reference integrity workflow missing ${marker}`);
+}
 for (const marker of [
   "Validate immutable PR snapshot and dispatch sole writer",
   "work-map-autofix:authorized",
   "authorization_consumed=true",
   "spec-kit-work-map-autofix.yml/dispatches",
-  "direct_repository_content_mutation=false",
-  "protected_branch_mutation=false",
-  "force_push=false",
-]) {
-  assert.ok(
-    recoveryBridgePolicy.required_commands.includes(marker),
-    `Work Map recovery bridge policy missing ${marker}`,
-  );
-  assert.ok(workMapRecoveryBridge.includes(marker), `Work Map recovery bridge workflow missing ${marker}`);
-}
-for (const marker of [
+  "actions: write",
+  "issues: write",
+  "pull-requests: write",
+  "gh api --method PATCH",
+  "gh api --method POST",
   "platform-work-map-generator.mjs --write",
   "git add docs/work-maps",
   "git push origin",
   "git commit",
 ]) {
-  assert.ok(
-    recoveryBridgePolicy.forbidden_commands.includes(marker),
-    `Work Map recovery bridge policy must forbid ${marker}`,
-  );
-  assert.ok(!workMapRecoveryBridge.includes(marker), `Work Map recovery bridge must not contain ${marker}`);
+  assert.equal(referenceIntegrity.includes(marker), false, `reference integrity workflow must retire ${marker}`);
 }
 
 for (const marker of [
@@ -156,10 +159,16 @@ for (const marker of [
   "behavioral-dry-run.json",
   "actions/upload-artifact@v4",
   "supervisor-runtime-assurance",
-  "gh issue create",
-  "gh issue close",
 ]) {
   assert.ok(assurance.includes(marker), `assurance workflow missing ${marker}`);
+}
+for (const marker of [
+  "alert-lifecycle",
+  "gh issue create",
+  "gh issue close",
+  "issues: write",
+]) {
+  assert.equal(assurance.includes(marker), false, `assurance workflow must retire ${marker}`);
 }
 assert.doesNotMatch(assurance, /--live|--apply|APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION/);
 assert.doesNotMatch(assurance, /secrets\.[A-Z0-9_]+/);

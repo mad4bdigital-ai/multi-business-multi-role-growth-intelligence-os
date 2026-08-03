@@ -1,32 +1,6 @@
 name: HTTP Generic API Fanout Relocation
 
 on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: "report or apply. Apply commits safe relocations back to the selected branch."
-        required: true
-        default: "report"
-        type: choice
-        options:
-          - report
-          - apply
-      scope:
-        description: "Relocation scope. scripts is the only write-enabled scope in this workflow."
-        required: true
-        default: "scripts"
-        type: choice
-        options:
-          - scripts
-          - all
-      max_files:
-        description: "Maximum safe files to relocate in one apply run."
-        required: true
-        default: "20"
-      target_branch:
-        description: "Branch to inspect or update. Leave empty to use current ref."
-        required: false
-        default: ""
   pull_request:
     paths:
       - "http-generic-api/scripts/**"
@@ -34,18 +8,19 @@ on:
       - ".github/workflows/http-generic-api-fanout-relocation.yml"
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 jobs:
   fanout-relocation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout target branch
+      - name: Checkout exact pull request head
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          ref: ${{ github.event.inputs.target_branch || github.head_ref || github.ref_name }}
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -62,39 +37,11 @@ jobs:
         working-directory: http-generic-api
         env:
           FANOUT_RELOCATION_MODE: report
-          FANOUT_RELOCATION_SCOPE: ${{ github.event.inputs.scope || 'scripts' }}
-          FANOUT_RELOCATION_MAX_FILES: ${{ github.event.inputs.max_files || '20' }}
+          FANOUT_RELOCATION_SCOPE: scripts
+          FANOUT_RELOCATION_MAX_FILES: "20"
           FANOUT_RELOCATION_JSON: "true"
         run: node scripts/fanout-relocation-ci.mjs --json
-
-      - name: Apply safe fanout relocations
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'apply' }}
-        working-directory: http-generic-api
-        env:
-          FANOUT_RELOCATION_MODE: apply
-          FANOUT_RELOCATION_SCOPE: ${{ github.event.inputs.scope }}
-          FANOUT_RELOCATION_MAX_FILES: ${{ github.event.inputs.max_files }}
-          FANOUT_RELOCATION_JSON: "true"
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ] || [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "Refusing to apply relocation on protected branch ${GITHUB_REF_NAME}" >&2
-            exit 2
-          fi
-          node scripts/fanout-relocation-ci.mjs --mode=apply --scope="${FANOUT_RELOCATION_SCOPE}" --max-files="${FANOUT_RELOCATION_MAX_FILES}" --json
 
       - name: Validate relocation tooling
         working-directory: http-generic-api
         run: node test-fanout-relocation-ci.mjs
-
-      - name: Commit CI-applied relocations
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'apply' }}
-        run: |
-          if git diff --quiet; then
-            echo "No relocation changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add http-generic-api/scripts .github/workflows/http-generic-api-fanout-relocation.yml
-          git commit -m "Apply HTTP generic API script taxonomy relocation"
-          git push
