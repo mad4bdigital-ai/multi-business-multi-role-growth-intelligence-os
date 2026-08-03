@@ -5,16 +5,22 @@ const bridge = readFileSync(
   new URL("../../.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml", import.meta.url),
   "utf8",
 );
+const contractWorkflow = readFileSync(
+  new URL("../../.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge-contract.yml", import.meta.url),
+  "utf8",
+);
 const target = readFileSync(
   new URL("../../.github/workflows/hostinger-nodejs-build-evidence.yml", import.meta.url),
   "utf8",
 );
 
 for (const marker of [
+  "workflow_dispatch:",
+  "expected_head_sha:",
   "issue_comment:",
   "github.event.issue.pull_request == null",
   "github.event.issue.number == 4953",
-  "RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C",
+  "RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C expected_head_sha=",
   "AUTHORIZATION_COMMENT_ID: '5161758022'",
   "AUTHORIZATION_USER_ID: '271942579'",
   "AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C",
@@ -24,6 +30,10 @@ for (const marker of [
   "auth.mad4b.com",
   "f5c1ae8840b4d4452f2908bb0f23051880bb6896",
   "2026-08-03T00:53:07Z",
+  "MUTATION_TARGET_BRANCH: issue-and-actions-metadata-only",
+  '"main" || "${MUTATION_TARGET_BRANCH}" == "Production"',
+  "CURRENT_HEAD_SHA=",
+  'test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"',
   "/actions/workflows/${TARGET_WORKFLOW}/dispatches",
   "account_username:$account",
   "expected_sha:$expected",
@@ -47,7 +57,7 @@ for (const marker of [
   assert(bridge.includes(marker), `dispatch bridge missing ${marker}`);
 }
 
-assert.doesNotMatch(bridge, /pull_request_target:/);
+assert.doesNotMatch(bridge, /pull_request(?:_target)?:/);
 assert.doesNotMatch(bridge, /secrets\./);
 assert.doesNotMatch(bridge, /HOSTINGER_API_TOKEN/);
 assert.doesNotMatch(bridge, /developers\.hostinger\.com/);
@@ -57,7 +67,21 @@ assert.doesNotMatch(bridge, /write-all/);
 assert.doesNotMatch(bridge, /\bgit\s+push\b/);
 assert.doesNotMatch(bridge, /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b\s+/i);
 assert.doesNotMatch(bridge, /--apply/);
-assert.doesNotMatch(bridge, /\b(redeploy|deployment command|restart application|create build)\b/i);
+assert.doesNotMatch(bridge, /\b(redeploy|restart application|create build)\b/i);
+
+for (const marker of [
+  "pull_request:",
+  "branches: [main]",
+  "permissions:\n  contents: read",
+  "persist-credentials: false",
+  "test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs",
+]) {
+  assert(contractWorkflow.includes(marker), `contract workflow missing ${marker}`);
+}
+assert.doesNotMatch(contractWorkflow, /workflow_dispatch:/);
+assert.doesNotMatch(contractWorkflow, /issue_comment:/);
+assert.doesNotMatch(contractWorkflow, /(?:^|\n)\s*[A-Za-z][A-Za-z-]*:\s*write\b/m);
+assert.doesNotMatch(contractWorkflow, /\bgh\s+api\b/);
 
 for (const marker of [
   "workflow_dispatch:",
