@@ -1,1 +1,2 @@
 Temporary never-merge trigger for governed Pipeline Connectivity V3 alignment on canonical PR #5983.
+Synchronization: build isolated diagnostic candidate after focused contract verification.
