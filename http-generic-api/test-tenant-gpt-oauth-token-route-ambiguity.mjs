@@ -37,6 +37,10 @@ function createHarness() {
         }]];
       }
 
+      if (sql.includes("FROM `engine_workflow_bindings`")) {
+        return [[]];
+      }
+
       if (sql.includes("UPDATE `tenant_gpt_oauth_authorization_codes`")) {
         const row = codes.get(params[0]);
         if (state.consume_mode === "commit_then_disconnect") {
@@ -192,7 +196,7 @@ const { server, baseUrl } = await startServer(harness);
 try {
   const successJti = "route-success-jti";
   const success = await exchange(baseUrl, harness.issueCode(successJti));
-  assert.equal(success.status, 200);
+  assert.equal(success.status, 200, JSON.stringify(success));
   assert.equal(success.body.token_type, "bearer");
   assert.equal(typeof success.body.access_token, "string");
   assert.equal(success.cacheControl.includes("no-store"), true);
@@ -207,7 +211,7 @@ try {
     client_id: CLIENT_ID,
     resource: RESOURCE,
   }, JWT_SECRET, { expiresIn: 300, jwtid: successJti }));
-  assert.equal(replay.status, 400);
+  assert.equal(replay.status, 400, JSON.stringify(replay));
   assert.equal(replay.body.error, "invalid_grant");
   assert.equal(replay.body.error_code, "oauth_code_already_consumed");
   assert.equal(replay.body.retry_same_code, false);
@@ -217,7 +221,7 @@ try {
   const committedJti = "route-commit-disconnect-jti";
   harness.state.consume_mode = "commit_then_disconnect";
   const committedUnknown = await exchange(baseUrl, harness.issueCode(committedJti));
-  assert.equal(committedUnknown.status, 503);
+  assert.equal(committedUnknown.status, 503, JSON.stringify(committedUnknown));
   assert.equal(committedUnknown.body.error, "temporarily_unavailable");
   assert.equal(committedUnknown.body.error_code, "oauth_code_consumption_outcome_unknown");
   assert.equal(committedUnknown.body.retry_same_code, false);
@@ -229,7 +233,7 @@ try {
   const issuedJti = "route-precommit-disconnect-jti";
   harness.state.consume_mode = "disconnect_before_commit";
   const issuedRetry = await exchange(baseUrl, harness.issueCode(issuedJti));
-  assert.equal(issuedRetry.status, 503);
+  assert.equal(issuedRetry.status, 503, JSON.stringify(issuedRetry));
   assert.equal(issuedRetry.body.error, "temporarily_unavailable");
   assert.equal(issuedRetry.body.error_code, "oauth_code_store_temporarily_unavailable");
   assert.equal(issuedRetry.body.retry_same_code, true);
@@ -243,7 +247,7 @@ try {
   lookupError.code = "ECONNREFUSED";
   harness.state.user_lookup_error = lookupError;
   const userFailure = await exchange(baseUrl, harness.issueCode(userFailureJti));
-  assert.equal(userFailure.status, 503);
+  assert.equal(userFailure.status, 503, JSON.stringify(userFailure));
   assert.equal(userFailure.body.error, "temporarily_unavailable");
   assert.equal(userFailure.body.error_code, "oauth_token_exchange_dependency_unavailable");
   assert.equal(userFailure.body.retry_same_code, false);
@@ -261,7 +265,7 @@ try {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(harness.diagnostics.length >= 4, true);
+  assert.equal(harness.diagnostics.length >= 4, true, JSON.stringify(harness.diagnostics));
   assert.equal(harness.diagnostics.every((item) => item.runtime_evidence?.secrets_included === false), true);
 
   console.log("PASS tenant-gpt-oauth-token-route-ambiguity");
