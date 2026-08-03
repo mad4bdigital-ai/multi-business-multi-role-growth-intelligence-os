@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "./test-tenant-gpt-oauth-token-binding-guard.mjs";
 import "./test-tenant-gpt-oauth-token-exchange-routes.mjs";
 import "./test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs";
 
@@ -17,6 +18,7 @@ const narrative = read(
 );
 const tasks = read("specs/012-tenant-activation-lifecycle/tasks.md");
 const route = read("http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js");
+const bindingGuard = read("http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js");
 const metadataRoutes = read("http-generic-api/routes/tenantGptOAuthMetadataRoutes.js");
 const routeIndex = read("http-generic-api/routes/index.js");
 const policy = read("http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js");
@@ -27,6 +29,9 @@ assert.equal(record.status, "route_wiring_validated_live_readback_required");
 assert.equal(record.route_contract.method, "POST");
 assert.equal(record.route_contract.path, "/auth/oauth/token");
 assert.equal(record.route_contract.mounted_before_legacy_auth_router, true);
+assert.equal(record.route_contract.request_redirect_uri_required, true);
+assert.equal(record.route_contract.signed_binding_claims_required, true);
+assert.equal(record.route_contract.jwt_secret_fail_closed, true);
 assert.equal(record.route_contract.active_user_prevalidated, true);
 assert.equal(record.route_contract.active_tenant_membership_prevalidated, true);
 assert.equal(record.route_contract.access_token_prepared_before_consumption, true);
@@ -54,13 +59,24 @@ assert.match(tasks, /^- \[ \] \*\*T031\*\*/mu,
 assert.match(narrative, /does \*\*not\*\* close T031/u);
 assert.match(narrative, /Completion boundary/u);
 
-assert.match(metadataRoutes, /buildTenantGptOAuthTokenExchangeRoutes/u);
-assert.match(metadataRoutes, /router\.use\(buildTenantGptOAuthTokenExchangeRoutes\(deps\)\)/u);
+assert.match(metadataRoutes, /buildTenantGptOAuthTokenRequestBindingGuard/u);
+assert.match(metadataRoutes, /buildTenantGptOAuthTokenExchangeDeps/u);
+assert.match(metadataRoutes, /router\.use\(buildTenantGptOAuthTokenRequestBindingGuard\(deps\)\)/u);
+assert.match(metadataRoutes, /router\.use\(buildTenantGptOAuthTokenExchangeRoutes\(tokenDeps\)\)/u);
 const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");
 const legacyAuthMount = routeIndex.indexOf('app.use("/auth", buildAuthRoutes(deps))');
 assert.equal(metadataMount >= 0, true, "metadata router mount must exist");
 assert.equal(legacyAuthMount > metadataMount, true,
   "governed token exchange router must mount before legacy auth routes");
+
+assert.match(bindingGuard, /REQUIRED_CODE_BINDING_CLAIMS/u);
+for (const claim of ["jti", "user_id", "tenant_id", "redirect_uri", "client_id", "resource"]) {
+  assert.match(bindingGuard, new RegExp(`"${claim}"`, "u"), `${claim} must be a required signed binding claim`);
+}
+assert.match(bindingGuard, /oauth_redirect_uri_required/u);
+assert.match(bindingGuard, /oauth_jwt_secret_unavailable/u);
+assert.match(bindingGuard, /retry_same_code: true/u);
+assert.match(bindingGuard, /secrets_included: false/u);
 
 assert.match(route, /router\.post\("\/auth\/oauth\/token"/u);
 assert.match(route, /delete req\.headers\.cookie/u);
