@@ -1,0 +1,115 @@
+name: Exact OAuth Dependency Baseline Writer 5937
+
+on:
+  pull_request_target:
+    branches:
+      - gpt/patch-oauth-deps-base-97e4ee7e
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-oauth-dependency-baseline-writer-5937
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Patch exact OAuth dependency composition
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804' &&
+      github.event.pull_request.head.sha == '97e4ee7ec790844ad20ee2349125579353c693d5'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      TARGET_BRANCH: gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact immutable starting state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_MAIN_SHA"
+          case "$TARGET_BRANCH" in main|Production) exit 1 ;; esac
+
+      - name: Apply three exact dependency-injection corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('http-generic-api/routes/index.js'): (
+                  '  app.use(buildTenantGptOAuthMetadataRoutes());',
+                  '  app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+              ),
+              Path('http-generic-api/test-auth-oauth-routes.mjs'): (
+                  'app.use(buildTenantGptOAuthMetadataRoutes());',
+                  'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));',
+              ),
+              Path('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'): (
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");',
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");',
+              ),
+          }
+          for path, (old, new) in replacements.items():
+              source = path.read_text(encoding='utf-8')
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one exact replacement target, found {count}')
+              path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+          mapfile -t files < <(git diff --name-only)
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = 'http-generic-api/routes/index.js'
+          test "${files[1]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
+          test "${files[2]}" = 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+          git diff --check
+          git diff --exit-code -- . ':!http-generic-api/routes/index.js' ':!http-generic-api/test-auth-oauth-routes.mjs' ':!http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+
+      - name: Commit exact bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-auth-oauth-routes.mjs \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
+          git commit -m 'fix(spec-012): share OAuth token route dependencies'
+
+      - name: Push without force after final compare-and-swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_MAIN_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
