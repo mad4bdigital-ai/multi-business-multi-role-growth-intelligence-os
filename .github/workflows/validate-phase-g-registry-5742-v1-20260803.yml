@@ -1,0 +1,138 @@
+name: Validate Phase G Registry PR 5742 V1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/validate-phase-g-registry-5742-v1-20260803.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: validate-phase-g-registry-5742-v1-20260803
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact Phase G registry head
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-phase-g-registry-5742-v1-20260803'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      TARGET_PR: '5742'
+      TARGET_SHA: 9518c039c7ee0f63dd146faba89ca8d73f58704e
+      TARGET_BRANCH: fix/work-map-growth-control-phase-g-classification-dd929093-20260803
+      EXPECTED_MAIN_SHA: dd929093dd83d2c91ac817ff60d324eca2b71e51
+      WORKFLOW_PATH: .github/workflows/validate-phase-g-registry-5742-v1-20260803.yml
+
+    steps:
+      - name: Verify one-file validator boundary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact topology and governed scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${TARGET_SHA}")" -eq 1
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${TARGET_SHA}")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = '.specify/work-map-schema-classification-registry.json'
+          git diff --check "${EXPECTED_MAIN_SHA}"..."${TARGET_SHA}"
+
+      - name: Run exact registry and Work Map validation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          log="${RUNNER_TEMP}/phase-g-registry-validation.log"
+          set +e
+          (
+            set -Eeuo pipefail
+            node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node --check http-generic-api/scripts/work-map-schema-classification.mjs
+            node --check http-generic-api/scripts/platform-work-map-generator.mjs
+            node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+            node --check http-generic-api/test-work-map-schema-classification.mjs
+            node --check http-generic-api/test-work-map-schema-classification-contract.mjs
+
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+            (
+              cd http-generic-api
+              node test-work-map-schema-classification.mjs
+              node test-work-map-schema-classification-contract.mjs
+              node test-spec-kit-work-map-governance-gate.mjs
+              node test-spec-kit-completion-gate.mjs
+            )
+          ) >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+
+          if [[ "${status}" -ne 0 ]]; then
+            {
+              echo '## Exact Phase G registry validation failed'
+              echo
+              echo "- Target PR: #${TARGET_PR}"
+              echo "- Target head: `${TARGET_SHA}`"
+              echo "- Exact main parent: `${EXPECTED_MAIN_SHA}`"
+              echo
+              echo '```text'
+              tail -n 260 "${log}"
+              echo '```'
+            } > "${RUNNER_TEMP}/failure.md"
+            gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure.md"
+            gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure.md"
+            exit "${status}"
+          fi
+
+          {
+            echo '## Exact Phase G registry validation passed'
+            echo
+            echo "- Target head: `${TARGET_SHA}`"
+            echo "- Exact main parent: `${EXPECTED_MAIN_SHA}`"
+            echo '- Scope: one registry file, one direct-parent commit'
+            echo '- Explicit-only registry contract: passed'
+            echo '- Current classification coverage: passed'
+            echo '- Generated Work Maps currentness: passed'
+            echo '- Changed-scope Work Map governance: passed'
+            echo '- Work Map regression suite: passed'
+            echo '- No generated-file write, SQL, migration apply, database, provider, Production, credential, secret, or external-send mutation occurred'
+          } > "${RUNNER_TEMP}/success.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/success.md"
+          gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/success.md"
