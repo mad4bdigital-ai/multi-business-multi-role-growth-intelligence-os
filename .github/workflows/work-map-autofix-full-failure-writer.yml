@@ -1,0 +1,106 @@
+name: Work Map Autofix Full Failure Set Writer
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-autofix-full-failure-writer-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish complete Work Map validation diagnostics
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-autofix-full-failure-set-20260804' &&
+      github.event.pull_request.head.sha == '773179a2dee3523c8af25262475ac83b92e46f21'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_HEAD_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      SCRIPT_COMMIT_SHA: 61e37a39e648f26259545d56da30f7873ca909ae
+      SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
+      TARGET_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
+    steps:
+      - name: Checkout exact clean feature head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable identity and clean baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")"
+          test -z "$(git status --porcelain)"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+
+      - name: Load immutable transformer from ARM base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
+          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
+          git cat-file -e "${SCRIPT_COMMIT_SHA}^{commit}"
+          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-work-map-full-failure-set.py" > /tmp/apply-work-map-full-failure-set.py
+          python -m py_compile /tmp/apply-work-map-full-failure-set.py
+
+      - name: Apply bounded three-file transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/apply-work-map-full-failure-set.py
+          git diff --name-only | LC_ALL=C sort > /tmp/actual-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          .changes/e2e/work-map-autofix-validation-diagnostics.json
+          .github/workflows/spec-kit-work-map-autofix.yml
+          http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          EOF
+          LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test -z "$(git status --porcelain | awk '{print $2}' | grep -Ev '^(.changes/e2e/work-map-autofix-validation-diagnostics.json|.github/workflows/spec-kit-work-map-autofix.yml|http-generic-api/test-work-map-autofix-validation-diagnostics.mjs)$' || true)"
+
+      - name: Validate workflow contract and E2E payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          node http-generic-api/scripts/validate-e2e-contract-references.mjs
+          node http-generic-api/scripts/validate-e2e-phase-contracts.mjs
+          grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -q 'failed_validation_contracts' .github/workflows/spec-kit-work-map-autofix.yml
+
+      - name: Commit and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .changes/e2e/work-map-autofix-validation-diagnostics.json .github/workflows/spec-kit-work-map-autofix.yml http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          git commit -m "ci(work-maps): persist complete validation failure set"
+          new_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
