@@ -203,27 +203,27 @@ function main() {
   });
 
   const promotion = classifyProductionPromotion({
-    root: options.root,
-    headRef: options.headRef,
-    baseRef: options.baseRef,
-    headSha: options.head,
-    baseSha: options.base
+  root: options.root,
+  headRef: options.headRef,
+  baseRef: options.baseRef,
+  headSha: options.head,
+  baseSha: options.base
+});
+const productionPromotion = promotion.allowed;
+const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+if (productionPromotion && !phaseEvaluationBase) {
+  addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+    head_sha: options.head,
+    promotion_identity: promotion.identity
   });
-  const productionPromotion = promotion.allowed;
-  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
-  if (productionPromotion && !phaseEvaluationBase) {
-    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
-      head_sha: options.head,
-      promotion_identity: promotion.identity
-    });
-  }
-  if (options.baseRef === "Production" && !productionPromotion) {
-    addFinding(report, "production_promotion_identity_invalid", {
-      head_ref: options.headRef || null,
-      head_sha: options.head || null,
-      base_sha: options.base || null
-    });
-  }
+}
+if (options.baseRef === "Production" && !productionPromotion) {
+  addFinding(report, "production_promotion_identity_invalid", {
+    head_ref: options.headRef || null,
+    head_sha: options.head || null,
+    base_sha: options.base || null
+  });
+}
 
   const active = [];
   const integrations = [];
@@ -252,19 +252,9 @@ function main() {
     if (summary.integration_active) integrations.push({ summary, contract });
   }
 
-  if (!productionPromotion && active.length > 1) {
-    addFinding(report, "parallel_work_pr_must_have_single_active_workstream", {
-      active: active.map((row) => `${row.contract.feature_key}:${row.workstream.id}`)
-    });
-  }
-  if (!productionPromotion && integrations.length > 1) {
-    addFinding(report, "parallel_work_pr_must_have_single_integration_contract", {
-      active: integrations.map((row) => row.contract.feature_key)
-    });
-  }
-  if (!productionPromotion && active.length && integrations.length) {
-    addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
-  }
+  if (!productionPromotion && active.length > 1) addFinding(report, "parallel_work_pr_must_have_single_active_workstream", { active: active.map((row) => `${row.contract.feature_key}:${row.workstream.id}`) });
+  if (!productionPromotion && integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
+  if (!productionPromotion && active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
   const defaultBranchSync = options.headRef === "main"
     && Boolean(options.baseRef)
@@ -285,23 +275,12 @@ function main() {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (
-    report.contracts.length &&
-    options.baseRef &&
-    options.headRef &&
-    !options.headRef.startsWith("gh-readonly-queue/") &&
-    !productionPromotion
-  ) {
+  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const runtimeChanged = report.changed_files.some((file) => {
       const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
       return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
     });
-    if (runtimeChanged) {
-      addFinding(report, "parallel_work_pr_branch_not_declared", {
-        head_ref: options.headRef,
-        contracts: report.contracts.map((row) => row.feature_key)
-      });
-    }
+    if (runtimeChanged) addFinding(report, "parallel_work_pr_branch_not_declared", { head_ref: options.headRef, contracts: report.contracts.map((row) => row.feature_key) });
   }
 
   report.pr_mode = mode;
