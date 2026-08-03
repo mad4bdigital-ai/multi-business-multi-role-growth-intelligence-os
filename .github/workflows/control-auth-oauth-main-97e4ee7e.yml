@@ -1,0 +1,117 @@
+name: Control OAuth routes on main 97e4ee7e
+run-name: Read-only OAuth baseline control · main 97e4ee7e
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/control-auth-oauth-main-97e4ee7e.yml
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: control-auth-oauth-main-97e4ee7e
+  cancel-in-progress: false
+
+jobs:
+  main-baseline-control:
+    name: Exact main OAuth route baseline control
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/control-auth-oauth-main-97e4ee7e-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      CONTROL_WORKFLOW: .github/workflows/control-auth-oauth-main-97e4ee7e.yml
+
+    steps:
+      - name: Verify read-only control identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "${main_sha}" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${CONTROL_WORKFLOW}"
+
+      - name: Checkout exact protected main snapshot
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test -z "$(git status --porcelain)"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run OAuth route baseline test
+        id: oauth_test
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "${RUNNER_TEMP}/oauth-main-control"
+          node test-auth-oauth-routes.mjs > "${RUNNER_TEMP}/oauth-main-control/stdout.log" 2> "${RUNNER_TEMP}/oauth-main-control/stderr.log"
+          rc=$?
+          set -e
+          printf 'exit_code=%s\n' "${rc}" >> "$GITHUB_OUTPUT"
+          tail -n 80 "${RUNNER_TEMP}/oauth-main-control/stdout.log" || true
+          tail -n 80 "${RUNNER_TEMP}/oauth-main-control/stderr.log" >&2 || true
+          exit "${rc}"
+
+      - name: Publish no-secret control summary
+        if: always()
+        shell: bash
+        env:
+          TEST_OUTCOME: ${{ steps.oauth_test.outcome }}
+          TEST_EXIT_CODE: ${{ steps.oauth_test.outputs.exit_code }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/oauth-main-control"
+          jq -n \
+            --arg contract 'mad4b.oauth-main-baseline-control.v1' \
+            --arg main_sha "${EXPECTED_MAIN_SHA}" \
+            --arg test_outcome "${TEST_OUTCOME}" \
+            --arg test_exit_code "${TEST_EXIT_CODE}" \
+            '{contract:$contract,main_sha:$main_sha,test:"test-auth-oauth-routes.mjs",test_outcome:$test_outcome,test_exit_code:$test_exit_code,checkout_exact:true,read_only:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/oauth-main-control/summary.json"
+
+      - name: Upload control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-main-baseline-control-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-main-control
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce baseline test outcome
+        if: always()
+        shell: bash
+        env:
+          TEST_OUTCOME: ${{ steps.oauth_test.outcome }}
+        run: test "${TEST_OUTCOME}" = 'success'
