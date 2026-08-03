@@ -1,4 +1,4 @@
-name: TEMP Diagnose Pipeline Connectivity 5983
+name: TEMP Build Pipeline Connectivity Diagnostic Candidate
 
 on:
   pull_request:
@@ -7,55 +7,45 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
-  pull-requests: read
-
-concurrency:
-  group: temp-diagnose-pipeline-connectivity-5983-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  contents: write
+  issues: write
 
 jobs:
-  diagnose:
-    name: Diagnose V3 pipeline connectivity repair
+  build:
+    name: Build isolated V3 diagnostic branch
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     env:
+      SOURCE_SHA: c95aa1e6578d863b5caa199b643018f30fd47853
+      SOURCE_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
+      DIAGNOSTIC_REF: gpt/diagnose-work-map-v3-pipeline-connectivity-5983
+      MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       CANONICAL_PR: '5983'
-      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: c95aa1e6578d863b5caa199b643018f30fd47853
-      EXPECTED_HEAD_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
-      REPORT_DIR: ${{ runner.temp }}/pipeline-connectivity-diagnostic
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact source candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ github.token }}
 
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Verify immutable candidate and current main
+      - name: Verify immutable source and trigger
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-diagnose-pipeline-connectivity-5983-v2"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
-          test "$(jq -r '.state' <<<"${pr}")" = 'open'
-          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
-          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
-          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${EXPECTED_HEAD_REF}" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-patch-pipeline-connectivity-5983"
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${SOURCE_REF}" --jq '.object.sha')" = "${SOURCE_SHA}"
 
-      - name: Patch connectivity contract, regression, and E2E scope in worktree
+      - name: Apply Pipeline Connectivity V3 and robust focused regression
         shell: bash
         run: |
           set -euo pipefail
@@ -64,12 +54,12 @@ jobs:
 
           const contractPath = '.specify/pipeline-connectivity-contract.json';
           const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-          const legacy = [
+          const legacy = new Set([
             'gh workflow run ci.yml',
             'gh workflow run spec-kit-work-map-integration.yml',
             'mad4b.spec-kit-work-map-autofix.v2',
             'WORK_MAP_AUTOFIX_V2',
-          ];
+          ]);
           const modern = [
             'actions/workflows/ci.yml/dispatches',
             'actions/workflows/spec-kit-work-map-integration.yml/dispatches',
@@ -81,131 +71,85 @@ jobs:
             'WORK_MAP_AUTOFIX_V3',
             'gh api --method POST',
           ];
-          const replaceRequired = (values) => [...new Set([
-            ...values.filter((value) => !legacy.includes(value)),
-            ...modern,
-          ])];
-          const addForbidden = (values) => [...new Set([
-            ...values,
-            'gh workflow run ci.yml',
-            'gh workflow run spec-kit-work-map-integration.yml',
-          ])];
-
+          const required = (values) => [...new Set([...values.filter((value) => !legacy.has(value)), ...modern])];
+          const forbidden = (values) => [...new Set([...values, 'gh workflow run ci.yml', 'gh workflow run spec-kit-work-map-integration.yml'])];
           const policy = contract.artifact_writer_policies.find((item) => item.key === 'platform-work-maps-sole-remote-writer');
-          if (!policy) throw new Error('writer policy missing');
-          policy.required_writer_commands = replaceRequired(policy.required_writer_commands);
-          policy.forbidden_writer_commands = addForbidden(policy.forbidden_writer_commands);
-
           const writer = contract.pipelines.find((item) => item.key === 'spec-kit-work-map-autofix');
-          if (!writer) throw new Error('writer pipeline missing');
-          writer.mode = 'sole_remote_write_with_observable_exact_verification';
-          writer.required_commands = replaceRequired(writer.required_commands);
-          writer.forbidden_commands = addForbidden(writer.forbidden_commands);
-
           const integration = contract.pipelines.find((item) => item.key === 'spec-kit-work-map-integration');
-          if (!integration) throw new Error('integration pipeline missing');
-          integration.required_commands = [...new Set([
-            ...integration.required_commands,
-            'EXPECTED_CHECKED_OUT_SHA',
-            'refs/remotes/origin/${TARGET_BRANCH}',
-            'target_branch: process.env.TARGET_BRANCH',
-          ])];
-
           const edge = contract.edges.find((item) => item.from === 'spec-kit-work-map-autofix' && item.to === 'spec-kit-work-map-integration');
-          if (!edge) throw new Error('writer-to-integration edge missing');
+          if (!policy || !writer || !integration || !edge) throw new Error('canonical Pipeline Connectivity records missing');
+          policy.required_writer_commands = required(policy.required_writer_commands);
+          policy.forbidden_writer_commands = forbidden(policy.forbidden_writer_commands);
+          writer.mode = 'sole_remote_write_with_observable_exact_verification';
+          writer.required_commands = required(writer.required_commands);
+          writer.forbidden_commands = forbidden(writer.forbidden_commands);
+          integration.required_commands = [...new Set([...integration.required_commands,'EXPECTED_CHECKED_OUT_SHA','refs/remotes/origin/${TARGET_BRANCH}','target_branch: process.env.TARGET_BRANCH'])];
           edge.type = 'dispatches_observable_exact_head_validation';
           fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
 
-          const testPath = 'http-generic-api/test-pipeline-connectivity-check.mjs';
-          let testSource = fs.readFileSync(testPath, 'utf8');
-          const oldAssertions = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
-          const newAssertions = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v3"));\n  assert.ok(writerWorkflow.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("dispatch-ci.stderr"));\n  assert.ok(writerWorkflow.includes("dispatch-work-map-integration.stderr"));\n  assert.ok(writerWorkflow.includes("ci_run_id"));\n  assert.ok(writerWorkflow.includes("integration_run_id"));\n  assert.ok(!writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(!writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
-          if (!testSource.includes(oldAssertions)) throw new Error('legacy pipeline regression assertion block not found');
-          testSource = testSource.replace(oldAssertions, newAssertions);
-          fs.writeFileSync(testPath, testSource);
+          const pipelineTestPath = 'http-generic-api/test-pipeline-connectivity-check.mjs';
+          let pipelineTest = fs.readFileSync(pipelineTestPath, 'utf8');
+          const oldBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          const newBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v3"));\n  assert.ok(writerWorkflow.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("dispatch-ci.stderr"));\n  assert.ok(writerWorkflow.includes("dispatch-work-map-integration.stderr"));\n  assert.ok(writerWorkflow.includes("ci_run_id"));\n  assert.ok(writerWorkflow.includes("integration_run_id"));\n  assert.ok(!writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(!writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          if (!pipelineTest.includes(oldBlock)) throw new Error('legacy Pipeline Connectivity assertion block missing');
+          fs.writeFileSync(pipelineTestPath, pipelineTest.replace(oldBlock, newBlock));
+
+          const focusedPath = 'http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs';
+          let focused = fs.readFileSync(focusedPath, 'utf8');
+          focused = focused.replace(
+            /assert\.match\(\n  writerWorkflow,\n  \/\\\[\\\[ "\\\$\\\{ci_run_id\\\}"[\s\S]*?\n\);\nassert\.match\(\n  writerWorkflow,\n  \/\\\[\\\[ "\\\$\\\{integration_run_id\\\}"[\s\S]*?\n\);/u,
+            `assert.ok(writerWorkflow.includes('[[ "${ci_run_id}" =~ ^[1-9][0-9]*$ ]]'), "The writer must fail closed unless a CI verification run ID is observed.");\nassert.ok(writerWorkflow.includes('[[ "${integration_run_id}" =~ ^[1-9][0-9]*$ ]]'), "The writer must fail closed unless a Work Map verification run ID is observed.");`,
+          );
+          fs.writeFileSync(focusedPath, focused);
 
           const e2ePath = '.changes/e2e/work-map-post-write-exact-verification-dispatch.json';
           const e2e = JSON.parse(fs.readFileSync(e2ePath, 'utf8'));
-          const extraPaths = [
-            '.specify/pipeline-connectivity-contract.json',
-            'http-generic-api/test-pipeline-connectivity-check.mjs',
-          ];
-          e2e.scope.include = [...new Set([...e2e.scope.include, ...extraPaths])];
+          const extras = ['.specify/pipeline-connectivity-contract.json','http-generic-api/test-pipeline-connectivity-check.mjs'];
+          e2e.scope.include = [...new Set([...e2e.scope.include, ...extras])];
           const journey = e2e.phases.find((phase) => phase.id === 'mvp')?.e2e_journeys?.[0];
-          if (!journey) throw new Error('mvp E2E journey missing');
-          journey.steps = [...new Set([
-            ...journey.steps,
-            'Update the canonical pipeline connectivity registry from opaque CLI/V2 signatures to observable REST/V3 signatures.',
-            'Run the canonical pipeline connectivity checker and real-repository regression before generation.',
-          ])];
-          journey.assertions = [...new Set([
-            ...journey.assertions,
-            'The canonical pipeline registry forbids the retired opaque gh workflow run signatures.',
-            'The real-repository pipeline regression requires V3 diagnostics, dispatch stderr, and exact verification run identities.',
-          ])];
-          journey.tests = [...journey.tests, {
-            path: 'http-generic-api/test-pipeline-connectivity-check.mjs',
-            command: 'node test-pipeline-connectivity-check.mjs',
-          }].filter((item, index, values) => values.findIndex((candidate) => candidate.path === item.path) === index);
-          journey.evidence_paths = [...new Set([...journey.evidence_paths, ...extraPaths])];
+          if (!journey) throw new Error('E2E journey missing');
+          journey.tests = [...journey.tests,{path:'http-generic-api/test-pipeline-connectivity-check.mjs',command:'node test-pipeline-connectivity-check.mjs'}].filter((item,index,values)=>values.findIndex((candidate)=>candidate.path===item.path)===index);
+          journey.evidence_paths = [...new Set([...journey.evidence_paths, ...extras])];
           fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\n`);
           NODE
 
-      - name: Run each contract and capture independent diagnostics
-        id: contracts
-        shell: bash
-        run: |
-          set -uo pipefail
-          mkdir -p "${REPORT_DIR}"
-
-          run_check() {
-            local key="$1"
-            shift
-            set +e
-            "$@" >"${REPORT_DIR}/${key}.stdout" 2>"${REPORT_DIR}/${key}.stderr"
-            local status=$?
-            set -e
-            printf '%s\n' "${status}" >"${REPORT_DIR}/${key}.exit-code"
-            echo "===== ${key} (exit ${status}) ====="
-            cat "${REPORT_DIR}/${key}.stdout" || true
-            cat "${REPORT_DIR}/${key}.stderr" || true
-            return 0
-          }
-
-          run_check focused node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          run_check connectivity-check node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          run_check connectivity-regression node http-generic-api/test-pipeline-connectivity-check.mjs
-          run_check test-syntax node --check http-generic-api/test-pipeline-connectivity-check.mjs
-          run_check e2e-json node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
-          run_check diff-hygiene git diff --check
-
-          changed="$(git diff --name-only)"
-          printf '%s\n' "${changed}" >"${REPORT_DIR}/changed-files.txt"
-          jq -n \
-            --arg focused "$(cat "${REPORT_DIR}/focused.exit-code")" \
-            --arg checker "$(cat "${REPORT_DIR}/connectivity-check.exit-code")" \
-            --arg regression "$(cat "${REPORT_DIR}/connectivity-regression.exit-code")" \
-            --arg syntax "$(cat "${REPORT_DIR}/test-syntax.exit-code")" \
-            --arg e2e_json "$(cat "${REPORT_DIR}/e2e-json.exit-code")" \
-            --arg diff_hygiene "$(cat "${REPORT_DIR}/diff-hygiene.exit-code")" \
-            --arg changed_files "${changed}" \
-            '{contract:"mad4b.pipeline-connectivity-v3-patch-diagnostic.v1",focused_exit_code:($focused|tonumber),connectivity_check_exit_code:($checker|tonumber),connectivity_regression_exit_code:($regression|tonumber),test_syntax_exit_code:($syntax|tonumber),e2e_json_exit_code:($e2e_json|tonumber),diff_hygiene_exit_code:($diff_hygiene|tonumber),changed_files:($changed_files|split("\n")|map(select(length>0))),candidate_mutated:false,main_mutated:false,production_mutated:false,secrets_included:false}' \
-            >"${REPORT_DIR}/summary.json"
-
-      - name: Upload diagnostic evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pipeline-connectivity-v3-patch-diagnostic-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Fail after diagnostic capture
+      - name: Run all focused contracts
         shell: bash
         run: |
           set -euo pipefail
-          for file in "${REPORT_DIR}"/*.exit-code; do
-            test "$(cat "${file}")" = '0'
-          done
-          echo 'All diagnostic contracts passed.'
+          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
+          git diff --check
+
+      - name: Commit isolated diagnostic candidate
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            .specify/pipeline-connectivity-contract.json \
+            http-generic-api/test-pipeline-connectivity-check.mjs \
+            http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs \
+            .changes/e2e/work-map-post-write-exact-verification-dispatch.json
+          git commit -m 'test(ci): build isolated observable Work Map dispatch candidate'
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${DIAGNOSTIC_REF}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${DIAGNOSTIC_REF}" | awk '{print $1}')" = "${result_head}"
+          echo "result_head=${result_head}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish result to canonical PR
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT_HEAD: ${{ steps.publish.outputs.result_head }}
+        run: |
+          set -euo pipefail
+          body="PIPELINE_V3_DIAGNOSTIC_CANDIDATE outcome=${{ job.status }} source_sha=${SOURCE_SHA} diagnostic_ref=${DIAGNOSTIC_REF} result_head_sha=${RESULT_HEAD:-none} canonical_mutated=false main_mutated=false production_mutated=false force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}"
