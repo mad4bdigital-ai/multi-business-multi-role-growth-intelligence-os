@@ -78,17 +78,45 @@ jobs:
           git diff --check "${EXPECTED_MAIN_SHA}"
           git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
 
-      - name: Validate workflow regression and generated parity
+      - name: Run every validation and capture results
+        shell: bash
+        run: |
+          set -uo pipefail
+          results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          : > "${results}"
+
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/${name}.log"
+            set +e
+            "$@" >"${log}" 2>&1
+            local status=$?
+            set -e
+            printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
+            cat "${log}"
+          }
+
+          run_check workflow-yaml ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check diagnostics-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          run_check marker-git-ref grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check marker-no-full-ref grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
+          run_check marker-no-namespace bash -lc "! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml"
+          run_check work-map-generator-check node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          {
+            printf 'check\texit_code\tlog\n'
+            cat "${results}"
+          } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+
+      - name: Enforce validation success
         shell: bash
         run: |
           set -euo pipefail
-          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
-          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
-          grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
-          grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
-          ! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          test -s "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
 
       - name: Create exact local commit and payload
         shell: bash
