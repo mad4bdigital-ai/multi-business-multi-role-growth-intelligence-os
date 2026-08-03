@@ -39,7 +39,7 @@ concurrency:
 jobs:
   assurance:
     name: Static readiness and behavioral dry-run
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -97,7 +97,7 @@ jobs:
     name: Reconcile supervisor assurance issue
     needs: assurance
     if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: write

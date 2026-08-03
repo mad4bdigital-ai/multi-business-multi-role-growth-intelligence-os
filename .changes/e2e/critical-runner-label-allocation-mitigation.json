@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "critical-runner-label-allocation-mitigation",
+  "title": "Pin affected critical workflows to the available Ubuntu 24.04 hosted runner",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/e2e-phase-governance.yml",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      ".github/workflows/ci-pull-request-recovery.yml",
+      ".github/workflows/supervisor-runtime-assurance.yml",
+      ".github/workflows/http-generic-api-fanout-relocation.yml",
+      ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+      ".changes/e2e/critical-runner-label-allocation-mitigation.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace the observed non-allocating ubuntu-latest alias only in the nine affected critical workflows with explicit ubuntu-24.04.",
+      "e2e_journeys": [
+        {
+          "id": "allocate-critical-hosted-workflow-jobs",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions hosted workflow scheduler",
+          "entrypoint": "A pull request changes one of the affected critical workflow paths.",
+          "terminal_outcome": "Each allowlisted critical job requests ubuntu-24.04 and can receive a hosted runner while workflow permissions and behavior remain otherwise unchanged.",
+          "steps": [
+            "Pin each allowlisted workflow from ubuntu-latest to ubuntu-24.04.",
+            "Reject any remaining ubuntu-latest label in the allowlist.",
+            "Preserve workflow triggers, permissions, commands, and safety boundaries.",
+            "Execute the runner-label pinning regression on the exact candidate head."
+          ],
+          "assertions": [
+            "Exactly nine observed critical workflows are governed by the pinning regression.",
+            "Every allowlisted workflow contains runs-on: ubuntu-24.04.",
+            "No allowlisted workflow contains runs-on: ubuntu-latest.",
+            "No Production, provider, credential, SQL, Migration Apply, database, protected-ref, force-push, Work Map, or external mutation authority is added.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "critical-runner-label-pinning",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-critical-runner-label-pinning.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+            ".changes/e2e/critical-runner-label-allocation-mitigation.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Confirm the affected Draft and Ready jobs obtain first-step timestamps."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prevent accidental reintroduction of ubuntu-latest into the observed critical workflow allowlist."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Compare hosted allocation evidence after merge without triggering provider or Production actions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Retain repository CI availability while preserving all existing runtime safety boundaries."
+    }
+  ],
+  "secrets_included": false
+}
