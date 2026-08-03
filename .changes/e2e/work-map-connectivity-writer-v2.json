@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-connectivity-writer-v2",
+  "title": "Work Map bridge-authorized exact-head writer v2 connectivity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-connectivity-writer-v2.json",
+      ".specify/pipeline-connectivity-contract.json",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that one immutable pull-request bridge consumes the one-time authorization marker and dispatches a workflow-dispatch-only exact-head writer, while Integration and every other pipeline remain non-writers and all generated Work Map writes are serialized by the current branch-scoped concurrency key.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-dispatch-write-and-verify-work-map-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed Work Map recovery control plane",
+          "entrypoint": "A same-repository open pull request targeting main carries the one-time Work Map authorization marker on an immutable event snapshot.",
+          "terminal_outcome": "The bridge consumes the marker once, dispatches the sole writer with the exact branch and head SHA, the writer validates identity and serializes generation without force push, and exact-head CI and Integration verification are dispatched while all non-writers remain mutation-free.",
+          "steps": [
+            "Validate the immutable pull-request base, head, repository identity, state, target branch, and authorization marker inside the E2E recovery bridge.",
+            "Consume the marker with readback and dispatch spec-kit-work-map-autofix.yml using branch and expected_head_sha inputs.",
+            "Require the writer to run only through workflow_dispatch, check out and pin the exact authorized SHA, and resolve exactly one same-repository pull request targeting main.",
+            "Validate generator, classification, connectivity, and governance contracts before generating any Work Map file.",
+            "Generate twice, prove idempotency, reject changes outside docs/work-maps, and serialize the branch writer with the exact current concurrency resource key.",
+            "Commit and push without force only when generated Work Maps changed, verify the remote result SHA, then dispatch exact-head CI and Work Map Integration.",
+            "Prove through repository regressions that marker consumption cannot move back into the writer and generation cannot move into the bridge or Integration."
+          ],
+          "assertions": [
+            "The authorization marker and PATCH consumption remain in the E2E recovery bridge and are absent from the writer.",
+            "The recovery bridge contains no Work Map generator write, git add, git commit, git push, protected-branch mutation, or force push.",
+            "The writer exposes workflow_dispatch only and rejects pull_request, push, schedule, and workflow_run triggers.",
+            "The writer requires the exact local and remote expected_head_sha and exactly one open same-repository pull request targeting main.",
+            "The writer uses spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }} with cancel-in-progress false.",
+            "Integration generates only an exact-head local repair candidate and performs no remote commit or push.",
+            "Pipeline connectivity, supervisor assurance, and automation overlap regressions all agree on the bridge-authorized writer v2 architecture."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-writer-v2-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "supervisor-assurance-writer-v2-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            },
+            {
+              "id": "automation-overlap-writer-v2-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-automation-overlap-analyzer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".specify/pipeline-connectivity-contract.json",
+            "http-generic-api/scripts/taxonomy/automation-overlap-policy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the repaired connectivity contracts, reauthorize the original currentness probe, and collect one successful exact-head writer and Integration evidence cycle before merging the generated Work Map refresh."
+    }
+  ]
+}
