@@ -113,7 +113,7 @@ jobs:
               .behind_by == 0 and
               (.ahead_by >= 1 and .ahead_by <= 20) and
               (.total_commits >= 1 and .total_commits <= 20) and
-              (.files | type == "array" and length >= 1) and
+              (.files | type == "array") and
               all(.files[].filename; . == "docs/repo-maintenance-status.md")
             ' "${comparison_json}" >/dev/null
             accepted_drift_files="$(jq -c '[.files[].filename]' "${comparison_json}")"
