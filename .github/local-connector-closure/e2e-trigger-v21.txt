@@ -1,0 +1,13 @@
+Governed Local Connector Production closure visibility trigger
+
+production_pr=3945
+hotfix_merge_sha=792ff63af82791e9a482029f5078931fa0707c8c
+current_production_sha=5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
+rebuild_pr=5173
+rebuild_tree_changed=false
+trusted_ref=main
+execution_surface=e2e-contract-reference-integrity
+runner_pool=macos-latest
+migration_apply=false
+provider_mutation=false
+credential_rotation=false
