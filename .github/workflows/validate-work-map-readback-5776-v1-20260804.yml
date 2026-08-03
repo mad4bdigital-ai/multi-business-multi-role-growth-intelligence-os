@@ -1,0 +1,134 @@
+name: Validate Work Map Readback 5776 V1 20260804
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/validate-work-map-readback-5776-v1-20260804.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: validate-work-map-readback-5776-v1-20260804
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact generated Work Map readback
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-work-map-readback-5776-v1-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      VALIDATOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      VALIDATOR_WORKFLOW: .github/workflows/validate-work-map-readback-5776-v1-20260804.yml
+      TARGET_PR: '5776'
+      TARGET_BRANCH: gpt/work-map-currentness-refresh-20260804
+      TARGET_SHA: 07a863372f9e5437065b477d502e7eecc3ee6d36
+      EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+
+    steps:
+      - name: Verify one-file validator and exact target snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${VALIDATOR_WORKFLOW}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          target="$(gh api "/repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = open
+          test "$(jq -r '.base.sha' <<<"${target}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
+
+      - name: Checkout exact generated-map head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run exact currentness and Spec 014 readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/work-map-readback"
+          mkdir -p "${report_dir}"
+          log="${report_dir}/validation.log"
+          set +e
+          (
+            set -Eeuo pipefail
+            test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+            test "$(git merge-base "${TARGET_SHA}" "${EXPECTED_MAIN_SHA}")" = "${EXPECTED_MAIN_SHA}"
+            mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${TARGET_SHA}" | sort)
+            expected=(
+              'docs/work-maps/README.md'
+              'docs/work-maps/repository-automation-map.md'
+            )
+            test "${#changed[@]}" -eq "${#expected[@]}"
+            for index in "${!expected[@]}"; do test "${changed[$index]}" = "${expected[$index]}"; done
+
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            REPORT_PATH="${report_dir}/summary.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${report_dir}/stdout.json"
+            git diff --check
+            test -z "$(git status --short)"
+          ) >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+
+          if [[ -f "${report_dir}/summary.json" ]]; then
+            current_fingerprint="$(jq -r '.current_registry.fingerprint // "missing"' "${report_dir}/summary.json")"
+            manifest_fingerprint="$(jq -r '.manifest_registry.fingerprint // "missing"' "${report_dir}/summary.json")"
+            finding_count="$(jq -r '.findings | length' "${report_dir}/summary.json")"
+          else
+            current_fingerprint=unresolved
+            manifest_fingerprint=unresolved
+            finding_count=unresolved
+          fi
+
+          {
+            if [[ "${status}" -eq 0 ]]; then
+              echo '## Exact Work Map readback passed'
+            else
+              echo '## Exact Work Map readback requires refresh'
+            fi
+            echo
+            echo "- Target head: \`${TARGET_SHA}\`"
+            echo "- Exact main base: \`${EXPECTED_MAIN_SHA}\`"
+            echo '- Diff boundary: exactly the two generated Work Map files'
+            echo "- Current registry fingerprint: \`${current_fingerprint}\`"
+            echo "- Manifest fingerprint: \`${manifest_fingerprint}\`"
+            echo "- Finding count: \`${finding_count}\`"
+            echo "- Readback exit status: \`${status}\`"
+            echo '- This validator performed no repository write, protected-ref mutation, SQL, migration, database, provider, deployment, credential, or external-send action.'
+            if [[ "${status}" -ne 0 ]]; then
+              echo
+              echo '```text'
+              tail -n 180 "${log}"
+              echo '```'
+            fi
+          } > "${report_dir}/comment.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${report_dir}/comment.md"
+          gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${report_dir}/comment.md"
+          exit "${status}"
