@@ -41,13 +41,14 @@ jobs:
           diagnostic_root="${GITHUB_WORKSPACE}/.work-map-autofix-diagnostics"
           echo "DIAGNOSTIC_ROOT=${diagnostic_root}" >> "$GITHUB_ENV"
           mkdir -p "${diagnostic_root}"
+          : > "${diagnostic_root}/validation-results.tsv"
 
           git check-ref-format --branch "${TARGET_BRANCH}"
           [[ "${TARGET_BRANCH}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]
           [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
 
-          cat > "${diagnostic_root}/report.md" <<EOF
+          cat > "${diagnostic_root}/report.md" <<EOF_REPORT
           # Work Map Autofix Diagnostic Report
 
           | Field | Value |
@@ -56,7 +57,7 @@ jobs:
           | Run | \`${GITHUB_RUN_ID}\` |
           | Target branch | \`${TARGET_BRANCH}\` |
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
-          EOF
+          EOF_REPORT
 
       - name: Checkout exact authorized head
         id: checkout
@@ -97,21 +98,208 @@ jobs:
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
           echo "pr_number=$(jq -r '.[0].number' "${pr_file}")" >> "$GITHUB_OUTPUT"
 
+      - name: Syntax check platform Work Map generator
+        id: validate_generator_syntax
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-01-platform-work-map-generator-syntax.log"
+          set +e
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "platform-work-map-generator-syntax" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Syntax check Work Map schema intelligence
+        id: validate_schema_intelligence_syntax
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-02-platform-work-map-schema-intelligence-syntax.log"
+          set +e
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "platform-work-map-schema-intelligence-syntax" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Syntax check Work Map schema classification
+        id: validate_schema_classification_syntax
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-03-work-map-schema-classification-syntax.log"
+          set +e
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "work-map-schema-classification-syntax" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Syntax check Work Map schema contract
+        id: validate_schema_contract_syntax
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-04-work-map-schema-contract-syntax.log"
+          set +e
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "work-map-schema-classification-contract-syntax" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Syntax check pipeline connectivity validator
+        id: validate_connectivity_syntax
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-05-pipeline-connectivity-syntax.log"
+          set +e
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "pipeline-connectivity-check-syntax" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Validate pipeline connectivity graph
+        id: validate_connectivity_graph
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-06-pipeline-connectivity-check.log"
+          set +e
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "pipeline-connectivity-check" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Test pipeline connectivity contract
+        id: test_connectivity_contract
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-07-test-pipeline-connectivity-check.log"
+          set +e
+          node http-generic-api/test-pipeline-connectivity-check.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "test-pipeline-connectivity-check" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Validate Work Map schema classification contract
+        id: validate_schema_contract
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-08-work-map-schema-classification-contract.log"
+          set +e
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "work-map-schema-classification-contract" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Validate Work Map schema classification
+        id: validate_schema_classification
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-09-work-map-schema-classification.log"
+          set +e
+          node http-generic-api/scripts/work-map-schema-classification.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "work-map-schema-classification" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Test Work Map schema classification
+        id: test_schema_classification
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-10-test-work-map-schema-classification.log"
+          set +e
+          node http-generic-api/test-work-map-schema-classification.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "test-work-map-schema-classification" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
+      - name: Test Work Map schema classification contract
+        id: test_schema_classification_contract
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          log="${DIAGNOSTIC_ROOT}/validation-11-test-work-map-schema-classification-contract.log"
+          set +e
+          node http-generic-api/test-work-map-schema-classification-contract.mjs >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+          printf '%s\t%s\t%s\n' "test-work-map-schema-classification-contract" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          exit "${status}"
+
       - name: Validate generator and governance contracts
         id: validate
+        env:
+          VALIDATE_01: ${{ steps.validate_generator_syntax.outcome }}
+          VALIDATE_02: ${{ steps.validate_schema_intelligence_syntax.outcome }}
+          VALIDATE_03: ${{ steps.validate_schema_classification_syntax.outcome }}
+          VALIDATE_04: ${{ steps.validate_schema_contract_syntax.outcome }}
+          VALIDATE_05: ${{ steps.validate_connectivity_syntax.outcome }}
+          VALIDATE_06: ${{ steps.validate_connectivity_graph.outcome }}
+          VALIDATE_07: ${{ steps.test_connectivity_contract.outcome }}
+          VALIDATE_08: ${{ steps.validate_schema_contract.outcome }}
+          VALIDATE_09: ${{ steps.validate_schema_classification.outcome }}
+          VALIDATE_10: ${{ steps.test_schema_classification.outcome }}
+          VALIDATE_11: ${{ steps.test_schema_classification_contract.outcome }}
         run: |
           set -euo pipefail
-          node --check http-generic-api/scripts/platform-work-map-generator.mjs
-          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          summary="${DIAGNOSTIC_ROOT}/validation-summary.md"
+          {
+            echo "## Validation outcomes"
+            echo
+            echo "| Check | Outcome |"
+            echo "|---|---|"
+          } > "${summary}"
+
+          failed=0
+          for record in \
+            "platform-work-map-generator-syntax=${VALIDATE_01}" \
+            "platform-work-map-schema-intelligence-syntax=${VALIDATE_02}" \
+            "work-map-schema-classification-syntax=${VALIDATE_03}" \
+            "work-map-schema-classification-contract-syntax=${VALIDATE_04}" \
+            "pipeline-connectivity-check-syntax=${VALIDATE_05}" \
+            "pipeline-connectivity-check=${VALIDATE_06}" \
+            "test-pipeline-connectivity-check=${VALIDATE_07}" \
+            "work-map-schema-classification-contract=${VALIDATE_08}" \
+            "work-map-schema-classification=${VALIDATE_09}" \
+            "test-work-map-schema-classification=${VALIDATE_10}" \
+            "test-work-map-schema-classification-contract=${VALIDATE_11}"
+          do
+            check="${record%%=*}"
+            outcome="${record#*=}"
+            printf '| `%s` | `%s` |\n' "${check}" "${outcome}" >> "${summary}"
+            if [[ "${outcome}" != "success" ]]; then
+              failed=1
+            fi
+          done
+
+          cat "${summary}"
+          test "${failed}" = "0"
 
       - name: Regenerate and prove idempotency
         id: generate
@@ -185,7 +373,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${DIAGNOSTIC_ROOT}"
-          cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF
+          cat >> "${DIAGNOSTIC_ROOT}/report.md" <<EOF_REPORT
 
           ## Result
 
@@ -196,7 +384,14 @@ jobs:
           | Result head | \`${RESULT_HEAD_SHA:-unresolved}\` |
           | Protected branch mutation | \`false\` |
           | Force push | \`false\` |
-          EOF
+          EOF_REPORT
+
+          if [[ -f "${DIAGNOSTIC_ROOT}/validation-summary.md" ]]; then
+            {
+              echo
+              cat "${DIAGNOSTIC_ROOT}/validation-summary.md"
+            } >> "${DIAGNOSTIC_ROOT}/report.md"
+          fi
 
           jq -n \
             --arg contract "mad4b.spec-kit-work-map-autofix.v2" \
