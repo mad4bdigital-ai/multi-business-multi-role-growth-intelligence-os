@@ -2,9 +2,11 @@ name: Spec 014 Parent MVP Promotion Builder V2
 run-name: Spec 014 parent MVP promotion builder V2 · ${{ github.sha }}
 
 on:
-  push:
+  pull_request:
     branches:
-      - gpt/014-hostinger/parent-mvp-promotion-builder-v2-20260803
+      - gpt/hostinger-safe-storage-cleanup-ssh-20260801
+    paths:
+      - .github/workflows/spec014-parent-mvp-promotion-builder-v2.yml
 
 permissions:
   contents: write
@@ -16,6 +18,7 @@ concurrency:
 jobs:
   promote:
     name: Publish one-file parent MVP promotion
+    if: github.event.pull_request.head.ref == 'gpt/014-hostinger/parent-mvp-promotion-builder-v2-20260803'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
