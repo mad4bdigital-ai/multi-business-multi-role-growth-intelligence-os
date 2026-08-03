@@ -1,0 +1,77 @@
+name: Temporary Spec 014 DDL Materialized Candidate PR Launcher
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - '.github/workflows/tmp-spec014-ddl-materialized-candidate-builder.yml'
+      - '.github/workflows/tmp-spec014-ddl-materialized-candidate-pr-launcher.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-spec014-ddl-materialized-candidate-builder
+  cancel-in-progress: true
+
+jobs:
+  launch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-spec014-ddl-materialized-production-candidate-20260803'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Checkout exact builder head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Execute bounded patch from bootstrap builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          source = Path('.github/workflows/tmp-spec014-ddl-materialized-candidate-builder.yml').read_text()
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n\n      - name: Validate bounded repair"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          patch_script = dedent(source[start:end])
+          exec(compile(patch_script, '<spec014-materialized-candidate-builder>', 'exec'))
+          PY
+
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
+          git diff --check
+
+      - name: Publish final two-file tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm \
+            .github/workflows/tmp-spec014-ddl-materialized-candidate-builder.yml \
+            .github/workflows/tmp-spec014-ddl-materialized-candidate-pr-launcher.yml
+          git add -A
+          final_tree_files="$(git diff --cached --name-only "$(git merge-base HEAD origin/main)")"
+          expected="$(printf '%s\n' \
+            '.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml' \
+            'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs')"
+          if [[ "$final_tree_files" != "$expected" ]]; then
+            echo '::error::final tree is not the exact two-file repair'
+            printf 'actual:\n%s\nexpected:\n%s\n' "$final_tree_files" "$expected"
+            exit 1
+          fi
+          git config user.name 'mad4b-repository-automation'
+          git config user.email 'mad4b-repository-automation@users.noreply.github.com'
+          git commit -m 'fix(ci): validate materialized Production candidates in DDL guard'
+          git push origin "HEAD:${TARGET_BRANCH}"
