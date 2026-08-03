@@ -3,7 +3,7 @@
   "feature_key": "012-tenant-activation-lifecycle",
   "phase_key": "oauth-token-route-wiring",
   "task_id": "T031",
-  "status": "route_wiring_complete_live_readback_required",
+  "status": "route_wiring_validated_live_readback_required",
   "observed_main_sha": "4a049185f8eff3232bf1a6ed0a176525e72d980d",
   "observed_at": "2026-08-04",
   "authority": {
@@ -43,6 +43,9 @@
     "access_token_prepared_before_consumption": true,
     "atomic_code_consumption_after_prevalidation": true,
     "activation_context_recorded_after_consumption": true,
+    "success_evidence_after_response_finish": true,
+    "early_response_close_classified_unknown": true,
+    "terminal_evidence_deduplicated": true,
     "diagnostic_evidence_bounded": true,
     "secrets_included": false
   },
@@ -71,12 +74,23 @@
     "pre-consumption dependency failure permits same-code retry",
     "post-consumption failure forbids replay and requires reconciliation",
     "concurrent exchanges produce exactly one success",
+    "successful terminal evidence is emitted once and only after response finish",
     "unregistered request host is rejected",
     "responses and diagnostics exclude raw code, client secret, and access token"
   ],
+  "validation": {
+    "route_level_regression_complete": true,
+    "validation_mode": "github_actions_http_integration_and_shared_canary",
+    "api_dependencies_installed_from_lockfile": true,
+    "syntax_complete": true,
+    "http_integration_complete": true,
+    "shared_canary_complete": true,
+    "temporary_workflow_change_retired_before_ready": true,
+    "secrets_included": false
+  },
   "completion_gate": {
     "route_wiring_complete": true,
-    "route_level_regression_complete": false,
+    "route_level_regression_complete": true,
     "exact_head_ci_complete": false,
     "production_deployed": false,
     "live_success_exchange_readback_complete": false,
@@ -85,7 +99,7 @@
     "live_post_consumption_failure_readback_complete": false,
     "task_completion_allowed": false,
     "required_before_completion": [
-      "pass the exact-head route and Spec 012 regressions",
+      "complete the remaining exact-head repository CI gates",
       "deploy the reviewed merge SHA through the governed release path",
       "prove a successful live exchange on the deployed SHA",
       "prove replay is rejected without a second token",
