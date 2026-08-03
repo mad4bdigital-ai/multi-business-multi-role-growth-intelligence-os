@@ -72,6 +72,16 @@ jobs:
               line_number, line = invalid[0]
               raise SystemExit(f'embedded bootstrap indentation mismatch at line {line_number}: {line!r}')
           code = '\n'.join(line[len(yaml_prefix):] if line else '' for line in body)
+          old_count_guard = "    if text.count(old) != 1:\n"
+          new_count_guard = (
+              "    expected_count = 2 if path == Path('.github/workflows/pr-generated-artifact-refresh.yml') else 1\n"
+              "    if text.count(old) != expected_count:\n"
+          )
+          old_error = "raise SystemExit(f'{path}: expected exactly one {old!r}, found {text.count(old)}')"
+          new_error = "raise SystemExit(f'{path}: expected {expected_count} occurrences of {old!r}, found {text.count(old)}')"
+          if code.count(old_count_guard) != 1 or code.count(old_error) != 1:
+              raise SystemExit('embedded runner-count contract anchor mismatch')
+          code = code.replace(old_count_guard, new_count_guard, 1).replace(old_error, new_error, 1)
           exec(compile(code, str(source), 'exec'), {'__name__': '__main__'})
           Path('.github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml').unlink()
           PY
