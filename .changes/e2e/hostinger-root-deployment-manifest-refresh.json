@@ -39,7 +39,7 @@
             "Set a process-local authoritative branch lock only after the Production manifest write succeeds.",
             "Change the process working directory and import the nested server after the branch lock is present.",
             "Start the full root runtime under stale branch environment metadata and require /version to expose Production from the process-local lock.",
-            "Let direct nested startup continue using normal environment and Git provenance when the root lock is absent.",
+            "Let direct nested startup continue using normal environment and Git provenance when the root branch lock is absent.",
             "Require explicit --branch arguments to retain precedence over all environment candidates."
           ],
           "assertions": [
