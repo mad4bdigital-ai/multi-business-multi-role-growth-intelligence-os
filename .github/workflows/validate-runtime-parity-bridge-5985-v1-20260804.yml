@@ -1,0 +1,98 @@
+name: Validate Runtime Parity Bridge 5985 V1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened]
+    paths:
+      - .github/workflows/validate-runtime-parity-bridge-5985-v1-20260804.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.ref == 'gpt/validate-runtime-parity-bridge-5985-v1-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      TARGET_PR: '5985'
+      TARGET_SHA: b808be148f32883a78bad5fc86ebc768c8cc2c88
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      OUT: ${{ runner.temp }}/bridge-5985
+
+    steps:
+      - name: Verify exact target and one-file validator
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          target="$(gh api "/repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = open
+          test "$(jq -r '.base.sha' <<<"${target}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
+          test "$(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq 'length')" = 1
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run focused tests and collect governance findings
+        id: diagnose
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -u
+          mkdir -p "${OUT}"
+          set +e
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs >"${OUT}/bridge.out" 2>&1; bridge=$?
+          node http-generic-api/scripts/test-production-runtime-parity-evidence.mjs >"${OUT}/reporter.out" 2>&1; reporter=$?
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${TARGET_SHA}" --report-file "${OUT}/phase.json" >"${OUT}/phase.out" 2>&1; phase=$?
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs >"${OUT}/reference.out" 2>&1; reference=$?
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check >"${OUT}/workmap.out" 2>&1; workmap=$?
+          node build-canonicals.mjs --check >"${OUT}/canonicals.out" 2>&1; canonicals=$?
+          set -e
+          findings="$(jq -c '.findings // .errors // []' "${OUT}/phase.json" 2>/dev/null || echo '[]')"
+          jq -n --argjson bridge "$bridge" --argjson reporter "$reporter" --argjson phase "$phase" --argjson reference "$reference" --argjson workmap "$workmap" --argjson canonicals "$canonicals" --argjson findings "$findings" '{bridge:$bridge,reporter:$reporter,phase:$phase,reference:$reference,workmap:$workmap,canonicals:$canonicals,findings:$findings}' >"${OUT}/summary.json"
+          (( bridge == 0 && reporter == 0 && phase == 0 && reference == 0 && workmap == 0 && canonicals == 0 ))
+
+      - name: Publish compact result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.diagnose.outcome }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          summary="$(jq -c . "${OUT}/summary.json" 2>/dev/null || echo '{}')"
+          {
+            echo '## Runtime parity bridge V2 diagnostic'
+            echo
+            echo "- Head: \`${TARGET_SHA}\`"
+            echo "- Outcome: \`${OUTCOME}\`"
+            echo "- Summary: \`${summary}\`"
+            echo
+            for name in phase reference workmap canonicals; do
+              echo "### ${name}"
+              echo '```text'
+              tail -n 20 "${OUT}/${name}.out" 2>/dev/null || true
+              echo '```'
+            done
+            echo 'No repository, protected-ref, provider, runtime, credential, SQL, migration, database, deployment, restart, or external-send mutation occurred.'
+          } >"${OUT}/comment.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${OUT}/comment.md"
+          test "${OUTCOME}" = success
