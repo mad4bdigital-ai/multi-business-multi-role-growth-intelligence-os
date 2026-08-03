@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-durable-governed-execution-and-agent-delegation",
+  "wave": "t141_readiness_and_governed_canary_contract",
+  "status": "contract_ready_for_exact_head_certification",
+  "task": "T141",
+  "task_closed_by_this_wave": false,
+  "completion_governance_tasks_closed_by_this_wave": [],
+  "version": "spec011-t141-readiness-canary-contract-v1",
+  "kernel": "http-generic-api/spec011T141ReadinessCanaryContract.js",
+  "lifecycle_test": "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
+  "schema_test": "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
+  "workflow": ".github/workflows/spec-011-t141-readiness-canary-contract.yml",
+  "schema": "schemas/t141-readiness-canary-contract.schema.json",
+  "design": "t141-readiness-canary-contract.md",
+  "reused_contracts": [
+    "delegationGrantShadowService.js",
+    "delegationGrantLifecycleShadowService.js",
+    "delegationGrantRepositoryMutationService.js",
+    "delegationGrantMariaDbRuntimeBinding.js",
+    "delegationGrantMariaDbReadinessCollector.js",
+    "governed_migration_authorization_registry",
+    "governed_migration_ledger"
+  ],
+  "readiness_decisions": [
+    "ready_for_governed_canary",
+    "blocked"
+  ],
+  "outcome_states": [
+    "reconciliation_required",
+    "failed_closed",
+    "staging_canary_verified",
+    "production_canary_verified"
+  ],
+  "ordered_steps": [
+    "inspect_primary_absent",
+    "primary_create",
+    "inspect_primary_active",
+    "primary_revoke",
+    "inspect_primary_revoked",
+    "expiry_create",
+    "inspect_expiry_active",
+    "expiry_expire",
+    "inspect_expiry_expired",
+    "inspect_mutation_receipts"
+  ],
+  "mutation_authorization_binding": {
+    "per_mutation_capability_envelope": true,
+    "per_mutation_approval_hold": true,
+    "exact_request_fingerprint": true,
+    "resource_authority_reference": true,
+    "environment_binding": true,
+    "expiry_required": true
+  },
+  "unknown_outcome_policy": {
+    "read_before_retry": true,
+    "automatic_mutation_retry": false,
+    "reconciliation_required": true
+  },
+  "staging_canary_closes_t141": false,
+  "production_completion_requires": [
+    "production_migration_authorization",
+    "governed_migration_ledger_readback",
+    "exact_deployed_sha_parity",
+    "production_runtime_readback",
+    "verified_create_inspect_revoke_inspect_cycle",
+    "verified_create_inspect_expire_inspect_cycle",
+    "all_mutation_receipts_reconciled",
+    "same_cycle_readback",
+    "no_unknown_outcome_retry"
+  ],
+  "new_persistence_model": false,
+  "new_public_route": false,
+  "migration_applied": false,
+  "delegation_mutated": false,
+  "staging_canary_executed": false,
+  "production_canary_executed": false,
+  "provider_calls_made": false,
+  "external_mutations_executed": false,
+  "production_authorization_used": false,
+  "runtime_authority_changed": false,
+  "runtime_policy_ready_promoted": false,
+  "force_push_used": false,
+  "protected_branch_bypass_used": false,
+  "secrets_included": false,
+  "remaining_open_tasks": [
+    "T141",
+    "T261",
+    "T263",
+    "T264"
+  ]
+}
