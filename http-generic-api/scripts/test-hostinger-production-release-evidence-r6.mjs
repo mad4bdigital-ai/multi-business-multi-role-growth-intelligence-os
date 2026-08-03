@@ -24,9 +24,33 @@ assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(workflow, /(?:^|[^A-Za-z0-9_.-])gpt\//m);
-assert.match(workflow, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
-assert.match(workflow, /github\.event\.pull_request\.user\.id == 271942579/);
-assert.match(workflow, /github\.event\.pull_request\.draft == true/);
+
+const classifierStart = workflow.indexOf("  classify-trigger-scope:");
+const collectorStart = workflow.indexOf("  collect-release-evidence:");
+assert.ok(classifierStart >= 0, "R6 must classify trigger scope before evidence collection");
+assert.ok(collectorStart > classifierStart, "R6 classifier must precede the provider-capable collector");
+const classifier = workflow.slice(classifierStart, collectorStart);
+const collector = workflow.slice(collectorStart);
+
+assert.match(classifier, /name: Classify exact R6 trigger scope/);
+assert.match(classifier, /outputs:\n\s+eligible: \$\{\{ steps\.scope\.outputs\.eligible \}\}/);
+assert.match(classifier, /HEAD_REPOSITORY: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name \}\}/);
+assert.match(classifier, /PR_AUTHOR_ID: \$\{\{ github\.event\.pull_request\.user\.id \}\}/);
+assert.match(classifier, /PR_DRAFT: \$\{\{ github\.event\.pull_request\.draft \}\}/);
+assert.match(classifier, /mapfile -t changed_files/);
+assert.match(classifier, /"\$\{#changed_files\[@\]\}" -eq 1/);
+assert.match(classifier, /"\$\{changed_files\[0\]\}" == "\$\{TRIGGER_PATH\}"/);
+assert.match(classifier, /echo "eligible=true" >> "\$\{GITHUB_OUTPUT\}"/);
+assert.match(classifier, /echo "eligible=false" >> "\$\{GITHUB_OUTPUT\}"/);
+assert.match(classifier, /R6 evidence collection skipped: pull request is not the exact one-file trigger/);
+assert.doesNotMatch(classifier, /actions\/checkout|HOSTINGER_API_TOKEN|auth\.mad4b\.com|hostinger-nodejs-build-evidence|upload-artifact|GITHUB_STEP_SUMMARY/);
+assert.doesNotMatch(classifier, /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)/i);
+
+assert.match(collector, /needs: classify-trigger-scope/);
+assert.match(collector, /if: needs\.classify-trigger-scope\.outputs\.eligible == 'true'/);
+assert.match(collector, /Checkout exact trusted main tooling/);
+assert.ok(collector.indexOf("Checkout exact trusted main tooling") < collector.indexOf("HOSTINGER_API_TOKEN"), "provider secret must remain after exact-scope eligibility and trusted checkout");
+
 assert.match(workflow, /HEAD_REF: \$\{\{ github\.event\.pull_request\.head\.ref \}\}/);
 assert.match(workflow, /mapfile -t CHANGED_FILES/);
 assert.match(workflow, /test "\$\{#CHANGED_FILES\[@\]\}" -eq 1/);
@@ -86,4 +110,4 @@ assert.equal(issueWriteCount, 0, "R6 pull-request workflow must remain repositor
 const issueCommentReadCount = (workflow.match(/\/issues\/\$\{CONTROL_ISSUE\}\/comments\?per_page=100/g) || []).length;
 assert.equal(issueCommentReadCount, 1, "R6 may read the control issue once for duplicate-terminal protection");
 
-console.log("Hostinger Production release evidence R6 read-only contract passed.");
+console.log("Hostinger Production release evidence R6 scoped read-only contract passed.");
