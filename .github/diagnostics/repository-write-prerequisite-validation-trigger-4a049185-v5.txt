@@ -1,0 +1,6 @@
+contract=mad4b.repository-write-prerequisite-validation-trigger.v5
+base_sha=4a049185f8eff3232bf1a6ed0a176525e72d980d
+candidate_sha=d1303696bd2afa52183bc758211647424af0b102
+repository_write_authorized=false
+production_mutation_authorized=false
+secrets_included=false
