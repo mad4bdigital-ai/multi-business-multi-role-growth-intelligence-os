@@ -73,3 +73,98 @@ jobs:
           path: artifacts/e2e-contract-reference-integrity.json
           if-no-files-found: error
           retention-days: 14
+
+  local-connector-production-closure:
+    name: Governed Local Connector Production Closure
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.number == 5111 &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.head_ref == 'gpt/visible-local-connector-closure-e2e-v19-20260803' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: governed-local-connector-production-closure-pr-3945-e2e-v19
+      cancel-in-progress: false
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      HOTFIX_MERGE_SHA: 792ff63af82791e9a482029f5078931fa0707c8c
+      ADMIN_USER_ID: 00000000-0000-4000-a000-000000000002
+      PLATFORM_TENANT_ID: 00000000-0000-4000-a000-000000000001
+      DEVICE_ID: mohammedlap
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      EVIDENCE_PATH: ${{ runner.temp }}/governed-local-connector-production-closure.json
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Record governed closure start
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/3945/comments" \
+            -f body="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE status=started run_id=${GITHUB_RUN_ID} trigger=e2e-pr-v19 trusted_ref=main event_pr=5111"
+
+      - name: Verify exact merged Production PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MERGED=$(gh api "/repos/${REPOSITORY}/pulls/3945" --jq '.merged')
+          MERGE_SHA=$(gh api "/repos/${REPOSITORY}/pulls/3945" --jq '.merge_commit_sha')
+          test "$MERGED" = "true"
+          test "$MERGE_SHA" = "$HOTFIX_MERGE_SHA"
+
+      - name: Execute bounded trusted closure
+        id: closure
+        run: node .github/scripts/governed-local-connector-production-closure.mjs
+
+      - name: Upload bounded closure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-local-connector-production-closure-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record governed closure outcome on Production PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOSURE_RESULT: ${{ steps.closure.outputs.result }}
+          PRODUCTION_SHA: ${{ steps.closure.outputs.production_sha }}
+          COMMAND_ID: ${{ steps.closure.outputs.command_id }}
+          ROUTE_COUNT: ${{ steps.closure.outputs.registered_route_count }}
+          HEALTH_AGE: ${{ steps.closure.outputs.health_age_seconds }}
+          FAILURE_MESSAGE: ${{ steps.closure.outputs.failure_message }}
+        run: |
+          set -euo pipefail
+          RESULT="${CLOSURE_RESULT:-unknown}"
+          BODY="GOVERNED_LOCAL_CONNECTOR_PRODUCTION_CLOSURE result=${RESULT} run_id=${GITHUB_RUN_ID} trigger=e2e-pr-v19 trusted_ref=main production_sha=${PRODUCTION_SHA:-unverified} command_id=${COMMAND_ID:-none} registered_route_count=${ROUTE_COUNT:-unknown} health_age_seconds=${HEALTH_AGE:-unknown} artifact=governed-local-connector-production-closure-${GITHUB_RUN_ID} event_pr=5111 migration_apply=false provider_mutation=false credential_rotation=false"
+          if [[ "$RESULT" != "pass" && -n "${FAILURE_MESSAGE:-}" ]]; then
+            BODY="${BODY} failure=${FAILURE_MESSAGE}"
+          fi
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/3945/comments" \
+            -f body="$BODY"
