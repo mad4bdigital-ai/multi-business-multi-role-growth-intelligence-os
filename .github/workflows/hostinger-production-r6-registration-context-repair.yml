@@ -1,0 +1,147 @@
+name: Hostinger Production R6 Registration Context Repair
+
+on:
+  push:
+    branches:
+      - 'fix/hostinger-production-r6-registration-context-20260803'
+    paths:
+      - '.github/workflows/hostinger-production-r6-registration-context-repair.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hostinger-production-r6-registration-context-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    steps:
+      - name: Checkout bounded repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/hostinger-production-r6-registration-context-20260803
+          fetch-depth: 0
+
+      - name: Apply bounded registration-context repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          workflow_path = Path('.github/workflows/hostinger-production-release-evidence-r6.yml')
+          test_path = Path('http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs')
+          declaration_path = Path('.changes/e2e/hostinger-production-release-evidence-r6-registration-context.json')
+
+          workflow = workflow_path.read_text()
+          invalid = '      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r6\n'
+          if workflow.count(invalid) != 1:
+              raise RuntimeError(f'expected exactly one invalid runner.temp job env, found {workflow.count(invalid)}')
+          workflow = workflow.replace(invalid, '', 1)
+
+          anchor = '''          persist-credentials: false
+
+      - name: Verify trigger scope, authorization, and immutable bindings
+'''
+          replacement = '''          persist-credentials: false
+
+      - name: Initialize runner-scoped evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_DIR=${RUNNER_TEMP}/hostinger-production-release-evidence-r6" >> "${GITHUB_ENV}"
+
+      - name: Verify trigger scope, authorization, and immutable bindings
+'''
+          if workflow.count(anchor) != 1:
+              raise RuntimeError(f'expected exactly one checkout/verify anchor, found {workflow.count(anchor)}')
+          workflow = workflow.replace(anchor, replacement, 1)
+          workflow_path.write_text(workflow)
+
+          test = test_path.read_text()
+          marker = 'assert.doesNotMatch(workflow, /permissions:\\n(?:.|\\n)*?contents:\\s+write/);\n'
+          assertions = '''assert.doesNotMatch(workflow, /EVIDENCE_DIR:\\s+\\$\\{\\{\\s*runner\\.temp\\s*\\}\\}/);
+assert.match(workflow, /name: Initialize runner-scoped evidence directory[\\s\\S]*echo "EVIDENCE_DIR=\\$\\{RUNNER_TEMP\\}\\/hostinger-production-release-evidence-r6" >> "\\$\\{GITHUB_ENV\\}"/);
+'''
+          if assertions not in test:
+              if test.count(marker) != 1:
+                  raise RuntimeError(f'expected exactly one test insertion marker, found {test.count(marker)}')
+              test = test.replace(marker, assertions + '\n' + marker, 1)
+              test_path.write_text(test)
+
+          declaration = {
+            '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+            'schema_version': 1,
+            'feature_key': 'hostinger-production-release-evidence-r6-registration-context',
+            'title': 'Hostinger Production R6 registration context repair',
+            'delivery_mode': 'single_pr',
+            'current_phase': 'mvp',
+            'scope': {
+              'include': [
+                '.changes/e2e/hostinger-production-release-evidence-r6-registration-context.json',
+                '.github/workflows/hostinger-production-release-evidence-r6.yml',
+                'http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs'
+              ]
+            },
+            'merge_contract': {'minimum_phase': 'mvp'},
+            'phases': [{
+              'id': 'mvp',
+              'status': 'implemented',
+              'objective': 'Restore GitHub workflow registration by moving runner-scoped temporary-directory initialization out of job-level env and into a runner step.',
+              'e2e_journeys': [{
+                'id': 'register-and-run-hostinger-production-evidence-r6',
+                'end_to_end': True,
+                'level': 'synthetic_runtime',
+                'actor': 'trusted main GitHub Actions workflow',
+                'entrypoint': 'same-repository Draft pull_request opened event changing only the governed R6 trigger JSON',
+                'terminal_outcome': 'GitHub registers the R6 workflow, initializes EVIDENCE_DIR from RUNNER_TEMP after runner allocation, and preserves the existing read-only evidence contract.',
+                'steps': [
+                  'Remove runner.temp from jobs.collect-release-evidence.env where the runner context is unavailable during workflow registration.',
+                  'Initialize EVIDENCE_DIR through GITHUB_ENV in a shell step after checkout.',
+                  'Run the existing R6 static contract with regression assertions for the registration-safe context.'
+                ],
+                'assertions': [
+                  'No job-level EVIDENCE_DIR expression references runner.temp.',
+                  'The runner-scoped directory is exported from RUNNER_TEMP through GITHUB_ENV.',
+                  'All Hostinger provider and repository no-mutation boundaries remain unchanged.'
+                ],
+                'tests': [{
+                  'id': 'hostinger-production-release-evidence-r6-registration-context',
+                  'runner': 'node',
+                  'working_directory': 'http-generic-api',
+                  'path': 'scripts/test-hostinger-production-release-evidence-r6.mjs',
+                  'args': []
+                }],
+                'evidence_paths': [
+                  '.github/workflows/hostinger-production-release-evidence-r6.yml',
+                  'http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs'
+                ]
+              }]
+            }],
+            'secrets_included': False
+          }
+          declaration_path.write_text(json.dumps(declaration, indent=2) + '\n')
+          PY
+
+      - name: Validate focused contract
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-production-release-evidence-r6.mjs
+
+      - name: Commit final bounded patch and self-delete
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -f .github/workflows/hostinger-production-r6-registration-context-repair.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/hostinger-production-release-evidence-r6.yml \
+            http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs \
+            .changes/e2e/hostinger-production-release-evidence-r6-registration-context.json \
+            .github/workflows/hostinger-production-r6-registration-context-repair.yml
+          git diff --cached --check
+          git commit -m 'fix(ops): restore Hostinger R6 workflow registration context'
+          git push origin HEAD:fix/hostinger-production-r6-registration-context-20260803
