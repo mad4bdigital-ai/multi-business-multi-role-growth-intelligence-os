@@ -118,9 +118,16 @@ function testWorkflowContract() {
   const workflowPath = path.resolve(process.cwd(), "../.github/workflows/hostinger-nodejs-production-restart.yml");
   const workflow = fs.readFileSync(workflowPath, "utf8");
   const implementation = fs.readFileSync(path.resolve(process.cwd(), "scripts/hostinger-nodejs-production-restart.mjs"), "utf8");
+  assert.match(workflow, /workflow_dispatch:/u);
+  assert.match(workflow, /expected_head_sha:/u);
+  assert.match(workflow, /expected_build_uuid:/u);
   assert.match(workflow, /issue_comment:/u);
-  assert.doesNotMatch(workflow, /pull_request_target:/u);
+  assert.doesNotMatch(workflow, /(?:^|\n)\s*push\s*:/u);
+  assert.doesNotMatch(workflow, /(?:^|\n)\s*pull_request(?:_target)?\s*:/u);
+  assert.match(workflow, /github\.actor == github\.repository_owner/u);
   assert.match(workflow, /271942579/u);
+  assert.match(workflow, /MUTATION_TARGET_BRANCH/u);
+  assert.match(workflow, /Repository branch mutation is forbidden/u);
   assert.match(workflow, /f5c1ae8840b4d4452f2908bb0f23051880bb6896/u);
   assert.match(workflow, /019fc51c-3947-7255-aa4d-f55cb8df7658/u);
   assert.match(implementation, /nodejs\/server\/restart/u);
