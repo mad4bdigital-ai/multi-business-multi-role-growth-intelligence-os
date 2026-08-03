@@ -8,7 +8,7 @@ This slice wires the governed T031 authorization-code consumption and ambiguity 
 
 The route is mounted through `tenantGptOAuthMetadataRoutes.js`, which is registered before the legacy `/auth` router. The new handler owns only the exact token path; all other authentication routes remain with the existing implementation.
 
-This slice does **not** close T031. Repository wiring and route-level tests are provided, but Production deployment and live exchange/readback evidence are not part of this delivery.
+This slice does **not** close T031. Repository wiring and route-level HTTP validation are complete, but the remaining repository CI gates, Production deployment, and live exchange/readback evidence are not part of this delivery.
 
 ## Pre-consumption ordering
 
@@ -38,18 +38,26 @@ The route uses the centralized T031 policy rather than collapsing every failure 
 
 Every response includes bounded decision metadata, `Cache-Control: no-store`, `Pragma: no-cache`, and an `x-request-id`. Cookies are removed at the route boundary.
 
+## Response-commit evidence
+
+A successful token exchange is not recorded merely because the route reached `res.json`. The route registers a one-shot `finish` listener before writing the token response and records `token_response_committed` only when the HTTP response finishes.
+
+A `close` event before `writableFinished` is classified as `response_transport_interrupted` with an unknown outcome. A terminal-evidence guard prevents duplicate success/unknown records across `finish`, `close`, and exceptional response paths.
+
+The HTTP regression proves that exactly one success record is emitted, that its phase is `response_committed`, and that no success record is emitted from an earlier phase.
+
 ## Diagnostics
 
 The route writes bounded diagnostic evidence to `execution_log` on a best-effort basis. The evidence contains only booleans, classifications, safe URL host/path evidence, hash prefixes, request identity, and outcome flags. It does not contain the raw authorization code, access token, client secret, authorization header, cookie, or user email.
 
 Diagnostic write failure does not change the OAuth response.
 
-## Route-level test coverage
+## Validated route-level coverage
 
-The deterministic HTTP tests cover:
+The deterministic HTTP integration and Shared Canary validation completed with API dependencies installed from the committed lockfile. Coverage includes:
 
 - exact metadata-router interception before the legacy handler;
-- success ordering and response headers;
+- success ordering, response headers, and post-`finish` evidence;
 - replay rejection;
 - unknown consumption and issued-readback store failures;
 - inactive user and inactive membership before consumption;
@@ -59,11 +67,13 @@ The deterministic HTTP tests cover:
 - unregistered request host rejection;
 - no-secret response and diagnostic evidence.
 
+The temporary workflow validation step was removed before Ready review.
+
 ## Completion boundary
 
 T031 remains open until all of the following are complete:
 
-1. exact-head CI and the route regressions pass;
+1. the remaining exact-head repository CI gates pass;
 2. the reviewed merge SHA is deployed through the governed release path;
 3. a live successful exchange is read back on that deployed SHA;
 4. a live replay proves no second token is issued;
