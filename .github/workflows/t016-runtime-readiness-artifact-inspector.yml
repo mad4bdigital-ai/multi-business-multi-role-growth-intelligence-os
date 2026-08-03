@@ -1,4 +1,4 @@
-name: T016 CWD Alias Patch Builder
+name: T016 CWD Alias Patch Apply
 
 on:
   pull_request:
@@ -7,15 +7,15 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: t016-cwd-alias-patch-builder-${{ github.event.pull_request.number }}
+  group: t016-cwd-alias-patch-apply-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and validate exact T016 alias patch
+  apply:
+    name: Apply validated T016 alias patch to exact candidate
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2'
@@ -31,7 +31,7 @@ jobs:
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify immutable event head
         shell: bash
@@ -47,24 +47,24 @@ jobs:
           const routesPath = 'http-generic-api/routes/adminCliRoutes.js';
           let source = fs.readFileSync(routesPath, 'utf8');
           const approvalConstant = 'export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));';
-          const constants = [
-            'export const CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-dry-run.mjs", import.meta.url));',
-            'export const CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-create.mjs", import.meta.url));',
-            approvalConstant,
-          ].join('\n');
+          const dryRunConstant = 'export const CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-dry-run.mjs", import.meta.url));';
+          const createConstant = 'export const CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-create.mjs", import.meta.url));';
           if (!source.includes(approvalConstant)) throw new Error('approval constant anchor missing');
-          if (!source.includes('CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT')) source = source.replace(approvalConstant, constants);
+          if (!source.includes(dryRunConstant)) {
+            source = source.replace(approvalConstant, [dryRunConstant, createConstant, approvalConstant].join('\n'));
+          }
 
           const staleDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
           const fixedDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: [CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
           const staleCreate = 'capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true }';
           const fixedCreate = 'capability_resolution_envelope_create: { command: process.execPath, args: [CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true }';
-          if (!source.includes(staleDryRun) || !source.includes(staleCreate)) throw new Error('stale alias anchors missing');
-          source = source.replace(staleDryRun, fixedDryRun).replace(staleCreate, fixedCreate);
+          if (source.includes(staleDryRun)) source = source.replace(staleDryRun, fixedDryRun);
+          if (source.includes(staleCreate)) source = source.replace(staleCreate, fixedCreate);
+          if (!source.includes(fixedDryRun) || !source.includes(fixedCreate)) throw new Error('fixed aliases missing');
           fs.writeFileSync(routesPath, source);
 
           const testPath = 'http-generic-api/test-capability-envelope-create-alias-path.mjs';
-          if (!fs.existsSync(testPath)) throw new Error('regression test must exist on candidate head');
+          if (!fs.existsSync(testPath)) throw new Error('regression test missing on candidate head');
           NODE
 
       - name: Validate bounded patch
@@ -74,16 +74,29 @@ jobs:
           node --check http-generic-api/routes/adminCliRoutes.js
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
           git diff --check
-          mkdir -p "${PATCH_DIR}/http-generic-api/routes" "${PATCH_DIR}/http-generic-api"
-          cp http-generic-api/routes/adminCliRoutes.js "${PATCH_DIR}/http-generic-api/routes/adminCliRoutes.js"
-          cp http-generic-api/test-capability-envelope-create-alias-path.mjs "${PATCH_DIR}/http-generic-api/test-capability-envelope-create-alias-path.mjs"
+          mkdir -p "${PATCH_DIR}"
           git diff > "${PATCH_DIR}/t016-cwd-alias.patch"
           git diff --stat > "${PATCH_DIR}/stat.txt"
 
-      - name: Upload validated patch files
+      - name: Commit and push when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- http-generic-api/routes/adminCliRoutes.js; then
+            echo 'T016 alias patch is already applied on the candidate head.'
+            exit 0
+          fi
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git add http-generic-api/routes/adminCliRoutes.js
+          git commit -m 'fix(admin-cli): resolve T016 envelope aliases independently of cwd'
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Upload bounded patch evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t016-cwd-alias-patch-${{ github.run_id }}
+          name: t016-cwd-alias-patch-apply-${{ github.run_id }}
           path: ${{ env.PATCH_DIR }}
           if-no-files-found: error
           retention-days: 30
