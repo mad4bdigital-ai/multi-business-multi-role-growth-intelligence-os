@@ -4,12 +4,13 @@ import { AUTHORITY_EVIDENCE_SOURCE_FAMILIES } from "./authorityEvidenceSourceAda
 
 export const AUTHORITY_LIVE_SOURCE_ROW_LIMIT = 8192;
 
-const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
-const SAFE_ROUTE = /^\/[A-Za-z0-9_./:{}-]{0,510}$/;
+const TOKEN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,220}$/;
+const ROUTE_PATTERN = /^\/[A-Za-z0-9_./:{}-]{0,510}$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const SOURCE_FAMILIES = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
-const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+const SOURCE_FAMILY_SET = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
+const SENSITIVE_KEY_PATTERN =
+  /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
 
 export class AuthorityLiveSourceCollectorError extends Error {
   constructor(code, message, details = {}) {
@@ -34,7 +35,12 @@ function assertNoSensitiveValues(value, path = "root", seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   for (const [key, nested] of Object.entries(value)) {
-    if (SENSITIVE_KEY_PATTERN.test(key) && nested !== false && nested !== null && nested !== undefined) {
+    if (
+      SENSITIVE_KEY_PATTERN.test(key)
+      && nested !== false
+      && nested !== null
+      && nested !== undefined
+    ) {
       throw new AuthorityLiveSourceCollectorError(
         "authority_live_source_sensitive_value_forbidden",
         "Live source evidence must not contain secret-bearing values.",
@@ -47,7 +53,7 @@ function assertNoSensitiveValues(value, path = "root", seen = new WeakSet()) {
 
 function token(value, field = "identifier") {
   const normalized = String(value ?? "").trim();
-  if (!SAFE_TOKEN.test(normalized)) {
+  if (!TOKEN_PATTERN.test(normalized)) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_invalid_token",
       `${field} must be a non-empty bounded canonical token.`,
@@ -58,9 +64,8 @@ function token(value, field = "identifier") {
 }
 
 function optionalToken(value, field) {
-  return value === null || value === undefined || String(value).trim() === ""
-    ? null
-    : token(value, field);
+  const normalized = String(value ?? "").trim();
+  return normalized ? token(normalized, field) : null;
 }
 
 function strictHttpIdentity(routeValue, methodValue, field) {
@@ -73,7 +78,7 @@ function strictHttpIdentity(routeValue, methodValue, field) {
       { field, route: route || null, method: method || null },
     );
   }
-  if (!SAFE_ROUTE.test(route) || !HTTP_METHODS.has(method)) {
+  if (!ROUTE_PATTERN.test(route) || !HTTP_METHODS.has(method)) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_invalid_http_identity",
       `${field} contains an invalid route or method.`,
@@ -91,11 +96,26 @@ function endpointHttpIdentity(routeValue, methodValue, field) {
   if (!route || !method) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_incomplete_endpoint_identity",
-      `${field} must preserve a complete route/method pair or a complete non-route endpoint identity.`,
+      `${field} must preserve a complete route/method pair or complete non-route identity.`,
       { field, route: route || null, method: method || null },
     );
   }
   return { route: null, method: null };
+}
+
+function authorityModeFromScope(scopeValue, { route = null, authValidationStatus = null } = {}) {
+  const scope = String(scopeValue ?? "").trim().toLowerCase();
+  if (["admin", "admin_only", "platform_admin"].includes(scope)) return "admin_only";
+  if (["tenant", "tenant_only"].includes(scope)) return "tenant_only";
+  if (["both", "shared", "mixed"].includes(scope)) return "shared";
+
+  const auth = String(authValidationStatus ?? "").trim().toLowerCase();
+  const mentionsAdmin = auth.includes("admin");
+  const mentionsTenant = auth.includes("tenant");
+  if (mentionsAdmin && !mentionsTenant) return "admin_only";
+  if (mentionsTenant && !mentionsAdmin) return "tenant_only";
+  if (String(route || "").startsWith("/admin/")) return "admin_only";
+  return "shared";
 }
 
 function activeStatus(value) {
@@ -103,16 +123,19 @@ function activeStatus(value) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["active", "enabled", "ready", "callable"].includes(normalized)) return "active";
   if (normalized === "deprecated") return "deprecated";
-  if (["blocked", "disabled", "inactive", "archived", "0", "false"].includes(normalized)) return "inactive";
+  if (["blocked", "disabled", "inactive", "archived", "0", "false"].includes(normalized)) {
+    return "inactive";
+  }
   return "unknown";
 }
 
 function operationMode(method, explicitMode) {
   const normalized = String(explicitMode ?? "").trim().toLowerCase();
-  if (["read_only", "preview", "shadow", "plan", "mutation", "internal"].includes(normalized)) return normalized;
+  if (["read_only", "preview", "shadow", "plan", "mutation", "internal"].includes(normalized)) {
+    return normalized;
+  }
   if (method && READ_METHODS.has(method)) return "read_only";
-  if (method) return "mutation";
-  return "internal";
+  return method ? "mutation" : "internal";
 }
 
 function requirements(mode, authorityMode) {
@@ -155,22 +178,36 @@ function baseRecord({
     handler_key: token(handlerKey, "handler_key"),
     authority_mode: authorityMode,
     operation_mode: mode,
-    callability: status === "active" ? "authorization_gated" : status === "deprecated" ? "deprecated" : "blocked",
+    callability:
+      status === "active"
+        ? "authorization_gated"
+        : status === "deprecated"
+          ? "deprecated"
+          : "blocked",
     status,
-    actor_source: authorityMode === "admin_only" ? "platform_admin_identity" : "authenticated_principal",
+    actor_source:
+      authorityMode === "admin_only" ? "platform_admin_identity" : "authenticated_principal",
     subject_source: "effective_subject_scope",
-    tenant_scope_source: authorityMode === "admin_only" ? "platform_admin_tenant_scope" : "principal_tenant_scope",
+    tenant_scope_source:
+      authorityMode === "admin_only"
+        ? "platform_admin_tenant_scope"
+        : "principal_tenant_scope",
     workspace_scope_source: "principal_workspace_scope",
     resource_authority_source: "resource_authority_bindings",
     capability_authority_source: "platform_semantic_capabilities",
     provider_scope_source: "provider_connection_bindings",
     credential_scope_source: "credential_reference_metadata",
-    risk_class: riskClass || (mode === "read_only" ? "low" : authorityMode === "admin_only" ? "high" : "medium"),
+    risk_class:
+      riskClass
+      || (mode === "read_only" ? "low" : authorityMode === "admin_only" ? "high" : "medium"),
     revision_source: token(revisionSource, "revision_source"),
     freshness_source: token(freshnessSource, "freshness_source"),
     revocation_source: token(revocationSource, "revocation_source"),
     invalidation_source: "authority_invalidation_events",
-    atomicity_policy: mode === "read_only" || mode === "internal" ? "read_only_snapshot" : "same_cycle_readback_required",
+    atomicity_policy:
+      mode === "read_only" || mode === "internal"
+        ? "read_only_snapshot"
+        : "same_cycle_readback_required",
     replacement_path_key: null,
     aliases: [...new Set(aliases.filter(Boolean).map((item) => token(item, "alias")))].sort(),
     requirements: requirements(mode, authorityMode),
@@ -181,16 +218,16 @@ function baseRecord({
 
 function mapToolRow(row, sourceRegistry, deviceOnly = false) {
   const scope = token(row.scope_kind, "scope_kind").toLowerCase();
-  if (!new Set(["admin", "tenant"]).has(scope)) {
+  if (!["admin", "tenant"].includes(scope)) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_invalid_scope",
       "Platform endpoint tool rows must declare admin or tenant scope.",
       { scope },
     );
   }
-  const authorityMode = scope === "admin" ? "admin_only" : "tenant_only";
   const toolKey = token(row.tool_key, "tool_key");
-  const registry = scope === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools";
+  const registry =
+    scope === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools";
   const tags = String(row.tags ?? "").toLowerCase();
   if (deviceOnly && !tags.split(/[\s,]+/).includes("device")) return null;
   const http = strictHttpIdentity(row.http_path, row.http_method, `${registry}.${toolKey}`);
@@ -201,7 +238,7 @@ function mapToolRow(row, sourceRegistry, deviceOnly = false) {
     surfaceFamily: deviceOnly ? "local_device" : "system_tool",
     sourceRegistry,
     handlerKey: `tool.${toolKey}`,
-    authorityMode,
+    authorityMode: authorityModeFromScope(scope),
     status: activeStatus(row.is_enabled),
     revisionSource: `${registry}.updated_at`,
     freshnessSource: `${registry}.updated_at`,
@@ -211,20 +248,24 @@ function mapToolRow(row, sourceRegistry, deviceOnly = false) {
 
 function mapEndpointRow(row, sourceRegistry) {
   const endpointKey = token(row.endpoint_key, "endpoint_key");
-  const http = sourceRegistry === "direct_http_routes"
-    ? strictHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`)
-    : endpointHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`);
-  const authorityMode = http.route?.startsWith("/admin/") ? "admin_only" : "shared";
+  const http =
+    sourceRegistry === "direct_http_routes"
+      ? strictHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`)
+      : endpointHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`);
   return baseRecord({
     pathKey: `endpoint.${endpointKey}`,
     canonicalToolKey: optionalToken(row.openai_action_name, "openai_action_name") || endpointKey,
     ...http,
     surfaceFamily: "endpoint_catalog",
     sourceRegistry,
-    handlerKey: optionalToken(row.route_target, "route_target")
+    handlerKey:
+      optionalToken(row.route_target, "route_target")
       || optionalToken(row.module_binding, "module_binding")
       || endpointKey,
-    authorityMode,
+    authorityMode: authorityModeFromScope(null, {
+      route: http.route,
+      authValidationStatus: row.auth_validation_status,
+    }),
     explicitOperationMode: row.execution_mode,
     status: activeStatus(row.status),
     revisionSource: "endpoints.updated_at",
@@ -241,7 +282,8 @@ function mapActionRow(row) {
     canonicalToolKey: actionKey,
     surfaceFamily: "runtime_action",
     sourceRegistry: "runtime_action_registry",
-    handlerKey: optionalToken(row.primary_executor, "primary_executor")
+    handlerKey:
+      optionalToken(row.primary_executor, "primary_executor")
       || optionalToken(row.module_binding, "module_binding")
       || actionKey,
     authorityMode: "shared",
@@ -262,7 +304,7 @@ function mapDescriptorRow(row) {
     surfaceFamily: "descriptor_catalog",
     sourceRegistry: "descriptor_catalog",
     handlerKey: `descriptor.${exportKey}`,
-    authorityMode: "shared",
+    authorityMode: authorityModeFromScope(row.scope_class),
     explicitOperationMode: "internal",
     status: activeStatus(row.status),
     revisionSource: "platform_endpoint_tool_exports.updated_at",
@@ -276,8 +318,8 @@ function mapProviderBindingRow(row) {
   const bindingId = token(row.binding_id, "binding_id");
   const bindingKind = token(row.binding_kind, "binding_kind");
   const bindingTable = token(row.binding_table, "binding_table");
-  const canonicalToolKey = optionalToken(row.action_key, "action_key")
-    || optionalToken(row.tool_key, "tool_key");
+  const canonicalToolKey =
+    optionalToken(row.action_key, "action_key") || optionalToken(row.tool_key, "tool_key");
   if (!canonicalToolKey) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_binding_target_missing",
@@ -291,7 +333,7 @@ function mapProviderBindingRow(row) {
     surfaceFamily: "provider_binding",
     sourceRegistry: "provider_binding_catalog",
     handlerKey: `${bindingKind}.${bindingId}`,
-    authorityMode: "shared",
+    authorityMode: authorityModeFromScope(row.binding_scope),
     explicitOperationMode: "internal",
     status: activeStatus(row.status),
     revisionSource: `${bindingTable}.updated_at`,
@@ -304,8 +346,13 @@ function mapProviderBindingRow(row) {
 function mapAliasRow(row) {
   const endpointKey = token(row.endpoint_key, "endpoint_key");
   const alias = token(row.alias_key, "alias_key");
-  const http = endpointHttpIdentity(row.endpoint_path_or_function, row.method, `alias.${endpointKey}.${alias}`);
-  const authorityTable = row.tool_name ? "platform_endpoint_tool_exports" : "endpoints";
+  const http = endpointHttpIdentity(
+    row.endpoint_path_or_function,
+    row.method,
+    `alias.${endpointKey}.${alias}`,
+  );
+  const exportAlias = Boolean(row.tool_name);
+  const authorityTable = exportAlias ? "platform_endpoint_tool_exports" : "endpoints";
   return baseRecord({
     pathKey: `compatibility-alias.${endpointKey}.${alias}`,
     canonicalToolKey: endpointKey,
@@ -313,7 +360,10 @@ function mapAliasRow(row) {
     surfaceFamily: "compatibility_alias",
     sourceRegistry: "compatibility_alias_registry",
     handlerKey: optionalToken(row.route_target, "route_target") || `alias.${alias}`,
-    authorityMode: http.route?.startsWith("/admin/") ? "admin_only" : "shared",
+    authorityMode: authorityModeFromScope(row.scope_class, {
+      route: http.route,
+      authValidationStatus: row.auth_validation_status,
+    }),
     status: activeStatus(row.status),
     revisionSource: `${authorityTable}.updated_at`,
     freshnessSource: `${authorityTable}.updated_at`,
@@ -326,16 +376,16 @@ const SOURCE_QUERIES = Object.freeze({
   system_tool_registry: {
     queryKey: "system_tool_registry",
     sql: "SELECT 'admin' AS scope_kind, tool_key, http_method, http_path, tags, is_enabled FROM admin_platform_endpoint_tools UNION ALL SELECT 'tenant' AS scope_kind, tool_key, http_method, http_path, tags, is_enabled FROM tenant_platform_endpoint_tools ORDER BY scope_kind, tool_key LIMIT 8193",
-    mapper: (row) => mapToolRow(row, "system_tool_registry", false),
+    mapper: (row) => mapToolRow(row, "system_tool_registry"),
   },
   admin_endpoint_catalog: {
     queryKey: "admin_endpoint_catalog",
-    sql: "SELECT endpoint_id, endpoint_key, parent_action_key, method, endpoint_path_or_function, route_target, openai_action_name, module_binding, status, execution_mode FROM endpoints ORDER BY endpoint_key LIMIT 8193",
+    sql: "SELECT endpoint_id, endpoint_key, parent_action_key, method, endpoint_path_or_function, route_target, openai_action_name, module_binding, status, execution_mode, auth_validation_status FROM endpoints ORDER BY endpoint_key LIMIT 8193",
     mapper: (row) => mapEndpointRow(row, "admin_endpoint_catalog"),
   },
   direct_http_routes: {
     queryKey: "direct_http_routes",
-    sql: "SELECT endpoint_id, endpoint_key, parent_action_key, method, endpoint_path_or_function, route_target, openai_action_name, module_binding, status, execution_mode FROM endpoints WHERE endpoint_path_or_function LIKE '/%' ORDER BY method, endpoint_path_or_function, endpoint_key LIMIT 8193",
+    sql: "SELECT endpoint_id, endpoint_key, parent_action_key, method, endpoint_path_or_function, route_target, openai_action_name, module_binding, status, execution_mode, auth_validation_status FROM endpoints WHERE endpoint_path_or_function LIKE '/%' ORDER BY method, endpoint_path_or_function, endpoint_key LIMIT 8193",
     mapper: (row) => mapEndpointRow(row, "direct_http_routes"),
   },
   runtime_action_registry: {
@@ -345,12 +395,12 @@ const SOURCE_QUERIES = Object.freeze({
   },
   descriptor_catalog: {
     queryKey: "descriptor_catalog",
-    sql: "SELECT export_key, parent_action_key, endpoint_key, tool_name, status FROM platform_endpoint_tool_exports ORDER BY export_key LIMIT 8193",
+    sql: "SELECT export_key, parent_action_key, endpoint_key, tool_name, scope_class, status FROM platform_endpoint_tool_exports ORDER BY export_key LIMIT 8193",
     mapper: mapDescriptorRow,
   },
   provider_binding_catalog: {
     queryKey: "provider_binding_catalog",
-    sql: "SELECT 'action' AS binding_kind, 'app_integration_action_bindings' AS binding_table, binding_id, app_key, action_key, NULL AS tool_key, NULL AS tool_surface, status FROM app_integration_action_bindings UNION ALL SELECT 'tool' AS binding_kind, 'app_integration_tool_bindings' AS binding_table, binding_id, app_key, NULL AS action_key, tool_key, tool_surface, status FROM app_integration_tool_bindings ORDER BY binding_kind, binding_id LIMIT 8193",
+    sql: "SELECT 'action' AS binding_kind, 'app_integration_action_bindings' AS binding_table, binding_id, app_key, action_key, NULL AS tool_key, NULL AS tool_surface, NULL AS binding_scope, status FROM app_integration_action_bindings UNION ALL SELECT 'tool' AS binding_kind, 'app_integration_tool_bindings' AS binding_table, binding_id, app_key, NULL AS action_key, tool_key, tool_surface, exposure_scope AS binding_scope, status FROM app_integration_tool_bindings ORDER BY binding_kind, binding_id LIMIT 8193",
     mapper: mapProviderBindingRow,
   },
   local_device_catalog: {
@@ -360,7 +410,7 @@ const SOURCE_QUERIES = Object.freeze({
   },
   compatibility_alias_registry: {
     queryKey: "compatibility_alias_registry",
-    sql: "SELECT endpoint_key, method, endpoint_path_or_function, route_target, openai_action_name AS alias_key, openai_action_name, NULL AS tool_name, status FROM endpoints WHERE COALESCE(openai_action_name, '') <> '' AND openai_action_name <> endpoint_key UNION ALL SELECT endpoint_key, NULL AS method, NULL AS endpoint_path_or_function, NULL AS route_target, tool_name AS alias_key, NULL AS openai_action_name, tool_name, status FROM platform_endpoint_tool_exports WHERE COALESCE(tool_name, '') <> '' AND tool_name <> endpoint_key ORDER BY endpoint_key, alias_key LIMIT 8193",
+    sql: "SELECT endpoint_key, method, endpoint_path_or_function, route_target, openai_action_name AS alias_key, openai_action_name, NULL AS tool_name, NULL AS scope_class, auth_validation_status, status FROM endpoints WHERE COALESCE(openai_action_name, '') <> '' AND openai_action_name <> endpoint_key UNION ALL SELECT endpoint_key, NULL AS method, NULL AS endpoint_path_or_function, NULL AS route_target, tool_name AS alias_key, NULL AS openai_action_name, tool_name, scope_class, NULL AS auth_validation_status, status FROM platform_endpoint_tool_exports WHERE COALESCE(tool_name, '') <> '' AND tool_name <> endpoint_key ORDER BY endpoint_key, alias_key LIMIT 8193",
     mapper: mapAliasRow,
   },
 });
@@ -406,7 +456,7 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
 
   const collectors = {};
   for (const family of AUTHORITY_EVIDENCE_SOURCE_FAMILIES) {
-    if (!SOURCE_FAMILIES.has(family) || !SOURCE_QUERIES[family]) {
+    if (!SOURCE_FAMILY_SET.has(family) || !SOURCE_QUERIES[family]) {
       throw new AuthorityLiveSourceCollectorError(
         "authority_live_source_plan_incomplete",
         "Every registered source family must have one governed query plan.",
@@ -434,6 +484,7 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
       assertNoSensitiveValues(rows, `rows:${family}`);
       const records = rows.map(plan.mapper).filter(Boolean);
       assertNoSensitiveValues(records, `records:${family}`);
+
       const observedDate = new Date(clock());
       if (Number.isNaN(observedDate.getTime())) {
         throw new AuthorityLiveSourceCollectorError(
@@ -442,8 +493,8 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
           { family },
         );
       }
+
       const operationRef = token(context.operation_ref, "operation_ref");
-      const operationHash = sha256(operationRef).slice(0, 32);
       return {
         source_family: family,
         source_key: `live.${family}`,
@@ -456,7 +507,10 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
           complete: true,
           next_cursor: null,
         },
-        evidence_refs: [`operation-sha256:${operationHash}`, `query:${plan.queryKey}`],
+        evidence_refs: [
+          `operation-sha256:${sha256(operationRef).slice(0, 32)}`,
+          `query:${plan.queryKey}`,
+        ],
         records,
         safety: {
           read_only: true,
@@ -480,6 +534,7 @@ export const _testingAuthorityLiveSourceCollectors = Object.freeze({
   token,
   strictHttpIdentity,
   endpointHttpIdentity,
+  authorityModeFromScope,
   mapToolRow,
   mapEndpointRow,
   mapActionRow,
