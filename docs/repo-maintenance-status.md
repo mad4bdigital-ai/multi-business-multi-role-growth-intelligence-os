@@ -97,6 +97,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml`
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
 - `.github/workflows/hostinger-production-release-evidence-r5.yml`
+- `.github/workflows/hostinger-production-release-evidence-r6.yml`
 - `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
@@ -152,6 +153,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
+- `.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml`
+- `.github/workflows/retail-commerce-production-schema-baseline.yml`
+- `.github/workflows/retail-commerce-specification-baseline.yml`
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-011-evidence-auto-closeout.yml`
@@ -250,6 +254,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
+- `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-schema-split-importer-v2-reference-preservation.mjs`
