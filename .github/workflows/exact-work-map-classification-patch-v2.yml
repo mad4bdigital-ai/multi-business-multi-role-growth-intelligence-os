@@ -1,0 +1,310 @@
+name: Exact Work Map Classification Patch v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/work-map-classification-patch-base-b991e0ae
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-work-map-classification-patch-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    name: Apply and verify exact classification patch
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify identity, patch once, and validate
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/work-map-growth-control-classification-fix-20260803
+          EXPECTED_MAIN_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+          EXPECTED_INITIAL_SHA: 51ffcbad19a44ecaf4d821bb2397458499d6f679
+          TRIGGER_PATH: .specify/work-map-classification-patch-trigger.txt
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD)" = "$EVENT_HEAD_SHA"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_HEAD_REF})" = "$EVENT_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EVENT_HEAD_SHA"
+
+          verify_scope() {
+            mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"...HEAD | sort)
+            test "${#files[@]}" -eq 3
+            test "${files[0]}" = ".changes/e2e/work-map-growth-control-schema-classification.json"
+            test "${files[1]}" = ".specify/work-map-schema-classification-registry.json"
+            test "${files[2]}" = "http-generic-api/test-work-map-schema-classification.mjs"
+            test ! -e "$TRIGGER_PATH"
+          }
+
+          validate_candidate() {
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/e2e-phase-governance.mjs check \
+              --base "$EXPECTED_MAIN_SHA" \
+              --head HEAD \
+              --report-file "$RUNNER_TEMP/work-map-classification-e2e.json"
+            node http-generic-api/scripts/e2e-phase-governance.mjs run \
+              --base "$EXPECTED_MAIN_SHA" \
+              --head HEAD \
+              --report-file "$RUNNER_TEMP/work-map-classification-e2e-run.json" \
+              --execution-report-file "$RUNNER_TEMP/work-map-classification-e2e-execution.json"
+            git diff --check "$EXPECTED_MAIN_SHA"...HEAD
+          }
+
+          if [[ "$EVENT_HEAD_SHA" = "$EXPECTED_INITIAL_SHA" ]]; then
+            test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_INITIAL_SHA}")" = "1"
+            test "$(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_INITIAL_SHA")" = "$TRIGGER_PATH"
+
+            node <<'NODE'
+          const fs = require('node:fs');
+
+          const registryPath = '.specify/work-map-schema-classification-registry.json';
+          const testPath = 'http-generic-api/test-work-map-schema-classification.mjs';
+          const contractPath = '.changes/e2e/work-map-growth-control-schema-classification.json';
+          const triggerPath = '.specify/work-map-classification-patch-trigger.txt';
+
+          const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+          const additions = [
+            {
+              rule_key: 'growth_control_kpi_catalog_and_binding_objects',
+              scope: 'bounded_exact',
+              match: {
+                exact_names: [
+                  'growth_control_kpi_definitions',
+                  'growth_control_activity_kpi_bindings'
+                ]
+              },
+              domain: 'Agents & intelligence',
+              existing_map_refs: [
+                'agent-skill-plugin-map',
+                'workflow-task-orchestration-map',
+                'policy-authority-map',
+                'data-model-domain-map'
+              ],
+              rationale: 'Growth Control KPI definitions and activity bindings define governed intelligence measurements and their workflow attachment, so they require explicit bounded classification.'
+            },
+            {
+              rule_key: 'growth_control_observability_measurement_objects',
+              scope: 'bounded_exact',
+              match: {
+                exact_names: [
+                  'growth_control_normalized_metric_observations',
+                  'growth_control_observability_samples'
+                ]
+              },
+              domain: 'Observability & release',
+              existing_map_refs: [
+                'observability-release-map',
+                'execution-log-evidence-map',
+                'workflow-task-orchestration-map',
+                'data-model-domain-map'
+              ],
+              rationale: 'Normalized metric observations and observability samples are governed measurement evidence used for operational readback and release assurance.'
+            },
+            {
+              rule_key: 'growth_control_decision_reconciliation_evidence_objects',
+              scope: 'bounded_exact',
+              match: {
+                exact_names: [
+                  'growth_control_decision_evidence',
+                  'growth_control_reconciliation_findings'
+                ]
+              },
+              domain: 'Observability & release',
+              existing_map_refs: [
+                'observability-release-map',
+                'policy-authority-map',
+                'workflow-task-orchestration-map',
+                'data-model-domain-map'
+              ],
+              rationale: 'Decision evidence and reconciliation findings preserve governed runtime outcomes, discrepancies, and readback state for operational assurance.'
+            }
+          ];
+
+          const targetNames = new Set(additions.flatMap((rule) => rule.match.exact_names));
+          for (const rule of registry.rules) {
+            if (additions.some((addition) => addition.rule_key === rule.rule_key)) {
+              throw new Error(`classification rule already exists: ${rule.rule_key}`);
+            }
+            for (const name of rule.match?.exact_names || []) {
+              if (targetNames.has(name)) throw new Error(`schema object already registered: ${name}`);
+            }
+          }
+          const anchor = registry.rules.findIndex((rule) => rule.rule_key === 'growth_control_compiled_snapshot_objects');
+          if (anchor < 0) throw new Error('growth_control_compiled_snapshot_objects anchor missing');
+          registry.rules.splice(anchor + 1, 0, ...additions);
+          fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+
+          const originalTest = fs.readFileSync(testPath, 'utf8');
+          const oldBlock = `  assert.deepEqual(result.unresolved.map((row) => row.name), [UNRESOLVED_OBJECT]);\n  assert.deepEqual(result.classified.map((row) => row.name), [REGISTRY_OBJECT]);\n  assert.equal(result.classification_coverage_percent, 50);`;
+          const newBlock = `  assert.deepEqual(result.unresolved.map((row) => row.name), [UNRESOLVED_OBJECT]);\n  assert.deepEqual(result.classified.map((row) => row.name), []);\n  assert.equal(result.source_uncategorized_count, 1);\n  assert.equal(result.classification_coverage_percent, 0);`;
+          if (!originalTest.includes(oldBlock)) throw new Error('classification regression assertion anchor missing');
+          if (originalTest.indexOf(oldBlock) !== originalTest.lastIndexOf(oldBlock)) throw new Error('classification regression assertion anchor is ambiguous');
+          fs.writeFileSync(testPath, originalTest.replace(oldBlock, newBlock));
+
+          const contract = {
+            $schema: '../../.specify/schemas/e2e-phases.schema.json',
+            schema_version: 1,
+            feature_key: 'work-map-growth-control-schema-classification',
+            title: 'Growth Control schema classification closeout',
+            delivery_mode: 'single_pr',
+            current_phase: 'mvp',
+            scope: {
+              include: [
+                '.specify/work-map-schema-classification-registry.json',
+                'http-generic-api/test-work-map-schema-classification.mjs',
+                '.changes/e2e/work-map-growth-control-schema-classification.json'
+              ]
+            },
+            merge_contract: { minimum_phase: 'mvp' },
+            phases: [
+              {
+                id: 'mvp',
+                status: 'implemented',
+                objective: 'Classify every existing Growth Control analytics and observability schema object explicitly and align the regression test with generator-owned classification output.',
+                e2e_journeys: [
+                  {
+                    id: 'validate-growth-control-schema-classification',
+                    end_to_end: true,
+                    level: 'synthetic_runtime',
+                    actor: 'governed Work Map writer and repository reviewer',
+                    entrypoint: 'Schema classification contract and generated coverage validation on the exact candidate head',
+                    terminal_outcome: 'All Growth Control schema objects are covered by one explicit bounded rule and the validator fails closed only for genuinely unresolved objects.',
+                    steps: [
+                      'Load the explicit-only Growth Control namespace and discover schema objects from repository migrations.',
+                      'Resolve the six analytics and observability objects through three bounded exact registry rules.',
+                      'Generate the synthetic classification fixture and confirm generator-resolved objects are not re-counted as legacy unresolved rows.',
+                      'Run registry, classification, and contract regressions on the exact candidate head.'
+                    ],
+                    assertions: [
+                      'No growth_control analytics or observability object remains unregistered.',
+                      'Each new object matches exactly one bounded registry rule.',
+                      'The current generated coverage matrix passes fail-closed classification validation.',
+                      'The synthetic regression retains one genuinely unresolved object while excluding the generator-resolved registry object from the legacy classified count.',
+                      'No generated Work Map file is manually edited.'
+                    ],
+                    tests: [
+                      {
+                        id: 'schema-classification-contract-runtime',
+                        runner: 'node',
+                        working_directory: 'http-generic-api',
+                        path: 'scripts/work-map-schema-classification-contract.mjs',
+                        args: []
+                      },
+                      {
+                        id: 'schema-classification-regression',
+                        runner: 'node',
+                        working_directory: 'http-generic-api',
+                        path: 'test-work-map-schema-classification.mjs',
+                        args: []
+                      },
+                      {
+                        id: 'schema-classification-contract-regression',
+                        runner: 'node',
+                        working_directory: 'http-generic-api',
+                        path: 'test-work-map-schema-classification-contract.mjs',
+                        args: []
+                      }
+                    ],
+                    evidence_paths: [
+                      '.specify/work-map-schema-classification-registry.json',
+                      'http-generic-api/test-work-map-schema-classification.mjs'
+                    ]
+                  }
+                ]
+              },
+              {
+                id: 'operational',
+                status: 'planned',
+                objective: 'Publish exact-head classification coverage summaries from the governed Work Map writer.'
+              },
+              {
+                id: 'resilient',
+                status: 'planned',
+                objective: 'Exercise duplicate, ambiguous, and unregistered explicit-only namespace failures.'
+              },
+              {
+                id: 'canary',
+                status: 'planned',
+                objective: 'Observe classification drift when future Growth Control migrations are proposed.'
+              },
+              {
+                id: 'production',
+                status: 'planned',
+                objective: 'Require complete explicit namespace coverage before protected-branch Work Map publication.'
+              }
+            ]
+          };
+          fs.mkdirSync('.changes/e2e', { recursive: true });
+          if (fs.existsSync(contractPath)) throw new Error(`E2E contract already exists: ${contractPath}`);
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+
+          if (!fs.existsSync(triggerPath)) throw new Error(`trigger missing: ${triggerPath}`);
+          fs.unlinkSync(triggerPath);
+          NODE
+
+            git diff --check
+            mapfile -t worktree_files < <(git diff --name-only | sort)
+            test "${#worktree_files[@]}" -eq 4
+            test "${worktree_files[0]}" = ".changes/e2e/work-map-growth-control-schema-classification.json"
+            test "${worktree_files[1]}" = ".specify/work-map-classification-patch-trigger.txt"
+            test "${worktree_files[2]}" = ".specify/work-map-schema-classification-registry.json"
+            test "${worktree_files[3]}" = "http-generic-api/test-work-map-schema-classification.mjs"
+
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification.mjs
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "fix(work-maps): classify Growth Control analytics schema"
+            verify_scope
+            validate_candidate
+
+            remote_before_push="$(git ls-remote origin "refs/heads/${EXPECTED_HEAD_REF}" | awk '{print $1}')"
+            test "$remote_before_push" = "$EXPECTED_INITIAL_SHA"
+            git push origin "HEAD:refs/heads/${EXPECTED_HEAD_REF}"
+          else
+            verify_scope
+            validate_candidate
+          fi
+
+      - name: Upload bounded E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-classification-patch-v2-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-classification-e2e*.json
+          if-no-files-found: warn
+          retention-days: 14
