@@ -1,2 +1,2 @@
 Temporary never-merge trigger for the exact PR #5983 ARM Work Map bridge.
-Synchronization: current canonical head 217a5375a989d62a16102cb3c1c409466962f850.
+Synchronization: read-only preflight for current canonical head 217a5375a989d62a16102cb3c1c409466962f850.
