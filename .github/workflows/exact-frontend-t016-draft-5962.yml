@@ -17,8 +17,8 @@ jobs:
   candidate-governance-evidence:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/ci/frontend-baseline-t016-1e8ded-20260804' &&
-      github.event.pull_request.head.sha == '8b93404a4ab7df1448762156a6bd22391876ad95'
+      github.event.pull_request.head.ref == 'gpt/validate-frontend-t016-evidence-probe-20260804' &&
+      github.event.pull_request.head.sha == '180804fc1561a3f484f945d6e2a7f7877dbfac7b'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
@@ -135,8 +135,8 @@ jobs:
   baseline-oauth-probe:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/ci/frontend-baseline-t016-1e8ded-20260804' &&
-      github.event.pull_request.head.sha == '8b93404a4ab7df1448762156a6bd22391876ad95'
+      github.event.pull_request.head.ref == 'gpt/validate-frontend-t016-evidence-probe-20260804' &&
+      github.event.pull_request.head.sha == '180804fc1561a3f484f945d6e2a7f7877dbfac7b'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
