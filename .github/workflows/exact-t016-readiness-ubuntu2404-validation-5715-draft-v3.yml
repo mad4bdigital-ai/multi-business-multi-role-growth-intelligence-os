@@ -1,4 +1,4 @@
-name: T016 Governed Frontend Parity Refresh 5715
+name: T016 Current-Main Sync and Frontend Parity Refresh 5715
 
 on:
   pull_request:
@@ -10,25 +10,25 @@ permissions:
   contents: write
 
 concurrency:
-  group: t016-governed-frontend-parity-refresh-5715
+  group: t016-current-main-sync-parity-refresh-5715
   cancel-in-progress: false
 
 jobs:
-  refresh:
-    name: Refresh exact generated parity on PR 5715
+  sync_refresh:
+    name: Synchronize main and refresh generated parity on PR 5715
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/ops/t016-readiness-current-main-clean-20260803' &&
       github.event.pull_request.head.sha == 'bb6dcde51cab9d0bce18095e15b35fec072bfee2'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       TARGET_BRANCH: gpt/ops/t016-readiness-current-main-clean-20260803
       EXPECTED_HEAD: bb6dcde51cab9d0bce18095e15b35fec072bfee2
-      EXPECTED_BASELINE: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_MAIN: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
       GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
       CONTRACT_PATH: .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
-      EVIDENCE_DIR: /tmp/t016-frontend-parity-refresh-${{ github.run_id }}
+      EVIDENCE_DIR: /tmp/t016-sync-parity-refresh-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate branch
         uses: actions/checkout@v5
@@ -42,30 +42,42 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify immutable target identity
+      - name: Verify immutable refs
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${EXPECTED_HEAD}"
-          git merge-base --is-ancestor "${EXPECTED_BASELINE}" "${EXPECTED_HEAD}"
-          test "$(git rev-list --count "${EXPECTED_BASELINE}..${EXPECTED_HEAD}")" = '3'
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
           test -z "$(git status --porcelain)"
+          mkdir -p "${EVIDENCE_DIR}"
+
+      - name: Merge exact current main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git merge --no-ff --no-edit "${EXPECTED_MAIN}"
+          sync_head="$(git rev-parse HEAD)"
+          echo "SYNC_HEAD=${sync_head}" >> "$GITHUB_ENV"
+          git merge-base --is-ancestor "${EXPECTED_MAIN}" "${sync_head}"
+          printf '%s\n' "${sync_head}" > "${EVIDENCE_DIR}/sync-head.txt"
 
       - name: Generate deterministic frontend dispatch artifact
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "${EVIDENCE_DIR}"
           node http-generic-api/scripts/generate-frontend-surface-dispatch.mjs
           git diff --name-only > "${EVIDENCE_DIR}/generator-changed-files.txt"
           test "$(cat "${EVIDENCE_DIR}/generator-changed-files.txt")" = "${GENERATED_PATH}"
-          generated_hash_before="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          hash_before="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
           node http-generic-api/scripts/generate-frontend-surface-dispatch.mjs
-          generated_hash_after="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
-          test "${generated_hash_before}" = "${generated_hash_after}"
-          printf '%s\n' "${generated_hash_after}" > "${EVIDENCE_DIR}/generated-sha256.txt"
+          hash_after="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          test "${hash_before}" = "${hash_after}"
+          printf '%s\n' "${hash_after}" > "${EVIDENCE_DIR}/generated-sha256.txt"
 
       - name: Extend the T016 E2E contract to generated parity
         shell: bash
@@ -81,7 +93,6 @@ jobs:
             if (!Array.isArray(array)) throw new Error(`Expected array while adding ${value}`);
             if (!array.includes(value)) array.push(value);
           };
-
           addUnique(contract.scope.include, generatedPath);
           const journey = contract.phases
             ?.find((phase) => phase.id === 'mvp')
@@ -91,12 +102,11 @@ jobs:
           addUnique(journey.evidence_paths, generatedPath);
           addUnique(journey.steps, 'Regenerate the committed Frontend surface dispatch artifact after the admin route source changes and require deterministic byte-for-byte parity.');
           addUnique(journey.assertions, 'The committed frontend-surface-dispatch.generated.json is byte-for-byte identical to a fresh generation from the exact candidate source.');
-
           fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
           NODE
           node -e "JSON.parse(require('fs').readFileSync(process.env.CONTRACT_PATH, 'utf8'))"
 
-      - name: Run focused Frontend and T016 tests
+      - name: Run focused Frontend and T016 validation
         shell: bash
         run: |
           set -euo pipefail
@@ -116,27 +126,25 @@ jobs:
           node http-generic-api/test-e2e-contract-git-index-integrity.mjs
           git diff --check
 
-      - name: Commit exact bounded refresh locally
+      - name: Commit exact generated refresh locally
         shell: bash
         run: |
           set -euo pipefail
           actual="$(git diff --name-only | sort)"
           expected="$(printf '%s\n%s\n' "${CONTRACT_PATH}" "${GENERATED_PATH}" | sort)"
           test "${actual}" = "${expected}"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
           git add "${CONTRACT_PATH}" "${GENERATED_PATH}"
           git commit -m 'chore(frontend): refresh T016 generated dispatch parity'
           new_head="$(git rev-parse HEAD)"
           echo "NEW_HEAD=${new_head}" >> "$GITHUB_ENV"
           printf '%s\n' "${new_head}" > "${EVIDENCE_DIR}/new-head.txt"
 
-      - name: Validate committed exact-head composition and E2E
+      - name: Validate final effective scope and E2E
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-list --count "${EXPECTED_BASELINE}..${NEW_HEAD}")" = '4'
-          git diff --name-only "${EXPECTED_BASELINE}" "${NEW_HEAD}" | sort > "${EVIDENCE_DIR}/actual-scope.txt"
+          git merge-base --is-ancestor "${EXPECTED_MAIN}" "${NEW_HEAD}"
+          git diff --name-only "${EXPECTED_MAIN}" "${NEW_HEAD}" | sort > "${EVIDENCE_DIR}/actual-scope.txt"
           cat <<'EOF' | sort > "${EVIDENCE_DIR}/expected-scope.txt"
           .changes/e2e/sprint69-1043-t016-readiness-path-repair.json
           .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
@@ -150,31 +158,33 @@ jobs:
           diff -u "${EVIDENCE_DIR}/expected-scope.txt" "${EVIDENCE_DIR}/actual-scope.txt"
           test "$(wc -l < "${EVIDENCE_DIR}/actual-scope.txt" | tr -d ' ')" = '8'
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "${EXPECTED_BASELINE}" \
+            --base "${EXPECTED_MAIN}" \
             --head "${NEW_HEAD}" \
             --report-file "${EVIDENCE_DIR}/reference-integrity.json"
           node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
             --report-file "${EVIDENCE_DIR}/reference-integrity.json"
           node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${EXPECTED_BASELINE}" \
+            --base "${EXPECTED_MAIN}" \
             --head "${NEW_HEAD}" \
             --report-file "${EVIDENCE_DIR}/e2e-evaluation.json"
           node http-generic-api/scripts/e2e-phase-governance.mjs run \
-            --base "${EXPECTED_BASELINE}" \
+            --base "${EXPECTED_MAIN}" \
             --head "${NEW_HEAD}" \
             --report-file "${EVIDENCE_DIR}/e2e-evaluation-run.json" \
             --execution-report-file "${EVIDENCE_DIR}/e2e-execution.json"
-          git diff --check "${EXPECTED_BASELINE}...${NEW_HEAD}"
+          git diff --check "${EXPECTED_MAIN}...${NEW_HEAD}"
 
-      - name: Revalidate remote head and push normally
+      - name: Revalidate refs and push normally
         shell: bash
         run: |
           set -euo pipefail
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${EXPECTED_HEAD}"
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
           git push origin "HEAD:${TARGET_BRANCH}"
 
-      - name: Write bounded refresh evidence
+      - name: Write bounded evidence
         if: always()
         shell: bash
         run: |
@@ -182,16 +192,17 @@ jobs:
           mkdir -p "${EVIDENCE_DIR}"
           jq -n \
             --arg expected_head "${EXPECTED_HEAD}" \
+            --arg main_sha "${EXPECTED_MAIN}" \
+            --arg sync_head "${SYNC_HEAD:-}" \
             --arg new_head "${NEW_HEAD:-}" \
-            --arg baseline "${EXPECTED_BASELINE}" \
-            '{contract:"t016_governed_frontend_parity_refresh.v1",pr:5715,expected_head:$expected_head,new_head:($new_head|select(length>0)),baseline:$baseline,target_branch:"gpt/ops/t016-readiness-current-main-clean-20260803",generated_path:"http-generic-api/frontend-surface-dispatch.generated.json",contract_path:".changes/e2e/sprint69-1043-t016-readiness-path-repair.json",ordinary_push:true,force_push:false,protected_ref_mutation:false,runtime_contacted:false,capability_envelope_created:false,apply_authorized:false,apply_sent:false,migration_apply_executed:false,activation_registry_sync_executed:false,database_mutation:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
+            '{contract:"t016_current_main_sync_frontend_parity_refresh.v1",pr:5715,expected_head:$expected_head,main_sha:$main_sha,sync_head:($sync_head|select(length>0)),new_head:($new_head|select(length>0)),effective_file_count:8,ordinary_push:true,force_push:false,protected_ref_mutation:false,runtime_contacted:false,capability_envelope_created:false,apply_authorized:false,apply_sent:false,migration_apply_executed:false,activation_registry_sync_executed:false,database_mutation:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
             > "${EVIDENCE_DIR}/summary.json"
 
-      - name: Upload bounded refresh evidence
+      - name: Upload bounded evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t016-governed-frontend-parity-refresh-${{ github.run_id }}
+          name: t016-current-main-sync-frontend-parity-refresh-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}/
           if-no-files-found: error
           retention-days: 14
