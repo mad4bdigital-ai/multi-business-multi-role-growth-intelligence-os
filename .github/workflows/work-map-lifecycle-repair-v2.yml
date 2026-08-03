@@ -1,0 +1,190 @@
+name: Work Map Lifecycle Repair V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-lifecycle-repair-v2-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Validate and publish lifecycle-safe Work Map diagnostics
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-autofix-full-failure-set-20260804' &&
+      github.event.pull_request.head.sha == '0713ff8ced35438befad0fa68af0bc08fe3e760b'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
+      EXPECTED_PREVIOUS_HEAD: e123688d3346a0d173d81989354de4cdc7bf44b4
+      EXPECTED_TRIGGER_HEAD: 0713ff8ced35438befad0fa68af0bc08fe3e760b
+      TARGET_BRANCH: gpt/work-map-autofix-full-failure-set-20260804
+      TRIGGER_MARKER: .github/arm-markers/work-map-lifecycle-fix-trigger.txt
+      SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
+      SCRIPT_COMMIT_SHA: 205ee3dc3f1149d3575f6cb0edcf92ed3bbcc8a6
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable identity and bounded trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-lifecycle-repair-v2-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${DIAGNOSTIC_ROOT}"
+
+          test "$(git rev-parse HEAD)" = "${EXPECTED_TRIGGER_HEAD}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PREVIOUS_HEAD}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_PREVIOUS_HEAD}")" = "${EXPECTED_MAIN_SHA}"
+          printf '%s\n' "${TRIGGER_MARKER}" > /tmp/expected-trigger-files.txt
+          git diff --name-only "${EXPECTED_PREVIOUS_HEAD}" "${EXPECTED_TRIGGER_HEAD}" | LC_ALL=C sort > /tmp/actual-trigger-files.txt
+          diff -u /tmp/expected-trigger-files.txt /tmp/actual-trigger-files.txt
+          test -f "${TRIGGER_MARKER}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_TRIGGER_HEAD}"
+          test -z "$(git status --porcelain)"
+
+          cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
+          .changes/e2e/work-map-autofix-validation-diagnostics.json
+          .github/workflows/spec-kit-work-map-autofix.yml
+          http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          EOF
+
+      - name: Load immutable lifecycle transformer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
+          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
+          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-work-map-lifecycle-fix.py" > /tmp/apply-work-map-lifecycle-fix.py
+          python -m py_compile /tmp/apply-work-map-lifecycle-fix.py
+
+      - name: Apply lifecycle repair and remove marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/apply-work-map-lifecycle-fix.py
+          rm "${TRIGGER_MARKER}"
+          git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          git diff --check "${EXPECTED_MAIN_SHA}"
+
+      - name: Validate workflow and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
+          grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
+          grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
+          ! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml
+
+      - name: Create exact local commit and full payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_TRIGGER_HEAD}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .changes/e2e/work-map-autofix-validation-diagnostics.json .github/workflows/spec-kit-work-map-autofix.yml http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          git add -u -- "${TRIGGER_MARKER}"
+          git commit -m "fix(ci): make Work Map branch governance input-driven"
+
+          new_head="$(git rev-parse HEAD)"
+          printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${new_head}" | LC_ALL=C sort > /tmp/final-files.txt
+          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" /tmp/final-files.txt
+          test -z "$(git status --porcelain)"
+
+          payload="${DIAGNOSTIC_ROOT}/validated-payload"
+          mkdir -p "${payload}/.changes/e2e" "${payload}/.github/workflows" "${payload}/http-generic-api"
+          cp .changes/e2e/work-map-autofix-validation-diagnostics.json "${payload}/.changes/e2e/"
+          cp .github/workflows/spec-kit-work-map-autofix.yml "${payload}/.github/workflows/"
+          cp http-generic-api/test-work-map-autofix-validation-diagnostics.mjs "${payload}/http-generic-api/"
+          printf '%s\n' "${new_head}" > "${payload}/local-commit-sha.txt"
+          git show -s --format=%T "${new_head}" > "${payload}/local-tree-sha.txt"
+          git show -s --format=%P "${new_head}" > "${payload}/local-parent-shas.txt"
+          git diff --binary "${EXPECTED_MAIN_SHA}" "${new_head}" > "${payload}/validated.patch"
+          sha256sum \
+            "${payload}/.changes/e2e/work-map-autofix-validation-diagnostics.json" \
+            "${payload}/.github/workflows/spec-kit-work-map-autofix.yml" \
+            "${payload}/http-generic-api/test-work-map-autofix-validation-diagnostics.mjs" \
+            > "${payload}/sha256sums.txt"
+
+      - name: Run lifecycle and exact E2E gates with explicit candidate identity
+        shell: bash
+        env:
+          BASE_SHA: 94f9d7867dac7af8875fedbbc585cbf7eee3c037
+        run: |
+          set -euo pipefail
+          export CI_CANDIDATE_KIND=head
+          export CI_CANDIDATE_SHA="${NEW_HEAD_SHA}"
+          export CI_SOURCE_HEAD_SHA="${NEW_HEAD_SHA}"
+
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${BASE_SHA}" "${NEW_HEAD_SHA}" > /tmp/repository-tool-changes.tsv
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "${DIAGNOSTIC_ROOT}/repository-tool-lifecycle"
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.DIAGNOSTIC_ROOT + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-phase-evaluation.json"
+          test -z "$(git status --porcelain)"
+
+      - name: Attempt fast-forward push and capture result
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          printf '%s\n' "${remote_before}" > "${DIAGNOSTIC_ROOT}/remote-before-push.txt"
+          test "${remote_before}" = "${EXPECTED_TRIGGER_HEAD}"
+          set +e
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}" > "${DIAGNOSTIC_ROOT}/push.log" 2>&1
+          push_status=$?
+          set -e
+          printf '%s\n' "${push_status}" > "${DIAGNOSTIC_ROOT}/push-status.txt"
+          remote_after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          printf '%s\n' "${remote_after}" > "${DIAGNOSTIC_ROOT}/remote-after-push.txt"
+          cat "${DIAGNOSTIC_ROOT}/push.log"
+
+      - name: Upload full lifecycle repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-lifecycle-repair-v2-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-lifecycle-repair-v2-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce exact published head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat "${DIAGNOSTIC_ROOT}/push-status.txt")" = "0"
+          test "$(cat "${DIAGNOSTIC_ROOT}/remote-after-push.txt")" = "${NEW_HEAD_SHA}"
