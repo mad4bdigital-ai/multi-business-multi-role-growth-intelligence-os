@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: surface-clean-v2-main-sync-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   dispatch-plan:
@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/surface-current-main-clean-v2-20260803' &&
       github.event.pull_request.base.ref == 'main'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
       TARGET_BRANCH: gpt/surface-current-main-clean-v2-20260803
