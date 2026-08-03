@@ -19,16 +19,18 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
-      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+      github.event.pull_request.head.sha == '7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: 7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c
+      MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       SCRIPT_COMMIT_SHA: 24b41f1ee9deff4bc62bdfe511af21324bbbb296
       E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
     steps:
-      - name: Checkout exact clean branch
+      - name: Checkout exact marker head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -42,7 +44,7 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify identity install dependencies and load transformer
+      - name: Verify marker-only identity and load transformer
         shell: bash
         run: |
           set -euo pipefail
@@ -50,6 +52,10 @@ jobs:
           printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${DIAGNOSTIC_ROOT}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          printf '%s\n' "${MARKER_PATH}" > /tmp/expected-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
           test -z "$(git status --porcelain)"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
@@ -57,10 +63,11 @@ jobs:
           git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
           python -m py_compile /tmp/apply-spec012-oauth-route-test-parity.py
 
-      - name: Apply corrected transformation and generated parity
+      - name: Remove marker apply correction and converge maps
         shell: bash
         run: |
           set -euo pipefail
+          rm "${MARKER_PATH}"
           python /tmp/apply-spec012-oauth-route-test-parity.py
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
@@ -103,7 +110,7 @@ jobs:
           run_check token-route node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           run_check auth-oauth-integration node http-generic-api/test-auth-oauth-routes.mjs
           run_check route-wiring node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          run_check jwt-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref=${EXPECTED_HEAD_SHA}"
+          run_check jwt-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref=${EXPECTED_MAIN_SHA}"
           run_check no-jwt-import bash -lc "! grep -Fq 'from \"jsonwebtoken\"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
           run_check no-fallback-secret bash -lc "! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
           {
