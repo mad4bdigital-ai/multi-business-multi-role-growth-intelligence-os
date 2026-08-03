@@ -1,7 +1,7 @@
 name: Exact Feature ARM Validation 5491
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - gpt/validate-feature-arm-base-5491-44ed1522
     types: [opened, reopened, synchronize, ready_for_review]
@@ -22,6 +22,11 @@ jobs:
       head_sha: ${{ steps.verify.outputs.head_sha }}
       main_sha: ${{ steps.verify.outputs.main_sha }}
     steps:
+      - name: Checkout exact candidate with read-only token
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
       - name: Verify immutable same-repository candidate
         id: verify
         shell: bash
@@ -38,14 +43,9 @@ jobs:
           test "$HEAD_REPOSITORY" = "$REPOSITORY"
           test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
           test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
-          git init validation-readback
-          cd validation-readback
-          git remote add origin "https://github.com/${REPOSITORY}.git"
-          git fetch --no-tags --depth=2 origin \
-            "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
-          test "$(git rev-parse refs/remotes/origin/${HEAD_REF})" = "$EXPECTED_HEAD_SHA"
           test "$(git rev-parse ${EXPECTED_HEAD_SHA}^1)" = "$EXPECTED_MAIN_SHA"
           printf 'head_sha=%s\n' "$EXPECTED_HEAD_SHA" >> "$GITHUB_OUTPUT"
           printf 'main_sha=%s\n' "$EXPECTED_MAIN_SHA" >> "$GITHUB_OUTPUT"
