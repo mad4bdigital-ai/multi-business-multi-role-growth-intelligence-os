@@ -90,7 +90,7 @@ jobs:
           node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs 2>&1 | tee "${EVIDENCE_ROOT}/token-route.log"
           node http-generic-api/test-auth-oauth-routes.mjs 2>&1 | tee "${EVIDENCE_ROOT}/auth-oauth-integration.log"
           node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee "${EVIDENCE_ROOT}/route-wiring.log"
-          npm --prefix http-generic-api run test:manifest 2>&1 | tee "${EVIDENCE_ROOT}/test-manifest.log"
+          npm --prefix http-generic-api test 2>&1 | tee "${EVIDENCE_ROOT}/test-manifest.log"
 
       - name: Upload bounded product evidence
         if: always()
