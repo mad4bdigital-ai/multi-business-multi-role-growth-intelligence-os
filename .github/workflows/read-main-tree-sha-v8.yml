@@ -1,0 +1,37 @@
+name: Read Main Tree SHA V8
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/read-main-tree-sha-v8.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: read-main-tree-sha-v8-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  read-main-tree:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact pull request base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+      - name: Read immutable base tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          tested_sha="$(git rev-parse HEAD)"
+          expected_sha="${{ github.event.pull_request.base.sha }}"
+          test "${tested_sha}" = "${expected_sha}"
+          tree_sha="$(git rev-parse 'HEAD^{tree}')"
+          test -n "${tree_sha}"
+          printf 'BASE_SHA=%s\n' "${tested_sha}"
+          printf 'MAIN_TREE_SHA=%s\n' "${tree_sha}"
+          printf 'REF_UPDATED=false\n'
+          printf 'SECRETS_INCLUDED=false\n'
