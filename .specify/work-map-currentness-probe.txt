@@ -1,0 +1,6 @@
+purpose=activate_exact_head_governed_work_map_autofix
+source_pr=5748
+source_head=89d83d2e892a9ad234a3aa90e3f4238e2dbf2fe7
+protected_main=dd929093dd83d2c91ac817ff60d324eca2b71e51
+remove_before_merge=true
+secrets_included=false
