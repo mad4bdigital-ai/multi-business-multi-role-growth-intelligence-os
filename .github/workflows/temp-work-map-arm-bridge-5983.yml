@@ -1,4 +1,4 @@
-name: TEMP Work Map ARM Bridge 5983
+name: TEMP Work Map ARM Bridge 5983 V2
 
 on:
   pull_request:
@@ -13,18 +13,18 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: temp-work-map-arm-bridge-5983-${{ github.event.pull_request.number }}
+  group: temp-work-map-arm-bridge-5983-v2-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   dispatch:
-    name: Validate PR 5983 and dispatch candidate writer
+    name: Validate current PR 5983 and dispatch candidate writer
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
       CANONICAL_PR: '5983'
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: c95aa1e6578d863b5caa199b643018f30fd47853
+      EXPECTED_HEAD_SHA: 217a5375a989d62a16102cb3c1c409466962f850
       EXPECTED_HEAD_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
     steps:
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-arm-bridge-5983"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-arm-bridge-5983-v2"
 
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
           test "$(jq -r '.state' <<<"${pr}")" = 'open'
@@ -114,5 +114,5 @@ jobs:
           if [[ "${{ steps.bridge.outcome }}" != 'success' ]]; then
             outcome='blocked'
           fi
-          body="WORK_MAP_ARM_BRIDGE_5983 outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} target_ref=${EXPECTED_HEAD_REF} authorization_consumed=$([[ '${{ steps.bridge.outcome }}' == 'success' ]] && echo true || echo false) delegated_run_id=${DELEGATED_RUN_ID:-none} writer_ref=candidate direct_generated_edit=false protected_branch_mutation=false force_push=false"
+          body="WORK_MAP_ARM_BRIDGE_5983_V2 outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} target_ref=${EXPECTED_HEAD_REF} authorization_consumed=$([[ '${{ steps.bridge.outcome }}' == 'success' ]] && echo true || echo false) delegated_run_id=${DELEGATED_RUN_ID:-none} writer_ref=candidate direct_generated_edit=false protected_branch_mutation=false force_push=false"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}"
