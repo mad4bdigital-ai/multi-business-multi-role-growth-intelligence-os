@@ -1,0 +1,391 @@
+name: Pin Critical Runners Patcher V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v2-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-critical-runners-patcher-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_BASELINE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+  EXPECTED_HEAD_REF: gpt/ci/pin-critical-runners-ubuntu2404-5ae197-v2-20260803
+
+jobs:
+  patch:
+    name: Apply and diagnose bounded runner-label mitigation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Fail closed on immutable PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+
+      - name: Checkout exact feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable baseline ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$EXPECTED_BASELINE_SHA" HEAD
+          test "$(git rev-list --count "$EXPECTED_BASELINE_SHA"..HEAD)" -ge 1
+
+      - name: Initialize bounded diagnostics
+        shell: bash
+        run: mkdir -p "${RUNNER_TEMP}/pin-critical-runners-v2"
+
+      - name: Apply allowlisted pinning and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path.cwd()
+          workflows = [
+              ".github/workflows/ci.yml",
+              ".github/workflows/automation-overlap-guard.yml",
+              ".github/workflows/e2e-phase-governance.yml",
+              ".github/workflows/e2e-contract-reference-integrity.yml",
+              ".github/workflows/repository-tool-lifecycle-governance.yml",
+              ".github/workflows/ci-pull-request-recovery.yml",
+              ".github/workflows/supervisor-runtime-assurance.yml",
+              ".github/workflows/http-generic-api-fanout-relocation.yml",
+              ".github/workflows/hostinger-storage-control-plane-guard.yml",
+          ]
+          old = "runs-on: ubuntu-latest"
+          new = "runs-on: ubuntu-24.04"
+
+          for relative in workflows:
+              path = root / relative
+              if not path.is_file():
+                  raise SystemExit(f"missing allowlisted workflow: {relative}")
+              text = path.read_text(encoding="utf-8")
+              if old in text:
+                  text = text.replace(old, new)
+                  path.write_text(text, encoding="utf-8")
+              elif new not in text:
+                  raise SystemExit(f"workflow has neither expected runner label: {relative}")
+              updated = path.read_text(encoding="utf-8")
+              if old in updated:
+                  raise SystemExit(f"ubuntu-latest remains in allowlisted workflow: {relative}")
+              if new not in updated:
+                  raise SystemExit(f"ubuntu-24.04 missing from allowlisted workflow: {relative}")
+
+          self_test = r'''#!/usr/bin/env node
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import { fileURLToPath } from "node:url";
+
+          const here = path.dirname(fileURLToPath(import.meta.url));
+          const root = path.resolve(here, "../..");
+          const workflows = Object.freeze([
+            ".github/workflows/ci.yml",
+            ".github/workflows/automation-overlap-guard.yml",
+            ".github/workflows/e2e-phase-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/ci-pull-request-recovery.yml",
+            ".github/workflows/supervisor-runtime-assurance.yml",
+            ".github/workflows/http-generic-api-fanout-relocation.yml",
+            ".github/workflows/hostinger-storage-control-plane-guard.yml",
+          ]);
+
+          for (const relativePath of workflows) {
+            const absolutePath = path.join(root, relativePath);
+            assert.equal(fs.existsSync(absolutePath), true, `${relativePath} must exist`);
+            const content = fs.readFileSync(absolutePath, "utf8");
+            assert.equal(content.includes("runs-on: ubuntu-latest"), false, `${relativePath} must not request ubuntu-latest`);
+            assert.equal(content.includes("runs-on: ubuntu-24.04"), true, `${relativePath} must request ubuntu-24.04`);
+          }
+
+          const canary = fs.readFileSync(
+            path.join(root, ".github/workflows/hostinger-storage-shared-canary-guard.yml"),
+            "utf8",
+          );
+          assert.equal(canary.includes("runs-on: ubuntu-24.04"), true, "known-good Shared Canary must remain pinned");
+
+          console.log(JSON.stringify({
+            ok: true,
+            test: "critical_runner_label_pinning",
+            pinned_workflows: workflows.length,
+            requested_label: "ubuntu-24.04",
+            repository_write_authority_added: false,
+            production_mutation_authorized: false,
+            provider_mutation_authorized: false,
+            credential_access_authorized: false,
+            database_mutation_authorized: false,
+            secrets_included: false,
+          }));
+          '''
+          self_test = "\n".join(line[10:] if line.startswith("          ") else line for line in self_test.splitlines()) + "\n"
+          self_test_path = root / "http-generic-api/scripts/test-critical-runner-label-pinning.mjs"
+          self_test_path.parent.mkdir(parents=True, exist_ok=True)
+          self_test_path.write_text(self_test, encoding="utf-8")
+
+          scope = workflows + [
+              "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+              ".changes/e2e/critical-runner-label-allocation-mitigation.json",
+          ]
+          contract = {
+              "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+              "schema_version": 1,
+              "feature_key": "critical-runner-label-allocation-mitigation",
+              "title": "Pin affected critical workflows to the available Ubuntu 24.04 hosted runner",
+              "delivery_mode": "single_pr",
+              "current_phase": "mvp",
+              "scope": {"include": scope},
+              "merge_contract": {"minimum_phase": "mvp"},
+              "phases": [
+                  {
+                      "id": "mvp",
+                      "status": "implemented",
+                      "objective": "Replace the observed non-allocating ubuntu-latest alias only in the nine affected critical workflows with explicit ubuntu-24.04.",
+                      "e2e_journeys": [
+                          {
+                              "id": "allocate-critical-hosted-workflow-jobs",
+                              "end_to_end": True,
+                              "level": "synthetic_runtime",
+                              "actor": "GitHub Actions hosted workflow scheduler",
+                              "entrypoint": "A pull request changes one of the affected critical workflow paths.",
+                              "terminal_outcome": "Each allowlisted critical job requests ubuntu-24.04 and can receive a hosted runner while workflow permissions and behavior remain otherwise unchanged.",
+                              "steps": [
+                                  "Pin each allowlisted workflow from ubuntu-latest to ubuntu-24.04.",
+                                  "Reject any remaining ubuntu-latest label in the allowlist.",
+                                  "Preserve workflow triggers, permissions, commands, and safety boundaries.",
+                                  "Execute the runner-label pinning regression on the exact candidate head.",
+                              ],
+                              "assertions": [
+                                  "Exactly nine observed critical workflows are governed by the pinning regression.",
+                                  "Every allowlisted workflow contains runs-on: ubuntu-24.04.",
+                                  "No allowlisted workflow contains runs-on: ubuntu-latest.",
+                                  "No Production, provider, credential, SQL, Migration Apply, database, protected-ref, force-push, Work Map, or external mutation authority is added.",
+                                  "secrets_included is false.",
+                              ],
+                              "tests": [
+                                  {
+                                      "id": "critical-runner-label-pinning",
+                                      "runner": "node",
+                                      "working_directory": "http-generic-api",
+                                      "path": "scripts/test-critical-runner-label-pinning.mjs",
+                                      "args": [],
+                                  }
+                              ],
+                              "evidence_paths": [
+                                  "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+                                  ".changes/e2e/critical-runner-label-allocation-mitigation.json",
+                              ],
+                          }
+                      ],
+                  },
+                  {"id": "operational", "status": "planned", "objective": "Confirm the affected Draft and Ready jobs obtain first-step timestamps."},
+                  {"id": "resilient", "status": "planned", "objective": "Prevent accidental reintroduction of ubuntu-latest into the observed critical workflow allowlist."},
+                  {"id": "canary", "status": "planned", "objective": "Compare hosted allocation evidence after merge without triggering provider or Production actions."},
+                  {"id": "production", "status": "planned", "objective": "Retain repository CI availability while preserving all existing runtime safety boundaries."},
+              ],
+              "secrets_included": False,
+          }
+          contract_path = root / ".changes/e2e/critical-runner-label-allocation-mitigation.json"
+          contract_path.parent.mkdir(parents=True, exist_ok=True)
+          contract_path.write_text(json.dumps(contract, indent=2) + "\n", encoding="utf-8")
+
+          marker = root / ".github/diagnostics/pin-critical-runners-trigger-v2.txt"
+          if marker.exists():
+              marker.unlink()
+          PY
+
+      - name: Check generated self-test syntax
+        id: syntax
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --check http-generic-api/scripts/test-critical-runner-label-pinning.mjs 2>&1 |
+            tee "${RUNNER_TEMP}/pin-critical-runners-v2/self-test-syntax.log"
+
+      - name: Execute generated self-test
+        id: selftest
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node http-generic-api/scripts/test-critical-runner-label-pinning.mjs 2>&1 |
+            tee "${RUNNER_TEMP}/pin-critical-runners-v2/self-test.log"
+
+      - name: Run contract reference regression tests
+        id: reference_tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            node http-generic-api/test-e2e-contract-reference-integrity.mjs
+            node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          } 2>&1 | tee "${RUNNER_TEMP}/pin-critical-runners-v2/reference-tests.log"
+
+      - name: Evaluate all contract references
+        id: reference_eval
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --all \
+            --report-file "${RUNNER_TEMP}/pin-critical-runners-v2/reference-integrity.json" 2>&1 |
+            tee "${RUNNER_TEMP}/pin-critical-runners-v2/reference-evaluation.log"
+
+      - name: Check diff hygiene
+        id: diff_check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          git diff --check 2>&1 | tee "${RUNNER_TEMP}/pin-critical-runners-v2/diff-check.log"
+
+      - name: Commit only after every validation succeeds
+        id: commit
+        if: >-
+          steps.syntax.outcome == 'success' &&
+          steps.selftest.outcome == 'success' &&
+          steps.reference_tests.outcome == 'success' &&
+          steps.reference_eval.outcome == 'success' &&
+          steps.diff_check.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "Patch already applied; no commit required."
+            echo "commit_created=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              .github/workflows/ci.yml \
+              .github/workflows/automation-overlap-guard.yml \
+              .github/workflows/e2e-phase-governance.yml \
+              .github/workflows/e2e-contract-reference-integrity.yml \
+              .github/workflows/repository-tool-lifecycle-governance.yml \
+              .github/workflows/ci-pull-request-recovery.yml \
+              .github/workflows/supervisor-runtime-assurance.yml \
+              .github/workflows/http-generic-api-fanout-relocation.yml \
+              .github/workflows/hostinger-storage-control-plane-guard.yml \
+              http-generic-api/scripts/test-critical-runner-label-pinning.mjs \
+              .changes/e2e/critical-runner-label-allocation-mitigation.json \
+              .github/diagnostics/pin-critical-runners-trigger-v2.txt
+            git commit -m "fix(ci): pin critical hosted runners to ubuntu-24.04"
+            git push origin "HEAD:${EXPECTED_HEAD_REF}"
+            echo "commit_created=true" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify exact net inventory
+        id: inventory
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${RUNNER_TEMP}/pin-critical-runners-v2/expected-files.txt"
+          actual="${RUNNER_TEMP}/pin-critical-runners-v2/actual-files.txt"
+          cat > "$expected" <<'EOF'
+          .changes/e2e/critical-runner-label-allocation-mitigation.json
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/ci-pull-request-recovery.yml
+          .github/workflows/ci.yml
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/e2e-phase-governance.yml
+          .github/workflows/hostinger-storage-control-plane-guard.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-tool-lifecycle-governance.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          EOF
+          git diff --name-only "$EXPECTED_BASELINE_SHA"...HEAD | sort > "$actual"
+          diff -u "$expected" "$actual"
+
+      - name: Write outcome summary
+        if: always()
+        shell: bash
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          SELFTEST_OUTCOME: ${{ steps.selftest.outcome }}
+          REFERENCE_TESTS_OUTCOME: ${{ steps.reference_tests.outcome }}
+          REFERENCE_EVAL_OUTCOME: ${{ steps.reference_eval.outcome }}
+          DIFF_CHECK_OUTCOME: ${{ steps.diff_check.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          INVENTORY_OUTCOME: ${{ steps.inventory.outcome }}
+          COMMIT_CREATED: ${{ steps.commit.outputs.commit_created }}
+          COMMIT_SHA: ${{ steps.commit.outputs.commit_sha }}
+        run: |
+          cat > "${RUNNER_TEMP}/pin-critical-runners-v2/result.json" <<EOF
+          {
+            "schema_version": "critical-runner-patcher-v2",
+            "baseline_sha": "${EXPECTED_BASELINE_SHA}",
+            "head_ref": "${EXPECTED_HEAD_REF}",
+            "syntax": "${SYNTAX_OUTCOME}",
+            "selftest": "${SELFTEST_OUTCOME}",
+            "reference_tests": "${REFERENCE_TESTS_OUTCOME}",
+            "reference_evaluation": "${REFERENCE_EVAL_OUTCOME}",
+            "diff_check": "${DIFF_CHECK_OUTCOME}",
+            "commit": "${COMMIT_OUTCOME}",
+            "inventory": "${INVENTORY_OUTCOME}",
+            "commit_created": "${COMMIT_CREATED}",
+            "commit_sha": "${COMMIT_SHA}",
+            "production_mutation": false,
+            "provider_mutation": false,
+            "credential_access": false,
+            "sql_execution": false,
+            "migration_apply": false,
+            "database_mutation": false,
+            "external_send": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload bounded diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pin-critical-runners-patcher-v2-${{ github.run_id }}
+          path: ${{ runner.temp }}/pin-critical-runners-v2
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce validation result
+        if: always()
+        shell: bash
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          SELFTEST_OUTCOME: ${{ steps.selftest.outcome }}
+          REFERENCE_TESTS_OUTCOME: ${{ steps.reference_tests.outcome }}
+          REFERENCE_EVAL_OUTCOME: ${{ steps.reference_eval.outcome }}
+          DIFF_CHECK_OUTCOME: ${{ steps.diff_check.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          INVENTORY_OUTCOME: ${{ steps.inventory.outcome }}
+        run: |
+          set -euo pipefail
+          test "$SYNTAX_OUTCOME" = success
+          test "$SELFTEST_OUTCOME" = success
+          test "$REFERENCE_TESTS_OUTCOME" = success
+          test "$REFERENCE_EVAL_OUTCOME" = success
+          test "$DIFF_CHECK_OUTCOME" = success
+          test "$COMMIT_OUTCOME" = success
+          test "$INVENTORY_OUTCOME" = success
