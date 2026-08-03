@@ -7,107 +7,95 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: work-map-input-governance-diagnostic-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: work-map-sync-regeneration-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Exact Work Map Input Governance Diagnostic
+  regenerate:
+    name: Regenerate synchronized Work Map documentation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-input-driven-branch-governance-20260804' &&
-      github.event.pull_request.head.sha == 'a8952e2d22f3f99063b057db3b31b506b55ef799'
+      github.event.pull_request.head.sha == '8bf8f07927e2201c650d5dd0619a7f60aff838b9'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 45
     env:
-      EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
-      EXPECTED_HEAD_SHA: a8952e2d22f3f99063b057db3b31b506b55ef799
+      EXPECTED_HEAD_SHA: 8bf8f07927e2201c650d5dd0619a7f60aff838b9
+      TARGET_BRANCH: gpt/work-map-input-driven-branch-governance-20260804
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact synchronized head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Verify immutable identity and exact scope
+      - name: Verify immutable identity
         shell: bash
         run: |
           set -euo pipefail
-          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-input-governance-diagnostic-${GITHUB_RUN_ID}"
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/work-map-sync-regeneration-${GITHUB_RUN_ID}"
           printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${DIAGNOSTIC_ROOT}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
-          .changes/e2e/work-map-autofix-validation-diagnostics.json
-          .github/workflows/spec-kit-work-map-autofix.yml
-          docs/work-maps/README.md
-          docs/work-maps/repository-automation-map.md
-          http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
-          http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          test -z "$(git status --porcelain --untracked-files=no)"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain)"
 
-      - name: Run governance and parity checks independently
-        shell: bash
-        run: |
-          set -uo pipefail
-          results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
-          : > "${results}"
-
-          run_check() {
-            local name="$1"
-            shift
-            local log="${DIAGNOSTIC_ROOT}/${name}.log"
-            set +e
-            "$@" >"${log}" 2>&1
-            local status=$?
-            set -e
-            printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
-            cat "${log}"
-          }
-
-          run_check workflow-yaml ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
-          run_check lifecycle-guard-syntax node --check http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
-          run_check lifecycle-regression node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          run_check diagnostics-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
-          run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
-          run_check work-map-generator-check node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          run_check marker-git-ref grep -Fq 'git check-ref-format --branch "${TARGET_BRANCH}"' .github/workflows/spec-kit-work-map-autofix.yml
-          run_check marker-no-full-ref grep -Fq '[[ "${TARGET_BRANCH}" != refs/* ]]' .github/workflows/spec-kit-work-map-autofix.yml
-          run_check marker-no-namespace bash -lc "! grep -Fq '^(gpt|cert|fix|feat|chore|docs|release)' .github/workflows/spec-kit-work-map-autofix.yml"
-          run_check exact-diff-check git diff --check "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
-
-          {
-            printf 'check\texit_code\tlog\n'
-            cat "${results}"
-          } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
-          cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
-
-      - name: Upload exact diagnostic evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: work-map-input-governance-diagnostic-${{ github.run_id }}
-          path: ${{ runner.temp }}/work-map-input-governance-diagnostic-${{ github.run_id }}
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Enforce diagnostic success
+      - name: Regenerate twice and prove bounded idempotency
         shell: bash
         run: |
           set -euo pipefail
-          test -s "${DIAGNOSTIC_ROOT}/validation-results.tsv"
-          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          git diff --name-only | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/first-files.txt"
+          cat > "${DIAGNOSTIC_ROOT}/expected-files.txt" <<'EOF'
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          EOF
+          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/first-files.txt"
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
+          printf '%s\n' "${first_hash}" > "${DIAGNOSTIC_ROOT}/generated-diff-sha256.txt"
+          git diff --stat > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
+
+      - name: Revalidate governance regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+
+      - name: Commit generated parity and push fast-forward
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          git commit -m "docs(work-maps): refresh synchronized governance maps"
+          new_head="$(git rev-parse HEAD)"
+          printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
+
+      - name: Upload regeneration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-sync-regeneration-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-sync-regeneration-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
