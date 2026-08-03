@@ -1,0 +1,185 @@
+name: Governed Production Candidate Builder ARM 20260803
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/governed-production-candidate-builder-arm-20260803.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: governed-production-candidate-builder-arm-20260803
+  cancel-in-progress: false
+
+jobs:
+  build-candidate:
+    name: Build exact history-preserving Production candidate
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/build-production-candidate-b991e0ae-2669991a-20260803-v1' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      EXPECTED_MAIN_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      WORKFLOW_PATH: .github/workflows/governed-production-candidate-builder-arm-20260803.yml
+      FIX_MERGE_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+    steps:
+      - name: Checkout exact pinned main with full ancestry
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable request and protected refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "${REQUEST_BASE_SHA}" = "${EXPECTED_MAIN_SHA}"
+          test "${REQUEST_HEAD_REF}" = "gpt/build-production-candidate-b991e0ae-2669991a-20260803-v1"
+
+          mapfile -t changed_files < <(
+            gh api --paginate "/repos/${REPOSITORY}/pulls/${REQUEST_PR}/files?per_page=100" --jq '.[].filename'
+          )
+          test "${#changed_files[@]}" -eq 1
+          test "${changed_files[0]}" = "${WORKFLOW_PATH}"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+
+          actual_main="$(git rev-parse refs/remotes/origin/main)"
+          actual_production="$(git rev-parse refs/remotes/origin/Production)"
+          test "${actual_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${actual_production}" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${FIX_MERGE_SHA}" "${EXPECTED_MAIN_SHA}"
+
+      - name: Construct deterministic two-parent candidate
+        id: candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export GIT_AUTHOR_NAME='mad4bdigital-ai'
+          export GIT_AUTHOR_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          export GIT_COMMITTER_NAME='mad4bdigital-ai'
+          export GIT_COMMITTER_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          export GIT_AUTHOR_DATE='2026-08-03T17:03:00Z'
+          export GIT_COMMITTER_DATE='2026-08-03T17:03:00Z'
+
+          tree_sha="$(git rev-parse "${EXPECTED_MAIN_SHA}^{tree}")"
+          candidate_sha="$(printf '%s\n\n%s\n%s\n%s\n' \
+            'release: reconcile current main snapshot with Production ancestry' \
+            "Pinned main: ${EXPECTED_MAIN_SHA}" \
+            "Pinned Production: ${EXPECTED_PRODUCTION_SHA}" \
+            'Final tree is byte-identical to pinned main; both protected ancestries are preserved.' \
+            | git commit-tree "${tree_sha}" -p "${EXPECTED_MAIN_SHA}" -p "${EXPECTED_PRODUCTION_SHA}")"
+          candidate_tree="$(git rev-parse "${candidate_sha}^{tree}")"
+          candidate_branch="release/production-candidate-20260803-${candidate_sha:0:8}-v1"
+
+          test "${candidate_tree}" = "${tree_sha}"
+          test "$(git show -s --format=%P "${candidate_sha}")" = "${EXPECTED_MAIN_SHA} ${EXPECTED_PRODUCTION_SHA}"
+          git diff --quiet "${EXPECTED_MAIN_SHA}" "${candidate_sha}" --
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${candidate_sha}"
+          git merge-base --is-ancestor "${EXPECTED_PRODUCTION_SHA}" "${candidate_sha}"
+
+          echo "candidate_sha=${candidate_sha}" >> "${GITHUB_OUTPUT}"
+          echo "candidate_tree=${candidate_tree}" >> "${GITHUB_OUTPUT}"
+          echo "candidate_branch=${candidate_branch}" >> "${GITHUB_OUTPUT}"
+
+      - name: Re-read refs and publish immutable candidate branch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${EXPECTED_PRODUCTION_SHA}"
+
+          candidate_sha='${{ steps.candidate.outputs.candidate_sha }}'
+          candidate_branch='${{ steps.candidate.outputs.candidate_branch }}'
+          existing="$(git ls-remote --heads origin "refs/heads/${candidate_branch}" | awk '{print $1}')"
+          if [[ -n "${existing}" ]]; then
+            test "${existing}" = "${candidate_sha}"
+          else
+            git push origin "${candidate_sha}:refs/heads/${candidate_branch}"
+          fi
+
+          readback="$(git ls-remote --heads origin "refs/heads/${candidate_branch}" | awk '{print $1}')"
+          test "${readback}" = "${candidate_sha}"
+
+      - name: Write no-secret construction evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${RUNNER_TEMP}/production-candidate"
+          jq -n \
+            --arg main_sha "${EXPECTED_MAIN_SHA}" \
+            --arg production_sha "${EXPECTED_PRODUCTION_SHA}" \
+            --arg fix_merge_sha "${FIX_MERGE_SHA}" \
+            --arg candidate_sha '${{ steps.candidate.outputs.candidate_sha }}' \
+            --arg candidate_tree '${{ steps.candidate.outputs.candidate_tree }}' \
+            --arg candidate_branch '${{ steps.candidate.outputs.candidate_branch }}' \
+            --arg source_run_id "${GITHUB_RUN_ID}" \
+            --argjson request_pr "${REQUEST_PR}" \
+            '{
+              contract:"mad4b.governed-production-candidate-construction.v1",
+              request_pr:$request_pr,
+              source_run_id:$source_run_id,
+              main_sha:$main_sha,
+              production_sha:$production_sha,
+              fix_merge_sha:$fix_merge_sha,
+              candidate_sha:$candidate_sha,
+              candidate_tree:$candidate_tree,
+              candidate_branch:$candidate_branch,
+              candidate_tree_matches_main:true,
+              main_ancestry_preserved:true,
+              production_ancestry_preserved:true,
+              protected_ref_mutation_performed:false,
+              force_push_performed:false,
+              release_pr_created:false,
+              deployment_performed:false,
+              provider_call_performed:false,
+              credential_payload_read:false,
+              sql_execution_performed:false,
+              migration_apply_performed:false,
+              database_mutation_performed:false,
+              external_send_performed:false,
+              secrets_included:false
+            }' > "${RUNNER_TEMP}/production-candidate/summary.json"
+          cat "${RUNNER_TEMP}/production-candidate/summary.json"
+
+      - name: Upload construction evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-production-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-candidate/summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Emit candidate identity
+        shell: bash
+        run: |
+          echo "GOVERNED_PRODUCTION_CANDIDATE=BUILT"
+          echo "main_sha=${EXPECTED_MAIN_SHA}"
+          echo "production_sha=${EXPECTED_PRODUCTION_SHA}"
+          echo "candidate_sha=${{ steps.candidate.outputs.candidate_sha }}"
+          echo "candidate_tree=${{ steps.candidate.outputs.candidate_tree }}"
+          echo "candidate_branch=${{ steps.candidate.outputs.candidate_branch }}"
+          echo "release_pr_created=false"
+          echo "deployment_performed=false"
+          echo "secrets_included=false"
