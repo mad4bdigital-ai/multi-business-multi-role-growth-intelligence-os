@@ -200,7 +200,11 @@ function collectSignals(value, depth = 0, key = "", output = null) {
     const text = redact(value, MAX_LOG_CHARS);
     signals.text.push(text);
     for (const match of text.toLowerCase().matchAll(/\b[0-9a-f]{40}\b/gu)) {
-      if (/(sha|commit|revision|source|checkout|deploy|build)/iu.test(key) || text.length < 1_000) signals.shas.add(match[0]);
+      const index = match.index ?? 0;
+      const context = text.slice(Math.max(0, index - 120), Math.min(text.length, index + match[0].length + 120));
+      if (/(sha|commit|revision|source|checkout|deploy|build)/iu.test(key) || /(sha|commit|revision|source|checkout|deploy|build)/iu.test(context) || text.length < 1_000) {
+        signals.shas.add(match[0]);
+      }
     }
     for (const match of text.matchAll(/(?:branch|ref|source[_ -]?branch)\s*[:=]\s*["']?([A-Za-z0-9._/-]+)/giu)) signals.branches.add(match[1]);
     for (const match of text.matchAll(/\.builds\/versions\/[A-Za-z0-9._-]+/gu)) signals.releaseDirs.add(match[0]);
@@ -220,13 +224,17 @@ export function analyzeBuildLogs(logText, structuredBuild = {}) {
   const safeText = redact(logText, MAX_LOG_CHARS);
   const signals = collectSignals({ logs: safeText, build: sanitizeStructured(structuredBuild) });
   const combined = signals.text.join("\n");
+  const failureHint = combined.split(/\r?\n/u).some((line) => {
+    if (/\b(?:0|no)\s+(?:errors?|failures?)\b/iu.test(line) || /\bwithout\s+(?:errors?|failures?)\b/iu.test(line)) return false;
+    return /\b(error|fatal|failed|crash|exception)\b/iu.test(line);
+  });
   return {
     source_shas: [...signals.shas].sort(),
     source_branches: [...signals.branches].sort(),
     release_directories: [...signals.releaseDirs].sort(),
     deploy_completed_hint: /(deploy(?:ment|ed)?[^\n]{0,80}(complete|success|finished)|release[^\n]{0,80}(active|activated|promoted))/iu.test(combined),
     restart_hint: /(restart(?:ed|ing)?|process[^\n]{0,80}(start|reload)|pm2[^\n]{0,80}restart)/iu.test(combined),
-    failure_hint: /(^|\n).{0,80}(error|fatal|failed|crash|exception).{0,160}($|\n)/iu.test(combined),
+    failure_hint: failureHint,
     production_branch_hint: /\bproduction\b/iu.test(combined),
     excerpt: safeText,
     excerpt_sha256: createHash("sha256").update(safeText).digest("hex"),
