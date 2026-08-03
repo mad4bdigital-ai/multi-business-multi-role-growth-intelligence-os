@@ -1,4 +1,4 @@
-name: Temporary Production Runtime Readback ab62428e
+name: Temporary Production Runtime Readback f5c1ae88
 
 on:
   pull_request:
@@ -32,7 +32,7 @@ jobs:
           REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
         run: |
           node scripts/production-runtime-parity-evidence.mjs \
-            --expected-sha ab62428e9f401119fc03a57981ecf627b337eddd \
+            --expected-sha f5c1ae8840b4d4452f2908bb0f23051880bb6896 \
             --expected-branch Production \
             --endpoint auth=https://auth.mad4b.com/version \
             --output-dir "${REPORT_DIR}"
@@ -60,7 +60,7 @@ jobs:
               : null;
             const valid =
               report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
-              report.identity?.expected_sha === "ab62428e9f401119fc03a57981ecf627b337eddd" &&
+              report.identity?.expected_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
               report.identity?.expected_branch === "Production" &&
               report.outcome === "passed" &&
               auth?.required === true &&
