@@ -81,10 +81,14 @@ assert.match(policy, /oauth_token_response_not_committed/u);
 assert.match(policy, /oauth_code_consumption_outcome_unknown/u);
 assert.match(legacyAuthRoutes, /router\.post\("\/oauth\/token"/u,
   "legacy handler remains present but must be shadowed only for the exact route");
-assert.doesNotMatch(route, /client_secret\s*:/u,
-  "route diagnostics and responses must not construct a client_secret field");
+assert.match(route, /client_secret_present: Boolean/u,
+  "diagnostics may retain only the presence bit for a client secret");
 assert.doesNotMatch(route, /access_token:\s*event/u,
   "diagnostics must not attach an access token");
+assert.doesNotMatch(route, /authorization:\s*event/u,
+  "diagnostics must not attach an authorization header");
+assert.doesNotMatch(route, /cookie:\s*event/u,
+  "diagnostics must not attach a cookie");
 
 for (const [key, value] of Object.entries(record.non_effects)) {
   assert.equal(value, false, `${key} must remain false`);
