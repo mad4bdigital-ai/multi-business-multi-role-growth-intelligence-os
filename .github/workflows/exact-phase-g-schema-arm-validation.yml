@@ -1,0 +1,78 @@
+name: Exact Phase G Schema ARM Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04-arm
+    env:
+      EXPECTED_HEAD_SHA: 2497c8553c94f02a33cd654d386ce00ef826d8d3
+      EXPECTED_MAIN_SHA: f2bedc488fbbfffe7b87e1c8d00a493edada19f9
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify immutable identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          test "${{ github.event.pull_request.head.sha }}" = "${EXPECTED_HEAD_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/work-map-phase-g-schema-classification-20260803"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" = "3"
+          expected=$'.specify/work-map-schema-classification-registry.json\nhttp-generic-api/test-work-map-schema-classification.mjs\nspecs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json'
+          actual="$(printf '%s\n' "${files[@]}")"
+          test "${actual}" = "${expected}"
+
+      - name: Validate generator and governance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and prove idempotency without publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          test -z "${unexpected_files}"
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_diff_hash}" = "${second_diff_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
+          git diff --stat -- docs/work-maps
+
+      - name: Validate E2E contract references
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/validate-e2e-contract-references.mjs
