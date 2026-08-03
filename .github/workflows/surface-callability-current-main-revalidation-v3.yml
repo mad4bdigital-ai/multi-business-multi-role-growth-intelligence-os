@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Revalidation V3 Exact Head
+name: Surface Callability Current Main Revalidation V3 Isolated Generation
 
 on:
   pull_request:
@@ -29,6 +29,7 @@ jobs:
       OLD_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
       V2_WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v2.yml
       WORKFLOW_PATH: .github/workflows/surface-callability-current-main-revalidation-v3.yml
+      DIAGNOSTIC_WORKFLOW_PATH: .github/workflows/surface-callability-generation-diagnostic.yml
 
     steps:
       - name: Checkout exact event head
@@ -45,13 +46,10 @@ jobs:
           event_ref='${{ github.event.pull_request.head.ref }}'
           event_sha='${{ github.event.pull_request.head.sha }}'
           actual_head="$(git rev-parse HEAD)"
-          printf 'event_ref=%s\nevent_sha=%s\nactual_head=%s\nexpected_branch=%s\nexpected_base=%s\n' \
-            "$event_ref" "$event_sha" "$actual_head" "$TARGET_BRANCH" "$BASE_SHA"
           test "$event_ref" = "$TARGET_BRANCH" || { echo 'bounded_trigger_head_ref_mismatch'; exit 1; }
           test "$actual_head" = "$event_sha" || { echo 'bounded_trigger_event_sha_mismatch'; exit 1; }
           git fetch origin 'refs/heads/main:refs/remotes/origin/main' --no-tags
           origin_main="$(git rev-parse refs/remotes/origin/main)"
-          printf 'origin_main=%s\n' "$origin_main"
           test "$origin_main" = "$BASE_SHA" || { echo 'bounded_trigger_base_sha_mismatch'; exit 1; }
           git merge-base --is-ancestor "$BASE_SHA" HEAD || { echo 'bounded_trigger_base_not_ancestor'; exit 1; }
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
@@ -71,13 +69,21 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Generate and persist closure evidence
+      - name: Surface discovery before closure generation
         working-directory: http-generic-api
-        run: |
-          node scripts/surface-contract-discovery.mjs --write
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node scripts/surface-contract-discovery.mjs --write
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+        run: node scripts/surface-contract-discovery.mjs --write
+
+      - name: Generate closure contracts
+        working-directory: http-generic-api
+        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Surface discovery after closure generation
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs --write
+
+      - name: Generate frontend dispatch against current main
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
 
       - name: Reject temporary exporter tests
         shell: bash
@@ -175,11 +181,12 @@ jobs:
           test -s docs/surface-contract-gap-queue.json
           test -s http-generic-api/resource-api-surface-callability.manifest.json
           test -s http-generic-api/frontend-surface-dispatch.generated.json
-          rm "${OLD_WORKFLOW_PATH}" "${V2_WORKFLOW_PATH}" "${WORKFLOW_PATH}"
+          rm "${OLD_WORKFLOW_PATH}" "${V2_WORKFLOW_PATH}" "${WORKFLOW_PATH}" "${DIAGNOSTIC_WORKFLOW_PATH}"
           cat > /tmp/allowed.txt <<'EOF'
           .github/workflows/surface-callability-current-main-finalizer.yml
           .github/workflows/surface-callability-current-main-revalidation-v2.yml
           .github/workflows/surface-callability-current-main-revalidation-v3.yml
+          .github/workflows/surface-callability-generation-diagnostic.yml
           docs/surface-contract-discovery-status.json
           docs/surface-contract-discovery-status.md
           docs/surface-contract-gap-queue.json
@@ -203,6 +210,7 @@ jobs:
           grep -Fxq "${OLD_WORKFLOW_PATH}" /tmp/changed.txt
           grep -Fxq "${V2_WORKFLOW_PATH}" /tmp/changed.txt
           grep -Fxq "${WORKFLOW_PATH}" /tmp/changed.txt
+          grep -Fxq "${DIAGNOSTIC_WORKFLOW_PATH}" /tmp/changed.txt
 
       - name: Commit product-only revalidation result
         shell: bash
@@ -220,3 +228,4 @@ jobs:
           test ! -e "${OLD_WORKFLOW_PATH}"
           test ! -e "${V2_WORKFLOW_PATH}"
           test ! -e "${WORKFLOW_PATH}"
+          test ! -e "${DIAGNOSTIC_WORKFLOW_PATH}"
