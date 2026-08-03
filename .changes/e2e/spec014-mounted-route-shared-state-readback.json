@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-mounted-route-shared-state-readback",
+  "title": "Spec 014 mounted route shared canonical repository readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-mounted-route-shared-state-readback.json",
+      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that one mounted synthetic Tenant HTTP request executes against one canonical in-memory Control Plane repository and leaves operation, plan, journal, reconciliation, adapter, and Tenant-safe readback evidence bound to the same operation and run without promoting the parent Spec 014 MVP.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-storage-mounted-route-shared-state-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_user",
+          "entrypoint": "POST /tenant/storage-operations/apply-plan",
+          "terminal_outcome": "The same mounted request completes the same synthetic operation in the same canonical memory repository, consumes its immutable plan with the same run, persists prepared/result/readback journal events and an applied reconciliation, mutates the same synthetic adapter, and returns a Tenant-safe readback bound to that operation and run.",
+          "steps": [
+            "Build one Tenant operation, immutable plan, active lease, authorization, one-shot enablement, canonical memory Control Plane repository, and canonical synthetic adapter.",
+            "Resolve Context Kernel and current dynamic authority evidence for the operation.",
+            "Submit one authenticated Tenant HTTP request through the mounted storage route.",
+            "Execute the authorized synthetic plan using the same repository and adapter supplied to the mounted runtime.",
+            "Read the same repository aggregate after the HTTP response and require completed operation state, same-run plan consumption, prepared/result/readback journal phases, and an applied reconciliation.",
+            "Read the same adapter after the HTTP response and require the planned item to be absent with one mutation receipt.",
+            "Bind the Tenant-safe response operation and run identifiers to the persisted aggregate without exposing paths, authority payloads, credentials, or private evidence."
+          ],
+          "assertions": [
+            "One mounted HTTP request and the post-response assertions use the same canonical repository object.",
+            "The operation reaches completed state and its immutable plan is consumed by the request run.",
+            "Journal phases are exactly prepared, result, and readback for the request operation.",
+            "The result journal records deleted and one applied reconciliation is persisted for the request run.",
+            "The same canonical synthetic adapter records the item deletion and one mutation receipt.",
+            "The Tenant-safe response operation_id and run_id match the persisted aggregate.",
+            "The evidence proves shared canonical memory state only; durable SQL state and live provider state remain false.",
+            "The parent feature 014-governed-hostinger-storage-orchestration is not promoted.",
+            "Provider dispatch, live mutation, migration Apply, deployment, Production readiness, and secrets remain disabled."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-mounted-route-shared-state-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-tenant-runtime-route.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+            "http-generic-api/hostingerStorageTenantRuntime.js",
+            "http-generic-api/hostingerStorageTenantCanaryBase.js",
+            "http-generic-api/hostingerStorageSyntheticExecutor.js",
+            "http-generic-api/hostingerStorageControlPlaneRepository.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Reconstruct the same synthetic aggregate from an exported canonical snapshot and prove request evidence survives a repository restart boundary."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded fault injection and restart reconciliation for the same mounted operation and run."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the separately authorized non-production canary only after the durable SQL and worker authority gates are satisfied."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This synthetic canonical-memory evidence grants no live, provider, migration, deployment, or Production authority."
+    }
+  ],
+  "shared_canonical_memory_state": true,
+  "durable_sql_state": false,
+  "parent_mvp_promoted": false,
+  "provider_dispatch_allowed": false,
+  "production_ready": false,
+  "secrets_included": false
+}
