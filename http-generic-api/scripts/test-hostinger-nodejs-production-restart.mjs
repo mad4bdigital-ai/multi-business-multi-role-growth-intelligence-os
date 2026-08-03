@@ -53,6 +53,13 @@ function assertCoherentAuthority(report) {
   assert.equal(report.runtime_identity_authority.mode, "deployment_info_coherent_pair");
 }
 
+function assertAttemptState(report, attempted, performed) {
+  assert.equal(report.restart.attempted, attempted);
+  assert.equal(report.restart.performed, performed);
+  assert.equal(report.side_effects.provider_mutation_attempted, attempted);
+  if (performed) assert.equal(attempted, true);
+}
+
 async function testAlreadyCurrentSkipsRestart() {
   let posts = 0;
   const fetchImpl = async (url, init = {}) => {
@@ -66,7 +73,7 @@ async function testAlreadyCurrentSkipsRestart() {
   assert.equal(report.contract, HOSTINGER_NODEJS_PRODUCTION_RESTART_CONTRACT);
   assert.equal(report.outcome, "passed");
   assert.equal(report.classification, "runtime_already_current");
-  assert.equal(report.restart.performed, false);
+  assertAttemptState(report, false, false);
   assert.equal(posts, 0);
   assertCoherentAuthority(report);
 }
@@ -83,7 +90,7 @@ async function testRestartConverges() {
   const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
   assert.equal(report.outcome, "passed");
   assert.equal(report.classification, "restart_completed_runtime_current");
-  assert.equal(report.restart.performed, true);
+  assertAttemptState(report, true, true);
   assert.equal(report.side_effects.provider_mutation_performed, true);
   assert.equal(report.side_effects.build_creation_performed, false);
   assert.equal(report.side_effects.deployment_performed, false);
@@ -102,6 +109,7 @@ async function testDifferentLatestBuildFailsClosed() {
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_precondition_failed");
   assert.equal(report.first_failure.code, "newer_or_different_build_detected");
+  assertAttemptState(report, false, false);
   assert.equal(posts, 0);
   assertCoherentAuthority(report);
 }
@@ -117,7 +125,7 @@ async function testRestartStaysStale() {
   const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_completed_runtime_stale");
-  assert.equal(report.restart.performed, true);
+  assertAttemptState(report, true, true);
   assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
   assertCoherentAuthority(report);
 }
@@ -137,7 +145,7 @@ async function testSplitEndpointIdentityNeverPasses() {
   assert.equal(report.pre_runtime.current, false);
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_completed_runtime_stale");
-  assert.equal(report.restart.performed, true);
+  assertAttemptState(report, true, true);
   assert.equal(posts, 1);
   assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
   assertCoherentAuthority(report);
@@ -167,9 +175,31 @@ async function testCrossObjectDeploymentIdentityNeverPasses() {
   assert.equal(report.pre_runtime.current, false);
   assert.equal(report.outcome, "failed");
   assert.equal(report.classification, "restart_completed_runtime_stale");
-  assert.equal(report.restart.performed, true);
+  assertAttemptState(report, true, true);
   assert.equal(posts, 1);
   assert.equal(report.first_failure.code, "runtime_parity_not_reached_after_restart");
+  assertCoherentAuthority(report);
+}
+
+async function testAmbiguousPostTransportFailureConsumesAttempt() {
+  let posts = 0;
+  const fetchImpl = async (url, init = {}) => {
+    const value = String(url);
+    if (value.includes("/nodejs/builds")) return response(200, buildList());
+    if (init.method === "POST") {
+      posts += 1;
+      throw new Error("socket reset after request dispatch");
+    }
+    if (value.endsWith("/health")) return response(200, { ok: true });
+    return response(200, runtimeBody(OLD_SHA, "main"));
+  };
+  const report = await executeGovernedRestart(options(), { fetchImpl, sleepImpl: async () => {} });
+  assert.equal(report.outcome, "failed");
+  assert.equal(report.classification, "restart_attempted_outcome_unconfirmed");
+  assert.equal(report.first_failure.code, "request_transport_failed");
+  assertAttemptState(report, true, false);
+  assert.equal(report.side_effects.provider_mutation_performed, false);
+  assert.equal(posts, 1);
   assertCoherentAuthority(report);
 }
 
@@ -201,12 +231,19 @@ function testWorkflowContract() {
   assert.match(coherentWrapper, /schema_scope:\s*"top_level_direct_identity_fields"/u);
   assert.match(coherentWrapper, /cross_endpoint_composition_allowed:\s*false/u);
   assert.match(coherentWrapper, /cross_object_composition_allowed:\s*false/u);
+  assert.match(coherentWrapper, /mutationState\.attempted = true/u);
+  assert.match(coherentWrapper, /restart_attempted_outcome_unconfirmed/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-coherent\.mjs/u);
   assert.match(workflow, /authority\.schema_scope === "top_level_direct_identity_fields"/u);
   assert.match(workflow, /authority\.cross_endpoint_composition_allowed === false/u);
   assert.match(workflow, /authority\.cross_object_composition_allowed === false/u);
+  assert.match(workflow, /effects\.provider_mutation_attempted === attempted/u);
   assert.match(workflow, /identity_scope=\$\{report\.runtime_identity_authority\?\.schema_scope/u);
   assert.match(workflow, /cross_object_composition=\$\{report\.runtime_identity_authority\?\.cross_object_composition_allowed === true/u);
+  assert.match(workflow, /restart_attempted=\$\{restartAttempted\}/u);
+  assert.match(workflow, /provider_mutation_attempted=\$\{report\.side_effects\?\.provider_mutation_attempted === true\}/u);
+  assert.match(workflow, /contains\(\\"restart_attempted=true\\"\)/u);
+  assert.match(workflow, /const retryableWithoutProviderMutation = report\.outcome !== 'passed' && !restartAttempted/u);
   assert.match(workflow, /HOSTINGER_API_TOKEN/u);
   assert.match(workflow, /issues: write/u);
   assert.doesNotMatch(workflow, /contents: write/u);
@@ -214,8 +251,6 @@ function testWorkflowContract() {
   assert.doesNotMatch(workflow, /builds\/from-archive/u);
   assert.doesNotMatch(workflow, /git\/refs/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-/u);
-  assert.match(workflow, /select\(\(\.body \| contains\(\\"status=completed\\"\)\) or \(\.body \| contains\(\\"restart_performed=true\\"\)\)\)/u);
-  assert.match(workflow, /retryableWithoutProviderMutation = report\.outcome !== 'passed' && report\.restart\?\.performed !== true/u);
   assert.match(workflow, /expected_head_sha=\$\{process\.env\.EXPECTED_HEAD_SHA/u);
   assert.match(workflow, /retryable_without_provider_mutation=/u);
 }
@@ -226,6 +261,7 @@ await testDifferentLatestBuildFailsClosed();
 await testRestartStaysStale();
 await testSplitEndpointIdentityNeverPasses();
 await testCrossObjectDeploymentIdentityNeverPasses();
+await testAmbiguousPostTransportFailureConsumesAttempt();
 testConfigurationGuards();
 testWorkflowContract();
 console.log("hostinger-nodejs-production-restart tests: passed");
