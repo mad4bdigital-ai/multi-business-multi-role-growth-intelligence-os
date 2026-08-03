@@ -42,7 +42,7 @@ jobs:
       - name: Validate strict trusted-marker parser
         working-directory: http-generic-api
         run: |
-          node --input-type=module <<'NODE'
+          node --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
           import { parseTrustedRestartMarker } from './scripts/hostinger-nodejs-production-restart-coherent.mjs';
@@ -91,7 +91,7 @@ jobs:
       - name: Reject conflicting direct runtime identity fields
         working-directory: http-generic-api
         run: |
-          node --input-type=module <<'NODE'
+          node --input-type=module - <<'NODE'
           import assert from 'node:assert/strict';
           import { executeGovernedRestart } from './scripts/hostinger-nodejs-production-restart-coherent.mjs';
 
