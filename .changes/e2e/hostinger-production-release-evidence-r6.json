@@ -19,7 +19,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events while preserving exact Production, provider GET-only, secret, and no-mutation boundaries.",
+      "objective": "Provide an authorization-bound, repository-read-only internal Draft PR trigger that remains observable across opened, reopened, and synchronize events while preserving exact Production, provider GET-only, secret, no-mutation, and explicit false safety-attestation boundaries.",
       "e2e_journeys": [
         {
           "id": "collect-current-production-build-and-runtime-evidence-r6-via-read-only-internal-pr",
@@ -39,7 +39,7 @@
             "Reject an existing R6 claim or completion for the immutable binding using a read-only Issue lookup.",
             "Run the canonical Hostinger build reporter contract and collect provider build-history evidence using authenticated GET only.",
             "Read /health, /version, /deployment-info, and /connector-agent/version through bounded public HTTPS GET requests.",
-            "Redact credential-like values, upload one Artifact, and publish a repository-read-only GitHub Step Summary without mutating Issue metadata."
+            "Redact credential-like values while preserving only the safe boolean false attestation under sensitive-key names, upload one Artifact, and publish a repository-read-only GitHub Step Summary without mutating Issue metadata."
           ],
           "assertions": [
             "R6 has no issue_comment or workflow_dispatch trigger.",
@@ -53,6 +53,7 @@
             "The workflow is bound to Production 2669991a882c7f7939510fbbace17f462a42517c and merge time 2026-08-03T10:14:37Z.",
             "The canonical reporter and reporter-test blobs are verified before HOSTINGER_API_TOKEN is used.",
             "Hostinger provider method is GET only and public runtime responses are bounded and recursively redacted.",
+            "The sensitive-key scrubber preserves only boolean false safety attestations and redacts every other matched value, preventing a false runtime_parity_incomplete result without weakening secret protection.",
             "The workflow writes no claim or completion comment; the Artifact is reviewed and the bounded decision is posted through an authenticated administrative channel.",
             "No generated artifact path is in R6 scope, so the generated-artifact refresh label is intentionally absent and the governed refresh request must resolve as skipped rather than dispatching a writer.",
             "No repository content or protected-ref mutation, Actions dispatch, build creation, deployment, release activation, restart, SQL execution, migration dry-run or Apply, database mutation, arbitrary SSH, force push, or external business send occurs.",
@@ -79,7 +80,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the R6 runner-context registration repair to main, create a fresh authorization and one internal Draft trigger PR, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
+      "objective": "Merge the safe-false scrubber correction to main, create a fresh authorization and one internal Draft trigger PR, confirm production_current=true for the already-current Production runtime, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
     }
   ],
   "secrets_included": false
