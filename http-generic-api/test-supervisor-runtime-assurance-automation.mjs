@@ -63,7 +63,7 @@ for (const marker of [
   "Commit and push governed Work Maps",
   "Dispatch exact-head verification",
   "Finalize diagnostic evidence",
-  ".work-map-autofix-diagnostics",
+  "${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}",
   "mad4b.spec-kit-work-map-autofix.v2",
   "WORK_MAP_AUTOFIX_V2",
   "work-map-autofix-diagnostics-",
