@@ -30,19 +30,22 @@ jobs:
         shell: bash
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_PARENT: 54f1380bb162cc702d6bf791b413af12afbe9400
+          EXPECTED_BASE: 54f1380bb162cc702d6bf791b413af12afbe9400
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
-          test "$(git diff --name-only "$EXPECTED_PARENT"..HEAD)" = ".github/workflows/ci-registration-context-fix-launcher.yml"
+          git merge-base --is-ancestor "$EXPECTED_BASE" HEAD
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_BASE"...HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/workflows/ci-registration-context-fix-launcher.yml"
 
       - name: Patch registration context and create regression contract
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          cat > "$RUNNER_TEMP/patch_ci_registration.py" <<'PY'
           from pathlib import Path
+          from textwrap import dedent
           import json
 
           runner_temp = "$" + "{{ runner.temp }}"
@@ -54,7 +57,9 @@ jobs:
 
           invalid_line = f"      EVIDENCE_PATH: {runner_temp}/{evidence_name}\n"
           if ci.count(invalid_line) != 1:
-              raise SystemExit(f"expected exactly one invalid job-level runner context, found {ci.count(invalid_line)}")
+              raise SystemExit(
+                  f"expected exactly one invalid job-level runner context, found {ci.count(invalid_line)}"
+              )
           ci = ci.replace(invalid_line, "", 1)
 
           old_execute = (
@@ -70,18 +75,21 @@ jobs:
               "        run: node .github/scripts/governed-local-connector-production-closure.mjs\n"
           )
           if ci.count(old_execute) != 1:
-              raise SystemExit(f"expected one closure execution step, found {ci.count(old_execute)}")
+              raise SystemExit(
+                  f"expected one closure execution step, found {ci.count(old_execute)}"
+              )
           ci = ci.replace(old_execute, new_execute, 1)
 
           old_upload = f"          path: {env_evidence}\n"
           new_upload = f"          path: {runner_temp}/{evidence_name}\n"
           if ci.count(old_upload) != 1:
-              raise SystemExit(f"expected one env evidence upload path, found {ci.count(old_upload)}")
+              raise SystemExit(
+                  f"expected one env evidence upload path, found {ci.count(old_upload)}"
+              )
           ci = ci.replace(old_upload, new_upload, 1)
           ci_path.write_text(ci)
 
-          test_path = Path("http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs")
-          test_path.write_text(r'''#!/usr/bin/env node
+          test_source = dedent(r'''#!/usr/bin/env node
           import assert from "node:assert/strict";
           import fs from "node:fs";
           import path from "node:path";
@@ -113,7 +121,7 @@ jobs:
           assert(closureJob.includes(`          path: ${runnerTemp}/${evidenceName}\n`), "artifact upload must read the runner-temp path directly");
           assert(!closureJob.includes("path: $" + "{{ env.EVIDENCE_PATH }}"), "artifact upload must not depend on job env evidence path");
           assert(workflow.includes("name: CI\n"), "canonical CI workflow name must remain unchanged");
-          assert(workflow.includes("  pull_request:\n    branches: [main, Production]\n"), "canonical PR trigger must remain unchanged");
+          assert(workflow.includes("  pull_request:\n    branches: [main, Production]\n"), "canonical CI pull-request trigger must remain unchanged");
           assert(workflow.includes("github.event_name == 'push'"), "governed closure must remain push-only");
           assert(workflow.includes("RUN_LOCAL_CONNECTOR_PRODUCTION_CLOSURE_CI_V18_PR_3945_792FF63A"), "one-shot closure token must remain unchanged");
 
@@ -126,7 +134,11 @@ jobs:
             trigger_or_authority_changed: false,
             secrets_included: false
           }));
-          '''.replace("          ", "", 1))
+          ''').lstrip()
+
+          test_path = Path("http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs")
+          test_path.parent.mkdir(parents=True, exist_ok=True)
+          test_path.write_text(test_source)
 
           contract = {
               "$schema": "../../.specify/schemas/e2e-phases.schema.json",
@@ -189,18 +201,36 @@ jobs:
                           }
                       ]
                   },
-                  {"id": "operational", "status": "planned", "objective": "Verify canonical CI registration across opened, synchronize, and ready-for-review pull-request events."},
-                  {"id": "resilient", "status": "planned", "objective": "Reject future unavailable workflow contexts before they suppress workflow registration."},
-                  {"id": "canary", "status": "planned", "objective": "Prove Draft and Ready exact-head cycles with both canonical CI and CI Pull Request Recovery visible."},
-                  {"id": "production", "status": "planned", "objective": "Retire the temporary recovery workflow only after canonical CI registration remains stable across governed pull requests."}
+                  {
+                      "id": "operational",
+                      "status": "planned",
+                      "objective": "Verify canonical CI registration across opened, synchronize, and ready-for-review pull-request events."
+                  },
+                  {
+                      "id": "resilient",
+                      "status": "planned",
+                      "objective": "Reject future unavailable workflow contexts before they suppress workflow registration."
+                  },
+                  {
+                      "id": "canary",
+                      "status": "planned",
+                      "objective": "Prove Draft and Ready exact-head cycles with both canonical CI and CI Pull Request Recovery visible."
+                  },
+                  {
+                      "id": "production",
+                      "status": "planned",
+                      "objective": "Retire the temporary recovery workflow only after canonical CI registration remains stable across governed pull requests."
+                  }
               ],
               "secrets_included": False
           }
+
           contract_path = Path(".changes/e2e/ci-workflow-registration-context-fix.json")
           contract_path.parent.mkdir(parents=True, exist_ok=True)
           contract_path.write_text(json.dumps(contract, indent=2) + "\n")
           PY
 
+          python "$RUNNER_TEMP/patch_ci_registration.py"
           node http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs
 
       - name: Commit permanent bounded repair and remove launcher
