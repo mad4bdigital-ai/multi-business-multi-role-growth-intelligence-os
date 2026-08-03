@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-retail-commerce-operations-growth-os",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "current_phase": "clarify",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "production_mutation": false,
+  "provider_write": false,
+  "wordpress_woocommerce_write": false,
+  "google_drive_write": false,
+  "migration_apply": false,
+  "deployment_required": false,
+  "post_merge_audit_completed": false,
+  "secrets_included": false
+}
