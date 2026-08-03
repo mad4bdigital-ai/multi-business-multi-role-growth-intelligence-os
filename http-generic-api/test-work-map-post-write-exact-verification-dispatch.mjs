@@ -83,5 +83,20 @@ assert.match(
   /test "\$\(git rev-parse "refs\/remotes\/origin\/\$\{TARGET_BRANCH\}"\)" = "\$\{EXPECTED_CHECKED_OUT_SHA\}"/u,
 );
 assert.match(integrationWorkflow, /target_branch: process\.env\.TARGET_BRANCH/u);
+assert.doesNotMatch(
+  integrationWorkflow,
+  /WORK_MAP_REPAIR_ROOT:\s*\$\{\{\s*runner\.temp/u,
+  "Work Map integration must not use the unavailable runner context in job-level env.",
+);
+assert.match(
+  integrationWorkflow,
+  /- name: Initialize Work Map repair path[\s\S]*echo "WORK_MAP_REPAIR_ROOT=\$\{RUNNER_TEMP\}\/work-map-repair-candidate" >> "\$GITHUB_ENV"/u,
+  "Work Map integration must initialize the repair root from RUNNER_TEMP inside a step.",
+);
+assert.match(
+  integrationWorkflow,
+  /path: \$\{\{ env\.WORK_MAP_REPAIR_ROOT \}\}/u,
+  "Artifact upload must use the step-initialized repair path.",
+);
 
 console.log("Work Map post-write exact verification dispatch contract tests passed");
