@@ -1,0 +1,208 @@
+name: Build Pipeline Trigger Parser Fix 5804
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/build-pipeline-trigger-parser-fix-2e7df840-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-pipeline-trigger-parser-fix-5804-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
+  EXPECTED_CANDIDATE_SHA: 3305fee5f3c84984a32a91ac82062faaa854118a
+  EXPECTED_HEAD_REF: gpt/repository-write-workflow-prerequisites-20260804
+  EXPECTED_BASE_REF: gpt/diag/build-pipeline-trigger-parser-fix-2e7df840-v1
+
+jobs:
+  build:
+    name: Build and validate bounded four-file fix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Validate immutable pull request identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_SHA" = "$EXPECTED_CANDIDATE_SHA"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$EXPECTED_BASE_REF"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify protected main freshness and candidate ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Apply bounded parser and contract patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one exact match, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "http-generic-api/scripts/pipeline-connectivity-check.mjs",
+              'return ["workflow_dispatch", "pull_request", "push", "schedule", "workflow_run"]',
+              'return ["workflow_dispatch", "pull_request", "pull_request_target", "issue_comment", "push", "schedule", "workflow_run"]',
+          )
+
+          replace_once(
+              "http-generic-api/test-pipeline-connectivity-check.mjs",
+              '      required_triggers: ["pull_request"],\n      required_commands: ["one-time-marker", "dispatch-writer"],',
+              '      required_triggers: ["pull_request_target", "issue_comment"],\n      required_commands: ["one-time-marker", "dispatch-writer"],',
+          )
+          replace_once(
+              "http-generic-api/test-pipeline-connectivity-check.mjs",
+              'write(root, ".github/workflows/bridge.yml", `name: Bridge\non:\n  pull_request:\npermissions:',
+              'write(root, ".github/workflows/bridge.yml", `name: Bridge\non:\n  pull_request_target:\n  issue_comment:\npermissions:',
+          )
+
+          replace_once(
+              ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
+              "      - '.specify/pipeline-connectivity-contract.json'\n      - 'docs/runbooks/supervisor-runtime-assurance.md'",
+              "      - '.specify/pipeline-connectivity-contract.json'\n      - 'http-generic-api/scripts/pipeline-connectivity-check.mjs'\n      - 'docs/runbooks/supervisor-runtime-assurance.md'",
+          )
+
+          replace_once(
+              ".changes/e2e/repository-write-workflow-prerequisites.json",
+              '      ".specify/pipeline-connectivity-contract.json",\n      "docs/runbooks/supervisor-runtime-assurance.md",',
+              '      ".specify/pipeline-connectivity-contract.json",\n      "http-generic-api/scripts/pipeline-connectivity-check.mjs",\n      "docs/runbooks/supervisor-runtime-assurance.md",',
+          )
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort | paste -sd, -)" = ".changes/e2e/repository-write-workflow-prerequisites.json,.github/workflows/repository-write-workflow-prerequisite-guard.yml,http-generic-api/scripts/pipeline-connectivity-check.mjs,http-generic-api/test-pipeline-connectivity-check.mjs"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/repository-write-workflow-prerequisites.json','utf8'))"
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          (
+            cd http-generic-api
+            node test-fanout-relocation-ci.mjs
+            node test-supervisor-runtime-assurance-automation.mjs
+          )
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
+      - name: Create local candidate commit and run changed-range governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-write-workflow-prerequisites.json \
+            .github/workflows/repository-write-workflow-prerequisite-guard.yml \
+            http-generic-api/scripts/pipeline-connectivity-check.mjs \
+            http-generic-api/test-pipeline-connectivity-check.mjs
+          git commit -m "fix(ci): recognize recovery bridge trigger types"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_CANDIDATE_SHA"
+          git diff --name-status "$EXPECTED_MAIN_SHA" HEAD > /tmp/repository-tool-changes.tsv
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files /tmp/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir /tmp/repository-tool-lifecycle
+          mkdir -p /tmp/e2e
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head HEAD \
+            --report-file /tmp/e2e/reference-integrity.json
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file /tmp/e2e/reference-integrity.json
+
+      - name: Package exact modified files and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/candidate-artifact
+          mkdir -p /tmp/candidate-artifact/files
+          cp --parents \
+            .changes/e2e/repository-write-workflow-prerequisites.json \
+            .github/workflows/repository-write-workflow-prerequisite-guard.yml \
+            http-generic-api/scripts/pipeline-connectivity-check.mjs \
+            http-generic-api/test-pipeline-connectivity-check.mjs \
+            /tmp/candidate-artifact/files/
+          cp -R /tmp/repository-tool-lifecycle /tmp/candidate-artifact/
+          cp -R /tmp/e2e /tmp/candidate-artifact/
+          candidate_commit="$(git rev-parse HEAD)"
+          candidate_tree="$(git rev-parse HEAD^{tree})"
+          python3 - "$candidate_commit" "$candidate_tree" <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import sys
+
+          commit, tree = sys.argv[1:]
+          root = Path('/tmp/candidate-artifact/files')
+          files = []
+          for path in sorted(p for p in root.rglob('*') if p.is_file()):
+              data = path.read_bytes()
+              files.append({
+                  'path': path.relative_to(root).as_posix(),
+                  'sha256': hashlib.sha256(data).hexdigest(),
+                  'size': len(data),
+              })
+          manifest = {
+              'expected_main_sha': '2e7df8403a7ce02e0635a7316b8401b3c0607bbb',
+              'parent_candidate_sha': '3305fee5f3c84984a32a91ac82062faaa854118a',
+              'local_candidate_commit': commit,
+              'local_candidate_tree': tree,
+              'files': files,
+              'repository_mutation': False,
+              'secrets_included': False,
+          }
+          Path('/tmp/candidate-artifact/manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+
+      - name: Upload bounded candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-trigger-parser-fix-5804-${{ github.run_id }}
+          path: /tmp/candidate-artifact/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert no repository ref update occurred
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/gpt/repository-write-workflow-prerequisites-20260804)" = "$EXPECTED_CANDIDATE_SHA"
+          echo "Validated four-file fix artifact; no Git ref was updated."
