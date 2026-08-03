@@ -110,6 +110,10 @@ jobs:
         working-directory: http-generic-api
         run: node test-surface-contract-sql-registry-extractor.mjs
 
+      - name: Surface contract classification
+        working-directory: http-generic-api
+        run: node test-surface-contract-classification.mjs
+
       - name: Resource effect classes
         working-directory: http-generic-api
         run: node test-resource-api-callability-effect-classes.mjs
@@ -129,6 +133,14 @@ jobs:
       - name: Frontend auth OpenAPI parity
         working-directory: http-generic-api
         run: node test-frontend-auth-openapi-parity.mjs
+
+      - name: OpenAPI route coverage
+        working-directory: http-generic-api
+        run: node test-openapi-route-coverage.mjs
+
+      - name: Hostinger full-closure safety
+        working-directory: http-generic-api
+        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
       - name: OpenAPI auth parity
         working-directory: http-generic-api
