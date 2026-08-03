@@ -153,6 +153,10 @@ async function runScenario(harness, body = BASE_BODY, options = {}) {
   }
 }
 
+function diagnosticEvidence(harness) {
+  return harness.diagnostics.map(({ params }) => JSON.parse(params.at(-1)));
+}
+
 const successHarness = createHarness({}, { metadataMount: true });
 const success = await runScenario(successHarness);
 assert.equal(success.status, 200);
@@ -169,6 +173,17 @@ assert.equal(successHarness.legacyReached(), false);
 assert.equal(successHarness.order.indexOf("subject") < successHarness.order.indexOf("issue"), true);
 assert.equal(successHarness.order.indexOf("issue") < successHarness.order.indexOf("consume"), true);
 assert.equal(successHarness.order.indexOf("consume") < successHarness.order.indexOf("context"), true);
+const successEvidence = diagnosticEvidence(successHarness)
+  .filter((evidence) => evidence.classification === "token_response_committed");
+assert.equal(successEvidence.length, 1, "success must create exactly one terminal evidence record");
+assert.equal(successEvidence[0].phase, "response_committed");
+assert.equal(successEvidence[0].status, "success");
+assert.equal(
+  diagnosticEvidence(successHarness).some((evidence) =>
+    evidence.classification === "token_response_committed" && evidence.phase !== "response_committed"),
+  false,
+  "success evidence must not precede response commitment",
+);
 
 let replayConsumeCalls = 0;
 const replayHarness = createHarness({
