@@ -21,11 +21,15 @@ The live store now performs bounded readback when the update affects no row and 
 - `revoked`; or
 - `issued_not_consumed`.
 
+Expiry is classified from the same SQL authority used by consumption through `UTC_TIMESTAMP(3)`, not from the application host clock.
+
 When the database transport fails during consumption, the live store attempts authoritative readback:
 
 - a consumed readback becomes `consumption_outcome_unknown` and forbids replay;
 - an issued readback becomes `store_unavailable_code_still_issued` and may permit a bounded retry;
 - missing readback fails closed as `consumption_outcome_unknown`.
+
+The original database error is preserved and rethrown for compatibility with the existing route. A frozen, no-secret `oauth_consumption` readback is attached to that error for the later route-policy integration. The store therefore does not silently convert an infrastructure failure into an ordinary replay result.
 
 Raw authorization codes are never returned. Persisted and queried code identity remains a SHA-256 hash.
 
@@ -49,12 +53,12 @@ The deterministic tests cover:
 - replay;
 - two concurrent exchanges with exactly one winner;
 - client/callback mismatch;
-- expiry;
-- transport failure after commit;
-- transport failure before commit with `issued` readback;
+- SQL-authoritative expiry;
+- transport failure after commit, with the original error rethrown and unknown-outcome readback attached;
+- transport failure before commit, with the original error rethrown and issued-state readback attached;
 - total store/readback unavailability;
 - consumed-without-response policy;
-- no-secret response evidence.
+- no-secret response and error evidence.
 
 ## Route integration still required
 
@@ -62,7 +66,7 @@ Before T031 can be marked complete, a bounded route PR must:
 
 1. validate the active user and membership before consuming the code;
 2. prepare token claims before the atomic consume gate;
-3. wire classified store outcomes into stable OAuth errors;
+3. consume `error.oauth_consumption` and ordinary store outcomes through the centralized policy;
 4. return `temporarily_unavailable` for unknown outcomes rather than collapsing them into `invalid_grant`;
 5. forbid same-code replay after consumed or unknown outcomes at the response boundary;
 6. record post-consumption/no-response evidence;
@@ -72,6 +76,6 @@ Before T031 can be marked complete, a bounded route PR must:
 
 ## Effects and non-effects
 
-The authorization-code store's runtime behavior is changed: zero-row and transport-error outcomes are now classified through bounded readback. The token route source, OAuth response contract, JWT claims, and SQL schema are unchanged.
+The authorization-code store's runtime behavior is changed: zero-row outcomes are classified through bounded readback, and transport errors are enriched with safe readback while preserving the original thrown error. The token route source, OAuth response contract, JWT claims, and SQL schema are unchanged.
 
 No migration or database mutation was executed during delivery. No Production deployment, credential access, provider call, external send, or force push occurred, and no secrets are included.
