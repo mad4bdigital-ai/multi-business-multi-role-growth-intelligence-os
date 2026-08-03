@@ -1,0 +1,150 @@
+name: Work Map Refresh Exact Validator
+
+on:
+  push:
+    branches:
+      - gpt/validate-work-map-refresh-f027-20260804
+    paths:
+      - .github/workflows/work-map-refresh-exact-validator.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-refresh-exact-validator-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout validator event
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify launcher-only topology
+        shell: bash
+        env:
+          EXPECTED_CANDIDATE: f0274156d64b0b134e67ef667feaf82cf4aae284
+          LAUNCHER_PATH: .github/workflows/work-map-refresh-exact-validator.yml
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_CANDIDATE"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$LAUNCHER_PATH"
+
+      - name: Validate exact candidate scope and contracts
+        shell: bash
+        env:
+          EXPECTED_CANDIDATE: f0274156d64b0b134e67ef667feaf82cf4aae284
+          EXPECTED_BASE: 773179a2dee3523c8af25262475ac83b92e46f21
+        run: |
+          set -euo pipefail
+          git checkout --detach "$EXPECTED_CANDIDATE"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE"
+
+          mapfile -t scope < <(git diff --name-only "$EXPECTED_BASE...$EXPECTED_CANDIDATE" | sort)
+          test "${#scope[@]}" -eq 3
+          test "${scope[0]}" = "docs/work-maps/README.md"
+          test "${scope[1]}" = "docs/work-maps/repository-automation-map.md"
+          test "${scope[2]}" = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          git diff --check "$EXPECTED_BASE...$EXPECTED_CANDIDATE"
+
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          REPORT_PATH="$RUNNER_TEMP/spec014-final-work-map-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+          node - "$RUNNER_TEMP/spec014-final-work-map-readback.json" "$RUNNER_TEMP/work-map-refresh-exact.json" <<'NODE'
+          const fs = require('node:fs');
+          const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const expected = 'f0274156d64b0b134e67ef667feaf82cf4aae284';
+          if (input.candidate_sha !== expected) throw new Error('candidate_sha_mismatch');
+          if (input.ok !== true || (input.findings || []).length !== 0) throw new Error('readback_not_current');
+          if (input.classification?.ok !== true || input.classification?.coverage_percent !== 100) throw new Error('classification_not_ready');
+          if (input.manifest_registry?.fingerprint !== input.current_registry?.fingerprint) throw new Error('fingerprint_mismatch');
+          if (input.provider_dispatch !== false || input.live_database_access !== false || input.migration_apply !== false || input.secrets_included !== false) throw new Error('safety_boundary_failed');
+          const output = {
+            contract: 'mad4b.work-map-refresh-exact-validation.v1',
+            generated_at: new Date().toISOString(),
+            candidate_sha: expected,
+            base_sha: '773179a2dee3523c8af25262475ac83b92e46f21',
+            scope: [
+              'docs/work-maps/README.md',
+              'docs/work-maps/repository-automation-map.md',
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
+            ],
+            syntax_checks: 5,
+            pipeline_connectivity: true,
+            schema_classification_contract: true,
+            schema_classification: true,
+            schema_classification_regressions: true,
+            generated_work_maps_current: true,
+            spec014_final_readback: input,
+            findings: [],
+            repository_mutation: false,
+            provider_dispatch: false,
+            live_database_access: false,
+            migration_apply: false,
+            production_mutation: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(process.argv[3], JSON.stringify(output, null, 2) + '\n');
+          NODE
+
+      - name: Publish bounded evidence and remove launcher
+        shell: bash
+        env:
+          BRANCH: gpt/validate-work-map-refresh-f027-20260804
+          EVENT_SHA: ${{ github.sha }}
+          EVIDENCE_PATH: .github/validation/work-map-refresh-f027.json
+          LAUNCHER_PATH: .github/workflows/work-map-refresh-exact-validator.yml
+        run: |
+          set -euo pipefail
+          git checkout -B "$BRANCH" "$EVENT_SHA"
+          mkdir -p "$(dirname "$EVIDENCE_PATH")"
+          cp "$RUNNER_TEMP/work-map-refresh-exact.json" "$EVIDENCE_PATH"
+          rm "$LAUNCHER_PATH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$EVIDENCE_PATH"
+          git add -u "$LAUNCHER_PATH"
+          git diff --cached --check
+          git commit -m 'test(work-maps): publish exact refresh validation'
+          remote_head="$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}')"
+          test "$remote_head" = "$EVENT_SHA"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+      - name: Final summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'WORK_MAP_REFRESH_EXACT_VALIDATION=success'
+          echo 'CANDIDATE_SHA=f0274156d64b0b134e67ef667feaf82cf4aae284'
+          echo 'SCOPE_FILES=3'
+          echo 'FINDINGS=0'
+          echo 'SECRETS_INCLUDED=false'
+          echo 'PROVIDER_DISPATCH=false'
+          echo 'LIVE_DATABASE_ACCESS=false'
+          echo 'MIGRATION_APPLY=false'
+          echo 'PRODUCTION_MUTATION=false'
