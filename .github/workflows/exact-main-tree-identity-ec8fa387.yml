@@ -1,0 +1,46 @@
+name: Exact Main Tree Identity ec8fa387
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
+
+jobs:
+  identity:
+    name: Read exact protected-main tree
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/read-main-tree-ec8fa387-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Emit immutable Git identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          tree_sha="$(git rev-parse 'HEAD^{tree}')"
+          parent_count="$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')"
+          jq -n \
+            --arg commit_sha "${EXPECTED_MAIN_SHA}" \
+            --arg tree_sha "${tree_sha}" \
+            --argjson parent_count "${parent_count}" \
+            '{ok:true,commit_sha:$commit_sha,tree_sha:$tree_sha,parent_count:$parent_count,repository_mutation_performed:false,protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,secrets_included:false}' \
+            | tee "${RUNNER_TEMP}/exact-main-tree-identity.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-main-tree-identity-${{ github.run_id }}
+          path: ${{ runner.temp }}/exact-main-tree-identity.json
+          if-no-files-found: error
+          retention-days: 3
