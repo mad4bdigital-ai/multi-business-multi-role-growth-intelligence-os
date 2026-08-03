@@ -1,4 +1,4 @@
-name: Diagnose Spec014 Work Map Binding 5776 V2 20260804
+name: Refresh Spec014 Work Map Binding 5776 V3 20260804
 
 on:
   pull_request:
@@ -8,16 +8,16 @@ on:
       - .github/workflows/refresh-spec014-work-map-binding-5776-v1-20260804.yml
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 concurrency:
-  group: diagnose-spec014-work-map-binding-5776-v2-20260804
+  group: refresh-spec014-work-map-binding-5776-v3-20260804
   cancel-in-progress: false
 
 jobs:
-  diagnose:
-    name: Diagnose exact Spec014 binding refresh compactly
+  refresh:
+    name: Refresh exact Spec014 binding with lease
     if: >-
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -33,11 +33,11 @@ jobs:
       TARGET_BRANCH: gpt/work-map-currentness-refresh-20260804
       TARGET_SHA: 07a863372f9e5437065b477d502e7eecc3ee6d36
       EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_FINGERPRINT: f81e65d2452c2c04a1281d1537f2aec58a5a2228d6faa06f72faaa454d963fda
       MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
-      TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
 
     steps:
-      - name: Verify one-file diagnostic and exact target
+      - name: Verify one-file Builder and exact target snapshot
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,167 +53,75 @@ jobs:
           test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
 
-      - name: Checkout exact target head read-only
+      - name: Checkout exact target head
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Collect compact diagnostic JSON
-        id: collect
+      - name: Refresh binding and prove exact local result
+        id: refresh
         shell: bash
         run: |
           set -Eeuo pipefail
-          result="${RUNNER_TEMP}/spec014-binding-diagnostic.json"
-          python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-          from pathlib import Path
+          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          test -z "$(git status --short)"
 
-          root = Path.cwd()
-          runner_temp = Path(os.environ['RUNNER_TEMP'])
-          result_path = runner_temp / 'spec014-binding-diagnostic.json'
-          readback_path = runner_temp / 'spec014-binding-readback.json'
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs > "${RUNNER_TEMP}/refresh.json"
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${MANIFEST}"
 
-          def run(label, argv, extra_env=None):
-              env = os.environ.copy()
-              if extra_env:
-                  env.update(extra_env)
-              completed = subprocess.run(
-                  argv,
-                  cwd=root,
-                  env=env,
-                  text=True,
-                  capture_output=True,
-                  check=False,
-              )
-              return {
-                  'label': label,
-                  'exit_code': completed.returncode,
-                  'stdout_tail': completed.stdout[-900:],
-                  'stderr_tail': completed.stderr[-900:],
-              }
+          report="${RUNNER_TEMP}/final-readback.json"
+          REPORT_PATH="${report}" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${RUNNER_TEMP}/readback.stdout.json"
+          jq -e '.ok == true and .findings == []' "${report}"
+          current="$(jq -r '.current_registry.fingerprint' "${report}")"
+          manifest="$(jq -r '.manifest_registry.fingerprint' "${report}")"
+          test "${current}" = "${EXPECTED_FINGERPRINT}"
+          test "${manifest}" = "${EXPECTED_FINGERPRINT}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
+          echo "fingerprint=${current}" >> "${GITHUB_OUTPUT}"
 
-          result = {
-              'target_sha': os.environ['TARGET_SHA'],
-              'expected_main_sha': os.environ['EXPECTED_MAIN_SHA'],
-              'commands': {},
-              'changed_paths': [],
-              'status_paths': [],
-              'current_fingerprint': None,
-              'manifest_fingerprint': None,
-              'findings': [],
-              'manifest_registry_after_refresh': None,
-          }
+      - name: Commit and push manifest-only refresh
+        id: push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${TARGET_SHA}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${MANIFEST}"
+          test "$(git diff --cached --name-only)" = "${MANIFEST}"
+          git commit -m 'docs(spec014): refresh final Work Map binding'
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
 
-          result['commands']['generator_precheck'] = run(
-              'generator_precheck',
-              ['node', 'http-generic-api/scripts/platform-work-map-generator.mjs', '--check'],
-          )
-          result['commands']['refresh'] = run(
-              'official_refresh',
-              ['node', 'http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs'],
-          )
-
-          changed = subprocess.run(
-              ['git', 'diff', '--name-only'], cwd=root, text=True, capture_output=True, check=False
-          )
-          result['changed_paths'] = sorted(filter(None, changed.stdout.splitlines()))
-          status = subprocess.run(
-              ['git', 'status', '--short'], cwd=root, text=True, capture_output=True, check=False
-          )
-          result['status_paths'] = status.stdout.splitlines()
-
-          manifest_path = root / os.environ['MANIFEST']
-          try:
-              manifest = json.loads(manifest_path.read_text())
-              registry = manifest.get('work_map_registry') or manifest.get('registry') or {}
-              result['manifest_registry_after_refresh'] = {
-                  'fingerprint': registry.get('fingerprint'),
-                  'total_objects': registry.get('total_objects'),
-                  'unresolved_objects': registry.get('unresolved_objects'),
-              }
-          except Exception as exc:
-              result['manifest_parse_error'] = str(exc)
-
-          result['commands']['readback'] = run(
-              'official_final_readback',
-              ['node', 'http-generic-api/scripts/spec014-final-work-map-readback.mjs'],
-              {'REPORT_PATH': str(readback_path)},
-          )
-          if readback_path.exists():
-              try:
-                  readback = json.loads(readback_path.read_text())
-                  result['current_fingerprint'] = (readback.get('current_registry') or {}).get('fingerprint')
-                  result['manifest_fingerprint'] = (readback.get('manifest_registry') or {}).get('fingerprint')
-                  result['findings'] = (readback.get('findings') or [])[:8]
-                  result['readback_ok'] = readback.get('ok')
-              except Exception as exc:
-                  result['readback_parse_error'] = str(exc)
-
-          result['commands']['governance'] = run(
-              'changed_scope_governance',
-              ['node', 'http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs', '--ci', '--changed'],
-          )
-          result['commands']['diff_check'] = run('git_diff_check', ['git', 'diff', '--check'])
-          result_path.write_text(json.dumps(result, indent=2) + '\n')
-          PY
-          test -s "${result}"
-          echo "result_path=${result}" >> "${GITHUB_OUTPUT}"
-
-      - name: Publish compact diagnostic result
-        if: always()
+      - name: Publish exact refresh evidence
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RESULT_PATH: ${{ steps.collect.outputs.result_path }}
         run: |
-          set -Eeuo pipefail
-          test -s "${RESULT_PATH}"
-          python3 - <<'PY' > "${RUNNER_TEMP}/compact-comment.md"
-          import json
-          import os
-          from pathlib import Path
-
-          data = json.loads(Path(os.environ['RESULT_PATH']).read_text())
-          commands = data.get('commands') or {}
-          codes = {name: item.get('exit_code') for name, item in commands.items()}
-          findings = data.get('findings') or []
-          finding_codes = []
-          for finding in findings:
-              if isinstance(finding, dict):
-                  finding_codes.append(str(finding.get('code') or finding.get('finding') or finding.get('message') or finding)[:180])
-              else:
-                  finding_codes.append(str(finding)[:180])
-          refresh = commands.get('refresh') or {}
-          readback = commands.get('readback') or {}
-          diagnostic_tail = (refresh.get('stderr_tail') or refresh.get('stdout_tail') or readback.get('stderr_tail') or readback.get('stdout_tail') or 'none')
-          diagnostic_tail = diagnostic_tail.replace('```', "'''")[-1200:]
-
-          print('## Spec 014 binding refresh compact diagnostic')
-          print()
-          print(f"- Target head: `{data.get('target_sha')}`")
-          print(f"- Protected main: `{data.get('expected_main_sha')}`")
-          print(f"- Exit codes: `{json.dumps(codes, sort_keys=True)}`")
-          print(f"- Changed paths: `{', '.join(data.get('changed_paths') or []) or 'none'}`")
-          print(f"- Current fingerprint: `{data.get('current_fingerprint') or 'unresolved'}`")
-          print(f"- Manifest fingerprint: `{data.get('manifest_fingerprint') or 'unresolved'}`")
-          print(f"- Manifest registry after refresh: `{json.dumps(data.get('manifest_registry_after_refresh'), sort_keys=True)}`")
-          print(f"- Findings: `{'; '.join(finding_codes) or 'none'}`")
-          print('- Remote repository mutation: none')
-          print()
-          print('```text')
-          print(diagnostic_tail)
-          print('```')
-          PY
-          wc -c "${RUNNER_TEMP}/compact-comment.md"
-          test "$(wc -c < "${RUNNER_TEMP}/compact-comment.md")" -lt 5000
-          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/compact-comment.md"
-          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/compact-comment.md"
+          {
+            echo '## Spec 014 Work Map binding refreshed successfully'
+            echo
+            echo '- Source head: `${{ env.TARGET_SHA }}`'
+            echo '- Result head: `${{ steps.push.outputs.result_sha }}`'
+            echo '- Changed path: `${{ env.MANIFEST }}` only'
+            echo '- Current and manifest fingerprint: `${{ steps.refresh.outputs.fingerprint }}`'
+            echo '- Official refresh tool, generated-map currentness, and final readback: passed'
+            echo '- The changed-scope governance gate will be executed on the committed result head, not the pre-commit worktree'
+            echo '- No protected-ref mutation, force push, Production action, SQL, migration, database, provider, deployment, credential, secret, or external-send action occurred'
+          } > "${RUNNER_TEMP}/evidence.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/evidence.md"
+          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/evidence.md"
