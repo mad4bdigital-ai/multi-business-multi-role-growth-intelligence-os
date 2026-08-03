@@ -7,11 +7,17 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".github/workflows/spec-011-managed-delivery-lifecycle.yml",
       ".github/workflows/spec-011-evidence-auto-closeout.yml",
+      "http-generic-api/spec011ManagedDeliveryLifecycle.js",
+      "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs",
       "http-generic-api/spec011EvidenceAutoCloseout.js",
       "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
       "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
       "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md",
       "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout.md",
       "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
@@ -25,8 +31,51 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that authoritative evidence can be collected, bound to semantic closeout mutations, validated before commit, applied through governed repository authority, and reconciled into an exact closeout pull request without force push, protected-branch bypass, secret exposure, or automatic mutation retry after an unknown outcome.",
+      "objective": "Prove governed managed PR and release delivery plus authoritative evidence closeout through durable repository authority, exact readback, bounded retries, and fail-closed mutation controls.",
       "e2e_journeys": [
+        {
+          "id": "govern-managed-pr-and-release-lifecycle",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed managed-delivery operator",
+          "entrypoint": "executeManagedDeliveryLifecycle with reviewed repository intent, exact branch and pull-request identity, durable operation authority, approvals, and synthetic provider readbacks",
+          "terminal_outcome": "The lifecycle reaches terminal success only after exact-head delivery, governed reconciliation, approved merge authority, branch cleanup, deployment receipt, and Production parity readback are all bound to one immutable receipt chain; stale, ambiguous, or unauthorized paths fail closed without force push, protected-branch bypass, or duplicate mutation.",
+          "steps": [
+            "Validate stable semantic anchors, exact blob identities, branch and pull-request identity, capability envelopes, and no-secret input.",
+            "Delegate preview and execution through the durable pr_delivery repository authority rather than raw Git or caller-supplied HTTP.",
+            "Detect stale nonterminal runs, cancel only the governed superseded operation, and bind replacement work to the current exact head.",
+            "Reconcile base drift through the governed branch-reconcile authority with normal non-force updates and exact readback.",
+            "Permit at most one structured low-risk delegated CI repair and reject unstructured, unrelated, or privileged changes.",
+            "Require a fresh approval bound to the final pull-request head and base SHAs immediately before merge.",
+            "Verify merge, branch absence, deployment receipt, Production parity, and the complete receipt chain before terminal success."
+          ],
+          "assertions": [
+            "Line-number anchors, stale fingerprints, secret-like input, protected feature heads, force push, branch-protection bypass, and admin override are rejected.",
+            "Managed delivery reuses durable operation runs and receipts rather than introducing an untracked mutation path.",
+            "A changed head or base invalidates prior approval and blocks merge until a new exact-head approval exists.",
+            "Unknown or ambiguous mutation outcomes are reconciled by reads and are not followed by automatic duplicate writes.",
+            "Terminal success requires merge, verified branch absence, deployment receipt, and Production parity on the same immutable merge identity.",
+            "The certification uses synthetic repository and provider adapters and performs no real merge, branch deletion, deployment, Production mutation, provider write, database mutation, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "spec011-managed-delivery-lifecycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-managed-delivery-lifecycle.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-011-managed-delivery-lifecycle.yml",
+            "http-generic-api/spec011ManagedDeliveryLifecycle.js",
+            "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md"
+          ]
+        },
         {
           "id": "authoritative-evidence-to-governed-closeout-pr",
           "end_to_end": true,
@@ -84,22 +133,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Exercise the closeout collector and repository writer against an authorized non-production repository target with durable receipts, approval envelopes, and exact branch/PR readback."
+      "objective": "Exercise managed delivery and evidence closeout against authorized non-production repository targets with durable receipts, approval envelopes, and exact branch/PR readback."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, upstream timeouts, and ambiguous PR-creation outcomes without duplicate mutation."
+      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, upstream timeouts, and ambiguous mutation outcomes without duplicate writes."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Create one governed closeout pull request on an authorized non-production branch and verify its complete evidence chain without merging or deploying it."
+      "objective": "Create one governed managed-delivery or closeout pull request on an authorized non-production branch and verify its complete evidence chain without merging or deploying it."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Use separately authorized Production evidence and post-merge readback to close the final completion contract while preserving migration, deployment, provider, and protected-branch authority boundaries."
+      "objective": "Use separately authorized Production evidence and post-merge readback to close final delivery and completion contracts while preserving migration, deployment, provider, and protected-branch authority boundaries."
     }
   ]
 }
