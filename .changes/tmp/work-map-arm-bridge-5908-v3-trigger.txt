@@ -1,0 +1,1 @@
+Temporary never-merge trigger for synchronized exact PR #5908 ARM Work Map bridge.
