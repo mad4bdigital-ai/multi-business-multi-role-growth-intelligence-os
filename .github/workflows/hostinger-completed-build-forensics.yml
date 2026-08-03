@@ -114,6 +114,37 @@ jobs:
           HOSTINGER_COMPLETED_BUILD_FORENSICS_DIR: ${{ env.REPORT_DIR }}
         run: node scripts/hostinger-completed-build-forensics.mjs
 
+      - name: Scrub exact provider token from persisted evidence
+        if: always()
+        shell: bash
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module - "${REPORT_DIR}" <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const [directory] = process.argv.slice(2);
+          const token = process.env.HOSTINGER_API_TOKEN || "";
+          if (!token) throw new Error("HOSTINGER_API_TOKEN unavailable for evidence scrub");
+          if (!fs.existsSync(directory)) throw new Error("forensics report directory missing");
+
+          const files = fs.readdirSync(directory)
+            .filter((name) => name.endsWith(".json") || name.endsWith(".md"));
+          if (files.length === 0) throw new Error("forensics evidence files missing");
+
+          for (const name of files) {
+            const file = path.join(directory, name);
+            const before = fs.readFileSync(file, "utf8");
+            const after = before.split(token).join("[REDACTED]");
+            fs.writeFileSync(file, after, "utf8");
+            if (fs.readFileSync(file, "utf8").includes(token)) {
+              throw new Error(`provider token remained in ${name}`);
+            }
+          }
+          NODE
+
       - name: Upload completed-build forensics evidence
         if: always()
         uses: actions/upload-artifact@v4
