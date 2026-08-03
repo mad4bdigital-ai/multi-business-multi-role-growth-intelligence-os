@@ -36,13 +36,31 @@ let authorizationEnvelopeId = null;
 let authorizationCreated = false;
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+const SAFE_EVIDENCE_KEYS = new Set([
+  'activation_registry_sync_executed',
+  'apply_authorized',
+  'apply_sent',
+  'authorization_bootstrap',
+  'authorization_comment_id',
+  'authorization_created',
+  'authorization_required',
+  'business_data_mutation_executed',
+  'credential_payload_accessed',
+  'external_business_write_executed',
+  'external_write_executed',
+  'managed_control_plane_write_executed',
+  'migration_apply_executed',
+  'provider_call_executed',
+  'repository_mutation_performed',
+  'secrets_included',
+]);
 
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
     key,
-    sensitiveKey.test(key) ? '[redacted]' : sanitize(child),
+    sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child),
   ]));
 }
 

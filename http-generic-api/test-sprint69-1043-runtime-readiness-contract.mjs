@@ -13,7 +13,7 @@ const BACKFILL_WORKFLOW_PATH = path.join(ROOT, '.github/workflows/sprint69-1043-
 const E2E_PATH = path.join(ROOT, '.changes/e2e/sprint69-1043-runtime-readiness.json');
 
 const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE';
-const AUTH_COMMENT_ID = '5160291051';
+const AUTH_COMMENT_ID = '5169156192';
 const CHECKSUM = 'a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9';
 const BLOB = '7f3e0152bcdfba36a659ff4a1df8e30d82024c8c';
 const SOURCE_MERGE = 'a1c1f3d4f4b36a3a5764d898194818e3e9ea1ce3';
@@ -96,6 +96,15 @@ for (const value of [AUTH_CONFIRM, AUTH_COMMENT_ID, 'Sprint 69 Migration 1043 Ru
   assert.ok(backfillRunner.includes(value), `Backfill runner is missing pinned value ${value}.`);
 }
 assert.match(backfillRunner, /actions\/workflows\/\$\{encodeURIComponent\(WORKFLOW_FILE\)\}\/runs\?event=issue_comment/);
+assert.match(backfillRunner, /per_page=100&page=\$\{page\}/);
+assert.match(backfillRunner, /reachedCommentBoundary/);
+assert.match(backfillRunner, /nonSkippedCandidates/);
+assert.match(backfillRunner, /function safeBoolean/);
+assert.doesNotMatch(backfillRunner, /per_page=50/);
+assert.match(runner, /SAFE_EVIDENCE_KEYS/);
+assert.match(backfillRunner, /SAFE_EVIDENCE_KEYS/);
+assert.match(runner, /'secrets_included'/);
+assert.match(backfillRunner, /unverified/);
 assert.match(backfillRunner, /issues\/comments\/\$\{AUTHORIZATION_COMMENT_ID\}/);
 assert.match(backfillRunner, /author_association/);
 assert.match(backfillRunner, /artifact_ready/);
