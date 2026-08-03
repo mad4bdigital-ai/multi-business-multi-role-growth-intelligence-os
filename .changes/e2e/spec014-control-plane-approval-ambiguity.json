@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-control-plane-approval-ambiguity",
+  "title": "Spec 014 Control Plane Approval Candidate Uniqueness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-control-plane-approval-ambiguity.json",
+      ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      "http-generic-api/hostingerStorageExecutionAuthorization.js",
+      "http-generic-api/test-hostinger-storage-approval-ambiguity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject multiple simultaneously active approval candidates for a required authorization slot instead of selecting one by ordering.",
+      "e2e_journeys": [
+        {
+          "id": "approval-slot-candidate-uniqueness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "storage-control-plane",
+          "entrypoint": "Node process invoking resolveHostingerStorageApprovalSet",
+          "terminal_outcome": "A single valid candidate is accepted, while multiple active candidates produce a slot-specific ambiguity blocker and no accepted approval.",
+          "steps": [
+            "Start a clean Node runtime and build one secret-free approval set bound to the exact plan, candidate set, authority context, revisions, and impact set.",
+            "Resolve a required slot with one candidate, two active candidates, and one active plus one invalidated candidate.",
+            "Read back the immutable decision, blockers, and accepted approvals from the completed process."
+          ],
+          "assertions": [
+            "Exactly one active approved candidate is accepted.",
+            "Multiple active approved candidates are rejected with STORAGE_APPROVAL_SLOT_AMBIGUOUS for the exact slot.",
+            "No candidate is accepted when the slot is ambiguous.",
+            "Invalidated candidates do not create ambiguity."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-approval-ambiguity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-approval-ambiguity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-approval-ambiguity.mjs",
+            ".github/workflows/hostinger-storage-control-plane-guard.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "The hardening changes an in-process authorization decision and introduces no independent operational surface."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Ambiguity rejection is deterministic and has no retry or recovery state."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live provider or non-production runtime target is introduced."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The change grants no dispatch, deployment, or Production authority."
+    }
+  ]
+}

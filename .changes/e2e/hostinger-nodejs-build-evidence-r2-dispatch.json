@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-completed-build-log-evidence-r3b-dispatch",
+  "title": "Dispatch completed Hostinger build-log evidence through a governed single-use bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-build-evidence-r2-dispatch.json",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml",
+      "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Rotate the existing single-use GitHub metadata bridge so it dispatches the merged trusted-main completed-build log workflow for the exact Hostinger build UUID, while requiring an explicit current-main SHA and preserving GET-only provider boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-completed-build-log-readback-r3b",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository operator",
+          "entrypoint": "An explicit repository-owner workflow dispatch or exact governed Issue #4953 comment supplies the current trusted main SHA.",
+          "terminal_outcome": "Before the first metadata write, the bridge validates the explicit main SHA, authorization comment, target workflow blob, protected Production SHA, completed build UUID, issue state, and one-time marker absence; it then dispatches the unchanged GET-only completed-build log workflow and records the target run ID.",
+          "steps": [
+            "Resolve the exact expected main SHA from the required workflow_dispatch input or governed issue-comment token.",
+            "Validate operator identity, control issue, exact trigger format, and canonical 40-character main SHA.",
+            "Validate authorization comment 5162389651 and the immutable target workflow path, blob, account, domain, completed build UUID, Production SHA, and safety boundaries.",
+            "Reject execution if current main, Production, target workflow blob, workflow state, issue state, or one-time marker state diverges.",
+            "Record one R3B claim comment after all immutable checks pass.",
+            "Dispatch the unchanged trusted-main completed-build log workflow with account username, exact build UUID, and expected Production SHA.",
+            "Resolve the new workflow_dispatch run for the exact main SHA and record its run ID."
+          ],
+          "assertions": [
+            "Every write-capable path requires an explicit expected main SHA and checks it against current main before the first metadata write.",
+            "The issue-comment path is exact-token, exact-operator, exact-issue bounded; workflow_dispatch is repository-owner bounded.",
+            "The bridge never receives or references secrets.HOSTINGER_API_TOKEN.",
+            "Only the target workflow reads the Hostinger token from the configured GitHub secret on trusted main.",
+            "The target workflow blob is exactly 94321b273e70f96180c0f058adbb291b035fd237.",
+            "The selected build UUID is exactly 019fc51c-3947-7255-aa4d-f55cb8df7658 and the expected Production SHA is exactly f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+            "The bridge writes only claim and dispatch metadata and invokes only the target GitHub Actions workflow.",
+            "No Hostinger build creation, deployment, release activation, restart, provider mutation, repository contents mutation, protected-ref update, force push, SQL, migration Apply, database mutation, or external send occurs.",
+            "The authorization binding cannot be reused after a claim or dispatch marker exists."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-evidence-r3b-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml",
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the one-time completed-build log evidence artifact and record its bounded source-provenance classification in Incident #4953."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Confirm the bridge fails closed when the explicit head input, authorization, target workflow blob, current main, Production, build UUID, issue state, or one-time markers diverge."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This bridge performs no Hostinger canary or provider mutation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This bridge does not deploy, activate, restart, or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}

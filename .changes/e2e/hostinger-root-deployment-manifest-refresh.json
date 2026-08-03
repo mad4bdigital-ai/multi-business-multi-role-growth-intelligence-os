@@ -1,0 +1,114 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-root-deployment-manifest-refresh",
+  "title": "Hostinger root startup deployment manifest refresh",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-root-deployment-manifest-refresh.json",
+      "hostinger-entrypoint-runtime.js",
+      "http-generic-api/scripts/generate-deployment-manifest.mjs",
+      "http-generic-api/test-hostinger-root-entrypoint.mjs",
+      "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
+      "http-generic-api/test-server-startup-smoke.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure the Hostinger root entrypoint regenerates the canonical Production deployment manifest before importing the nested HTTP API server and prevents the nested startup call from overwriting that authoritative branch with stale main provenance.",
+      "e2e_journeys": [
+        {
+          "id": "refresh-and-lock-hostinger-root-deployment-manifest-before-startup",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Hostinger Node.js application wrapper",
+          "entrypoint": "repository-root server.js loading hostinger-entrypoint-runtime.js",
+          "terminal_outcome": "The root runtime writes a Production-scoped manifest, establishes a process-local authoritative branch lock, and only then imports the nested server; the nested server may regenerate commit and timestamp evidence but cannot replace Production with stale main metadata during the same startup.",
+          "steps": [
+            "Resolve the nested http-generic-api application directory and canonical manifest generator path.",
+            "Import the existing deployment-manifest generator without duplicating its commit-source resolution logic.",
+            "Generate http-generic-api/deployment-manifest.json with the explicit Production branch identity and available deployment commit provenance.",
+            "Reject root startup if the generated manifest does not resolve branch Production.",
+            "Set a process-local authoritative branch lock only after the Production manifest write succeeds.",
+            "Change the process working directory and import the nested server after the branch lock is present.",
+            "Start the full root runtime under stale branch environment metadata and require /version to expose Production from the process-local lock.",
+            "Let direct nested startup continue using normal environment and Git provenance when the root branch lock is absent.",
+            "Require explicit --branch arguments to retain precedence over all environment candidates."
+          ],
+          "assertions": [
+            "The Hostinger root startup path does not depend on npm invoking the nested package prestart script.",
+            "The canonical scripts/generate-deployment-manifest.mjs implementation remains the only manifest writer.",
+            "The manifest output path is exactly http-generic-api/deployment-manifest.json.",
+            "The root manifest branch argument is exactly Production.",
+            "The process-local branch lock is set to Production before nested server import.",
+            "A stale DEPLOYMENT_BRANCH=main, ACTIVATION_GITHUB_BRANCH=main, or pull-request branch name cannot overwrite the root Production branch during the same startup.",
+            "The full root runtime smoke reports branch Production and branch source env:DEPLOYMENT_MANIFEST_AUTHORITATIVE_BRANCH.",
+            "Direct nested startup without the root lock preserves its existing branch-resolution behavior.",
+            "Manifest refresh failure or a non-Production root result prevents process.chdir and nested server import.",
+            "No repository mutation outside the candidate branch, provider dispatch, credential access, SQL execution, migration apply, deployment command, restart command, or external send is introduced.",
+            "No secrets are included."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-root-deployment-manifest-refresh-order-and-lock",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-root-entrypoint.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-nested-manifest-branch-overwrite-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-root-cause-activation-runtime-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-full-root-runtime-production-provenance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-server-startup-smoke.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "hostinger-entrypoint-runtime.js",
+            "http-generic-api/scripts/generate-deployment-manifest.mjs",
+            "http-generic-api/deploymentManifest.js",
+            "http-generic-api/test-hostinger-root-entrypoint.mjs",
+            "http-generic-api/test-root-cause-activation-runtime-repair.mjs",
+            "http-generic-api/test-server-startup-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Promote the reviewed startup repair through protected Production, observe the Hostinger build and process activation, and require auth.mad4b.com /version and /deployment-info to report the exact resulting Production SHA and branch."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded diagnostics for unavailable Git metadata or deployment commit environment provenance without allowing startup with an ambiguous or stale manifest."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Exercise the repaired root startup path on an authorized non-production Hostinger application before future protected promotions."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require exact deployed-SHA and Production-branch readback after every Hostinger root startup or protected Production promotion."
+    }
+  ],
+  "secrets_included": false
+}

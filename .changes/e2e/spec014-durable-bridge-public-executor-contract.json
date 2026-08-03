@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-bridge-public-executor-contract",
+  "title": "Keep Durable Bridge readiness on the canonical synthetic executor surface",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-bridge-public-executor-contract.json",
+      ".github/workflows/hostinger-storage-synthetic-executor-guard.yml",
+      "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs",
+      "http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove test-only direct reads of synthetic Base modules and replace silent grep ownership checks with a diagnostic canonical-wrapper boundary regression.",
+      "e2e_journeys": [
+        {
+          "id": "durable-bridge-uses-public-synthetic-executor-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer and Spec 014 synthetic-executor guard",
+          "entrypoint": "Durable Tenant Runtime Bridge readiness regression and the canonical synthetic factory-import boundary test",
+          "terminal_outcome": "Only the canonical adapter and executor wrappers reference their Base modules, the Durable Bridge test inspects the public executor surface, and all readiness safety boundaries remain unchanged.",
+          "steps": [
+            "Scan every JavaScript and MJS file under http-generic-api for synthetic Base-module references.",
+            "Allow the adapter Base token only in hostingerStorageSyntheticAdapter.js and the executor Base token only in hostingerStorageSyntheticExecutor.js.",
+            "Run Durable Bridge readiness against the canonical executor wrapper and public readiness blockers.",
+            "Run the complete Synthetic Executor guard after the ownership regression passes."
+          ],
+          "assertions": [
+            "No test, readiness evaluator, runtime bridge, route, or worker directly reads or imports a synthetic Base module.",
+            "Violations fail closed with file, token, and exact wrapper allowlist details.",
+            "The canonical executor wrapper still verifies factory-owned adapter provenance before execute and reconcile dispatch.",
+            "No database, credential, provider, migration, deployment, main, or Production mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "synthetic-factory-import-boundary",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "durable-bridge-public-executor-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-synthetic-executor-guard.yml",
+            "http-generic-api/test-hostinger-storage-synthetic-factory-import-boundary.mjs",
+            "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Observe a green Synthetic Executor Guard on Rollup #4386 after Integration merge.",
+      "blockers": [
+        "The repair must pass exact-head and Ready-cycle evidence before merge into Integration."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove diagnostic output remains bounded and fail-closed for future unauthorized Base references."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Record the corrected Synthetic Executor Guard on the Rollup exact head."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only test and CI correction grants no runtime, migration, provider, deployment, or Production authority."
+    }
+  ]
+}

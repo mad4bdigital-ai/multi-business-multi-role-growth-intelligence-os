@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-dedicated-worker-certification",
+  "title": "Spec 014 Dedicated Worker Certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-dedicated-worker-certification.json",
+      ".github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json",
+      ".github/workflows/hostinger-storage-dedicated-worker-certification-guard.yml",
+      "http-generic-api/hostingerStorageDedicatedWorkerCertification.js",
+      "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Build and reverify a secret-free, target-bound, image-bound, toolchain-bound, host-key-bound dedicated worker certification without creating, mounting, or starting a worker.",
+      "e2e_journeys": [
+        {
+          "id": "certify-dedicated-provider-worker-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 worker certification evaluator",
+          "entrypoint": "Hostinger Storage Dedicated Worker Certification Guard",
+          "terminal_outcome": "Exact worker, release, image, artifact provenance, toolchain, reviewed program, target, and pinned host-key evidence produces a tamper-evident packet ready only for a later fixed-dispatch certification stage.",
+          "steps": [
+            "Normalize a short-lived secret-free worker evidence envelope.",
+            "Bind the worker ID, principal, release, image digest, artifact provenance, and source commit to external expected evidence.",
+            "Bind the fixed Hostinger SSH adapter operation and reviewed cleanup program digest.",
+            "Bind toolchain resolution, policy, selected tools, and approved binary verification.",
+            "Bind target-specific pinned host-key revision, algorithm, and fingerprint digest.",
+            "Enforce public-runtime, direct-HTTP, authority, approval, plan mutation, free-form shell/root, inbound listener, and request-filesystem isolation.",
+            "Recompute blockers and the certification digest during independent verification."
+          ],
+          "assertions": [
+            "A structural packet edit is rejected as tampering.",
+            "A public runtime worker, direct HTTP path, unpinned key, unapproved binary, or free-form command remains not ready.",
+            "Credential values and secret-bearing fields are rejected.",
+            "The evaluator performs zero provider calls, zero credential resolutions, zero runtime mounts, and starts no worker process.",
+            "The successful terminal is ready_for_fixed_dispatch_certification, never dispatch_allowed.",
+            "Worker mounting, provider dispatch, and Production readiness remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-dedicated-worker-certification",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-durable-tenant-runtime-bridge-readiness-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDedicatedWorkerCertification.js",
+            "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs",
+            ".github/contracts/spec014/hostinger-storage-dedicated-worker-certification.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Create and attest an actual dedicated worker artifact only through a separate authorized worker lifecycle.",
+      "blockers": [
+        "No worker image is built, deployed, or started by this repository-only slice.",
+        "Credential references are not resolved and no Hostinger connection occurs.",
+        "Fixed dispatch certification and separate mount authorization do not yet exist."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "blocked",
+      "objective": "Prove worker interruption, timeout, revocation, host-key rotation, and dispatch reconciliation after the fixed dispatcher exists.",
+      "blockers": [
+        "The worker is intentionally unmounted and the provider dispatcher remains absent.",
+        "Crash-safe durable reconciliation exists but is not connected to a certified worker lifecycle."
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This code-only certification slice performs no live worker, provider, SSH, or Hostinger canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Worker deployment, credential resolution, provider dispatch, runtime mounting, and Production remain separately governed."
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "011-durable-governed-execution-and-agent-delegation",
+  "title": "Durable governed execution, delegation, reconciliation, managed delivery, evidence closeout, goal-filtered intelligence, and T141 canary readiness",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec011-t141-readiness-canary-contract.json",
+      ".github/workflows/spec-011-managed-delivery-lifecycle.yml",
+      ".github/workflows/spec-011-evidence-auto-closeout.yml",
+      ".github/workflows/spec-011-goal-filtered-operational-intelligence.yml",
+      ".github/workflows/spec-011-t141-readiness-canary-contract.yml",
+      "http-generic-api/spec011ManagedDeliveryLifecycle.js",
+      "http-generic-api/spec011EvidenceAutoCloseout.js",
+      "http-generic-api/spec011GoalFilteredOperationalIntelligence.js",
+      "http-generic-api/spec011T141ReadinessCanaryContract.js",
+      "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs",
+      "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
+      "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
+      "http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs",
+      "http-generic-api/test-spec011-goal-filtered-operational-intelligence.mjs",
+      "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
+      "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
+      "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence.md",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase8-goal-filtered-operational-intelligence.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/schemas/t141-readiness-canary-contract.schema.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract-delivery.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove governed managed PR and release delivery, evidence closeout, goal-filtered operational intelligence, and non-mutating T141 canary readiness through executable synthetic-runtime journeys without force push, protected-branch bypass, secret exposure, provider mutation, or automatic mutation retry after an unknown outcome.",
+      "e2e_journeys": [
+        {
+          "id": "govern-managed-pr-and-release-lifecycle",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed managed-delivery operator",
+          "entrypoint": "executeManagedDeliveryLifecycle with reviewed repository intent, exact branch and pull-request identity, durable operation authority, approvals, and synthetic provider readbacks",
+          "terminal_outcome": "The lifecycle reaches terminal success only after exact-head delivery, governed reconciliation, approved merge authority, branch cleanup, deployment receipt, and Production parity readback are all bound to one immutable receipt chain; stale, ambiguous, or unauthorized paths fail closed without force push, protected-branch bypass, or duplicate mutation.",
+          "steps": [
+            "Validate stable semantic anchors, exact blob identities, branch and pull-request identity, capability envelopes, and no-secret input.",
+            "Delegate preview and execution through the durable pr_delivery repository authority rather than raw Git or caller-supplied HTTP.",
+            "Detect stale nonterminal runs, cancel only the governed superseded operation, and bind replacement work to the current exact head.",
+            "Reconcile base drift through the governed branch-reconcile authority with normal non-force updates and exact readback.",
+            "Permit at most one structured low-risk delegated CI repair and reject unstructured, unrelated, or privileged changes.",
+            "Require a fresh approval bound to the final pull-request head and base SHAs immediately before merge.",
+            "Verify merge, branch absence, deployment receipt, Production parity, and the complete receipt chain before terminal success."
+          ],
+          "assertions": [
+            "Line-number anchors, stale fingerprints, secret-like input, protected feature heads, force push, branch-protection bypass, and admin override are rejected.",
+            "Managed delivery reuses durable operation runs and receipts rather than introducing an untracked mutation path.",
+            "A changed head or base invalidates prior approval and blocks merge until a new exact-head approval exists.",
+            "Unknown or ambiguous mutation outcomes are reconciled by reads and are not followed by automatic duplicate writes.",
+            "Terminal success requires merge, verified branch absence, deployment receipt, and Production parity on the same immutable merge identity.",
+            "The certification uses synthetic repository and provider adapters and performs no real merge, branch deletion, deployment, Production mutation, provider write, database mutation, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "spec011-managed-delivery-lifecycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-managed-delivery-lifecycle.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-011-managed-delivery-lifecycle.yml",
+            "http-generic-api/spec011ManagedDeliveryLifecycle.js",
+            "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md"
+          ]
+        },
+        {
+          "id": "authoritative-evidence-to-governed-closeout-pr",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository closeout operator",
+          "entrypoint": "executeEvidenceAutoCloseout with reviewed evidence readers, exact repository blobs, semantic closeout intent, typed confirmation, and mutation approval",
+          "terminal_outcome": "A bounded closeout branch and pull request are considered created only after authoritative evidence validation, semantic five-document change generation, atomic patch readback, exact PR head/base readback, and no-force/no-secret checks; unknown mutation outcomes remain reconciliation-required without automatic retry.",
+          "steps": [
+            "Collect exactly one fresh immutable observation for every required authoritative evidence family and calculate a deterministic evidence fingerprint.",
+            "Generate evidence-bound JSON Pointer and unique Markdown-anchor mutations for manifest, completion, checklist, tasks, and delivery-state documents.",
+            "Validate blob identities, content digests, semantic operations, JSON parseability, completion truthfulness, bounded size, and structured failure diagnosis before repository commit.",
+            "Preview the repository change through the durable pr_delivery path, then simulate atomic repo_patch_batch_apply with exact branch-head and changed-path readback.",
+            "Simulate github_create_pull_request followed by github_get_pull_request and verify the open PR number, head branch, exact head SHA, and base branch.",
+            "Simulate unknown patch and PR-create outcomes, perform readback once, and prove that no automatic mutation retry, force push, protected-branch bypass, Production write, provider write, deployment, or secret exposure occurs."
+          ],
+          "assertions": [
+            "Missing, duplicate, stale, mutable, failed, unrelated, ambiguous, or secret-like evidence cannot produce a closeout change set.",
+            "Every task and checklist closure references evidence contained in the validated authoritative packet.",
+            "Terminal completion is rejected unless all tasks plus migration-ledger, Production-parity, and post-merge-audit evidence are present.",
+            "The generated change set covers only the five governed document kinds and carries exact expected blob SHA plus before and after SHA-256 contracts.",
+            "Repository mutation is represented by repo_patch_batch_apply with force and force_push false and exact readback required.",
+            "Pull request creation uses registered GitHub endpoint authority and exact readback rather than caller-supplied raw HTTP authority.",
+            "An unknown mutation outcome is reconciled by reads and is never followed by an automatic repeated write.",
+            "The certification performs no real repository write, real PR creation, Production mutation, provider write, deployment, runtime authority activation, protected-branch bypass, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "spec011-evidence-auto-closeout-lifecycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-evidence-auto-closeout.mjs",
+              "args": []
+            },
+            {
+              "id": "spec011-evidence-auto-closeout-schemas",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-evidence-auto-closeout-schemas.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-011-evidence-auto-closeout.yml",
+            "http-generic-api/spec011EvidenceAutoCloseout.js",
+            "http-generic-api/test-spec011-evidence-auto-closeout.mjs",
+            "http-generic-api/test-spec011-evidence-auto-closeout-schemas.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json"
+          ]
+        },
+        {
+          "id": "goal-to-bounded-operational-projection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Admin or Tenant operator inspecting one governed goal",
+          "entrypoint": "buildGoalFilteredOperationalIntelligence with a stable goal descriptor, durable operation snapshots, subject-scoped Activation operational intelligence, and a governed diagnostic reference registrar",
+          "terminal_outcome": "A bounded summary-first projection reports the goal state, linked operations, blockers, next actions, and blocking, related-risk, and platform-wide attention while preserving complete diagnostics for every linked and unrelated operation and attention item through verified governed references.",
+          "steps": [
+            "Normalize the goal and require at least one exact operation, resource, container, workspace, Brand, system, or tag correlation anchor.",
+            "Correlate durable operation snapshots using explicit goal references, exact resource identities, compatible parent-child relations, and operation-key plus tag pairs while rejecting tenant-only linkage.",
+            "Load the subject-scoped Activation operational attention queue and classify every item as blocking, related_risk, platform_wide, or unrelated.",
+            "Register complete operation and attention payloads, including unrelated items, through a governed diagnostic registrar with exact SHA-256 readback.",
+            "Produce a bounded summary containing only linked operation and relevant attention summaries, counts, blockers, next actions, source health, and governed diagnostic references.",
+            "Exercise degraded-source, invalid-registrar, secret-input, no-operation, and inline-boundary cases without provider calls, external mutations, Production writes, deployment, or runtime authority changes."
+          ],
+          "assertions": [
+            "An explicit goal reference creates a primary operation link and exact resource or compatible parent-child evidence creates supporting links.",
+            "Matching only the Tenant does not link an operation to the goal.",
+            "Every attention item receives exactly one of blocking, related_risk, platform_wide, or unrelated.",
+            "Direct goal relationships take precedence over platform-wide scope and unrelated items are counted but never inlined.",
+            "The inline projection respects configured item and byte limits and never includes raw operation or attention evidence.",
+            "Every operation and attention item has a governed reference whose digest matches the complete registered payload.",
+            "Degraded Activation sources remain visible and never become implicit successful evidence.",
+            "The projection is read-only and performs no provider call, external mutation, Production write, deployment, runtime authority change, or secret disclosure."
+          ],
+          "tests": [
+            {
+              "id": "spec011-goal-filtered-operational-intelligence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-goal-filtered-operational-intelligence.mjs",
+              "args": []
+            },
+            {
+              "id": "spec011-goal-filtered-operational-intelligence-schema",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec011-goal-filtered-operational-intelligence-schema.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-011-goal-filtered-operational-intelligence.yml",
+            "http-generic-api/spec011GoalFilteredOperationalIntelligence.js",
+            "http-generic-api/test-spec011-goal-filtered-operational-intelligence.mjs",
+            "http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence-delivery.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence.md",
+            "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase8-goal-filtered-operational-intelligence.schema.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Exercise authorized non-production managed delivery, evidence closeout, goal-filtered intelligence, and T141 canary readiness against durable repository, operation, Activation, diagnostic-reference, migration-ledger, and runtime-binding authorities with exact readback."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove recovery from stale evidence, concurrent branch movement, duplicate delivery, partial readback, degraded operational surfaces, ambiguous goal relationships, stale T141 authorization, and upstream timeouts without duplicate mutation or diagnostic loss."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run one governed non-production managed-delivery lifecycle, one evidence closeout, one goal-filtered operational projection, and one separately authorized T141 staging canary with complete receipts, diagnostic references, and bounded evidence while T141 remains open."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Use separately authorized Production migration, delegation-canary, deployment, and readback evidence while preserving provider, protected-branch, Tenant, runtime-policy, and diagnostic disclosure boundaries."
+    }
+  ]
+}

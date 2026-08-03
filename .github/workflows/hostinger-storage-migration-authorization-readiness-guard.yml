@@ -1,0 +1,83 @@
+name: Hostinger Storage Migration Authorization Readiness Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-migration-authorization-readiness.json'
+      - '.changes/e2e/spec014-durable-authorized-injection-wave4-runtime-promotion.json'
+      - '.github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json'
+      - '.github/contracts/spec014/hostinger-storage-runtime-migrations.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json'
+      - '.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml'
+      - 'http-generic-api/governedMigrationAuthorizationBootstrap.js'
+      - 'http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js'
+      - 'http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs'
+      - 'http-generic-api/migrations/20260802_01_spec014_hostinger_storage_foundation.sql'
+      - 'http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql'
+      - 'http-generic-api/migrations/20260802_03_spec014_hostinger_storage_execution_evidence.sql'
+      - 'http-generic-api/migrations/20260802_04_spec014_hostinger_storage_authorized_injection_state.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-migration-authorization-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          node --check http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs
+
+      - name: Enforce repository-only safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|require\(['\"](?:mysql2|child_process|net|tls)['\"]\)|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "authorization_registry_mutated: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "migration_sql_executed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "live_database_access_performed: false" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q "HOSTINGER_STORAGE_WAVE_4_PROMOTION_PR = 4879" http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js
+          grep -q '"wave_4_promotion_pull_request": 4879' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"authorization_created": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"migration_sql_executed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q '"live_database_access_performed": false' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+          grep -q 'SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED' .github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json
+
+      - name: Execute readiness contract regression
+        env:
+          SPEC014_MIGRATION_READINESS_REPORT: ${{ runner.temp }}/spec014-migration-authorization-readiness.json
+        run: node http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs
+
+      - name: Upload structured readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-migration-authorization-readiness-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-migration-authorization-readiness.json
+          if-no-files-found: error
+          retention-days: 30

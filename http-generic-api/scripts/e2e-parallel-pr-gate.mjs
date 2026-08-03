@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,6 +71,65 @@ function writeOutputs(file, outputs) {
   fs.appendFileSync(file, `${lines.join("\n")}\n`);
 }
 
+function resolveCanonicalMainRef(root) {
+  for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
+    try {
+      execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      });
+      return candidate;
+    } catch {}
+  }
+  return null;
+}
+
+function isAncestor(root, ancestor, descendant) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+      cwd: root,
+      stdio: "ignore"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveFirstParent(root, headSha) {
+  if (!/^[0-9a-f]{40}$/.test(headSha)) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", `${headSha}^1`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function classifyProductionPromotion({ root, headRef, baseRef, headSha }) {
+  if (headRef === "main" && baseRef === "Production") {
+    return { allowed: true, identity: "protected_main" };
+  }
+  if (baseRef !== "Production") return { allowed: false, identity: null };
+
+  const match = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
+  if (!match) return { allowed: false, identity: null };
+  if (!/^[0-9a-f]{40}$/.test(headSha) || !headSha.startsWith(match[1])) {
+    return { allowed: false, identity: null };
+  }
+
+  const mainRef = resolveCanonicalMainRef(root);
+  if (!mainRef || !isAncestor(root, headSha, mainRef)) {
+    return { allowed: false, identity: null };
+  }
+  return { allowed: true, identity: "immutable_main_snapshot" };
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const report = evaluateParallelWork({
@@ -111,6 +171,21 @@ function main() {
   if (integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
   if (active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
+  const promotion = classifyProductionPromotion({
+    root: options.root,
+    headRef: options.headRef,
+    baseRef: options.baseRef,
+    headSha: options.head
+  });
+  const productionPromotion = promotion.allowed;
+  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+  if (productionPromotion && !phaseEvaluationBase) {
+    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+      head_sha: options.head,
+      promotion_identity: promotion.identity
+    });
+  }
+
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
@@ -124,7 +199,7 @@ function main() {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.headRef && !options.headRef.startsWith("gh-readonly-queue/")) {
+  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const runtimeChanged = report.changed_files.some((file) => {
       const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
       return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
@@ -137,12 +212,18 @@ function main() {
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
   report.base_ref = options.baseRef || null;
+  report.production_promotion = productionPromotion;
+  report.production_promotion_identity = promotion.identity;
+  report.phase_evaluation_base = phaseEvaluationBase;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
     feature_key: featureKey,
     contract_path: contractPath,
-    workstream_id: workstreamId
+    workstream_id: workstreamId,
+    production_promotion: productionPromotion,
+    production_promotion_identity: promotion.identity || "",
+    phase_evaluation_base: phaseEvaluationBase || ""
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);

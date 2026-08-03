@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-durable-governed-execution-and-agent-delegation",
+  "audit_type": "interim_completion_governance",
+  "status": "partially_complete_blocked_on_live_production_evidence",
+  "audited_at": "2026-08-03T10:35:00Z",
+  "source_contracts": {
+    "completion_json": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/completion.json",
+      "blob_sha": "f18eac187c1f13a81e11fba1ea5da7c958cd69be",
+      "status": "in_progress"
+    },
+    "tasks": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/tasks.md"
+    },
+    "phase4_closeout": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave-closeout.json",
+      "blob_sha": "039af6378ac8130d3e027fbe7bfdbc198d654223"
+    },
+    "phase5_closeout": {
+      "path": "specs/011-durable-governed-execution-and-agent-delegation/phase5-validation-structured-ci-wave-closeout.json",
+      "blob_sha": "95d7ff22f0dd9c8fc1ec568e473e29d7ab0e8b67"
+    },
+    "phase6_closeout": "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
+    "phase7_closeout": "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-closeout.json",
+    "phase8_closeout": "specs/011-durable-governed-execution-and-agent-delegation/phase8-goal-filtered-operational-intelligence-closeout.json"
+  },
+  "t260_implementation_delivery_history": {
+    "status": "complete",
+    "record_count": 19,
+    "records": [
+      {
+        "pull_request": 2934,
+        "role": "specification",
+        "merge_sha": "3846b295e1d657a6555ca6f601112958e0c215f0"
+      },
+      {
+        "pull_request": 2954,
+        "role": "phase0_contract_baseline",
+        "merge_sha": "b69d081be95f1fdd5c556b99ba8ed5de2815b501"
+      },
+      {
+        "pull_request": 2960,
+        "role": "phase1_shadow_durable_kernel",
+        "merge_sha": "3822329128f355ef3149c57eb5b3b9cf80298ded"
+      },
+      {
+        "pull_request": 3018,
+        "role": "phase2_canonical_execution_contract_resolver",
+        "merge_sha": "0c663e7cb46843362115560814f13a3eab83e362"
+      },
+      {
+        "pull_request": 3042,
+        "role": "phase3_plan_bound_session_shadow",
+        "merge_sha": "d2dd51d7cb588e467620f8349cbb135102503a0a"
+      },
+      {
+        "pull_request": 3067,
+        "role": "phase3_delegation_grant_shadow",
+        "merge_sha": "ef30d1d831b7743587d08d701fb391f5230e9690"
+      },
+      {
+        "pull_request": 3110,
+        "role": "phase3_delegation_persistence_contract",
+        "merge_sha": "d154a24c0cba9bf692fa3105c574c557b1975e4b"
+      },
+      {
+        "pull_request": 3173,
+        "role": "phase3_delegation_lifecycle_shadow_contract",
+        "merge_sha": "8eff6d3166dd331041f742ce0695e0554a2be8e2"
+      },
+      {
+        "pull_request": 3203,
+        "role": "phase3_delegation_approval_mode_contract_drift_repair",
+        "merge_sha": "68b2a3193b1b983a931593e3f4dc72af64bfbe87"
+      },
+      {
+        "pull_request": 3221,
+        "role": "phase3_delegation_repository_mutation_contract",
+        "merge_sha": "184654010e81cb81bebe56b4189f4becb20a5492"
+      },
+      {
+        "pull_request": 3246,
+        "role": "phase3_delegation_mariadb_adapter_and_readiness_contract",
+        "merge_sha": "33dbcc6f15bbee07b8b106bcf99a77acf9206494"
+      },
+      {
+        "pull_request": 3465,
+        "role": "phase3_delegation_mariadb_disposable_certification_and_default_off_runtime_binding",
+        "merge_sha": "dfd404e194b77181e1f4dd7f29a4acdf709610ed"
+      },
+      {
+        "pull_request": 3620,
+        "role": "phase1_durable_execution_control_runtime",
+        "merge_sha": "630a3545f0670268745ff66a94a510d6999b38ae"
+      },
+      {
+        "pull_request": 3966,
+        "role": "phase3_delegation_policy_runtime_wave",
+        "merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf"
+      },
+      {
+        "pull_request": 4238,
+        "role": "phase4_reconciliation_and_readback",
+        "merge_sha": "f76f43755dfb212eab66dc5c96e8859a75ae5415"
+      },
+      {
+        "pull_request": 5160,
+        "role": "phase5_validation_lab_and_structured_ci",
+        "merge_sha": "8cea21330ae76038d48215023e362195cff9f368"
+      },
+      {
+        "pull_request": 5207,
+        "role": "phase6_managed_pr_and_release_lifecycle",
+        "merge_sha": "a954524eaa8358ed333ff994b7be120dbf9e1139"
+      },
+      {
+        "pull_request": 5219,
+        "role": "phase7_evidence_auto_closeout",
+        "merge_sha": "703b3874abe2b49f9d12262b45c55fd91b0c73b8"
+      },
+      {
+        "pull_request": 5239,
+        "role": "phase8_goal_filtered_operational_intelligence",
+        "merge_sha": "ec83f81fce165a71c309e6607ce127aae369da54"
+      }
+    ],
+    "superseded_unmerged_record": {
+      "pull_request": 3132,
+      "role": "phase3_delegation_persistence_closeout_original",
+      "status": "closed_unmerged",
+      "head_sha": "3733b608d724b83616c6da350a5c2464470169f0"
+    },
+    "secrets_included": false
+  },
+  "t261_migration_authorization_and_ledger": {
+    "status": "blocked",
+    "migration": "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql",
+    "checksum_sha256": "27de4ec34d92ef4d6c5440847890ffc9c05a91546aa16af3e03aac89496d1774",
+    "statement_count": 2,
+    "disposable_mariadb": {
+      "engine": "11.4.12-MariaDB-ubu2404",
+      "workflow_run_id": 30787416318,
+      "preflight_artifact_id": 8846413284,
+      "certification_artifact_id": 8846413573,
+      "pre_apply_authorized": true,
+      "migration_and_lifecycle_certified": true,
+      "create_verified": true,
+      "revoke_verified": true,
+      "expire_verified": true,
+      "runtime_policy_ready_zero": true,
+      "production_authorized": false
+    },
+    "production": {
+      "migration_applied": false,
+      "authorization_present": false,
+      "ledger_readback_present": false,
+      "same_cycle_schema_readback_present": false
+    },
+    "blockers": [
+      "T141 governed live grant preview/create/inspect/revoke/expire cycle is not executed",
+      "Production migration authorization is absent",
+      "Production migration ledger readback is absent",
+      "Production schema and lifecycle readback are absent"
+    ],
+    "automatic_apply_allowed": false,
+    "secrets_included": false
+  },
+  "t262_delegation_and_fault_injection_certification": {
+    "status": "complete",
+    "delegation_policy_runtime": {
+      "implementation_pull_request": 3966,
+      "merge_sha": "7bee48610b991d6810235c5eedb05ee9c8451ecf",
+      "evidence_closeout_pull_request": 4004,
+      "evidence_closeout_merge_sha": "b95de1e8955338403d33051d567c6e0b09e928d4",
+      "post_merge_readback_pull_request": 4051,
+      "post_merge_readback_merge_sha": "17001d22c69473817991529842b352b17c743547"
+    },
+    "reconciliation_fault_injection": {
+      "implementation_pull_request": 4238,
+      "merge_sha": "f76f43755dfb212eab66dc5c96e8859a75ae5415",
+      "ci_run_id": 30686941596,
+      "duplicate_mutation_fault_injection": "pass",
+      "unknown_outcome_read_before_retry": "pass",
+      "automatic_retry": false
+    },
+    "mariadb_lifecycle_certification": {
+      "workflow_run_id": 30787416318,
+      "create_verified": true,
+      "revoke_verified": true,
+      "expire_verified": true,
+      "idempotency_unknown_outcome_gate": "pass",
+      "delegation_boundary_policy_drift_gate": "pass",
+      "production_authorized": false
+    },
+    "scope_note": "Certification is complete for code, disposable MariaDB, delegation boundaries, idempotency, and fault injection. It does not claim completion of the live Production T141 lifecycle.",
+    "secrets_included": false
+  },
+  "t263_ci_staging_and_production_parity": {
+    "status": "blocked",
+    "ci": {
+      "phase4": "pass",
+      "phase5": "pass",
+      "phase6": "pass",
+      "phase7": "pass",
+      "phase8": "pass"
+    },
+    "staging": {
+      "parity_evidence_complete": false,
+      "delegation_lifecycle_canary_complete": false
+    },
+    "production": {
+      "deployed_sha_verified": false,
+      "migration_parity_verified": false,
+      "delegation_lifecycle_readback_verified": false,
+      "runtime_policy_activation_verified": false
+    },
+    "blockers": [
+      "No authoritative staging lifecycle canary for T141",
+      "No authorized Production migration apply and ledger readback",
+      "No Production deployment/runtime parity evidence for the delegation lifecycle"
+    ],
+    "secrets_included": false
+  },
+  "t264_final_post_merge_audit_and_closeout": {
+    "status": "blocked",
+    "interim_post_merge_audit": true,
+    "final_closeout_pull_request_allowed": false,
+    "remaining_tasks": ["T141", "T261", "T263", "T264"],
+    "completion_status_must_remain": "in_progress",
+    "blockers": [
+      "T141 is open",
+      "Production migration/ledger evidence is absent",
+      "Staging and Production parity are incomplete"
+    ],
+    "secrets_included": false
+  },
+  "governance_decision": {
+    "tasks_to_mark_complete": ["T260", "T262"],
+    "tasks_to_keep_open": ["T141", "T261", "T263", "T264"],
+    "feature_status": "in_progress",
+    "production_mutation_performed": false,
+    "provider_write_performed": false,
+    "deployment_performed": false,
+    "force_push_used": false,
+    "protected_branch_bypass_used": false,
+    "secrets_included": false
+  }
+}

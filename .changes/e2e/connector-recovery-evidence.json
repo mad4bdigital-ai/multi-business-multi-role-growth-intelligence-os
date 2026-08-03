@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "connector-recovery-evidence",
+  "title": "Read-only Cloudflare local connector recovery evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/connector-recovery-evidence.json",
+      ".github/workflows/connector-recovery-evidence.yml",
+      "http-generic-api/scripts/connector-recovery-evidence.mjs",
+      "http-generic-api/scripts/test-connector-recovery-evidence.mjs",
+      "local-connector/server.mjs",
+      "canonicals/openapi/local-connector.openapi.yaml",
+      "http-generic-api/config/deployment-branch-policy.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a workflow-dispatch-only, credential-free public health verifier for connector.mad4b.com that proves Cloudflare transport and bounded Windows local-connector identity without Hostinger branch/SHA assumptions or recovery mutations.",
+      "e2e_journeys": [
+        {
+          "id": "validate-connector-recovery-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation and recovery operator",
+          "entrypoint": "Connector Recovery Evidence contract job or trusted-main workflow_dispatch",
+          "terminal_outcome": "A bounded structured artifact either proves public DNS, authorized TLS, HTTP 200 JSON, service local-connector, platform win32, hashed hostname presence, and valid uptime, or fails closed with one sanitized first failure.",
+          "steps": [
+            "Bind the only accepted URL to https://connector.mad4b.com/health without credentials, query, fragment, redirect following, alternate host, path, or port.",
+            "Require the canonical local-connector health route to remain unauthenticated and return service, hostname, platform, and uptime.",
+            "Require deployment policy to keep connector.mad4b.com on Cloudflare Tunnel with Hostinger Auto Deploy disabled.",
+            "Reject private, loopback, link-local, multicast, documentation, invalid, or over-cardinality DNS answers before TLS or HTTP.",
+            "Require authorized TLS, bounded complete HTTP response, HTTP 200 application/json, and valid JSON.",
+            "Require ok=true, service=local-connector, platform=win32, non-empty hostname, and non-negative uptime.",
+            "Persist only a hostname SHA-256 digest, never the raw hostname or arbitrary response fields.",
+            "Upload and enforce a structured secret-free artifact only during explicit trusted-main workflow_dispatch."
+          ],
+          "assertions": [
+            "The workflow has contents:read only and no push, schedule, pull_request_target, issue_comment, or deployment trigger.",
+            "Live network probing is skipped in pull-request context and allowed only from refs/heads/main workflow_dispatch.",
+            "The workflow contains no connector credential, Authorization header, x-api-key, x-connector-secret, secret context, provider mutation, or recovery command.",
+            "The report contract is mad4b.connector-recovery-evidence.v1.",
+            "The raw hostname, response body, unknown JSON fields, error details, tokens, passwords, and secrets are not persisted.",
+            "All repository, provider, credential, SQL, migration, and external-send effect flags remain false."
+          ],
+          "tests": [
+            {
+              "id": "connector-recovery-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-connector-recovery-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/connector-recovery-evidence.yml",
+            "http-generic-api/scripts/connector-recovery-evidence.mjs",
+            "http-generic-api/scripts/test-connector-recovery-evidence.mjs",
+            "local-connector/server.mjs",
+            "canonicals/openapi/local-connector.openapi.yaml",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Run the trusted-main public health verifier after Windows and Cloudflare Tunnel recovery and attach the artifact to issue 4957."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded retry and Cloudflare-specific edge classification without introducing credentials or mutation."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This is a public recovery health readback, not a deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require a passing connector recovery artifact before declaring the break-glass surface available."
+    }
+  ],
+  "secrets_included": false
+}

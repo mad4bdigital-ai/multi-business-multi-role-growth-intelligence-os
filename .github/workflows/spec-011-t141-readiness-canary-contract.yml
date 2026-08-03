@@ -1,0 +1,99 @@
+name: Spec 011 T141 Readiness Canary Contract
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/spec-011-t141-readiness-canary-contract.yml"
+      - "http-generic-api/spec011T141ReadinessCanaryContract.js"
+      - "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs"
+      - "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs"
+      - "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json"
+      - "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract.md"
+      - "specs/011-durable-governed-execution-and-agent-delegation/t141-readiness-canary-contract-delivery.json"
+      - "specs/011-durable-governed-execution-and-agent-delegation/schemas/t141-readiness-canary-contract.schema.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-011-t141-readiness-canary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify-t141-readiness-canary-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check T141 contract syntax
+        working-directory: http-generic-api
+        run: |
+          node --check spec011T141ReadinessCanaryContract.js
+          node --check test-spec011-t141-readiness-canary-contract.mjs
+          node --check test-spec011-t141-readiness-canary-schema.mjs
+
+      - name: Certify readiness and canary lifecycle contract
+        working-directory: http-generic-api
+        run: node test-spec011-t141-readiness-canary-contract.mjs
+
+      - name: Validate T141 structured schema
+        working-directory: http-generic-api
+        run: node test-spec011-t141-readiness-canary-schema.mjs
+
+      - name: Write bounded certification evidence
+        if: always()
+        working-directory: http-generic-api
+        env:
+          JOB_STATUS: ${{ job.status }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const passed = process.env.JOB_STATUS === 'success';
+          fs.writeFileSync('artifacts/spec011-t141-readiness-canary-contract.json', JSON.stringify({
+            schema_version: 1,
+            report_type: 'spec011_t141_readiness_canary_contract_certification',
+            version: 'spec011-t141-readiness-canary-contract-v1',
+            source_sha: process.env.SOURCE_SHA,
+            status: passed ? 'pass' : 'failed',
+            scope: 'synthetic_contract_only',
+            t141_closed_by_this_run: false,
+            t261_closed_by_this_run: false,
+            t263_closed_by_this_run: false,
+            staging_canary_executed: false,
+            production_canary_executed: false,
+            migration_applied: false,
+            delegation_mutated: false,
+            provider_calls_made: false,
+            external_mutations_executed: false,
+            production_authorization_used: false,
+            runtime_authority_changed: false,
+            automatic_retry_after_unknown_outcome: false,
+            public_route_added: false,
+            secrets_included: false
+          }, null, 2) + '\n');
+          NODE
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-t141-readiness-canary-contract
+          path: http-generic-api/artifacts/spec011-t141-readiness-canary-contract.json
+          if-no-files-found: error
+          retention-days: 30

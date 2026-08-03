@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/storage-evidence.schema.json",
+  "title": "Hostinger Storage Operation Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "operation_id",
+    "operation_key",
+    "target_id",
+    "state",
+    "observed_at",
+    "completeness",
+    "secrets_included"
+  ],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "operation_key": {"type": "string", "minLength": 1, "maxLength": 128},
+    "target_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "resource_id": {"type": ["string", "null"], "maxLength": 64},
+    "tenant_id": {"type": ["string", "null"], "maxLength": 64},
+    "workspace_id": {"type": ["string", "null"], "maxLength": 64},
+    "plan_id": {"type": ["string", "null"], "maxLength": 128},
+    "run_id": {"type": ["string", "null"], "maxLength": 128},
+    "state": {
+      "enum": [
+        "observed",
+        "classified",
+        "planned",
+        "inspected",
+        "approval_requested",
+        "partially_approved",
+        "approved",
+        "lease_acquired",
+        "executing",
+        "readback_pending",
+        "reconciling",
+        "completed",
+        "blocked",
+        "expired",
+        "cancelled",
+        "unknown_outcome",
+        "failed"
+      ]
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "provider_evidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {"const": "hostinger"},
+        "evidence_ref": {"type": "string", "maxLength": 256},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "disk_limit_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "disk_used_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "disk_used_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "inode_limit": {"type": ["integer", "null"], "minimum": 0},
+        "inode_used": {"type": ["integer", "null"], "minimum": 0},
+        "inode_used_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "fresh": {"type": "boolean"}
+      }
+    },
+    "filesystem_evidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "observed_at": {"type": "string", "format": "date-time"},
+        "logical_usage_bytes": {"type": "integer", "minimum": 0},
+        "logical_inode_count": {"type": "integer", "minimum": 0},
+        "filesystem_disk_percent": {"type": ["string", "null"], "maxLength": 16},
+        "filesystem_inode_percent": {"type": ["string", "null"], "maxLength": 16},
+        "source_label": {"const": "filesystem_not_hosting_plan_quota"},
+        "complete": {"type": "boolean"}
+      }
+    },
+    "pressure": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "byte_state": {"enum": ["normal", "warning", "critical", "emergency", "unknown"]},
+        "inode_state": {"enum": ["normal", "warning", "critical", "emergency", "unknown"]},
+        "effective_state": {"enum": ["normal", "warning", "critical", "emergency", "unknown"]},
+        "policy_revision": {"type": "string", "maxLength": 128}
+      }
+    },
+    "execution_summary": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "deleted_count": {"type": "integer", "minimum": 0},
+        "deleted_bytes": {"type": "integer", "minimum": 0},
+        "skipped_count": {"type": "integer", "minimum": 0},
+        "failed_count": {"type": "integer", "minimum": 0},
+        "journal_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "unknown_outcome": {"type": "boolean"}
+      }
+    },
+    "readbacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "status"],
+        "properties": {
+          "key": {"type": "string", "minLength": 1, "maxLength": 128},
+          "status": {"enum": ["pass", "fail", "pending", "not_applicable"]},
+          "evidence_ref": {"type": ["string", "null"], "maxLength": 256},
+          "observed_at": {"type": ["string", "null"], "format": "date-time"}
+        }
+      }
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 128},
+      "uniqueItems": true
+    },
+    "completeness": {"enum": ["complete", "partial", "stale", "failed"]},
+    "evidence_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "secrets_included": {"const": false}
+  }
+}

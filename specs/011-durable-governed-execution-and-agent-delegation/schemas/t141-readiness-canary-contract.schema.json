@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec011/t141-readiness-canary-contract.schema.json",
+  "title": "Spec 011 T141 readiness and governed canary evidence",
+  "oneOf": [
+    { "$ref": "#/$defs/readiness" },
+    { "$ref": "#/$defs/contract" },
+    { "$ref": "#/$defs/outcome" }
+  ],
+  "$defs": {
+    "version": {
+      "type": "string",
+      "const": "spec011-t141-readiness-canary-contract-v1"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["staging", "production"]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "request_fingerprint",
+        "grant_id",
+        "receipt_id",
+        "operation_id",
+        "step_id",
+        "idempotency_key",
+        "expected_status",
+        "proposed_status"
+      ],
+      "properties": {
+        "action": { "enum": ["create", "revoke", "expire"] },
+        "request_fingerprint": { "$ref": "#/$defs/sha256" },
+        "grant_id": { "$ref": "#/$defs/uuid" },
+        "receipt_id": { "$ref": "#/$defs/uuid" },
+        "operation_id": { "$ref": "#/$defs/uuid" },
+        "step_id": { "$ref": "#/$defs/uuid" },
+        "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 191 },
+        "expected_status": { "type": "string", "minLength": 1 },
+        "proposed_status": { "enum": ["active", "revoked", "expired"] }
+      }
+    },
+    "authorizationBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approved",
+        "capability_envelope_id",
+        "approval_hold_id",
+        "resource_authority_ref",
+        "expected_request_fingerprint",
+        "environment",
+        "expires_at",
+        "secrets_included"
+      ],
+      "properties": {
+        "approved": { "const": true },
+        "capability_envelope_id": { "$ref": "#/$defs/uuid" },
+        "approval_hold_id": { "$ref": "#/$defs/uuid" },
+        "resource_authority_ref": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "expected_request_fingerprint": { "$ref": "#/$defs/sha256" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "secrets_included": { "const": false }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "step",
+        "mutation",
+        "retry_allowed_after_unknown_outcome",
+        "same_cycle_readback_required"
+      ],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "step": {
+          "enum": [
+            "inspect_primary_absent",
+            "primary_create",
+            "inspect_primary_active",
+            "primary_revoke",
+            "inspect_primary_revoked",
+            "expiry_create",
+            "inspect_expiry_active",
+            "expiry_expire",
+            "inspect_expiry_expired",
+            "inspect_mutation_receipts"
+          ]
+        },
+        "mutation": { "type": "boolean" },
+        "retry_allowed_after_unknown_outcome": { "const": false },
+        "same_cycle_readback_required": { "const": true }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ok",
+        "report_type",
+        "version",
+        "environment",
+        "decision",
+        "blockers",
+        "production_authorized",
+        "execution_performed",
+        "migration_applied_by_this_evaluation",
+        "delegation_mutated",
+        "runtime_authority_changed",
+        "secrets_included"
+      ],
+      "properties": {
+        "ok": { "const": true },
+        "report_type": { "const": "spec011_t141_canary_readiness" },
+        "version": { "$ref": "#/$defs/version" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "decision": { "enum": ["ready_for_governed_canary", "blocked"] },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "production_authorized": { "type": "boolean" },
+        "execution_performed": { "const": false },
+        "migration_applied_by_this_evaluation": { "const": false },
+        "delegation_mutated": { "const": false },
+        "runtime_authority_changed": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ok",
+        "report_type",
+        "version",
+        "environment",
+        "decision",
+        "contract_fingerprint_sha256",
+        "target",
+        "migration",
+        "plans",
+        "authorization_bindings",
+        "steps",
+        "next_action",
+        "execution_performed",
+        "migration_applied_by_this_contract",
+        "delegation_mutated",
+        "runtime_authority_changed",
+        "public_route_added",
+        "secrets_included"
+      ],
+      "properties": {
+        "ok": { "const": true },
+        "report_type": { "const": "spec011_t141_canary_contract" },
+        "version": { "$ref": "#/$defs/version" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "decision": { "const": "ready_for_governed_canary" },
+        "contract_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["environment", "tenant_id", "database_name", "expected_deployed_sha", "runtime_deployed_sha"],
+          "properties": {
+            "environment": { "$ref": "#/$defs/environment" },
+            "tenant_id": { "$ref": "#/$defs/uuid" },
+            "database_name": { "type": "string", "minLength": 1, "maxLength": 191 },
+            "expected_deployed_sha": { "$ref": "#/$defs/commitSha" },
+            "runtime_deployed_sha": { "$ref": "#/$defs/commitSha" }
+          }
+        },
+        "migration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checksum_sha256", "ledger_reference", "schema_readback_fingerprint", "production_authorized"],
+          "properties": {
+            "checksum_sha256": { "$ref": "#/$defs/sha256" },
+            "ledger_reference": { "type": "string", "minLength": 1, "maxLength": 500 },
+            "schema_readback_fingerprint": { "$ref": "#/$defs/sha256" },
+            "production_authorized": { "type": "boolean" }
+          }
+        },
+        "plans": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary_create", "primary_revoke", "expiry_create", "expiry_expire"],
+          "properties": {
+            "primary_create": { "$ref": "#/$defs/plan" },
+            "primary_revoke": { "$ref": "#/$defs/plan" },
+            "expiry_create": { "$ref": "#/$defs/plan" },
+            "expiry_expire": { "$ref": "#/$defs/plan" }
+          }
+        },
+        "authorization_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary_create", "primary_revoke", "expiry_create", "expiry_expire"],
+          "properties": {
+            "primary_create": { "$ref": "#/$defs/authorizationBinding" },
+            "primary_revoke": { "$ref": "#/$defs/authorizationBinding" },
+            "expiry_create": { "$ref": "#/$defs/authorizationBinding" },
+            "expiry_expire": { "$ref": "#/$defs/authorizationBinding" }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "next_action": {
+          "type": "object",
+          "required": ["action", "reason_code"],
+          "properties": {
+            "action": { "const": "request_separately_authorized_t141_canary_execution" },
+            "reason_code": { "enum": ["T141_STAGING_CANARY_READY", "T141_PRODUCTION_CANARY_READY"] }
+          }
+        },
+        "execution_performed": { "const": false },
+        "migration_applied_by_this_contract": { "const": false },
+        "delegation_mutated": { "const": false },
+        "runtime_authority_changed": { "const": false },
+        "public_route_added": { "const": false },
+        "secrets_included": { "const": false }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ok",
+        "report_type",
+        "version",
+        "environment",
+        "status",
+        "blockers",
+        "automatic_mutation_retry_allowed",
+        "t141_completion_eligible",
+        "t261_completion_eligible",
+        "t263_completion_eligible",
+        "execution_verified",
+        "secrets_included"
+      ],
+      "properties": {
+        "ok": { "const": true },
+        "report_type": { "const": "spec011_t141_canary_outcome" },
+        "version": { "$ref": "#/$defs/version" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "status": {
+          "enum": [
+            "reconciliation_required",
+            "failed_closed",
+            "staging_canary_verified",
+            "production_canary_verified"
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "automatic_mutation_retry_allowed": { "const": false },
+        "t141_completion_eligible": { "type": "boolean" },
+        "t261_completion_eligible": { "type": "boolean" },
+        "t263_completion_eligible": { "type": "boolean" },
+        "execution_verified": { "type": "boolean" },
+        "runtime_policy_ready_promoted": { "const": false },
+        "public_route_added": { "const": false },
+        "secrets_included": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "enum": ["reconciliation_required", "failed_closed", "staging_canary_verified"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "t141_completion_eligible": { "const": false },
+              "t261_completion_eligible": { "const": false },
+              "t263_completion_eligible": { "const": false }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "reconciliation_required" } } },
+          "then": { "properties": { "execution_verified": { "const": false } } }
+        }
+      ]
+    }
+  }
+}

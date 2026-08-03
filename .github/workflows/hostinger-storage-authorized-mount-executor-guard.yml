@@ -1,0 +1,78 @@
+name: Hostinger Storage Authorized Mount Executor Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-authorized-mount-executor.json'
+      - '.github/contracts/spec014/hostinger-storage-authorized-mount-executor.json'
+      - '.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml'
+      - 'http-generic-api/hostingerStorageAuthorizedMountExecutor.js'
+      - 'http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-authorized-mount-executor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authorized-mount-executor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check executor syntax
+        run: |
+          node --check http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          node --check http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs
+
+      - name: Validate one-shot mount bundle and restart reconstruction
+        run: node http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs
+
+      - name: Preserve canonical dependency ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'createHostingerStorageDurableTenantRepositoryFacade' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'createHostingerStorageTenantRuntime' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'isCanonicalHostingerStorageDurableMountAuthorizationRegistry' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'isCanonicalHostingerStorageVerifiedSqlRuntimeComposition' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'isCanonicalHostingerStorageSyntheticAdapter' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'isCanonicalHostingerStorageDurableTenantAuthorityStore' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'isCanonicalHostingerStorageDurableTenantEnablementRegistry' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'receipt?.registered_generation !== execution.expected_generation' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'record?.generation !== execution.expected_generation + 1' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+
+      - name: Preserve uninjected unmounted non-dispatching boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageAuthorizedMountExecutor.js \
+            http-generic-api/test-hostinger-storage-authorized-mount-executor.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'dependency_injection_allowed: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'dependency_injected: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'mount_performed: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageAuthorizedMountExecutor.js
+          grep -q '"route_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-mount-executor.json
+          grep -q '"server_files_modified": 0' .github/contracts/spec014/hostinger-storage-authorized-mount-executor.json

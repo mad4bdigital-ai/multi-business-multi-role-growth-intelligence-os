@@ -1,0 +1,514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/commerce-capability-catalog.schema.json",
+  "title": "Business-Profile-Driven Brand Commerce Capability and Solution Blueprint",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/capabilityDefinition" },
+    { "$ref": "#/$defs/solutionBlueprint" },
+    { "$ref": "#/$defs/discoveryResult" }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "domainKey": {
+      "type": "string",
+      "enum": [
+        "site.content",
+        "site.taxonomies",
+        "site.builder_assets",
+        "site.configuration",
+        "site.forms",
+        "site.media",
+        "site.users_roles",
+        "site.seo",
+        "site.performance",
+        "site.security",
+        "site.observability",
+        "site.backup",
+        "site.release",
+        "commerce.catalog",
+        "commerce.inventory",
+        "commerce.checkout",
+        "commerce.orders",
+        "commerce.customers",
+        "commerce.coupons",
+        "commerce.payments",
+        "commerce.fulfillment",
+        "commerce.returns",
+        "commerce.suppliers",
+        "commerce.media",
+        "commerce.publications",
+        "measurement.events",
+        "ads.performance",
+        "customer.communication",
+        "workspace.files.brand"
+      ]
+    },
+    "maturity": {
+      "type": "string",
+      "enum": [
+        "inventory_only",
+        "dry_run_ready",
+        "apply_supported",
+        "sandbox_certified",
+        "production_certified",
+        "degraded",
+        "retired"
+      ]
+    },
+    "availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_with_configuration",
+        "available_with_external_provider",
+        "available_with_certified_adapter",
+        "available_with_custom_bridge",
+        "planned",
+        "unsupported",
+        "blocked"
+      ]
+    },
+    "predicate": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "propertyNames": {
+        "enum": ["all", "any", "not", "eq", "neq", "in", "contains", "exists", "gte", "lte"]
+      },
+      "additionalProperties": true
+    },
+    "profileApplicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inheritance_contract_ref",
+        "applicability_predicate",
+        "required_profile_dimension_keys",
+        "unknown_profile_policy"
+      ],
+      "properties": {
+        "inheritance_contract_ref": { "$ref": "#/$defs/reference" },
+        "applicability_predicate": { "$ref": "#/$defs/predicate" },
+        "supported_activity_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "excluded_activity_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_profile_dimension_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_activity_pack_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "forbidden_activity_pack_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "unknown_profile_policy": {
+          "type": "string",
+          "enum": ["block", "not_relevant", "needs_clarification"]
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_type", "key", "mandatory"],
+      "properties": {
+        "requirement_type": {
+          "type": "string",
+          "enum": [
+            "domain_authority",
+            "connection",
+            "credential_scope",
+            "resource_grant",
+            "capability",
+            "adapter_certification",
+            "plugin",
+            "human_role",
+            "policy",
+            "localization",
+            "profile_dimension",
+            "activity_pack"
+          ]
+        },
+        "key": { "$ref": "#/$defs/reference" },
+        "mandatory": { "type": "boolean" },
+        "constraints": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "capabilityDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "capability_key",
+        "version",
+        "name_en",
+        "name_ar",
+        "family",
+        "availability",
+        "maturity",
+        "supported_solution_modes",
+        "profile_applicability",
+        "requirements",
+        "risk_class",
+        "status",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "commerce_capability_definition" },
+        "capability_key": { "$ref": "#/$defs/reference" },
+        "version": { "$ref": "#/$defs/version" },
+        "name_en": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "name_ar": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "family": {
+          "type": "string",
+          "enum": [
+            "commerce_foundation",
+            "site_storefront",
+            "catalog",
+            "inventory",
+            "orders",
+            "payments",
+            "fulfillment",
+            "pos",
+            "supplier",
+            "media",
+            "content_seo",
+            "forms_crm",
+            "measurement",
+            "social_catalogs",
+            "advertising",
+            "performance",
+            "security",
+            "backup_recovery",
+            "release",
+            "observability",
+            "workspace_files",
+            "ai_automation"
+          ]
+        },
+        "business_outcomes": {
+          "type": "array",
+          "maxItems": 50,
+          "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "availability": { "$ref": "#/$defs/availability" },
+        "maturity": { "$ref": "#/$defs/maturity" },
+        "supported_solution_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "profile_applicability": { "$ref": "#/$defs/profileApplicability" },
+        "owned_domains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/domainKey" }
+        },
+        "requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requirement" }
+        },
+        "readiness_probe_key": { "$ref": "#/$defs/reference" },
+        "implementation_template_key": { "$ref": "#/$defs/reference" },
+        "operation_runbook_key": { "$ref": "#/$defs/reference" },
+        "acceptance_suite_key": { "$ref": "#/$defs/reference" },
+        "risk_class": {
+          "type": "string",
+          "enum": ["read_only", "low", "medium", "high", "critical"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "degraded", "blocked", "retired"]
+        },
+        "implementation_digest": {
+          "oneOf": [{ "$ref": "#/$defs/hash" }, { "type": "null" }]
+        },
+        "secrets_included": { "const": false }
+      }
+    },
+    "domainAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain_key", "authority_mode", "adapter_key"],
+      "properties": {
+        "domain_key": { "$ref": "#/$defs/domainKey" },
+        "authority_mode": {
+          "type": "string",
+          "enum": ["platform_native", "external_authoritative", "external_mirror", "read_projection"]
+        },
+        "adapter_key": { "$ref": "#/$defs/reference" },
+        "constraints": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "solutionBlueprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "blueprint_key",
+        "blueprint_version",
+        "name_en",
+        "name_ar",
+        "supported_business_models",
+        "profile_applicability",
+        "domain_authority_matrix",
+        "required_capabilities",
+        "launch_gate_keys",
+        "status",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "commerce_solution_blueprint" },
+        "blueprint_key": { "$ref": "#/$defs/reference" },
+        "blueprint_version": { "$ref": "#/$defs/version" },
+        "name_en": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "name_ar": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "supported_business_models": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["b2c", "b2b", "b2b2c", "marketplace", "subscription", "booking", "service_commerce", "lead_commerce", "hybrid"]
+          }
+        },
+        "profile_applicability": { "$ref": "#/$defs/profileApplicability" },
+        "domain_authority_matrix": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/domainAssignment" }
+        },
+        "required_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "optional_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "incompatible_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_connection_families": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "workflow_template_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "launch_gate_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "exit_strategy": { "type": "string", "maxLength": 4000 },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "degraded", "blocked", "retired"]
+        },
+        "secrets_included": { "const": false }
+      }
+    },
+    "capabilityAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_key", "availability", "maturity", "readiness_status", "applicability_status"],
+      "properties": {
+        "capability_key": { "$ref": "#/$defs/reference" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "maturity": { "$ref": "#/$defs/maturity" },
+        "readiness_status": {
+          "type": "string",
+          "enum": ["ready", "needs_connection", "needs_configuration", "needs_approval", "needs_plugin", "needs_custom_bridge", "blocked", "not_relevant"]
+        },
+        "applicability_status": {
+          "type": "string",
+          "enum": ["matched", "matched_with_inherited_constraints", "not_matched", "unknown_profile", "conflict"]
+        },
+        "inherited_requirement_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "local_override_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "blocking_reasons": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 500 }
+        },
+        "lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    },
+    "blueprintScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blueprint_key", "score", "status", "profile_match_status", "reasons"],
+      "properties": {
+        "blueprint_key": { "$ref": "#/$defs/reference" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "status": {
+          "type": "string",
+          "enum": ["recommended", "compatible", "compatible_with_constraints", "incompatible"]
+        },
+        "profile_match_status": {
+          "type": "string",
+          "enum": ["matched", "matched_with_constraints", "needs_clarification", "conflict", "not_applicable"]
+        },
+        "matched_outcome_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "inherited_requirement_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "local_override_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "custom_bridge_requirement_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 1000 }
+        },
+        "lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    },
+    "discoveryResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "discovery_ref",
+        "tenant_ref",
+        "workspace_ref",
+        "brand_ref",
+        "brand_profile_revision",
+        "effective_business_profile_ref",
+        "effective_business_profile_context_hash",
+        "effective_business_profile_version_vector",
+        "primary_activity_type_key",
+        "activity_pack_refs",
+        "assessments",
+        "blueprint_scores",
+        "status",
+        "created_at",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "commerce_enablement_discovery_result" },
+        "discovery_ref": { "$ref": "#/$defs/reference" },
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "$ref": "#/$defs/reference" },
+        "brand_profile_revision": { "type": "integer", "minimum": 1 },
+        "effective_business_profile_ref": { "$ref": "#/$defs/reference" },
+        "effective_business_profile_context_hash": { "$ref": "#/$defs/hash" },
+        "effective_business_profile_version_vector": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": ["string", "integer"] }
+        },
+        "primary_activity_type_key": { "$ref": "#/$defs/reference" },
+        "secondary_activity_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "activity_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "site_profile_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "assessments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityAssessment" }
+        },
+        "blueprint_scores": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/blueprintScore" }
+        },
+        "recommended_blueprint_key": { "$ref": "#/$defs/reference" },
+        "profile_conflict_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["completed", "completed_with_gaps", "needs_clarification", "blocked", "stale"]
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}
