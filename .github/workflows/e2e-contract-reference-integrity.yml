@@ -73,3 +73,89 @@ jobs:
           path: artifacts/e2e-contract-reference-integrity.json
           if-no-files-found: error
           retention-days: 14
+
+  work-map-recovery-bridge:
+    name: Dispatch authorized Work Map recovery
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    steps:
+      - name: Validate and dispatch exact-head recovery when authorized
+        id: bridge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${EVENT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          body="$(jq -r '.body // ""' <<<"${pr}")"
+          if ! grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"; then
+            echo "PR ${PR_NUMBER} has no one-time Work Map authorization marker; bridge is a no-op."
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          test "$(jq -r '.state' <<<"${pr}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr}")" = "false"
+          test "$(jq -r '.base.ref' <<<"${pr}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
+          target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+          expected_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          test "${target_ref}" = "${EVENT_HEAD_REF}"
+          test "${expected_head_sha}" = "${EVENT_HEAD_SHA}"
+          [[ "${target_ref}" =~ ^gpt/[A-Za-z0-9._/-]+$ ]]
+          [[ "${target_ref}" != "main" && "${target_ref}" != "Production" ]]
+
+          behind_by="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" --jq '.behind_by')"
+          if [[ "${behind_by}" != "0" ]]; then
+            echo "PR ${PR_NUMBER} is behind main by ${behind_by}; refusing recovery dispatch."
+            exit 1
+          fi
+
+          recovery_workflow="spec-kit-work-map-autofix-recovery-dispatch.yml"
+          state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}" --jq '.state')"
+          if [[ "${state}" != "active" ]]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/enable"
+          fi
+          readback_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}" --jq '.state')"
+          test "${readback_state}" = "active"
+
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg pr_number "${PR_NUMBER}" \
+            '{ref:$ref,inputs:{pr_number:$pr_number,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/dispatches" \
+            --input - <<<"${payload}"
+
+          delegated_run_id=""
+          for _ in $(seq 1 30); do
+            delegated_run_id="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/runs?event=workflow_dispatch&branch=main&per_page=30" \
+              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\")] | sort_by(.created_at) | last | .id // empty")"
+            if [[ -n "${delegated_run_id}" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
+
+          comment="WORK_MAP_RECOVERY_E2E_BRIDGE outcome=passed expected_head_sha=${expected_head_sha} target_ref=${target_ref} behind_by=${behind_by} recovery_workflow_state=${readback_state} delegated_recovery_run_id=${delegated_run_id} direct_repository_mutation=false protected_branch_mutation=false force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${comment}"
+
+          echo "authorized=true" >> "$GITHUB_OUTPUT"
+          echo "delegated_run_id=${delegated_run_id}" >> "$GITHUB_OUTPUT"
