@@ -71,7 +71,51 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Use the configured least-privilege Hostinger token to inspect the completed build created immediately after Production f5c1ae8840b4d4452f2908bb0f23051880bb6896."
+      "objective": "Use the configured least-privilege Hostinger token to inspect the completed build created immediately after Production f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+      "e2e_journeys": [
+        {
+          "id": "read-completed-production-build-logs",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted release operator and GitHub Actions",
+          "entrypoint": "Trusted-main Hostinger Node.js Build Evidence workflow_dispatch after governed single-use authorization",
+          "terminal_outcome": "A secret-free artifact reads the exact completed Hostinger build and its bounded redacted logs through GET-only endpoints, then classifies whether source provenance matches Production f5c1ae8840b4d4452f2908bb0f23051880bb6896 and whether activation signals explain the stale active runtime.",
+          "steps": [
+            "Bind the run to the exact protected Production SHA, Production merge timestamp, auth.mad4b.com domain, Hostinger account, trusted workflow blob, and completed build UUID.",
+            "Require trusted-main workflow_dispatch and reject a moved main head, moved Production head, changed workflow blob, changed authorization, or changed build UUID.",
+            "Read page one of Hostinger Node.js builds with the configured least-privilege bearer token using GET only.",
+            "Select and verify the exact completed build UUID 019fc51c-3947-7255-aa4d-f55cb8df7658.",
+            "Read that build's logs from line zero using GET only.",
+            "Bound and redact all provider data before writing JSON, Markdown, console output, or failure details.",
+            "Extract only source-context Git revisions plus bounded activation and error signals.",
+            "Upload the evidence artifact before enforcing expected, conflicting, other, or unverified provenance outcomes."
+          ],
+          "assertions": [
+            "The live evidence workflow can run only from refs/heads/main through workflow_dispatch.",
+            "The Hostinger token is supplied only through the configured GitHub secret and is never returned, persisted, echoed, or included in artifacts.",
+            "The account, domain, Production SHA, merge timestamp, workflow blob, and completed build UUID are exact immutable inputs.",
+            "Provider access is limited to GET build-list and selected-build-log endpoints.",
+            "The selected build UUID must equal 019fc51c-3947-7255-aa4d-f55cb8df7658.",
+            "The expected Production SHA must equal f5c1ae8840b4d4452f2908bb0f23051880bb6896.",
+            "The workflow performs no build creation, deployment, restart, active-slot promotion, provider mutation, repository mutation, SQL, migration Apply, database mutation, or external send.",
+            "The artifact and report declare secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-nodejs-build-evidence-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence.yml",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
