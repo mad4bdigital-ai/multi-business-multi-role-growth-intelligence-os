@@ -1,0 +1,13 @@
+{
+  "contract": "mad4b.oauth-route-test-pool-writer-trigger.v1",
+  "base_sha": "a61cd9e83070618001676bbc679bc937f0551875",
+  "target_branch": "gpt/fix-oauth-route-test-pool-a61cd9e8-20260804",
+  "target_file": "http-generic-api/test-auth-oauth-routes.mjs",
+  "old_expression": "app.use(buildTenantGptOAuthMetadataRoutes());",
+  "new_expression": "app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));",
+  "authorized_mutation": "replace_exactly_once_and_delete_this_trigger",
+  "force_push": false,
+  "protected_branch_mutation": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
