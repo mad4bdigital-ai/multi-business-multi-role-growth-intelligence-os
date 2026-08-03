@@ -1,4 +1,4 @@
-name: Surface Callability Generation Diagnostic
+name: Surface Callability SQL Scope Diagnostic
 
 on:
   pull_request:
@@ -58,58 +58,103 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Diagnose generation sequence
-        id: generation
+      - name: Prove SQL-derived permanent Surface scope
+        id: sql-scope
         working-directory: http-generic-api
         continue-on-error: true
         shell: bash
         run: |
           set +e
-          diagnostics="../surface-proof/current-main-generation-diagnostic"
+          diagnostics="../surface-proof/surface-sql-scope-diagnostic"
           mkdir -p "$diagnostics"
-          printf 'event_head=%s\nbase_sha=%s\n' '${{ github.event.pull_request.head.sha }}' "${BASE_SHA}" > "$diagnostics/context.txt"
+          node --input-type=module > "$diagnostics/stdout.log" 2> "$diagnostics/stderr.log" <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { extractRegistryToolRegistrations } from './scripts/surface-contract-sql-registry-extractor.mjs';
 
-          overall=0
-          run_command() {
-            index="$1"
-            label="$2"
-            shift 2
-            log="$diagnostics/${index}-${label}.log"
-            status_file="$diagnostics/${index}-${label}.status.txt"
-            printf 'command=' > "$log"
-            printf '%q ' "$@" >> "$log"
-            printf '\n' >> "$log"
-            "$@" >> "$log" 2>&1
-            status=$?
-            printf '%s\n' "$status" > "$status_file"
-            if [ "$status" -ne 0 ] && [ "$overall" -eq 0 ]; then
-              overall="$status"
-              printf '%s:%s:%s\n' "$index" "$label" "$status" > "$diagnostics/first-failure.txt"
-            fi
+          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
+          const expectedKeys = [...new Set(manifest.source_queue_tool_keys || [])].sort();
+          const expectedSet = new Set(expectedKeys);
+          const manifestBindings = (manifest.contracts || []).flatMap((contract) => contract.tool_bindings || []);
+          const manifestByKey = new Map();
+          const duplicateManifestKeys = [];
+          for (const binding of manifestBindings) {
+            if (manifestByKey.has(binding.tool_key)) duplicateManifestKeys.push(binding.tool_key);
+            manifestByKey.set(binding.tool_key, binding.migration_file);
           }
 
-          run_command 01 discovery-write-before node scripts/surface-contract-discovery.mjs --write
-          run_command 02 generate-closure node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          run_command 03 discovery-write-after node scripts/surface-contract-discovery.mjs --write
-          run_command 04 frontend-dispatch npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+          const matchesByKey = new Map(expectedKeys.map((key) => [key, []]));
+          const migrationFiles = fs.readdirSync('migrations').filter((file) => file.endsWith('.sql')).sort();
+          for (const migrationFile of migrationFiles) {
+            const source = fs.readFileSync(path.join('migrations', migrationFile), 'utf8');
+            for (const registration of extractRegistryToolRegistrations(source)) {
+              if (!expectedSet.has(registration.tool_key)) continue;
+              matchesByKey.get(registration.tool_key).push({
+                migration_file: `migrations/${migrationFile}`,
+                http_method: registration.http_method || null,
+                http_path: registration.http_path || null,
+              });
+            }
+          }
 
-          git status --porcelain --untracked-files=all > "$diagnostics/worktree-status.txt"
-          if [ ! -f "$diagnostics/first-failure.txt" ]; then
-            printf 'none\n' > "$diagnostics/first-failure.txt"
-          fi
-          cat "$diagnostics/first-failure.txt"
-          for file in "$diagnostics"/*.status.txt; do printf '%s=' "$(basename "$file")"; cat "$file"; done
-          exit "$overall"
+          const missing = expectedKeys.filter((key) => matchesByKey.get(key).length === 0);
+          const duplicates = expectedKeys.filter((key) => matchesByKey.get(key).length > 1).map((key) => ({ key, matches: matchesByKey.get(key) }));
+          const mappingMismatches = expectedKeys.flatMap((key) => {
+            const matches = matchesByKey.get(key);
+            if (matches.length !== 1) return [];
+            const expectedMigration = manifestByKey.get(key) || null;
+            return matches[0].migration_file === expectedMigration ? [] : [{ key, expected_migration: expectedMigration, actual_migration: matches[0].migration_file }];
+          });
+          const discoveredMappings = expectedKeys.flatMap((key) => matchesByKey.get(key).map((match) => ({ tool_key: key, ...match })));
+          const migrationCount = new Set(discoveredMappings.map((item) => item.migration_file)).size;
+          const manifestMigrationCount = new Set(manifestBindings.map((item) => item.migration_file)).size;
 
-      - name: Upload generation diagnostic
+          const report = {
+            schema: 'mad4b.surface-sql-scope-diagnostic.v1',
+            event_head: process.env.GITHUB_SHA,
+            expected_tool_count: expectedKeys.length,
+            manifest_binding_count: manifestBindings.length,
+            manifest_migration_count: manifestMigrationCount,
+            discovered_tool_registration_count: discoveredMappings.length,
+            discovered_migration_count: migrationCount,
+            missing,
+            duplicates,
+            duplicate_manifest_keys: [...new Set(duplicateManifestKeys)].sort(),
+            mapping_mismatches: mappingMismatches,
+            mappings: discoveredMappings,
+            status: 'PASS',
+          };
+
+          const failures = [];
+          if (expectedKeys.length !== 41) failures.push(`expected_tool_count:${expectedKeys.length}`);
+          if (manifestBindings.length !== 41) failures.push(`manifest_binding_count:${manifestBindings.length}`);
+          if (manifestMigrationCount !== 20) failures.push(`manifest_migration_count:${manifestMigrationCount}`);
+          if (migrationCount !== 20) failures.push(`discovered_migration_count:${migrationCount}`);
+          if (missing.length) failures.push(`missing:${missing.length}`);
+          if (duplicates.length) failures.push(`duplicates:${duplicates.length}`);
+          if (duplicateManifestKeys.length) failures.push(`duplicate_manifest_keys:${duplicateManifestKeys.length}`);
+          if (mappingMismatches.length) failures.push(`mapping_mismatches:${mappingMismatches.length}`);
+          if (failures.length) report.status = 'FAIL';
+
+          fs.writeFileSync('../surface-proof/surface-sql-scope-diagnostic/report.json', `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify({ status: report.status, expected_tools: expectedKeys.length, migrations: migrationCount, failures }));
+          if (failures.length) process.exit(1);
+          NODE
+          status=$?
+          printf '%s\n' "$status" > "$diagnostics/status.txt"
+          cat "$diagnostics/stdout.log"
+          cat "$diagnostics/stderr.log" >&2
+          exit "$status"
+
+      - name: Upload SQL scope diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: surface-callability-generation-diagnostic-${{ github.run_id }}
-          path: surface-proof/current-main-generation-diagnostic
+          name: surface-sql-scope-diagnostic-${{ github.run_id }}
+          path: surface-proof/surface-sql-scope-diagnostic
           if-no-files-found: error
           retention-days: 2
 
-      - name: Enforce generation result
-        if: steps.generation.outcome != 'success'
+      - name: Enforce SQL scope proof
+        if: steps.sql-scope.outcome != 'success'
         run: exit 1
