@@ -153,5 +153,29 @@ if old_evidence in generator:
 elif new_evidence not in generator:
     raise SystemExit("closure_generator_evidence_function_marker_missing")
 
+old_openapi_evidence = '''function openApiEvidence(family, method, httpPath) {
+  if (family.key === "system_layer") {
+    return { file: "openapi.yaml", markers: ["/system/tools/call:", "operationId: callSystemTool", "backendBearerAuth", "backendApiKeyAuth"] };
+  }
+  return { file: "openapi/frontend-runtime-routes.generated.yaml", markers: [`  ${httpPath}:`, `${method.toLowerCase()}:`, `x-source-file: ${family.route_file}`] };
+}'''
+new_openapi_evidence = '''function openApiEvidence(family, method, httpPath) {
+  if (family.key === "system_layer") {
+    return { file: "openapi.yaml", markers: ["/system/tools/call:", "operationId: callSystemTool", "backendBearerAuth", "backendApiKeyAuth"] };
+  }
+  return { file: "openapi.yaml", markers: [`  ${httpPath}:`, `    ${method.toLowerCase()}:`] };
+}'''
+if old_openapi_evidence in generator:
+    generator = generator.replace(old_openapi_evidence, new_openapi_evidence, 1)
+elif new_openapi_evidence not in generator:
+    raise SystemExit("closure_generator_openapi_evidence_marker_missing")
+
+old_test_document = 'const document = route === "/system/tools/call" ? canonicalOpenApi : runtimeOpenApi;'
+new_test_document = 'const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;'
+if old_test_document in generator:
+    generator = generator.replace(old_test_document, new_test_document, 1)
+elif new_test_document not in generator:
+    raise SystemExit("closure_generator_test_openapi_document_marker_missing")
+
 GENERATOR_PATH.write_text(generator, encoding="utf-8")
-print("callability validator auth/effect and closure generator policy patches applied")
+print("callability validator auth/effect and closure generator policy/OpenAPI patches applied")
