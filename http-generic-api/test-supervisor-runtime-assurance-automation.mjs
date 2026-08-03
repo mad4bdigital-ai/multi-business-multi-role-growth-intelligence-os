@@ -63,7 +63,10 @@ for (const marker of [
   "Finalize diagnostic evidence",
   "work-map-autofix-diagnostics",
   "actions/upload-artifact@v4",
-  "git add docs/work-maps",
+  "WORK_MAP_ROOT: docs",
+  "WORK_MAP_NAME: work-maps",
+  'work_map_dir="${WORK_MAP_ROOT}/${WORK_MAP_NAME}"',
+  'git add "${work_map_dir}"',
   "git push origin",
   "git rev-parse HEAD",
   "gh workflow run ci.yml",
@@ -78,6 +81,7 @@ assert.doesNotMatch(writerTriggerBlock, /pull_request:/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
 assert.match(workMapAutofix, /\[\[ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\]/);
 assert.match(workMapAutofix, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/);
+assert.doesNotMatch(workMapAutofix, /git add docs\/work-maps/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
 
 for (const marker of [
