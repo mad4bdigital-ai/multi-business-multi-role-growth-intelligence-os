@@ -6,24 +6,40 @@ This slice wires the governed T031 authorization-code consumption and ambiguity 
 
 `POST /auth/oauth/token`
 
-The route is mounted through `tenantGptOAuthMetadataRoutes.js`, which is registered before the legacy `/auth` router. The new handler owns only the exact token path; all other authentication routes remain with the existing implementation.
+The route is mounted through `tenantGptOAuthMetadataRoutes.js`, which is registered before the legacy `/auth` router. A request-binding guard and a signed-claim verifier are mounted immediately before the token handler. This surface owns only the exact token path; all other authentication routes remain with the existing implementation.
 
-This slice does **not** close T031. Repository wiring and route-level HTTP validation are complete, but the remaining repository CI gates, Production deployment, and live exchange/readback evidence are not part of this delivery.
+This slice does **not** close T031. Repository wiring and the original route-level HTTP validation are complete, but the new binding-guard regression, remaining repository CI gates, Production deployment, and live exchange/readback evidence are still required.
+
+## Mandatory binding boundary
+
+The token request must include `redirect_uri`; omission is rejected before authorization-code verification, subject lookup, or consumption, and the response allows a corrected same-code retry.
+
+The signed authorization code must contain all six binding claims:
+
+- `jti`;
+- `user_id`;
+- `tenant_id`;
+- `redirect_uri`;
+- `client_id`;
+- `resource`.
+
+Missing or malformed signed bindings are rejected as a verified invalid grant before subject lookup or code consumption. The runtime verifier also fails closed as a pre-consumption dependency when `JWT_SECRET` is unavailable; it does not fall back to the development secret used by the legacy route.
 
 ## Pre-consumption ordering
 
 The route completes all deterministic and database-backed eligibility work before the single-use code transition:
 
-1. validate the OAuth grant and client credentials;
-2. resolve the registered host and protected resource;
-3. verify the authorization-code signature and required claims;
-4. validate client, resource, and callback bindings;
-5. read the active user;
-6. read an active membership joined to an active tenant;
-7. prepare the access-token claims and signature in memory;
-8. execute the atomic authorization-code consumption gate.
+1. require the request callback binding;
+2. validate the OAuth grant and client credentials;
+3. resolve the registered host and protected resource;
+4. verify the authorization-code signature and all mandatory signed binding claims;
+5. validate client, resource, and callback equality;
+6. read the active user;
+7. read the exact active membership joined to an active tenant;
+8. prepare the access-token claims and signature in memory;
+9. execute the atomic authorization-code consumption gate.
 
-An inactive user or tenant membership therefore cannot consume a valid code.
+An incomplete binding, inactive user, or inactive tenant membership therefore cannot consume a valid code.
 
 ## Outcome handling
 
@@ -52,9 +68,9 @@ The route writes bounded diagnostic evidence to `execution_log` on a best-effort
 
 Diagnostic write failure does not change the OAuth response.
 
-## Validated route-level coverage
+## Route-level coverage
 
-The deterministic HTTP integration and Shared Canary validation completed with API dependencies installed from the committed lockfile. Coverage includes:
+The earlier deterministic HTTP integration and Shared Canary validation completed with API dependencies installed from the committed lockfile. Coverage includes:
 
 - exact metadata-router interception before the legacy handler;
 - success ordering, response headers, and post-`finish` evidence;
@@ -67,13 +83,15 @@ The deterministic HTTP integration and Shared Canary validation completed with A
 - unregistered request host rejection;
 - no-secret response and diagnostic evidence.
 
-The temporary workflow validation step was removed before Ready review.
+The new focused binding regression additionally covers missing request `redirect_uri`, every mandatory signed claim, invalid callback/resource claims, missing `JWT_SECRET`, and proof that no subject lookup or code consumption occurs on those failures. That regression remains pending on the current head until CI reaches a terminal result.
+
+No workflow file is changed by this repair.
 
 ## Completion boundary
 
 T031 remains open until all of the following are complete:
 
-1. the remaining exact-head repository CI gates pass;
+1. the binding-guard regression and remaining exact-head repository CI gates pass;
 2. the reviewed merge SHA is deployed through the governed release path;
 3. a live successful exchange is read back on that deployed SHA;
 4. a live replay proves no second token is issued;
