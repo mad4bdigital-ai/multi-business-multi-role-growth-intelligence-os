@@ -1,0 +1,348 @@
+name: Build OAuth Metadata Dependency Fix A61CD9E
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-oauth-metadata-dependency-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+  EXPECTED_HEAD_REF: gpt/build-oauth-metadata-deps-fix-a61cd9e-v1
+  INTENDED_CANDIDATE_REF: gpt/fix-oauth-metadata-dependency-composition-a61cd9e-20260804
+  CONTRACT_PATH: .changes/e2e/tenant-gpt-oauth-metadata-dependency-composition.json
+  EVIDENCE_DIR: /tmp/oauth-metadata-dependency-fix
+
+jobs:
+  build:
+    name: Build, validate, and publish three immutable blobs
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - name: Validate temporary PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$EVENT_BASE_SHA" = "$EXPECTED_MAIN_SHA"
+
+      - name: Checkout exact temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify one-file Builder and current protected main
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t builder_files < <(git diff --name-only "$EVENT_BASE_SHA"..."$EVENT_HEAD_SHA")
+          test "${#builder_files[@]}" -eq 1
+          test "${builder_files[0]}" = '.github/workflows/build-oauth-metadata-dependency-fix-a61cd9e.yml'
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test -z "$(git ls-remote origin "refs/heads/$INTENDED_CANDIDATE_REF")"
+
+      - name: Checkout exact protected main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Apply bounded three-file repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one exact match, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "http-generic-api/routes/index.js",
+              "  app.use(buildTenantGptOAuthMetadataRoutes());",
+              "  app.use(buildTenantGptOAuthMetadataRoutes(deps));",
+          )
+
+          replace_once(
+              "http-generic-api/test-auth-oauth-routes.mjs",
+              "app.use(buildTenantGptOAuthMetadataRoutes());",
+              "app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));",
+          )
+
+          replace_once(
+              "http-generic-api/test-auth-oauth-routes.mjs",
+              "const app = express();\n",
+              "const routeRegistrySource = readFileSync(new URL(\"./routes/index.js\", import.meta.url), \"utf8\");\nassert(\n  \"route registry forwards shared dependencies into Tenant GPT OAuth metadata and token routes\",\n  routeRegistrySource.includes(\"app.use(buildTenantGptOAuthMetadataRoutes(deps));\"),\n);\n\nconst app = express();\n",
+          )
+
+          contract = {
+              "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+              "schema_version": 1,
+              "feature_key": "tenant-gpt-oauth-metadata-dependency-composition",
+              "title": "Forward governed OAuth token dependencies through metadata route composition",
+              "delivery_mode": "single_pr",
+              "current_phase": "mvp",
+              "scope": {
+                  "include": [
+                      ".changes/e2e/tenant-gpt-oauth-metadata-dependency-composition.json",
+                      "http-generic-api/routes/index.js",
+                      "http-generic-api/test-auth-oauth-routes.mjs",
+                  ]
+              },
+              "merge_contract": {"minimum_phase": "mvp"},
+              "phases": [
+                  {
+                      "id": "mvp",
+                      "status": "implemented",
+                      "objective": "Use one dependency object for Tenant GPT metadata, token exchange, and legacy auth route composition, with deterministic mock-pool coverage.",
+                      "e2e_journeys": [
+                          {
+                              "id": "compose-token-exchange-with-shared-dependencies",
+                              "end_to_end": True,
+                              "level": "synthetic_runtime",
+                              "actor": "Tenant GPT OAuth client",
+                              "entrypoint": "POST /auth/oauth/token through the canonical route registry or comprehensive OAuth test application.",
+                              "terminal_outcome": "The governed token route receives the intended pool and service dependencies, reaches stable invalid-client and invalid-target outcomes, and completes successful exchange evidence without a default-database fallback.",
+                              "steps": [
+                                  "Forward the route registry dependency object into buildTenantGptOAuthMetadataRoutes.",
+                                  "Inject the deterministic OAuth client pool into the comprehensive test metadata/token router.",
+                                  "Run focused T031/T032 route and binding regressions.",
+                                  "Run the complete Unit and Integration suite with exact commit provenance.",
+                              ],
+                              "assertions": [
+                                  "The production route registry does not bypass the established dependency-injection path.",
+                                  "The comprehensive OAuth fixture does not silently fall back to the default database pool.",
+                                  "Invalid-client, invalid-target, success, replay, and diagnostic paths remain fail-closed and deterministic.",
+                                  "No provider call, credential disclosure, SQL Apply, Migration Apply, or external mutation is performed.",
+                                  "secrets_included is false.",
+                              ],
+                              "tests": [
+                                  {
+                                      "id": "comprehensive-oauth-routes",
+                                      "runner": "node",
+                                      "working_directory": "http-generic-api",
+                                      "path": "test-auth-oauth-routes.mjs",
+                                      "args": [],
+                                  },
+                                  {
+                                      "id": "token-route-wiring",
+                                      "runner": "node",
+                                      "working_directory": "http-generic-api",
+                                      "path": "test-spec012-t031-oauth-token-route-wiring.mjs",
+                                      "args": [],
+                                  },
+                              ],
+                              "evidence_paths": [
+                                  "http-generic-api/routes/index.js",
+                                  "http-generic-api/test-auth-oauth-routes.mjs",
+                              ],
+                          }
+                      ],
+                  },
+                  {
+                      "id": "operational",
+                      "status": "planned",
+                      "objective": "Observe exact route dependency composition in governed runtime startup evidence.",
+                  },
+                  {
+                      "id": "resilient",
+                      "status": "planned",
+                      "objective": "Reject future metadata/token route composition that drops injected dependencies or reintroduces default-pool test fallback.",
+                  },
+                  {
+                      "id": "canary",
+                      "status": "planned",
+                      "objective": "Validate one governed token exchange canary without exposing credentials or tokens.",
+                  },
+                  {
+                      "id": "production",
+                      "status": "planned",
+                      "objective": "Retain deterministic dependency composition after deployment and runtime parity readback.",
+                  },
+              ],
+              "secrets_included": False,
+          }
+          path = Path(".changes/e2e/tenant-gpt-oauth-metadata-dependency-composition.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(contract, indent=2) + "\n")
+          PY
+
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          .changes/e2e/tenant-gpt-oauth-metadata-dependency-composition.json
+          http-generic-api/routes/index.js
+          http-generic-api/test-auth-oauth-routes.mjs
+          EOF
+          sed -i 's/^          //' /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused T031 and T032 regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/index.js
+          node --check test-auth-oauth-routes.mjs
+          node test-auth-oauth-routes.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-binding-guard.mjs
+          node test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+          node test-tenant-gpt-audience-compatibility-policy.mjs
+          node test-tenant-gpt-access-token-verifier.mjs
+
+      - name: Create local exact candidate commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            "$CONTRACT_PATH" \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-auth-oauth-routes.mjs
+          git commit -m "fix(oauth): forward metadata token route dependencies"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" -eq 1
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: /tmp/oauth-metadata-dependency-fix/test-suite-reports
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          GITHUB_SHA="$candidate_sha" npm test
+
+      - name: Verify exact test report provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          for report in \
+            "$EVIDENCE_DIR/test-suite-reports/test-manifest.json" \
+            "$EVIDENCE_DIR/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$candidate_sha"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Run changed-range lifecycle and E2E gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          mkdir -p "$EVIDENCE_DIR/repository-tool-lifecycle"
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$candidate_sha" > "$EVIDENCE_DIR/repository-tool-changes.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$EVIDENCE_DIR/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$candidate_sha" \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$candidate_sha" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$candidate_sha" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+      - name: Re-read current main and publish unreferenced blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          test -z "$(git ls-remote origin "refs/heads/$INTENDED_CANDIDATE_REF")"
+          mkdir -p "$EVIDENCE_DIR"
+          : > "$EVIDENCE_DIR/blobs.tsv"
+          for path in \
+            "$CONTRACT_PATH" \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-auth-oauth-routes.mjs; do
+            encoded="$(base64 -w0 "$path")"
+            blob_sha="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" \
+              -f content="$encoded" \
+              -f encoding=base64 \
+              --jq '.sha')"
+            test "$(git hash-object "$path")" = "$blob_sha"
+            printf '%s\t100644\tblob\t%s\n' "$path" "$blob_sha" >> "$EVIDENCE_DIR/blobs.tsv"
+          done
+          candidate_sha="$(git rev-parse HEAD)"
+          candidate_tree="$(git rev-parse HEAD^{tree})"
+          main_tree="$(git rev-parse "$EXPECTED_MAIN_SHA^{tree}")"
+          jq -Rn \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --arg main_tree_sha "$main_tree" \
+            --arg local_candidate_sha "$candidate_sha" \
+            --arg local_candidate_tree_sha "$candidate_tree" \
+            '[inputs | split("\t") | {path:.[0],mode:.[1],type:.[2],sha:.[3]}] as $entries | {main_sha:$main_sha,main_tree_sha:$main_tree_sha,local_candidate_sha:$local_candidate_sha,local_candidate_tree_sha:$local_candidate_tree_sha,entries:$entries,ref_updated:false,force_push:false,secrets_included:false}' \
+            < "$EVIDENCE_DIR/blobs.tsv" > "$EVIDENCE_DIR/manifest.json"
+          cat "$EVIDENCE_DIR/manifest.json"
+
+      - name: Upload immutable builder evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-metadata-dependency-fix-${{ github.run_id }}
+          path: /tmp/oauth-metadata-dependency-fix/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Assert no repository ref update occurred
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git ls-remote origin "refs/heads/$INTENDED_CANDIDATE_REF")"
+          echo "Builder published immutable blobs only; no Git ref was updated."
