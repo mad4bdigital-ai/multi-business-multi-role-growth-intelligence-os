@@ -7,33 +7,40 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  unresolved-provenance:
-    name: Exact unresolved schema provenance
+  publish-classifications:
+    name: Publish bounded schema classifications
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
       github.event.pull_request.head.sha == '198c1c6f0d77cd162ffe472a56e76cf9f22e025b'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
       EXPECTED_HEAD_SHA: 198c1c6f0d77cd162ffe472a56e76cf9f22e025b
+      TARGET_BRANCH: gpt/work-map-phase-g-schema-classification-20260803
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact candidate branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: gpt/work-map-phase-g-schema-classification-20260803
           fetch-depth: 0
-          persist-credentials: false
 
-      - name: Verify immutable identity
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and clean tree
         shell: bash
         run: |
           set -euo pipefail
@@ -42,50 +49,115 @@ jobs:
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
           test -z "$(git status --porcelain --untracked-files=no)"
 
-      - name: Capture source and contract provenance
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Add five exact provenance-backed rules
         shell: bash
         run: |
           set -euo pipefail
-          report="${RUNNER_TEMP}/unresolved-schema-provenance.txt"
-          : > "${report}"
-
-          for object in \
-            managed_execution_bindings \
-            managed_execution_events \
-            storage_authorized_injection_rollbacks \
-            storage_authorized_injection_states \
-            v_storage_cleanup_operation_readback
-          do
-            echo "===== ${object} =====" | tee -a "${report}"
-            git grep -n -C 10 -F "${object}" -- \
-              ':!docs/work-maps/**' \
-              ':!http-generic-api/frontend-surface-dispatch.generated.json' \
-              ':!http-generic-api/frontend-operation-governance.generated.json' \
-              ':!openapi/**' \
-              2>/dev/null | tee -a "${report}" || true
-            echo | tee -a "${report}"
-          done
-
-          echo '===== RELATED REGISTRY RULES =====' | tee -a "${report}"
-          node --input-type=module <<'NODE' | tee -a "${report}"
+          node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const registry = JSON.parse(fs.readFileSync('.specify/work-map-schema-classification-registry.json', 'utf8'));
-          const terms = ['managed_execution', 'storage_', 'cleanup', 'injection'];
-          for (const rule of registry.rules ?? []) {
-            const text = JSON.stringify(rule);
-            if (terms.some((term) => text.includes(term))) console.log(JSON.stringify(rule, null, 2));
+          const file = '.specify/work-map-schema-classification-registry.json';
+          const registry = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const additions = [
+            {
+              rule_key: 'tenant_managed_execution_bindings',
+              scope: 'bounded_exact',
+              match: { exact_names: ['managed_execution_bindings'] },
+              domain: 'Workflow & tasks',
+              existing_map_refs: ['workflow-task-orchestration-map', 'policy-authority-map', 'activation-access-map', 'data-model-domain-map'],
+              rationale: 'Tenant-managed execution bindings persist tenant-scoped run linkage, approval state, and customer-visible lifecycle projection within the existing workflow and authority boundaries.'
+            },
+            {
+              rule_key: 'tenant_managed_execution_events',
+              scope: 'bounded_exact',
+              match: { exact_names: ['managed_execution_events'] },
+              domain: 'Observability & release',
+              existing_map_refs: ['observability-release-map', 'execution-log-evidence-map', 'workflow-task-orchestration-map', 'data-model-domain-map'],
+              rationale: 'Tenant-managed execution events are append-only lifecycle evidence carrying state transitions, actors, and redacted evidence for deterministic operational readback.'
+            },
+            {
+              rule_key: 'spec014_hostinger_storage_authorized_injection_states',
+              scope: 'bounded_exact',
+              match: { exact_names: ['storage_authorized_injection_states'] },
+              domain: 'Governance & authority',
+              existing_map_refs: ['policy-authority-map', 'workflow-task-orchestration-map', 'execution-log-evidence-map', 'data-model-domain-map'],
+              rationale: 'Spec 014 authorized injection state records bind governed authorization, exact receipt identity, active-state uniqueness, and row-version concurrency without persisting runtime material.'
+            },
+            {
+              rule_key: 'spec014_hostinger_storage_authorized_injection_rollbacks',
+              scope: 'bounded_exact',
+              match: { exact_names: ['storage_authorized_injection_rollbacks'] },
+              domain: 'Observability & release',
+              existing_map_refs: ['observability-release-map', 'execution-log-evidence-map', 'policy-authority-map', 'data-model-domain-map'],
+              rationale: 'Spec 014 authorized injection rollback records are immutable, digest-bound rollback receipts used as secret-free operational and governance evidence.'
+            },
+            {
+              rule_key: 'spec014_hostinger_storage_cleanup_operation_readback',
+              scope: 'bounded_exact',
+              match: { exact_names: ['v_storage_cleanup_operation_readback'] },
+              domain: 'Observability & release',
+              existing_map_refs: ['observability-release-map', 'execution-log-evidence-map', 'workflow-task-orchestration-map', 'data-model-domain-map'],
+              rationale: 'Spec 014 cleanup operation readback projects operation state, resource scope, versioning, and evidence for deterministic operational verification.'
+            }
+          ];
+
+          const existingKeys = new Set((registry.rules ?? []).map((rule) => rule.rule_key));
+          const existingNames = new Set((registry.rules ?? []).flatMap((rule) => rule.match?.exact_names ?? []));
+          for (const rule of additions) {
+            if (existingKeys.has(rule.rule_key)) throw new Error(`Rule already exists: ${rule.rule_key}`);
+            for (const name of rule.match.exact_names) {
+              if (existingNames.has(name)) throw new Error(`Object already has exact registration: ${name}`);
+            }
           }
+          const insertion = registry.rules.findIndex((rule) => String(rule.rule_key).startsWith('spec014_'));
+          registry.rules.splice(insertion < 0 ? registry.rules.length : insertion, 0, ...additions);
+          fs.writeFileSync(file, `${JSON.stringify(registry, null, 2)}\n`);
           NODE
+          test "$(git diff --name-only)" = ".specify/work-map-schema-classification-registry.json"
 
-          echo '===== RELATED SPEC AND MIGRATION FILENAMES =====' | tee -a "${report}"
-          git grep -l -E 'managed_execution|authorized_injection|storage_cleanup_operation_readback' -- \
-            'specs/**' 'http-generic-api/migrations/**' '.specify/**' \
-            2>/dev/null | sort -u | tee -a "${report}" || true
+      - name: Validate contract and regenerate canonical maps twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
 
-      - name: Upload provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: exact-unresolved-schema-provenance-${{ github.run_id }}
-          path: ${{ runner.temp }}/unresolved-schema-provenance.txt
-          if-no-files-found: error
-          retention-days: 14
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write | tee /tmp/work-map-pass1.json
+          grep -q '"ok": true' /tmp/work-map-pass1.json
+          grep -q '"secrets_included": false' /tmp/work-map-pass1.json
+          first_hash="$(git diff --binary -- .specify/work-map-schema-classification-registry.json docs/work-maps | sha256sum | awk '{print $1}')"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write | tee /tmp/work-map-pass2.json
+          grep -q '"ok": true' /tmp/work-map-pass2.json
+          grep -q '"drift_files": \[\]' /tmp/work-map-pass2.json
+          grep -q '"secrets_included": false' /tmp/work-map-pass2.json
+          second_hash="$(git diff --binary -- .specify/work-map-schema-classification-registry.json docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          git diff --check
+
+          changed="$(git diff --name-only)"
+          test -n "${changed}"
+          test -z "$(printf '%s\n' "${changed}" | grep -Ev '^(\.specify/work-map-schema-classification-registry\.json|docs/work-maps/)' || true)"
+          test "$(printf '%s\n' "${changed}" | head -n1)" = ".specify/work-map-schema-classification-registry.json"
+          test -n "$(printf '%s\n' "${changed}" | grep '^docs/work-maps/' || true)"
+          test -z "$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -Ev '^(\.specify/work-map-schema-classification-registry\.json|docs/work-maps/)' || true)"
+
+      - name: Commit and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .specify/work-map-schema-classification-registry.json docs/work-maps
+          git diff --cached --quiet && { echo 'No classification refresh to commit'; exit 1; }
+          git commit -m "fix(work-map): classify managed execution and storage evidence"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
