@@ -1,0 +1,161 @@
+name: Pin Critical Runners Overlap Blob Publisher V5
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-critical-runners-overlap-blob-v5-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 5db9f992ff42b136fbac88f9191949a7e31ffbf0
+  EXPECTED_HEAD_REF: gpt/ci/pin-critical-runners-overlap-publish-5db9-v5-20260803
+  PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+  TARGET_PATH: .github/workflows/ci-pull-request-recovery.yml
+  TRIGGER_PATH: .github/diagnostics/pin-critical-runners-overlap-publisher-v5.txt
+
+jobs:
+  publish:
+    name: Publish latest-main overlap blob without ref update
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fail closed on exact PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$PATCHER_BASE_REF"
+
+      - name: Checkout exact latest-main trigger
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable parent and patch one overlap
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" = "1"
+          test -f "$TRIGGER_PATH"
+          python3 - <<'PY'
+          from pathlib import Path
+          target = Path(".github/workflows/ci-pull-request-recovery.yml")
+          trigger = Path(".github/diagnostics/pin-critical-runners-overlap-publisher-v5.txt")
+          if not target.is_file() or not trigger.is_file():
+              raise SystemExit("missing bounded input")
+          text = target.read_text(encoding="utf-8")
+          old = "runs-on: ubuntu-latest"
+          new = "runs-on: ubuntu-24.04"
+          count = text.count(old)
+          if count < 1:
+              raise SystemExit("expected latest-main runner alias missing")
+          updated = text.replace(old, new)
+          if old in updated or new not in updated:
+              raise SystemExit("runner-label replacement contract failed")
+          target.write_text(updated, encoding="utf-8")
+          trigger.unlink()
+          print({"replacements": count, "target": str(target)})
+          PY
+          git diff --check
+
+      - name: Verify exact staged and net inventory
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          cat > "${RUNNER_TEMP}/expected-staged.txt" <<'EOF'
+          .github/diagnostics/pin-critical-runners-overlap-publisher-v5.txt
+          .github/workflows/ci-pull-request-recovery.yml
+          EOF
+          git diff --cached --name-only | sort > "${RUNNER_TEMP}/actual-staged.txt"
+          diff -u "${RUNNER_TEMP}/expected-staged.txt" "${RUNNER_TEMP}/actual-staged.txt"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(ci): pin Recovery runner to ubuntu-24.04"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA"...HEAD)" = "$TARGET_PATH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish one blob without updating any ref
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LOCAL_CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import json
+          import os
+          import urllib.request
+
+          relative = os.environ["TARGET_PATH"]
+          data = Path(relative).read_bytes()
+          payload = json.dumps({
+              "content": base64.b64encode(data).decode("ascii"),
+              "encoding": "base64",
+          }).encode("utf-8")
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",
+              data=payload,
+              method="POST",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "Content-Type": "application/json",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              result = json.load(response)
+          manifest = {
+              "ok": True,
+              "base_sha": os.environ["EXPECTED_MAIN_SHA"],
+              "local_candidate_sha": os.environ["LOCAL_CANDIDATE_SHA"],
+              "entry": {
+                  "path": relative,
+                  "mode": "100644",
+                  "type": "blob",
+                  "sha": result["sha"],
+                  "bytes": len(data),
+              },
+              "ref_updated": False,
+              "branch_pushed": False,
+              "main_mutated": False,
+              "secrets_included": False,
+          }
+          output = Path(os.environ["RUNNER_TEMP"]) / "pin-critical-runners-overlap-blob-v5.json"
+          output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload overlap blob manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pin-critical-runners-overlap-blob-v5-${{ github.run_id }}
+          path: ${{ runner.temp }}/pin-critical-runners-overlap-blob-v5.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert no ref update occurred
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "origin/$EXPECTED_HEAD_REF")" != "$(git rev-parse HEAD)"
+          echo "One overlap blob published; no Git ref was updated."
