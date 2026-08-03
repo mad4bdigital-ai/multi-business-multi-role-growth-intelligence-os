@@ -120,6 +120,20 @@ assert.equal(logAnalysis.failure_hint, false);
 assert.match(logAnalysis.excerpt_sha256, /^[0-9a-f]{64}$/u);
 assert.equal(JSON.stringify(logAnalysis).includes(token), false);
 
+const longLogAnalysis = analyzeBuildLogs([
+  "uninformative build output\n".repeat(300),
+  `Checking out commit ${expectedSha}`,
+  "source_branch=Production",
+  "Deployment completed with 0 errors",
+].join("\n"));
+assert.ok(longLogAnalysis.excerpt.length > 1_000);
+assert.ok(longLogAnalysis.source_shas.includes(expectedSha));
+assert.equal(longLogAnalysis.failure_hint, false);
+assert.equal(longLogAnalysis.deploy_completed_hint, true);
+
+const actualFailureAnalysis = analyzeBuildLogs("Build failed with fatal exception");
+assert.equal(actualFailureAnalysis.failure_hint, true);
+
 const staleRuntime = {
   health: { ok: true, identity: { sha: null, branch: null, release_directories: [] } },
   version: { ok: true, identity: { sha: staleSha, branch: null, release_directories: [] } },
