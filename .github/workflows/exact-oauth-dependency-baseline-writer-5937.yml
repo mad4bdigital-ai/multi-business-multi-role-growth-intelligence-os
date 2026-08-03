@@ -1,7 +1,7 @@
 name: Exact OAuth Dependency Baseline Writer 5937
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - gpt/patch-oauth-deps-base-97e4ee7e
     types: [opened, reopened, synchronize]
@@ -19,12 +19,12 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804' &&
-      github.event.pull_request.head.sha == 'ee86cdf75d2d4ed6e25cb5c0a74b805137c21840'
+      github.event.pull_request.head.sha == '0a8c83604127c3fac31d5bb94dc2843d4ea045f5'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
-      EXPECTED_TARGET_SHA: ee86cdf75d2d4ed6e25cb5c0a74b805137c21840
+      EXPECTED_TARGET_SHA: 0a8c83604127c3fac31d5bb94dc2843d4ea045f5
       TARGET_BRANCH: gpt/spec012-oauth-deps-baseline-97e4ee7e-20260804
     steps:
       - name: Checkout exact target branch
@@ -39,8 +39,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
-          test "$(git diff --quiet HEAD^ HEAD; echo $?)" -eq 0
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" HEAD)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" -eq 2
+          git diff --quiet "$EXPECTED_MAIN_SHA" HEAD
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
           test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
