@@ -1,0 +1,228 @@
+name: Pin Critical Runners Object Publisher V4
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-critical-runners-object-publisher-v4-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: cf4282d5fd74b7c20cbac3ad2aa74742d135d2a5
+  EXPECTED_HEAD_REF: gpt/ci/pin-critical-runners-object-publish-cf4282-v4-20260803
+  PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+  TRIGGER_PATH: .github/diagnostics/pin-critical-runners-object-publisher-v4.txt
+
+jobs:
+  publish:
+    name: Validate candidate and publish unreferenced Git blobs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Fail closed on exact PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$PATCHER_BASE_REF"
+
+      - name: Checkout exact feature trigger
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable latest-main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" = "1"
+          test -f "$TRIGGER_PATH"
+
+      - name: Reuse reviewed v3 generator
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$PATCHER_BASE_REF"
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import textwrap
+
+          source = subprocess.check_output(
+              ["git", "show", "FETCH_HEAD:.github/workflows/pin-critical-runners-patcher-v3.yml"],
+              text=True,
+          )
+          opener = "          python3 - <<'PY'\n"
+          closer = "\n          PY\n"
+          start = source.index(opener) + len(opener)
+          end = source.index(closer, start)
+          generator = textwrap.dedent(source[start:end])
+          exec(compile(generator, "pin-critical-runners-v3-generator.py", "exec"), {"__name__": "__main__"})
+
+          trigger = Path(".github/diagnostics/pin-critical-runners-object-publisher-v4.txt")
+          if not trigger.is_file():
+              raise SystemExit("missing v4 trigger marker")
+          trigger.unlink()
+          PY
+
+      - name: Validate generated candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          node http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          git diff --check
+
+      - name: Create local candidate and verify exact inventory
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          cat > "${RUNNER_TEMP}/expected-staged.txt" <<'EOF'
+          .changes/e2e/critical-runner-label-allocation-mitigation.json
+          .github/diagnostics/pin-critical-runners-object-publisher-v4.txt
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/ci-pull-request-recovery.yml
+          .github/workflows/ci.yml
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/e2e-phase-governance.yml
+          .github/workflows/hostinger-storage-control-plane-guard.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-tool-lifecycle-governance.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          EOF
+          git diff --cached --name-only | sort > "${RUNNER_TEMP}/actual-staged.txt"
+          diff -u "${RUNNER_TEMP}/expected-staged.txt" "${RUNNER_TEMP}/actual-staged.txt"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(ci): pin critical hosted runners to ubuntu-24.04"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$candidate_sha" \
+            --report-file "${RUNNER_TEMP}/reference-integrity.json"
+
+          cat > "${RUNNER_TEMP}/expected-net.txt" <<'EOF'
+          .changes/e2e/critical-runner-label-allocation-mitigation.json
+          .github/workflows/automation-overlap-guard.yml
+          .github/workflows/ci-pull-request-recovery.yml
+          .github/workflows/ci.yml
+          .github/workflows/e2e-contract-reference-integrity.yml
+          .github/workflows/e2e-phase-governance.yml
+          .github/workflows/hostinger-storage-control-plane-guard.yml
+          .github/workflows/http-generic-api-fanout-relocation.yml
+          .github/workflows/repository-tool-lifecycle-governance.yml
+          .github/workflows/supervisor-runtime-assurance.yml
+          http-generic-api/scripts/test-critical-runner-label-pinning.mjs
+          EOF
+          git diff --name-only "$EXPECTED_MAIN_SHA"...HEAD | sort > "${RUNNER_TEMP}/actual-net.txt"
+          diff -u "${RUNNER_TEMP}/expected-net.txt" "${RUNNER_TEMP}/actual-net.txt"
+
+      - name: Publish blobs without updating any ref
+        id: blobs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          main_sha = os.environ["EXPECTED_MAIN_SHA"]
+          candidate_sha = os.environ["CANDIDATE_SHA"]
+          paths = [line for line in Path(os.environ["RUNNER_TEMP"] + "/actual-net.txt").read_text().splitlines() if line]
+          entries = []
+          for relative in paths:
+              data = Path(relative).read_bytes()
+              payload = json.dumps({
+                  "content": base64.b64encode(data).decode("ascii"),
+                  "encoding": "base64",
+              }).encode("utf-8")
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/git/blobs",
+                  data=payload,
+                  method="POST",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.load(response)
+              entries.append({
+                  "path": relative,
+                  "mode": "100644",
+                  "type": "blob",
+                  "sha": result["sha"],
+                  "bytes": len(data),
+              })
+
+          manifest = {
+              "ok": True,
+              "base_sha": main_sha,
+              "local_candidate_sha": candidate_sha,
+              "local_candidate_tree_sha": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip(),
+              "entries": entries,
+              "entry_count": len(entries),
+              "ref_updated": False,
+              "branch_pushed": False,
+              "main_mutated": False,
+              "production_mutated": False,
+              "provider_mutated": False,
+              "database_mutated": False,
+              "secrets_included": False,
+          }
+          output = Path(os.environ["RUNNER_TEMP"]) / "pin-critical-runners-object-manifest-v4.json"
+          output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload immutable blob manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pin-critical-runners-object-manifest-v4-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pin-critical-runners-object-manifest-v4.json
+            ${{ runner.temp }}/reference-integrity.json
+            ${{ runner.temp }}/expected-net.txt
+            ${{ runner.temp }}/actual-net.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert no ref update occurred
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "origin/$EXPECTED_HEAD_REF")" != "$(git rev-parse HEAD)"
+          echo "Validated candidate blobs published; no Git ref was updated."
