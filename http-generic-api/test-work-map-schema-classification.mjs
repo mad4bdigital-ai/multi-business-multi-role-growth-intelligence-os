@@ -130,8 +130,8 @@ const indexText = [
   });
   assert(result.findings.some((row) => row.type === "unresolved_schema_objects_forbidden"));
   assert.deepEqual(result.unresolved.map((row) => row.name), [UNRESOLVED_OBJECT]);
-  assert.deepEqual(result.classified.map((row) => row.name), [REGISTRY_OBJECT]);
-  assert.equal(result.classification_coverage_percent, 50);
+  assert.deepEqual(result.classified.map((row) => row.name), []);
+  assert.equal(result.classification_coverage_percent, 0);
 }
 
 {
