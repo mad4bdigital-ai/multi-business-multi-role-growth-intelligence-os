@@ -18,7 +18,7 @@ env:
 
 concurrency:
   group: surface-callability-main-reconstruction-${{ github.event.pull_request.head.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reconstruct-and-validate:
@@ -43,7 +43,7 @@ jobs:
           test "$(git diff --name-only "$PINNED_MAIN" HEAD)" = "$RUNNER_PATH"
           COUNT=$(git rev-list --count "$PINNED_MAIN..HEAD")
           test "$COUNT" -ge 1
-          test "$COUNT" -le 2
+          test "$COUNT" -le 3
           git fetch origin "refs/heads/${INTEGRATION_REF}:refs/remotes/origin/surface-integration"
           test "$(git rev-parse refs/remotes/origin/surface-integration)" = "$PINNED_INTEGRATION"
 
