@@ -1,0 +1,221 @@
+name: Exact OAuth Dependency Composition ARM Validation 6008
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-dependency-composition-arm-base-a61cd9e8-v1
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/validation/exact-oauth-dependency-composition-arm-validation-6008.txt
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: exact-oauth-dependency-composition-arm-validation-6008-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+  EXPECTED_CANDIDATE_SHA: 2bf73f099505fa2568eb0e7dbb815f483a92fb56
+  EXPECTED_CANDIDATE_REF: gpt/fix-oauth-dependency-composition-main-a61cd9e8-20260804
+  EXPECTED_TRIGGER_REF: gpt/trigger-oauth-dependency-composition-arm-6008-v1
+  CANONICAL_PR_NUMBER: '6008'
+
+jobs:
+  exact-candidate:
+    name: Exact OAuth dependency composition full validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-oauth-dependency-composition-arm-6008-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - name: Checkout validator base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify validator, trigger, main, and candidate identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_TRIGGER_REF"
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          trigger_sha="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$EXPECTED_TRIGGER_REF:refs/remotes/origin/trigger" \
+            "+refs/heads/$EXPECTED_CANDIDATE_REF:refs/remotes/origin/candidate"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/trigger)" = "$trigger_sha"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git merge-base "$base_sha" "$trigger_sha")" = "$base_sha"
+          test "$(git rev-list --count "$base_sha..$trigger_sha")" -eq 1
+          mapfile -t trigger_files < <(git diff --name-only "$base_sha"..."$trigger_sha")
+          test "${#trigger_files[@]}" -eq 1
+          test "${trigger_files[0]}" = '.github/validation/exact-oauth-dependency-composition-arm-validation-6008.txt'
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.ref' <<<"$pr")" = 'main'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Checkout exact canonical candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable candidate topology and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_CANDIDATE_SHA")" -eq 1
+          mkdir -p artifacts/oauth-dependency-composition-arm
+          cat > artifacts/oauth-dependency-composition-arm/expected-files.txt <<'EOF'
+          http-generic-api/routes/index.js
+          http-generic-api/test-auth-oauth-routes.mjs
+          http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          EOF
+          sed -i 's/^          //' artifacts/oauth-dependency-composition-arm/expected-files.txt
+          git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_CANDIDATE_SHA" | sort > artifacts/oauth-dependency-composition-arm/actual-files.txt
+          diff -u artifacts/oauth-dependency-composition-arm/expected-files.txt artifacts/oauth-dependency-composition-arm/actual-files.txt
+          git diff --check "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Run syntax and focused OAuth regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/index.js
+          node --check test-auth-oauth-routes.mjs
+          node --check test-spec012-t031-oauth-token-route-wiring.mjs
+          npm ci
+          node test-auth-oauth-routes.mjs | tee ../artifacts/oauth-dependency-composition-arm/test-auth-oauth-routes.log
+          node test-spec012-t031-oauth-token-route-wiring.mjs | tee ../artifacts/oauth-dependency-composition-arm/test-spec012-t031.log
+          node test-chatgpt-mcp-metadata-routing.mjs | tee ../artifacts/oauth-dependency-composition-arm/test-chatgpt-mcp-metadata-routing.log
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          GITHUB_SHA="$EXPECTED_CANDIDATE_SHA" npm test
+
+      - name: Verify complete-suite provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in "$RUNNER_TEMP/test-suite-reports/test-manifest.json" "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Prove runtime startup and deployment-manifest behavior
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_CANDIDATE_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run root Execution Resolver checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run changed-range lifecycle and E2E integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/oauth-dependency-composition-arm/repository-tool-lifecycle
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" > artifacts/oauth-dependency-composition-arm/repository-tool-changes.tsv
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files artifacts/oauth-dependency-composition-arm/repository-tool-changes.tsv \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir artifacts/oauth-dependency-composition-arm/repository-tool-lifecycle
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file artifacts/oauth-dependency-composition-arm/e2e-contract-reference-integrity.json
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file artifacts/oauth-dependency-composition-arm/e2e-contract-reference-integrity.json
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file artifacts/oauth-dependency-composition-arm/e2e-phase-evaluation.json
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file artifacts/oauth-dependency-composition-arm/e2e-phase-evaluation-run.json \
+            --execution-report-file artifacts/oauth-dependency-composition-arm/e2e-phase-execution.json
+
+      - name: Final freshness readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          test "$(git ls-remote origin "refs/heads/$EXPECTED_CANDIDATE_REF" | awk '{print $1}')" = "$EXPECTED_CANDIDATE_SHA"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Publish bounded no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/oauth-dependency-composition-arm
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" --arg job_status "${{ job.status }}" \
+            '{contract:"mad4b.exact-oauth-dependency-composition-arm-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > artifacts/oauth-dependency-composition-arm/summary.json
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-dependency-composition-arm-validation-6008-${{ github.run_id }}
+          path: |
+            artifacts/oauth-dependency-composition-arm
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
