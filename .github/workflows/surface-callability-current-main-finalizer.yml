@@ -1,0 +1,194 @@
+name: Surface Callability Current Main Finalizer
+
+on:
+  push:
+    branches:
+      - gpt/pr5210-surface-source-clean-20260803
+    paths:
+      - .github/workflows/surface-callability-current-main-finalizer.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-callability-current-main-finalizer
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
+      BASE_SHA: a9660046e9d7169d90a418752c4045edae469516
+      WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify bounded bootstrap and base ancestry
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
+          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          mapfile -t BOOTSTRAP_FILES < <(git diff --name-only HEAD^ HEAD)
+          test "${#BOOTSTRAP_FILES[@]}" -eq 1
+          test "${BOOTSTRAP_FILES[0]}" = "${WORKFLOW_PATH}"
+          git fetch --no-tags origin "${BASE_SHA}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply stable lifecycle error contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/routes/tenantLifecycleRoutes.js')
+          source = path.read_text(encoding='utf-8')
+          old = 'err.code || "workspace_invitations_expire_stale_failed"'
+          new = 'err.code || "workspace_invitations_expire_failed"'
+          if source.count(old) != 1:
+              raise SystemExit(f'workspace_invitation_expire_stable_code_marker_mismatch:{source.count(old)}')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Generate Surface closure and frontend evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node scripts/surface-contract-discovery.mjs
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node scripts/surface-contract-discovery.mjs
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
+
+      - name: Restore permanent frontend dispatch regression
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git show "${BASE_SHA}:http-generic-api/test-frontend-surface-dispatch.mjs" > http-generic-api/test-frontend-surface-dispatch.mjs
+          if grep -Fq 'surface_artifact_export_complete_intentional_test_failure' http-generic-api/test-frontend-surface-dispatch.mjs; then
+            echo '::error::temporary exporter remained in permanent test'
+            exit 1
+          fi
+
+      - name: Run focused closure regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check routes/tenantLifecycleRoutes.js
+          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+          node --check scripts/resource-api-callability-contracts.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Enforce scoped queue closure
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
+          const scoped = new Set(manifest.source_queue_tool_keys || []);
+          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
+            action.action_key === 'verify_tool_registry_binding' &&
+            (action.targets || []).some((key) => scoped.has(key))
+          ));
+          if (remaining.length !== 0) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
+          if ((manifest.source_queue_item_count || 0) !== 20) throw new Error('surface_source_queue_item_count_mismatch');
+          if ((manifest.source_queue_tool_keys || []).length !== 41) throw new Error('surface_tool_count_mismatch');
+          console.log(JSON.stringify({ ok: true, repository_queue_items: queue.total_items, remaining_scoped_items: 0, source_items: 20, tool_keys: 41, secrets_included: false }));
+          NODE
+
+      - name: Remove one-time workflow and enforce write set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm "${WORKFLOW_PATH}"
+          cat > /tmp/allowed-paths.txt <<'EOF'
+          .github/workflows/surface-callability-current-main-finalizer.yml
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-safety-attestations.json
+          http-generic-api/agentSurfaceRuntimeService.js
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          http-generic-api/resource-api-surface-callability.manifest.json
+          http-generic-api/routes/agentSurfaceRoutes.js
+          http-generic-api/routes/tenantInfrastructureRoutes.js
+          http-generic-api/routes/tenantLifecycleRoutes.js
+          http-generic-api/routes/workspaceResourceRoutes.js
+          http-generic-api/scripts/resource-api-callability-contracts.mjs
+          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+          http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs
+          http-generic-api/scripts/test-manifest.mjs
+          http-generic-api/surface-contract-classification-evidence.json
+          http-generic-api/test-frontend-surface-dispatch.mjs
+          http-generic-api/test-resource-api-callability-effect-classes.mjs
+          http-generic-api/test-surface-callability-full-closure.mjs
+          http-generic-api/test-surface-contract-sql-registry-extractor.mjs
+          EOF
+          sort -u /tmp/allowed-paths.txt -o /tmp/allowed-paths.txt
+          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed-paths.txt
+          UNEXPECTED="$(comm -23 /tmp/changed-paths.txt /tmp/allowed-paths.txt || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo '::error::finalizer changed files outside the bounded set'
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
+          for required in \
+            "${WORKFLOW_PATH}" \
+            docs/surface-contract-safety-attestations.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/resource-api-surface-callability.manifest.json \
+            http-generic-api/routes/tenantLifecycleRoutes.js \
+            http-generic-api/scripts/test-manifest.mjs \
+            http-generic-api/surface-contract-classification-evidence.json \
+            http-generic-api/test-frontend-surface-dispatch.mjs \
+            http-generic-api/test-surface-callability-full-closure.mjs; do
+            grep -Fxq "${required}" /tmp/changed-paths.txt || { echo "::error::required finalizer output missing: ${required}"; exit 1; }
+          done
+
+      - name: Commit and push product-only result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REMOTE_BEFORE="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_BEFORE}" = "$(git rev-parse HEAD)"
+          git config user.name 'mad4bdigital-ai'
+          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(surface): finalize scoped callability closure on current main'
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          REMOTE_AFTER="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_AFTER}" = "$(git rev-parse HEAD)"
+          test ! -e "${WORKFLOW_PATH}"
