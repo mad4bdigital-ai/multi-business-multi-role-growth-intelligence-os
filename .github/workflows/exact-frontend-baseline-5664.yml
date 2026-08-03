@@ -2,8 +2,7 @@ name: Exact Frontend Baseline Validation 5664
 
 on:
   pull_request:
-    branches:
-      - gpt/validate-frontend-baseline-5664-5ae197ec
+    branches: [gpt/validate-frontend-baseline-5664-5ae197ec]
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
@@ -82,9 +81,7 @@ jobs:
 
   full-ci-runtime:
     name: Complete suite and runtime startup
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
+    if: github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     steps:
@@ -101,7 +98,7 @@ jobs:
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
         run: npm ci
-      - name: Run context ratchet and complete ordered suite
+      - name: Run context ratchet and complete ordered suite with exact provenance
         working-directory: http-generic-api
         shell: bash
         env:
@@ -110,11 +107,15 @@ jobs:
           set -euo pipefail
           git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/context-kernel-changed-files.txt"
           node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/context-kernel-changed-files.txt"
-          GITHUB_SHA="${EXPECTED_HEAD_SHA}" npm test
+          node --input-type=module -e '
+            process.env.GITHUB_SHA = process.env.EXPECTED_HEAD_SHA;
+            if (process.env.GITHUB_SHA !== process.env.EXPECTED_HEAD_SHA) throw new Error("exact SHA binding failed");
+            await import("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs");
+          '
           test -f "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
           test -f "${TEST_SUITE_REPORT_DIR}/test-suite.json"
           jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha' "${TEST_SUITE_REPORT_DIR}/test-manifest.json"
-          jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha and .firstFailure == null' "${TEST_SUITE_REPORT_DIR}/test-suite.json"
+          jq -e --arg sha "${EXPECTED_HEAD_SHA}" '.commitSha == $sha and .firstFailure == null and .status == "passed"' "${TEST_SUITE_REPORT_DIR}/test-suite.json"
       - name: Prove runtime startup and deployment evidence
         working-directory: http-generic-api
         env:
@@ -136,9 +137,7 @@ jobs:
 
   execution-resolver:
     name: Execution Resolver Gate
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
+    if: github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
@@ -163,11 +162,9 @@ jobs:
           grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit
           grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit
 
-  architecture-governance:
-    name: Architecture, lifecycle, and contract integrity
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
+  architecture-lifecycle:
+    name: Architecture and lifecycle governance
+    if: github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
@@ -203,10 +200,29 @@ jobs:
             --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
             --policy .github/repository-maintenance-tool-governance.json \
             --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
-      - name: Run E2E contract reference integrity
+
+  contract-integrity:
+    name: E2E contract integrity on clean index
+    if: github.event.pull_request.head.sha == '5cf5a365b776e05c6c600b10d1dceeaec60a411f'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      BASE_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      CANDIDATE_SHA: 5cf5a365b776e05c6c600b10d1dceeaec60a411f
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Run reference and Git-index integrity before any mutating validator
         shell: bash
         run: |
           set -euo pipefail
+          test -z "$(git status --porcelain)"
           mkdir -p artifacts
           node http-generic-api/scripts/test-e2e-contract-reference-integrity.mjs
           node http-generic-api/scripts/test-e2e-contract-git-index-integrity.mjs
@@ -216,10 +232,11 @@ jobs:
             --head "${CANDIDATE_SHA}"
           node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
             --report-file artifacts/e2e-contract-reference-integrity.json
+          test -z "$(git status --porcelain)"
 
   final:
     name: Exact Draft validation final
-    needs: [frontend-determinism, full-ci-runtime, execution-resolver, architecture-governance]
+    needs: [frontend-determinism, full-ci-runtime, execution-resolver, architecture-lifecycle, contract-integrity]
     if: always()
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
@@ -235,13 +252,15 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend-determinism.result }}
           SUITE_RESULT: ${{ needs.full-ci-runtime.result }}
           RESOLVER_RESULT: ${{ needs.execution-resolver.result }}
-          GOVERNANCE_RESULT: ${{ needs.architecture-governance.result }}
+          ARCHITECTURE_RESULT: ${{ needs.architecture-lifecycle.result }}
+          CONTRACT_RESULT: ${{ needs.contract-integrity.result }}
         run: |
           set -euo pipefail
           test "${FRONTEND_RESULT}" = success
           test "${SUITE_RESULT}" = success
           test "${RESOLVER_RESULT}" = success
-          test "${GOVERNANCE_RESULT}" = success
+          test "${ARCHITECTURE_RESULT}" = success
+          test "${CONTRACT_RESULT}" = success
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
