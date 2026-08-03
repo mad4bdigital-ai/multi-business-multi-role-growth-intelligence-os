@@ -1,4 +1,4 @@
-name: TEMP Work Map Verification Dispatch ARM 5964
+name: TEMP Work Map Verification Dispatch ARM 5990
 
 on:
   pull_request:
@@ -11,14 +11,14 @@ permissions:
 
 jobs:
   validate:
-    name: Validate exact atomic candidate
+    name: Validate exact final atomic candidate
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: 8ad016f584c622e72eeac9f53e3df961660ad011
+          ref: 0a2265ff40ee8cb3e220e547bb658598d34ce05f
           fetch-depth: 0
           persist-credentials: false
 
@@ -27,15 +27,15 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5964"
-          test "$(git rev-parse HEAD)" = "8ad016f584c622e72eeac9f53e3df961660ad011"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5990"
+          test "$(git rev-parse HEAD)" = "0a2265ff40ee8cb3e220e547bb658598d34ce05f"
 
           git fetch --no-tags origin \
             "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-atomic-a61cd9e8-20260804:refs/remotes/origin/candidate"
+            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-final-a61cd9e8-20260804:refs/remotes/origin/candidate"
 
           test "$(git rev-parse refs/remotes/origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
-          test "$(git rev-parse refs/remotes/origin/candidate)" = "8ad016f584c622e72eeac9f53e3df961660ad011"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "0a2265ff40ee8cb3e220e547bb658598d34ce05f"
           test "$(git rev-parse HEAD^)" = "a61cd9e83070618001676bbc679bc937f0551875"
           test "$(git rev-list --count refs/remotes/origin/main..HEAD)" = "1"
 
@@ -44,6 +44,8 @@ jobs:
           .github/workflows/ci.yml
           .github/workflows/spec-kit-work-map-autofix.yml
           .github/workflows/spec-kit-work-map-integration.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
           http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
           EOF
           git diff --name-only refs/remotes/origin/main...HEAD | sort > "$RUNNER_TEMP/actual-files.txt"
@@ -53,6 +55,8 @@ jobs:
           test "$(git rev-parse HEAD:.github/workflows/ci.yml)" = "a09247d50e52fe00e94b54d1a98abe822e9346e5"
           test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-autofix.yml)" = "663b64ee84221ad27e2702ec90c826b5dbaa1c3c"
           test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-integration.yml)" = "ff41bb0c48df07d40baea2de91ec1303859c46b4"
+          test "$(git rev-parse HEAD:docs/work-maps/README.md)" = "4968d49be455d4064eecc073677131a8a79fdbf8"
+          test "$(git rev-parse HEAD:docs/work-maps/repository-automation-map.md)" = "10a8512e8418bc0a2a4ddbae5ce90026a083b3c4"
           test "$(git rev-parse HEAD:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs)" = "d5cad261ed259dc527403eca39b2d01de6fd4f55"
 
       - name: Set up Node.js 22
@@ -65,12 +69,13 @@ jobs:
         shell: bash
         run: node test-work-map-post-write-exact-verification-dispatch.mjs
 
-      - name: Verify E2E contract JSON and test syntax
+      - name: Verify E2E contract, test syntax, and generated maps
         shell: bash
         run: |
           set -euo pipefail
           node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
           node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
       - name: Verify clean checkout after validation
         shell: bash
