@@ -14,15 +14,14 @@ concurrency:
 
 jobs:
   patch:
-    name: Apply exact OAuth dependency and v2 evidence repair
+    name: Apply OAuth dependency, v2 evidence, and replay fixture repair
     if: >-
       github.actor == 'mad4bdigital-ai' &&
-      github.event.head_commit.message == 'fix(writer): add self-retiring OAuth v2 writer'
+      github.event.head_commit.message == 'fix(writer): add replay readback fixture'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_PARENT_SHA: 402733bc0b94dbe5068970429667047f81aeca83
       TARGET_BRANCH: gpt/spec012-oauth-deps-v2-a61cd9e8-20260804
       TRIGGER_FILE: .github/oauth-patch/trigger-5937-a61cd9e8.txt
       WORKFLOW_FILE: .github/workflows/exact-oauth-dependency-v2-self-writer-5937.yml
@@ -40,11 +39,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "$TARGET_BRANCH"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
           mapfile -t initial_files < <(git diff --name-only HEAD^ HEAD)
           test "${#initial_files[@]}" -eq 1
           test "${initial_files[0]}" = "$WORKFLOW_FILE"
           test -f "$TRIGGER_FILE"
+          test -f "$DIAGNOSTIC_FILE"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
           test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
@@ -57,6 +56,22 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
+          test_path = Path('http-generic-api/test-auth-oauth-routes.mjs')
+          select_fixture = '''    if (sql.includes("SELECT status, expires_at, consumed_at")
+        && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
+      const record = durableOAuthCodes.get(params[2]);
+      if (!record) return [[]];
+      return [[{
+        status: record.status,
+        expires_at: "2099-01-01 00:00:00",
+        consumed_at: record.status === "consumed" ? "2026-08-04 00:00:00" : null,
+        client_matches: record.client_id === params[0] ? 1 : 0,
+        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
+        expired_by_store: 0,
+      }]];
+    }
+'''
+
           replacements = {
               Path('http-generic-api/routes/index.js'): [
                   (
@@ -64,10 +79,14 @@ jobs:
                       '  app.use(buildTenantGptOAuthMetadataRoutes(deps));',
                   ),
               ],
-              Path('http-generic-api/test-auth-oauth-routes.mjs'): [
+              test_path: [
                   (
                       'app.use(buildTenantGptOAuthMetadataRoutes());',
                       'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));',
+                  ),
+                  (
+                      '    if (sql.includes("INSERT INTO `execution_log`")) {',
+                      select_fixture + '    if (sql.includes("INSERT INTO `execution_log`")) {',
                   ),
                   (
                       '  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));',
@@ -156,7 +175,7 @@ jobs:
             echo "writer_head=$(git rev-parse HEAD)"
             echo "focused_status=${{ steps.focused.outputs.status }}"
             echo '--- sanitized tail ---'
-            tail -n 240 /tmp/oauth-5937-focused.log \
+            tail -n 260 /tmp/oauth-5937-focused.log \
               | sed -e 's/test-client-secret/[REDACTED_TEST_SECRET]/g' \
                     -e 's/wrong-secret/[REDACTED_TEST_SECRET]/g' \
                     -e 's/oauth_route_test_secret/[REDACTED_TEST_SECRET]/g'
@@ -164,7 +183,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- "$DIAGNOSTIC_FILE"
-          git commit -m 'test(spec-012): record bounded OAuth v2 repair failure'
+          git commit -m 'test(spec-012): update bounded OAuth v2 repair failure'
           start_sha="$(git rev-parse HEAD^)"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
