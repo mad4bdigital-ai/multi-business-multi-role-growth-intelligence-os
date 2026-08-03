@@ -1,6 +1,12 @@
 name: Hostinger Node.js Build Evidence Dispatch R2
 
 on:
+  workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA authorized for this R2 dispatch
+        required: true
+        type: string
   issue_comment:
     types: [created]
 
@@ -15,10 +21,12 @@ jobs:
   dispatch-read-only-evidence-r2:
     name: Dispatch authenticated GET-only Hostinger build evidence R2
     if: >-
-      github.event.issue.pull_request == null &&
-      github.event.issue.number == 4953 &&
-      startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2 expected_head_sha=') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.number == 4953 &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C_R2 expected_head_sha=') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     permissions:
       contents: read
       actions: write
@@ -44,7 +52,8 @@ jobs:
       MUTATION_TARGET_BRANCH: issue-and-actions-metadata-only
       EVENT_COMMENT_BODY: ${{ github.event.comment.body || '' }}
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
-      EVENT_COMMENT_ID: ${{ github.event.comment.id || '' }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id || 'workflow-dispatch' }}
+      INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
 
     steps:
       - name: Resolve explicit expected main head
@@ -58,13 +67,18 @@ jobs:
             exit 1
           fi
 
-          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
-          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_head_sha=([a-f0-9]{40})$ ]]; then
-            echo "Invalid governed trigger format." >&2
-            exit 1
+          if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+            if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_head_sha=([a-f0-9]{40})$ ]]; then
+              echo "Invalid governed trigger format." >&2
+              exit 1
+            fi
+            EXPECTED_HEAD_SHA="${BASH_REMATCH[1]}"
+          else
+            EXPECTED_HEAD_SHA="${INPUT_EXPECTED_HEAD_SHA}"
+            [[ "${EXPECTED_HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]
           fi
 
-          EXPECTED_HEAD_SHA="${BASH_REMATCH[1]}"
           echo "expected_head_sha=${EXPECTED_HEAD_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Verify authorization and immutable bindings
