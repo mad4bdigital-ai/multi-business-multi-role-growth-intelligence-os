@@ -161,11 +161,16 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
-      - name: Run tests
+      - name: Run tests with exact checked-out identity
         working-directory: http-generic-api
         env:
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: npm test
+          EXPECTED_TEST_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_TEST_CANDIDATE_SHA"
+          GITHUB_SHA="$actual_sha" npm test
 
       - name: Upload ordered test progress reports
         if: always()
