@@ -1,28 +1,31 @@
 name: UEACP Live Authority Evidence One Shot
 
 on:
-  push:
-    branches:
-      - gpt/ueacp-live-authority-evidence-trigger-20260803
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: ueacp-live-authority-evidence-one-shot-push
+  group: ueacp-live-authority-evidence-one-shot-pull-request
   cancel-in-progress: true
 
 jobs:
   collect-live-authority-evidence:
     name: Collect governed live authority evidence
-    if: github.ref_name == 'gpt/ueacp-live-authority-evidence-trigger-20260803'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ueacp-live-authority-evidence-trigger-20260803' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-      TRIGGER_HEAD_SHA: ${{ github.sha }}
+      TRIGGER_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       PR_NUMBER: "5152"
       ARTIFACT_NAME: ueacp-live-authority-evidence-${{ github.run_id }}-${{ github.run_attempt }}
       AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-authorization.json
@@ -33,7 +36,7 @@ jobs:
       - name: Checkout exact trigger head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
