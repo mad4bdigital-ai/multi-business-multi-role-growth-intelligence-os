@@ -6,8 +6,9 @@ export const AUTHORITY_LIVE_SOURCE_ROW_LIMIT = 8192;
 
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,190}$/;
 const SAFE_ROUTE = /^\/[A-Za-z0-9_./:{}-]{0,510}$/;
+const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const FAMILY_SET = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
+const SOURCE_FAMILIES = new Set(AUTHORITY_EVIDENCE_SOURCE_FAMILIES);
 const SENSITIVE_KEY_PATTERN = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
 
 export class AuthorityLiveSourceCollectorError extends Error {
@@ -44,38 +45,65 @@ function assertNoSensitiveValues(value, path = "root", seen = new WeakSet()) {
   }
 }
 
-function token(value, fallback) {
-  const raw = String(value ?? fallback ?? "").trim();
-  const normalized = raw
-    .replace(/[^A-Za-z0-9_.:/-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 190);
+function token(value, field = "identifier") {
+  const normalized = String(value ?? "").trim();
   if (!SAFE_TOKEN.test(normalized)) {
     throw new AuthorityLiveSourceCollectorError(
       "authority_live_source_invalid_token",
-      "A live source identifier could not be normalized into a bounded token.",
-      { value: raw || null },
+      `${field} must be a non-empty bounded canonical token.`,
+      { field, value: normalized || null },
     );
   }
   return normalized;
 }
 
-function routeAndMethod(routeValue, methodValue) {
+function optionalToken(value, field) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? null
+    : token(value, field);
+}
+
+function strictHttpIdentity(routeValue, methodValue, field) {
   const route = String(routeValue ?? "").trim();
   const method = String(methodValue ?? "").trim().toUpperCase();
-  if (!route || !method) return { route: null, method: null };
-  if (!SAFE_ROUTE.test(route) || !new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]).has(method)) {
-    return { route: null, method: null };
+  if (!route || !method) {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_incomplete_http_identity",
+      `${field} must include both route and method.`,
+      { field, route: route || null, method: method || null },
+    );
+  }
+  if (!SAFE_ROUTE.test(route) || !HTTP_METHODS.has(method)) {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_invalid_http_identity",
+      `${field} contains an invalid route or method.`,
+      { field, route, method },
+    );
   }
   return { route, method };
+}
+
+function endpointHttpIdentity(routeValue, methodValue, field) {
+  const route = String(routeValue ?? "").trim();
+  const method = String(methodValue ?? "").trim().toUpperCase();
+  if (!route && !method) return { route: null, method: null };
+  if (route.startsWith("/")) return strictHttpIdentity(route, method, field);
+  if (!route || !method) {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_incomplete_endpoint_identity",
+      `${field} must preserve a complete route/method pair or a complete non-route endpoint identity.`,
+      { field, route: route || null, method: method || null },
+    );
+  }
+  return { route: null, method: null };
 }
 
 function activeStatus(value) {
   if (value === true || Number(value) === 1) return "active";
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["active", "enabled", "ready", "callable"].includes(normalized)) return "active";
-  if (["deprecated"].includes(normalized)) return "deprecated";
-  if (["blocked", "disabled", "inactive", "0", "false"].includes(normalized)) return "inactive";
+  if (normalized === "deprecated") return "deprecated";
+  if (["blocked", "disabled", "inactive", "archived", "0", "false"].includes(normalized)) return "inactive";
   return "unknown";
 }
 
@@ -88,13 +116,13 @@ function operationMode(method, explicitMode) {
 }
 
 function requirements(mode, authorityMode) {
-  const mutating = mode === "mutation" || mode === "plan";
+  const consequential = mode === "mutation" || mode === "plan";
   return {
-    approval: mutating && authorityMode === "admin_only",
+    approval: consequential && authorityMode === "admin_only",
     typed_confirmation: false,
-    capability_envelope: mutating,
-    idempotency: mutating,
-    readback: mutating,
+    capability_envelope: consequential,
+    idempotency: consequential,
+    readback: consequential,
     rollback: mode === "mutation",
   };
 }
@@ -118,13 +146,13 @@ function baseRecord({
 }) {
   const mode = operationMode(method, explicitOperationMode);
   return {
-    path_key: token(pathKey),
-    canonical_tool_key: canonicalToolKey ? token(canonicalToolKey) : null,
+    path_key: token(pathKey, "path_key"),
+    canonical_tool_key: optionalToken(canonicalToolKey, "canonical_tool_key"),
     route,
     method,
-    surface_family: token(surfaceFamily),
-    source_registry: token(sourceRegistry),
-    handler_key: token(handlerKey),
+    surface_family: token(surfaceFamily, "surface_family"),
+    source_registry: token(sourceRegistry, "source_registry"),
+    handler_key: token(handlerKey, "handler_key"),
     authority_mode: authorityMode,
     operation_mode: mode,
     callability: status === "active" ? "authorization_gated" : status === "deprecated" ? "deprecated" : "blocked",
@@ -138,13 +166,13 @@ function baseRecord({
     provider_scope_source: "provider_connection_bindings",
     credential_scope_source: "credential_reference_metadata",
     risk_class: riskClass || (mode === "read_only" ? "low" : authorityMode === "admin_only" ? "high" : "medium"),
-    revision_source: token(revisionSource),
-    freshness_source: token(freshnessSource),
-    revocation_source: token(revocationSource),
+    revision_source: token(revisionSource, "revision_source"),
+    freshness_source: token(freshnessSource, "freshness_source"),
+    revocation_source: token(revocationSource, "revocation_source"),
     invalidation_source: "authority_invalidation_events",
     atomicity_policy: mode === "read_only" || mode === "internal" ? "read_only_snapshot" : "same_cycle_readback_required",
     replacement_path_key: null,
-    aliases: [...new Set(aliases.filter(Boolean).map((item) => token(item)))].sort(),
+    aliases: [...new Set(aliases.filter(Boolean).map((item) => token(item, "alias")))].sort(),
     requirements: requirements(mode, authorityMode),
     credential_payload_read: false,
     secrets_included: false,
@@ -152,13 +180,20 @@ function baseRecord({
 }
 
 function mapToolRow(row, sourceRegistry, deviceOnly = false) {
-  const scope = String(row.scope_kind ?? "shared").toLowerCase();
-  const authorityMode = scope === "admin" ? "admin_only" : scope === "tenant" ? "tenant_only" : "shared";
-  const toolKey = token(row.tool_key, "unknown-tool");
+  const scope = token(row.scope_kind, "scope_kind").toLowerCase();
+  if (!new Set(["admin", "tenant"]).has(scope)) {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_invalid_scope",
+      "Platform endpoint tool rows must declare admin or tenant scope.",
+      { scope },
+    );
+  }
+  const authorityMode = scope === "admin" ? "admin_only" : "tenant_only";
+  const toolKey = token(row.tool_key, "tool_key");
   const registry = scope === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools";
-  const http = routeAndMethod(row.http_path, row.http_method);
   const tags = String(row.tags ?? "").toLowerCase();
   if (deviceOnly && !tags.split(/[\s,]+/).includes("device")) return null;
+  const http = strictHttpIdentity(row.http_path, row.http_method, `${registry}.${toolKey}`);
   return baseRecord({
     pathKey: deviceOnly ? `device-tool.${scope}.${toolKey}` : `system-tool.${scope}.${toolKey}`,
     canonicalToolKey: toolKey,
@@ -171,25 +206,27 @@ function mapToolRow(row, sourceRegistry, deviceOnly = false) {
     revisionSource: `${registry}.updated_at`,
     freshnessSource: `${registry}.updated_at`,
     revocationSource: `${registry}.is_enabled`,
-    aliases: [],
   });
 }
 
 function mapEndpointRow(row, sourceRegistry) {
-  const endpointKey = token(row.endpoint_key, row.endpoint_id || "unknown-endpoint");
-  const http = routeAndMethod(row.endpoint_path_or_function, row.method);
+  const endpointKey = token(row.endpoint_key, "endpoint_key");
+  const http = sourceRegistry === "direct_http_routes"
+    ? strictHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`)
+    : endpointHttpIdentity(row.endpoint_path_or_function, row.method, `endpoints.${endpointKey}`);
   const authorityMode = http.route?.startsWith("/admin/") ? "admin_only" : "shared";
-  const status = activeStatus(row.status);
   return baseRecord({
     pathKey: `endpoint.${endpointKey}`,
-    canonicalToolKey: row.openai_action_name || endpointKey,
+    canonicalToolKey: optionalToken(row.openai_action_name, "openai_action_name") || endpointKey,
     ...http,
     surfaceFamily: "endpoint_catalog",
     sourceRegistry,
-    handlerKey: row.route_target || row.module_binding || endpointKey,
+    handlerKey: optionalToken(row.route_target, "route_target")
+      || optionalToken(row.module_binding, "module_binding")
+      || endpointKey,
     authorityMode,
     explicitOperationMode: row.execution_mode,
-    status,
+    status: activeStatus(row.status),
     revisionSource: "endpoints.updated_at",
     freshnessSource: "endpoints.updated_at",
     revocationSource: "endpoints.status",
@@ -198,26 +235,27 @@ function mapEndpointRow(row, sourceRegistry) {
 }
 
 function mapActionRow(row) {
-  const actionKey = token(row.action_key, "unknown-action");
+  const actionKey = token(row.action_key, "action_key");
   return baseRecord({
     pathKey: `action.${actionKey}`,
     canonicalToolKey: actionKey,
     surfaceFamily: "runtime_action",
     sourceRegistry: "runtime_action_registry",
-    handlerKey: row.primary_executor || row.module_binding || actionKey,
+    handlerKey: optionalToken(row.primary_executor, "primary_executor")
+      || optionalToken(row.module_binding, "module_binding")
+      || actionKey,
     authorityMode: "shared",
     explicitOperationMode: "internal",
     status: activeStatus(row.status),
     revisionSource: "actions.updated_at",
     freshnessSource: "actions.updated_at",
     revocationSource: "actions.status",
-    aliases: [],
   });
 }
 
 function mapDescriptorRow(row) {
-  const exportKey = token(row.export_key, row.tool_name || "unknown-descriptor");
-  const toolName = token(row.tool_name, exportKey);
+  const exportKey = token(row.export_key, "export_key");
+  const toolName = token(row.tool_name, "tool_name");
   return baseRecord({
     pathKey: `descriptor.${exportKey}`,
     canonicalToolKey: toolName,
@@ -235,34 +273,45 @@ function mapDescriptorRow(row) {
 }
 
 function mapProviderBindingRow(row) {
-  const bindingId = token(row.binding_id, `${row.binding_kind || "binding"}.${row.app_key || "unknown"}.${row.action_key || row.tool_key || "unknown"}`);
+  const bindingId = token(row.binding_id, "binding_id");
+  const bindingKind = token(row.binding_kind, "binding_kind");
+  const bindingTable = token(row.binding_table, "binding_table");
+  const canonicalToolKey = optionalToken(row.action_key, "action_key")
+    || optionalToken(row.tool_key, "tool_key");
+  if (!canonicalToolKey) {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_binding_target_missing",
+      "Provider bindings must identify exactly one action or tool target.",
+      { binding_id: bindingId },
+    );
+  }
   return baseRecord({
     pathKey: `provider-binding.${bindingId}`,
-    canonicalToolKey: row.action_key || row.tool_key || bindingId,
+    canonicalToolKey,
     surfaceFamily: "provider_binding",
     sourceRegistry: "provider_binding_catalog",
-    handlerKey: `${row.binding_kind || "binding"}.${bindingId}`,
+    handlerKey: `${bindingKind}.${bindingId}`,
     authorityMode: "shared",
     explicitOperationMode: "internal",
     status: activeStatus(row.status),
-    revisionSource: `${row.binding_table || "app_integration_bindings"}.updated_at`,
-    freshnessSource: `${row.binding_table || "app_integration_bindings"}.updated_at`,
-    revocationSource: `${row.binding_table || "app_integration_bindings"}.status`,
+    revisionSource: `${bindingTable}.updated_at`,
+    freshnessSource: `${bindingTable}.updated_at`,
+    revocationSource: `${bindingTable}.status`,
     aliases: [row.app_key, row.tool_surface].filter(Boolean),
   });
 }
 
 function mapAliasRow(row) {
-  const endpointKey = token(row.endpoint_key, row.export_key || "unknown-alias");
-  const alias = token(row.alias_key, row.openai_action_name || row.tool_name || endpointKey);
-  const http = routeAndMethod(row.endpoint_path_or_function, row.method);
+  const endpointKey = token(row.endpoint_key, "endpoint_key");
+  const alias = token(row.alias_key, "alias_key");
+  const http = endpointHttpIdentity(row.endpoint_path_or_function, row.method, `alias.${endpointKey}.${alias}`);
   return baseRecord({
     pathKey: `compatibility-alias.${endpointKey}.${alias}`,
     canonicalToolKey: endpointKey,
     ...http,
     surfaceFamily: "compatibility_alias",
     sourceRegistry: "compatibility_alias_registry",
-    handlerKey: row.route_target || `alias.${alias}`,
+    handlerKey: optionalToken(row.route_target, "route_target") || `alias.${alias}`,
     authorityMode: http.route?.startsWith("/admin/") ? "admin_only" : "shared",
     status: activeStatus(row.status),
     revisionSource: "endpoints.updated_at",
@@ -337,6 +386,7 @@ function validateContext(context, family) {
       { family },
     );
   }
+  token(context.operation_ref, "operation_ref");
 }
 
 export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => new Date() } = {}) {
@@ -346,9 +396,16 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
       "queryRows must be a read-only query function.",
     );
   }
+  if (typeof clock !== "function") {
+    throw new AuthorityLiveSourceCollectorError(
+      "authority_live_source_clock_invalid",
+      "clock must be a function.",
+    );
+  }
+
   const collectors = {};
   for (const family of AUTHORITY_EVIDENCE_SOURCE_FAMILIES) {
-    if (!FAMILY_SET.has(family) || !SOURCE_QUERIES[family]) {
+    if (!SOURCE_FAMILIES.has(family) || !SOURCE_QUERIES[family]) {
       throw new AuthorityLiveSourceCollectorError(
         "authority_live_source_plan_incomplete",
         "Every registered source family must have one governed query plan.",
@@ -358,7 +415,14 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
     collectors[family] = async (context) => {
       validateContext(context, family);
       const plan = SOURCE_QUERIES[family];
-      const observedAt = new Date(clock()).toISOString();
+      const observedDate = new Date(clock());
+      if (Number.isNaN(observedDate.getTime())) {
+        throw new AuthorityLiveSourceCollectorError(
+          "authority_live_source_clock_invalid",
+          "clock must return a valid timestamp.",
+          { family },
+        );
+      }
       const rows = await queryRows({ queryKey: plan.queryKey, sql: plan.sql, params: [] });
       if (!Array.isArray(rows)) {
         throw new AuthorityLiveSourceCollectorError(
@@ -377,11 +441,12 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
       assertNoSensitiveValues(rows, `rows:${family}`);
       const records = rows.map(plan.mapper).filter(Boolean);
       assertNoSensitiveValues(records, `records:${family}`);
+      const operationRef = token(context.operation_ref, "operation_ref");
       return {
         source_family: family,
         source_key: `live.${family}`,
-        source_identity: `${token(context.operation_ref)}.${family}.${sha256(records).slice(0, 16)}`,
-        observed_at: observedAt,
+        source_identity: `${operationRef}.${family}.${sha256(records).slice(0, 16)}`,
+        observed_at: observedDate.toISOString(),
         pagination: {
           expected_count: records.length,
           observed_count: records.length,
@@ -389,10 +454,7 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
           complete: true,
           next_cursor: null,
         },
-        evidence_refs: [
-          `operation:${token(context.operation_ref)}`,
-          `query:${plan.queryKey}`,
-        ],
+        evidence_refs: [`operation:${operationRef}`, `query:${plan.queryKey}`],
         records,
         safety: {
           read_only: true,
@@ -414,7 +476,8 @@ export const AUTHORITY_LIVE_SOURCE_QUERY_KEYS = Object.freeze(
 export const _testingAuthorityLiveSourceCollectors = Object.freeze({
   sha256,
   token,
-  routeAndMethod,
+  strictHttpIdentity,
+  endpointHttpIdentity,
   mapToolRow,
   mapEndpointRow,
   mapActionRow,
