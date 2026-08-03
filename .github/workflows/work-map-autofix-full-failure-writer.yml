@@ -84,7 +84,7 @@ jobs:
           test -z "$(git status --porcelain | awk '{print $2}' | grep -Ev '^(.changes/e2e/work-map-autofix-validation-diagnostics.json|.github/workflows/spec-kit-work-map-autofix.yml|http-generic-api/test-work-map-autofix-validation-diagnostics.mjs|.github/arm-markers/work-map-full-failure-writer-trigger.txt)$' || true)"
           git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
 
-      - name: Run every validation and capture results
+      - name: Run pre-commit validations and capture results
         shell: bash
         run: |
           set -uo pipefail
@@ -107,8 +107,9 @@ jobs:
           run_check workflow-yaml ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' .github/workflows/spec-kit-work-map-autofix.yml
           run_check diagnostics-regression node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
           run_check e2e-json node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/work-map-autofix-validation-diagnostics.json','utf8'))"
-          run_check e2e-reference-integrity node http-generic-api/scripts/validate-e2e-contract-references.mjs
-          run_check e2e-phase-contracts node http-generic-api/scripts/validate-e2e-phase-contracts.mjs
+          run_check e2e-reference-regression node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          run_check e2e-git-index-regression node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          run_check e2e-reference-all node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --all --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity-pre-commit.json"
           run_check marker-failure-tsv grep -q 'failed-validation-contracts.tsv' .github/workflows/spec-kit-work-map-autofix.yml
           run_check marker-aggregate-text grep -q 'All validation contracts were evaluated before this fail-closed gate stopped generation' .github/workflows/spec-kit-work-map-autofix.yml
           run_check marker-failure-count grep -q 'failed_validation_contracts_count' .github/workflows/spec-kit-work-map-autofix.yml
@@ -120,23 +121,14 @@ jobs:
           } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
           cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
 
-      - name: Upload bounded validation diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: work-map-full-failure-writer-${{ github.run_id }}
-          path: ${{ runner.temp }}/work-map-full-failure-writer-${{ github.run_id }}
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Enforce validation success
+      - name: Enforce pre-commit validation success
         shell: bash
         run: |
           set -euo pipefail
           test -s "${DIAGNOSTIC_ROOT}/validation-results.tsv"
           awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
 
-      - name: Commit final three-file patch and push without force
+      - name: Create final local three-file commit
         shell: bash
         run: |
           set -euo pipefail
@@ -148,7 +140,43 @@ jobs:
           git add -u -- "${TRIGGER_MARKER}"
           git commit -m "ci(work-maps): persist complete validation failure set"
           new_head="$(git rev-parse HEAD)"
+          printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
           git diff --name-only "${EXPECTED_MAIN_SHA}" "${new_head}" | LC_ALL=C sort > /tmp/final-files.txt
           diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" /tmp/final-files.txt
+          test -z "$(git status --porcelain)"
+
+      - name: Validate exact local commit with canonical E2E gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${NEW_HEAD_SHA}" \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity-post-commit.json" \
+            | tee "${DIAGNOSTIC_ROOT}/e2e-reference-post-commit.log"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity-post-commit.json" \
+            | tee "${DIAGNOSTIC_ROOT}/e2e-git-index-post-commit.log"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${NEW_HEAD_SHA}" \
+            --report-file "${DIAGNOSTIC_ROOT}/e2e-phase-evaluation-post-commit.json" \
+            | tee "${DIAGNOSTIC_ROOT}/e2e-phase-post-commit.log"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload bounded validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-full-failure-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-full-failure-writer-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Push exact validated commit without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TARGET_HEAD_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${NEW_HEAD_SHA}"
