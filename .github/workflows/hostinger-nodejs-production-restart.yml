@@ -1,6 +1,16 @@
 name: Hostinger Production Node.js Restart
 
 on:
+  workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA authorized for this restart
+        required: true
+        type: string
+      expected_build_uuid:
+        description: Exact completed Hostinger build UUID authorized for restart
+        required: true
+        type: string
   issue_comment:
     types: [created]
 
@@ -15,11 +25,13 @@ jobs:
   restart:
     name: Restart authorized Production Node.js runtime
     if: >-
-      github.event.issue.pull_request == null &&
-      github.event.issue.number == 4953 &&
-      github.event.comment.user.id == 271942579 &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_NODEJS_RESTART_F5C1AE88 ')
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.number == 4953 &&
+       github.event.comment.user.id == 271942579 &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+       startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_NODEJS_RESTART_F5C1AE88 '))
     permissions:
       contents: read
       issues: write
@@ -28,6 +40,7 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
+      AUTHORIZATION_USER_ID: '271942579'
       EXPECTED_PRODUCTION_SHA: f5c1ae8840b4d4452f2908bb0f23051880bb6896
       EXPECTED_BUILD_UUID: 019fc51c-3947-7255-aa4d-f55cb8df7658
       PRODUCTION_MERGED_AT: '2026-08-03T00:53:07Z'
@@ -35,19 +48,38 @@ jobs:
       DOMAIN: auth.mad4b.com
       TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_NODEJS_RESTART_F5C1AE88
       BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:019fc51c-3947-7255-aa4d-f55cb8df7658
-      EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
+      MUTATION_TARGET_BRANCH: issue-metadata-and-hostinger-runtime-only
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body || '' }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
+      INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+      INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
     steps:
       - name: Resolve explicit authorization binding
         id: authorization
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_head_sha=([a-f0-9]{40})[[:space:]]expected_build_uuid=([0-9a-f-]{36})$ ]]; then
-            echo "Invalid governed restart trigger format." >&2
+
+          if [[ "${MUTATION_TARGET_BRANCH}" == "main" || "${MUTATION_TARGET_BRANCH}" == "Production" ]]; then
+            echo "Repository branch mutation is forbidden." >&2
             exit 1
           fi
-          expected_head_sha="${BASH_REMATCH[1]}"
-          expected_build_uuid="${BASH_REMATCH[2]}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+            if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_head_sha=([a-f0-9]{40})[[:space:]]expected_build_uuid=([0-9a-f-]{36})$ ]]; then
+              echo "Invalid governed restart trigger format." >&2
+              exit 1
+            fi
+            expected_head_sha="${BASH_REMATCH[1]}"
+            expected_build_uuid="${BASH_REMATCH[2]}"
+          else
+            expected_head_sha="${INPUT_EXPECTED_HEAD_SHA}"
+            expected_build_uuid="${INPUT_EXPECTED_BUILD_UUID}"
+            [[ "${expected_head_sha}" =~ ^[a-f0-9]{40}$ ]]
+            [[ "${expected_build_uuid}" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+          fi
+
           test "${expected_build_uuid}" = "${EXPECTED_BUILD_UUID}"
           echo "expected_head_sha=${expected_head_sha}" >> "${GITHUB_OUTPUT}"
 
