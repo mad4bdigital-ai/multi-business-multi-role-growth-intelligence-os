@@ -35,8 +35,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$PINNED_SOURCE_HEAD"
-          test "$(git diff --name-only HEAD^ HEAD)" = "$RUNNER_PATH"
+          git merge-base --is-ancestor "$PINNED_SOURCE_HEAD" HEAD
+          test "$(git diff --name-only "$PINNED_SOURCE_HEAD" HEAD)" = "$RUNNER_PATH"
+          test "$(git rev-list --count "$PINNED_SOURCE_HEAD..HEAD")" -ge 1
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -49,13 +50,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Regenerate canonical Surface contracts and evidence
+      - name: Generate Surface closure contracts
         working-directory: http-generic-api
-        run: |
-          set -euo pipefail
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          npm run frontend:dispatch:generate
-          node scripts/surface-contract-discovery.mjs --write
+        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Generate frontend dispatch evidence
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate
+
+      - name: Generate Surface discovery evidence
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs --write
 
       - name: Validate focused Surface closure regressions
         working-directory: http-generic-api
