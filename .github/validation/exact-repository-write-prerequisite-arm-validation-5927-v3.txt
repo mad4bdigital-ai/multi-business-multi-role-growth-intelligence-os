@@ -1,0 +1,4 @@
+Minimal registered ARM bootstrap trigger for canonical PR #5927.
+Validator base: 3cbcc1452b94d8570094faeb93725a62592eb87e
+Candidate: 85f9a9935beceeaf2e9bb3978d866a246421c405
+No mutation authority.
