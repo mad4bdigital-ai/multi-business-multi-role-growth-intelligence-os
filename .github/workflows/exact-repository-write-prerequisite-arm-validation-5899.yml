@@ -1,4 +1,4 @@
-name: Exact Repository Write Prerequisite ARM Validation 5899
+name: Exact Repository Write Prerequisite ARM Validation 5899 V8
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-repository-write-prerequisite-arm-5899-${{ github.event.pull_request.number }}
+  group: exact-repository-write-prerequisite-arm-5899-v8-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -26,8 +26,6 @@ jobs:
       EXPECTED_MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
       EXPECTED_HEAD_SHA: 74a0871c4f57cee753835ca655b0ca42d205ed7d
       EXPECTED_HEAD_REF: gpt/repository-write-prerequisite-main-58b98727-20260804-v2
-      REPORT_DIR: ${{ runner.temp }}/exact-repository-write-prerequisite-arm-5899
-      TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
 
     steps:
       - name: Checkout exact candidate
@@ -46,11 +44,10 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
-      - name: Verify immutable identity, topology, scope, and blobs
+      - name: Verify immutable identity and exact scope
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$REPORT_DIR/repository-tool-lifecycle" "$TEST_SUITE_REPORT_DIR"
           test "${{ github.event.pull_request.base.ref }}" = 'gpt/validate-repository-write-prerequisite-arm-base-58b98727-v2'
           test "${{ github.event.pull_request.head.repo.full_name }}" = "$GITHUB_REPOSITORY"
           test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
@@ -61,27 +58,8 @@ jobs:
           test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA")" = "$EXPECTED_MAIN_SHA"
           test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_HEAD_SHA")" -eq 1
           test "$(git rev-parse "$EXPECTED_HEAD_SHA^")" = "$EXPECTED_MAIN_SHA"
-
-          cat > "$REPORT_DIR/expected-files.txt" <<'FILES'
-          .changes/e2e/repository-write-workflow-prerequisites.json
-          .github/workflows/e2e-contract-reference-integrity.yml
-          .github/workflows/http-generic-api-fanout-relocation-apply.yml
-          .github/workflows/http-generic-api-fanout-relocation.yml
-          .github/workflows/repository-write-workflow-prerequisite-guard.yml
-          .github/workflows/supervisor-runtime-assurance-alert.yml
-          .github/workflows/supervisor-runtime-assurance.yml
-          .specify/pipeline-connectivity-contract.json
-          docs/runbooks/supervisor-runtime-assurance.md
-          http-generic-api/scripts/pipeline-connectivity-check.mjs
-          http-generic-api/test-fanout-relocation-ci.mjs
-          http-generic-api/test-pipeline-connectivity-check.mjs
-          http-generic-api/test-supervisor-runtime-assurance-automation.mjs
-          FILES
-          git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" > "$REPORT_DIR/actual-files.txt"
-          diff -u "$REPORT_DIR/expected-files.txt" "$REPORT_DIR/actual-files.txt"
-          test "$(wc -l < "$REPORT_DIR/actual-files.txt")" -eq 13
-          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" > "$REPORT_DIR/changes.tsv"
-
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" | wc -l)" -eq 13
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" > "$RUNNER_TEMP/repository-write-prerequisite-changes.tsv"
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-write-workflow-prerequisites.json")" = '396051ce2761653ef290ea3b470d00fb6b507300'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:.github/workflows/e2e-contract-reference-integrity.yml")" = 'a8de68b97820dc2d971d62c40edd82f7f2931a2a'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:.github/workflows/http-generic-api-fanout-relocation-apply.yml")" = '117af13e8fb26c3b4f61df99cfe11f2ba1156d84'
@@ -95,10 +73,6 @@ jobs:
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-fanout-relocation-ci.mjs")" = 'bc572739103dca3655c80e10711dd677cebd1dcb'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-pipeline-connectivity-check.mjs")" = '4384af5bc05277a3769915988ed3ea31684d340d'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-supervisor-runtime-assurance-automation.mjs")" = '375cc8b154b1e96e046ac4433066bff1668b006f'
-
-      - name: Install HTTP API dependencies
-        working-directory: http-generic-api
-        run: npm ci
 
       - name: Run canonical syntax and governance checks
         shell: bash
@@ -115,16 +89,21 @@ jobs:
           node validate-canonical-sources.mjs
           node build-canonicals.mjs --check
           node --check find-canonical-domain.mjs
-          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
-          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
           node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
           node validate-memory-schema.mjs
           git diff --check
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
 
       - name: Run focused repository write-boundary regressions
         working-directory: http-generic-api
         run: |
           set -euo pipefail
+          node scripts/resource-api-coverage-audit.mjs --ci --changed
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
           node test-pipeline-connectivity-check.mjs
           node test-fanout-relocation-ci.mjs
           node test-supervisor-runtime-assurance-automation.mjs
@@ -132,18 +111,21 @@ jobs:
       - name: Run complete Unit and Integration suite with exact provenance
         working-directory: http-generic-api
         shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
-          GITHUB_SHA="$EXPECTED_HEAD_SHA" TEST_SUITE_REPORT_DIR="$TEST_SUITE_REPORT_DIR" npm test
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual_sha" npm test
 
-      - name: Verify exact Unit and Integration report provenance
+      - name: Verify exact test report provenance
         shell: bash
         run: |
           set -euo pipefail
           for report in \
-            "$TEST_SUITE_REPORT_DIR/test-manifest.json" \
-            "$TEST_SUITE_REPORT_DIR/test-suite.json"; do
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
             test -f "$report"
             test "$(jq -r '.status' "$report")" = 'passed'
             test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
@@ -165,31 +147,23 @@ jobs:
           node test-hostinger-root-entrypoint.mjs
           node test-root-cause-activation-runtime-repair.mjs
 
-      - name: Run changed-range Repository Tool Lifecycle
+      - name: Run changed-range Repository Tool Lifecycle and E2E integrity
         shell: bash
         run: |
           set -euo pipefail
+          report_dir="$RUNNER_TEMP/exact-repository-write-prerequisite-arm-5899"
+          mkdir -p "$report_dir/repository-tool-lifecycle"
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" \
-            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-              --changed-files "$REPORT_DIR/changes.tsv" \
-              --policy .github/repository-maintenance-tool-governance.json \
-              --output-dir "$REPORT_DIR/repository-tool-lifecycle"
-          test "$(jq -r '.ok' "$REPORT_DIR/repository-tool-lifecycle/repository-tool-lifecycle-report.json")" = 'true'
-          test "$(jq '.findings | length' "$REPORT_DIR/repository-tool-lifecycle/repository-tool-lifecycle-report.json")" -eq 0
-
-      - name: Run changed-range E2E reference and Git-index integrity
-        shell: bash
-        run: |
-          set -euo pipefail
+          BASE_SHA="$EXPECTED_MAIN_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$RUNNER_TEMP/repository-write-prerequisite-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$report_dir/repository-tool-lifecycle"
+          test "$(jq -r '.ok' "$report_dir/repository-tool-lifecycle/repository-tool-lifecycle-report.json")" = 'true'
+          test "$(jq '.findings | length' "$report_dir/repository-tool-lifecycle/repository-tool-lifecycle-report.json")" -eq 0
           node http-generic-api/test-e2e-contract-reference-integrity.mjs
           node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$REPORT_DIR/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "$REPORT_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$report_dir/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "$report_dir/e2e-contract-reference-integrity.json"
 
       - name: Install root dependencies and run Execution Resolver Gate
         run: |
@@ -206,28 +180,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$REPORT_DIR/e2e-phase-evaluation.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs run \
-            --base "$EXPECTED_MAIN_SHA" \
-            --head "$EXPECTED_HEAD_SHA" \
-            --report-file "$REPORT_DIR/e2e-phase-evaluation-run.json" \
-            --execution-report-file "$REPORT_DIR/e2e-phase-execution.json"
+          report_dir="$RUNNER_TEMP/exact-repository-write-prerequisite-arm-5899"
+          mkdir -p "$report_dir"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$report_dir/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_MAIN_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$report_dir/e2e-phase-evaluation-run.json" --execution-report-file "$report_dir/e2e-phase-execution.json"
 
       - name: Publish exact no-secret summary
         if: always()
         shell: bash
         run: |
-          mkdir -p "$REPORT_DIR"
-          jq -n \
-            --arg base_sha "$EXPECTED_MAIN_SHA" \
-            --arg head_sha "$EXPECTED_HEAD_SHA" \
-            --arg run_id "$GITHUB_RUN_ID" \
-            --arg job_status "${{ job.status }}" \
-            '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v7",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,exact_one_commit_topology:true,changed_file_count:13,candidate_mutated:false,main_mutated:false,production_mutated:false,repository_write_executed:false,deployment_executed:false,provider_call_executed:false,credential_payload_read:false,sql_executed:false,migration_apply:false,database_mutated:false,work_map_publication_executed:false,external_send:false,secrets_included:false}' \
-            > "$REPORT_DIR/summary.json"
+          report_dir="$RUNNER_TEMP/exact-repository-write-prerequisite-arm-5899"
+          mkdir -p "$report_dir"
+          jq -n --arg base_sha "$EXPECTED_MAIN_SHA" --arg head_sha "$EXPECTED_HEAD_SHA" --arg run_id "$GITHUB_RUN_ID" --arg job_status "${{ job.status }}" '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v8",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,exact_one_commit_topology:true,changed_file_count:13,candidate_mutated:false,main_mutated:false,production_mutated:false,repository_write_executed:false,deployment_executed:false,provider_call_executed:false,credential_payload_read:false,sql_executed:false,migration_apply:false,database_mutated:false,work_map_publication_executed:false,external_send:false,secrets_included:false}' > "$report_dir/summary.json"
 
       - name: Upload exact validation evidence
         if: always()
@@ -235,7 +199,7 @@ jobs:
         with:
           name: exact-repository-write-prerequisite-arm-validation-5899-${{ github.run_id }}
           path: |
-            ${{ env.REPORT_DIR }}/
-            ${{ env.TEST_SUITE_REPORT_DIR }}/*.json
+            ${{ runner.temp }}/exact-repository-write-prerequisite-arm-5899/
+            ${{ runner.temp }}/test-suite-reports/*.json
           if-no-files-found: warn
           retention-days: 14
