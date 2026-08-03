@@ -24,10 +24,8 @@ function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
-    sensitiveKey.test(key) && !['authorization_created', 'authorization_bootstrap', 'authorization_comment_id'].includes(key)
-      ? key
-      : key,
-    sensitiveKey.test(key) && !['authorization_created', 'authorization_bootstrap', 'authorization_comment_id'].includes(key)
+    key,
+    sensitiveKey.test(key) && key !== 'authorization_created' && key !== 'authorization_bootstrap'
       ? '[redacted]'
       : sanitize(child),
   ]));
@@ -123,7 +121,7 @@ async function discover() {
         : 'artifact_ready';
 
   const report = {
-    contract: 'sprint69_1043_runtime_readiness_backfill_discovery.v2',
+    contract: 'sprint69_1043_runtime_readiness_backfill_discovery.v1',
     outcome,
     repository: REPOSITORY,
     issue_number: ISSUE_NUMBER,
@@ -277,17 +275,23 @@ async function publish() {
 
   const comments = await githubJson(`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments?per_page=100`);
   const existing = (comments || []).find((comment) => String(comment?.body || '').includes(marker));
-  const request = existing
-    ? [`/repos/${REPOSITORY}/issues/comments/${existing.id}`, 'PATCH']
-    : [`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments`, 'POST'];
-  const published = await githubJson(request[0], {
-    method: request[1],
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body }),
-  });
+  let published;
+  if (existing) {
+    published = await githubJson(`/repos/${REPOSITORY}/issues/comments/${existing.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    });
+  } else {
+    published = await githubJson(`/repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    });
+  }
 
   const publication = {
-    contract: 'sprint69_1043_runtime_readiness_backfill_publication.v2',
+    contract: 'sprint69_1043_runtime_readiness_backfill_publication.v1',
     outcome: runtime.status,
     issue_number: ISSUE_NUMBER,
     authorization_comment_id: AUTHORIZATION_COMMENT_ID,
