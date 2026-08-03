@@ -1,0 +1,3 @@
+Temporary exact-head currentness probe for the governed Spec Kit Work Map Integration gate.
+
+This path triggers the Integration workflow but is not part of platform-work-map-generator.mjs sourceFiles. Delete it before merge. No runtime, deployment, provider, credential, database, migration, Production, or external-send action is authorized.
