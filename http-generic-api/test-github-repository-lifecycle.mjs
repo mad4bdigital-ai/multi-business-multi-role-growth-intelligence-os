@@ -165,7 +165,6 @@ function queuedFetch(entries, calls = []) {
   );
 }
 
-
 {
   await assert.rejects(
     () => deleteGithubBranchRef({
@@ -339,6 +338,7 @@ function queuedFetch(entries, calls = []) {
       { status: 200, payload: { total_count: 4, check_runs: checks } },
       { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: [{ id: 9001, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T04:30:00Z", user: { login: "human-reviewer", type: "User" } }] },
+      { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "pr-author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: branch, sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
       { status: 200, payload: { merged: true, sha: COMMIT_SHA, message: "merged" } },
       { status: 200, payload: { object: { sha: COMMIT_SHA } } },
       { status: 200, payload: { status: "identical", ahead_by: 0, behind_by: 0 } },
@@ -434,7 +434,6 @@ function queuedFetch(entries, calls = []) {
   assert.equal(commitCall.body.tree, NEW_TREE_SHA);
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
 }
-
 
 {
   const calls = [];
@@ -593,7 +592,6 @@ function queuedFetch(entries, calls = []) {
   assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "draft race must not reach merge endpoint");
 }
 
-
 function exactHeadChecks() {
   return [
     "Syntax Check",
@@ -717,6 +715,33 @@ function exactHeadGateResponses(pullNumber, branch = "gpt/exact-head-approval") 
   );
   assert.equal(calls.some((call) => call.url.includes("/reviews")), false, "identity race must fail before review fetch");
   assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "identity race must not reach merge endpoint");
+}
+
+{
+  const calls = [];
+  const pullNumber = 4391;
+  await assert.rejects(
+    () => finalizeGithubPullRequest({
+      owner: OWNER,
+      repo: REPO,
+      token: "test-token",
+      pull_number: pullNumber,
+      expected_head_sha: HEAD_SHA,
+      expected_base_sha: BASE_SHA,
+      confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
+      fetchImpl: queuedFetch([
+        ...exactHeadGateResponses(pullNumber),
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+        { status: 200, payload: [{ id: 6, state: "APPROVED", commit_id: HEAD_SHA, submitted_at: "2026-08-03T05:15:00Z", user: { login: "reviewer", type: "User" } }] },
+        { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: COMMIT_SHA }, head: { ref: "gpt/exact-head-approval", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+      ], calls),
+    }),
+    (error) => error.code === "github_pr_finalize_final_identity_mismatch"
+      && error.details?.validation_phase === "post_approval_pre_merge_readback"
+      && error.details?.current_base_sha === COMMIT_SHA,
+  );
+  assert.equal(calls.some((call) => call.url.includes("/reviews")), true, "post-approval race must occur after review evidence is fetched");
+  assert.equal(calls.some((call) => call.method === "PUT" && /\/merge$/.test(call.url)), false, "post-approval base race must not reach merge endpoint");
 }
 
 console.log("github repository lifecycle tests passed");

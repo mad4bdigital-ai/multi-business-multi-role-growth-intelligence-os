@@ -596,6 +596,37 @@ export async function finalizeGithubPullRequest(options = {}) {
   if (!approvalEvidence.quorum_satisfied) {
     throw lifecycleError(409, "github_pr_finalize_approval_required", "Exact-head human approval quorum is not satisfied.", approvalEvidence);
   }
+
+  const postApprovalPr = (await githubLifecycleRequest({
+    owner,
+    repo,
+    apiPath: `/pulls/${pullNumber}`,
+    token,
+    fetchImpl: options.fetchImpl,
+  })).payload;
+  const postApprovalState = String(postApprovalPr?.state || "").trim().toLowerCase();
+  const postApprovalHeadSha = normalizeSha(postApprovalPr?.head?.sha);
+  const postApprovalBaseSha = normalizeSha(postApprovalPr?.base?.sha);
+  if (
+    postApprovalState !== "open"
+    || postApprovalPr?.draft === true
+    || postApprovalHeadSha !== expectedHeadSha
+    || postApprovalBaseSha !== expectedBaseSha
+  ) {
+    throw lifecycleError(409, "github_pr_finalize_final_identity_mismatch", "Pull request state, Draft status, head, or base changed after approval evidence and before merge.", {
+      pull_number: pullNumber,
+      expected_state: "open",
+      current_state: postApprovalState || null,
+      is_draft: postApprovalPr?.draft === true,
+      expected_head_sha: expectedHeadSha,
+      current_head_sha: postApprovalHeadSha || null,
+      expected_base_sha: expectedBaseSha,
+      current_base_sha: postApprovalBaseSha || null,
+      validation_phase: "post_approval_pre_merge_readback",
+      secrets_included: false,
+    });
+  }
+
   const merge = await githubLifecycleRequest({
     owner,
     repo,
@@ -907,7 +938,6 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
   if (!branchExists && defaultBranchMoved) commitParentSha = currentBaseSha;
   const baseCommit = await githubLifecycleRequest({ owner, repo, apiPath: `/git/commits/${commitParentSha}`, token, fetchImpl: options.fetchImpl });
 
-  // Validate every hunk before creating any Git blob, tree, commit, or ref.
   const preparedChanges = [];
   for (const source of normalizedChanges) {
     if (source.action === "delete_file") {
@@ -1019,6 +1049,7 @@ export async function applyGithubRepositoryChangeSet(options = {}) {
     secrets_included: false,
   };
 }
+
 async function readGithubBlobShaAtPath({ owner, repo, treeSha, filePath, token, fetchImpl }) {
   const parts = validateChangePath(filePath).split("/");
   let currentTreeSha = normalizeSha(treeSha);
