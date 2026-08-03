@@ -90,4 +90,62 @@ assert.match(program, /external_write_executed: false/);
 assert.match(program, /secrets_included: false/);
 assert.doesNotMatch(program, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
+const dispatchEnvKeys = [
+  'GITHUB_REPOSITORY',
+  'GH_TOKEN',
+  'GITHUB_EVENT_NAME',
+  'GITHUB_ACTOR',
+  'GITHUB_SHA',
+  'DISPATCH_EXPECTED_MAIN_SHA',
+  'DISPATCH_CONFIRMATION_COMMENT_ID',
+];
+const originalDispatchEnv = Object.fromEntries(dispatchEnvKeys.map((key) => [key, process.env[key]]));
+const originalFetch = globalThis.fetch;
+const dispatchSha = 'a'.repeat(40);
+
+try {
+  Object.assign(process.env, {
+    GITHUB_REPOSITORY: 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os',
+    GH_TOKEN: 'test-token',
+    GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_ACTOR: 'mad4bdigital-ai',
+    GITHUB_SHA: dispatchSha,
+    DISPATCH_EXPECTED_MAIN_SHA: dispatchSha,
+    DISPATCH_CONFIRMATION_COMMENT_ID: '5143273227',
+  });
+  globalThis.fetch = async () => {
+    throw new Error('historical comment replay must fail before GitHub read');
+  };
+
+  await assert.rejects(
+    import('../.github/ops/validate-sprint69-1006-readiness-trigger.mjs?replay-rejected'),
+    /unexpected dispatch confirmation comment id/,
+  );
+
+  process.env.DISPATCH_CONFIRMATION_COMMENT_ID = '5170518874';
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /issues\/comments\/5170518874$/);
+    return {
+      ok: true,
+      async json() {
+        return {
+          body: 'AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE',
+          user: { login: 'mad4bdigital-ai' },
+          author_association: 'OWNER',
+          issue_url: 'https://api.github.com/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4122',
+        };
+      },
+    };
+  };
+
+  await import('../.github/ops/validate-sprint69-1006-readiness-trigger.mjs?fresh-authorized');
+} finally {
+  globalThis.fetch = originalFetch;
+  for (const key of dispatchEnvKeys) {
+    const value = originalDispatchEnv[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+
 console.log('Sprint 69 Migration 1006 governed rollout control checks passed');
