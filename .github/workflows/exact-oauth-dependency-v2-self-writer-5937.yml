@@ -17,7 +17,7 @@ jobs:
     name: Apply OAuth dependency, v2 evidence, and replay fixture repair
     if: >-
       github.actor == 'mad4bdigital-ai' &&
-      github.event.head_commit.message == 'fix(writer): add replay readback fixture'
+      github.event.head_commit.message == 'fix(writer): correct replay fixture workflow syntax'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
@@ -57,20 +57,21 @@ jobs:
           from pathlib import Path
 
           test_path = Path('http-generic-api/test-auth-oauth-routes.mjs')
-          select_fixture = '''    if (sql.includes("SELECT status, expires_at, consumed_at")
-        && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {
-      const record = durableOAuthCodes.get(params[2]);
-      if (!record) return [[]];
-      return [[{
-        status: record.status,
-        expires_at: "2099-01-01 00:00:00",
-        consumed_at: record.status === "consumed" ? "2026-08-04 00:00:00" : null,
-        client_matches: record.client_id === params[0] ? 1 : 0,
-        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,
-        expired_by_store: 0,
-      }]];
-    }
-'''
+          select_fixture = "\n".join([
+              '    if (sql.includes("SELECT status, expires_at, consumed_at")',
+              '        && sql.includes("FROM `tenant_gpt_oauth_authorization_codes`")) {',
+              '      const record = durableOAuthCodes.get(params[2]);',
+              '      if (!record) return [[]];',
+              '      return [[{',
+              '        status: record.status,',
+              '        expires_at: "2099-01-01 00:00:00",',
+              '        consumed_at: record.status === "consumed" ? "2026-08-04 00:00:00" : null,',
+              '        client_matches: record.client_id === params[0] ? 1 : 0,',
+              '        redirect_matches: record.redirect_uri_hash === params[1] ? 1 : 0,',
+              '        expired_by_store: 0,',
+              '      }]];',
+              '    }',
+          ]) + "\n"
 
           replacements = {
               Path('http-generic-api/routes/index.js'): [
