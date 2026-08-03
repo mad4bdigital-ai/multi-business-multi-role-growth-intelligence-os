@@ -57,7 +57,11 @@ assert.match(route, /delete req\.headers\.cookie/u);
 assert.match(route, /res\.setHeader\("Cache-Control", "no-store"\)/u);
 assert.match(route, /res\.setHeader\("Pragma", "no-cache"\)/u);
 assert.match(route, /res\.setHeader\("x-request-id", requestId\)/u);
-assert.match(route, /JOIN `tenants` t ON t\.tenant_id = m\.tenant_id AND t\.status = 'active'/u);
+assert.equal(
+  route.includes("JOIN \\`tenants\\` t ON t.tenant_id = m.tenant_id AND t.status = 'active'"),
+  true,
+  "active membership read must join an active tenant",
+);
 assert.match(route, /error\?\.oauth_consumption/u);
 assert.match(route, /operator_reconciliation_required/u);
 assert.match(route, /response_transport_interrupted/u);
