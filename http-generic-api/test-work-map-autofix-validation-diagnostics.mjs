@@ -43,6 +43,22 @@ assert.match(
   "diagnostics must live outside GITHUB_WORKSPACE so checkout cannot remove them",
 );
 assert.doesNotMatch(initializationBlock, /GITHUB_WORKSPACE.*work-map-autofix-diagnostics/);
+assert.ok(
+  initializationBlock.includes('git check-ref-format --branch "${TARGET_BRANCH}"'),
+  "target branch must be validated with git check-ref-format",
+);
+assert.ok(
+  initializationBlock.includes('[[ "${TARGET_BRANCH}" != refs/* ]]'),
+  "workflow input must be a branch name rather than a full refs path",
+);
+assert.ok(
+  initializationBlock.includes('[[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]'),
+  "protected branches must remain explicitly rejected",
+);
+assert.ok(
+  !initializationBlock.includes('^(gpt|cert|fix|feat|chore|docs|release)'),
+  "permanent workflow must not embed a work-branch namespace allowlist",
+);
 assert.match(
   workflow,
   /path: \$\{\{ runner\.temp \}\}\/work-map-autofix-diagnostics-\$\{\{ github\.run_id \}\}/,

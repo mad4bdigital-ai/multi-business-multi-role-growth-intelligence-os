@@ -137,6 +137,42 @@ permissions:
 );
 assert(!repositoryPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
 
+const repositoryShellPathWorkflow = ".github/workflows/repository-shell-path.yml";
+const repositoryShellPathFindings = await evaluate(
+  [{ status: "A", path: repositoryShellPathWorkflow }],
+  {
+    [repositoryShellPathWorkflow]: `
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    steps:
+      - run: |
+          git diff --name-only | grep -v '^docs/work-maps/'
+          git add docs/work-maps
+`,
+  },
+);
+assert(!repositoryShellPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
+const docsBranchContextWorkflow = ".github/workflows/docs-branch-context.yml";
+const docsBranchContextFindings = await evaluate(
+  [{ status: "A", path: docsBranchContextWorkflow }],
+  {
+    [docsBranchContextWorkflow]: `
+on:
+  workflow_dispatch:
+env:
+  TARGET_BRANCH: docs/example-work-branch
+permissions:
+  contents: read
+`,
+  },
+);
+assert(docsBranchContextFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
 const triggerFindings = await evaluate([
   { status: "A", path: ".changes/e2e/.runtime-patch-trigger" },
 ]);
@@ -326,6 +362,6 @@ assert.deepEqual(compliantFindings, []);
 console.log(JSON.stringify({
   ok: true,
   gate: "repository_tool_lifecycle_governance",
-  cases: 19,
+  cases: 21,
   secrets_included: false,
 }));

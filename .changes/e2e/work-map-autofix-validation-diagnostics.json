@@ -9,7 +9,11 @@
     "include": [
       ".changes/e2e/work-map-autofix-validation-diagnostics.json",
       ".github/workflows/spec-kit-work-map-autofix.yml",
-      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
     ]
   },
   "merge_contract": {
@@ -19,7 +23,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Evaluate all eleven Work Map Autofix validation contracts, persist each outcome and log, preserve backward-compatible first-failure fields, and fail closed once the complete failure set is captured.",
+      "objective": "Evaluate all eleven Work Map Autofix validation contracts, persist each outcome and log, preserve backward-compatible first-failure fields, fail closed once the complete failure set is captured, accept only a git-valid non-protected branch pinned to one exact same-repository pull request into main, distinguish branch literals from repository paths, and preserve generated Work Map parity.",
       "e2e_journeys": [
         {
           "id": "named-validation-failure-to-bounded-evidence",
@@ -30,12 +34,15 @@
           "terminal_outcome": "Every validation contract is evaluated and represented in checkout-safe evidence; all failing contract names and exit codes plus the backward-compatible first failure are exposed before generation and repository mutation remain blocked.",
           "steps": [
             "Load the workflow-dispatch-only Work Map Autofix writer without dispatching it.",
+            "Verify the branch input is git-valid, is not a full refs path or protected branch, and is pinned to exactly one same-repository open pull request into main by branch name and expected head SHA without a hard-coded work-branch namespace.",
             "Verify diagnostics are initialized under the run-scoped runner temporary directory instead of the checkout workspace.",
             "Verify all eleven generator, connectivity, and classification checks are invoked through the named contract wrapper.",
             "Verify each contract writes a dedicated log and appends its outcome and exit code without stopping later validation contracts.",
             "Verify the aggregate gate preserves the first failure, records the complete failure set and count, and fails closed before generation.",
             "Verify Markdown, JSON, pull-request comment, and artifact evidence expose bounded failure-set diagnostics.",
-            "Verify validation contains no generation, push, force-push, protected-branch mutation, or external-send authority."
+            "Verify validation contains no generation, push, force-push, protected-branch mutation, or external-send authority.",
+            "Verify Repository Tool Lifecycle detects work-branch literals only in branch, ref, or git branch-operation context and does not classify repository paths such as docs/work-maps as branches.",
+            "Regenerate the governed Work Map index and repository automation map, then prove a second generation is idempotent."
           ],
           "assertions": [
             "All eleven validation commands have stable unique names and dedicated runner-temporary logs.",
@@ -44,7 +51,10 @@
             "The complete failed-contract count and contract-to-exit-code set are emitted in bounded evidence.",
             "The workflow fails closed before generation, commit, push, or verification when any validation fails.",
             "Diagnostic files survive checkout cleanup and are uploaded with missing files treated as an error under always().",
-            "No new trigger, permission, writer, force-push, protected-branch, database, Production, provider, credential, or external-send authority is added."
+            "No new trigger, permission, writer, force-push, protected-branch, database, Production, provider, credential, or external-send authority is added.",
+            "Permanent workflow branch governance is input-driven and PR/commit-pinned; no work-branch namespace is embedded as a durable allowlist.",
+            "Lifecycle branch-literal detection remains strict for branch/ref contexts and does not report docs, release, fix, or feat repository paths as branches.",
+            "Generated Work Map source hashes and repository automation documentation match the lifecycle-safe workflow and guard sources exactly."
           ],
           "tests": [
             {
@@ -58,7 +68,11 @@
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-validation-diagnostics.json",
             ".github/workflows/spec-kit-work-map-autofix.yml",
-            "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+            "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
           ]
         }
       ]
