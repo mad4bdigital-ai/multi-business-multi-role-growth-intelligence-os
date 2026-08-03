@@ -3,7 +3,7 @@
   "feature_key": "012-tenant-activation-lifecycle",
   "phase_key": "oauth-code-consumption-and-token-response-foundation",
   "task_id": "T031",
-  "status": "consumption_foundation_complete_runtime_wiring_required",
+  "status": "live_store_hardening_complete_route_policy_wiring_required",
   "observed_main_sha": "773179a2dee3523c8af25262475ac83b92e46f21",
   "observed_at": "2026-08-04",
   "authority": {
@@ -18,6 +18,14 @@
     "store_test": "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
     "policy_test": "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
     "readiness_test": "http-generic-api/test-spec012-t031-oauth-code-consumption-foundation.mjs"
+  },
+  "effects": {
+    "authorization_code_store_runtime_behavior_changed": true,
+    "classified_consumption_readback_active": true,
+    "zero_row_conflict_readback_active": true,
+    "transport_error_readback_active": true,
+    "route_policy_runtime_wired": false,
+    "oauth_response_contract_changed": false
   },
   "consumption_contract": {
     "atomic_update": true,
@@ -52,6 +60,7 @@
     "issued_readback_retry_may_be_allowed": true,
     "unknown_outcome_requires_reconciliation": true,
     "restart_authorization_only_for_verified_invalid_grant": true,
+    "route_wiring_status": "not_wired",
     "secrets_included": false
   },
   "test_coverage": [
@@ -91,9 +100,8 @@
     "oauth_response_changed": false,
     "jwt_claim_changed": false,
     "database_schema_changed": false,
-    "database_mutation_performed": false,
+    "database_mutation_performed_during_delivery": false,
     "migration_applied": false,
-    "runtime_wired": false,
     "production_deployed": false,
     "credential_read_performed": false,
     "provider_call_performed": false,
