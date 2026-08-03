@@ -218,21 +218,55 @@ function definitionMap(definitions) {
   }
   return map;
 }
+function bindingBaseKey(activityBindingId, nativeKpiKey) {
+  return `${activityBindingId}:${nativeKpiKey}`;
+}
+function bindingVersionKey(activityBindingId, nativeKpiKey, definitionVersion) {
+  return `${bindingBaseKey(activityBindingId, nativeKpiKey)}@${definitionVersion}`;
+}
 function bindingMap(bindings) {
   const map = new Map();
   for (const binding of bindings || []) {
     const typed = validateGrowthControlKpiBinding(binding);
-    const key = `${typed.activityBindingId}:${typed.nativeKpiKey}`;
-    if (map.has(key)) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_AMBIGUOUS", `Duplicate active KPI mapping: ${key}.`, 409);
+    const key = bindingVersionKey(typed.activityBindingId, typed.nativeKpiKey, typed.definitionVersion);
+    if (map.has(key)) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_AMBIGUOUS", `Duplicate KPI mapping identity: ${key}.`, 409);
     map.set(key, typed);
   }
   return map;
+}
+function bindingVersionIndex(bindingsByKey) {
+  const index = new Map();
+  for (const binding of bindingsByKey.values()) {
+    const key = bindingBaseKey(binding.activityBindingId, binding.nativeKpiKey);
+    index.set(key, [...(index.get(key) || []), binding]);
+  }
+  return index;
+}
+function resolveObservationBinding(observation, bindingsByKey, bindingsByBaseKey) {
+  const activityBindingId = String(observation.activityBindingId ?? observation.activity_binding_id ?? "");
+  const nativeKpiKey = String(observation.nativeKpiKey ?? observation.native_kpi_key ?? "");
+  const baseKey = bindingBaseKey(activityBindingId, nativeKpiKey);
+  const rawDefinitionVersion = observation.definitionVersion ?? observation.definition_version ?? observation.lineage?.definitionVersion ?? observation.lineage_json?.definitionVersion;
+  if (rawDefinitionVersion != null && rawDefinitionVersion !== "") {
+    const definitionVersion = positiveInteger(rawDefinitionVersion, "definitionVersion");
+    return bindingsByKey.get(bindingVersionKey(activityBindingId, nativeKpiKey, definitionVersion)) || null;
+  }
+  const candidates = bindingsByBaseKey.get(baseKey) || [];
+  if (candidates.length > 1) {
+    throw new GrowthControlPlaneError(
+      "GROWTH_CONTROL_KPI_BINDING_VERSION_REQUIRED",
+      "definitionVersion is required when multiple governed KPI mapping versions exist for an observation.",
+      422,
+      [{ field: "definitionVersion", issue: "required_for_versioned_mapping" }],
+    );
+  }
+  return candidates[0] || null;
 }
 
 export function buildGrowthControlKpiCatalogProjection({ definitions = [], bindings = [], activityBindingIds = null } = {}) {
   const allowedBindings = activityBindingIds == null ? null : new Set(activityBindingIds.map(String));
   const typedDefinitions = [...definitionMap(definitions).values()].filter((item) => ["ready", "active", "deprecated"].includes(item.status)).sort((a, b) => a.normalizedKpiKey.localeCompare(b.normalizedKpiKey) || b.definitionVersion - a.definitionVersion);
-  const typedBindings = [...bindingMap(bindings).values()].filter((item) => ["ready", "active", "deprecated"].includes(item.status)).filter((item) => !allowedBindings || allowedBindings.has(item.activityBindingId)).sort((a, b) => a.normalizedKpiKey.localeCompare(b.normalizedKpiKey) || a.activityTypeKey.localeCompare(b.activityTypeKey) || a.nativeKpiKey.localeCompare(b.nativeKpiKey));
+  const typedBindings = [...bindingMap(bindings).values()].filter((item) => ["ready", "active", "deprecated"].includes(item.status)).filter((item) => !allowedBindings || allowedBindings.has(item.activityBindingId)).sort((a, b) => a.normalizedKpiKey.localeCompare(b.normalizedKpiKey) || a.activityTypeKey.localeCompare(b.activityTypeKey) || a.nativeKpiKey.localeCompare(b.nativeKpiKey) || b.definitionVersion - a.definitionVersion);
   const body = { contract: "mad4b.growth-control.kpi-catalog-projection.v1", definitions: typedDefinitions, bindings: typedBindings };
   return Object.freeze({ ...body, catalogSha256: stableSha256(body), readOnly: true, providerCalls: false, externalWrites: false, secretsIncluded: false });
 }
@@ -242,16 +276,15 @@ export function buildGrowthControlPortfolioProjection({ tenantId, workspaceIds =
   if (!Array.isArray(observations) || observations.length > MAX_PORTFOLIO_OBSERVATIONS) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_OBSERVATION_LIMIT_EXCEEDED", `Portfolio projection is limited to ${MAX_PORTFOLIO_OBSERVATIONS} observations.`, 422);
   const definitionsByKey = definitionMap(definitions);
   const bindingsByKey = bindingMap(bindings);
+  const bindingsByBaseKey = bindingVersionIndex(bindingsByKey);
   const workspaceFilter = workspaceIds == null ? null : new Set(workspaceIds.map(String));
   const brandFilter = brandKeys == null ? null : new Set(brandKeys.map(String));
   const kpiFilter = normalizedKpiKeys == null ? null : new Set(normalizedKpiKeys.map(String));
   const normalized = [];
   for (const observation of observations) {
     if (String(observation.tenantId ?? observation.tenant_id ?? "") !== expectedTenantId) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_CROSS_TENANT_OBSERVATION", "Portfolio projection rejected a cross-tenant observation.", 403);
-    const activityBindingId = String(observation.activityBindingId ?? observation.activity_binding_id ?? "");
-    const nativeKpiKey = String(observation.nativeKpiKey ?? observation.native_kpi_key ?? "");
-    const binding = bindingsByKey.get(`${activityBindingId}:${nativeKpiKey}`);
-    if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No active KPI mapping exists for an observation.", 422);
+    const binding = resolveObservationBinding(observation, bindingsByKey, bindingsByBaseKey);
+    if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No matching governed KPI mapping exists for an observation version.", 422);
     const definition = definitionsByKey.get(`${binding.normalizedKpiKey}@${binding.definitionVersion}`);
     if (!definition) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_DEFINITION_NOT_FOUND", "No matching normalized KPI definition exists for an observation.", 422);
     const item = normalizeGrowthControlMetricObservation(observation, { definition, binding, now });
@@ -300,9 +333,9 @@ export function buildGrowthControlPortfolioProjection({ tenantId, workspaceIds =
       lineagePreserved: true,
       rawMetricsMergedAcrossTenants: false,
     });
-  }).sort((a, b) => a.normalizedKpiKey.localeCompare(b.normalizedKpiKey) || a.periodStart.localeCompare(b.periodStart) || a.periodEnd.localeCompare(b.periodEnd));
+  }).sort((a, b) => a.normalizedKpiKey.localeCompare(b.normalizedKpiKey) || a.periodStart.localeCompare(b.periodStart) || a.periodEnd.localeCompare(b.periodEnd) || a.definitionVersion - b.definitionVersion);
   const body = { contract: "mad4b.growth-control.portfolio-projection.v1", tenantId: expectedTenantId, workspaceIds: Object.freeze(workspaceFilter ? [...workspaceFilter].sort() : []), brandKeys: Object.freeze(brandFilter ? [...brandFilter].sort() : []), normalizedKpiKeys: Object.freeze(kpiFilter ? [...kpiFilter].sort() : []), observationCount: normalized.length, series: Object.freeze(series) };
   return Object.freeze({ ...body, projectionSha256: stableSha256(body), readOnly: true, tenantIsolated: true, lineagePreserved: true, providerCalls: false, externalWrites: false, secretsIncluded: false });
 }
 
-export const _testingGrowthControlAnalytics = Object.freeze({ MAX_NATIVE_DEFINITIONS, MAX_PORTFOLIO_OBSERVATIONS, MAX_PORTFOLIO_GROUPS, requiredText, positiveInteger, finiteNumber, confidenceValue, isoDate, exactAllowed, parseObject, percentile, aggregateValues, definitionMap, bindingMap });
+export const _testingGrowthControlAnalytics = Object.freeze({ MAX_NATIVE_DEFINITIONS, MAX_PORTFOLIO_OBSERVATIONS, MAX_PORTFOLIO_GROUPS, requiredText, positiveInteger, finiteNumber, confidenceValue, isoDate, exactAllowed, parseObject, percentile, aggregateValues, definitionMap, bindingBaseKey, bindingVersionKey, bindingMap, bindingVersionIndex, resolveObservationBinding });
