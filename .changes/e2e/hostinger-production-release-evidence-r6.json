@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-release-evidence-r6",
+  "title": "Hostinger Production release evidence R6",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-release-evidence-r6.json",
+      ".github/workflows/hostinger-production-release-evidence-r6.yml",
+      "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace the non-starting R5 issue-comment trigger with one authorization-bound internal Draft PR trigger while preserving the exact Production, provider GET-only, secret, and no-mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "collect-current-production-build-and-runtime-evidence-r6-via-internal-pr",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and trusted main GitHub Actions workflow",
+          "entrypoint": "same-repository Draft PR from gpt/trigger-hostinger-production-release-evidence-r6-20260803 changing only the governed trigger JSON",
+          "terminal_outcome": "Trusted main verifies the exact PR actor, branch, one-file trigger scope, current main, protected Production, authorization comment, reporter blobs, and one-time binding before collecting GET-only Hostinger and public runtime evidence, uploading a secret-free Artifact, and writing a bounded classification to Incident #4953.",
+          "steps": [
+            "Load the workflow only from protected main on an internal pull_request event targeting main.",
+            "Require the exact same-repository trigger branch, repository owner user ID, and Draft state.",
+            "Checkout the exact pull request base SHA with persisted credentials disabled and require it to remain current main.",
+            "Require the trigger pull request to change exactly .github/ops/hostinger-production-release-evidence-r6-trigger.json and no other file.",
+            "Read the trigger JSON by exact head SHA and validate its contract, current tooling SHA, Production SHA, Production merge timestamp, reporter blobs, authorization comment ID, and all no-mutation flags.",
+            "Verify the authorization comment owner, R6 token, internal Draft PR trigger mode, exact identities, and provider GET-only boundary.",
+            "Reject any existing R6 claim or completion for the immutable binding, then write one bounded claim.",
+            "Run the canonical Hostinger build reporter contract and collect provider build-history evidence using authenticated GET only.",
+            "Read /health, /version, /deployment-info, and /connector-agent/version through bounded public HTTPS GET requests.",
+            "Redact credential-like values, upload one Artifact, and publish one bounded completion classification without closing the incident automatically."
+          ],
+          "assertions": [
+            "R6 has no issue_comment or workflow_dispatch trigger.",
+            "The trigger PR must originate from the same repository, exact governed branch, repository owner ID, and remain Draft.",
+            "Only the governed trigger JSON may differ from current main.",
+            "The workflow fails closed if current main or protected Production moves before evidence collection.",
+            "The workflow is bound to Production 2669991a882c7f7939510fbbace17f462a42517c and merge time 2026-08-03T10:14:37Z.",
+            "The canonical reporter and reporter-test blobs are verified before HOSTINGER_API_TOKEN is used.",
+            "Hostinger provider method is GET only and public runtime responses are bounded and recursively redacted.",
+            "Only one claim and one bounded completion comment may be written to Issue #4953.",
+            "No repository content or protected-ref mutation, Actions dispatch, build creation, deployment, release activation, restart, SQL execution, migration dry-run or Apply, database mutation, arbitrary SSH, force push, or external business send occurs.",
+            "Secrets included is false and the issue remains open until a separately reviewed Artifact decision."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-release-evidence-r6-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-release-evidence-r6.yml",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge R6 to main, record a fresh immutable authorization, open one internal Draft trigger PR containing only the trigger JSON, inspect the resulting Artifact, then close or reclassify Incident #4953 and close the trigger PR without merge."
+    }
+  ],
+  "secrets_included": false
+}
