@@ -1,0 +1,221 @@
+name: Build Production Reconciliation Candidate V12 20260804
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/build-production-reconciliation-candidate-v12-20260804.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: build-production-reconciliation-candidate-v12-20260804
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build fully governed Production reconciliation candidate v12
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/build-production-reconciliation-candidate-v12-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      BUILDER_PR: ${{ github.event.pull_request.number }}
+      REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      WORKFLOW_PATH: .github/workflows/build-production-reconciliation-candidate-v12-20260804.yml
+      EXPECTED_MAIN_SHA: 2e7df8403a7ce02e0635a7316b8401b3c0607bbb
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      EXPECTED_FINGERPRINT: e0654c66fcf5e86ebd6528a5572e80ca39190ed24b422b26a21fbeb48f7e8285
+      PARALLEL_PR_GATE: http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+      DDL_WORKFLOW: .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
+      PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+
+    steps:
+      - name: Checkout exact one-file request
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.REQUEST_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable Builder request and protected refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${REQUEST_HEAD_SHA}"
+          request="$(gh api "/repos/${REPOSITORY}/pulls/${BUILDER_PR}")"
+          test "$(jq -r '.state' <<<"${request}")" = open
+          test "$(jq -r '.draft' <<<"${request}")" = true
+          test "$(jq -r '.base.ref' <<<"${request}")" = main
+          test "$(jq -r '.base.sha' <<<"${request}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.sha' <<<"${request}")" = "${REQUEST_HEAD_SHA}"
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${BUILDER_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${WORKFLOW_PATH}"
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Validate exact current main prerequisites
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git checkout --detach "${EXPECTED_MAIN_SHA}"
+          test ! -e "${WORKFLOW_PATH}"
+          test -z "$(git status --short)"
+
+          node --check "${PARALLEL_PR_GATE}"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          readback="${RUNNER_TEMP}/main-final-work-map-readback.json"
+          REPORT_PATH="${readback}" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${RUNNER_TEMP}/main-final-work-map-readback.stdout.json"
+          jq -e --arg fp "${EXPECTED_FINGERPRINT}" '
+            .ok == true and .findings == [] and
+            .current_registry.fingerprint == $fp and
+            .manifest_registry.fingerprint == $fp
+          ' "${readback}"
+          node build-canonicals.mjs --check
+          git diff --check
+          test -z "$(git status --short)"
+
+      - name: Create exact two-parent reconciliation commit
+        id: candidate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          main_tree="$(git rev-parse "${EXPECTED_MAIN_SHA}^{tree}")"
+          export GIT_AUTHOR_NAME='mad4bdigital-ai'
+          export GIT_AUTHOR_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          export GIT_COMMITTER_NAME='mad4bdigital-ai'
+          export GIT_COMMITTER_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          candidate_sha="$(printf '%s\n' \
+            'chore(production): reconcile Production history to exact main tree' \
+            '' \
+            "Main parent: ${EXPECTED_MAIN_SHA}" \
+            "Production parent: ${EXPECTED_PRODUCTION_SHA}" \
+            'Tree authority: exact current main tree' \
+            'No force update, SQL, migration, provider, credential, deployment, or external-send mutation.' \
+            | git commit-tree "${main_tree}" -p "${EXPECTED_MAIN_SHA}" -p "${EXPECTED_PRODUCTION_SHA}")"
+          candidate_ref="release/production-candidate-20260804-${candidate_sha:0:8}-v12"
+          test "$(git rev-parse "${candidate_sha}^{tree}")" = "${main_tree}"
+          read -r parent_one parent_two extra <<< "$(git show -s --format='%P' "${candidate_sha}")"
+          test "${parent_one}" = "${EXPECTED_MAIN_SHA}"
+          test "${parent_two}" = "${EXPECTED_PRODUCTION_SHA}"
+          test -z "${extra:-}"
+          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${candidate_sha}")"
+          echo "candidate_sha=${candidate_sha}" >> "${GITHUB_OUTPUT}"
+          echo "candidate_ref=${candidate_ref}" >> "${GITHUB_OUTPUT}"
+          echo "main_tree=${main_tree}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate canonical promotion and Hostinger release mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gate_report="${RUNNER_TEMP}/candidate-gate.json"
+          node "${PARALLEL_PR_GATE}" check \
+            --base "${EXPECTED_PRODUCTION_SHA}" \
+            --head '${{ steps.candidate.outputs.candidate_sha }}' \
+            --head-ref '${{ steps.candidate.outputs.candidate_ref }}' \
+            --base-ref Production \
+            --report-file "${gate_report}"
+          jq -e --arg main "${EXPECTED_MAIN_SHA}" '
+            .ok == true and .pr_mode == "standard" and
+            .production_promotion == true and
+            .production_promotion_identity == "history_preserving_main_reconciliation" and
+            .phase_evaluation_base == $main
+          ' "${gate_report}"
+
+          classifier="${RUNNER_TEMP}/ddl-release-classifier.mjs"
+          output="${RUNNER_TEMP}/ddl-release-output.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          source = Path(os.environ['DDL_WORKFLOW']).read_text()
+          marker = "node --input-type=module <<'NODE'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index('\n          NODE', start)
+          Path(os.environ['RUNNER_TEMP'], 'ddl-release-classifier.mjs').write_text(source[start:end])
+          PY
+          PHASE_CONTRACT="${PHASE_CONTRACT}" \
+          PARALLEL_PR_GATE="${PARALLEL_PR_GATE}" \
+          BASE_REF=Production \
+          BASE_SHA="${EXPECTED_PRODUCTION_SHA}" \
+          HEAD_REF='${{ steps.candidate.outputs.candidate_ref }}' \
+          HEAD_SHA='${{ steps.candidate.outputs.candidate_sha }}' \
+          HEAD_REPOSITORY="${REPOSITORY}" \
+          REPOSITORY="${REPOSITORY}" \
+          RUNNER_TEMP="${RUNNER_TEMP}" \
+          GITHUB_OUTPUT="${output}" \
+          node "${classifier}"
+          grep -Fxq 'candidate_mode=release' "${output}"
+          grep -Fxq 'candidate_mode_source=canonical_e2e_parallel_pr_gate' "${output}"
+          grep -Fxq 'release_identity=history_preserving_main_reconciliation' "${output}"
+          grep -Fxq 'canonical_promotion_validated=true' "${output}"
+          grep -Fxq 'promotion_gate_outcome=success' "${output}"
+
+      - name: Validate candidate phase execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          phase_report="${RUNNER_TEMP}/candidate-phase.json"
+          execution_report="${RUNNER_TEMP}/candidate-phase-execution.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head '${{ steps.candidate.outputs.candidate_sha }}' \
+            --report-file "${phase_report}"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head '${{ steps.candidate.outputs.candidate_sha }}' \
+            --report-file "${phase_report}" \
+            --execution-report-file "${execution_report}"
+          jq -e '.ok == true' "${phase_report}"
+          jq -e '.ok == true' "${execution_report}"
+
+      - name: Reconfirm protected refs and push only candidate branch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${EXPECTED_PRODUCTION_SHA}"
+          git push origin '${{ steps.candidate.outputs.candidate_sha }}:refs/heads/${{ steps.candidate.outputs.candidate_ref }}'
+
+      - name: Publish exact candidate evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Production reconciliation candidate V12 built'
+            echo
+            echo '- Main parent: `2e7df8403a7ce02e0635a7316b8401b3c0607bbb`'
+            echo '- Production parent: `2669991a882c7f7939510fbbace17f462a42517c`'
+            echo '- Candidate head: `${{ steps.candidate.outputs.candidate_sha }}`'
+            echo '- Candidate branch: `${{ steps.candidate.outputs.candidate_ref }}`'
+            echo '- Candidate tree: `${{ steps.candidate.outputs.main_tree }}` — exact current main tree'
+            echo '- Canonical identity: `history_preserving_main_reconciliation`'
+            echo '- Schema classification, Work Maps, final readback, DDL release identity, and phase execution: passed'
+            echo '- No protected-ref mutation, Production merge, force push, SQL, migration, database, provider, deployment, credential, secret, or external-send action occurred'
+          } > "${RUNNER_TEMP}/candidate-evidence.md"
+          gh pr comment "${BUILDER_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/candidate-evidence.md"
