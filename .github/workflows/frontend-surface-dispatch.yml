@@ -15,18 +15,18 @@ concurrency:
 jobs:
   repair-validate-and-push:
     if: >-
-      github.event.pull_request.head.ref == 'gpt/surface-callability-main-reconstruction-20260803' &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-final-repair-execution-20260803' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
-      PINNED_SOURCE_HEAD: 9b59c331b9efd2f7c900eeacedd0723c40b85a8b
+      TARGET_BRANCH: gpt/pr5210-final-repair-execution-20260803
+      PINNED_SOURCE_HEAD: d7ff6699ddc835ea1e159b3bd7cb93e1a190a7e0
       OFFICIAL_WORKFLOW_SOURCE: 153af5df9be737f4c129aae0cd07082b78b677da
       WORKFLOW_PATH: .github/workflows/frontend-surface-dispatch.yml
       STALE_RUNNER_PATH: .github/workflows/surface-ci-repair-runner.yml
     steps:
-      - name: Check out exact Surface branch
+      - name: Check out exact execution branch
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
