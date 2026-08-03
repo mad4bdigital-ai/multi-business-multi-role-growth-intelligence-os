@@ -337,7 +337,7 @@ jobs:
                 validation_branch: $validation_branch,
                 validation_base_branch: $validation_base_branch,
                 builder_run_id: $builder_run_id,
-                exact_validation_run_id: $exact_run_id,
+                exact_validation_run_id: $exact_validation_run_id,
                 supporting_runs: $supporting_runs,
                 release_pr: $release_pr,
                 validation_pr: $validation_pr,
