@@ -160,7 +160,7 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
-  app.use(buildTenantGptOAuthMetadataRoutes());
+  app.use(buildTenantGptOAuthMetadataRoutes(deps));
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
