@@ -20,25 +20,27 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an explicit default-branch manual readiness channel when connector-created issue comments do not emit Actions events, without extending Apply authority.",
+      "objective": "Provide an explicit default-branch manual readiness channel when connector-created issue comments do not emit Actions events, without extending Apply authority or permitting historical authorization replay.",
       "e2e_journeys": [
         {
           "id": "validate-manual-readiness-dispatch-boundary",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository administrator dispatching the trusted default-branch workflow",
-          "entrypoint": "Sprint 69 Migration 1006 workflow_dispatch with a fresh authorization comment ID and exact main SHA",
-          "terminal_outcome": "The workflow validates the immutable main SHA and exact owner/member/collaborator authorization comment before readiness; manual dispatch can never select or enter Apply.",
+          "entrypoint": "Sprint 69 Migration 1006 workflow_dispatch with authorization comment ID 5170518874 and an exact main SHA",
+          "terminal_outcome": "The workflow validates the immutable main SHA and exact authorization comment 5170518874 before readiness; historical comments and manual Apply remain unreachable.",
           "steps": [
             "Require confirmation_comment_id and expected_main_sha inputs on workflow_dispatch.",
+            "Require confirmation_comment_id to equal the immutable fresh authorization comment 5170518874.",
             "Restrict manual dispatch readiness to refs/heads/main.",
             "Validate the dispatch SHA against GITHUB_SHA before runtime readiness begins.",
-            "Read the exact Issue #4122 comment and require the fixed readiness token, matching dispatcher login, and an allowed author association.",
+            "Read exact Issue #4122 comment 5170518874 and require the fixed readiness token, matching dispatcher login, and an allowed author association.",
             "Preserve the historical push fallback unchanged and keep the Apply job issue_comment-only.",
             "Publish the existing no-secret Artifact and Job Summary evidence boundaries."
           ],
           "assertions": [
             "workflow_dispatch has no path to the Apply job.",
+            "Historical authorization comment 5143273227 and every comment ID other than 5170518874 fail closed before readiness execution.",
             "A stale or malformed main SHA fails closed before readiness execution.",
             "A different comment author, issue, token, or association fails closed.",
             "database_mutation_authorized and apply_authorized remain false during trigger validation.",
@@ -64,12 +66,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge only after exact-head validation, then execute one separately authorized readiness dispatch and inspect its Artifact."
+      "objective": "Merge only after exact-head validation, then execute one separately authorized readiness dispatch bound to comment 5170518874 and inspect its Artifact."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Keep SHA, comment, actor, association, and Apply-separation regressions fail-closed."
+      "objective": "Keep SHA, comment-ID replay, actor, association, and Apply-separation regressions fail-closed."
     },
     {
       "id": "canary",
