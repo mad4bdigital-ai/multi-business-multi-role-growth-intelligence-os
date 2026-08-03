@@ -81,6 +81,10 @@ function parseObject(value, field) {
     throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_JSON_INVALID", `${field} must be a JSON object.`, 422, [{ field, issue: "invalid_json_object" }]);
   }
 }
+function sameNumber(left, right) {
+  const scale = Math.max(1, Math.abs(left), Math.abs(right));
+  return Math.abs(left - right) <= Number.EPSILON * scale * 16;
+}
 
 export function validateGrowthControlKpiDefinition(input = {}) {
   assertNoSecretFields(input, "$.kpiDefinition");
@@ -189,6 +193,49 @@ export function normalizeGrowthControlMetricObservation(input = {}, { definition
   return Object.freeze({ ...body, observationSha256: stableSha256(body), secretsIncluded: false });
 }
 
+export function projectGrowthControlMetricObservation(input = {}, { definition, binding, now = new Date() } = {}) {
+  const normalized = normalizeGrowthControlMetricObservation(input, { definition, binding, now });
+  const storedObservationSha256 = clean(input.observationSha256 ?? input.observation_sha256);
+  const rawLineage = input.lineage ?? input.lineage_json;
+  const rawNormalizedValue = input.normalizedValue ?? input.normalized_value;
+  const persistedFieldsPresent = storedObservationSha256 != null || rawLineage != null || rawNormalizedValue != null;
+  if (!persistedFieldsPresent) return normalized;
+  if (!storedObservationSha256 || rawLineage == null || rawNormalizedValue == null || !/^[0-9a-f]{64}$/i.test(storedObservationSha256)) {
+    throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_PERSISTED_OBSERVATION_INVALID", "Persisted observations require normalized value, immutable lineage, and a valid observation hash.", 422);
+  }
+  const lineage = parseObject(rawLineage, "lineage");
+  const source = lineage.source;
+  const definitionVersion = positiveInteger(lineage.definitionVersion ?? lineage.definition_version, "lineage.definitionVersion");
+  const activityKpiBindingId = requiredText(lineage.activityKpiBindingId ?? lineage.activity_kpi_binding_id, "lineage.activityKpiBindingId", 64);
+  const definitionChecksumSha256 = requiredText(lineage.definitionChecksumSha256 ?? lineage.definition_checksum_sha256, "lineage.definitionChecksumSha256", 64).toLowerCase();
+  const bindingSha256 = requiredText(lineage.bindingSha256 ?? lineage.binding_sha256, "lineage.bindingSha256", 64).toLowerCase();
+  if (!source || typeof source !== "object" || Array.isArray(source) || !/^[0-9a-f]{64}$/.test(definitionChecksumSha256) || !/^[0-9a-f]{64}$/.test(bindingSha256)) {
+    throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_PERSISTED_OBSERVATION_INVALID", "Persisted observation lineage is incomplete or malformed.", 422);
+  }
+  const sourceSystemKey = requireCanonicalKey(source.sourceSystemKey ?? source.source_system_key, "lineage.source.sourceSystemKey");
+  const sourceObservationId = requiredText(source.sourceObservationId ?? source.source_observation_id, "lineage.source.sourceObservationId", 191);
+  const sourceEventId = clean(source.sourceEventId ?? source.source_event_id);
+  const storedNormalizedValue = finiteNumber(rawNormalizedValue, "normalizedValue");
+  const mismatches = [];
+  const compare = (field, actual, expected) => {
+    if (actual != null && String(actual) !== String(expected)) mismatches.push({ field, issue: "persisted_identity_mismatch" });
+  };
+  compare("normalizedKpiKey", input.normalizedKpiKey ?? input.normalized_kpi_key, normalized.normalizedKpiKey);
+  compare("definitionVersion", input.definitionVersion ?? input.definition_version, normalized.definitionVersion);
+  compare("activityTypeKey", input.activityTypeKey ?? input.activity_type_key, normalized.activityTypeKey);
+  compare("nativeUnitKey", input.nativeUnitKey ?? input.native_unit_key, normalized.nativeUnitKey);
+  compare("normalizedUnitKey", input.normalizedUnitKey ?? input.normalized_unit_key, normalized.normalizedUnitKey);
+  if (definitionVersion !== normalized.definitionVersion) mismatches.push({ field: "lineage.definitionVersion", issue: "persisted_identity_mismatch" });
+  if (activityKpiBindingId !== normalized.lineage.activityKpiBindingId) mismatches.push({ field: "lineage.activityKpiBindingId", issue: "persisted_identity_mismatch" });
+  if (sourceSystemKey !== normalized.lineage.source.sourceSystemKey || sourceObservationId !== normalized.lineage.source.sourceObservationId || sourceEventId !== normalized.lineage.source.sourceEventId) mismatches.push({ field: "lineage.source", issue: "persisted_identity_mismatch" });
+  if (!sameNumber(storedNormalizedValue, normalized.normalizedValue)) mismatches.push({ field: "normalizedValue", issue: "persisted_value_mismatch" });
+  if (mismatches.length) {
+    throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_PERSISTED_OBSERVATION_MISMATCH", "Persisted observation lineage or normalized value does not match its governed KPI version.", 422, mismatches);
+  }
+  const preservedLineage = Object.freeze({ ...lineage, source: Object.freeze({ ...source }) });
+  return Object.freeze({ ...normalized, normalizedValue: storedNormalizedValue, lineage: preservedLineage, observationSha256: storedObservationSha256.toLowerCase() });
+}
+
 function percentile(values, p) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -287,7 +334,7 @@ export function buildGrowthControlPortfolioProjection({ tenantId, workspaceIds =
     if (!binding) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_BINDING_NOT_FOUND", "No matching governed KPI mapping exists for an observation version.", 422);
     const definition = definitionsByKey.get(`${binding.normalizedKpiKey}@${binding.definitionVersion}`);
     if (!definition) throw new GrowthControlPlaneError("GROWTH_CONTROL_KPI_DEFINITION_NOT_FOUND", "No matching normalized KPI definition exists for an observation.", 422);
-    const item = normalizeGrowthControlMetricObservation(observation, { definition, binding, now });
+    const item = projectGrowthControlMetricObservation(observation, { definition, binding, now });
     if (workspaceFilter && !workspaceFilter.has(item.workspaceId)) continue;
     if (brandFilter && !brandFilter.has(item.brandKey)) continue;
     if (kpiFilter && !kpiFilter.has(item.normalizedKpiKey)) continue;
@@ -338,4 +385,4 @@ export function buildGrowthControlPortfolioProjection({ tenantId, workspaceIds =
   return Object.freeze({ ...body, projectionSha256: stableSha256(body), readOnly: true, tenantIsolated: true, lineagePreserved: true, providerCalls: false, externalWrites: false, secretsIncluded: false });
 }
 
-export const _testingGrowthControlAnalytics = Object.freeze({ MAX_NATIVE_DEFINITIONS, MAX_PORTFOLIO_OBSERVATIONS, MAX_PORTFOLIO_GROUPS, requiredText, positiveInteger, finiteNumber, confidenceValue, isoDate, exactAllowed, parseObject, percentile, aggregateValues, definitionMap, bindingBaseKey, bindingVersionKey, bindingMap, bindingVersionIndex, resolveObservationBinding });
+export const _testingGrowthControlAnalytics = Object.freeze({ MAX_NATIVE_DEFINITIONS, MAX_PORTFOLIO_OBSERVATIONS, MAX_PORTFOLIO_GROUPS, requiredText, positiveInteger, finiteNumber, confidenceValue, isoDate, exactAllowed, parseObject, sameNumber, percentile, aggregateValues, definitionMap, bindingBaseKey, bindingVersionKey, bindingMap, bindingVersionIndex, resolveObservationBinding });
