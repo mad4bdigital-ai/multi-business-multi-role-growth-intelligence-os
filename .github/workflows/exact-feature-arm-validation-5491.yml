@@ -1,0 +1,241 @@
+name: Exact Feature ARM Validation 5491
+
+on:
+  pull_request_target:
+    branches:
+      - gpt/validate-feature-arm-base-5491-44ed1522
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-feature-arm-validation-5491-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Exact Candidate Preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    outputs:
+      head_sha: ${{ steps.verify.outputs.head_sha }}
+      main_sha: ${{ steps.verify.outputs.main_sha }}
+    steps:
+      - name: Verify immutable same-repository candidate
+        id: verify
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_REF: gpt/validate-e2e-production-baseline-current-main-44ed1522-20260803
+          EXPECTED_HEAD_SHA: c01155fb50808068642f9a8bd82b61a1e171be80
+          EXPECTED_MAIN_SHA: 44ed152286be85c4573c584cbe786fb2faf94c91
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          git init validation-readback
+          cd validation-readback
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          git fetch --no-tags --depth=2 origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${HEAD_REF})" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse ${EXPECTED_HEAD_SHA}^1)" = "$EXPECTED_MAIN_SHA"
+          printf 'head_sha=%s\n' "$EXPECTED_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          printf 'main_sha=%s\n' "$EXPECTED_MAIN_SHA" >> "$GITHUB_OUTPUT"
+
+  syntax:
+    name: Syntax Check
+    needs: preflight
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run canonical syntax and governance checks
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+          node http-generic-api/test-resource-api-architecture.mjs
+          node http-generic-api/test-resource-api-service.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          node --check http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+
+  test:
+    name: Unit & Integration Tests
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run focused Production baseline regression
+        working-directory: http-generic-api
+        run: node scripts/e2e-parallel-pr-flow-self-test.mjs
+      - name: Run complete test suite with exact provenance
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ needs.preflight.outputs.head_sha }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: gpt/validate-e2e-production-baseline-current-main-44ed1522-20260803
+          DEPLOYMENT_COMMIT_SHA: ${{ needs.preflight.outputs.head_sha }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+      - name: Upload ordered test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-feature-5491-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  resolver:
+    name: Execution Resolver Gate
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --runInBand
+
+  architecture:
+    name: Architecture Drift Detection
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+  e2e:
+    name: E2E Phase Governance
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run exact phase evaluation and journey execution
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.preflight.outputs.main_sha }}
+          HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$RUNNER_TEMP/e2e-phase-execution.json"
+      - name: Upload exact E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-feature-5491-e2e-${{ github.run_id }}
+          path: ${{ runner.temp }}/e2e-phase-*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  diagnostic:
+    name: Branch Test Diagnostic Shards
+    needs: [preflight, syntax]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.preflight.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate exact changed-file scope and specialized regression
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.preflight.outputs.main_sha }}
+          HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only "$BASE_SHA"..."$HEAD_SHA")
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = ".github/workflows/e2e-phase-governance.yml"
+          test "${files[1]}" = "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs"
+          test "${files[2]}" = "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
