@@ -20,6 +20,8 @@ assert.doesNotMatch(workflow, /\n\s+paths:/);
 assert.doesNotMatch(workflow, /^\s{6}EVIDENCE_DIR: \$\{\{ runner\.temp \}\}/m);
 assert.match(workflow, /echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/);
 assert.match(workflow, /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/);
+assert.match(workflow, /HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/build/);
+assert.doesNotMatch(workflow, /HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: \$\{\{ env\.EVIDENCE_DIR \}\}/);
 assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
