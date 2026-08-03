@@ -13,12 +13,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  classify-trigger-scope:
+    name: Classify exact R6 trigger scope
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      eligible: ${{ steps.scope.outputs.eligible }}
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_PATH: .github/ops/hostinger-production-release-evidence-r6-trigger.json
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+      PR_DRAFT: ${{ github.event.pull_request.draft }}
+    steps:
+      - name: Classify exact one-file trigger without provider access
+        id: scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "${HEAD_REPOSITORY}" != "${REPOSITORY}" || "${PR_AUTHOR_ID}" != "${AUTHORIZATION_USER_ID}" || "${PR_DRAFT}" != "true" ]]; then
+            echo "eligible=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::R6 evidence collection skipped: pull request identity or Draft state is not eligible."
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(
+            gh api --paginate "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename'
+          )
+          if [[ "${#changed_files[@]}" -eq 1 && "${changed_files[0]}" == "${TRIGGER_PATH}" ]]; then
+            echo "eligible=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "eligible=false" >> "${GITHUB_OUTPUT}"
+          echo "::notice::R6 evidence collection skipped: pull request is not the exact one-file trigger."
+
   collect-release-evidence:
     name: Collect PR-triggered GET-only Hostinger release evidence
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.id == 271942579 &&
-      github.event.pull_request.draft == true
+    needs: classify-trigger-scope
+    if: needs.classify-trigger-scope.outputs.eligible == 'true'
     permissions:
       contents: read
       issues: read
