@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-release-evidence-r5-pr-bridge",
+  "title": "Hostinger Production release evidence R5 PR bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-release-evidence-r5-pr-bridge.json",
+      ".github/workflows/hostinger-production-release-evidence-r5-pr-target-request.yml",
+      ".github/workflows/hostinger-production-release-evidence-r5-pr-request-dispatcher.yml",
+      "http-generic-api/scripts/test-hostinger-production-release-evidence-r5-pr-bridge.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a connector-independent, exact-head governed path that converts one same-repository marker PR synchronization into one workflow_dispatch invocation of the already merged Hostinger Production R5 evidence workflow.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-r5-through-read-only-pr-request-and-trusted-workflow-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner operating Incident #4953",
+          "entrypoint": "A synchronize event on the exact internal R5 marker pull request",
+          "terminal_outcome": "The read-only pull_request_target stage emits an eligible exact-head request artifact, the trusted workflow_run dispatcher revalidates all immutable bindings, and exactly one workflow_dispatch run of hostinger-production-release-evidence-r5.yml is observed.",
+          "steps": [
+            "Read the marker PR through GitHub API without checking out candidate code.",
+            "Require the exact title, author ID, internal head branch, main base, single marker file, marker token, current main SHA, protected Production SHA, authorization comment, target workflow path, target workflow blob, and active workflow state.",
+            "Upload a secret-free read-only request artifact bound to the source run ID and marker PR head.",
+            "Consume that exact artifact only from the trusted workflow_run dispatcher.",
+            "Re-read the marker PR, current main, protected Production, control issue, authorization, target workflow blob, and existing one-time R5 markers before any API mutation.",
+            "Reject main or Production as mutation targets and perform no repository content write or force push.",
+            "Record a one-time bridge claim and dispatch only hostinger-production-release-evidence-r5.yml on main with the exact current main SHA input.",
+            "Resolve the exact workflow_dispatch run and wait for its bounded completion while leaving evidence interpretation to the canonical R5 workflow."
+          ],
+          "assertions": [
+            "The pull_request_target request stage has read-only contents and pull-request permissions.",
+            "The pull_request_target request stage performs no API mutation, candidate checkout, secret access, provider access, or credential access.",
+            "The write-capable dispatcher runs only through workflow_run or explicit workflow_dispatch, never directly from pull_request, push, or issue_comment.",
+            "The dispatcher validates the request artifact source run ID and exact marker PR head before dispatch.",
+            "The dispatcher requires current main and protected Production to match the immutable marker bindings.",
+            "The dispatcher requires the target R5 workflow blob to remain exact and active.",
+            "Existing R5 claim or completion evidence prevents duplicate dispatch.",
+            "The only mutation is GitHub Actions dispatch metadata and bounded Issue #4953 evidence comments.",
+            "No Hostinger API call, provider mutation, build creation, deployment, release activation, restart, SQL, migration Apply, database mutation, protected-ref mutation, force push, external business send, or secret disclosure occurs in the bridge.",
+            "No secrets are included."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-release-evidence-r5-pr-bridge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r5-pr-bridge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-release-evidence-r5-pr-target-request.yml",
+            ".github/workflows/hostinger-production-release-evidence-r5-pr-request-dispatcher.yml",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r5-pr-bridge.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retire this one-incident fallback after R5 completes and the issue-comment or direct workflow-dispatch surface is verified reliable."
+    }
+  ],
+  "secrets_included": false
+}
