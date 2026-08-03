@@ -56,7 +56,7 @@ b6e5f7bd4a73803e4f062097a32bd9d8d17756ec:e1084397317a7f2645d78fc43a3064eef98faba
 
 Including the workflow blob makes the repaired attempt distinct from the earlier failed dispatch that used workflow blob `e36f9241a819018659788edb2a8a854da641b4b8`.
 
-A completed marker for the new binding prevents another execution. Failed attempts do not silently become completion evidence.
+A completed marker for the new binding prevents every later execution. A dispatched marker prevents reusing the same authorization comment, while a newly created exact authorization comment can authorize a distinct retry if an earlier target run failed. Failed attempts do not silently become completion evidence.
 
 ## Execution surfaces
 
@@ -68,7 +68,7 @@ The primary path is:
 .github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml
 ```
 
-It validates the triggering comment, repository actor, open control issue, repaired workflow blob, migration blob, and absence of a completed marker before dispatch.
+It validates the triggering comment, repository actor, open control issue, repaired workflow blob, migration blob, absence of a completed marker, and absence of a prior dispatch for the same authorization comment before dispatch.
 
 ### Main-push fallback
 
@@ -84,7 +84,7 @@ It runs only for a `main` push by user ID `271942579` whose commit message conta
 RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC
 ```
 
-Before dispatch it discovers a fresh exact authorization comment on Issue `#3809` and applies the same immutable binding checks as the issue-comment bridge.
+Before dispatch it discovers a fresh exact authorization comment on Issue `#3809` and applies the same immutable binding and one-dispatch-per-comment checks as the issue-comment bridge. Both execution surfaces share one non-cancelling concurrency group, so they cannot dispatch the same authorization concurrently.
 
 ## Dispatch inputs
 
