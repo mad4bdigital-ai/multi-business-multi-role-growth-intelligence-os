@@ -113,6 +113,9 @@ jobs:
           echo "PHASE:focused-regression"
           (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) || fail_phase "$?" "focused-regression"
 
+          echo "PHASE:register-new-contract"
+          git add -N .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json || fail_phase "$?" "register-new-contract"
+
           echo "PHASE:diff-check"
           git diff --check "${EXPECTED_BASE_SHA}" || fail_phase "$?" "diff-check"
 
