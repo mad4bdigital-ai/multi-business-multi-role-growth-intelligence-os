@@ -12,7 +12,7 @@ const resolveRepositoryPath = (relativePath) =>
 const requiredPaths = [
   ".github/workflows/ci-evidence-pr-publisher.yml",
   ".github/workflows/frontend-parity-refresh-dispatch.yml",
-  ".github/workflows/governed-generated-artifact-refresh-dispatch.yml",
+  ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
   ".github/workflows/hostinger-storage-dedicated-worker-certification-guard.yml",
   "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
   "http-generic-api/hostingerStorageDedicatedWorkerCertification.js",
