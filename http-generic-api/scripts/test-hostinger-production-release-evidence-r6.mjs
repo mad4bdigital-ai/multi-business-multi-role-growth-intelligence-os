@@ -51,6 +51,15 @@ assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
 
+const jobEnv = workflow.match(/    env:\n(?<env>[\s\S]*?)\n\n    steps:/)?.groups?.env ?? "";
+assert.ok(jobEnv, "R6 job-level env block must be present");
+assert.doesNotMatch(
+  jobEnv,
+  /\$\{\{\s*runner\./,
+  "runner context is unavailable in job-level env and prevents workflow registration",
+);
+assert.match(workflow, /EVIDENCE_DIR: \/tmp\/hostinger-production-release-evidence-r6/);
+
 for (const marker of [
   "repository_write_performed:false",
   "provider_mutation_performed:false",
