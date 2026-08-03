@@ -49,7 +49,6 @@ const OPERATIONS = [
     status: "queued",
     parent_operation_id: "op-primary",
     tenant_id: "tenant-1",
-    workspace_id: "w1",
   },
   {
     operation_id: "op-semantic-pair",
