@@ -1,0 +1,403 @@
+name: Exact Work Map Schema Classification Patch Applier v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/apply-work-map-schema-classification-v2-base-b991e0ae
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-work-map-schema-classification-patch-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Diagnose, validate, and apply exact bounded repair
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/work-map-schema-classification-repair-20260803
+      EXPECTED_HEAD_SHA: cee3c9b2588ac0e59a1d1ad8a7f3677602f9d36f
+      EXPECTED_MAIN_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+      PATCH_PATH: .changes/patches/work-map-schema-classification-repair.patch
+      PATCH_SHA256: 3909733ff9d3f42432ab220ada2b4090bfaeaa5d9c17091d4decf49326b732be
+    steps:
+      - name: Initialize durable evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/work-map-schema-classification-patch-v2"
+          mkdir -p "$root"
+          printf 'EVIDENCE_ROOT=%s\n' "$root" >> "$GITHUB_ENV"
+          printf 'check\tstatus\tlog\n' > "$root/results.tsv"
+          cat > "$root/report.md" <<EOF_REPORT
+          # Exact Work Map schema classification patch v2
+
+          | Field | Value |
+          |---|---|
+          | Expected main | \`${EXPECTED_MAIN_SHA}\` |
+          | Expected candidate | \`${EXPECTED_HEAD_SHA}\` |
+          | Target branch | \`${TARGET_BRANCH}\` |
+          | Patch SHA-256 | \`${PATCH_SHA256}\` |
+          EOF_REPORT
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable authority
+        id: authority
+        shell: bash
+        env:
+          EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          log="$EVIDENCE_ROOT/01-authority.log"
+          {
+            test "$EVENT_HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+            test "$EVENT_HEAD_REF" = "$TARGET_BRANCH"
+            test "$EVENT_HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+            test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+            git fetch --no-tags origin \
+              "+refs/heads/main:refs/remotes/origin/main" \
+              "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+            test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+            test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_HEAD_SHA"
+            git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+            test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "2"
+            test "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")" = "$PATCH_PATH"
+            test "$(sha256sum "$PATCH_PATH" | awk '{print $1}')" = "$PATCH_SHA256"
+          } >"$log" 2>&1
+          cat "$log"
+          printf 'authority\t0\t%s\n' "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+
+      - name: Check patch context
+        id: patch_context
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/02-patch-context.log"
+          set +e
+          git apply --check "$PATCH_PATH" >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'patch-context\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Check patch whitespace
+        id: patch_whitespace
+        if: always() && steps.authority.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/03-patch-whitespace.log"
+          set +e
+          git apply --check --whitespace=error-all "$PATCH_PATH" >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'patch-whitespace\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Apply patch locally and remove staging file
+        id: patch_apply
+        if: steps.patch_context.outcome == 'success' && steps.patch_whitespace.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/04-patch-apply.log"
+          set +e
+          {
+            git apply --whitespace=error-all "$PATCH_PATH"
+            rm "$PATCH_PATH"
+          } >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'patch-apply\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Validate exact local scope
+        id: scope
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/05-exact-scope.log"
+          set +e
+          {
+            actual="$RUNNER_TEMP/actual-files.txt"
+            expected="$RUNNER_TEMP/expected-files.txt"
+            git diff --name-only | sort > "$actual"
+            printf '%s\n' \
+              '.changes/e2e/work-map-schema-classification-growth-control.json' \
+              '.changes/patches/work-map-schema-classification-repair.patch' \
+              '.specify/work-map-schema-classification-registry.json' \
+              'http-generic-api/test-work-map-schema-classification.mjs' \
+              | sort > "$expected"
+            diff -u "$expected" "$actual"
+            test -z "$(git diff --name-only | grep '^docs/work-maps/' || true)"
+            git diff --check
+          } >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'exact-scope\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Parse registry JSON
+        id: registry_json
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/06-registry-json.log"
+          set +e
+          node -e "JSON.parse(require('node:fs').readFileSync('.specify/work-map-schema-classification-registry.json','utf8'))" >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'registry-json\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Parse E2E contract JSON
+        id: e2e_json
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/07-e2e-json.log"
+          set +e
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-schema-classification-growth-control.json','utf8'))" >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'e2e-json\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Validate schema classification contract runtime
+        id: schema_contract_runtime
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/08-schema-contract-runtime.log"
+          set +e
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'schema-contract-runtime\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Validate schema classification runtime
+        id: schema_runtime
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/09-schema-runtime.log"
+          set +e
+          node http-generic-api/scripts/work-map-schema-classification.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'schema-runtime\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Test schema classification
+        id: schema_test
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/10-schema-test.log"
+          set +e
+          node http-generic-api/test-work-map-schema-classification.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'schema-test\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Test schema classification contract
+        id: schema_contract_test
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/11-schema-contract-test.log"
+          set +e
+          node http-generic-api/test-work-map-schema-classification-contract.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'schema-contract-test\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Validate pipeline connectivity runtime
+        id: connectivity_runtime
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/12-connectivity-runtime.log"
+          set +e
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'connectivity-runtime\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Test pipeline connectivity
+        id: connectivity_test
+        if: steps.patch_apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          log="$EVIDENCE_ROOT/13-connectivity-test.log"
+          set +e
+          node http-generic-api/test-pipeline-connectivity-check.mjs >"$log" 2>&1
+          status=$?
+          set -e
+          cat "$log"
+          printf 'connectivity-test\t%s\t%s\n' "$status" "${log##*/}" >> "$EVIDENCE_ROOT/results.tsv"
+          exit "$status"
+
+      - name: Aggregate pre-commit validation
+        id: aggregate
+        if: always() && steps.authority.outcome == 'success'
+        shell: bash
+        env:
+          PATCH_CONTEXT: ${{ steps.patch_context.outcome }}
+          PATCH_WHITESPACE: ${{ steps.patch_whitespace.outcome }}
+          PATCH_APPLY: ${{ steps.patch_apply.outcome }}
+          SCOPE: ${{ steps.scope.outcome }}
+          REGISTRY_JSON: ${{ steps.registry_json.outcome }}
+          E2E_JSON: ${{ steps.e2e_json.outcome }}
+          SCHEMA_CONTRACT_RUNTIME: ${{ steps.schema_contract_runtime.outcome }}
+          SCHEMA_RUNTIME: ${{ steps.schema_runtime.outcome }}
+          SCHEMA_TEST: ${{ steps.schema_test.outcome }}
+          SCHEMA_CONTRACT_TEST: ${{ steps.schema_contract_test.outcome }}
+          CONNECTIVITY_RUNTIME: ${{ steps.connectivity_runtime.outcome }}
+          CONNECTIVITY_TEST: ${{ steps.connectivity_test.outcome }}
+        run: |
+          set -euo pipefail
+          summary="$EVIDENCE_ROOT/precommit-summary.md"
+          {
+            echo '## Pre-commit validation outcomes'
+            echo
+            echo '| Check | Outcome |'
+            echo '|---|---|'
+          } > "$summary"
+          failed=0
+          for record in \
+            "patch-context=${PATCH_CONTEXT}" \
+            "patch-whitespace=${PATCH_WHITESPACE}" \
+            "patch-apply=${PATCH_APPLY}" \
+            "exact-scope=${SCOPE}" \
+            "registry-json=${REGISTRY_JSON}" \
+            "e2e-json=${E2E_JSON}" \
+            "schema-contract-runtime=${SCHEMA_CONTRACT_RUNTIME}" \
+            "schema-runtime=${SCHEMA_RUNTIME}" \
+            "schema-test=${SCHEMA_TEST}" \
+            "schema-contract-test=${SCHEMA_CONTRACT_TEST}" \
+            "connectivity-runtime=${CONNECTIVITY_RUNTIME}" \
+            "connectivity-test=${CONNECTIVITY_TEST}"
+          do
+            name="${record%%=*}"
+            outcome="${record#*=}"
+            printf '| `%s` | `%s` |\n' "$name" "$outcome" >> "$summary"
+            if [[ "$outcome" != "success" ]]; then failed=1; fi
+          done
+          cat "$summary"
+          cat "$summary" >> "$EVIDENCE_ROOT/report.md"
+          test "$failed" = "0"
+
+      - name: Create local exact repair commit
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(work-maps): classify Growth Control analytics schema"
+          result_sha="$(git rev-parse HEAD)"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${result_sha}" | wc -l | tr -d ' ')" = "3"
+          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${result_sha}" | grep -vE '^(\.changes/e2e/work-map-schema-classification-growth-control\.json|\.specify/work-map-schema-classification-registry\.json|http-generic-api/test-work-map-schema-classification\.mjs)$' || true)"
+          printf 'result_sha=%s\n' "$result_sha" >> "$GITHUB_OUTPUT"
+          printf '\n- Local result SHA: `%s`\n' "$result_sha" >> "$EVIDENCE_ROOT/report.md"
+
+      - name: Validate E2E phase governance on local result
+        id: e2e
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.commit.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$RESULT_SHA" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$RESULT_SHA" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_ROOT/e2e-phase-execution.json"
+
+      - name: Push non-force after exact remote-head readback
+        id: push
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.commit.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$RESULT_SHA"
+          printf '%s\n' \
+            '- Direct protected-branch mutation: `false`' \
+            '- Force push: `false`' \
+            '- Generated Work Map mutation: `false`' \
+            '- Database/runtime/provider/deployment mutation: `false`' \
+            >> "$EVIDENCE_ROOT/report.md"
+
+      - name: Upload exact patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-schema-classification-patch-v2-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-schema-classification-patch-v2
+          if-no-files-found: error
+          retention-days: 14
