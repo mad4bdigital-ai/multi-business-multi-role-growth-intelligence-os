@@ -59,6 +59,22 @@ const bindings = Object.freeze([
     revision: 1,
   }),
 ]);
+const definitionV2 = Object.freeze({
+  ...definition,
+  kpiDefinitionId: "kpi-def-2",
+  definitionVersion: 2,
+  revision: 2,
+});
+const commerceBindingV1 = Object.freeze({ ...bindings[1], status: "deprecated" });
+const commerceBindingV2 = Object.freeze({
+  ...bindings[1],
+  activityKpiBindingId: "binding-kpi-commerce-v2",
+  definitionVersion: 2,
+  scaleMultiplier: 0.02,
+  status: "active",
+  revision: 2,
+});
+const versionedCommerceBindings = Object.freeze([commerceBindingV1, commerceBindingV2]);
 const observations = Object.freeze([
   Object.freeze({
     observationId: "observation-travel",
@@ -115,6 +131,49 @@ assert.equal(catalog.definitions.length, 1);
 assert.equal(catalog.bindings.length, 2);
 assert.equal(catalog.readOnly, true);
 assert.equal(catalog.externalWrites, false);
+
+const versionedCatalog = buildGrowthControlKpiCatalogProjection({
+  definitions: [definition, definitionV2],
+  bindings: versionedCommerceBindings,
+});
+assert.equal(versionedCatalog.definitions.length, 2);
+assert.equal(versionedCatalog.bindings.length, 2);
+assert.deepEqual(versionedCatalog.bindings.map((item) => item.definitionVersion), [2, 1]);
+
+const versionedObservations = Object.freeze([
+  Object.freeze({
+    ...observations[1],
+    observationId: "observation-commerce-v1",
+    definitionVersion: 1,
+    sourceObservationId: "commerce-row-v1",
+  }),
+  Object.freeze({
+    ...observations[1],
+    observationId: "observation-commerce-v2",
+    definitionVersion: 2,
+    sourceObservationId: "commerce-row-v2",
+  }),
+]);
+const versionedProjection = buildGrowthControlPortfolioProjection({
+  tenantId: "tenant-1",
+  definitions: [definition, definitionV2],
+  bindings: versionedCommerceBindings,
+  observations: versionedObservations,
+  now,
+});
+assert.equal(versionedProjection.series.length, 2);
+assert.equal(versionedProjection.series.find((item) => item.definitionVersion === 1).portfolioValue, 250);
+assert.equal(versionedProjection.series.find((item) => item.definitionVersion === 2).portfolioValue, 500);
+assert.throws(
+  () => buildGrowthControlPortfolioProjection({
+    tenantId: "tenant-1",
+    definitions: [definition, definitionV2],
+    bindings: versionedCommerceBindings,
+    observations: [observations[1]],
+    now,
+  }),
+  (error) => error?.code === "GROWTH_CONTROL_KPI_BINDING_VERSION_REQUIRED" && error?.status === 422,
+);
 
 const projection = buildGrowthControlPortfolioProjection({ tenantId: "tenant-1", definitions: [definition], bindings, observations, now });
 assert.equal(projection.observationCount, 2);
