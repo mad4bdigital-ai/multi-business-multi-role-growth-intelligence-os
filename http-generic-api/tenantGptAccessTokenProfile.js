@@ -15,11 +15,8 @@ function finiteInteger(value) {
   return Number.isInteger(normalized) ? normalized : null;
 }
 
-export function resolveTenantGptAccessTokenTtlSeconds(env = process.env) {
-  const configured = String(env?.TENANT_GPT_ACCESS_TOKEN_TTL_SECONDS || "").trim();
-  if (!configured) return TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS;
-
-  const ttlSeconds = finiteInteger(configured);
+export function validateTenantGptAccessTokenTtlSeconds(value) {
+  const ttlSeconds = finiteInteger(value);
   if (
     ttlSeconds === null
     || ttlSeconds < TENANT_GPT_ACCESS_TOKEN_MIN_TTL_SECONDS
@@ -27,10 +24,16 @@ export function resolveTenantGptAccessTokenTtlSeconds(env = process.env) {
   ) {
     throw profileError(
       "tenant_gpt_access_token_ttl_invalid",
-      `TENANT_GPT_ACCESS_TOKEN_TTL_SECONDS must be an integer between ${TENANT_GPT_ACCESS_TOKEN_MIN_TTL_SECONDS} and ${TENANT_GPT_ACCESS_TOKEN_MAX_TTL_SECONDS}.`,
+      `Tenant GPT access-token TTL must be an integer between ${TENANT_GPT_ACCESS_TOKEN_MIN_TTL_SECONDS} and ${TENANT_GPT_ACCESS_TOKEN_MAX_TTL_SECONDS}.`,
     );
   }
   return ttlSeconds;
+}
+
+export function resolveTenantGptAccessTokenTtlSeconds(env = process.env) {
+  const configured = String(env?.TENANT_GPT_ACCESS_TOKEN_TTL_SECONDS || "").trim();
+  if (!configured) return TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS;
+  return validateTenantGptAccessTokenTtlSeconds(configured);
 }
 
 function audienceValues(value) {
