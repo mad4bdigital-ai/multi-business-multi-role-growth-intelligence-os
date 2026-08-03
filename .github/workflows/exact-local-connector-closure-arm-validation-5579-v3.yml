@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
     env:
-      EVIDENCE_DIR: ${{ runner.temp }}/local-connector-closure-5579-v3-${{ github.run_id }}
+      EVIDENCE_DIR: ${{ github.workspace }}/.arm-evidence-5579-v3-${{ github.run_id }}
     steps:
       - name: Checkout exact immutable snapshot
         uses: actions/checkout@v5
