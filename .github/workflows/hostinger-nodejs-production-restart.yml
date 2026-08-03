@@ -126,7 +126,7 @@ jobs:
           HOSTINGER_RESTART_POLL_ATTEMPTS: '12'
           HOSTINGER_RESTART_POLL_INTERVAL_MS: '10000'
           HOSTINGER_NODEJS_RESTART_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
-        run: node scripts/hostinger-nodejs-production-restart.mjs
+        run: node scripts/hostinger-nodejs-production-restart-coherent.mjs
 
       - name: Upload structured restart evidence
         if: always()
@@ -154,6 +154,7 @@ jobs:
             restart: { performed: false },
             first_failure: { code: 'restart_report_missing' },
             post_runtime: null,
+            runtime_identity_authority: null,
             secrets_included: false,
           };
           const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : fallback;
@@ -164,6 +165,8 @@ jobs:
             `classification=${report.classification || 'unknown'}`,
             `restart_performed=${report.restart?.performed === true}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
+            `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
+            `cross_endpoint_composition=${report.runtime_identity_authority?.cross_endpoint_composition_allowed === true}`,
             `first_failure=${report.first_failure?.code || 'none'}`,
             `run_id=${process.env.GITHUB_RUN_ID}`,
             'provider_method=POST',
@@ -189,11 +192,17 @@ jobs:
             import fs from "node:fs";
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
             const effects = report.side_effects || {};
+            const authority = report.runtime_identity_authority || {};
             const valid =
               report.contract === "mad4b.hostinger-nodejs-production-restart.v1" &&
               report.identity?.expected_sha === "f5c1ae8840b4d4452f2908bb0f23051880bb6896" &&
               report.identity?.expected_branch === "Production" &&
               report.identity?.expected_build_uuid === "019fc51c-3947-7255-aa4d-f55cb8df7658" &&
+              authority.contract === "mad4b.hostinger-runtime-identity-authority.v1" &&
+              authority.authoritative_endpoint === "/deployment-info" &&
+              authority.cross_endpoint_composition_allowed === false &&
+              authority.version_endpoint_authoritative === false &&
+              authority.mode === "deployment_info_coherent_pair" &&
               report.secrets_included === false &&
               effects.repository_mutation_performed === false &&
               effects.protected_ref_mutation_performed === false &&
@@ -208,6 +217,7 @@ jobs:
                 outcome: report.outcome || "unknown",
                 classification: report.classification || "invalid_report",
                 restart_performed: report.restart?.performed === true,
+                runtime_identity_authority: authority.mode || "missing",
                 first_failure: report.first_failure || null,
                 consult_job_logs: false,
                 secrets_included: false,
@@ -219,6 +229,7 @@ jobs:
               classification: report.classification,
               restart_performed: report.restart?.performed === true,
               runtime_current: report.post_runtime?.current === true || report.pre_runtime?.current === true,
+              runtime_identity_authority: authority.mode,
               secrets_included: false,
             }));
           '
