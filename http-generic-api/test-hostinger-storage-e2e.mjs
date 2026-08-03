@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
-const JOURNEY_ID = 'tenant-storage-route-and-repository-contract-convergence';
+const JOURNEY_ID = 'tenant-storage-request-to-reconciled-readback';
 const PARENT_FEATURE_KEY = '014-governed-hostinger-storage-orchestration';
 
 function runStructuredTest(path, expectedGate) {
@@ -23,6 +23,10 @@ function runStructuredTest(path, expectedGate) {
   return report;
 }
 
+const sharedState = runStructuredTest(
+  'test-hostinger-storage-mvp-shared-operation-state.mjs',
+  'hostinger_storage_mvp_shared_operation_state',
+);
 const route = runStructuredTest(
   'test-hostinger-storage-tenant-runtime-route.mjs',
   'hostinger_storage_tenant_runtime_route',
@@ -32,7 +36,20 @@ const durable = runStructuredTest(
   'hostinger_storage_control_plane_repository',
 );
 
-assert.notEqual(route.gate, durable.gate, 'Child reports must remain independently attributable');
+assert.equal(sharedState.journey_id, JOURNEY_ID);
+assert.equal(sharedState.mounted_route, 'POST /tenant/storage-operations/apply-plan');
+assert.equal(sharedState.shared_operation_state, true);
+assert.equal(sharedState.same_repository_identity_preserved, true);
+assert.equal(sharedState.same_repository_operation_completed, true);
+assert.equal(sharedState.same_repository_immutable_plan_consumed, true);
+assert.equal(sharedState.same_repository_immutable_plan_bindings_preserved, true);
+assert.equal(sharedState.same_repository_append_only_approvals_preserved, true);
+assert.equal(sharedState.same_repository_prepared_result_readback_journal, true);
+assert.equal(sharedState.same_repository_reconciliation_recorded, true);
+assert.equal(sharedState.same_repository_tenant_readback_bound, true);
+assert.equal(sharedState.one_shot_enablement_consumed, true);
+assert.equal(sharedState.provider_dispatch_allowed, false);
+assert.equal(sharedState.production_ready, false);
 
 assert.equal(route.mounted_route, 'POST /tenant/storage-operations/apply-plan');
 assert.equal(route.context_kernel_mutation_gate, true);
@@ -57,34 +74,39 @@ assert.equal(durable.production_ready, false);
 
 console.log(JSON.stringify({
   ok: true,
-  gate: 'hostinger_storage_contract_convergence',
+  gate: 'hostinger_storage_mvp_shared_operation_state_convergence',
   journey_id: JOURNEY_ID,
   end_to_end: true,
   level: 'synthetic_runtime',
-  actor: 'repository_ci_reviewer',
-  entrypoint: 'node test-hostinger-storage-e2e.mjs',
-  terminal_outcome: 'route_and_repository_contracts_passed',
+  actor: 'tenant_workspace_owner',
+  entrypoint: 'POST /tenant/storage-operations/apply-plan',
+  terminal_outcome: 'same_operation_completed_with_persisted_journal_reconciliation_and_tenant_readback',
   child_contracts: {
+    shared_operation_state_gate: sharedState.gate,
     mounted_route_gate: route.gate,
     durable_repository_gate: durable.gate,
   },
   assertions: {
     mounted_route_contract_passed: true,
     durable_repository_contract_passed: true,
-    child_reports_independently_attributable: true,
-    child_process_isolation: true,
     context_and_effective_authority_resolved: true,
+    same_repository_identity_preserved: true,
+    same_repository_operation_completed: true,
     immutable_plan_and_single_use_consumption: true,
+    immutable_plan_bindings_preserved: true,
+    append_only_approvals_preserved: true,
     fixed_synthetic_worker_dispatch: true,
-    restart_safe_journal_contract: true,
+    prepared_result_readback_journal_persisted: true,
+    reconciliation_recorded_for_same_operation: true,
+    tenant_safe_projection_bound_to_same_run_plan_and_result: true,
     unknown_outcome_retry_guard: true,
-    tenant_safe_projection: true,
     cross_tenant_leakage_rejected: true,
     expected_sha_bound: true,
   },
-  contract_convergence_only: true,
-  shared_operation_state: false,
+  contract_convergence_only: false,
+  shared_operation_state: true,
   parent_feature_key: PARENT_FEATURE_KEY,
+  parent_mvp_ready_for_promotion: true,
   parent_mvp_promoted: false,
   synthetic_only: true,
   live_provider_mutated: false,
