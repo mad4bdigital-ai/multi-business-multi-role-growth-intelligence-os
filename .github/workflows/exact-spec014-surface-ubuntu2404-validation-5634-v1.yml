@@ -148,13 +148,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check scripts/surface-contract-discovery.mjs
-          node --check scripts/surface-contract-gap-triage.mjs
-          node test-surface-contract-discovery.mjs
-          node test-surface-contract-governance-loop.mjs
-          node test-surface-contract-auto-remediation.mjs
-          node scripts/surface-contract-discovery.mjs --check
+          mark() { printf '%s\n' "$1" | tee -a "$EVIDENCE_DIR/surface-progress.txt"; }
 
+          mark node-check-discovery:start
+          node --check scripts/surface-contract-discovery.mjs
+          mark node-check-discovery:pass
+
+          mark node-check-gap-triage:start
+          node --check scripts/surface-contract-gap-triage.mjs
+          mark node-check-gap-triage:pass
+
+          mark discovery-tests:start
+          node test-surface-contract-discovery.mjs
+          mark discovery-tests:pass
+
+          mark governance-loop-tests:start
+          node test-surface-contract-governance-loop.mjs
+          mark governance-loop-tests:pass
+
+          mark auto-remediation-tests:start
+          node test-surface-contract-auto-remediation.mjs
+          mark auto-remediation-tests:pass
+
+          mark generated-parity-check:start
+          node scripts/surface-contract-discovery.mjs --check
+          mark generated-parity-check:pass
+
+          mark checksum-attestation:start
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
@@ -163,13 +183,44 @@ jobs:
           const checksum = 'cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096';
           const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
           const attestations = JSON.parse(fs.readFileSync('../docs/surface-contract-safety-attestations.json', 'utf8'));
+          const item = attestations.items.find((entry) => entry.migration_file === migrationFile);
+
+          fs.writeFileSync(
+            process.env.EVIDENCE_DIR + '/surface-inputs.json',
+            JSON.stringify({
+              queue: {
+                ok: queue.ok,
+                schema_version: queue.schema_version,
+                total_items: queue.total_items,
+                migration_absent: !JSON.stringify(queue).includes(migrationFile)
+              },
+              attestation: item ? {
+                migration_file: item.migration_file,
+                migration_sha256: item.migration_sha256,
+                checksum_canonicalization: item.checksum_canonicalization,
+                attestation_status: item.attestation_status,
+                evidence_mode: item.evidence_mode,
+                review_status: item.review_status,
+                reviewed_by: item.reviewed_by,
+                reviewed_at: item.reviewed_at,
+                execution_authorized: item.execution_authorized,
+                safety: item.safety,
+                safety_markers: item.safety_markers
+              } : null,
+              provider_mutation: false,
+              production_mutation: false,
+              credential_access: false,
+              database_mutation: false,
+              external_write: false,
+              secrets_included: false
+            }, null, 2) + '\n'
+          );
 
           assert.equal(queue.ok, true);
           assert.equal(queue.schema_version, 'surface-contract-gap-queue-v1');
           assert.equal(queue.total_items, 24);
           assert.equal(JSON.stringify(queue).includes(migrationFile), false, 'Spec 014 migration returned to the gap queue');
 
-          const item = attestations.items.find((entry) => entry.migration_file === migrationFile);
           assert(item, 'Spec 014 checksum-bound safety attestation is missing');
           assert.equal(item.migration_sha256, checksum);
           assert.equal(item.checksum_canonicalization, 'utf8_lf_v1');
@@ -206,8 +257,12 @@ jobs:
             }, null, 2) + '\n'
           );
           NODE
+          mark checksum-attestation:pass
 
+          mark clean-worktree-check:start
           git diff --exit-code
+          mark clean-worktree-check:pass
+          mark surface-evidence:complete
 
       - name: E2E contract reference integrity
         id: reference_integrity
