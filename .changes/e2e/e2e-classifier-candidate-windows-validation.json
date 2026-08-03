@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "feature_key": "e2e-classifier-candidate-windows-validation",
+  "candidate_sha": "1d264c4316c48e8c132dd2332a3d83bc869eca50",
+  "base_sha": "85365f286b7ab001ef9eaad526af118fb73c2886",
+  "candidate_branch": "gpt/ci/e2e-default-branch-classifier-v3-20260803",
+  "purpose": "Run read-only exact-head E2E classifier and contract-reference validation on Windows runner capacity.",
+  "required_checks_replaced": false,
+  "repository_mutation": false,
+  "provider_mutation": false,
+  "database_mutation": false,
+  "migration_apply": false,
+  "deployment": false,
+  "production_mutation": false,
+  "secrets_included": false
+}
