@@ -97,6 +97,15 @@ assert.equal(gatePass.ok, true, JSON.stringify(gatePass.findings));
 assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
 
+const defaultBranchDispatch = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main"], root));
+assert.equal(defaultBranchDispatch.ok, true, JSON.stringify(defaultBranchDispatch.findings));
+assert.equal(defaultBranchDispatch.pr_mode, "standard");
+
+const undeclaredBranch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/undeclared-a", "--base-ref", "gpt/001-example/integration-a"], { cwd: root, encoding: "utf8" });
+assert.notEqual(undeclaredBranch.status, 0);
+const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
+assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
 const directReport = JSON.parse(directMain.stdout);
@@ -110,4 +119,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 9, flow: "parallel_workstream_to_integration", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 13, flow: "parallel_workstream_to_integration", secrets_included: false }));
