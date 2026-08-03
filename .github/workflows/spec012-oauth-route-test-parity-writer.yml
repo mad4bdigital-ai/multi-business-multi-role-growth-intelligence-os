@@ -10,183 +10,114 @@ permissions:
   contents: write
 
 concurrency:
-  group: spec012-oauth-route-test-parity-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: spec012-oauth-injection-product-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Validate and publish Spec 012 OAuth parity repair
+    name: Validate and publish exact OAuth request-injection repair
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
-      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-request-injection-fix-a61cd9e8-v1' &&
+      github.event.pull_request.head.sha == 'e37d926a60bfe7cbca4a2968c99d039523a886ce'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      TARGET_BRANCH: gpt/spec012-oauth-token-route-test-parity-20260804
+      EXPECTED_HEAD_SHA: e37d926a60bfe7cbca4a2968c99d039523a886ce
+      TARGET_BRANCH: gpt/spec012-oauth-request-injection-fix-a61cd9e8-v1
+      MARKER_PATH: .github/validation/spec012-oauth-request-injection-writer.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
-      SCRIPT_COMMIT_SHA: 9bc786994e58d5e7e46f5b137eebbe3c93fe018b
-      E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+      SCRIPT_COMMIT_SHA: b3eed7a469070fb1abf3a156a59bb774458a1227
     steps:
-      - name: Checkout exact clean branch
+      - name: Checkout exact marker head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            http-generic-api/package-lock.json
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify immutable baseline and install dependencies
+      - name: Verify immutable baseline and load repair
         shell: bash
         run: |
           set -euo pipefail
-          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-route-test-parity-${GITHUB_RUN_ID}"
-          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
-          mkdir -p "${DIAGNOSTIC_ROOT}"
+          EVIDENCE_ROOT="${RUNNER_TEMP}/spec012-oauth-product-${GITHUB_RUN_ID}"
+          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${EVIDENCE_ROOT}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")"
-          test -z "$(git status --porcelain)"
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
-          npm ci
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test -f "${MARKER_PATH}"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | wc -l | tr -d ' ')" = "1"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${MARKER_PATH}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}" "+refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
+          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-request-injection-repair.py" > /tmp/apply-spec012-oauth-request-injection-repair.py
+          python -m py_compile /tmp/apply-spec012-oauth-request-injection-repair.py
           npm ci --prefix http-generic-api
 
-      - name: Load immutable transformer
+      - name: Apply exact bounded repair
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
-          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
-          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
-          python -m py_compile /tmp/apply-spec012-oauth-route-test-parity.py
-
-      - name: Apply repair and converge generated Work Map scope
-        shell: bash
-        run: |
-          set -euo pipefail
-          python /tmp/apply-spec012-oauth-route-test-parity.py
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-
-          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
-          python - "${E2E_PATH}" "${DIAGNOSTIC_ROOT}/generated-files.txt" <<'PY'
-          import json, sys
-          from pathlib import Path
-          e2e = Path(sys.argv[1])
-          generated = [line.strip() for line in Path(sys.argv[2]).read_text().splitlines() if line.strip()]
-          payload = json.loads(e2e.read_text())
-          scope = payload['scope']['include']
-          evidence = payload['phases'][0]['e2e_journeys'][0]['evidence_paths']
-          for value in generated:
-              if value not in scope:
-                  scope.append(value)
-              if value not in evidence:
-                  evidence.append(value)
-          e2e.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
-          PY
-
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          test "${first_hash}" = "${second_hash}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          printf '%s\n' "${first_hash}" > "${DIAGNOSTIC_ROOT}/generated-diff-sha256.txt"
-
-          cat > "${DIAGNOSTIC_ROOT}/core-files.txt" <<'EOF'
-          .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
-          http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          rm -- "${MARKER_PATH}"
+          python /tmp/apply-spec012-oauth-request-injection-repair.py
+          cat > /tmp/expected-files.txt <<'EOF'
+          http-generic-api/routes/index.js
           http-generic-api/test-auth-oauth-routes.mjs
           http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           EOF
-          cat "${DIAGNOSTIC_ROOT}/core-files.txt" "${DIAGNOSTIC_ROOT}/generated-files.txt" | LC_ALL=C sort -u > "${DIAGNOSTIC_ROOT}/expected-files.txt"
-          git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
           git diff --check "${EXPECTED_MAIN_SHA}"
-          git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
+          cp /tmp/actual-files.txt "${EVIDENCE_ROOT}/changed-files.txt"
+          git diff --stat "${EXPECTED_MAIN_SHA}" > "${EVIDENCE_ROOT}/diff-stat.txt"
 
-      - name: Run OAuth route and governance validations
+      - name: Run focused and complete validations
         shell: bash
         run: |
           set -euo pipefail
-          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
-          node http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
-          node http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
-          node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-          node http-generic-api/test-auth-oauth-routes.mjs
-          node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          (
-            cd http-generic-api
-            node scripts/user-jwt-auth-governance.mjs --baseline-ref="${EXPECTED_MAIN_SHA}"
-          )
-          ! grep -Fq 'from "jsonwebtoken"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          ! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          grep -Fq 'oauth_token_exchange_crypto_dependencies_required' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          grep -Fq 'getPool: () => oauthClientPool' http-generic-api/test-auth-oauth-routes.mjs
-          node -e "JSON.parse(require('fs').readFileSync(process.env.E2E_PATH,'utf8'))"
+          node --check http-generic-api/routes/index.js 2>&1 | tee "${EVIDENCE_ROOT}/route-index-syntax.log"
+          node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs 2>&1 | tee "${EVIDENCE_ROOT}/token-route.log"
+          node http-generic-api/test-auth-oauth-routes.mjs 2>&1 | tee "${EVIDENCE_ROOT}/auth-oauth-integration.log"
+          node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee "${EVIDENCE_ROOT}/route-wiring.log"
+          npm --prefix http-generic-api run test:manifest 2>&1 | tee "${EVIDENCE_ROOT}/test-manifest.log"
 
-      - name: Create exact local commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          while IFS= read -r path; do git add -- "$path"; done < "${DIAGNOSTIC_ROOT}/expected-files.txt"
-          git commit -m "fix(auth): restore governed OAuth route integration parity"
-          new_head="$(git rev-parse HEAD)"
-          printf 'NEW_HEAD_SHA=%s\n' "${new_head}" >> "${GITHUB_ENV}"
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${new_head}" | LC_ALL=C sort > /tmp/final-files.txt
-          diff -u "${DIAGNOSTIC_ROOT}/expected-files.txt" /tmp/final-files.txt
-          test -z "$(git status --porcelain)"
-
-      - name: Run exact E2E and lifecycle gates
-        shell: bash
-        env:
-          BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
-        run: |
-          set -euo pipefail
-          export CANDIDATE_SHA="${NEW_HEAD_SHA}"
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${BASE_SHA}" --head "${NEW_HEAD_SHA}" \
-            --report-file "${DIAGNOSTIC_ROOT}/e2e-phase-evaluation.json"
-          git diff --name-status "${BASE_SHA}" "${NEW_HEAD_SHA}" > /tmp/repository-tool-changes.tsv
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-            --changed-files /tmp/repository-tool-changes.tsv \
-            --policy .github/repository-maintenance-tool-governance.json \
-            --output-dir "${DIAGNOSTIC_ROOT}/repository-tool-lifecycle"
-          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.DIAGNOSTIC_ROOT + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length) process.exit(1);"
-          test -z "$(git status --porcelain)"
-
-      - name: Push exact validated commit without force
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${NEW_HEAD_SHA}"
-
-      - name: Upload bounded evidence
+      - name: Upload bounded product evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-route-test-parity-${{ github.run_id }}
-          path: ${{ runner.temp }}/spec012-oauth-route-test-parity-${{ github.run_id }}
+          name: spec012-oauth-product-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec012-oauth-product-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Commit exact product repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- "${MARKER_PATH}" http-generic-api/routes/index.js http-generic-api/test-auth-oauth-routes.mjs http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" = "4"
+          git commit -m 'fix(spec-012): restore OAuth request injection parity'
+
+      - name: Push without force after final compare-and-swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
