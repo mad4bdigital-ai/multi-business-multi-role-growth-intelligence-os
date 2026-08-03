@@ -1,0 +1,159 @@
+name: Exact Production Reconciliation Classifier ARM Validation 5729
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-production-reconciliation-classifier-arm-base-5729-14433d
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-production-reconciliation-classifier-arm-5729-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  exact-candidate:
+    name: Exact Classifier Candidate Full Validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-production-reconciliation-classifier-v7-20260803' &&
+      github.event.pull_request.head.sha == '153d249cec999bff651a97de78dd1c3db09a0c9c'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      EXPECTED_HEAD_SHA: 153d249cec999bff651a97de78dd1c3db09a0c9c
+      EXPECTED_HEAD_REF: gpt/fix-production-reconciliation-classifier-v7-20260803
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity, protected refs, ancestry, and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/e2e-default-branch-and-production-promotion-classification.json'
+          test "${files[1]}" = 'http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs'
+          test "${files[2]}" = 'http-generic-api/scripts/e2e-parallel-pr-gate.mjs'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Run canonical syntax and governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
+          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          node --check http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run canonical classifier synthetic matrix
+        working-directory: http-generic-api
+        run: node scripts/e2e-parallel-pr-flow-self-test.mjs
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_HEAD_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Install root dependencies and run Execution Resolver Gate
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run exact E2E phase evaluation and execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation-run.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Publish bounded secret-free summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n \
+            --arg main_sha "${EXPECTED_MAIN_SHA}" \
+            --arg production_sha "${EXPECTED_PRODUCTION_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            '{contract:"mad4b.exact-production-reconciliation-classifier-arm-validation.v1",main_sha:$main_sha,production_sha:$production_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/exact-production-reconciliation-classifier-arm-summary.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-production-reconciliation-classifier-arm-5729-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/exact-production-reconciliation-classifier-arm-summary.json
+            ${{ runner.temp }}/e2e-phase-*.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
