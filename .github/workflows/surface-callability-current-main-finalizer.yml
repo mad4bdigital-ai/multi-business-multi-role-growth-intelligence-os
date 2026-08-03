@@ -1,4 +1,4 @@
-name: Surface Callability Current Main Finalizer
+name: Surface Callability Queue Diagnostic
 
 on:
   pull_request:
@@ -8,21 +8,21 @@ on:
       - .github/workflows/surface-callability-current-main-finalizer.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: surface-callability-current-main-finalizer-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  finalize:
+  diagnose:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
       BASE_SHA: ae26acbb7cd640ca9670c7b26b267aca45e3b337
@@ -34,7 +34,7 @@ jobs:
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify exact bounded trigger
         shell: bash
@@ -74,216 +74,79 @@ jobs:
           path.write_text(source.replace(old, new), encoding='utf-8')
           PY
 
-      - name: Generate closure and frontend evidence
+      - name: Regenerate scoped queue evidence
         working-directory: http-generic-api
         run: |
+          set -Eeuo pipefail
           node scripts/surface-contract-discovery.mjs
           node scripts/surface-callability-closure/generate_closure_contracts.mjs
           node scripts/surface-contract-discovery.mjs
-          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_SHA}"
 
-      - name: Reject temporary exporter tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          for path in http-generic-api/test-frontend-surface-dispatch.mjs http-generic-api/test-frontend-auth-openapi-parity.mjs; do
-            ! grep -Fq 'surface_artifact_export_complete_intentional_test_failure' "$path"
-          done
-
-      - name: Syntax contracts
-        working-directory: http-generic-api
-        run: |
-          node --check routes/tenantLifecycleRoutes.js
-          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node --check scripts/resource-api-callability-contracts.mjs
-
-      - name: Workspace invitation controls
-        working-directory: http-generic-api
-        run: node test-workspace-invitation-controls.mjs
-
-      - name: SQL registry extractor
-        working-directory: http-generic-api
-        run: node test-surface-contract-sql-registry-extractor.mjs
-
-      - name: Resource effect classes
-        working-directory: http-generic-api
-        run: node test-resource-api-callability-effect-classes.mjs
-
-      - name: Resource API coverage
-        working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
-
-      - name: Diagnose Surface scoped queue closure
+      - name: Build scoped queue diagnostic
         working-directory: http-generic-api
         run: |
           node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
           import fs from 'node:fs';
           const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
           const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
-          const remaining = queue.top_items.filter((item) => (item.remediation || []).some((action) =>
-            action.action_key === 'verify_tool_registry_binding' &&
-            (action.targets || []).some((key) => manifest.source_queue_tool_keys.includes(key))
-          ));
-          assert.deepEqual(remaining, [], `surface_remaining_scoped_items:${remaining.map((item) => item.migration_file).join(',')}`);
-          NODE
-
-      - name: Diagnose Surface mutation evidence
-        working-directory: http-generic-api
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import fs from 'node:fs';
-          const lifecycle = fs.readFileSync('routes/tenantLifecycleRoutes.js', 'utf8');
-          const resources = fs.readFileSync('routes/workspaceResourceRoutes.js', 'utf8');
-          const infrastructure = fs.readFileSync('routes/tenantInfrastructureRoutes.js', 'utf8');
-          const agentService = fs.readFileSync('agentSurfaceRuntimeService.js', 'utf8');
-          const sources = [lifecycle, resources, infrastructure, agentService];
-          const keys = [
-            'tenant_agent_surface_preferences_update',
-            'tenant_agent_surface_deployment_upsert',
-            'workspace_member_remove',
-            'workspace_member_update',
-            'workspace_ownership_transfer',
-            'workspace_invitation_resend',
-            'workspace_invitation_revoke',
-            'workspace_invitations_expire_stale',
-            'workspace_access_request_cancel',
-            'workspace_resource_grant_create',
-            'workspace_resource_grant_revoke',
-            'tenant_ssh_cli_approval_request_create',
-            'tenant_ssh_cli_approval_request_decide',
-          ];
-          for (const key of keys) {
-            assert(sources.some((source) => source.includes(`MUTATION_TRANSACTION: ${key}`)), `missing transaction marker for ${key}`);
-            assert(sources.some((source) => source.includes(`MUTATION_READBACK: ${key}`)), `missing readback marker for ${key}`);
-          }
-          NODE
-
-      - name: Diagnose Surface OpenAPI evidence
-        working-directory: http-generic-api
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import fs from 'node:fs';
-          import YAML from 'yaml';
-          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
-          const runtime = YAML.parse(fs.readFileSync('openapi/frontend-runtime-routes.generated.yaml', 'utf8'));
-          const canonical = YAML.parse(fs.readFileSync('openapi.yaml', 'utf8'));
-          for (const contract of manifest.contracts) {
-            const [method, route] = contract.route_signature.split(/\s+/, 2);
-            const document = contract.openapi_file === 'openapi.yaml' ? canonical : contract.openapi_file === 'openapi/frontend-runtime-routes.generated.yaml' ? runtime : null;
-            assert(document?.paths?.[route]?.[method.toLowerCase()], `OpenAPI operation missing: ${contract.route_signature}:${contract.openapi_file}`);
-          }
-          NODE
-
-      - name: Diagnose Surface Hostinger attestations
-        working-directory: http-generic-api
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import fs from 'node:fs';
-          const migration = '20260730_hostinger_production_resync_policy.sql';
-          const classification = JSON.parse(fs.readFileSync('surface-contract-classification-evidence.json', 'utf8'));
-          const attestations = JSON.parse(fs.readFileSync('../docs/surface-contract-safety-attestations.json', 'utf8'));
-          assert(classification.items.some((item) => item.migration_file === migration && item.classification_status === 'verified_evidence_only'), 'hostinger classification missing');
-          assert(attestations.items.some((item) => item.migration_file === migration && item.attestation_status === 'verified_static_no_external_side_effects'), 'hostinger attestation missing');
-          NODE
-
-      - name: Surface full closure
-        working-directory: http-generic-api
-        run: node test-surface-callability-full-closure.mjs
-
-      - name: Frontend Surface dispatch
-        working-directory: http-generic-api
-        run: node test-frontend-surface-dispatch.mjs
-
-      - name: Frontend auth OpenAPI parity
-        working-directory: http-generic-api
-        run: node test-frontend-auth-openapi-parity.mjs
-
-      - name: OpenAPI route coverage
-        working-directory: http-generic-api
-        run: node test-openapi-route-coverage.mjs
-
-      - name: Hostinger full-closure safety
-        working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: OpenAPI auth parity
-        working-directory: http-generic-api
-        run: npm run openapi:auth:check
-
-      - name: Prove scoped queue closure
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
-          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
           const scoped = new Set(manifest.source_queue_tool_keys || []);
-          const remaining = (queue.top_items || []).filter((item) => (item.remediation || []).some((action) =>
-            action.action_key === 'verify_tool_registry_binding' &&
-            (action.targets || []).some((key) => scoped.has(key))
-          ));
-          if (remaining.length) throw new Error(`surface_scoped_queue_not_zero:${remaining.length}`);
-          if (manifest.source_queue_item_count !== 20) throw new Error('surface_source_queue_item_count_mismatch');
-          if (manifest.source_queue_tool_keys.length !== 41) throw new Error('surface_tool_count_mismatch');
-          console.log(JSON.stringify({ok:true,repository_queue_items:queue.total_items,remaining_scoped_items:0,source_items:20,tool_keys:41,secrets_included:false}));
+          const remaining = (queue.top_items || []).flatMap((item) => {
+            const matchingActions = (item.remediation || []).filter((action) =>
+              action.action_key === 'verify_tool_registry_binding' &&
+              (action.targets || []).some((key) => scoped.has(key))
+            );
+            if (!matchingActions.length) return [];
+            return [{
+              migration_file: item.migration_file,
+              classification_status: item.classification_status ?? null,
+              confidence: item.confidence ?? null,
+              unmet_checks: item.unmet_checks ?? [],
+              matching_actions: matchingActions.map((action) => ({
+                action_key: action.action_key,
+                targets: action.targets || [],
+                matching_targets: (action.targets || []).filter((key) => scoped.has(key)),
+              })),
+              full_item: item,
+            }];
+          });
+          const diagnostic = {
+            schema: 'mad4b.surface-scoped-queue-diagnostic.v1',
+            head_sha: process.env.GITHUB_SHA,
+            repository_queue_items: queue.total_items ?? queue.top_items?.length ?? null,
+            source_queue_item_count: manifest.source_queue_item_count,
+            scoped_tool_key_count: scoped.size,
+            scoped_tool_keys: [...scoped].sort(),
+            remaining_scoped_item_count: remaining.length,
+            remaining_scoped_items: remaining,
+          };
+          fs.writeFileSync('/tmp/surface-queue-diagnostics.json', `${JSON.stringify(diagnostic, null, 2)}\n`);
+          console.log(JSON.stringify({
+            remaining_scoped_item_count: diagnostic.remaining_scoped_item_count,
+            migration_files: remaining.map((item) => item.migration_file),
+          }));
           NODE
 
-      - name: Remove finalizer and enforce bounded outputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm "${WORKFLOW_PATH}"
-          cat > /tmp/allowed.txt <<'EOF'
-          .github/workflows/surface-callability-current-main-finalizer.yml
-          docs/surface-contract-discovery-status.json
-          docs/surface-contract-discovery-status.md
-          docs/surface-contract-gap-queue.json
-          docs/surface-contract-gap-queue.md
-          docs/surface-contract-safety-attestations.json
-          http-generic-api/frontend-operation-governance.generated.json
-          http-generic-api/frontend-surface-dispatch.generated.json
-          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-          http-generic-api/resource-api-surface-callability.manifest.json
-          http-generic-api/routes/tenantLifecycleRoutes.js
-          http-generic-api/scripts/test-manifest.mjs
-          http-generic-api/surface-contract-classification-evidence.json
-          http-generic-api/test-frontend-auth-openapi-parity.mjs
-          http-generic-api/test-frontend-surface-dispatch.mjs
-          http-generic-api/test-surface-callability-full-closure.mjs
-          EOF
-          sort -u /tmp/allowed.txt -o /tmp/allowed.txt
-          git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed.txt
-          unexpected="$(comm -23 /tmp/changed.txt /tmp/allowed.txt || true)"
-          test -z "$unexpected" || { printf 'unexpected finalizer outputs:\n%s\n' "$unexpected"; exit 1; }
-          for path in \
-            "${WORKFLOW_PATH}" \
-            docs/surface-contract-safety-attestations.json \
-            http-generic-api/frontend-surface-dispatch.generated.json \
-            http-generic-api/resource-api-surface-callability.manifest.json \
-            http-generic-api/routes/tenantLifecycleRoutes.js \
-            http-generic-api/scripts/test-manifest.mjs \
-            http-generic-api/surface-contract-classification-evidence.json \
-            http-generic-api/test-surface-callability-full-closure.mjs; do
-            grep -Fxq "$path" /tmp/changed.txt || { echo "missing required output: $path"; exit 1; }
-          done
+      - name: Upload scoped queue diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-scoped-queue-diagnostic-${{ github.sha }}
+          path: |
+            /tmp/surface-queue-diagnostics.json
+            docs/surface-contract-gap-queue.json
+            docs/surface-contract-discovery-status.json
+            http-generic-api/resource-api-surface-callability.manifest.json
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Commit product-only result
-        shell: bash
+      - name: Enforce diagnostic result
+        working-directory: http-generic-api
         run: |
-          set -Eeuo pipefail
-          before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$before" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
-          git add -A
-          git commit -m 'feat(surface): finalize scoped callability closure on current main'
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$after" = "$(git rev-parse HEAD)"
-          test ! -e "${WORKFLOW_PATH}"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const diagnostic = JSON.parse(fs.readFileSync('/tmp/surface-queue-diagnostics.json', 'utf8'));
+          if (diagnostic.remaining_scoped_item_count !== 0) {
+            throw new Error(`surface_scoped_queue_not_zero:${diagnostic.remaining_scoped_item_count}:${diagnostic.remaining_scoped_items.map((item) => item.migration_file).join(',')}`);
+          }
+          console.log(JSON.stringify({ok:true,remaining_scoped_items:0}));
+          NODE
