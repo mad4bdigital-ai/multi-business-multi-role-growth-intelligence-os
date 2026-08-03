@@ -32,6 +32,8 @@ jobs:
       TARGET_FILE: http-generic-api/frontend-surface-dispatch.generated.json
       GOVERNANCE_FILE: http-generic-api/frontend-operation-governance.generated.json
       OPENAPI_INDEX: http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+      RAW_WRITE_SET: ${{ runner.temp }}/generated-write-set-raw.txt
+      NORMALIZED_WRITE_SET: ${{ runner.temp }}/generated-write-set.txt
 
     steps:
       - name: Checkout exact target branch
@@ -136,30 +138,63 @@ jobs:
           }));
           NODE
 
-      - name: Capture generated write set
+      - name: Remove temporary workflow locally
         shell: bash
         run: |
           set -Eeuo pipefail
-          rm "${WORKFLOW_PATH}"
-          git status --porcelain=v1 --untracked-files=all > /tmp/generated-write-set-raw.txt
-          sed -E 's/^...//' /tmp/generated-write-set-raw.txt | sed -E 's/.* -> /' | sort -u > /tmp/generated-write-set.txt
-          cat /tmp/generated-write-set.txt
+          test -f "${WORKFLOW_PATH}"
+          rm -- "${WORKFLOW_PATH}"
+          test ! -e "${WORKFLOW_PATH}"
+
+      - name: Capture raw generated write set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git status --porcelain=v1 --untracked-files=all > "${RAW_WRITE_SET}"
+          test -s "${RAW_WRITE_SET}"
+          cat "${RAW_WRITE_SET}"
+
+      - name: Normalize generated write set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rawPath = process.env.RAW_WRITE_SET;
+          const normalizedPath = process.env.NORMALIZED_WRITE_SET;
+          const raw = fs.readFileSync(rawPath, 'utf8');
+          const paths = raw
+            .split(/\r?\n/u)
+            .filter(Boolean)
+            .map((line) => {
+              const payload = line.slice(3);
+              const renameSeparator = ' -> ';
+              return payload.includes(renameSeparator)
+                ? payload.slice(payload.lastIndexOf(renameSeparator) + renameSeparator.length)
+                : payload;
+            });
+          const unique = [...new Set(paths)].sort();
+          fs.writeFileSync(normalizedPath, `${unique.join('\n')}\n`);
+          console.log(unique.join('\n'));
+          if (unique.length === 0) throw new Error('generated_write_set_empty');
+          NODE
 
       - name: Upload generated write set
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: generated-write-set-${{ github.event.pull_request.head.sha }}
           path: |
-            /tmp/generated-write-set.txt
-            /tmp/generated-write-set-raw.txt
-          if-no-files-found: error
+            ${{ env.NORMALIZED_WRITE_SET }}
+            ${{ env.RAW_WRITE_SET }}
+          if-no-files-found: warn
           retention-days: 1
 
       - name: Enforce bounded write set
         shell: bash
         run: |
           set -Eeuo pipefail
-          changed="$(cat /tmp/generated-write-set.txt)"
+          changed="$(cat "${NORMALIZED_WRITE_SET}")"
           count="$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')"
           test "$count" -ge 2
           test "$count" -le 4
