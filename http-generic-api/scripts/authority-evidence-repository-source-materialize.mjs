@@ -126,9 +126,9 @@ function writeNewFilesAtomically(repositoryRoot, files) {
       temporaryFiles.push(temporary);
       fs.writeFileSync(temporary, entry.content, { flag: "wx" });
       fs.linkSync(temporary, entry.absolutePath);
+      createdFiles.push(entry.absolutePath);
       fs.unlinkSync(temporary);
       temporaryFiles.pop();
-      createdFiles.push(entry.absolutePath);
     }
   } catch (error) {
     for (const temporary of temporaryFiles.reverse()) {
