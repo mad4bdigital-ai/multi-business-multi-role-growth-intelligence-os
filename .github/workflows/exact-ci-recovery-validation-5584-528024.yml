@@ -43,7 +43,7 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
-      - name: Verify immutable identity, direct parent, scope, and blobs
+      - name: Verify immutable identity direct parent scope and blobs
         shell: bash
         run: |
           set -euo pipefail
@@ -55,7 +55,6 @@ jobs:
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
-          printf '%s\n' "${files[@]}"
           test "${#files[@]}" -eq 3
           test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
           test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
@@ -115,10 +114,10 @@ jobs:
           const dir = process.env.TEST_SUITE_REPORT_DIR;
           for (const name of ['test-manifest.json', 'test-suite.json']) {
             const report = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
-            assert.equal(report.status, 'passed', `${name} status`);
-            assert.equal(report.commitSha, expected, `${name} must use exact checked-out SHA`);
-            assert.equal(report.firstFailure, null, `${name} firstFailure`);
-            assert.equal(report.secretsIncluded, false, `${name} secretsIncluded`);
+            assert.equal(report.status, 'passed');
+            assert.equal(report.commitSha, expected);
+            assert.equal(report.firstFailure, null);
+            assert.equal(report.secretsIncluded, false);
             if (name === 'test-manifest.json') {
               assert.equal(report.selectedCount, report.totalCommands);
               assert.ok(report.totalCommands > 0);
@@ -149,11 +148,14 @@ jobs:
         run: npm run validate
 
       - name: Run Repository Tool Lifecycle Governance
+        env:
+          BASE_SHA: ${{ env.EXPECTED_MAIN_SHA }}
+          CANDIDATE_SHA: ${{ env.EXPECTED_HEAD_SHA }}
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          git diff --name-status "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
           node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
             --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
             --policy .github/repository-maintenance-tool-governance.json \
