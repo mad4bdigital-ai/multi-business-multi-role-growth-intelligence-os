@@ -29,7 +29,6 @@ function patchSanitizer(source, label) {
     if (!source.includes(sensitive)) throw new Error(`${label} sensitive-key anchor missing`);
     source = source.replace(sensitive, `${sensitive}\n${safeKeysDeclaration}`);
   }
-
   source = source.replace(
     `sensitiveKey.test(key) ? '[redacted]' : sanitize(child)`,
     `sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)`,
@@ -38,7 +37,6 @@ function patchSanitizer(source, label) {
     `sensitiveKey.test(key) && key !== 'authorization_created' && key !== 'authorization_bootstrap'\n      ? '[redacted]'\n      : sanitize(child)`,
     `sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key)\n      ? '[redacted]'\n      : sanitize(child)`,
   );
-
   if (!source.includes(`sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key)`)) {
     throw new Error(`${label} bounded sanitizer missing`);
   }
@@ -111,9 +109,10 @@ backfill = backfill.replace(
 );
 
 const failureStart = backfill.indexOf(`  if (failure) {`);
-const fallbackStart = backfill.indexOf(`  return {`, failureStart + 1);
-if (failureStart < 0 || fallbackStart < 0) throw new Error('failure result block boundaries missing');
-let failureBlock = backfill.slice(failureStart, fallbackStart);
+const fallbackMarker = `\n  return {\n    status: 'fail',\n    result: discovery.outcome,`;
+const failureEnd = backfill.indexOf(fallbackMarker, failureStart);
+if (failureStart < 0 || failureEnd < 0) throw new Error('failure result block boundaries missing');
+let failureBlock = backfill.slice(failureStart, failureEnd);
 failureBlock = failureBlock.replace(
   `    assert.equal(failure.secrets_included, false);`,
   `    const failureSecretsIncluded = safeBoolean(failure.secrets_included);`,
@@ -134,10 +133,23 @@ failureBlock = failureBlock.replace(
   `      secrets_included: false,`,
   `      secrets_included: failureSecretsIncluded,`,
 );
-backfill = `${backfill.slice(0, failureStart)}${failureBlock}${backfill.slice(fallbackStart)}`;
+backfill = `${backfill.slice(0, failureStart)}${failureBlock}${backfill.slice(failureEnd)}`;
+
+for (const key of [
+  'authorization_created',
+  'apply_authorized',
+  'apply_sent',
+  'migration_apply_executed',
+  'activation_registry_sync_executed',
+]) {
+  backfill = backfill.replace(
+    `\${runtime.${key} ?? false}`,
+    `\${runtime.${key} ?? 'unverified'}`,
+  );
+}
 backfill = backfill.replace(
-  `    \`- Secrets included: \${runtime.secrets_included}\`,`,
-  `    \`- Secrets included: \${runtime.secrets_included ?? 'unverified'}\`,`,
+  `\${runtime.secrets_included}`,
+  `\${runtime.secrets_included ?? 'unverified'}`,
 );
 
 for (const required of [
@@ -145,6 +157,8 @@ for (const required of [
   'per_page=100&page=${page}',
   'function safeBoolean',
   'failureSecretsIncluded',
+  'authorization_created: safeBoolean(failure.authorization_created)',
+  'apply_sent: safeBoolean(failure.apply_sent)',
   "runtime.secrets_included ?? 'unverified'",
 ]) {
   if (!backfill.includes(required)) throw new Error(`backfill repair missing ${required}`);
@@ -166,6 +180,14 @@ assert.match(backfillRunner, /SAFE_EVIDENCE_KEYS/);
 assert.match(runner, /'secrets_included'/);
 assert.match(backfillRunner, /unverified/);`;
   if (!test.includes(anchor)) throw new Error('contract test insertion anchor missing');
+  test = test.replace(anchor, addition);
+}
+if (!test.includes('legacy failure booleans remain unverified')) {
+  const anchor = `assert.match(backfillRunner, /function safeBoolean/);`;
+  const addition = `${anchor}
+assert.match(backfillRunner, /authorization_created: safeBoolean\\(failure\\.authorization_created\\)/, 'legacy failure booleans remain unverified');
+assert.match(backfillRunner, /secrets_included: failureSecretsIncluded/);`;
+  if (!test.includes(anchor)) throw new Error('legacy boolean test anchor missing');
   test = test.replace(anchor, addition);
 }
 fs.writeFileSync(testPath, test);
