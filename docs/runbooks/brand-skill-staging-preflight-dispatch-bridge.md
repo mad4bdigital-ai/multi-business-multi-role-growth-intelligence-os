@@ -136,3 +136,17 @@ Neither bridge:
 - reads or exposes credential payloads.
 
 Only the target workflow is bound to the `staging` environment. Migration Apply remains a separate operation requiring a new explicit authorization after successful read-only evidence.
+
+## Execution checkpoint — 3 August 2026
+
+PR `#5059` merged the repaired-workflow rebind at `77bb2108fbd30c6ba82a54ab7b2b24e3c7495c4a`. The fresh exact authorization is Issue `#3809` comment `5162631687`.
+
+The primary issue-comment event had not emitted a claim marker while ordinary repository Actions were also queued. The governed main-push fallback was therefore invoked with the exact marker after confirming:
+
+- Issue `#3809` remained open;
+- no completed marker existed for the binding;
+- no dispatched marker existed for authorization comment `5162631687`;
+- the workflow and migration blobs remained unchanged;
+- the fallback shared the same non-cancelling execution group as the primary bridge.
+
+This checkpoint is execution metadata only. It grants no SQL Apply, schema mutation, migration-ledger write, policy or grant seeding, Production access, deployment, restart, provider call, credential payload read, secret disclosure, or external write.
