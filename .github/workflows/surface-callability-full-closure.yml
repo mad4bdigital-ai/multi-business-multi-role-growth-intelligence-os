@@ -43,11 +43,12 @@ jobs:
         run: |
           python3 scripts/surface-callability-closure/patch_validator_auth.py
           python3 scripts/surface-callability-closure/patch_generator_policy.py
+          python3 scripts/surface-callability-closure/patch_openapi_authority.py
           python3 scripts/surface-callability-closure/patch_workspace.py
           python3 scripts/surface-callability-closure/patch_agent_surfaces.py
           python3 scripts/surface-callability-closure/patch_infrastructure.py
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
           npm run frontend:dispatch:generate
+          node scripts/surface-callability-closure/generate_closure_contracts.mjs
           node scripts/surface-contract-discovery.mjs --write
 
       - name: Capture resource API coverage result
