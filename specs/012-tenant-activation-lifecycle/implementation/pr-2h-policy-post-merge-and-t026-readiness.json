@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "governed-policy-and-operational-attention",
+  "status": "complete_on_main",
+  "source_pull_request": 4181,
+  "validated_head_sha": "163d798d02258c93e74a9efc40f1e16b7c19df98",
+  "merge_sha": "78c497c5a0f71df297cac0e204acd2044374872c",
+  "observed_main_sha": "5412b78a27eaea3f97c8a195636d5e134a7fb4b3",
+  "observed_at": "2026-08-03",
+  "merge_is_main_ancestor": true,
+  "completed_tasks": [
+    "T018",
+    "T019",
+    "T024B",
+    "T025",
+    "T029A",
+    "T029B",
+    "T029C"
+  ],
+  "exact_head_verification": {
+    "status": "pass",
+    "checks": [
+      "CI",
+      "Architecture Drift Detection",
+      "Execution Resolver Gate",
+      "Branch Test Diagnostic Shards",
+      "PR Generated Artifact Refresh",
+      "Frontend Surface Dispatch",
+      "Custom GPT Contract Guard",
+      "HTTP Generic API Fanout Relocation",
+      "Docs Agent",
+      "Platform Completion Cleanup Readback",
+      "Platform Remaining Scope Scorecard"
+    ],
+    "unresolved_review_threads": 0
+  },
+  "t026": {
+    "status": "readiness_required",
+    "migration_files": [
+      "20260731_governed_policy_questionnaire_foundation.sql",
+      "20260731_governed_policy_registry_authority.sql"
+    ],
+    "repository_design_present": true,
+    "authorization_registered": false,
+    "apply_authorized": false,
+    "migration_applied": false,
+    "ledger_readback_complete": false,
+    "schema_readback_complete": false,
+    "requires_checksum_bound_authorization": true,
+    "requires_same_cycle_dry_run": true,
+    "requires_typed_confirmation": true
+  },
+  "non_effects": {
+    "database_mutation_performed": false,
+    "migration_ledger_write_performed": false,
+    "runtime_route_wiring_performed": false,
+    "production_deployment_performed": false,
+    "service_restart_performed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "credential_read_performed": false,
+    "secrets_included": false
+  }
+}
