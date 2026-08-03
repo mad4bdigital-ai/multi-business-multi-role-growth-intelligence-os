@@ -73,7 +73,12 @@ jobs:
 
       - name: Regenerate Frontend dispatch from source
         working-directory: http-generic-api
-        run: npm run frontend:dispatch:generate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch origin main --depth=1
+          git branch -f main origin/main
+          npm run frontend:dispatch:generate -- --baseline-ref=main
 
       - name: Verify bounded generated changes
         shell: bash
