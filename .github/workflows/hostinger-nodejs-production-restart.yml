@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       expected_build_uuid:
-        description: Exact completed Hostinger build UUID authorized for restart
+        description: Exact completed Hostinger Node.js build UUID authorized for restart
         required: true
         type: string
   issue_comment:
@@ -393,6 +393,9 @@ jobs:
               authority.contract === "mad4b.hostinger-runtime-identity-authority.v1" &&
               authority.authoritative_endpoint === "/deployment-info" &&
               authority.schema_scope === "top_level_direct_identity_fields" &&
+              authority.direct_field_consensus_required === true &&
+              authority.conflicting_direct_fields_allowed === false &&
+              authority.invalid_direct_fields_allowed === false &&
               authority.cross_endpoint_composition_allowed === false &&
               authority.cross_object_composition_allowed === false &&
               authority.version_endpoint_authoritative === false &&
