@@ -1,0 +1,2 @@
+Temporary exact-main fixture-repair probe for test-auth-oauth-routes.mjs.
+No runtime, provider, deployment, database, migration, credential, protected-ref, or external mutation authority.
