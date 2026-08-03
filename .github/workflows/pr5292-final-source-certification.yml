@@ -1,4 +1,4 @@
-name: PR 5292 Final Source Certification
+name: PR 5292 Generator Write-Set Diagnostic
 
 on:
   pull_request:
@@ -8,14 +8,15 @@ on:
       - .github/workflows/pr5292-final-source-certification.yml
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: write
 
 concurrency:
   group: pr5292-final-source-certification
   cancel-in-progress: true
 
 jobs:
-  certify:
+  diagnose:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
       github.event.pull_request.number == 5292 &&
@@ -23,23 +24,21 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
       EXPECTED_MAIN: 97e4ee7ec790844ad20ee2349125579353c693d5
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
-      OPERATION_ARTIFACT: http-generic-api/frontend-operation-governance.generated.json
-      DISPATCH_ARTIFACT: http-generic-api/frontend-surface-dispatch.generated.json
-      OPENAPI_ARTIFACT: http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+      GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Checkout exact synchronized head
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify exact bounded trigger and current main
         shell: bash
@@ -66,145 +65,43 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Generate canonical frontend artifacts from synchronized source
+      - name: Generate canonical frontend artifacts
         working-directory: http-generic-api
         env:
           CANONICAL_BASELINE_REF: main
           TARGET_REF: main
         run: npm run frontend:dispatch:generate -- --baseline-ref=main
 
-      - name: Verify bounded generator write set
+      - name: Publish exact generated write set
         shell: bash
         run: |
           set -Eeuo pipefail
-          changed="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /')"
-          while IFS= read -r path; do
-            test -z "$path" && continue
-            case "$path" in
-              "${OPERATION_ARTIFACT}"|"${DISPATCH_ARTIFACT}"|"${OPENAPI_ARTIFACT}") ;;
-              *) echo "Unexpected generator change: $path" >&2; exit 1 ;;
-            esac
-          done <<EOF
+          status_file="${RUNNER_TEMP}/pr5292-generator-status.txt"
+          git status --porcelain=v1 --untracked-files=all > "$status_file"
+          changed="$(sed -E 's/^...//' "$status_file" | sed -E 's/.* -> /')"
+          test -n "$changed"
+          body_file="${RUNNER_TEMP}/pr5292-generator-diagnostic.md"
+          {
+            echo '<!-- pr5292-generator-write-set-diagnostic -->'
+            echo '### PR #5292 generator write-set diagnostic'
+            echo
+            echo "Exact head: \`${EXPECTED_HEAD}\`"
+            echo "Pinned main: \`${EXPECTED_MAIN}\`"
+            echo
+            echo 'Raw porcelain status after the official `frontend:dispatch:generate` command:'
+            echo '```text'
+            cat "$status_file"
+            echo '```'
+            echo
+            echo 'Normalized changed paths:'
+            while IFS= read -r path; do
+              test -z "$path" && continue
+              printf -- '- `%s`\n' "$path"
+            done <<EOF
           $changed
           EOF
-
-      - name: Run syntax and governance gates
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git diff --check
-          git diff --name-only "${EXPECTED_MAIN}"...HEAD | grep -E '\.(js|mjs)$' | while IFS= read -r file; do
-            test -f "$file" && node --check "$file"
-          done
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
-          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs)
-          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
-
-      - name: Run Context Kernel ratchet
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git diff --name-only "${EXPECTED_MAIN}"...HEAD > "${RUNNER_TEMP}/pr5292-changed-files.txt"
-          cd http-generic-api
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/pr5292-changed-files.txt"
-
-      - name: Run focused Surface and Resource API certification
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node test-resource-api-architecture.mjs
-          node test-resource-api-service.mjs
-          node test-resource-api-callability-effect-classes.mjs
-          node test-surface-contract-sql-registry-extractor.mjs
-          node test-surface-callability-full-closure.mjs
-          node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          npm run frontend:dispatch:check
-          npm run validate
-
-      - name: Verify exact closure contract
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import assert from 'node:assert/strict';
-          const manifest = JSON.parse(fs.readFileSync('resource-api-surface-callability.manifest.json', 'utf8'));
-          assert.equal(manifest.source_queue_item_count, 20);
-          assert.equal(manifest.source_queue_tool_keys.length, 41);
-          assert.equal(new Set(manifest.source_queue_tool_keys).size, 41);
-          assert.equal(manifest.remaining_scoped_queue_item_count, 0);
-          assert.equal(manifest.source_scope_source, 'sql_registry_and_committed_manifest_v1');
-          console.log('PR 5292 closure contract: 20 scoped items, 41 unique tool keys, 0 remaining');
-          NODE
-
-      - name: Run full HTTP API unit and integration suite
-        working-directory: http-generic-api
-        env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: gpt/pr5210-surface-source-clean-20260803
-          DEPLOYMENT_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-        run: npm test
-
-      - name: Recheck deterministic output and bounded tree
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm --prefix http-generic-api run frontend:dispatch:check
-          changed="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /')"
-          while IFS= read -r path; do
-            test -z "$path" && continue
-            case "$path" in
-              "${OPERATION_ARTIFACT}"|"${DISPATCH_ARTIFACT}"|"${OPENAPI_ARTIFACT}") ;;
-              *) echo "Unexpected post-certification change: $path" >&2; exit 1 ;;
-            esac
-          done <<EOF
-          $changed
-          EOF
-
-      - name: Remove temporary certification workflow
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm -f "${WORKFLOW_PATH}"
-          test ! -e "${WORKFLOW_PATH}"
-          changed="$(git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> /')"
-          while IFS= read -r path; do
-            test -z "$path" && continue
-            case "$path" in
-              "${WORKFLOW_PATH}"|"${OPERATION_ARTIFACT}"|"${DISPATCH_ARTIFACT}"|"${OPENAPI_ARTIFACT}") ;;
-              *) echo "Unexpected final write: $path" >&2; exit 1 ;;
-            esac
-          done <<EOF
-          $changed
-          EOF
-          printf '%s\n' "$changed" | grep -Fxq "${WORKFLOW_PATH}"
-
-      - name: Commit exact clean certified head
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$remote_head" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
-          git add -A -- "${WORKFLOW_PATH}" "${OPERATION_ARTIFACT}" "${DISPATCH_ARTIFACT}" "${OPENAPI_ARTIFACT}"
-          git diff --cached --quiet && { echo 'Expected workflow deletion or generated updates are missing' >&2; exit 1; }
-          git commit -m 'chore(surface): certify synchronized closure artifacts'
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
-          test ! -e "${WORKFLOW_PATH}"
-          test -z "$(git status --porcelain --untracked-files=all)"
+          } > "$body_file"
+          gh pr comment 5292 --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+          cat "$body_file" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Diagnostic intentionally stops before any artifact commit.' >&2
+          exit 1
