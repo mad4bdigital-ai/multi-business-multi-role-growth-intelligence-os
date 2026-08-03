@@ -1,6 +1,11 @@
 name: Temporary Certified Release ARM Validation d5e380fd
 
 on:
+  push:
+    branches:
+      - gpt/arm-certified-release-validation-trigger-d5e380fd-v1
+    paths:
+      - '.github/workflows/tmp-certified-release-arm-validation-d5e380fd.yml'
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -17,9 +22,12 @@ concurrency:
 jobs:
   certified-release-arm-validation:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1' &&
-      github.event.pull_request.base.ref == 'main'
+      (github.event_name == 'push' &&
+       github.ref_name == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'gpt/arm-certified-release-validation-trigger-d5e380fd-v1' &&
+       github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
