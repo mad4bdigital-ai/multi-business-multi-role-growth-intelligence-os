@@ -11,6 +11,7 @@
       "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+      "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
     ]
   },
@@ -47,6 +48,7 @@
             "No source document or index contains blob_sha or the final repository manifest contract.",
             "Dry-run mode creates no repository files.",
             "Write mode keeps every output within the repository root and the index within the source directory.",
+            "The UEACP parent E2E contract records the candidate-builder journey in the same change.",
             "T001 and T002 remain open and migration_apply_authorized remains false.",
             "No live workflow, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
           ],
@@ -64,6 +66,7 @@
             "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
             "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
             "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
             "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
           ]
         }
