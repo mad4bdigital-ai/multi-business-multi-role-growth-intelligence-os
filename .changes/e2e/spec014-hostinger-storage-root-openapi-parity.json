@@ -1,0 +1,115 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-hostinger-storage-root-openapi-parity",
+  "title": "Spec 014 Mounted Tenant Storage Route and Root OpenAPI Parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-hostinger-storage-root-openapi-parity.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/openapi/hostinger-storage-tenant-runtime.yaml",
+      "http-generic-api/openapi-route-contracts.d/spec014-hostinger-storage.yaml",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/test-hostinger-storage-root-openapi-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Document only the one Tenant Storage route that is actually mounted in the runtime, compose it into the root OpenAPI through the precise sole-writer path, and keep the 18 specification-only Hostinger design routes out of the runtime contract.",
+      "e2e_journeys": [
+        {
+          "id": "mounted-tenant-storage-route-to-root-openapi",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant user with a signed user JWT",
+          "entrypoint": "POST /tenant/storage-operations/apply-plan",
+          "terminal_outcome": "The exact mounted fail-closed route is represented once in the root OpenAPI through a precise fragment reference, while specification-only admin and tenant design routes remain unmounted and absent from the root runtime contract.",
+          "steps": [
+            "Read the mounted Express route and prove it requires a signed non-admin tenant user JWT.",
+            "Prove the route accepts only operation_id and expected_sha and rejects unowned or extra request fields.",
+            "Prove the route requires an immutable synthetic-only runtime with provider dispatch and Production readiness disabled.",
+            "Register the exact POST signature in a deterministic feature registry fragment.",
+            "Request generated output through the read-only exact-head refresh bridge and the registered sole writer; do not edit the root OpenAPI manually.",
+            "Compose the registered path into the root OpenAPI through the precise contract sync writer.",
+            "Verify the root path is one external path-item ref to the Hostinger tenant runtime fragment.",
+            "Verify the generated Frontend dispatch and runtime-route index remove the superseded operation-index-only entry in favor of the precise root contract.",
+            "Verify the OpenAPI operation uses userJwtAuth, is consequential, and exposes bounded secret-free request and response schemas.",
+            "Verify the 18 specification-only /admin/hosting/storage and /me/hosting/storage design routes are not added to the runtime OpenAPI.",
+            "Run precise registry check mode and require zero missing paths and zero conflicts."
+          ],
+          "assertions": [
+            "The root OpenAPI contains POST /tenant/storage-operations/apply-plan through the exact registered fragment ref.",
+            "The runtime source is routes/hostingerStorageTenantRoutes.js and the auth profile is user_jwt.",
+            "Only the mounted route is documented; specification-only Hostinger design surfaces remain absent.",
+            "Registry fragments are loaded deterministically and duplicate signatures fail closed.",
+            "Generated Frontend and runtime-route-index outputs converge on the precise contract without a duplicate operation-index-only entry.",
+            "The generated root update is produced by the governed sole writer from an exact-head read-only request and not by a manual root-file edit.",
+            "No provider call, runtime mount, live database access, migration, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-root-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-root-openapi-parity.mjs",
+              "args": []
+            },
+            {
+              "id": "openapi-precise-contract-registry-check",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/openapi-precise-contract-registry-sync.mjs",
+              "args": ["--check"]
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+            "http-generic-api/openapi/hostinger-storage-tenant-runtime.yaml",
+            "http-generic-api/openapi-route-contracts.d/spec014-hostinger-storage.yaml",
+            "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+            "http-generic-api/test-hostinger-storage-root-openapi-parity.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Mount the separately authorized real tenant storage runtime only after live schema, signer, migration, and dependency-injection gates are satisfied.",
+      "blockers": [
+        "LIVE_SCHEMA_VERIFICATION_REQUIRED",
+        "AUTHORIZED_RUNTIME_MOUNT_REQUIRED",
+        "PROVIDER_DISPATCH_REMAINS_FORBIDDEN"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Preserve exact route/OpenAPI parity across generated-artifact refreshes and registry-fragment growth."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository contract repair performs no live canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

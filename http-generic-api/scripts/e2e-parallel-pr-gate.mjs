@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,6 +71,127 @@ function writeOutputs(file, outputs) {
   fs.appendFileSync(file, `${lines.join("\n")}\n`);
 }
 
+function resolveCanonicalMainRef(root) {
+  for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
+    try {
+      execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      });
+      return candidate;
+    } catch {}
+  }
+  return null;
+}
+
+function isAncestor(root, ancestor, descendant) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+      cwd: root,
+      stdio: "ignore"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveFirstParent(root, headSha) {
+  if (!/^[0-9a-f]{40}$/.test(headSha)) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", `${headSha}^1`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCommit(root, ref) {
+  if (!ref) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveTree(root, ref) {
+  if (!ref) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", `${ref}^{tree}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveParents(root, headSha) {
+  if (!/^[0-9a-f]{40}$/.test(headSha)) return [];
+  try {
+    const value = execFileSync("git", ["show", "-s", "--format=%P", headSha], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    if (!value) return [];
+    const parents = value.split(/\s+/);
+    return parents.every((parent) => /^[0-9a-f]{40}$/.test(parent)) ? parents : [];
+  } catch {
+    return [];
+  }
+}
+
+function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {
+  if (headRef === "main" && baseRef === "Production") {
+    return { allowed: true, identity: "protected_main" };
+  }
+  if (baseRef !== "Production") return { allowed: false, identity: null };
+
+  const match = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
+  if (!match) return { allowed: false, identity: null };
+  if (!/^[0-9a-f]{40}$/.test(headSha) || !headSha.startsWith(match[1])) {
+    return { allowed: false, identity: null };
+  }
+
+  const mainRef = resolveCanonicalMainRef(root);
+  if (!mainRef) return { allowed: false, identity: null };
+  if (isAncestor(root, headSha, mainRef)) {
+    return { allowed: true, identity: "immutable_main_snapshot" };
+  }
+
+  const mainSha = resolveCommit(root, mainRef);
+  const mainTree = resolveTree(root, mainRef);
+  const headTree = resolveTree(root, headSha);
+  const parents = resolveParents(root, headSha);
+  if (
+    !mainSha ||
+    !mainTree ||
+    !headTree ||
+    !/^[0-9a-f]{40}$/.test(baseSha || "") ||
+    parents.length !== 2 ||
+    parents[0] !== mainSha ||
+    parents[1] !== baseSha ||
+    headTree !== mainTree
+  ) {
+    return { allowed: false, identity: null };
+  }
+  return { allowed: true, identity: "history_preserving_main_reconciliation" };
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const report = evaluateParallelWork({
@@ -80,6 +202,29 @@ function main() {
     headSha: options.head
   });
 
+  const promotion = classifyProductionPromotion({
+  root: options.root,
+  headRef: options.headRef,
+  baseRef: options.baseRef,
+  headSha: options.head,
+  baseSha: options.base
+});
+const productionPromotion = promotion.allowed;
+const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+if (productionPromotion && !phaseEvaluationBase) {
+  addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+    head_sha: options.head,
+    promotion_identity: promotion.identity
+  });
+}
+if (options.baseRef === "Production" && !productionPromotion) {
+  addFinding(report, "production_promotion_identity_invalid", {
+    head_ref: options.headRef || null,
+    head_sha: options.head || null,
+    base_sha: options.base || null
+  });
+}
+
   const active = [];
   const integrations = [];
   for (const summary of report.contracts) {
@@ -88,7 +233,7 @@ function main() {
     if (summary.active_workstream) {
       const workstream = parallel.workstreams.find((row) => row.id === summary.active_workstream);
       active.push({ summary, contract, workstream });
-      if (options.baseRef && !matchesPattern(options.baseRef, parallel.integration.branch_pattern)) {
+      if (!productionPromotion && options.baseRef && !matchesPattern(options.baseRef, parallel.integration.branch_pattern)) {
         addFinding(report, "parallel_work_workstream_must_target_integration_branch", {
           feature_key: contract.feature_key,
           workstream_id: workstream.id,
@@ -96,7 +241,7 @@ function main() {
           required_pattern: parallel.integration.branch_pattern
         });
       }
-      if (workstream.status !== "ready_for_integration") {
+      if (!productionPromotion && workstream.status !== "ready_for_integration") {
         addFinding(report, "parallel_work_pr_workstream_not_ready_for_integration", {
           feature_key: contract.feature_key,
           workstream_id: workstream.id,
@@ -107,24 +252,24 @@ function main() {
     if (summary.integration_active) integrations.push({ summary, contract });
   }
 
-  if (active.length > 1) addFinding(report, "parallel_work_pr_must_have_single_active_workstream", { active: active.map((row) => `${row.contract.feature_key}:${row.workstream.id}`) });
-  if (integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
-  if (active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
+  if (!productionPromotion && active.length > 1) addFinding(report, "parallel_work_pr_must_have_single_active_workstream", { active: active.map((row) => `${row.contract.feature_key}:${row.workstream.id}`) });
+  if (!productionPromotion && integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
+  if (!productionPromotion && active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
-  if (active.length === 1) {
+  if (!productionPromotion && active.length === 1) {
     mode = "workstream";
     featureKey = active[0].contract.feature_key;
     contractPath = active[0].summary.contract_path;
     workstreamId = active[0].workstream.id;
-  } else if (integrations.length === 1) {
+  } else if (!productionPromotion && integrations.length === 1) {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.headRef && !options.headRef.startsWith("gh-readonly-queue/")) {
+  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const runtimeChanged = report.changed_files.some((file) => {
       const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
       return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
@@ -137,12 +282,18 @@ function main() {
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
   report.base_ref = options.baseRef || null;
+  report.production_promotion = productionPromotion;
+  report.production_promotion_identity = promotion.identity;
+  report.phase_evaluation_base = phaseEvaluationBase;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
     feature_key: featureKey,
     contract_path: contractPath,
-    workstream_id: workstreamId
+    workstream_id: workstreamId,
+    production_promotion: productionPromotion,
+    production_promotion_identity: promotion.identity || "",
+    phase_evaluation_base: phaseEvaluationBase || ""
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);

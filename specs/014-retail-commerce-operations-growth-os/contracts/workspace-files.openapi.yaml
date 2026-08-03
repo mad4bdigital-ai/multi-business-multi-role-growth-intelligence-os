@@ -1,0 +1,795 @@
+openapi: 3.1.0
+info:
+  title: Workspace File Fabric API
+  version: 0.1.0-draft
+  description: >-
+    Provider-neutral, User-JWT protected file-management contract for Personal,
+    Company Workspace, and Brand scopes. Identity is derived from the authenticated
+    principal. Caller-supplied scope and provider identifiers are constraints only.
+servers:
+  - url: https://api.mad4b.com
+security:
+  - userJwt: []
+tags:
+  - name: PersonalFiles
+  - name: WorkspaceFiles
+  - name: BrandFiles
+  - name: FileOperations
+  - name: FilePermissions
+  - name: FileRevisions
+paths:
+  /me/files:
+    get:
+      tags: [PersonalFiles]
+      operationId: listMyFiles
+      summary: List files visible in the effective user's Personal Workspace
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/ParentRef'
+        - $ref: '#/components/parameters/MimeType'
+        - $ref: '#/components/parameters/IncludeTrashed'
+      responses:
+        '200':
+          $ref: '#/components/responses/FilePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ProviderUnavailable'
+  /me/files/search:
+    post:
+      tags: [PersonalFiles]
+      operationId: searchMyFiles
+      summary: Search authorized personal files
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSearchRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/FilePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/files/uploads:
+    post:
+      tags: [PersonalFiles]
+      operationId: createMyFileUploadSession
+      summary: Create a scoped upload session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadSessionRequest'
+      responses:
+        '201':
+          description: Upload session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSession'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /me/files/{fileRef}:
+    parameters:
+      - $ref: '#/components/parameters/FileRef'
+    get:
+      tags: [PersonalFiles]
+      operationId: getMyFileMetadata
+      summary: Read canonical file metadata
+      responses:
+        '200':
+          description: File metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [PersonalFiles]
+      operationId: updateMyFileMetadata
+      summary: Rename or update governed metadata
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFileRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/content:
+    get:
+      tags: [PersonalFiles]
+      operationId: readMyFileContent
+      summary: Read or export one authorized representation
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - name: representation
+          in: query
+          schema:
+            type: string
+            enum: [original, text, csv, pdf, thumbnail]
+            default: original
+      responses:
+        '200':
+          description: Bounded content or a short-lived materialization reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContentResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /me/files/{fileRef}/copies:
+    post:
+      tags: [PersonalFiles]
+      operationId: copyMyFile
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyFileRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/moves:
+    post:
+      tags: [PersonalFiles]
+      operationId: moveMyFile
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveFileRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/trash:
+    post:
+      tags: [PersonalFiles]
+      operationId: trashMyFile
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/restore:
+    post:
+      tags: [PersonalFiles]
+      operationId: restoreMyFile
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/revisions:
+    get:
+      tags: [FileRevisions]
+      operationId: listMyFileRevisions
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+      responses:
+        '200':
+          description: Revision page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisionPage'
+  /me/files/{fileRef}/permissions:
+    get:
+      tags: [FilePermissions]
+      operationId: listMyFilePermissions
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+      responses:
+        '200':
+          description: Safe permission projections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionProjection'
+    post:
+      tags: [FilePermissions]
+      operationId: createMyFilePermission
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermissionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '202':
+          description: Approval hold created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalHold'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/files/{fileRef}/permissions/{permissionRef}:
+    delete:
+      tags: [FilePermissions]
+      operationId: deleteMyFilePermission
+      parameters:
+        - $ref: '#/components/parameters/FileRef'
+        - $ref: '#/components/parameters/PermissionRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ExpectedVersion'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileMutation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workspaces/{workspaceRef}/files:
+    get:
+      tags: [WorkspaceFiles]
+      operationId: listWorkspaceFiles
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceRef'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/ParentRef'
+        - $ref: '#/components/parameters/IncludeTrashed'
+      responses:
+        '200':
+          $ref: '#/components/responses/FilePage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /workspaces/{workspaceRef}/file-operations:
+    post:
+      tags: [FileOperations]
+      operationId: createWorkspaceFileOperation
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFileOperationRequest'
+      responses:
+        '202':
+          description: Durable operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOperation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workspaces/{workspaceRef}/file-operations/{operationRef}:
+    get:
+      tags: [FileOperations]
+      operationId: getWorkspaceFileOperation
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceRef'
+        - $ref: '#/components/parameters/OperationRef'
+      responses:
+        '200':
+          description: Operation status and bounded evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOperation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceRef}/file-reconciliations:
+    post:
+      tags: [FileOperations]
+      operationId: createWorkspaceFileReconciliation
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationRequest'
+      responses:
+        '202':
+          description: Reconciliation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOperation'
+  /brands/{brandRef}/files:
+    get:
+      tags: [BrandFiles]
+      operationId: listBrandFiles
+      parameters:
+        - $ref: '#/components/parameters/BrandRef'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - $ref: '#/components/parameters/ParentRef'
+      responses:
+        '200':
+          $ref: '#/components/responses/FilePage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /brands/{brandRef}/file-operations:
+    post:
+      tags: [BrandFiles, FileOperations]
+      operationId: createBrandFileOperation
+      parameters:
+        - $ref: '#/components/parameters/BrandRef'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFileOperationRequest'
+      responses:
+        '202':
+          description: Durable Brand-scoped operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOperation'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    userJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    FileRef:
+      name: fileRef
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    WorkspaceRef:
+      name: workspaceRef
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    BrandRef:
+      name: brandRef
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    OperationRef:
+      name: operationRef
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    PermissionRef:
+      name: permissionRef
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    PageToken:
+      name: page_token
+      in: query
+      schema: { type: string, maxLength: 2048 }
+    ParentRef:
+      name: parent_ref
+      in: query
+      schema: { type: string, maxLength: 191 }
+    MimeType:
+      name: mime_type
+      in: query
+      schema: { type: string, maxLength: 191 }
+    IncludeTrashed:
+      name: include_trashed
+      in: query
+      schema: { type: boolean, default: false }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 191 }
+    ExpectedVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Canonical expected version or ETag-compatible value
+      schema: { type: string, minLength: 1, maxLength: 191 }
+  schemas:
+    Scope:
+      type: object
+      additionalProperties: false
+      required: [tenant_ref, workspace_ref, owner_scope_type, owner_scope_ref]
+      properties:
+        tenant_ref: { type: string }
+        workspace_ref: { type: string }
+        brand_ref: { type: [string, 'null'] }
+        owner_scope_type:
+          type: string
+          enum: [personal_workspace, company_workspace, brand]
+        owner_scope_ref: { type: string }
+    FileRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - file_ref
+        - scope
+        - provider_key
+        - connection_ref
+        - name
+        - mime_type
+        - canonical_kind
+        - trashed
+        - canonical_revision
+        - last_readback_at
+        - secrets_included
+      properties:
+        file_ref: { type: string }
+        scope: { $ref: '#/components/schemas/Scope' }
+        provider_key: { type: string }
+        connection_ref: { type: string }
+        external_file_ref: { type: string }
+        external_space_ref: { type: [string, 'null'] }
+        name: { type: string, maxLength: 1024 }
+        mime_type: { type: string, maxLength: 191 }
+        canonical_kind:
+          type: string
+          enum: [file, folder, shortcut, document, spreadsheet, presentation, media, archive]
+        parents:
+          type: array
+          items: { type: string }
+          maxItems: 100
+        trashed: { type: boolean }
+        size_bytes: { type: [integer, 'null'], minimum: 0 }
+        checksum_sha256: { type: [string, 'null'], pattern: '^[a-f0-9]{64}$' }
+        provider_version: { type: [string, 'null'] }
+        canonical_revision: { type: integer, minimum: 1 }
+        modified_at: { type: [string, 'null'], format: date-time }
+        last_readback_at: { type: string, format: date-time }
+        capability_summary:
+          type: array
+          items: { type: string }
+        classification: { type: string }
+        retention_policy_ref: { type: [string, 'null'] }
+        secrets_included: { const: false }
+    FilePage:
+      type: object
+      additionalProperties: false
+      required: [items, readback_at, secrets_included]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FileRecord' }
+        next_page_token: { type: [string, 'null'] }
+        readback_at: { type: string, format: date-time }
+        freshness: { type: string, enum: [live, cached_fresh, cached_stale] }
+        secrets_included: { const: false }
+    FileSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query: { type: string, minLength: 1, maxLength: 1000 }
+        parent_ref: { type: string }
+        mime_types:
+          type: array
+          items: { type: string }
+          maxItems: 20
+        modified_after: { type: string, format: date-time }
+        include_trashed: { type: boolean, default: false }
+        page_size: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        page_token: { type: string }
+    CreateUploadSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [name, mime_type, size_bytes, parent_ref]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 1024 }
+        mime_type: { type: string, minLength: 1, maxLength: 191 }
+        size_bytes: { type: integer, minimum: 0 }
+        checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        parent_ref: { type: string }
+        resumable: { type: boolean, default: true }
+        operational_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationalBinding'
+          maxItems: 100
+    UploadSession:
+      type: object
+      additionalProperties: false
+      required: [upload_ref, status, expires_at, upload_mode, secrets_included]
+      properties:
+        upload_ref: { type: string }
+        status: { type: string, enum: [issued, uploading, uploaded, verifying, completed, failed, expired] }
+        upload_mode: { type: string, enum: [provider_resumable, platform_stream, direct_multipart] }
+        upload_target_ref: { type: [string, 'null'] }
+        expires_at: { type: string, format: date-time }
+        secrets_included: { const: false }
+    UpdateFileRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 1024 }
+        classification: { type: string }
+        retention_policy_ref: { type: string }
+        operational_bindings:
+          type: array
+          items: { $ref: '#/components/schemas/OperationalBinding' }
+          maxItems: 100
+    MoveFileRequest:
+      type: object
+      additionalProperties: false
+      required: [target_parent_ref]
+      properties:
+        target_parent_ref: { type: string }
+        remove_other_parents: { type: boolean, default: true }
+    CopyFileRequest:
+      type: object
+      additionalProperties: false
+      required: [target_parent_ref]
+      properties:
+        target_parent_ref: { type: string }
+        name: { type: string, maxLength: 1024 }
+        target_owner_scope_type:
+          type: string
+          enum: [personal_workspace, company_workspace, brand]
+        target_owner_scope_ref: { type: string }
+    CreatePermissionRequest:
+      type: object
+      additionalProperties: false
+      required: [principal_type, role]
+      properties:
+        principal_type:
+          type: string
+          enum: [user, group, domain, anyone]
+        principal_ref: { type: string }
+        role:
+          type: string
+          enum: [reader, commenter, writer, organizer]
+        allow_discovery: { type: boolean, default: false }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    PermissionProjection:
+      type: object
+      additionalProperties: false
+      required: [permission_ref, principal_type, role, inherited]
+      properties:
+        permission_ref: { type: string }
+        principal_type: { type: string }
+        principal_label: { type: [string, 'null'] }
+        role: { type: string }
+        inherited: { type: boolean }
+        external: { type: boolean }
+    RevisionPage:
+      type: object
+      additionalProperties: false
+      required: [items, secrets_included]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [revision_ref, modified_at]
+            properties:
+              revision_ref: { type: string }
+              provider_revision_ref: { type: string }
+              modified_at: { type: string, format: date-time }
+              size_bytes: { type: [integer, 'null'], minimum: 0 }
+              retained: { type: boolean }
+        next_page_token: { type: [string, 'null'] }
+        secrets_included: { const: false }
+    OperationalBinding:
+      type: object
+      additionalProperties: false
+      required: [entity_type, entity_ref, relation_type]
+      properties:
+        entity_type: { type: string, minLength: 1, maxLength: 128 }
+        entity_ref: { type: string, minLength: 1, maxLength: 191 }
+        relation_type: { type: string, minLength: 1, maxLength: 128 }
+    FileMutationResult:
+      type: object
+      additionalProperties: false
+      required: [operation_ref, status, file, readback, secrets_included]
+      properties:
+        operation_ref: { type: string }
+        status:
+          type: string
+          enum: [completed, completed_with_warnings, awaiting_approval, readback_required, unknown]
+        file: { $ref: '#/components/schemas/FileRecord' }
+        readback: { $ref: '#/components/schemas/ReadbackEvidence' }
+        secrets_included: { const: false }
+    FileContentResult:
+      type: object
+      additionalProperties: false
+      required: [file_ref, representation, delivery_mode, secrets_included]
+      properties:
+        file_ref: { type: string }
+        representation: { type: string }
+        delivery_mode: { type: string, enum: [inline_bounded, materialized_reference, stream] }
+        content: { type: string, maxLength: 1048576 }
+        materialization_ref: { type: string }
+        mime_type: { type: string }
+        revision: { type: integer, minimum: 1 }
+        secrets_included: { const: false }
+    CreateFileOperationRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_type, items]
+      properties:
+        operation_type:
+          type: string
+          enum: [create_folder_tree, batch_upload, batch_move, batch_copy, archive, generate_manifest, reconcile]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            additionalProperties: true
+        reason: { type: string, maxLength: 1000 }
+        stop_on_error: { type: boolean, default: false }
+    FileOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_ref, operation_type, status, counts, created_at, secrets_included]
+      properties:
+        operation_ref: { type: string }
+        operation_type: { type: string }
+        status:
+          type: string
+          enum: [draft, ready, running, awaiting_approval, readback, completed, completed_with_warnings, cancelled, failed, blocked]
+        counts:
+          type: object
+          additionalProperties: false
+          required: [requested, completed, failed, skipped]
+          properties:
+            requested: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }
+            skipped: { type: integer, minimum: 0 }
+        errors:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/Error' }
+        manifest_file_ref: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        secrets_included: { const: false }
+    ReconciliationRequest:
+      type: object
+      additionalProperties: false
+      required: [scope_mode]
+      properties:
+        scope_mode: { type: string, enum: [folder, shared_space, connection] }
+        root_ref: { type: string }
+        deep: { type: boolean, default: false }
+        verify_permissions: { type: boolean, default: false }
+    ReadbackEvidence:
+      type: object
+      additionalProperties: false
+      required: [status, read_at]
+      properties:
+        status: { type: string, enum: [verified, partially_verified, pending, failed] }
+        read_at: { type: string, format: date-time }
+        provider_version: { type: [string, 'null'] }
+        parent_refs:
+          type: array
+          items: { type: string }
+        checksum_sha256: { type: [string, 'null'], pattern: '^[a-f0-9]{64}$' }
+        mismatch_codes:
+          type: array
+          items: { type: string }
+    ApprovalHold:
+      type: object
+      additionalProperties: false
+      required: [approval_ref, status, action_key, expires_at]
+      properties:
+        approval_ref: { type: string }
+        status: { type: string, enum: [pending, approved, denied, expired] }
+        action_key: { type: string }
+        expires_at: { type: string, format: date-time }
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, correlation_ref, retryable, secrets_included]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 128 }
+        message: { type: string, minLength: 1, maxLength: 1000 }
+        correlation_ref: { type: string }
+        retryable: { type: boolean }
+        remediation: { type: [string, 'null'], maxLength: 1000 }
+        secrets_included: { const: false }
+  responses:
+    FilePage:
+      description: Bounded file page
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FilePage'
+    FileMutation:
+      description: Mutation result with same-cycle readback or explicit pending state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FileMutationResult'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid User JWT
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authority, capability, connection, or scope denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: File or operation not found in authorized scope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Version, authority, parent, idempotency, or provider outcome conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PayloadTooLarge:
+      description: Upload exceeds allowed size or requires another upload mode
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ProviderUnavailable:
+      description: Selected file authority is unavailable or degraded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

@@ -1,9 +1,9 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 25,
+  "total_items": 26,
   "class_counts": {
-    "critical_review": 20,
+    "critical_review": 21,
     "high_review": 1,
     "medium_review": 4,
     "low_review": 0
@@ -512,6 +512,90 @@
       }
     },
     {
+      "migration_file": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "score": 803,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 3,
+        "views": 3,
+        "policies": 0,
+        "routes": 3
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "hostinger_storage_plan_apply",
+            "hostinger_storage_plan_inspect",
+            "hostinger_storage_snapshot_read"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "verify_readback_view",
+          "owner_hint": "db-readback-review",
+          "targets": [
+            "v_storage_admin_target_readiness",
+            "v_storage_cleanup_operation_readback",
+            "v_storage_tenant_target_readiness"
+          ],
+          "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
       "migration_file": "1029_sprint69_minimal_dynamic_brand_resolution.sql",
       "score": 771,
       "queue_class": "critical_review",
@@ -698,7 +782,7 @@
     },
     {
       "migration_file": "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
-      "score": 731,
+      "score": 730,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": true,

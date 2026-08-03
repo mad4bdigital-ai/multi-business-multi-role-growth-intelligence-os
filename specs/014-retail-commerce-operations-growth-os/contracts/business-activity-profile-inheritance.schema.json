@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/business-activity-profile-inheritance.schema.json",
+  "title": "Dynamic Business Activity, Business Profile, and Inheritance Contract",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/activityTypeDefinition" },
+    { "$ref": "#/$defs/profileDefinition" },
+    { "$ref": "#/$defs/activityCapabilityPack" },
+    { "$ref": "#/$defs/businessOperatingProfile" },
+    { "$ref": "#/$defs/inheritancePolicy" },
+    { "$ref": "#/$defs/effectiveProfileSnapshot" }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "scopeType": {
+      "type": "string",
+      "enum": ["platform", "tenant", "workspace", "brand", "channel", "location", "resource"]
+    },
+    "profileStatus": {
+      "type": "string",
+      "enum": ["draft", "validating", "needs_clarification", "ready", "active", "degraded", "suspended", "retired"]
+    },
+    "mergeStrategy": {
+      "type": "string",
+      "enum": [
+        "deny_wins",
+        "union",
+        "intersection",
+        "minimum",
+        "maximum",
+        "nearest_replace",
+        "priority_replace",
+        "block_on_conflict"
+      ]
+    },
+    "inheritanceMode": {
+      "type": "string",
+      "enum": ["local_only", "inherit_down", "inherit_until_blocked", "explicit_share", "block_inheritance"]
+    },
+    "overridePolicy": {
+      "type": "string",
+      "enum": ["forbidden", "restrictive_only", "allowed", "approval_required"]
+    },
+    "predicateOperand": {
+      "oneOf": [
+        { "type": ["string", "number", "boolean", "null"] },
+        { "type": "object", "additionalProperties": false, "required": ["path"], "properties": { "path": { "type": "string", "minLength": 1, "maxLength": 300 } } },
+        { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/predicateOperand" } }
+      ]
+    },
+    "predicate": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "propertyNames": {
+        "enum": ["all", "any", "not", "eq", "neq", "in", "contains", "exists", "gte", "lte"]
+      },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "array", "minItems": 1, "maxItems": 100, "items": { "oneOf": [{ "$ref": "#/$defs/predicate" }, { "$ref": "#/$defs/predicateOperand" }] } },
+          { "$ref": "#/$defs/predicate" },
+          { "$ref": "#/$defs/predicateOperand" }
+        ]
+      }
+    },
+    "dimensionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension_key", "merge_strategy", "inheritance_mode", "override_policy", "conflict_policy"],
+      "properties": {
+        "dimension_key": { "$ref": "#/$defs/reference" },
+        "merge_strategy": { "$ref": "#/$defs/mergeStrategy" },
+        "inheritance_mode": { "$ref": "#/$defs/inheritanceMode" },
+        "override_policy": { "$ref": "#/$defs/overridePolicy" },
+        "conflict_policy": { "type": "string", "enum": ["block", "restrict", "nearest", "priority", "approval_required"] },
+        "sensitivity_class": { "type": "string", "enum": ["public", "internal", "confidential", "restricted"] },
+        "evidence_required": { "type": "boolean" },
+        "approval_capability_key": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] }
+      }
+    },
+    "lineageItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension_key", "source_scope_type", "source_ref", "source_revision", "resolution_effect"],
+      "properties": {
+        "dimension_key": { "$ref": "#/$defs/reference" },
+        "source_scope_type": { "$ref": "#/$defs/scopeType" },
+        "source_ref": { "$ref": "#/$defs/reference" },
+        "source_revision": { "type": "integer", "minimum": 1 },
+        "activity_type_key": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "pack_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "resolution_effect": { "type": "string", "enum": ["inherited", "defaulted", "overridden", "restricted", "blocked", "merged", "ignored_not_applicable"] },
+        "value_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "activityTypeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "activity_type_key",
+        "version",
+        "name_en",
+        "name_ar",
+        "activity_family",
+        "supported_business_models",
+        "default_capability_pack_refs",
+        "status",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "business_activity_type_definition" },
+        "activity_type_key": { "$ref": "#/$defs/reference" },
+        "version": { "$ref": "#/$defs/version" },
+        "name_en": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "name_ar": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "activity_family": { "$ref": "#/$defs/reference" },
+        "value_chain_role": { "type": "string", "enum": ["producer", "distributor", "retailer", "marketplace", "service_provider", "platform", "hybrid"] },
+        "parent_activity_type_keys": { "type": "array", "uniqueItems": true, "maxItems": 20, "items": { "$ref": "#/$defs/reference" } },
+        "supported_business_models": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["b2c", "b2b", "b2b2c", "marketplace", "subscription", "booking", "service_commerce", "lead_commerce", "hybrid"] } },
+        "product_service_modes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["fungible_product", "unique_item", "lot_or_serial", "digital_product", "service", "appointment", "capacity", "booking", "subscription", "bundle", "quotation"] } },
+        "required_profile_dimensions": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "default_capability_pack_refs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "optional_capability_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "incompatible_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "regulatory_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "recommended_blueprint_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "applicability_predicate": { "$ref": "#/$defs/predicate" },
+        "priority": { "type": "integer", "minimum": -100000, "maximum": 100000, "default": 0 },
+        "status": { "type": "string", "enum": ["draft", "active", "disabled", "deprecated", "retired"] },
+        "secrets_included": { "const": false }
+      }
+    },
+    "profileDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "profile_definition_key", "version", "eligible_scope_types", "field_schema", "dimension_rules", "status", "secrets_included"],
+      "properties": {
+        "record_type": { "const": "business_profile_definition" },
+        "profile_definition_key": { "$ref": "#/$defs/reference" },
+        "version": { "$ref": "#/$defs/version" },
+        "eligible_scope_types": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/scopeType" } },
+        "field_schema": { "type": "object", "additionalProperties": true },
+        "dimension_rules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/dimensionRule" } },
+        "validation_rule_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "status": { "type": "string", "enum": ["draft", "active", "deprecated", "retired"] },
+        "secrets_included": { "const": false }
+      }
+    },
+    "activityCapabilityPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "pack_key", "pack_version", "name_en", "name_ar", "required_capability_keys", "applicability_predicate", "status", "secrets_included"],
+      "properties": {
+        "record_type": { "const": "activity_capability_pack" },
+        "pack_key": { "$ref": "#/$defs/reference" },
+        "pack_version": { "$ref": "#/$defs/version" },
+        "name_en": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "name_ar": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "required_capability_keys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "optional_capability_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "forbidden_capability_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "incompatible_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "recommended_blueprint_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "required_domain_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "required_connection_families": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "workflow_template_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "surface_module_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "readiness_probe_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "acceptance_suite_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "profile_defaults": { "type": "object", "additionalProperties": true },
+        "dimension_rules": { "type": "array", "items": { "$ref": "#/$defs/dimensionRule" } },
+        "applicability_predicate": { "$ref": "#/$defs/predicate" },
+        "priority": { "type": "integer", "minimum": -100000, "maximum": 100000, "default": 0 },
+        "status": { "type": "string", "enum": ["draft", "active", "degraded", "disabled", "retired"] },
+        "secrets_included": { "const": false }
+      }
+    },
+    "businessOperatingProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "profile_ref",
+        "profile_revision",
+        "profile_definition_key",
+        "scope_type",
+        "scope_ref",
+        "primary_activity_type_key",
+        "profile_values",
+        "inheritance_policy_ref",
+        "status",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "business_operating_profile" },
+        "profile_ref": { "$ref": "#/$defs/reference" },
+        "profile_revision": { "type": "integer", "minimum": 1 },
+        "profile_definition_key": { "$ref": "#/$defs/reference" },
+        "scope_type": { "$ref": "#/$defs/scopeType" },
+        "scope_ref": { "$ref": "#/$defs/reference" },
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "$ref": "#/$defs/reference" },
+        "primary_activity_type_key": { "$ref": "#/$defs/reference" },
+        "secondary_activity_type_keys": { "type": "array", "uniqueItems": true, "maxItems": 30, "items": { "$ref": "#/$defs/reference" } },
+        "cross_cutting_pack_refs": { "type": "array", "uniqueItems": true, "maxItems": 100, "items": { "$ref": "#/$defs/reference" } },
+        "profile_values": { "type": "object", "additionalProperties": true },
+        "local_override_values": { "type": "object", "additionalProperties": true },
+        "inheritance_fences": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "inheritance_policy_ref": { "$ref": "#/$defs/reference" },
+        "source_evidence_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "status": { "$ref": "#/$defs/profileStatus" },
+        "activated_at": { "type": ["string", "null"], "format": "date-time" },
+        "secrets_included": { "const": false }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "scope_type": { "const": "brand" } } },
+          "then": { "required": ["tenant_ref", "workspace_ref", "brand_ref"] }
+        }
+      ]
+    },
+    "inheritancePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "policy_key", "policy_version", "dimension_rules", "status", "secrets_included"],
+      "properties": {
+        "record_type": { "const": "business_profile_inheritance_policy" },
+        "policy_key": { "$ref": "#/$defs/reference" },
+        "policy_version": { "$ref": "#/$defs/version" },
+        "eligible_scope_types": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/scopeType" } },
+        "dimension_rules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/dimensionRule" } },
+        "multi_parent_resolution": { "type": "string", "enum": ["explicit_priority_then_dimension_merge", "block"] },
+        "unknown_dimension_policy": { "type": "string", "enum": ["block", "local_only", "ignore"] },
+        "status": { "type": "string", "enum": ["draft", "active", "deprecated", "retired"] },
+        "secrets_included": { "const": false }
+      }
+    },
+    "effectiveProfileSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "effective_profile_ref",
+        "tenant_ref",
+        "workspace_ref",
+        "brand_ref",
+        "primary_activity_type_key",
+        "activity_pack_refs",
+        "resolved_dimensions",
+        "effective_capability_keys",
+        "blueprint_candidate_refs",
+        "lineage",
+        "version_vector",
+        "authority_epoch",
+        "context_hash",
+        "status",
+        "computed_at",
+        "secrets_included"
+      ],
+      "properties": {
+        "record_type": { "const": "effective_business_profile_snapshot" },
+        "effective_profile_ref": { "$ref": "#/$defs/reference" },
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "$ref": "#/$defs/reference" },
+        "channel_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "location_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "primary_activity_type_key": { "$ref": "#/$defs/reference" },
+        "secondary_activity_type_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "activity_pack_refs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "resolved_dimensions": { "type": "object", "additionalProperties": true },
+        "effective_capability_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "blueprint_candidate_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "conflicts": { "type": "array", "maxItems": 500, "items": { "type": "object", "additionalProperties": true } },
+        "lineage": { "type": "array", "items": { "$ref": "#/$defs/lineageItem" } },
+        "version_vector": { "type": "object", "minProperties": 1, "additionalProperties": { "type": ["string", "integer"], "minLength": 1 } },
+        "authority_epoch": { "type": "integer", "minimum": 0 },
+        "context_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "status": { "type": "string", "enum": ["ready", "ready_with_inherited_constraints", "needs_clarification", "needs_approval", "degraded", "blocked", "stale"] },
+        "computed_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": ["string", "null"], "format": "date-time" },
+        "secrets_included": { "const": false }
+      }
+    }
+  }
+}

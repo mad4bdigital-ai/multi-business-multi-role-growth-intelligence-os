@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "frontend-surface-read-only-refresh-delegation",
+  "title": "Frontend Surface Read-only Verification and Governed Refresh Delegation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/frontend-surface-read-only-refresh-delegation.json",
+      ".github/workflows/frontend-surface-dispatch.yml",
+      "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep pull-request Frontend verification strictly read-only while publishing exact run-bound structured evidence that a trusted workflow_run dispatcher can use to delegate an explicitly authorized exact-head refresh to the registered workflow_dispatch-only writer.",
+      "e2e_journeys": [
+        {
+          "id": "pull-request-verification-to-governed-exact-head-refresh",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Pull-request verifier and trusted repository automation",
+          "entrypoint": "A Frontend-affecting pull request runs Frontend surface dispatch",
+          "terminal_outcome": "Verification publishes independently attributable exact-candidate evidence without repository writes; only a committed-generated-parity failure may be delegated by the trusted dispatcher to the protected-branch-safe expected-head writer.",
+          "steps": [
+            "Generate Frontend and OpenAPI evidence from the canonical default-branch baseline without short-circuiting structured reporting.",
+            "Execute the seven Frontend generator and OpenAPI contract checks independently.",
+            "Publish the run-bound generator summary and mad4b.frontend-dispatch-verification-evidence.v1 before enforcing the final decision.",
+            "Bind candidate kind and SHA, source head SHA, head ref, base ref, stage outcomes, and first failure without consulting Job logs.",
+            "Reject contents-write permission, direct git push, protected-branch mutation, force push, and in-band generated-evidence commits.",
+            "Allow the trusted workflow_run dispatcher to consume only the exact run-bound source Artifact.",
+            "Permit delegation only when committed_generated_parity is the first failure and the exact pull request carries explicit refresh authorization.",
+            "Pass the exact expected head SHA to governed-generated-artifact-refresh.yml, which remains the only repository writer."
+          ],
+          "assertions": [
+            "Frontend surface dispatch has contents read permission and no contents write permission.",
+            "The pull-request workflow contains no git push and no refresh-generated writer job.",
+            "The trusted source Artifact is named frontend-dispatch-verification-evidence-${run_id}.",
+            "The source contract is mad4b.frontend-dispatch-verification-evidence.v1 and declares consult_job_logs=false, direct_repository_mutation=false, protected_branch_mutation=false, force_push=false, and secrets_included=false.",
+            "Only committed_generated_parity is refresh-eligible; generation, contract, auth, or OpenAPI failures are never auto-repaired.",
+            "The dispatcher rejects main and Production, resolves exactly one same-repository pull request, verifies the source head and candidate, and passes expected_head_sha to the governed writer.",
+            "The repository-tool lifecycle regression accepts the read-only source workflow.",
+            "No runtime, provider, credential, migration, deployment, main, or Production mutation occurs in this journey."
+          ],
+          "tests": [
+            {
+              "id": "frontend-dispatch-read-only-source-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-dispatch-workflow-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-parity-trusted-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-parity-refresh-dispatch-workflow.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-tool-lifecycle-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/frontend-surface-dispatch.yml",
+            ".github/workflows/frontend-parity-refresh-dispatch.yml",
+            "http-generic-api/test-frontend-dispatch-workflow-baseline.mjs",
+            "http-generic-api/test-frontend-parity-refresh-dispatch-workflow.mjs",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Publish source-verification and delegated-refresh outcomes into the shared canonical pull-request evidence surface."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise missing source artifacts, malformed identity, stale heads, ambiguous pull requests, removed labels, dispatch rejection, repeated workflow_run delivery, and writer compare-and-swap failure."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one explicitly labeled non-production pull request move from committed parity failure to a governed exact-head refresh and passing verification."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This CI governance repair grants no deployment, migration, provider, credential, runtime, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

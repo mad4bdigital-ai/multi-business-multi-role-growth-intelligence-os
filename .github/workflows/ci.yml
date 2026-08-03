@@ -7,8 +7,8 @@ on:
     branches: [main, Production]
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}-local-connector-v18
+  cancel-in-progress: false
 
 jobs:
   syntax:

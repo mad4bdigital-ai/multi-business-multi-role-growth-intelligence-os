@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-nodejs-build-evidence",
+  "title": "Hostinger Node.js build history evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-build-evidence.json",
+      ".github/workflows/hostinger-nodejs-build-evidence.yml",
+      "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+      "http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace inference from stale public runtime identity with bounded authenticated read-only evidence from Hostinger Node.js build history and failed-build logs, without creating builds, deploying, restarting, or exposing credentials.",
+      "e2e_journeys": [
+        {
+          "id": "inspect-hostinger-nodejs-build-history",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted release operator and GitHub Actions",
+          "entrypoint": "Hostinger Node.js Build Evidence workflow contract test or trusted workflow dispatch from main",
+          "terminal_outcome": "A structured JSON and Markdown artifact classifies whether a Hostinger Node.js build exists after the protected Production merge, identifies its state and bounded source provenance when exposed, and includes a redacted log excerpt only for the newest failed build.",
+          "steps": [
+            "Validate the Hostinger account username, fixed auth.mad4b.com domain, exact protected Production SHA, and Production merge timestamp.",
+            "Build the official Hostinger Node.js build-list URL using encoded path parameters.",
+            "Authenticate with HOSTINGER_API_TOKEN without returning the token in logs or artifacts.",
+            "Perform an authenticated GET request for page one of Node.js builds.",
+            "Normalize collection response variants and sort builds by provider timestamps.",
+            "Select the newest build created or updated after the protected Production merge.",
+            "Classify pending, running, failed, completed exact-SHA, completed other-SHA, completed source-unverified, and no-build outcomes.",
+            "When the newest build failed, perform one authenticated GET for its logs and retain only a bounded redacted excerpt.",
+            "Upload the structured artifact before enforcing the evidence decision."
+          ],
+          "assertions": [
+            "The report contract is mad4b.hostinger-nodejs-build-evidence.v1.",
+            "The API base URL is exactly https://developers.hostinger.com.",
+            "The live domain is restricted to auth.mad4b.com.",
+            "Only GET requests are performed.",
+            "The Authorization bearer token is never returned by the report, Markdown, console result, or failure messages.",
+            "Provider responses and failed-build logs are bounded before persistence.",
+            "A completed build is not treated as exact-SHA proof unless the provider response exposes the expected Production SHA.",
+            "Completed builds without source SHA are classified as partial rather than passed.",
+            "No build, deploy, restart, provider mutation, repository mutation, SQL execution, migration Apply, database mutation, or external send occurs.",
+            "The report declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-nodejs-build-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence.yml",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Configure a least-privilege Hostinger API token in the trusted secret store and dispatch the merged workflow for Production f5c1ae8840b4d4452f2908bb0f23051880bb6896."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add bounded pagination, rate-limit retry guidance, correlation-ID preservation, and multi-page build discovery without increasing provider write authority."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the reporter against an authorized non-production Hostinger Node.js application before using any future provider mutation action."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Make authenticated Hostinger build-history evidence a required companion to public runtime parity after every protected Production promotion."
+    }
+  ],
+  "secrets_included": false
+}

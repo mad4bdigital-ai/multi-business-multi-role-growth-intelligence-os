@@ -1,0 +1,147 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "014-retail-commerce-operations-growth-os",
+  "title": "Retail Commerce governed reference package end-to-end phase contract",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/014-retail-commerce-operations-growth-os/**",
+      ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml",
+      "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+      "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
+      "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
+      "http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs",
+      "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the Retail Commerce reference package forms one internally consistent, executable, reuse-first specification journey and that its Production schema baseline collector remains SELECT-only, bounded, secret-free, and capable of using either direct database metadata bindings or the existing governed Production runtime readback tool without granting provider, migration, deployment, or Production mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "retail-commerce-reference-package-to-governed-implementation-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform architecture and implementation reviewer",
+          "entrypoint": "Retail Commerce manifest, specification, contracts, tasks, acceptance matrices, Work Map integration contract, read-only Production schema baseline collector, and owner-bound evidence trigger",
+          "terminal_outcome": "The reviewer receives a deterministic pass only when the complete package is present, its JSON and YAML contracts parse, all current Work Maps and schema domains are resolved without a new authority kernel, both authoritative schema-baseline sources pass fixture-backed tests, authoritative runtime gap results remain collected evidence rather than transport failures, the trigger remains fail-closed and artifact-first, completion remains truthful, and no database mutation or external business effect is inferred.",
+          "steps": [
+            "Load the Retail Commerce package and resolve its bounded feature identity independently from its numeric display label.",
+            "Validate the Work Map integration against the current registry, coverage matrix, reuse-first policy, and zero-unresolved-dimension requirement.",
+            "Validate the Spec Kit completion contract and confirm that implementation, migration, deployment, provider, WordPress, WooCommerce, Google Drive, payment, publication, and Production mutation effects remain unclaimed.",
+            "Validate the specification package structure, JSON and YAML contracts, required artifacts, planned later phases, and absence of implementation files inside the bounded spec directory.",
+            "Execute the Production schema baseline collector against an injected fake pool and prove that every direct database statement is parameterized SELECT-only, no row data or credential values are returned, and no migration, database, provider, deployment, or external-business-write action occurs.",
+            "Execute the same collector through an injected fake Production runtime transport and prove that only governed_migration_schema_readback is called at the canonical auth host, the expected migration checksums, statement counts, tables, columns, and indexes are bound, and neither the backend key nor capability-envelope identifier is returned.",
+            "Return a valid governed readback with readback_status=fail and bounded missing schema or ledger expectations, then prove the authoritative baseline remains collected with parity_status=gaps_detected while transport failure without a readback remains rejected.",
+            "Parse both real repository migrations and prove the runtime request derives non-empty bounded tables, columns, and indexes from their reviewed SQL contracts.",
+            "Validate the owner-bound Draft trigger and prove it prefers complete direct DB bindings, falls back to BACKEND_API_KEY when direct bindings are unavailable, fails closed only when both authoritative sources are unavailable, uploads bounded evidence before final failure, and preserves exact-main and non-executable-drift evidence.",
+            "Trace the Business Operating Profile, Brand commerce authority, capability, Blueprint, adapter, workflow, evidence, migration, observability, and support requirements through their tasks, contracts, and acceptance evidence.",
+            "Emit a governed implementation handoff while preserving pilot Brand, provider topology, sandbox, taxonomy ownership, and rollout choices as explicit future implementation inputs."
+          ],
+          "assertions": [
+            "The package identity is platform.reference.retail_commerce_operations and does not replace the governed Hostinger Storage feature that also uses numeric display label 014.",
+            "Brand scope is mandatory for commerce and one authoritative writer remains required per bounded domain per Brand.",
+            "Free-text onboarding data, capability recommendations, and solution Blueprints remain evidence or proposals and never become execution authority.",
+            "All current Work Maps and schema domains have explicit decisions, with zero unresolved dimensions and no new Work Map candidate.",
+            "The package reuses the existing platform runtime, policy, resource, provider, workflow, evidence, migration, observability, repository, delivery, and support authorities rather than creating parallel kernels.",
+            "The specification package contains no runtime, migration, or execution scripts inside its bounded directory.",
+            "The direct Production schema source accepts no free-form SQL, executes only parameterized SELECT statements, reads schema and migration-ledger metadata only, hashes the database identity, and never returns credential values.",
+            "The governed runtime source is pinned to https://auth.mad4b.com and governed_migration_schema_readback, derives all expectations from reviewed repository migrations, executes no local SQL, and never returns BACKEND_API_KEY or raw capability-envelope identifiers.",
+            "A governed readback with readback_status=fail remains authoritative baseline evidence when its migration identity, checksum, statement count, safety flags, schema expectations, and ledger metadata are present; it produces gaps_detected rather than collection_failed.",
+            "An HTTP or tool failure without an authoritative readback remains fail-closed and cannot be misclassified as a collected baseline.",
+            "The trigger remains same-repository, owner-bound, Draft-only, one-file, exact-base bound, read-only permissioned, artifact-first, and unmergeable by lifecycle policy.",
+            "Both sources require sql_execution=true only when SELECT metadata statements execute and mutation_sql_execution=false, row_data_read=false, migration_apply=false, database_mutation=false, provider_call=false, external_write=false, and secrets_included=false.",
+            "The specification and baseline evidence do not claim migration Apply, database mutation, provider execution, WordPress or WooCommerce writes, Google Drive writes, deployment, Production promotion, external business send, or secret inclusion."
+          ],
+          "tests": [
+            {
+              "id": "retail-commerce-work-map-integration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-spec-kit-completion",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/spec-kit-completion-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-specification-baseline",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-specification-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-production-schema-baseline-read-only",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-production-schema-baseline.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-production-schema-runtime-gap-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-production-schema-runtime-gap-readback.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-production-schema-trigger-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-production-schema-baseline-pr-trigger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/014-retail-commerce-operations-growth-os/manifest.json",
+            "specs/014-retail-commerce-operations-growth-os/spec.md",
+            "specs/014-retail-commerce-operations-growth-os/plan.md",
+            "specs/014-retail-commerce-operations-growth-os/tasks.md",
+            "specs/014-retail-commerce-operations-growth-os/acceptance-matrix.md",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/completion.json",
+            "specs/014-retail-commerce-operations-growth-os/e2e-phases.json",
+            ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml",
+            "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+            "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
+            "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
+            "http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs",
+            "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Implement the approved profile, Brand commerce, capability, Blueprint, adapter, catalog, order, inventory, payment, webhook, file, evidence, and reconciliation contracts behind disabled-by-default governed runtime boundaries."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove tenant and Brand isolation, stale-profile rejection, idempotency, provider fault handling, webhook replay protection, unknown-outcome reconciliation, rollback, drift detection, and no-secret evidence under synthetic runtime faults."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate an explicitly authorized non-production pilot Brand, activity profile, provider topology, WordPress or WooCommerce sandbox where selected, Google Drive binding where selected, and complete readback evidence without implicit defaults."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify an exact authorized Production candidate, applied migrations, runtime and provider parity, Brand-scoped commerce behavior, monitoring, backup, rollback, and post-deployment evidence under a separate release authorization."
+    }
+  ]
+}

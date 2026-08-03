@@ -1,0 +1,141 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-tenant-safe-durable-projection",
+  "title": "Spec 014 Tenant-safe Durable Projection",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-tenant-safe-durable-projection.json",
+      ".changes/e2e/spec014-verified-sql-runtime-composition.json",
+      ".github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json",
+      ".github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json",
+      ".github/workflows/hostinger-storage-tenant-safe-durable-projection-guard.yml",
+      ".github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml",
+      "http-generic-api/hostingerStorageTenantSafeDurableProjection.js",
+      "http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs",
+      "http-generic-api/hostingerStorageSqlRunReader.js",
+      "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+      "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
+      "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement an unmounted read-only Tenant projection over canonical durable SQL state with audience-first authorization and explicit redaction of filesystem, worker, connector, host-key, snapshot, inode, and internal evidence references.",
+      "e2e_journeys": [
+        {
+          "id": "durable-state-to-tenant-safe-redacted-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant durable evidence reader",
+          "entrypoint": "Hostinger Storage Tenant-safe Durable Projection Guard",
+          "terminal_outcome": "A Tenant receives a digest-bound durable summary of its exact operation, plan, run, authority, enablement, journal counts, and latest reconciliation without receiving paths, item identities, worker or connector references, host-key or snapshot references, raw evidence hashes, provider payloads, or secrets.",
+          "steps": [
+            "Require the canonical verified SQL composition with one canonical run-read facet.",
+            "Require canonical durable Tenant authority and one-shot enablement dependencies bound to the same database fingerprint.",
+            "Read the operation aggregate first and reject any Tenant, Workspace, Resource, context-mode, or operation mismatch before secondary reads.",
+            "Read the exact run, allowlist, approval, enablement, and immutable consumption receipt only after the audience gate passes.",
+            "Classify SQL Run Reader results as zero, exactly one, or ambiguous before normalizing the sole proven row.",
+            "Verify operation-to-plan, operation-plan-to-run, target-to-allowlist, Workspace Owner approval, and operation-run enablement bindings.",
+            "Verify that the current consumed state agrees with immutable consumption-receipt presence.",
+            "Reduce journal rows to phase and outcome counts and reduce reconciliation rows to the latest outcome and retry semantics.",
+            "Expose only bounded Tenant identifiers, state, counts, timestamps, and safe digests while applying the explicit redaction list.",
+            "Fail the test when any sensitive fixture value appears in serialized output.",
+            "Keep the projector read-only, unmounted, non-provider, and non-production."
+          ],
+          "assertions": [
+            "Audience mismatch stops after the aggregate read and before run, authority, approval, enablement, or receipt reads.",
+            "All durable dependencies bind the same database fingerprint.",
+            "The SQL Run Reader returns no run only for zero rows, normalizes only one proven row, and rejects multiple rows with STORAGE_SQL_RUN_READER_ROW_AMBIGUOUS.",
+            "Run, allowlist, approval, enablement, and receipt mismatches fail closed.",
+            "Raw journal, reconciliation, and run metadata rows are never exposed.",
+            "Path, worker, connector, dispatch-certification, host-key, snapshot, inode, device, timestamp-stat, ownership, and internal evidence references are absent from serialized output.",
+            "Retry is true only for a latest not_applied reconciliation with explicit retry permission and always requires a fresh read.",
+            "Factory construction performs zero durable reads and exposes no raw dependency.",
+            "No route, server, worker, migration, provider, Hostinger, deployment, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-run-reader",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-verified-sql-runtime-composition",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-durable-tenant-repository-facade",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-durable-tenant-repository-facade-state-transition",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-tenant-safe-durable-projection",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json",
+            ".github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json",
+            "http-generic-api/hostingerStorageTenantSafeDurableProjection.js",
+            "http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs",
+            "http-generic-api/hostingerStorageSqlRunReader.js",
+            "http-generic-api/test-hostinger-storage-sql-run-reader.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Use the projection from the async Tenant runtime bridge only after authority and enablement DDL promotion/apply, signed live verification, dependency injection, and mount authorization.",
+      "blockers": [
+        "Authority-store and enablement-registry DDL remain contract-local and unapplied.",
+        "No signed live verification exists for those two durable stores.",
+        "The async Tenant runtime bridge has not been created or mounted.",
+        "No route dependency-injection authorization exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove restart reconstruction, partial journal sequences, multiple reconciliation versions, missing receipts, stale schema provenance, and cross-Tenant denial under concurrent writes."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This code-only projection performs no live Tenant, database, or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production route exposure and provider execution remain separately governed and blocked."
+    }
+  ]
+}

@@ -167,6 +167,61 @@
       "rationale": "Compiled policy and plan snapshots preserve immutable governed decisions and execution inputs, so each object is explicitly tied to authority, workflow, and evidence maps."
     },
     {
+      "rule_key": "growth_control_kpi_authority_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_kpi_definitions",
+          "growth_control_activity_kpi_bindings"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "platform-resource-graph-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Growth Control KPI definitions and activity-to-KPI bindings are governed analytics authorities that define versioned meaning and bounded normalization mappings."
+    },
+    {
+      "rule_key": "growth_control_metric_observation_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_normalized_metric_observations",
+          "growth_control_observability_samples"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Normalized metric observations and SLO samples are append-only telemetry authorities with immutable lineage, freshness, and scope-safe operational readback."
+    },
+    {
+      "rule_key": "growth_control_decision_reconciliation_objects",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "growth_control_decision_evidence",
+          "growth_control_reconciliation_findings"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Decision evidence and reconciliation findings are secret-safe operational evidence used for deterministic readback, incident projection, and governed repair decisions."
+    },
+    {
       "rule_key": "growth_dashboard_intelligence",
       "scope": "governed_family",
       "match": {
@@ -365,6 +420,341 @@
         "data-model-domain-map"
       ],
       "rationale": "SQL cache runtime policies are governed runtime policy and monitoring concerns covered by existing authority and observability maps."
+    },
+    {
+      "rule_key": "tenant_managed_execution_bindings",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "managed_execution_bindings"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "policy-authority-map",
+        "activation-access-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Tenant-managed execution bindings persist tenant-scoped run linkage, approval state, and customer-visible lifecycle projection within the existing workflow and authority boundaries."
+    },
+    {
+      "rule_key": "tenant_managed_execution_events",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "managed_execution_events"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Tenant-managed execution events are append-only lifecycle evidence carrying state transitions, actors, and redacted evidence for deterministic operational readback."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_authorized_injection_states",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_authorized_injection_states"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 authorized injection state records bind governed authorization, exact receipt identity, active-state uniqueness, and row-version concurrency without persisting runtime material."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_authorized_injection_rollbacks",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_authorized_injection_rollbacks"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 authorized injection rollback records are immutable, digest-bound rollback receipts used as secret-free operational and governance evidence."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_operation_readback",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "v_storage_cleanup_operation_readback"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 cleanup operation readback projects operation state, resource scope, versioning, and evidence for deterministic operational verification."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_approvals",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_approvals"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_approvals before SQL creation within the existing Governance & authority domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_operations",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_operations"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "policy-authority-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_operations before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_plan_impacts",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_plan_impacts"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "platform-resource-graph-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_plan_impacts before SQL creation within the existing Governance & authority domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_plan_items",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_plan_items"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_plan_items before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_plans",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_plans"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_plans before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_run_items",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_run_items"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "execution-log-evidence-map",
+        "workflow-task-orchestration-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_run_items before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_cleanup_runs",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_cleanup_runs"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "connector-provider-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_cleanup_runs before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_emergency_reserves",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_emergency_reserves"
+        ]
+      },
+      "domain": "Delivery & support",
+      "existing_map_refs": [
+        "delivery-support-map",
+        "observability-release-map",
+        "platform-resource-graph-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_emergency_reserves before SQL creation within the existing Delivery & support domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_execution_leases",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_execution_leases"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "policy-authority-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_execution_leases before SQL creation within the existing Governance & authority domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_pressure_incidents",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_pressure_incidents"
+        ]
+      },
+      "domain": "Delivery & support",
+      "existing_map_refs": [
+        "delivery-support-map",
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_pressure_incidents before SQL creation within the existing Delivery & support domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_pressure_snapshots",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_pressure_snapshots"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_pressure_snapshots before SQL creation within the existing Observability & release domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_provider_accounts",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_provider_accounts"
+        ]
+      },
+      "domain": "Connectors & providers",
+      "existing_map_refs": [
+        "connector-provider-map",
+        "platform-resource-graph-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_provider_accounts before SQL creation within the existing Connectors & providers domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_reconciliation_results",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_reconciliation_results"
+        ]
+      },
+      "domain": "Workflow & tasks",
+      "existing_map_refs": [
+        "workflow-task-orchestration-map",
+        "execution-log-evidence-map",
+        "observability-release-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_reconciliation_results before SQL creation within the existing Workflow & tasks domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_target_bindings",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_target_bindings"
+        ]
+      },
+      "domain": "Platform resources & graph",
+      "existing_map_refs": [
+        "platform-resource-graph-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_target_bindings before SQL creation within the existing Platform resources & graph domain and its governed Work Map boundaries."
+    },
+    {
+      "rule_key": "spec014_hostinger_storage_targets",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "storage_targets"
+        ]
+      },
+      "domain": "Platform resources & graph",
+      "existing_map_refs": [
+        "platform-resource-graph-map",
+        "connector-provider-map",
+        "policy-authority-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Spec 014 classifies storage_targets before SQL creation within the existing Platform resources & graph domain and its governed Work Map boundaries."
     }
   ],
   "intentional_unclassified": [],

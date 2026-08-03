@@ -1,0 +1,497 @@
+openapi: 3.1.0
+info:
+  title: Growth Control Analytics and Observability API
+  version: 1.0.0
+  description: >-
+    Governed KPI catalog, tenant-isolated portfolio projections, bounded SLO and
+    reconciliation dashboards, and internal evidence ingestion for Spec 011.
+    These contracts do not authorize provider dispatch, external sends, migration
+    application, automatic remediation, or production activation.
+servers:
+  - url: https://auth.mad4b.com
+tags:
+  - name: growth-control-analytics
+  - name: growth-control-operations
+  - name: growth-control-internal-evidence
+paths:
+  /admin/control-plane/analytics/kpis:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getAdminGrowthControlKpiCatalog
+      summary: Project governed KPI definitions and activity mappings
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdOptional'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/ActivityBindingIds'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+      responses:
+        '200':
+          description: Read-only KPI catalog projection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KpiCatalogProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/control-plane/analytics/portfolio:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getAdminGrowthControlPortfolio
+      summary: Project normalized cross-brand KPI series for one tenant
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdRequired'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant-isolated portfolio projection retaining native lineage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PortfolioProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /tenant/control-plane/analytics/portfolio:
+    get:
+      tags: [growth-control-analytics]
+      operationId: getTenantGrowthControlPortfolio
+      summary: Project a Tenant-safe brand portfolio
+      description: >-
+        Tenant and user identity come from the signed JWT. Workspace, brand and
+        role are confirmed by active membership and workspace readback.
+      x-contract-completeness: canonical
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceIdRequired'
+        - $ref: '#/components/parameters/BrandKeyRequired'
+        - $ref: '#/components/parameters/NormalizedKpiKeys'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/PeriodEnd'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant-safe portfolio projection for the authorized brand.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantPortfolioProjection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /admin/control-plane/operations/dashboard:
+    get:
+      tags: [growth-control-operations]
+      operationId: getAdminGrowthControlOperationalDashboard
+      summary: Project SLO, alert and reconciliation health
+      x-contract-completeness: canonical
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantIdOptional'
+        - $ref: '#/components/parameters/WorkspaceIds'
+        - $ref: '#/components/parameters/BrandKeys'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/WindowStart'
+        - $ref: '#/components/parameters/WindowEnd'
+        - $ref: '#/components/parameters/SampleLimit'
+        - $ref: '#/components/parameters/FindingLimit'
+        - $ref: '#/components/parameters/IncludePortfolio'
+      responses:
+        '200':
+          description: Read-only Admin operational projection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalDashboard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /tenant/control-plane/operations/dashboard:
+    get:
+      tags: [growth-control-operations]
+      operationId: getTenantGrowthControlOperationalDashboard
+      summary: Project Tenant-safe SLO and reconciliation health
+      x-contract-completeness: canonical
+      security:
+        - userJwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceIdRequired'
+        - $ref: '#/components/parameters/BrandKeyRequired'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/WindowStart'
+        - $ref: '#/components/parameters/WindowEnd'
+        - $ref: '#/components/parameters/SampleLimit'
+        - $ref: '#/components/parameters/FindingLimit'
+        - $ref: '#/components/parameters/IncludePortfolio'
+      responses:
+        '200':
+          description: Tenant-safe dashboard with internal authority references removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantOperationalDashboard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/analytics/observations:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlMetricObservation
+      summary: Normalize and append one governed metric observation
+      x-contract-completeness: canonical
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MetricObservationRequest' }
+      responses:
+        '201':
+          description: Observation appended with same-cycle readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetricObservationWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/operations/samples:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlObservabilitySample
+      summary: Append one bounded SLO metric sample
+      x-contract-completeness: canonical
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObservabilitySampleRequest' }
+      responses:
+        '201':
+          description: Sample appended with same-cycle readback.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObservabilitySampleWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /internal/control-plane/operations/decision-evidence:
+    post:
+      tags: [growth-control-internal-evidence]
+      operationId: recordGrowthControlDecisionEvidence
+      summary: Append bounded decision evidence and a no-secret telemetry span
+      x-contract-completeness: canonical
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionEvidenceRequest' }
+      responses:
+        '201':
+          description: Decision evidence and telemetry span recorded transactionally.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecisionEvidenceWriteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API key
+      description: Backend authority carried as a bearer credential, followed by Admin-principal enforcement.
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API key
+      description: Backend authority carried as an Authorization bearer credential.
+    backendApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Backend authority carried in x-api-key.
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed non-admin tenant JWT with membership and workspace readback.
+  parameters:
+    TenantIdRequired: { name: tenantId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+    TenantIdOptional: { name: tenantId, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 64 } }
+    WorkspaceIdRequired: { name: workspaceId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+    BrandKeyRequired: { name: brandKey, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+    WorkspaceIds: { name: workspaceIds, in: query, required: false, schema: { type: string, maxLength: 4096 } }
+    BrandKeys: { name: brandKeys, in: query, required: false, schema: { type: string, maxLength: 4096 } }
+    ActivityBindingIds: { name: activityBindingIds, in: query, required: false, schema: { type: string, maxLength: 4096 } }
+    NormalizedKpiKeys: { name: normalizedKpiKeys, in: query, required: false, schema: { type: string, maxLength: 4096 } }
+    PeriodStart: { name: periodStart, in: query, required: false, schema: { type: string, format: date-time } }
+    PeriodEnd: { name: periodEnd, in: query, required: false, schema: { type: string, format: date-time } }
+    WindowStart: { name: windowStart, in: query, required: false, schema: { type: string, format: date-time } }
+    WindowEnd: { name: windowEnd, in: query, required: false, schema: { type: string, format: date-time } }
+    Environment: { name: environment, in: query, required: false, schema: { type: string, maxLength: 32 } }
+    SampleLimit: { name: sampleLimit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 5000 } }
+    FindingLimit: { name: findingLimit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 1000 } }
+    IncludePortfolio: { name: includePortfolio, in: query, required: false, schema: { type: boolean, default: false } }
+    Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 5000 } }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+  schemas:
+    Sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        field: { type: string }
+        issue: { type: string }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, secretsIncluded]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: { $ref: '#/components/schemas/ErrorDetail' } }
+            requestId: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    KpiCatalogProjection:
+      type: object
+      required: [contract, definitions, bindings, catalogSha256, readOnly, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.kpi-catalog-projection.v1 }
+        definitions: { type: array, items: { type: object, additionalProperties: true } }
+        bindings: { type: array, items: { type: object, additionalProperties: true } }
+        catalogSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    PortfolioProjection:
+      type: object
+      required: [contract, tenantId, observationCount, series, projectionSha256, readOnly, tenantIsolated, lineagePreserved, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.portfolio-projection.v1 }
+        tenantId: { type: string }
+        workspaceIds: { type: array, items: { type: string } }
+        brandKeys: { type: array, items: { type: string } }
+        normalizedKpiKeys: { type: array, items: { type: string } }
+        observationCount: { type: integer, minimum: 0 }
+        series: { type: array, items: { type: object, additionalProperties: true } }
+        projectionSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        tenantIsolated: { type: boolean, const: true }
+        lineagePreserved: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    TenantPortfolioProjection:
+      allOf:
+        - $ref: '#/components/schemas/PortfolioProjection'
+        - type: object
+          required: [audience, tenantSafe, otherTenantsIncluded]
+          properties:
+            audience: { type: string, const: tenant }
+            tenantRole: { type: [string, 'null'] }
+            tenantSafe: { type: boolean, const: true }
+            otherTenantsIncluded: { type: boolean, const: false }
+    AlertProjection:
+      type: object
+      required: [alertKey, severity, status, reasonCode, autoRemediationAllowed, secretsIncluded]
+      properties:
+        alertKey: { type: string }
+        severity: { type: string }
+        status: { type: string }
+        reasonCode: { type: string }
+        metricKey: { type: string }
+        target: { type: number }
+        actual: { type: [number, 'null'] }
+        evidenceSha256: { $ref: '#/components/schemas/Sha256' }
+        autoRemediationAllowed: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    OperationalDashboard:
+      type: object
+      required: [contract, audience, scope, health, sloResults, alerts, reconciliation, dashboardSha256, readOnly, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        contract: { type: string, const: mad4b.growth-control.operational-dashboard.v1 }
+        audience: { type: string, enum: [admin, tenant] }
+        scope: { type: object, additionalProperties: true }
+        health: { type: string }
+        sloResults: { type: array, items: { type: object, additionalProperties: true } }
+        alerts: { type: array, items: { $ref: '#/components/schemas/AlertProjection' } }
+        reconciliation: { type: object, additionalProperties: true }
+        portfolioSummary: { type: [object, 'null'], additionalProperties: true }
+        dashboardSha256: { $ref: '#/components/schemas/Sha256' }
+        readOnly: { type: boolean, const: true }
+        tenantSafe: { type: boolean }
+        otherTenantsIncluded: { type: boolean, const: false }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    TenantOperationalDashboard:
+      allOf:
+        - $ref: '#/components/schemas/OperationalDashboard'
+        - type: object
+          required: [tenantSafe, otherTenantsIncluded]
+          properties:
+            tenantSafe: { type: boolean, const: true }
+            otherTenantsIncluded: { type: boolean, const: false }
+    MetricObservationRequest:
+      type: object
+      additionalProperties: false
+      required: [observationId, tenantId, workspaceId, brandKey, activityBindingId, nativeKpiKey, nativeValue, periodStart, periodEnd, sourceSystemKey, sourceObservationId]
+      properties:
+        observationId: { type: string, maxLength: 64 }
+        tenantId: { type: string, maxLength: 64 }
+        workspaceId: { type: string, maxLength: 64 }
+        brandKey: { type: string, maxLength: 128 }
+        activityBindingId: { type: string, maxLength: 64 }
+        nativeKpiKey: { type: string, maxLength: 128 }
+        nativeValue: { type: number }
+        weight: { type: number, exclusiveMinimum: 0, default: 1 }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        observedAt: { type: string, format: date-time }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        sourceSystemKey: { type: string }
+        sourceObservationId: { type: string }
+        sourceEventId: { type: [string, 'null'] }
+    ObservabilitySampleRequest:
+      type: object
+      additionalProperties: false
+      required: [sampleId, metricKey, value, observedAt, sourceEvidenceSha256]
+      properties:
+        sampleId: { type: string, maxLength: 64 }
+        metricKey: { type: string }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        environment: { type: string, default: development }
+        value: { type: number }
+        weight: { type: number, exclusiveMinimum: 0, default: 1 }
+        observedAt: { type: string, format: date-time }
+        sourceEvidenceSha256: { $ref: '#/components/schemas/Sha256' }
+    DecisionEvidenceRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, traceId, gateResults, reasonCodes, resultClassification, readbackStatus]
+      properties:
+        requestId: { type: string }
+        traceId: { type: string }
+        tenantId: { type: [string, 'null'] }
+        workspaceId: { type: [string, 'null'] }
+        brandKey: { type: [string, 'null'] }
+        activityBindingId: { type: [string, 'null'] }
+        planId: { type: [string, 'null'] }
+        runId: { type: [string, 'null'] }
+        capabilityKey: { type: [string, 'null'] }
+        workflowVersion: { type: [integer, 'null'] }
+        configSnapshotId: { type: [string, 'null'] }
+        policySnapshotId: { type: [string, 'null'] }
+        selectedAdapterKey: { type: [string, 'null'] }
+        gateResults: { type: array, maxItems: 50, items: { type: object, additionalProperties: true } }
+        reasonCodes: { type: array, maxItems: 50, items: { type: string } }
+        durationMs: { type: number, minimum: 0 }
+        resultClassification: { type: string }
+        readbackStatus: { type: string }
+    MetricObservationWriteResponse:
+      type: object
+      required: [observation, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        observation: { type: object, additionalProperties: true }
+        idempotentReplay: { type: boolean }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    ObservabilitySampleWriteResponse:
+      type: object
+      required: [sample, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        sample: { type: object, additionalProperties: true }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+    DecisionEvidenceWriteResponse:
+      type: object
+      required: [evidence, telemetrySpanRecorded, sameCycleReadback, providerCalls, externalWrites, secretsIncluded]
+      properties:
+        evidence: { type: object, additionalProperties: true }
+        telemetrySpanRecorded: { type: boolean, const: true }
+        sameCycleReadback: { type: boolean, const: true }
+        providerCalls: { type: boolean, const: false }
+        externalWrites: { type: boolean, const: false }
+        secretsIncluded: { type: boolean, const: false }
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Scope or role denied.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Governed authority not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Revision, idempotency or active authority conflict.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Contract validation failed.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalError:
+      description: Internal operation failed without exposing sensitive details.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

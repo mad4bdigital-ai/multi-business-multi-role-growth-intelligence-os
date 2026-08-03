@@ -1,0 +1,7 @@
+{
+  "surface_key": "growth_control_reconciliation_findings",
+  "source_table": "growth_control_reconciliation_findings",
+  "reason": "Excluded because this table is an internal reconciliation finding ledger for read-only operational projections and governed follow-up. It does not activate runtime behavior, grant access, dispatch providers, or expose a direct tenant mutation surface; high-risk findings are never repaired silently.",
+  "owner": "growth-control-plane",
+  "review_after": "2026-12-31"
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-runtime-migrations.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "governed_sequence_registered_apply_blocked",
+  "source_contract": ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+  "extension_source_contracts": [
+    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-migration-candidate.json",
+    ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json"
+  ],
+  "migration_directory": "http-generic-api/migrations",
+  "dependency_registry": "http-generic-api/config/governed-migration-dependencies.json",
+  "migration_apply_authorized": false,
+  "live_database_access_performed": false,
+  "schema_verified": false,
+  "production_ready": false,
+  "waves": [
+    {
+      "wave": 1,
+      "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
+      "checksum_sha256": "9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053",
+      "statement_count": 4,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
+      "dependency": null
+    },
+    {
+      "wave": 2,
+      "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "checksum_sha256": "80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33",
+      "statement_count": 6,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
+      "dependency": "20260802_01_spec014_hostinger_storage_foundation.sql"
+    },
+    {
+      "wave": 3,
+      "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "statement_count": 9,
+      "preflight_status": "warn",
+      "preflight_risk_count": 4,
+      "preflight_risk_codes": [
+        "create_view_without_or_replace",
+        "create_view_without_or_replace",
+        "create_view_without_or_replace",
+        "insert_without_ignore_or_on_duplicate"
+      ],
+      "dependency": "20260802_02_spec014_hostinger_storage_control_plane.sql"
+    },
+    {
+      "wave": 4,
+      "migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+      "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+      "statement_count": 2,
+      "preflight_status": "pass",
+      "preflight_risk_count": 0,
+      "preflight_risk_codes": [],
+      "dependency": "20260802_03_spec014_hostinger_storage_execution_evidence.sql"
+    }
+  ],
+  "apply_blockers": [
+    "Wave 3 must prove all three target views are absent before apply; automatic replacement is intentionally forbidden.",
+    "Wave 3 must prove all three tool keys are absent before apply; INSERT IGNORE and silent duplicate reconciliation are intentionally forbidden.",
+    "Wave 4 must prove both target tables are absent or exactly compatible before apply because CREATE TABLE IF NOT EXISTS must not hide incompatible live schema.",
+    "Wave 4 requires exact successful Wave 3 apply-ledger evidence before authorization or execution.",
+    "Signed schema verification and same-cycle readback contracts must be refreshed for the fourth wave before any apply can be considered.",
+    "Every wave requires fresh checksum-bound authorization, governed dependency evidence, dry-run evidence, typed confirmation, and same-cycle live readback.",
+    "Signed schema verification is required before mounting the SQL repository or setting production_ready=true."
+  ],
+  "secrets_included": false
+}

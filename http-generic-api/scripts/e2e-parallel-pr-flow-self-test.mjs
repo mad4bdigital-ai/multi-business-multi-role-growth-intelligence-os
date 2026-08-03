@@ -91,16 +91,116 @@ fs.writeFileSync(path.join(root, contractPath), `${JSON.stringify(contract, null
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "declare ready workstream"], root);
 const headSha = run("git", ["rev-parse", "HEAD"], root).trim();
+run("git", ["update-ref", "refs/heads/main", headSha], root);
+run("git", ["update-ref", "refs/remotes/origin/main", headSha], root);
 
 const gatePass = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "gpt/001-example/integration-a"], root));
 assert.equal(gatePass.ok, true, JSON.stringify(gatePass.findings));
 assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
+assert.equal(gatePass.production_promotion, false);
+assert.equal(gatePass.production_promotion_identity, null);
+assert.equal(gatePass.phase_evaluation_base, null);
+
+const defaultBranchDispatchEnv = { ...process.env };
+for (const name of ["GITHUB_BASE_REF", "GITHUB_HEAD_REF", "GITHUB_BASE_SHA", "GITHUB_HEAD_SHA"]) delete defaultBranchDispatchEnv[name];
+const defaultBranchDispatch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main"], { cwd: root, encoding: "utf8", env: defaultBranchDispatchEnv });
+assert.equal(defaultBranchDispatch.status, 0, JSON.stringify({ status: defaultBranchDispatch.status, signal: defaultBranchDispatch.signal, stdout: defaultBranchDispatch.stdout, stderr: defaultBranchDispatch.stderr }));
+const defaultBranchDispatchReport = JSON.parse(defaultBranchDispatch.stdout);
+assert.equal(defaultBranchDispatchReport.ok, true, JSON.stringify(defaultBranchDispatchReport.findings));
+assert.equal(defaultBranchDispatchReport.pr_mode, "standard");
+assert.equal(defaultBranchDispatchReport.base_ref, null);
+assert.equal(defaultBranchDispatchReport.production_promotion, false);
+assert.equal(defaultBranchDispatchReport.phase_evaluation_base, null);
+
+const undeclaredBranch = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/undeclared-a", "--base-ref", "gpt/001-example/integration-a"], { cwd: root, encoding: "utf8" });
+assert.notEqual(undeclaredBranch.status, 0);
+const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
+assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
 const directReport = JSON.parse(directMain.stdout);
 assert(directReport.findings.some((row) => row.code === "parallel_work_workstream_must_target_integration_branch"));
+
+const productionPromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main", "--base-ref", "Production"], root));
+assert.equal(productionPromotion.ok, true, JSON.stringify(productionPromotion.findings));
+assert.equal(productionPromotion.pr_mode, "standard");
+assert.equal(productionPromotion.production_promotion, true);
+assert.equal(productionPromotion.production_promotion_identity, "protected_main");
+assert.equal(productionPromotion.phase_evaluation_base, workSha);
+
+const immutableRef = `release/production-candidate-20260803-${headSha.slice(0, 8)}-v1`;
+const immutablePromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", immutableRef, "--base-ref", "Production"], root));
+assert.equal(immutablePromotion.ok, true, JSON.stringify(immutablePromotion.findings));
+assert.equal(immutablePromotion.pr_mode, "standard");
+assert.equal(immutablePromotion.production_promotion, true);
+assert.equal(immutablePromotion.production_promotion_identity, "immutable_main_snapshot");
+assert.equal(immutablePromotion.phase_evaluation_base, workSha);
+
+const legacyImmutableRef = `release/production-candidate-${headSha.slice(0, 8)}`;
+const legacyImmutablePromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", legacyImmutableRef, "--base-ref", "Production"], root));
+assert.equal(legacyImmutablePromotion.ok, true, JSON.stringify(legacyImmutablePromotion.findings));
+assert.equal(legacyImmutablePromotion.production_promotion_identity, "immutable_main_snapshot");
+assert.equal(legacyImmutablePromotion.phase_evaluation_base, workSha);
+
+const mainTree = run("git", ["rev-parse", `${headSha}^{tree}`], root).trim();
+const baseTree = run("git", ["rev-parse", `${baseSha}^{tree}`], root).trim();
+const reconciliationSha = run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-m", "reconcile main and Production"], root).trim();
+const reconciliationRef = `release/production-candidate-20260803-${reconciliationSha.slice(0, 8)}-v1`;
+const reconciliationPromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", reconciliationSha, "--head-ref", reconciliationRef, "--base-ref", "Production"], root));
+assert.equal(reconciliationPromotion.ok, true, JSON.stringify(reconciliationPromotion.findings));
+assert.equal(reconciliationPromotion.pr_mode, "standard");
+assert.equal(reconciliationPromotion.production_promotion, true);
+assert.equal(reconciliationPromotion.production_promotion_identity, "history_preserving_main_reconciliation");
+assert.equal(reconciliationPromotion.phase_evaluation_base, headSha);
+
+const rejectedCandidates = [
+  run("git", ["commit-tree", baseTree, "-p", headSha, "-p", baseSha, "-m", "wrong tree and empty effective diff"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", workSha, "-p", baseSha, "-m", "stale first parent"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", headSha, "-p", workSha, "-m", "wrong second parent"], root).trim(),
+  run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-p", workSha, "-m", "unexpected third parent"], root).trim()
+];
+for (const rejectedSha of rejectedCandidates) {
+  const rejected = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", rejectedSha, "--head-ref", `release/production-candidate-20260803-${rejectedSha.slice(0, 8)}-v1`, "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+  assert.notEqual(rejected.status, 0);
+  const rejectedReport = JSON.parse(rejected.stdout);
+  assert.equal(rejectedReport.production_promotion, false);
+  assert.equal(rejectedReport.production_promotion_identity, null);
+  assert(rejectedReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+}
+
+const mismatchedImmutable = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/production-candidate-20260803-deadbeef-v1", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+assert.notEqual(mismatchedImmutable.status, 0);
+const mismatchedImmutableReport = JSON.parse(mismatchedImmutable.stdout);
+assert.equal(mismatchedImmutableReport.production_promotion, false);
+assert.equal(mismatchedImmutableReport.production_promotion_identity, null);
+assert.equal(mismatchedImmutableReport.phase_evaluation_base, null);
+assert(mismatchedImmutableReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+
+const spoofedPromotion = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/main", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+assert.notEqual(spoofedPromotion.status, 0);
+const spoofedPromotionReport = JSON.parse(spoofedPromotion.stdout);
+assert.equal(spoofedPromotionReport.production_promotion, false);
+assert.equal(spoofedPromotionReport.production_promotion_identity, null);
+assert.equal(spoofedPromotionReport.phase_evaluation_base, null);
+assert(spoofedPromotionReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+
+run("git", ["checkout", "--orphan", "orphan-release"], root);
+for (const entry of fs.readdirSync(root)) {
+  if (entry !== ".git" && entry !== ".specify") fs.rmSync(path.join(root, entry), { recursive: true, force: true });
+}
+fs.writeFileSync(path.join(root, "ORPHAN.md"), "no parent\n");
+run("git", ["add", "."], root);
+run("git", ["commit", "-m", "orphan"], root);
+const orphanSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const missingBaseline = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", orphanSha, "--head-ref", "main", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+assert.notEqual(missingBaseline.status, 0);
+const missingBaselineReport = JSON.parse(missingBaseline.stdout);
+assert.equal(missingBaselineReport.production_promotion, true);
+assert.equal(missingBaselineReport.phase_evaluation_base, null);
+assert(missingBaselineReport.findings.some((row) => row.code === "production_promotion_phase_evaluation_base_unavailable"));
+run("git", ["checkout", "main"], root);
 
 const workstreamRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root, "--contract", contractPath, "--mode", "workstream", "--workstream-id", "runtime"], root));
 assert.equal(workstreamRun.ok, true);
@@ -110,4 +210,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 9, flow: "parallel_workstream_to_integration", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 51, flow: "parallel_workstream_to_integration_default_branch_and_fail_closed_history_preserving_production_promotions", secrets_included: false }));

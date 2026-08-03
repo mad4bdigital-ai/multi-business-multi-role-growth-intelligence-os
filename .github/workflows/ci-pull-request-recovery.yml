@@ -1,0 +1,214 @@
+name: CI Pull Request Recovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, Production]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-recovery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  syntax:
+    name: Syntax Check
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate checkout
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Guard schema/docs coverage for runtime changes
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+
+      - name: Guard governed migration seed placement
+        run: node http-generic-api/scripts/migration-placement-guard.mjs
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Guard centralized fail-closed user JWT auth
+        working-directory: http-generic-api
+        run: node scripts/user-jwt-auth-governance.mjs
+
+      - name: Guard merge and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+
+      - name: Validate canonical source structure
+        run: node validate-canonical-sources.mjs
+
+      - name: Check canonical generated output
+        run: node build-canonicals.mjs --check
+
+      - name: Check canonical domain finder
+        run: node --check find-canonical-domain.mjs
+
+      - name: Block uncovered resource feature surfaces
+        working-directory: http-generic-api
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
+
+      - name: Validate resource API architecture and application service
+        working-directory: http-generic-api
+        run: |
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+
+      - name: Enforce Spec Kit completion governance
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
+      - name: Validate memory schema refs
+        run: node validate-memory-schema.mjs
+
+      - name: Check git diff hygiene
+        run: git diff --check
+
+      - name: Check all JS modules
+        working-directory: http-generic-api
+        run: |
+          set -e
+          shopt -s nullglob
+          for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+            node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
+          done
+
+  test:
+    name: Unit & Integration Tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate checkout
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Determine context-kernel hardcoding ratchet scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
+          DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+          if [[ "$EVENT_NAME" == "pull_request" && -n "${PULL_REQUEST_BASE_SHA:-}" ]]; then
+            BASE_SHA="$PULL_REQUEST_BASE_SHA"
+            git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
+          elif [[ "$EVENT_NAME" == "push" && "$REF_NAME" == "$DEFAULT_BRANCH" && -n "${PUSH_BEFORE_SHA:-}" && ! "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$PUSH_BEFORE_SHA"
+            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+          elif git rev-parse --verify "origin/$DEFAULT_BRANCH" >/dev/null 2>&1; then
+            BASE_SHA="origin/$DEFAULT_BRANCH"
+            git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
+          else
+            BASE_SHA="$(git rev-parse HEAD^)"
+            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+          fi
+          echo "Context-kernel hardcoding ratchet base: $BASE_SHA"
+          echo "Changed files considered by the ratchet:"
+          cat "$CHANGED_FILES"
+
+      - name: Block context-kernel runtime hardcoding regressions
+        working-directory: http-generic-api
+        run: node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
+
+      - name: Validate Connect auth, secret boundary, and atomic bootstrap
+        working-directory: http-generic-api
+        run: |
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
+
+      - name: Guard dependency and runtime interruption readiness
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
+
+      - name: Run tests with exact checked-out identity
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          EXPECTED_TEST_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_TEST_CANDIDATE_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Upload ordered test progress reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-integration-test-progress-${{ github.run_id }}
+          path: ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
+        run: |
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run explicit governance contract checks
+        working-directory: http-generic-api
+        run: |
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
+          node test-activation-lifecycle-operation-service.mjs
+          node test-activation-reconnect-guidance-policy.mjs
+          node test-activation-contract-finalization.mjs
+          node test-activation-operation-projection-foundation.mjs
+          node test-activation-operation-persistence-repository.mjs
+          node test-activation-delivery-acknowledgement-repository.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+          node test-local-connector-capability-installer-grants.mjs
+
+      - name: Reject stale readiness evidence
+        working-directory: http-generic-api
+        run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"

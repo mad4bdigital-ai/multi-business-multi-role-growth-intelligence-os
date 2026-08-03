@@ -1,0 +1,89 @@
+name: Hostinger Storage Crash-safe Restart Reconciliation Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-crash-safe-restart-reconciliation.json'
+      - '.changes/e2e/spec014-verified-sql-runtime-composition.json'
+      - '.github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json'
+      - '.github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json'
+      - '.github/workflows/hostinger-storage-crash-safe-restart-reconciliation-guard.yml'
+      - 'http-generic-api/hostingerStorageCrashSafeRestartReconciler.js'
+      - 'http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs'
+      - 'http-generic-api/hostingerStorageSqlRunReader.js'
+      - 'http-generic-api/test-hostinger-storage-sql-run-reader.mjs'
+      - 'http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js'
+      - 'http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-crash-safe-restart-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  crash-safe-restart-reconciliation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check restart recovery syntax
+        run: |
+          node --check http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          node --check http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs
+          node --check http-generic-api/hostingerStorageSqlRunReader.js
+          node --check http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          node --check http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          node --check http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+
+      - name: Validate crash-safe evidence convergence
+        run: |
+          node http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          node http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+          node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs
+          node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs
+          node http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs
+
+      - name: Validate dependent async engine and Tenant projection
+        run: |
+          node http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs
+          node http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs
+
+      - name: Preserve evidence-only unmounted boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(migrations/|server\.js$|routes/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageCrashSafeRestartReconciler.js \
+            http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs
+          ! grep -E '\b(mutateExact|readbackItem|providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization|getConnection)\b' \
+            http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'mutation_replay_allowed: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'provider_calls_allowed: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'automatic_retry_allowed: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'evidence_only: true' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageCrashSafeRestartReconciler.js
+          grep -q '"mutation_replay_allowed": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json
+          grep -q '"provider_call_allowed": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json
+          grep -q '"automatic_retry_allowed": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json
+          grep -q '"runtime_mounted": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json
+          grep -q '"production_ready": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-crash-safe-restart-reconciliation.json

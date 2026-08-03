@@ -1,0 +1,161 @@
+name: Hostinger Node.js Build Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/hostinger-nodejs-build-evidence.json'
+      - '.github/workflows/hostinger-nodejs-build-evidence.yml'
+      - 'http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs'
+      - 'http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs'
+  workflow_dispatch:
+    inputs:
+      account_username:
+        description: Hostinger hosting account username that owns auth.mad4b.com
+        required: true
+        type: string
+      expected_sha:
+        description: Exact protected Production SHA expected for the Node.js build
+        required: true
+        type: string
+      production_merged_at:
+        description: ISO-8601 timestamp of the protected Production merge
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-nodejs-build-evidence-${{ github.event.pull_request.number || inputs.expected_sha || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Hostinger Build Evidence Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Enforce trusted workflow dispatch ref
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]]
+
+      - name: Validate Hostinger Node.js build evidence reporter
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-build-evidence.mjs
+
+  live:
+    name: Live Hostinger Node.js Build History
+    if: github.event_name == 'workflow_dispatch'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate immutable Production identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_MERGED_AT: ${{ inputs.production_merged_at }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          node -e 'const value = process.env.PRODUCTION_MERGED_AT; if (!value || Number.isNaN(Date.parse(value))) process.exit(1)'
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          [[ "${production_sha}" == "${EXPECTED_SHA}" ]]
+
+      - name: Generate authenticated read-only Hostinger build evidence
+        id: evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_ACCOUNT_USERNAME: ${{ inputs.account_username }}
+          HOSTINGER_NODEJS_DOMAIN: auth.mad4b.com
+          EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_sha }}
+          PRODUCTION_MERGED_AT: ${{ inputs.production_merged_at }}
+          HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-build-evidence
+        run: node scripts/hostinger-nodejs-build-evidence.mjs
+
+      - name: Upload structured Hostinger build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-nodejs-build-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-nodejs-build-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce structured Hostinger build decision
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-build-evidence/hostinger-nodejs-build-evidence.json
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const reportPath = process.env.REPORT_PATH;
+            if (!reportPath || !fs.existsSync(reportPath)) {
+              console.error(JSON.stringify({ ok: false, error: "hostinger_build_report_missing", secrets_included: false }));
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const effects = report.side_effects || {};
+            const valid =
+              report.contract === "mad4b.hostinger-nodejs-build-evidence.v1" &&
+              report.identity?.expected_sha === process.env.EXPECTED_SHA &&
+              report.identity?.expected_branch === "Production" &&
+              report.identity?.domain === "auth.mad4b.com" &&
+              report.secrets_included === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.provider_mutation_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.database_mutation_performed === false &&
+              effects.restart_performed === false &&
+              effects.external_send_performed === false;
+            if (!valid || report.outcome !== "passed") {
+              console.error(JSON.stringify({
+                ok: false,
+                outcome: report.outcome || "evidence_error",
+                classification: report.classification || "invalid_structured_report",
+                first_failure: report.first_failure || null,
+                consult_job_logs: false,
+                secrets_included: false
+              }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              ok: true,
+              outcome: report.outcome,
+              classification: report.classification,
+              build_uuid: report.latest_build_after_merge?.uuid || null,
+              secrets_included: false
+            }));
+          '

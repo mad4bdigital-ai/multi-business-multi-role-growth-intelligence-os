@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-autofix-validation-diagnostics",
+  "title": "Work Map Autofix complete validation failure-set diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-autofix-validation-diagnostics.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Evaluate all eleven Work Map Autofix validation contracts, persist each outcome and log, preserve backward-compatible first-failure fields, and fail closed once the complete failure set is captured.",
+      "e2e_journeys": [
+        {
+          "id": "named-validation-failure-to-bounded-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The workflow-dispatch-only Spec Kit Work Map Autofix writer validation step",
+          "terminal_outcome": "Every validation contract is evaluated and represented in checkout-safe evidence; all failing contract names and exit codes plus the backward-compatible first failure are exposed before generation and repository mutation remain blocked.",
+          "steps": [
+            "Load the workflow-dispatch-only Work Map Autofix writer without dispatching it.",
+            "Verify diagnostics are initialized under the run-scoped runner temporary directory instead of the checkout workspace.",
+            "Verify all eleven generator, connectivity, and classification checks are invoked through the named contract wrapper.",
+            "Verify each contract writes a dedicated log and appends its outcome and exit code without stopping later validation contracts.",
+            "Verify the aggregate gate preserves the first failure, records the complete failure set and count, and fails closed before generation.",
+            "Verify Markdown, JSON, pull-request comment, and artifact evidence expose bounded failure-set diagnostics.",
+            "Verify validation contains no generation, push, force-push, protected-branch mutation, or external-send authority."
+          ],
+          "assertions": [
+            "All eleven validation commands have stable unique names and dedicated runner-temporary logs.",
+            "A non-zero validation command is recorded but does not prevent the remaining validation-only commands from running.",
+            "The first failed contract and exit code remain available for backward compatibility.",
+            "The complete failed-contract count and contract-to-exit-code set are emitted in bounded evidence.",
+            "The workflow fails closed before generation, commit, push, or verification when any validation fails.",
+            "Diagnostic files survive checkout cleanup and are uploaded with missing files treated as an error under always().",
+            "No new trigger, permission, writer, force-push, protected-branch, database, Production, provider, credential, or external-send authority is added."
+          ],
+          "tests": [
+            {
+              "id": "work-map-autofix-validation-diagnostics-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-validation-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-autofix-validation-diagnostics.json",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
