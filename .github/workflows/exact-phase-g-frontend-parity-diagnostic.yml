@@ -1,0 +1,106 @@
+name: Exact Phase G Frontend Parity Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-phase-g-frontend-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-parity:
+    name: Exact Frontend Parity Diagnostic
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
+      github.event.pull_request.head.sha == '7fe26ff6ba739f8b00392b3b0357874e99917847'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_MAIN_SHA: 5ae197ec12669416fd263ebc1dfc2f7849b7640e
+      EXPECTED_HEAD_SHA: 7fe26ff6ba739f8b00392b3b0357874e99917847
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and clean tracked tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run isolated Frontend parity with bounded diagnostics
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="${RUNNER_TEMP}/frontend-parity-diagnostic.txt"
+          : > "${report}"
+          failed=0
+
+          run_check() {
+            local label="$1"
+            shift
+            echo "===== ${label} =====" | tee -a "${report}"
+            "$@" 2>&1 | tee -a "${report}"
+            local rc=${PIPESTATUS[0]}
+            echo "exit_code=${rc}" | tee -a "${report}"
+            if [ "${rc}" -ne 0 ]; then failed=1; fi
+            git status --porcelain | tee -a "${report}"
+          }
+
+          run_check generate env CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          run_check dispatch-baseline node test-frontend-dispatch-workflow-baseline.mjs
+          run_check operation-governance-generator node test-frontend-operation-governance-generator.mjs
+          run_check surface-dispatch node test-frontend-surface-dispatch.mjs
+          run_check auth-openapi-parity node test-frontend-auth-openapi-parity.mjs
+          run_check openapi-route-coverage node test-openapi-route-coverage.mjs
+          run_check openapi-auth-check npm run openapi:auth:check
+
+          echo '===== FINAL TRACKED STATUS =====' | tee -a "${report}"
+          git status --porcelain --untracked-files=no | tee -a "${report}"
+          git diff --stat | tee -a "${report}"
+          git diff -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml > "${RUNNER_TEMP}/frontend-generated.diff"
+          git diff > "${RUNNER_TEMP}/frontend-all.diff"
+
+          unexpected="$(git status --porcelain --untracked-files=no | awk '{print $2}' | grep -Ev '^(frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          generated="$(git status --porcelain --untracked-files=no -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml)"
+          if [ -n "${unexpected}" ] || [ -n "${generated}" ]; then failed=1; fi
+          exit "${failed}"
+
+      - name: Upload Frontend parity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-phase-g-frontend-parity-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/frontend-parity-diagnostic.txt
+            ${{ runner.temp }}/frontend-generated.diff
+            ${{ runner.temp }}/frontend-all.diff
+          if-no-files-found: error
+          retention-days: 14
