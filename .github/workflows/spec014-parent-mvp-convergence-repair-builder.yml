@@ -128,12 +128,14 @@ jobs:
         run: |
           set -euo pipefail
           rm -f .github/workflows/spec014-parent-mvp-convergence-repair-builder.yml
+          rm -f .changes/builders/spec014-parent-mvp-convergence-repair.trigger
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           mapfile -t changed < <(git diff --cached --name-only)
-          [[ ${#changed[@]} -eq 2 ]]
+          [[ ${#changed[@]} -eq 3 ]]
           [[ " ${changed[*]} " == *" specs/014-governed-hostinger-storage-orchestration/e2e-phases.json "* ]]
           [[ " ${changed[*]} " == *" .github/workflows/spec014-parent-mvp-convergence-repair-builder.yml "* ]]
+          [[ " ${changed[*]} " == *" .changes/builders/spec014-parent-mvp-convergence-repair.trigger "* ]]
           git commit -m 'fix(spec-014): register parent MVP convergence execution'
           git push origin "HEAD:${TARGET_BRANCH}"
