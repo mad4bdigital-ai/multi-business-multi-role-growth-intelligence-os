@@ -48,6 +48,7 @@ jobs:
         continue-on-error: true
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
@@ -70,20 +71,50 @@ jobs:
           const immutableReleaseMatch = /^release\/production-candidate-\d{8}-([0-9a-f]{8})-v[1-9][0-9]*$/u.exec(
             process.env.HEAD_REF || '',
           );
+
+          const resolveCommit = (ref) => execFileSync(
+            'git',
+            ['rev-parse', '--verify', `${ref}^{commit}`],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+          ).trim();
+          const resolveTree = (ref) => execFileSync(
+            'git',
+            ['rev-parse', '--verify', `${ref}^{tree}`],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+          ).trim();
+          const resolveParents = (ref) => {
+            const value = execFileSync(
+              'git',
+              ['show', '-s', '--format=%P', ref],
+              { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+            ).trim();
+            return value ? value.split(/\s+/u) : [];
+          };
+
           let immutableReleaseSourceInMain = false;
+          let historyPreservingMainReconciliation = false;
           if (immutableReleaseMatch && process.env.HEAD_SHA?.startsWith(immutableReleaseMatch[1])) {
             for (const mainRef of ['refs/remotes/origin/main', 'refs/heads/main']) {
               try {
-                execFileSync('git', ['rev-parse', '--verify', mainRef], { stdio: 'ignore' });
-                execFileSync(
-                  'git',
-                  ['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef],
-                  { stdio: 'ignore' },
-                );
-                immutableReleaseSourceInMain = true;
-                break;
+                const mainSha = resolveCommit(mainRef);
+                try {
+                  execFileSync(
+                    'git',
+                    ['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef],
+                    { stdio: 'ignore' },
+                  );
+                  immutableReleaseSourceInMain = true;
+                } catch {
+                  const parents = resolveParents(process.env.HEAD_SHA);
+                  historyPreservingMainReconciliation = /^[0-9a-f]{40}$/u.test(process.env.BASE_SHA || '')
+                    && parents.length === 2
+                    && parents[0] === mainSha
+                    && parents[1] === process.env.BASE_SHA
+                    && resolveTree(process.env.HEAD_SHA) === resolveTree(mainRef);
+                }
+                if (immutableReleaseSourceInMain || historyPreservingMainReconciliation) break;
               } catch {
-                // Fail closed and try the next canonical local ref.
+                // Fail closed and try the next canonical local main ref.
               }
             }
           }
@@ -91,21 +122,26 @@ jobs:
           const isGovernedRelease = process.env.BASE_REF === 'Production'
             && process.env.HEAD_REPOSITORY === process.env.REPOSITORY
             && governedContract
-            && (directMainRelease || immutableMainSnapshot);
+            && (directMainRelease || immutableMainSnapshot || historyPreservingMainReconciliation);
           const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
           const releaseIdentity = isGovernedRelease
             ? directMainRelease
               ? 'protected_main'
-              : 'immutable_main_snapshot'
+              : historyPreservingMainReconciliation
+                ? 'history_preserving_main_reconciliation'
+                : 'immutable_main_snapshot'
             : 'none';
-          const modeSource = isGovernedRelease && immutableMainSnapshot
-            ? 'governed_phase_contract_and_git_ancestry'
-            : 'governed_phase_contract';
+          const modeSource = historyPreservingMainReconciliation
+            ? 'governed_phase_contract_and_history_preserving_reconciliation'
+            : isGovernedRelease && immutableMainSnapshot
+              ? 'governed_phase_contract_and_git_ancestry'
+              : 'governed_phase_contract';
           const digest = createHash('sha256').update(raw).digest('hex');
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode_source=${modeSource}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `release_identity=${releaseIdentity}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `immutable_release_source_in_main=${immutableReleaseSourceInMain}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `history_preserving_reconciliation=${historyPreservingMainReconciliation}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `phase_contract_digest=${digest}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `feature_key=${String(contract.feature_key || '')}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `delivery_mode=${String(contract.delivery_mode || '')}\n`);
@@ -177,6 +213,7 @@ jobs:
           CANDIDATE_MODE_SOURCE: ${{ steps.candidate_mode.outputs.candidate_mode_source }}
           RELEASE_IDENTITY: ${{ steps.candidate_mode.outputs.release_identity }}
           IMMUTABLE_RELEASE_SOURCE_IN_MAIN: ${{ steps.candidate_mode.outputs.immutable_release_source_in_main }}
+          HISTORY_PRESERVING_RECONCILIATION: ${{ steps.candidate_mode.outputs.history_preserving_reconciliation }}
           PHASE_CONTRACT_DIGEST: ${{ steps.candidate_mode.outputs.phase_contract_digest }}
           CONTRACT_FEATURE_KEY: ${{ steps.candidate_mode.outputs.feature_key }}
           CONTRACT_DELIVERY_MODE: ${{ steps.candidate_mode.outputs.delivery_mode }}
@@ -230,6 +267,7 @@ jobs:
             'candidate_mode_source': os.environ.get('CANDIDATE_MODE_SOURCE') or 'unknown',
             'release_identity': os.environ.get('RELEASE_IDENTITY') or 'none',
             'immutable_release_source_in_main': os.environ.get('IMMUTABLE_RELEASE_SOURCE_IN_MAIN') == 'true',
+            'history_preserving_reconciliation': os.environ.get('HISTORY_PRESERVING_RECONCILIATION') == 'true',
             'governed_phase_contract': os.environ['PHASE_CONTRACT'],
             'governed_phase_contract_digest': os.environ.get('PHASE_CONTRACT_DIGEST') or None,
             'contract_feature_key': os.environ.get('CONTRACT_FEATURE_KEY') or None,
