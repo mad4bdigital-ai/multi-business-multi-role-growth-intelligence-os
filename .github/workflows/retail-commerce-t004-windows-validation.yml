@@ -1,0 +1,85 @@
+name: Retail Commerce T004 Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/retail-commerce-t004-production-schema-baseline-20260803
+    paths:
+      - ".github/workflows/retail-commerce-t004-windows-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-t004-collector:
+    name: Validate T004 collector exact candidate
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact T004 collector candidate
+        uses: actions/checkout@v5
+        with:
+          ref: cc852518fa07e503fffd1b3ed1e17d9059768015
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact identity and bounded scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "cc852518fa07e503fffd1b3ed1e17d9059768015"
+          git diff --name-only 38542d7b62324bcea26743fc01e8116e3ee66c7b...HEAD > "${RUNNER_TEMP}/changed-files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/changed-files.txt" | tr -d ' ')" = "4"
+          grep -Fxq '.github/workflows/retail-commerce-production-schema-baseline.yml' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'http-generic-api/test-retail-commerce-production-schema-baseline.mjs' "${RUNNER_TEMP}/changed-files.txt"
+          grep -Fxq 'specs/014-retail-commerce-operations-growth-os/production-schema-baseline-readiness.md' "${RUNNER_TEMP}/changed-files.txt"
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs
+          node --check http-generic-api/test-retail-commerce-production-schema-baseline.mjs
+
+      - name: Validate manual Production workflow contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/retail-commerce-production-schema-baseline.yml'
+          grep -Fq 'workflow_dispatch:' "$workflow"
+          test "$(grep -Ec '^  (pull_request|push|schedule):' "$workflow" || true)" = "0"
+          grep -Fq 'permissions:' "$workflow"
+          grep -Fq 'contents: read' "$workflow"
+          grep -Fq 'environment: Production' "$workflow"
+          grep -Fq 'READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE' "$workflow"
+          grep -Fq 'persist-credentials: false' "$workflow"
+          grep -Fq 'Initialize runtime report directory' "$workflow"
+          test "$(grep -Ec '^      REPORT_PATH:.*runner\.temp' "$workflow" || true)" = "0"
+          test "$(grep -Ec 'contents: write|actions: write|pull-requests: write|issues: write' "$workflow" || true)" = "0"
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run SELECT-only collector contract test
+        working-directory: http-generic-api
+        run: node test-retail-commerce-production-schema-baseline.mjs
+
+      - name: Run Retail Commerce specification baseline
+        working-directory: http-generic-api
+        run: node test-retail-commerce-specification-baseline.mjs
+
+      - name: Verify T004 remains truthfully open
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq -- '- [ ] T004 Record authoritative production schema and migration baseline separately from repository presence.' 'specs/014-retail-commerce-operations-growth-os/tasks.md'
+          grep -Fq 'State: `ready_for_authoritative_collection`.' 'specs/014-retail-commerce-operations-growth-os/production-schema-baseline-readiness.md'
