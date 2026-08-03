@@ -1,0 +1,143 @@
+name: Repair R6 binding patcher line scope
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-finalization-identity-approval-arm-base-4a049185
+    types: [reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-r6-binding-patcher-line-scope-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    name: Scope patcher to exact YAML binding lines
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/r6-bind-production-42177d36-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      BASE_REF: gpt/validate-finalization-identity-approval-arm-base-4a049185
+      TARGET_PATH: .github/workflows/exact-finalization-identity-approval-arm-validation-5816.yml
+    steps:
+      - name: Checkout exact PR base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify base lease
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
+          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          test "$(git rev-parse refs/remotes/origin/${BASE_REF})" = "$(git rev-parse HEAD)"
+
+      - name: Repair only generic cardinality logic
+        id: repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ['TARGET_PATH'])
+          text = path.read_text()
+
+          old_tuples = """          replacements = [
+              (os.environ['OLD_AUTHORIZATION_TOKEN'], os.environ['NEW_AUTHORIZATION_TOKEN']),
+              (os.environ['OLD_PRODUCTION_SHA'], os.environ['NEW_PRODUCTION_SHA']),
+              (os.environ['OLD_MERGED_AT'], os.environ['NEW_MERGED_AT']),
+          ]
+"""
+          new_tuples = """          replacements = [
+              (
+                  f\"      AUTHORIZATION_TOKEN: {os.environ['OLD_AUTHORIZATION_TOKEN']}\",
+                  f\"      AUTHORIZATION_TOKEN: {os.environ['NEW_AUTHORIZATION_TOKEN']}\",
+              ),
+              (
+                  f\"      EXPECTED_PRODUCTION_SHA: {os.environ['OLD_PRODUCTION_SHA']}\",
+                  f\"      EXPECTED_PRODUCTION_SHA: {os.environ['NEW_PRODUCTION_SHA']}\",
+              ),
+              (
+                  f\"      PRODUCTION_MERGED_AT: '{os.environ['OLD_MERGED_AT']}'\",
+                  f\"      PRODUCTION_MERGED_AT: '{os.environ['NEW_MERGED_AT']}'\",
+              ),
+          ]
+"""
+          old_checks = """          if old_present == [0, 0, 0] and all(count >= 1 for count in new_present):
+              print('R6 binding already patched; no mutation required.')
+              Path('/tmp/r6-already-patched').write_text('true\\n')
+              raise SystemExit(0)
+          if old_present != [1, 1, 1]:
+              raise SystemExit(f'Unexpected old binding cardinality: {old_present}')
+"""
+          new_checks = """          if old_present == [0, 0, 0] and new_present == [1, 1, 1]:
+              print('R6 binding already patched; no mutation required.')
+              Path('/tmp/r6-already-patched').write_text('true\\n')
+              raise SystemExit(0)
+          if old_present != [1, 1, 1] or new_present != [0, 0, 0]:
+              raise SystemExit(
+                  f'Unexpected exact binding cardinality: old={old_present}, new={new_present}'
+              )
+"""
+
+          old_counts = [text.count(old_tuples), text.count(old_checks)]
+          new_counts = [text.count(new_tuples), text.count(new_checks)]
+          if old_counts == [0, 0] and new_counts == [1, 1]:
+              Path('/tmp/already-repaired').write_text('true\n')
+              raise SystemExit(0)
+          if old_counts != [1, 1] or new_counts != [0, 0]:
+              raise SystemExit(
+                  f'Unexpected patcher-logic cardinality: old={old_counts}, new={new_counts}'
+              )
+          text = text.replace(old_tuples, new_tuples).replace(old_checks, new_checks)
+          path.write_text(text)
+          PY
+
+          if [[ -f /tmp/already-repaired ]]; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+          test "$(git diff --name-only)" = "${TARGET_PATH}"
+          git diff --check
+          grep -Fq 'AUTHORIZATION_TOKEN: {os.environ' "${TARGET_PATH}"
+          grep -Fq 'EXPECTED_PRODUCTION_SHA: {os.environ' "${TARGET_PATH}"
+          grep -Fq 'Unexpected exact binding cardinality' "${TARGET_PATH}"
+
+      - name: Commit repair
+        if: steps.repair.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${TARGET_PATH}"
+          test "$(git diff --cached --name-only)" = "${TARGET_PATH}"
+          git commit -m 'fix(validation): scope R6 patcher to exact binding lines'
+
+      - name: Push base without force after readback
+        if: steps.repair.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/${BASE_REF}" | awk '{print $1}')"
+          test "${remote_sha}" = "${{ github.event.pull_request.base.sha }}"
+          git push origin "HEAD:refs/heads/${BASE_REF}"
+
+      - name: Final readback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -z "$(git status --porcelain)"
+          grep -Fq 'Unexpected exact binding cardinality' "${TARGET_PATH}"
