@@ -1,0 +1,136 @@
+name: Temporary Frontend T016 Writer 97e4ee7
+
+on:
+  pull_request:
+    branches:
+      - gpt/tmp-frontend-t016-writer-base-97e4ee7-20260804
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: tmp-frontend-t016-writer-97e4ee7-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  write-generated-baseline:
+    name: Generate deterministic Frontend baseline
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/tmp-frontend-t016-source-97e4ee7-20260804' &&
+      github.event.pull_request.head.sha == '9d9df2a66f296baf38710e12882e30c44421b724' &&
+      github.event.pull_request.base.ref == 'gpt/tmp-frontend-t016-writer-base-97e4ee7-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_SOURCE_SHA: 9d9df2a66f296baf38710e12882e30c44421b724
+      EXPECTED_HEAD_REF: gpt/tmp-frontend-t016-source-97e4ee7-20260804
+      TRIGGER_PATH: docs/tmp-frontend-t016-writer-97e4ee7.md
+      GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
+      EXPECTED_CURRENT_BLOB: 440562278043eb76c9e1219c2b65d29794fb86c4
+    steps:
+      - name: Checkout exact temporary source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ github.token }}
+
+      - name: Verify immutable source and protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_SOURCE_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}".."${EXPECTED_SOURCE_SHA}")" -eq 1
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_SOURCE_SHA}")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${TRIGGER_PATH}"
+          test "$(git rev-parse "${EXPECTED_SOURCE_SHA}:${GENERATED_PATH}")" = "${EXPECTED_CURRENT_BLOB}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate and validate canonical Frontend surface
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Prove bounded deterministic output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain | awk '{print $2}')
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${GENERATED_PATH}"
+          first_blob="$(git hash-object "${GENERATED_PATH}")"
+          first_sha256="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          test "${first_blob}" != "${EXPECTED_CURRENT_BLOB}"
+          cp "${GENERATED_PATH}" "${RUNNER_TEMP}/frontend-first.json"
+          (
+            cd http-generic-api
+            CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          )
+          second_blob="$(git hash-object "${GENERATED_PATH}")"
+          second_sha256="$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')"
+          test "${second_blob}" = "${first_blob}"
+          test "${second_sha256}" = "${first_sha256}"
+          cmp "${RUNNER_TEMP}/frontend-first.json" "${GENERATED_PATH}"
+          git diff --check
+          test "$(git diff --name-only)" = "${GENERATED_PATH}"
+          jq -n \
+            --arg main_sha "${EXPECTED_MAIN_SHA}" \
+            --arg source_sha "${EXPECTED_SOURCE_SHA}" \
+            --arg previous_blob "${EXPECTED_CURRENT_BLOB}" \
+            --arg generated_blob "${second_blob}" \
+            --arg generated_sha256 "${second_sha256}" \
+            '{ok:true,main_sha:$main_sha,source_sha:$source_sha,previous_blob:$previous_blob,generated_blob:$generated_blob,generated_sha256:$generated_sha256,deterministic_second_generation:true,changed_paths:["http-generic-api/frontend-surface-dispatch.generated.json"],protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            | tee "${RUNNER_TEMP}/frontend-t016-writer-summary.json"
+
+      - name: Commit only generated artifact to temporary source
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated_blob="$(git hash-object "${GENERATED_PATH}")"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${GENERATED_PATH}"
+          mapfile -t staged < <(git diff --cached --name-only)
+          test "${#staged[@]}" -eq 1
+          test "${staged[0]}" = "${GENERATED_PATH}"
+          git commit -m 'chore(ci): materialize deterministic Frontend T016 baseline'
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_SOURCE_SHA}"
+          test "$(git rev-parse "HEAD:${GENERATED_PATH}")" = "${generated_blob}"
+          git push origin "HEAD:refs/heads/${EXPECTED_HEAD_REF}"
+
+      - name: Upload bounded no-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmp-frontend-t016-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/frontend-t016-writer-summary.json
+          if-no-files-found: warn
+          retention-days: 7
