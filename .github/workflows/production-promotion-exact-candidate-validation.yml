@@ -3,245 +3,187 @@ name: Exact Production Candidate Validation
 on:
   pull_request:
     branches:
-      - "gpt/validate-production-base"
-      - "gpt/validate-production-base-*"
-    types: [opened, synchronize, reopened, ready_for_review]
+      - gpt/validate-production-base-r7-arm-83b7-20260804
+    types: [opened, synchronize, reopened]
 
 permissions:
-  actions: write
   contents: read
 
 concurrency:
-  group: exact-production-candidate-${{ github.event.pull_request.number }}
+  group: exact-r7-arm-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  exact-candidate-ci:
+  exact-r7-arm:
+    name: Validate immutable R7 candidate on ARM
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/validate-production-candidate')
-    runs-on: ubuntu-latest
-    timeout-minutes: 55
+      startsWith(github.event.pull_request.head.ref, 'gpt/validate-production-candidate-r7-arm-')
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      CANONICAL_PR: '5908'
+      CANDIDATE_BRANCH: gpt/hostinger-production-runtime-readback-r7-20260804
+      CANDIDATE_SHA: 83b7ae3d0c76e895acd2c5e1858443cf9aa0a91b
+      MAIN_SHA: 58b98727e1ef254dd117a49619d4a9259fdaaf65
+      EVIDENCE_DIR: ${{ runner.temp }}/exact-r7-arm
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout exact canonical candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: 83b7ae3d0c76e895acd2c5e1858443cf9aa0a91b
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify pinned base and exact candidate tree
-        id: verify
+      - name: Verify validation refs, canonical refs, and exact scope
         shell: bash
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VALIDATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATION_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          VALIDATION_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          set -euo pipefail
-
-          for value in "$HEAD_SHA" "$BASE_SHA"; do
-            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::validation refs must resolve to exact lowercase 40-character SHAs"
-              exit 1
-            fi
-          done
-          case "$BASE_REF" in
-            gpt/validate-production-base|gpt/validate-production-base-*) ;;
-            *)
-              echo "::error::unexpected validation base branch: $BASE_REF"
-              exit 1
-              ;;
-          esac
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
 
           git fetch --no-tags origin \
-            "+refs/heads/$HEAD_REF:refs/remotes/origin/$HEAD_REF" \
-            "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
-          HEAD_READBACK="$(git rev-parse "refs/remotes/origin/$HEAD_REF")"
-          BASE_READBACK="$(git rev-parse "refs/remotes/origin/$BASE_REF")"
-          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
-            echo "::error::validation branches moved before exact-CI dispatch"
-            exit 1
-          fi
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA"; then
-            echo "::error::candidate tree differs from pinned validation base"
-            git diff --stat "$BASE_SHA" "$HEAD_SHA"
-            exit 1
-          fi
+            "+refs/heads/${VALIDATION_HEAD_REF}:refs/remotes/origin/${VALIDATION_HEAD_REF}" \
+            "+refs/heads/${VALIDATION_BASE_REF}:refs/remotes/origin/${VALIDATION_BASE_REF}" \
+            "+refs/heads/${CANDIDATE_BRANCH}:refs/remotes/origin/${CANDIDATE_BRANCH}" \
+            "+refs/heads/main:refs/remotes/origin/main"
 
-          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
-          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_HEAD_REF})" = "${VALIDATION_HEAD_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_BASE_REF})" = "${VALIDATION_BASE_SHA}"
+          git diff --quiet "${VALIDATION_BASE_SHA}" "${VALIDATION_HEAD_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_BRANCH})" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          git merge-base --is-ancestor "${MAIN_SHA}" "${CANDIDATE_SHA}"
 
-      - name: Dispatch Full CI on exact candidate branch
-        id: dispatch
+          git diff --name-only "${MAIN_SHA}" "${CANDIDATE_SHA}" | sort > "${EVIDENCE_DIR}/changed-files.txt"
+          cat > "${EVIDENCE_DIR}/expected-files.txt" <<'EOF'
+          .changes/e2e/hostinger-production-runtime-readback-r7.json
+          .github/workflows/hostinger-production-runtime-readback-r7.yml
+          http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          EOF
+          diff -u "${EVIDENCE_DIR}/expected-files.txt" "${EVIDENCE_DIR}/changed-files.txt"
+          git diff --check "${MAIN_SHA}" "${CANDIDATE_SHA}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate workflow YAML and focused R7 contract
+        working-directory: http-generic-api
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
-          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
         run: |
-          set -euo pipefail
-          DISPATCHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          gh workflow run ci.yml --ref "$HEAD_REF"
-
-          RUN_ID=""
-          for attempt in $(seq 1 30); do
-            RUN_ID="$(gh run list \
-              --workflow ci.yml \
-              --branch "$HEAD_REF" \
-              --event workflow_dispatch \
-              --limit 20 \
-              --json databaseId,headSha,createdAt \
-              --jq "map(select(.headSha == \"$HEAD_SHA\" and .createdAt >= \"$DISPATCHED_AT\"))[0].databaseId // empty")"
-            if [[ -n "$RUN_ID" ]]; then break; fi
-            sleep 5
-          done
-          if [[ -z "$RUN_ID" ]]; then
-            echo "::error::unable to resolve exact-candidate CI run"
-            exit 1
-          fi
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-
-          POLL_INTERVAL_SECONDS=30
-          RATE_LIMIT_BACKOFF_SECONDS=60
-          POLL_DEADLINE_EPOCH="$(( $(date +%s) + 2700 ))"
-          RUN_STATUS=""
-          RUN_CONCLUSION=""
-
-          while (( $(date +%s) < POLL_DEADLINE_EPOCH )); do
-            STATUS_FILE="$RUNNER_TEMP/exact-ci-status.json"
-            ERROR_FILE="$RUNNER_TEMP/exact-ci-status.err"
-            : > "$ERROR_FILE"
-
-            if gh run view "$RUN_ID" \
-              --json databaseId,event,headSha,status,conclusion \
-              > "$STATUS_FILE" 2> "$ERROR_FILE"; then
-              RUN_STATUS="$(jq -r '.status // ""' "$STATUS_FILE")"
-              RUN_CONCLUSION="$(jq -r '.conclusion // ""' "$STATUS_FILE")"
-              if [[ "$RUN_STATUS" == "completed" ]]; then
-                if [[ "$RUN_CONCLUSION" != "success" ]]; then
-                  echo "::error::exact-candidate CI completed with conclusion: $RUN_CONCLUSION"
-                  exit 1
-                fi
-                break
-              fi
-              sleep "$POLL_INTERVAL_SECONDS"
-              continue
-            fi
-
-            if grep -Eqi 'rate limit exceeded|HTTP 403' "$ERROR_FILE"; then
-              echo "::warning::GitHub API rate limit reached while polling exact CI; backing off for ${RATE_LIMIT_BACKOFF_SECONDS}s"
-              sleep "$RATE_LIMIT_BACKOFF_SECONDS"
-              continue
-            fi
-
-            cat "$ERROR_FILE" >&2
-            echo "::error::unable to poll exact-candidate CI"
-            exit 1
-          done
-
-          if [[ "$RUN_STATUS" != "completed" || "$RUN_CONCLUSION" != "success" ]]; then
-            echo "::error::exact-candidate CI did not complete successfully before the polling deadline"
-            exit 1
-          fi
-
-      - name: Verify exact CI result and branch freshness
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
-          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
-          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
-          HEAD_REF: ${{ steps.verify.outputs.head_ref }}
-          BASE_REF: ${{ steps.verify.outputs.base_ref }}
-        run: |
-          set -euo pipefail
-
-          VIEW_ERROR="$RUNNER_TEMP/exact-ci-view.err"
-          VIEW_OK=0
-          for attempt in $(seq 1 10); do
-            : > "$VIEW_ERROR"
-            if gh run view "$RUN_ID" \
-              --json databaseId,event,headSha,status,conclusion,jobs \
-              > "$RUNNER_TEMP/exact-ci-run.json" 2> "$VIEW_ERROR"; then
-              VIEW_OK=1
-              break
-            fi
-            if grep -Eqi 'rate limit exceeded|HTTP 403' "$VIEW_ERROR"; then
-              echo "::warning::GitHub API rate limit reached during final exact-CI readback; retrying after 60s"
-              sleep 60
-              continue
-            fi
-            cat "$VIEW_ERROR" >&2
-            exit 1
-          done
-          if [[ "$VIEW_OK" != "1" ]]; then
-            echo "::error::unable to obtain final exact-CI readback after bounded retries"
-            exit 1
-          fi
-
-          node - "$RUNNER_TEMP/exact-ci-run.json" "$HEAD_SHA" <<'NODE'
-          const fs = require("node:fs");
-          const [file, expectedSha] = process.argv.slice(2);
-          const run = JSON.parse(fs.readFileSync(file, "utf8"));
-          if (run.event !== "workflow_dispatch") throw new Error(`unexpected event: ${run.event}`);
-          if (run.headSha !== expectedSha) throw new Error(`head SHA mismatch: ${run.headSha}`);
-          if (run.status !== "completed" || run.conclusion !== "success") {
-            throw new Error(`CI not successful: ${run.status}/${run.conclusion}`);
-          }
-          const required = new Set([
-            "Syntax Check",
-            "Unit & Integration Tests",
-            "Execution Resolver Gate",
-            "Architecture Drift Detection",
-          ]);
-          for (const job of run.jobs || []) {
-            if (job.conclusion === "success") required.delete(job.name);
-          }
-          if (required.size) throw new Error(`missing successful jobs: ${[...required].join(", ")}`);
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import YAML from 'yaml';
+          const source = fs.readFileSync('../.github/workflows/hostinger-production-runtime-readback-r7.yml', 'utf8');
+          const parsed = YAML.parse(source);
+          if (parsed?.name !== 'Hostinger Production Runtime Readback R7') throw new Error('Unexpected workflow name');
+          if (!parsed?.jobs?.readback) throw new Error('Missing readback job');
+          console.log(JSON.stringify({ ok: true, workflow_yaml_valid: true, secrets_included: false }));
           NODE
+          node --check test-hostinger-production-runtime-readback-r7.mjs
+          node test-hostinger-production-runtime-readback-r7.mjs
 
-          HEAD_READBACK="$(git ls-remote --heads origin "refs/heads/$HEAD_REF" | awk '{print $1}')"
-          BASE_READBACK="$(git ls-remote --heads origin "refs/heads/$BASE_REF" | awk '{print $1}')"
-          if [[ "$HEAD_READBACK" != "$HEAD_SHA" || "$BASE_READBACK" != "$BASE_SHA" ]]; then
-            echo "::error::validation branches moved during exact-CI execution"
-            exit 1
-          fi
+      - name: Guard changed runtime hardcoding scope
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s\n' \
+            '.changes/e2e/hostinger-production-runtime-readback-r7.json' \
+            '.github/workflows/hostinger-production-runtime-readback-r7.yml' \
+            'http-generic-api/test-hostinger-production-runtime-readback-r7.mjs' \
+            > "${RUNNER_TEMP}/r7-changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="${RUNNER_TEMP}/r7-changed-files.txt"
 
+      - name: Evaluate and execute exact E2E contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${MAIN_SHA}" \
+            --head "${CANDIDATE_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${MAIN_SHA}" \
+            --head "${CANDIDATE_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-evaluation-run.json" \
+            --execution-report-file "${EVIDENCE_DIR}/e2e-execution.json"
+
+      - name: Run complete API Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          EXPECTED_TEST_CANDIDATE_SHA: 83b7ae3d0c76e895acd2c5e1858443cf9aa0a91b
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Install root resolver dependencies
+        run: npm ci
+
+      - name: Run Execution Resolver gate
+        run: |
+          npm run typecheck
+          npm test -- --runInBand
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+
+      - name: Re-read immutable candidate and publish summary
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VALIDATION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATION_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          VALIDATION_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          candidate_readback="$(git ls-remote origin refs/heads/${CANDIDATE_BRANCH} | awk '{print $1}')"
+          main_readback="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          validation_head_readback="$(git ls-remote origin refs/heads/${VALIDATION_HEAD_REF} | awk '{print $1}')"
+          validation_base_readback="$(git ls-remote origin refs/heads/${VALIDATION_BASE_REF} | awk '{print $1}')"
           jq -n \
-            --arg head_sha "$HEAD_SHA" \
-            --arg base_sha "$BASE_SHA" \
-            --arg head_ref "$HEAD_REF" \
-            --arg base_ref "$BASE_REF" \
-            --arg run_id "$RUN_ID" \
-            '{
-              schema_version: "production_promotion_exact_candidate_ci.v1",
-              ok: true,
-              candidate_sha: $head_sha,
-              validation_base_sha: $base_sha,
-              candidate_branch: $head_ref,
-              validation_base_branch: $base_ref,
-              ci_run_id: $run_id,
-              candidate_tree_matches_base: true,
-              branch_freshness_preserved: true,
-              merge_executed: false,
-              deployment_executed: false,
-              migration_executed: false,
-              provider_call_executed: false,
-              credential_payload_read: false,
-              secrets_included: false
-            }' > "$RUNNER_TEMP/production-promotion-exact-candidate-ci.json"
-          test -s "$RUNNER_TEMP/production-promotion-exact-candidate-ci.json"
+            --arg status "${JOB_STATUS}" \
+            --arg canonical_pr "${CANONICAL_PR}" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --arg candidate_readback "${candidate_readback}" \
+            --arg main_sha "${MAIN_SHA}" \
+            --arg main_readback "${main_readback}" \
+            --arg validation_head_sha "${VALIDATION_HEAD_SHA}" \
+            --arg validation_head_readback "${validation_head_readback}" \
+            --arg validation_base_sha "${VALIDATION_BASE_SHA}" \
+            --arg validation_base_readback "${validation_base_readback}" \
+            '{contract:"mad4b.exact-r7-arm-validation.v1",status:$status,canonical_pr:($canonical_pr|tonumber),candidate_sha:$candidate_sha,candidate_readback:$candidate_readback,main_sha:$main_sha,main_readback:$main_readback,validation_head_sha:$validation_head_sha,validation_head_readback:$validation_head_readback,validation_base_sha:$validation_base_sha,validation_base_readback:$validation_base_readback,candidate_immutable:($candidate_sha==$candidate_readback),main_immutable:($main_sha==$main_readback),validation_refs_immutable:($validation_head_sha==$validation_head_readback and $validation_base_sha==$validation_base_readback),candidate_content_mutation:false,main_mutation:false,production_mutation:false,provider_call:false,deployment:false,restart:false,credential_access:false,sql:false,migration_apply:false,database_mutation:false,force_push:false,external_send:false,secrets_included:false}' \
+            > "${EVIDENCE_DIR}/summary.json"
 
-      - name: Upload exact-candidate CI evidence
+      - name: Upload exact R7 ARM evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: production-promotion-exact-candidate-ci-${{ steps.verify.outputs.head_sha }}
+          name: exact-r7-arm-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/production-promotion-exact-candidate-ci.json
-            ${{ runner.temp }}/exact-ci-run.json
+            ${{ env.EVIDENCE_DIR }}/*
+            ${{ runner.temp }}/test-suite-reports/*.json
           if-no-files-found: error
           retention-days: 30
