@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-31.v4",
+  "version": "2026-08-03.v5",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -35,7 +35,7 @@
       "key": "pull-request-work-map-generated-artifacts",
       "kind": "pull_request_branch_write",
       "owner": "http-generic-api/scripts/platform-work-map-generator.mjs",
-      "required_concurrency_group": "${{ github.event_name == 'workflow_dispatch' && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, inputs.branch) || contains(github.event.pull_request.body, '<!-- work-map-autofix:authorized -->') && format('spec-kit-work-map-artifacts-{0}-{1}', github.repository, github.event.pull_request.head.ref) || format('spec-kit-work-map-noop-{0}', github.run_id) }}",
+      "required_concurrency_group": "spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}",
       "workflows": [
         { "path": ".github/workflows/spec-kit-work-map-autofix.yml", "access": "write" }
       ],
