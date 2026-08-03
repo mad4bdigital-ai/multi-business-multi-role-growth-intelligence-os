@@ -88,6 +88,8 @@ const commonBindingMarkers = [
   "external_writes: false",
   "secrets_included: false",
   "state_reason=completed",
+  "brand-skill-staging-preflight-execution-3809-v3",
+  "authorization_already_dispatched",
   "b6e5f7bd4a73803e4f062097a32bd9d8d17756ec:e1084397317a7f2645d78fc43a3064eef98fabaf:eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802:3",
 ];
 
@@ -105,7 +107,7 @@ for (const marker of [
   "push:",
   "branches: [main]",
   "RUN_BRAND_SKILL_STAGING_READ_ONLY_PREFLIGHT_E1084397_B6E5F7BD_ECA204DC",
-  "brand-skill-staging-preflight-push-fallback-3809-v3",
+  "brand-skill-staging-preflight-execution-3809-v3",
   "TRIGGER_ACTOR_ID: ${{ github.actor_id }}",
   "authorized_marker_push",
   ".body == \"${AUTHORIZATION_TOKEN}\"",
