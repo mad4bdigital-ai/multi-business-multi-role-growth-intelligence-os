@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "e2e-default-branch-sync-classification",
+  "title": "E2E default-branch synchronization classification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/e2e-default-branch-sync-classification.json",
+      ".github/workflows/e2e-phase-governance.yml",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify main-to-feature freshness pull requests as default-branch synchronization without re-evaluating unrelated feature contracts, while preserving fail-closed Production promotion and undeclared feature-branch rules.",
+      "e2e_journeys": [
+        {
+          "id": "classify-main-to-feature-sync-without-contract-cross-contamination",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "E2E Phase Governance runner",
+          "entrypoint": "The classifier self-test invokes the canonical PR gate in an isolated Git repository with a governed classifier change on main.",
+          "terminal_outcome": "main-to-feature synchronization is classified as default_branch_sync, main-to-Production remains a governed promotion, and undeclared feature branches still fail closed.",
+          "steps": [
+            "Create a governed synthetic baseline and change a scoped runtime classifier file on main.",
+            "Evaluate main targeting a non-Production feature branch and require default_branch_sync mode.",
+            "Verify the workflow skips complete feature-contract evaluation and journey execution only for default_branch_sync.",
+            "Evaluate main targeting Production and retain protected_main promotion identity.",
+            "Evaluate an undeclared feature branch targeting main and require bounded rejection."
+          ],
+          "assertions": [
+            "Unrelated contracts already present on main are not reclassified as changes owned by a branch freshness PR.",
+            "Production promotion is never treated as default_branch_sync.",
+            "Undeclared feature delivery remains fail closed.",
+            "No deployment, migration apply, database mutation, protected-ref update, provider dispatch, credential read, or external send occurs.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "e2e-default-branch-sync-classification-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-default-branch-sync-classification-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/e2e-default-branch-sync-classification.json",
+            ".github/workflows/e2e-phase-governance.yml",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+            "http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe default-branch synchronization classification across repository maintenance branches using canonical evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain diagnostics for malformed refs, spoofed Production identities, and missing candidate SHAs."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate one non-production main-to-feature synchronization PR."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Preserve exact protected main-to-Production classification without granting merge or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
