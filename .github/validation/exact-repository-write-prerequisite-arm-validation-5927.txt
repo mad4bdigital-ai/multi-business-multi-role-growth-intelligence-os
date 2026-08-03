@@ -1,0 +1,4 @@
+Exact read-only ARM validation trigger for canonical PR #5927.
+Validator base: 8561cd76b083edf9aae5355408631853d77586e5
+Candidate: 85f9a9935beceeaf2e9bb3978d866a246421c405
+No mutation authority.
