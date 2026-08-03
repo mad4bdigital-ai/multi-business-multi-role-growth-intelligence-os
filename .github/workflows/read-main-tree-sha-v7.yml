@@ -1,0 +1,64 @@
+name: Read Main Tree SHA V7
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: read-main-tree-sha-v7-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+  EXPECTED_HEAD_REF: gpt/diag/read-main-tree-14433d-v7-20260803
+  PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+  TRIGGER_PATH: .github/diagnostics/read-main-tree-sha-v7.txt
+
+jobs:
+  read:
+    name: Read immutable main tree identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail closed on exact PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$PATCHER_BASE_REF"
+
+      - name: Checkout exact trigger
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Resolve immutable main tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" = "1"
+          test -f "$TRIGGER_PATH"
+          tree_sha="$(git rev-parse "$EXPECTED_MAIN_SHA^{tree}")"
+          test -n "$tree_sha"
+          printf '{\n  "ok": true,\n  "commit_sha": "%s",\n  "tree_sha": "%s",\n  "permissions": "contents: read",\n  "ref_updated": false,\n  "secrets_included": false\n}\n' "$EXPECTED_MAIN_SHA" "$tree_sha" | tee "${RUNNER_TEMP}/main-tree-v7.json"
+
+      - name: Upload read-only tree identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-tree-v7-${{ github.run_id }}
+          path: ${{ runner.temp }}/main-tree-v7.json
+          if-no-files-found: error
+          retention-days: 3
