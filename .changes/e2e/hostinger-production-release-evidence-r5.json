@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-release-evidence-r5",
+  "title": "Hostinger Production release evidence R5",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-release-evidence-r5.json",
+      ".github/workflows/hostinger-production-release-evidence-r5.yml",
+      "http-generic-api/scripts/test-hostinger-production-release-evidence-r5.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Collect one authorization-bound, one-time, secret-safe evidence packet for the exact protected Production release 2669991a, combining authenticated Hostinger build-history GET evidence with bounded public runtime topology readback.",
+      "e2e_journeys": [
+        {
+          "id": "collect-current-production-build-and-runtime-evidence-r5",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and GitHub Actions",
+          "entrypoint": "R5 issue-comment trigger or typed workflow dispatch with an exact current main SHA",
+          "terminal_outcome": "The workflow verifies immutable authorization and repository bindings, collects GET-only provider and public runtime evidence, uploads one secret-free Artifact, and records a bounded classification in Incident #4953 without performing deployment or provider mutation.",
+          "steps": [
+            "Resolve an explicit full current main SHA from the exact R5 trigger or workflow input.",
+            "Checkout that exact trusted main head with persisted credentials disabled.",
+            "Verify Issue #4953 is open and authorization comment 5165194648 has the exact owner, token, Production SHA, merge timestamp, Hostinger account, domain, reporter blobs, and no-mutation boundary.",
+            "Require current main, protected Production, reporter blob, and reporter-test blob to equal their immutable bindings before the first metadata write.",
+            "Reject any prior claiming or completed marker for the same R5 binding.",
+            "Record a bounded one-time claim in Issue #4953.",
+            "Run the canonical Hostinger build reporter contract and collect build list or failed-build log evidence through authenticated GET only.",
+            "Read /health, /version, /deployment-info, and /connector-agent/version over bounded public HTTPS GET requests.",
+            "Redact credential-like keys, bound response sizes, combine build and topology evidence, and prove all side-effect flags false.",
+            "Upload one structured Artifact and publish only bounded build/runtime identity and classification fields to Issue #4953."
+          ],
+          "assertions": [
+            "The workflow requires an exact current main SHA and fails closed if main moves before execution.",
+            "The workflow is bound to protected Production 2669991a882c7f7939510fbbace17f462a42517c and merge time 2026-08-03T10:14:37Z.",
+            "The workflow validates the canonical reporter and test blobs before credential use.",
+            "HOSTINGER_API_TOKEN is used inside the Runner only and is scrubbed from every Artifact file.",
+            "Hostinger provider method is GET only and provider token returned is false.",
+            "Public runtime reads are bounded and recursively redact credential-like fields.",
+            "The workflow writes only a one-time claim and bounded completion metadata to Issue #4953.",
+            "No repository content or protected-ref mutation, build creation, deployment, release activation, restart, SQL execution, migration dry-run or Apply, database mutation, arbitrary SSH, or external business send occurs.",
+            "The issue remains open unless a separately reviewed same-cycle decision closes it after inspecting the Artifact.",
+            "Secrets included is false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-release-evidence-r5-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r5.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-release-evidence-r5.yml",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r5.mjs",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the reviewed R5 evidence workflow, post one exact trigger using the then-current main SHA, inspect the Artifact, and close or reclassify Incident #4953 from the resulting runtime proof."
+    }
+  ],
+  "secrets_included": false
+}
