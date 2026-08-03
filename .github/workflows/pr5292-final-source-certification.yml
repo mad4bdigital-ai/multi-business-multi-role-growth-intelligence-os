@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 20
     env:
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      EXPECTED_MAIN: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_MAIN: a61cd9e83070618001676bbc679bc937f0551875
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
       GH_TOKEN: ${{ github.token }}
 
