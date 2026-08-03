@@ -14,16 +14,50 @@ const target = readFileSync(
   "utf8",
 );
 
+function readBridgeEnv(name) {
+  const match = bridge.match(new RegExp(`^\\s+${name}:\\s*(?:'([^']*)'|([^\\s#]+))\\s*$`, "m"));
+  assert.ok(match, `dispatch bridge missing environment binding ${name}`);
+  return match[1] ?? match[2];
+}
+
+const authorizationCommentId = readBridgeEnv("AUTHORIZATION_COMMENT_ID");
+const authorizationToken = readBridgeEnv("AUTHORIZATION_TOKEN");
+const triggerToken = readBridgeEnv("TRIGGER_TOKEN");
+const workflowBlobSha = readBridgeEnv("EXPECTED_WORKFLOW_BLOB_SHA");
+const expectedProductionSha = readBridgeEnv("EXPECTED_PRODUCTION_SHA");
+const bindingId = readBridgeEnv("BINDING_ID");
+
+assert.match(authorizationCommentId, /^[1-9][0-9]*$/);
+assert.match(
+  authorizationToken,
+  /^AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C(?:_R[1-9][0-9]*)?$/,
+);
+assert.equal(
+  triggerToken,
+  authorizationToken.replace(/^AUTHORIZE_/, "RUN_"),
+  "trigger and authorization tokens must use the same one-time generation",
+);
+assert.match(workflowBlobSha, /^[a-f0-9]{40}$/);
+assert.match(expectedProductionSha, /^[a-f0-9]{40}$/);
+assert.equal(
+  bindingId,
+  `${expectedProductionSha}:${workflowBlobSha}:${authorizationCommentId}`,
+  "binding ID must be anchored to Production SHA, target workflow blob, and authorization comment",
+);
+
 for (const marker of [
   "workflow_dispatch:",
   "expected_head_sha:",
   "issue_comment:",
   "github.event.issue.pull_request == null",
   "github.event.issue.number == 4953",
-  "RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C expected_head_sha=",
-  "AUTHORIZATION_COMMENT_ID: '5161758022'",
+  "startsWith(github.event.comment.body, 'RUN_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C",
+  "expected_head_sha=",
+  "AUTHORIZATION_COMMENT_ID:",
   "AUTHORIZATION_USER_ID: '271942579'",
-  "AUTHORIZE_HOSTINGER_NODEJS_BUILD_EVIDENCE_F5C1AE88_09578A2C",
+  "AUTHORIZATION_TOKEN:",
+  "TRIGGER_TOKEN:",
+  "BINDING_ID:",
   "hostinger-nodejs-build-evidence.yml",
   "09578a2c9adcd0d1254b345248c33d2ba214d41f",
   "u338416126",
@@ -34,6 +68,7 @@ for (const marker of [
   '"main" || "${MUTATION_TARGET_BRANCH}" == "Production"',
   "CURRENT_HEAD_SHA=",
   'test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"',
+  'grep -Fq "${AUTHORIZATION_TOKEN}"',
   "/actions/workflows/${TARGET_WORKFLOW}/dispatches",
   "account_username:$account",
   "expected_sha:$expected",
