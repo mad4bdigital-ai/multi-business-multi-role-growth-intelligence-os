@@ -1,0 +1,111 @@
+name: Retail Commerce Exact-Head Windows Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/retail-commerce-reference-package-cleanroom-20260803
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/retail-commerce-exact-head-windows-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retail-commerce-exact-head-windows-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  EXACT_CANDIDATE_SHA: 90cd97bf0512fb929fa44955376b14c6dfc015b0
+  EXACT_BASE_SHA: a9660046e9d7169d90a418752c4045edae469516
+  FEATURE_ROOT: specs/014-retail-commerce-operations-growth-os
+
+jobs:
+  validate:
+    name: Validate exact retail-commerce candidate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout exact candidate tree
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXACT_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and package-only diff
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXACT_CANDIDATE_SHA}"
+          mapfile -t changed < <(git diff --name-only "${EXACT_BASE_SHA}" "${EXACT_CANDIDATE_SHA}")
+          test "${#changed[@]}" -eq 49
+          for file in "${changed[@]}"; do
+            case "${file}" in
+              "${FEATURE_ROOT}/"*) ;;
+              *) echo "Unexpected candidate path: ${file}"; exit 1 ;;
+            esac
+          done
+          printf '%s\n' "${changed[@]}"
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Parse all package JSON
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = process.env.FEATURE_ROOT;
+          const files = [];
+          const walk = (dir) => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (entry.name.endsWith('.json')) files.push(full);
+            }
+          };
+          walk(root);
+          for (const file of files.sort()) JSON.parse(fs.readFileSync(file, 'utf8'));
+          console.log(JSON.stringify({ ok: true, json_files: files.length, secrets_included: false }));
+          NODE
+
+      - name: Validate Work Map and Spec Kit contracts
+        run: |
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs
+
+      - name: Evaluate and execute exact E2E phase contract
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXACT_BASE_SHA}" \
+            --head "${EXACT_CANDIDATE_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXACT_BASE_SHA}" \
+            --head "${EXACT_CANDIDATE_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+      - name: Upload exact-head validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retail-commerce-exact-head-windows-${{ env.EXACT_CANDIDATE_SHA }}
+          path: |
+            ${{ runner.temp }}/e2e-phase-evaluation.json
+            ${{ runner.temp }}/e2e-phase-execution.json
+          if-no-files-found: warn
+          retention-days: 14
