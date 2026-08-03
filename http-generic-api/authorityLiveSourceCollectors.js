@@ -305,6 +305,7 @@ function mapAliasRow(row) {
   const endpointKey = token(row.endpoint_key, "endpoint_key");
   const alias = token(row.alias_key, "alias_key");
   const http = endpointHttpIdentity(row.endpoint_path_or_function, row.method, `alias.${endpointKey}.${alias}`);
+  const authorityTable = row.tool_name ? "platform_endpoint_tool_exports" : "endpoints";
   return baseRecord({
     pathKey: `compatibility-alias.${endpointKey}.${alias}`,
     canonicalToolKey: endpointKey,
@@ -314,9 +315,9 @@ function mapAliasRow(row) {
     handlerKey: optionalToken(row.route_target, "route_target") || `alias.${alias}`,
     authorityMode: http.route?.startsWith("/admin/") ? "admin_only" : "shared",
     status: activeStatus(row.status),
-    revisionSource: "endpoints.updated_at",
-    freshnessSource: "endpoints.updated_at",
-    revocationSource: "endpoints.status",
+    revisionSource: `${authorityTable}.updated_at`,
+    freshnessSource: `${authorityTable}.updated_at`,
+    revocationSource: `${authorityTable}.status`,
     aliases: [alias],
   });
 }
@@ -415,14 +416,6 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
     collectors[family] = async (context) => {
       validateContext(context, family);
       const plan = SOURCE_QUERIES[family];
-      const observedDate = new Date(clock());
-      if (Number.isNaN(observedDate.getTime())) {
-        throw new AuthorityLiveSourceCollectorError(
-          "authority_live_source_clock_invalid",
-          "clock must return a valid timestamp.",
-          { family },
-        );
-      }
       const rows = await queryRows({ queryKey: plan.queryKey, sql: plan.sql, params: [] });
       if (!Array.isArray(rows)) {
         throw new AuthorityLiveSourceCollectorError(
@@ -441,11 +434,20 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
       assertNoSensitiveValues(rows, `rows:${family}`);
       const records = rows.map(plan.mapper).filter(Boolean);
       assertNoSensitiveValues(records, `records:${family}`);
+      const observedDate = new Date(clock());
+      if (Number.isNaN(observedDate.getTime())) {
+        throw new AuthorityLiveSourceCollectorError(
+          "authority_live_source_clock_invalid",
+          "clock must return a valid timestamp.",
+          { family },
+        );
+      }
       const operationRef = token(context.operation_ref, "operation_ref");
+      const operationHash = sha256(operationRef).slice(0, 32);
       return {
         source_family: family,
         source_key: `live.${family}`,
-        source_identity: `${operationRef}.${family}.${sha256(records).slice(0, 16)}`,
+        source_identity: `live.${family}.${sha256({ operationRef, records }).slice(0, 32)}`,
         observed_at: observedDate.toISOString(),
         pagination: {
           expected_count: records.length,
@@ -454,7 +456,7 @@ export function createAuthorityLiveSourceCollectors({ queryRows, clock = () => n
           complete: true,
           next_cursor: null,
         },
-        evidence_refs: [`operation:${operationRef}`, `query:${plan.queryKey}`],
+        evidence_refs: [`operation-sha256:${operationHash}`, `query:${plan.queryKey}`],
         records,
         safety: {
           read_only: true,
