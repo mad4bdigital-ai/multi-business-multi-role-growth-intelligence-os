@@ -32,7 +32,7 @@ jobs:
       PROGRAM_PATH: .github/ops/hostinger-production-resync-policy-finalize-v7.mjs
       EXPECTED_PROGRAM_BLOB: 02e5ab84765612c411123650bc530fe7eb508971
       HELPER_PATH: .github/ops/repair-capability-envelope-approval-alias-v1.mjs
-      EXPECTED_HELPER_BLOB: 634d9de6383106222fd0984634e4964092d6fc40
+      EXPECTED_HELPER_BLOB: 82d344109866779ad44aca299f19edb178e778c3
       WORKFLOW_PATH: .github/workflows/finalize-hostinger-production-resync-policy-v7.yml
       RUNTIME_BASE_URL: https://auth.mad4b.com
       R6_RUN_ID: '30821248381'
