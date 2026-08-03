@@ -1,4 +1,4 @@
-name: Exact Phase G Schema ARM Validation
+name: Work Map Writer Diagnostics Reconciliation
 
 on:
   pull_request:
@@ -7,99 +7,210 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
+  group: work-map-writer-diagnostics-reconcile-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  closure-validation:
-    name: Exact Lifecycle and Frontend Closure
+  reconcile:
+    name: Reconcile writer diagnostics with latest main
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
-      github.event.pull_request.head.sha == '55dfe403c741f996e30979dca9adfeb9c18a2612'
+      github.event.pull_request.head.ref == 'gpt/work-map-writer-diagnostics-v3-20260803' &&
+      github.event.pull_request.head.sha == '3f15080c4f6374c877a0a7f6ee748c863b04e175'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 45
     env:
-      EXPECTED_MAIN_SHA: dd929093dd83d2c91ac817ff60d324eca2b71e51
-      EXPECTED_HEAD_SHA: 55dfe403c741f996e30979dca9adfeb9c18a2612
-      CI_CANDIDATE_KIND: head
-      CI_CANDIDATE_SHA: 55dfe403c741f996e30979dca9adfeb9c18a2612
-      CI_SOURCE_HEAD_SHA: 55dfe403c741f996e30979dca9adfeb9c18a2612
+      EXPECTED_OLD_HEAD: 3f15080c4f6374c877a0a7f6ee748c863b04e175
+      EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
+      TARGET_BRANCH: gpt/work-map-writer-diagnostics-v3-20260803
+      WORKFLOW_PATH: .github/workflows/spec-kit-work-map-autofix.yml
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact diagnostics branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.EXPECTED_OLD_HEAD }}
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Verify immutable identity synchronization and scope
+      - name: Verify immutable branch identity
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | wc -l)" = "14"
-          test -z "$(git status --porcelain --untracked-files=no)"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_OLD_HEAD}"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_OLD_HEAD}"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse FETCH_HEAD)" = "${EXPECTED_MAIN_SHA}"
 
-      - name: Install HTTP API dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Reconfirm E2E contract reference integrity
+      - name: Create history-preserving merge and isolate conflict
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file artifacts/e2e-contract-reference-integrity.json
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file artifacts/e2e-contract-reference-integrity.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e
+          git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
+          merge_status=$?
+          set -e
+          test "${merge_status}" = "1"
+          git diff --name-only --diff-filter=U | LC_ALL=C sort > /tmp/conflicts.txt
+          printf '%s\n' "${WORKFLOW_PATH}" > /tmp/expected-conflicts.txt
+          diff -u /tmp/expected-conflicts.txt /tmp/conflicts.txt
+          git checkout --theirs -- "${WORKFLOW_PATH}"
 
-      - name: Run Repository Tool Lifecycle with exact SHA inputs
-        shell: bash
-        env:
-          BASE_SHA: dd929093dd83d2c91ac817ff60d324eca2b71e51
-          CANDIDATE_SHA: 55dfe403c741f996e30979dca9adfeb9c18a2612
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > /tmp/repository-tool-changes.tsv
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files /tmp/repository-tool-changes.tsv --policy .github/repository-maintenance-tool-governance.json --output-dir .artifacts/repository-tool-lifecycle
-          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('.artifacts/repository-tool-lifecycle/repository-tool-lifecycle-report.json','utf8')); if(!r.ok || r.findings.length || r.base_sha !== process.env.BASE_SHA || r.candidate_sha !== process.env.CANDIDATE_SHA) process.exit(1);"
-
-      - name: Run deterministic Frontend parity
-        working-directory: http-generic-api
+      - name: Reapply full-set diagnostics over current main workflow
         shell: bash
         run: |
           set -euo pipefail
-          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
-          node test-frontend-dispatch-workflow-baseline.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          node test-openapi-route-coverage.mjs
-          npm run openapi:auth:check
-          test -z "$(git status --porcelain --untracked-files=no)"
+          python - <<'PY'
+          from pathlib import Path
 
-      - name: Upload closure evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: exact-schema-classification-closure-${{ github.run_id }}
-          path: |
-            artifacts/e2e-contract-reference-integrity.json
-            .artifacts/repository-tool-lifecycle/
-          if-no-files-found: error
-          retention-days: 14
+          path = Path('.github/workflows/spec-kit-work-map-autofix.yml')
+          text = path.read_text(encoding='utf-8')
+          start_marker = '      - name: Validate generator and governance contracts\n'
+          end_marker = '      - name: Regenerate and prove idempotency\n'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+
+          checks = [
+              ('Syntax check platform Work Map generator', 'validate_generator_syntax', 'platform-work-map-generator-syntax', 'validation-01-platform-work-map-generator-syntax.log', 'node --check http-generic-api/scripts/platform-work-map-generator.mjs'),
+              ('Syntax check Work Map schema intelligence', 'validate_schema_intelligence_syntax', 'platform-work-map-schema-intelligence-syntax', 'validation-02-platform-work-map-schema-intelligence-syntax.log', 'node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs'),
+              ('Syntax check Work Map schema classification', 'validate_schema_classification_syntax', 'work-map-schema-classification-syntax', 'validation-03-work-map-schema-classification-syntax.log', 'node --check http-generic-api/scripts/work-map-schema-classification.mjs'),
+              ('Syntax check Work Map schema contract', 'validate_schema_contract_syntax', 'work-map-schema-classification-contract-syntax', 'validation-04-work-map-schema-contract-syntax.log', 'node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs'),
+              ('Syntax check pipeline connectivity validator', 'validate_connectivity_syntax', 'pipeline-connectivity-check-syntax', 'validation-05-pipeline-connectivity-syntax.log', 'node --check http-generic-api/scripts/pipeline-connectivity-check.mjs'),
+              ('Validate pipeline connectivity graph', 'validate_connectivity_graph', 'pipeline-connectivity-check', 'validation-06-pipeline-connectivity-check.log', 'node http-generic-api/scripts/pipeline-connectivity-check.mjs'),
+              ('Test pipeline connectivity contract', 'test_connectivity_contract', 'test-pipeline-connectivity-check', 'validation-07-test-pipeline-connectivity-check.log', 'node http-generic-api/test-pipeline-connectivity-check.mjs'),
+              ('Validate Work Map schema classification contract', 'validate_schema_contract', 'work-map-schema-classification-contract', 'validation-08-work-map-schema-classification-contract.log', 'node http-generic-api/scripts/work-map-schema-classification-contract.mjs'),
+              ('Validate Work Map schema classification', 'validate_schema_classification', 'work-map-schema-classification', 'validation-09-work-map-schema-classification.log', 'node http-generic-api/scripts/work-map-schema-classification.mjs'),
+              ('Test Work Map schema classification', 'test_schema_classification', 'test-work-map-schema-classification', 'validation-10-test-work-map-schema-classification.log', 'node http-generic-api/test-work-map-schema-classification.mjs'),
+              ('Test Work Map schema classification contract', 'test_schema_classification_contract', 'test-work-map-schema-classification-contract', 'validation-11-test-work-map-schema-classification-contract.log', 'node http-generic-api/test-work-map-schema-classification-contract.mjs'),
+          ]
+
+          step_template = '''      - name: __DISPLAY__
+            id: __ID__
+            continue-on-error: true
+            run: |
+              set -uo pipefail
+              log="${DIAGNOSTIC_ROOT}/__LOG__"
+              set +e
+              __COMMAND__ >"${log}" 2>&1
+              status=$?
+              set -e
+              cat "${log}"
+              printf '%s\\t%s\\t%s\\n' "__KEY__" "${status}" "${log##*/}" >> "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+              exit "${status}"
+
+          '''
+          rendered_steps = []
+          for display, step_id, key, log, command in checks:
+              rendered_steps.append(
+                  step_template
+                  .replace('__DISPLAY__', display)
+                  .replace('__ID__', step_id)
+                  .replace('__KEY__', key)
+                  .replace('__LOG__', log)
+                  .replace('__COMMAND__', command)
+              )
+
+          env_lines = '\n'.join(
+              f"          VALIDATE_{index:02d}: ${{{{ steps.{step_id}.outcome }}}}"
+              for index, (_, step_id, _, _, _) in enumerate(checks, start=1)
+          )
+          records = []
+          for index, (_, _, key, _, _) in enumerate(checks, start=1):
+              suffix = ' \\' if index < len(checks) else ''
+              records.append(f'                "{key}=${{VALIDATE_{index:02d}}}"{suffix}')
+          record_lines = '\n'.join(records)
+
+          aggregate = f'''      - name: Validate generator and governance contracts
+            id: validate
+            env:
+          {env_lines}
+            run: |
+              set -euo pipefail
+              summary="${{DIAGNOSTIC_ROOT}}/validation-summary.md"
+              {{
+                echo "## Validation outcomes"
+                echo
+                echo "| Check | Outcome |"
+                echo "|---|---|"
+              }} > "${{summary}}"
+
+              failed=0
+              for record in \\
+          {record_lines}
+              do
+                check="${{record%%=*}}"
+                outcome="${{record#*=}}"
+                printf '| `%s` | `%s` |\\n' "${{check}}" "${{outcome}}" >> "${{summary}}"
+                if [[ "${{outcome}}" != "success" ]]; then
+                  failed=1
+                fi
+              done
+
+              if [[ "${{failed}}" != "0" ]]; then
+                awk -F '\\t' '$2 != "0" {{ if (count++) printf ","; printf "%s", $1 }} END {{ if (count) print "" }}' \\
+                  "${{DIAGNOSTIC_ROOT}}/validation-results.tsv" > "${{DIAGNOSTIC_ROOT}}/failed-validation-contract.txt"
+                awk -F '\\t' '$2 != "0" {{ print $2; exit }}' \\
+                  "${{DIAGNOSTIC_ROOT}}/validation-results.tsv" > "${{DIAGNOSTIC_ROOT}}/failed-validation-exit-code.txt"
+              fi
+
+              cat "${{summary}}"
+              test "${{failed}}" = "0"
+
+          '''
+
+          replacement = ''.join(rendered_steps) + aggregate
+          text = text[:start] + replacement + text[end:]
+
+          summary_insert = '''          if [[ -f "${DIAGNOSTIC_ROOT}/validation-summary.md" ]]; then
+                {
+                  echo
+                  cat "${DIAGNOSTIC_ROOT}/validation-summary.md"
+                } >> "${DIAGNOSTIC_ROOT}/report.md"
+              fi
+
+          '''
+          jq_marker = '          jq -n \\\n'
+          jq_index = text.index(jq_marker, text.index('      - name: Finalize diagnostic evidence'))
+          text = text[:jq_index] + summary_insert + text[jq_index:]
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          git add "${WORKFLOW_PATH}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+      - name: Verify resolved merge scope and workflow structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --cached --name-only | wc -l)" = "1"
+          test "$(git diff --cached --name-only)" = "${WORKFLOW_PATH}"
+          git diff --cached --check
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' "${WORKFLOW_PATH}"
+          grep -q '^  workflow_dispatch:' "${WORKFLOW_PATH}"
+          test "$(grep -c '^      - name: .*Work Map\|^      - name: .*pipeline connectivity\|^      - name: Validate generator and governance contracts' "${WORKFLOW_PATH}")" -ge "8"
+          for id in validate_generator_syntax validate_schema_intelligence_syntax validate_schema_classification_syntax validate_schema_contract_syntax validate_connectivity_syntax validate_connectivity_graph test_connectivity_contract validate_schema_contract validate_schema_classification test_schema_classification test_schema_classification_contract validate; do
+            grep -q "        id: ${id}$" "${WORKFLOW_PATH}"
+          done
+          grep -q 'validation-summary.md' "${WORKFLOW_PATH}"
+          grep -q 'failed-validation-contract.txt' "${WORKFLOW_PATH}"
+          grep -q 'failed-validation-exit-code.txt' "${WORKFLOW_PATH}"
+          grep -q 'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}' "${WORKFLOW_PATH}"
+          test "$(git rev-list --parents -n 1 HEAD | wc -w)" = "2"
+
+      - name: Commit merge and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_OLD_HEAD}"
+          git commit -m "chore(sync): reconcile Work Map writer diagnostics with main"
+          new_head="$(git rev-parse HEAD)"
+          test "$(git rev-list --parents -n 1 "${new_head}" | wc -w)" = "3"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
