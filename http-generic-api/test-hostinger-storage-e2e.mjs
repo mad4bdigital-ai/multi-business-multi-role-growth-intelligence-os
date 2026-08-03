@@ -23,6 +23,10 @@ function runStructuredTest(path, expectedGate) {
   return report;
 }
 
+const sharedState = runStructuredTest(
+  'test-hostinger-storage-mvp-shared-operation-state.mjs',
+  'hostinger_storage_mvp_shared_operation_state',
+);
 const route = runStructuredTest(
   'test-hostinger-storage-tenant-runtime-route.mjs',
   'hostinger_storage_tenant_runtime_route',
@@ -32,7 +36,20 @@ const durable = runStructuredTest(
   'hostinger_storage_control_plane_repository',
 );
 
-assert.notEqual(route.gate, durable.gate, 'Child reports must remain independently attributable');
+assert.equal(sharedState.journey_id, JOURNEY_ID);
+assert.equal(sharedState.mounted_route, 'POST /tenant/storage-operations/apply-plan');
+assert.equal(sharedState.shared_operation_state, true);
+assert.equal(sharedState.same_repository_identity_preserved, true);
+assert.equal(sharedState.same_repository_operation_completed, true);
+assert.equal(sharedState.same_repository_immutable_plan_consumed, true);
+assert.equal(sharedState.same_repository_immutable_plan_bindings_preserved, true);
+assert.equal(sharedState.same_repository_append_only_approvals_preserved, true);
+assert.equal(sharedState.same_repository_prepared_result_readback_journal, true);
+assert.equal(sharedState.same_repository_reconciliation_recorded, true);
+assert.equal(sharedState.same_repository_tenant_readback_bound, true);
+assert.equal(sharedState.one_shot_enablement_consumed, true);
+assert.equal(sharedState.provider_dispatch_allowed, false);
+assert.equal(sharedState.production_ready, false);
 
 assert.equal(route.mounted_route, 'POST /tenant/storage-operations/apply-plan');
 assert.equal(route.context_kernel_mutation_gate, true);
@@ -43,13 +60,6 @@ assert.equal(route.request_authority_injection_rejected_before_resolution, true)
 assert.equal(route.expected_sha_mismatch_rejected_before_canary_dispatch, true);
 assert.equal(route.cross_tenant_context_rejected, true);
 assert.equal(route.tenant_safe_readback, true);
-assert.equal(route.shared_operation_state, true);
-assert.equal(route.same_repository_operation_completed, true);
-assert.equal(route.same_repository_immutable_plan_consumed, true);
-assert.equal(route.same_repository_append_only_approvals_preserved, true);
-assert.equal(route.same_repository_prepared_result_readback_journal, true);
-assert.equal(route.same_repository_reconciliation_recorded, true);
-assert.equal(route.same_repository_tenant_readback_bound, true);
 assert.equal(route.provider_dispatch_allowed, false);
 assert.equal(route.production_ready, false);
 
@@ -64,7 +74,7 @@ assert.equal(durable.production_ready, false);
 
 console.log(JSON.stringify({
   ok: true,
-  gate: 'hostinger_storage_mvp_shared_operation_state',
+  gate: 'hostinger_storage_mvp_shared_operation_state_convergence',
   journey_id: JOURNEY_ID,
   end_to_end: true,
   level: 'synthetic_runtime',
@@ -72,6 +82,7 @@ console.log(JSON.stringify({
   entrypoint: 'POST /tenant/storage-operations/apply-plan',
   terminal_outcome: 'same_operation_completed_with_persisted_journal_reconciliation_and_tenant_readback',
   child_contracts: {
+    shared_operation_state_gate: sharedState.gate,
     mounted_route_gate: route.gate,
     durable_repository_gate: durable.gate,
   },
@@ -79,8 +90,10 @@ console.log(JSON.stringify({
     mounted_route_contract_passed: true,
     durable_repository_contract_passed: true,
     context_and_effective_authority_resolved: true,
+    same_repository_identity_preserved: true,
     same_repository_operation_completed: true,
     immutable_plan_and_single_use_consumption: true,
+    immutable_plan_bindings_preserved: true,
     append_only_approvals_preserved: true,
     fixed_synthetic_worker_dispatch: true,
     prepared_result_readback_journal_persisted: true,
