@@ -62,16 +62,16 @@
 
 ## Phase 5 — Validation Lab and Structured CI
 
-- [ ] T180 Add disposable MariaDB-compatible validation environment.
-- [ ] T181 Record engine, SQL mode, collation, constraints, indexes, schema diff, and rollback assessment.
-- [ ] T182 Block migration apply authorization without engine validation.
-- [ ] T183 Add structured CI failure artifact schema and reporter.
-- [ ] T184 Add contract drift gate.
-- [ ] T185 Add state-machine model gate.
-- [ ] T186 Add idempotency replay and unknown-outcome gates.
-- [ ] T187 Add delegation-boundary and policy-drift gates.
-- [ ] T188 Add semantic JSON, YAML, OpenAPI, and completion mutation gates.
-- [ ] T189 Fail CI checks that do not emit structured diagnosis.
+- [x] T180 Add disposable MariaDB-compatible validation environment.
+- [x] T181 Record engine, SQL mode, collation, constraints, indexes, schema diff, and rollback assessment.
+- [x] T182 Block migration apply authorization without engine validation.
+- [x] T183 Add structured CI failure artifact schema and reporter.
+- [x] T184 Add contract drift gate.
+- [x] T185 Add state-machine model gate.
+- [x] T186 Add idempotency replay and unknown-outcome gates.
+- [x] T187 Add delegation-boundary and policy-drift gates.
+- [x] T188 Add semantic JSON, YAML, OpenAPI, and completion mutation gates.
+- [x] T189 Fail CI checks that do not emit structured diagnosis.
 
 ## Phase 6 — Managed PR and Release Lifecycle
 
