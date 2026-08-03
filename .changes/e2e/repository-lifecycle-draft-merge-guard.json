@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-lifecycle-draft-merge-guard",
+  "title": "Repository lifecycle Draft merge guard",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+      "http-generic-api/githubRepositoryLifecycle.js",
+      "http-generic-api/repositoryAutomationControlPlane.js",
+      "http-generic-api/test-github-repository-lifecycle.mjs",
+      "http-generic-api/test-repository-automation-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent repository automation from converting a Draft PR to Ready and immediately finalizing it, and reject Draft state both in the CI gate and immediately before the merge request.",
+      "e2e_journeys": [
+        {
+          "id": "draft-pr-fails-before-merge-endpoint",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_automation_operator",
+          "entrypoint": "finalizeGithubPullRequest",
+          "terminal_outcome": "A Draft PR is blocked before any PUT /pulls/{number}/merge request, including a Ready-to-Draft race after the initial CI gate.",
+          "steps": [
+            "Build a passing required-check set for an exact protected-main pull request candidate.",
+            "Prove the CI gate returns blocked when the candidate is Draft.",
+            "Prove a candidate that becomes Draft after the gate is rejected by the final pre-merge readback.",
+            "Prove automatic pr_delivery and full_workstream plans no longer include mark_ready immediately before pr_finalize."
+          ],
+          "assertions": [
+            "Draft state is included in structured CI-gate evidence.",
+            "Draft candidates cannot produce gate_status=pass.",
+            "A final Draft readback throws github_pr_finalize_draft_blocked.",
+            "No merge endpoint request is issued after the Draft race.",
+            "Mark-ready remains available only as a separately invoked capability and is absent from automatic finalize templates."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-lifecycle-draft-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-automation-control-plane-readiness-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/repositoryAutomationControlPlane.js",
+            "http-generic-api/test-github-repository-lifecycle.mjs",
+            "http-generic-api/test-repository-automation-control-plane.mjs",
+            "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5021"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add audit-log actor binding and immutable approval evidence before protected-main finalization."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove concurrency-safe Draft/Ready transitions across workflow retries and merge queues."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository lifecycle guard has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This patch grants no Production, deployment, or provider authority."
+    }
+  ],
+  "secrets_included": false
+}

@@ -367,11 +367,14 @@ export async function getGithubPullRequestCiGate(options = {}) {
   const failedChecks = required.filter((item) => item.present && item.status === "completed" && item.conclusion !== "success").map((item) => item.name);
   const baseFresh = Number(compare?.behind_by || 0) === 0;
   const mergeable = pr?.mergeable !== false && String(pr?.mergeable_state || "").toLowerCase() !== "dirty";
-  const gateStatus = baseFresh && mergeable && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";
+  const isDraft = pr?.draft === true;
+  const gateStatus = baseFresh && mergeable && !isDraft && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";
   return {
     ok: true,
     pull_number: pullNumber,
     gate_status: gateStatus,
+    is_draft: isDraft,
+    ready_for_merge: !isDraft,
     head_sha: headSha,
     base_ref: baseRef,
     base_sha: pr?.base?.sha || null,
@@ -436,6 +439,15 @@ export async function finalizeGithubPullRequest(options = {}) {
   }
 
   const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;
+  if (pr?.draft === true) {
+    throw lifecycleError(409, "github_pr_finalize_draft_blocked", "Draft pull requests cannot be finalized or merged.", {
+      pull_number: pullNumber,
+      expected_head_sha: expectedHeadSha,
+      expected_base_sha: expectedBaseSha,
+      is_draft: true,
+      secrets_included: false,
+    });
+  }
   const merge = await githubLifecycleRequest({
     owner,
     repo,
