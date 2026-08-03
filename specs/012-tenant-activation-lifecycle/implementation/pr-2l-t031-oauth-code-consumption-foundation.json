@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "phase_key": "oauth-code-consumption-and-token-response-foundation",
+  "task_id": "T031",
+  "status": "live_store_hardening_complete_route_policy_wiring_required",
+  "observed_main_sha": "773179a2dee3523c8af25262475ac83b92e46f21",
+  "observed_at": "2026-08-04",
+  "authority": {
+    "requirements": ["FR-003", "FR-004"],
+    "concern": "C-007",
+    "operation_path": "OP-003",
+    "tasks": "specs/012-tenant-activation-lifecycle/tasks.md"
+  },
+  "implementation": {
+    "authorization_code_store": "http-generic-api/tenantGptOAuthAuthorizationCodeStore.js",
+    "token_outcome_policy": "http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js",
+    "store_test": "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+    "policy_test": "http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs",
+    "readiness_test": "http-generic-api/test-spec012-t031-oauth-code-consumption-foundation.mjs"
+  },
+  "effects": {
+    "authorization_code_store_runtime_behavior_changed": true,
+    "classified_consumption_readback_active": true,
+    "zero_row_conflict_readback_active": true,
+    "transport_error_readback_active": true,
+    "transport_error_rethrown_with_safe_readback": true,
+    "route_policy_runtime_wired": false,
+    "oauth_response_contract_changed": false
+  },
+  "consumption_contract": {
+    "atomic_update": true,
+    "hashed_code_identity": true,
+    "client_binding": true,
+    "redirect_binding": true,
+    "issued_only": true,
+    "unconsumed_only": true,
+    "unexpired_only": true,
+    "expiry_clock_authority": "database_utc_timestamp_3",
+    "readback_after_zero_affected_rows": true,
+    "readback_after_store_transport_error": true,
+    "store_transport_error_preserved": true,
+    "safe_readback_attached_to_error": true,
+    "outcomes": [
+      "consumed",
+      "not_found",
+      "binding_mismatch",
+      "expired",
+      "already_consumed",
+      "revoked",
+      "issued_not_consumed",
+      "consumption_outcome_unknown",
+      "store_unavailable_code_still_issued"
+    ],
+    "raw_code_returned": false,
+    "secrets_included": false
+  },
+  "ambiguity_policy": {
+    "verified_invalid_grant_http_status": 400,
+    "dependency_unavailable_http_status": 503,
+    "consumed_without_response_http_status": 503,
+    "consumed_code_replay_allowed": false,
+    "unknown_consumption_replay_allowed": false,
+    "issued_readback_retry_may_be_allowed": true,
+    "unknown_outcome_requires_reconciliation": true,
+    "restart_authorization_only_for_verified_invalid_grant": true,
+    "route_wiring_status": "not_wired",
+    "secrets_included": false
+  },
+  "test_coverage": [
+    "first atomic consumption succeeds",
+    "replay is classified already_consumed",
+    "concurrent exchange produces exactly one winner",
+    "wrong client or callback is binding_mismatch",
+    "expired code is classified by database clock",
+    "disconnect after commit rethrows with consumption_outcome_unknown readback",
+    "disconnect before commit rethrows with issued readback and bounded retry metadata",
+    "unavailable update and readback rethrow and fail closed",
+    "post-consumption response failure forbids same-code replay",
+    "OAuth error and store-readback evidence contain no raw code, token, header, or secret"
+  ],
+  "runtime_integration_gate": {
+    "auth_token_route_reordered_before_consumption": false,
+    "consumption_outcome_policy_wired": false,
+    "post_consumption_failure_response_wired": false,
+    "token_response_commit_diagnostic_wired": false,
+    "exact_route_regression_complete": false,
+    "live_exchange_readback_complete": false,
+    "required_before_completion": [
+      "validate user and active membership before code consumption",
+      "prepare token claims before the atomic consume gate",
+      "wire classified consumption outcomes and attached store-error readback into stable OAuth errors",
+      "return temporarily_unavailable for unknown outcomes",
+      "forbid same-code replay after consumed or unknown outcomes",
+      "record consumed-without-committed-response evidence",
+      "preserve no-store and pragma no-cache behavior",
+      "verify concurrent exchange through the route",
+      "verify post-consumption failure through the route",
+      "perform exact-environment readback before marking T031 complete"
+    ]
+  },
+  "non_effects": {
+    "auth_route_changed": false,
+    "oauth_response_changed": false,
+    "jwt_claim_changed": false,
+    "database_schema_changed": false,
+    "database_mutation_performed_during_delivery": false,
+    "migration_applied": false,
+    "production_deployed": false,
+    "credential_read_performed": false,
+    "provider_call_performed": false,
+    "external_send_performed": false,
+    "force_push_performed": false,
+    "secrets_included": false
+  }
+}
