@@ -1,0 +1,92 @@
+name: Validate Generated Refresh V3 Head on Ubuntu 24.04
+run-name: Validate Generated Refresh V3 Head · ${{ github.event.pull_request.number }}
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-generated-refresh-v3-head-ubuntu2404-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_CANDIDATE_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+      BASE_MAIN_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
+      REPORT_DIR: ${{ runner.temp }}/generated-refresh-v3-validation
+    steps:
+      - name: Checkout exact canonical candidate without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity and exact four-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "${actual_sha}" = "${EXPECTED_CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${BASE_MAIN_SHA}" HEAD
+
+          mapfile -t changed < <(git diff --name-only "${BASE_MAIN_SHA}"...HEAD | sort)
+          expected=(
+            ".changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json"
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml"
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml"
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+
+      - name: Parse workflows and verify allocated runner binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; ARGV.each { |path| YAML.parse_file(path) }' \
+            .github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml \
+            .github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml
+          test "$(grep -c '^    runs-on: ubuntu-24\.04$' .github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml)" -eq 1
+          test "$(grep -c '^    runs-on: ubuntu-24\.04$' .github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml)" -eq 1
+          ! grep -R '^    runs-on: ubuntu-latest$' \
+            .github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml \
+            .github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml
+
+      - name: Run focused V3 bridge regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+          node http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Write bounded validation evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          actual_sha="$(git rev-parse HEAD)"
+          jq -n \
+            --arg contract "mad4b.generated-refresh-v3-ubuntu2404-validation.v1" \
+            --arg expected_candidate_sha "${EXPECTED_CANDIDATE_SHA}" \
+            --arg actual_candidate_sha "${actual_sha}" \
+            --arg base_main_sha "${BASE_MAIN_SHA}" \
+            '{contract:$contract,expected_candidate_sha:$expected_candidate_sha,actual_candidate_sha:$actual_candidate_sha,base_main_sha:$base_main_sha,runner_label:"ubuntu-24.04",exact_identity_verified:($expected_candidate_sha==$actual_candidate_sha),candidate_code_mutation:false,repository_write:false,protected_branch_mutation:false,force_push:false,production_mutation:false,provider_mutation:false,credential_access:false,sql_execution:false,migration_apply:false,database_mutation:false,external_send:false,secrets_included:false}' \
+            > "${REPORT_DIR}/validation.json"
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-refresh-v3-ubuntu2404-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
