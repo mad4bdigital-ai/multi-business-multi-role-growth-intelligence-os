@@ -1,0 +1,408 @@
+name: Build Production Reconciliation Classifier V6 20260803
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/build-production-reconciliation-classifier-v6-20260803.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: build-production-reconciliation-classifier-v6-20260803
+  cancel-in-progress: false
+
+jobs:
+  build-fix:
+    name: Build fail-closed Production reconciliation classifier fix
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/build-production-reconciliation-classifier-v6-20260803' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+      REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      WORKFLOW_PATH: .github/workflows/build-production-reconciliation-classifier-v6-20260803.yml
+      FIX_BRANCH: gpt/fix-production-reconciliation-classifier-v6-20260803
+      REQUIRED_RUNTIME_FIX_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+
+    steps:
+      - name: Checkout exact request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.REQUEST_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable one-file request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "${REQUEST_HEAD_REF}" = "gpt/build-production-reconciliation-classifier-v6-20260803"
+          test "$(git rev-parse HEAD)" = "${REQUEST_HEAD_SHA}"
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${REQUEST_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Pin live protected refs
+        id: refs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          production_sha="$(git rev-parse refs/remotes/origin/Production)"
+          git merge-base --is-ancestor "${REQUIRED_RUNTIME_FIX_SHA}" "${main_sha}"
+          echo "main_sha=${main_sha}" >> "${GITHUB_OUTPUT}"
+          echo "production_sha=${production_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Reset to clean live main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git checkout --detach '${{ steps.refs.outputs.main_sha }}'
+          test ! -e "${WORKFLOW_PATH}"
+          git status --short
+
+      - name: Apply classifier and regression patch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          gate_path = Path('http-generic-api/scripts/e2e-parallel-pr-gate.mjs')
+          gate = gate_path.read_text()
+          start = gate.index('function classifyProductionPromotion(')
+          end = gate.index('\nfunction main()', start)
+          replacement = r'''function resolveCommit(root, ref) {
+            if (!ref) return null;
+            try {
+              const value = execFileSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], {
+                cwd: root,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"]
+              }).trim();
+              return /^[0-9a-f]{40}$/.test(value) ? value : null;
+            } catch {
+              return null;
+            }
+          }
+
+          function resolveTree(root, ref) {
+            if (!ref) return null;
+            try {
+              const value = execFileSync("git", ["rev-parse", "--verify", `${ref}^{tree}`], {
+                cwd: root,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"]
+              }).trim();
+              return /^[0-9a-f]{40}$/.test(value) ? value : null;
+            } catch {
+              return null;
+            }
+          }
+
+          function resolveParents(root, headSha) {
+            if (!/^[0-9a-f]{40}$/.test(headSha)) return [];
+            try {
+              const value = execFileSync("git", ["show", "-s", "--format=%P", headSha], {
+                cwd: root,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"]
+              }).trim();
+              if (!value) return [];
+              const parents = value.split(/\s+/);
+              return parents.every((parent) => /^[0-9a-f]{40}$/.test(parent)) ? parents : [];
+            } catch {
+              return [];
+            }
+          }
+
+          function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {
+            if (headRef === "main" && baseRef === "Production") {
+              return { allowed: true, identity: "protected_main" };
+            }
+            if (baseRef !== "Production") return { allowed: false, identity: null };
+
+            const match = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
+            if (!match) return { allowed: false, identity: null };
+            if (!/^[0-9a-f]{40}$/.test(headSha) || !headSha.startsWith(match[1])) {
+              return { allowed: false, identity: null };
+            }
+
+            const mainRef = resolveCanonicalMainRef(root);
+            if (!mainRef) return { allowed: false, identity: null };
+            if (isAncestor(root, headSha, mainRef)) {
+              return { allowed: true, identity: "immutable_main_snapshot" };
+            }
+
+            const mainSha = resolveCommit(root, mainRef);
+            const mainTree = resolveTree(root, mainRef);
+            const headTree = resolveTree(root, headSha);
+            const parents = resolveParents(root, headSha);
+            if (
+              !mainSha ||
+              !mainTree ||
+              !headTree ||
+              !/^[0-9a-f]{40}$/.test(baseSha || "") ||
+              parents.length !== 2 ||
+              parents[0] !== mainSha ||
+              parents[1] !== baseSha ||
+              headTree !== mainTree
+            ) {
+              return { allowed: false, identity: null };
+            }
+            return { allowed: true, identity: "history_preserving_main_reconciliation" };
+          }
+          '''
+          gate = gate[:start] + replacement + gate[end:]
+
+          old_promotion = '''  const promotion = classifyProductionPromotion({
+            root: options.root,
+            headRef: options.headRef,
+            baseRef: options.baseRef,
+            headSha: options.head
+          });
+          const productionPromotion = promotion.allowed;
+          const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+          if (productionPromotion && !phaseEvaluationBase) {
+            addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+              head_sha: options.head,
+              promotion_identity: promotion.identity
+            });
+          }
+
+          '''
+          if gate.count(old_promotion) != 1:
+              raise SystemExit('existing promotion block changed')
+          gate = gate.replace(old_promotion, '', 1)
+
+          early_promotion = '''  const promotion = classifyProductionPromotion({
+            root: options.root,
+            headRef: options.headRef,
+            baseRef: options.baseRef,
+            headSha: options.head,
+            baseSha: options.base
+          });
+          const productionPromotion = promotion.allowed;
+          const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+          if (productionPromotion && !phaseEvaluationBase) {
+            addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+              head_sha: options.head,
+              promotion_identity: promotion.identity
+            });
+          }
+          if (options.baseRef === "Production" && !productionPromotion) {
+            addFinding(report, "production_promotion_identity_invalid", {
+              head_ref: options.headRef || null,
+              head_sha: options.head || null,
+              base_sha: options.base || null
+            });
+          }
+
+          '''
+          marker = '  const active = [];'
+          if gate.count(marker) != 1:
+              raise SystemExit('active marker changed')
+          gate = gate.replace(marker, early_promotion + marker, 1)
+
+          replacements = {
+            'if (options.baseRef && !matchesPattern(options.baseRef, parallel.integration.branch_pattern))': 'if (!productionPromotion && options.baseRef && !matchesPattern(options.baseRef, parallel.integration.branch_pattern))',
+            'if (workstream.status !== "ready_for_integration")': 'if (!productionPromotion && workstream.status !== "ready_for_integration")',
+            'if (active.length > 1) addFinding': 'if (!productionPromotion && active.length > 1) addFinding',
+            'if (integrations.length > 1) addFinding': 'if (!productionPromotion && integrations.length > 1) addFinding',
+            'if (active.length && integrations.length) addFinding': 'if (!productionPromotion && active.length && integrations.length) addFinding',
+            'if (active.length === 1) {': 'if (!productionPromotion && active.length === 1) {',
+            '} else if (integrations.length === 1) {': '} else if (!productionPromotion && integrations.length === 1) {'
+          }
+          for old, new in replacements.items():
+              if gate.count(old) != 1:
+                  raise SystemExit(f'gate marker changed: {old}')
+              gate = gate.replace(old, new, 1)
+          gate_path.write_text(gate)
+
+          test_path = Path('http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs')
+          test = test_path.read_text()
+          marker = 'const mismatchedImmutable = spawnSync'
+          if test.count(marker) != 1:
+              raise SystemExit('self-test insertion marker changed')
+          insert = r'''const mainTree = run("git", ["rev-parse", `${headSha}^{tree}`], root).trim();
+          const baseTree = run("git", ["rev-parse", `${baseSha}^{tree}`], root).trim();
+          const reconciliationSha = run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-m", "reconcile main and Production"], root).trim();
+          const reconciliationRef = `release/production-candidate-20260803-${reconciliationSha.slice(0, 8)}-v1`;
+          const reconciliationPromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", reconciliationSha, "--head-ref", reconciliationRef, "--base-ref", "Production"], root));
+          assert.equal(reconciliationPromotion.ok, true, JSON.stringify(reconciliationPromotion.findings));
+          assert.equal(reconciliationPromotion.pr_mode, "standard");
+          assert.equal(reconciliationPromotion.production_promotion, true);
+          assert.equal(reconciliationPromotion.production_promotion_identity, "history_preserving_main_reconciliation");
+          assert.equal(reconciliationPromotion.phase_evaluation_base, headSha);
+
+          const rejectedCandidates = [
+            run("git", ["commit-tree", baseTree, "-p", headSha, "-p", baseSha, "-m", "wrong tree"], root).trim(),
+            run("git", ["commit-tree", mainTree, "-p", workSha, "-p", baseSha, "-m", "stale first parent"], root).trim(),
+            run("git", ["commit-tree", mainTree, "-p", headSha, "-p", workSha, "-m", "wrong second parent"], root).trim(),
+            run("git", ["commit-tree", mainTree, "-p", headSha, "-p", baseSha, "-p", workSha, "-m", "unexpected third parent"], root).trim()
+          ];
+          for (const rejectedSha of rejectedCandidates) {
+            const rejected = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", rejectedSha, "--head-ref", `release/production-candidate-20260803-${rejectedSha.slice(0, 8)}-v1`, "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+            assert.notEqual(rejected.status, 0);
+            const rejectedReport = JSON.parse(rejected.stdout);
+            assert.equal(rejectedReport.production_promotion, false);
+            assert.equal(rejectedReport.production_promotion_identity, null);
+            assert(rejectedReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+          }
+
+          const emptyDiffInvalid = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", baseSha, "--head-ref", `release/production-candidate-20260803-${baseSha.slice(0, 8)}-v1`, "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+          assert.notEqual(emptyDiffInvalid.status, 0);
+          const emptyDiffInvalidReport = JSON.parse(emptyDiffInvalid.stdout);
+          assert(emptyDiffInvalidReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+
+          '''
+          test = test.replace(marker, insert + marker, 1)
+          if 'tests: 46' not in test:
+              raise SystemExit('self-test count marker changed')
+          test = test.replace('tests: 46', 'tests: 52', 1)
+          test = test.replace('source_baselined_production_promotions', 'source_baselined_history_preserving_and_fail_closed_production_promotions', 1)
+          test_path.write_text(test)
+
+          contract_path = Path('.changes/e2e/e2e-default-branch-and-production-promotion-classification.json')
+          contract = json.loads(contract_path.read_text())
+          journey = contract['phases'][0]['e2e_journeys'][0]
+          journey['terminal_outcome'] = 'Default-branch/manual execution is standard, declared workstreams retain bounded classification, undeclared PR branches fail closed, and only exact protected main, immutable main snapshots, or history-preserving two-parent main reconciliations are accepted for Production.'
+          reconciliation_step = 'Accept a reconciliation candidate only when its SHA-bound branch name matches, it has exactly two parents, parent one is current main, parent two is the exact Production PR base, and its tree equals current main.'
+          fail_closed_step = 'Reject every other Production-targeting identity explicitly, including malformed candidates whose effective diff is empty.'
+          if reconciliation_step not in journey['steps']:
+              journey['steps'].append(reconciliation_step)
+          if fail_closed_step not in journey['steps']:
+              journey['steps'].append(fail_closed_step)
+          journey['assertions'][4] = 'Protected main, SHA-bound immutable main snapshots, and exact history-preserving two-parent main reconciliations are the only accepted Production promotion identities; every other Production target fails closed.'
+          contract['phases'][2]['objective'] = 'Retain bounded diagnostics for inherited environment variables, missing refs, spoofed identities, stale SHAs, wrong trees, wrong parent order, wrong Production bases, extra reconciliation parents, and empty-diff malformed candidates.'
+          contract['phases'][3]['objective'] = 'Validate one non-production default-branch/manual run, one declared parallel pull-request flow, one immutable Production snapshot, one history-preserving reconciliation, and explicit fail-closed Production rejection.'
+          contract['phases'][4]['objective'] = 'Require exact classifier evidence for protected main-to-Production, immutable main-snapshot, and history-preserving reconciliation promotions without granting merge or deployment authority.'
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+          PY
+
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'.changes/e2e/e2e-default-branch-and-production-promotion-classification.json\nhttp-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs\nhttp-generic-api/scripts/e2e-parallel-pr-gate.mjs'
+
+      - name: Validate syntax and synthetic matrix
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          node --check http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          log="${RUNNER_TEMP}/self-test.log"
+          if ! node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs >"${log}" 2>&1; then
+            {
+              echo '## Builder V6 synthetic failure'
+              echo
+              echo '```text'
+              tail -n 180 "${log}"
+              echo '```'
+            } > "${RUNNER_TEMP}/failure-comment.md"
+            gh pr comment "${REQUEST_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure-comment.md"
+            cat "${log}"
+            exit 1
+          fi
+          cat "${log}"
+
+      - name: Validate exact live-ref reconciliation candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          main_sha='${{ steps.refs.outputs.main_sha }}'
+          production_sha='${{ steps.refs.outputs.production_sha }}'
+          main_tree="$(git rev-parse "${main_sha}^{tree}")"
+          export GIT_AUTHOR_NAME='mad4bdigital-ai'
+          export GIT_AUTHOR_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          export GIT_COMMITTER_NAME='mad4bdigital-ai'
+          export GIT_COMMITTER_EMAIL='271942579+mad4bdigital-ai@users.noreply.github.com'
+          candidate="$(printf '%s\n' 'live history-preserving main and Production reconciliation classifier regression' | git commit-tree "${main_tree}" -p "${main_sha}" -p "${production_sha}")"
+          candidate_ref="release/production-candidate-20260803-${candidate:0:8}-v6"
+          report="${RUNNER_TEMP}/candidate-report.json"
+          if ! node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --base "${production_sha}" \
+            --head "${candidate}" \
+            --head-ref "${candidate_ref}" \
+            --base-ref Production \
+            --report-file "${report}"; then
+            {
+              echo '## Builder V6 live-ref candidate failure'
+              echo
+              echo '```json'
+              cat "${report}"
+              echo '```'
+            } > "${RUNNER_TEMP}/failure-comment.md"
+            gh pr comment "${REQUEST_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure-comment.md"
+            exit 1
+          fi
+          jq -e --arg main "${main_sha}" '.ok == true and .pr_mode == "standard" and .production_promotion == true and .production_promotion_identity == "history_preserving_main_reconciliation" and .phase_evaluation_base == $main' "${report}"
+
+      - name: Commit and push clean fix branch
+        id: push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          main_sha='${{ steps.refs.outputs.main_sha }}'
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          latest_main="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "${latest_main}" != "${main_sha}" ]]; then
+            for path in \
+              .changes/e2e/e2e-default-branch-and-production-promotion-classification.json \
+              http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs \
+              http-generic-api/scripts/e2e-parallel-pr-gate.mjs; do
+              git diff --quiet "${main_sha}" "${latest_main}" -- "${path}" || {
+                echo "Relevant source moved on main: ${path}" >&2
+                exit 1
+              }
+            done
+          fi
+          git checkout -B "${FIX_BRANCH}" "${main_sha}"
+          git add \
+            .changes/e2e/e2e-default-branch-and-production-promotion-classification.json \
+            http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs \
+            http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git commit -m 'fix(e2e): fail closed on invalid Production promotion identities'
+          fix_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${FIX_BRANCH}"
+          echo "fix_sha=${fix_sha}" >> "${GITHUB_OUTPUT}"
+          echo "fix_branch=${FIX_BRANCH}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish success evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Builder V6 completed'
+            echo
+            echo "- Source main: `${{ steps.refs.outputs.main_sha }}`"
+            echo "- Observed Production: `${{ steps.refs.outputs.production_sha }}`"
+            echo "- Fix branch: `${{ steps.push.outputs.fix_branch }}`"
+            echo "- Fix head: `${{ steps.push.outputs.fix_sha }}`"
+            echo '- Synthetic acceptance/rejection matrix passed.'
+            echo '- Exact live-ref reconciliation classification passed.'
+            echo '- Invalid and empty-diff Production candidates fail closed.'
+            echo '- No Production ref, deployment, provider, database, SQL, migration, credential, or external-send mutation occurred.'
+          } > "${RUNNER_TEMP}/success-comment.md"
+          gh pr comment "${REQUEST_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/success-comment.md"
