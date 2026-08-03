@@ -1,9 +1,9 @@
 name: PR 5292 Final Source Certification
 
 on:
-  push:
-    branches:
-      - gpt/pr5210-surface-source-clean-20260803
+  pull_request:
+    branches: [main]
+    types: [synchronize]
     paths:
       - .github/workflows/pr5292-final-source-certification.yml
 
@@ -12,19 +12,21 @@ permissions:
 
 concurrency:
   group: pr5292-final-source-certification
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   certify:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/gpt/pr5210-surface-source-clean-20260803'
+      github.event.pull_request.number == 5292 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      EXPECTED_HEAD: ${{ github.sha }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
       EXPECTED_MAIN: 97e4ee7ec790844ad20ee2349125579353c693d5
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
       OPERATION_ARTIFACT: http-generic-api/frontend-operation-governance.generated.json
@@ -154,7 +156,7 @@ jobs:
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
           FORCE_ROUTE_RUNTIME_TESTS: 'true'
           DEPLOYMENT_BRANCH: gpt/pr5210-surface-source-clean-20260803
-          DEPLOYMENT_COMMIT_SHA: ${{ github.sha }}
+          DEPLOYMENT_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: npm test
 
       - name: Recheck deterministic output and bounded tree
