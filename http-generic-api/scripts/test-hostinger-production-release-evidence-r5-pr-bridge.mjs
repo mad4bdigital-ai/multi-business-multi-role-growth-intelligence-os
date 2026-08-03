@@ -71,7 +71,7 @@ assert.match(dispatcher, /protected_branch_mutation_forbidden/u);
 assert.match(dispatcher, /MARKER_PATH/u);
 assert.match(dispatcher, /target_workflow_blob/u);
 assert.match(dispatcher, /HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=claiming/u);
-assert.match(dispatcher, /hostinger-production-release-evidence-r5\.yml\/dispatches/u);
+assert.match(dispatcher, /actions\/workflows\/\$\{TARGET_WORKFLOW\}\/dispatches/u);
 assert.match(dispatcher, /expected_head_sha/u);
 assert.match(dispatcher, /for attempt in \$\(seq 1 60\)/u);
 assert.match(dispatcher, /for attempt in \$\(seq 1 240\)/u);
