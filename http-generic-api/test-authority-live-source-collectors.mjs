@@ -159,6 +159,28 @@ await assert.rejects(
     && error.code === "authority_live_source_sensitive_value_forbidden",
 );
 
+const missingIdentityCollectors = createAuthorityLiveSourceCollectors({
+  queryRows: async ({ queryKey }) => queryKey === "runtime_action_registry"
+    ? [{ action_key: null, status: "active", primary_executor: "authorityResolver" }]
+    : structuredClone(rowsByQuery[queryKey] || []),
+});
+await assert.rejects(
+  () => missingIdentityCollectors.runtime_action_registry(sourceContext("runtime_action_registry")),
+  (error) => error instanceof AuthorityLiveSourceCollectorError
+    && error.code === "authority_live_source_invalid_token",
+);
+
+const incompleteHttpCollectors = createAuthorityLiveSourceCollectors({
+  queryRows: async ({ queryKey }) => queryKey === "system_tool_registry"
+    ? [{ scope_kind: "admin", tool_key: "broken_tool", http_method: null, http_path: "/admin/broken", tags: "system", is_enabled: 1 }]
+    : structuredClone(rowsByQuery[queryKey] || []),
+});
+await assert.rejects(
+  () => incompleteHttpCollectors.system_tool_registry(sourceContext("system_tool_registry")),
+  (error) => error instanceof AuthorityLiveSourceCollectorError
+    && error.code === "authority_live_source_incomplete_http_identity",
+);
+
 const oversizedCollectors = createAuthorityLiveSourceCollectors({
   queryRows: async ({ queryKey }) => queryKey === "runtime_action_registry"
     ? Array.from({ length: AUTHORITY_LIVE_SOURCE_ROW_LIMIT + 1 }, (_, index) => ({ action_key: `action.${index}`, status: "active" }))
