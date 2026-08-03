@@ -3,7 +3,7 @@
   "feature_key": "012-tenant-activation-lifecycle",
   "phase_key": "legacy-audience-compatibility",
   "task_id": "T032",
-  "status": "repository_policy_and_telemetry_hardened_validation_required",
+  "status": "repository_policy_and_telemetry_hardened_live_metric_readback_required",
   "observed_main_sha": "97e4ee7ec790844ad20ee2349125579353c693d5",
   "observed_at": "2026-08-04",
   "authority": {
@@ -71,9 +71,18 @@
     "token_resource_mismatch_rejected"
   ],
   "validation": {
-    "policy_regression_complete_on_current_head": false,
-    "verifier_regression_complete_on_current_head": false,
-    "readiness_regression_complete_on_current_head": false,
+    "policy_regression_complete_on_current_head": true,
+    "verifier_regression_complete_on_current_head": true,
+    "readiness_regression_complete_on_current_head": true,
+    "validation_head_sha": "c294e8aaa6b329d9a18edb520c247298bb29b773",
+    "validation_run_id": 30861260511,
+    "validation_job_id": 91843520162,
+    "validation_mode": "github_actions_exact_head",
+    "dependencies_installed_from_lockfile": true,
+    "syntax_complete": true,
+    "temporary_workflow_change_retired_before_ready": true,
+    "post_validation_workflow_restore_commit": "cd1a278f5d91c13a1c86665bde48e90458d55f3b",
+    "production_code_changed_by_workflow_restore": false,
     "exact_head_ci_complete": false,
     "production_deployed": false,
     "live_legacy_metric_readback_complete": false,
@@ -82,7 +91,7 @@
   "completion_gate": {
     "repository_policy_complete": true,
     "verifier_wiring_complete": true,
-    "deterministic_regression_complete": false,
+    "deterministic_regression_complete": true,
     "exact_head_ci_complete": false,
     "production_deployed": false,
     "live_legacy_acceptance_metric_readback_complete": false,
@@ -90,7 +99,6 @@
     "live_multi_audience_rejection_metric_readback_complete": false,
     "task_completion_allowed": false,
     "required_before_completion": [
-      "pass policy, verifier, and readiness regressions on the hardened head",
       "complete remaining repository CI gates",
       "deploy the reviewed merge SHA through the governed release path",
       "read back legacy acceptance evidence before the configured cutoff when a bounded authorized test token exists",
