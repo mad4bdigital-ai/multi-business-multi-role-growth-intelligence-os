@@ -59,11 +59,7 @@ function collectOpenApiOperationsFromText(source) {
 }
 
 function collectOpenApiOperations() {
-  const files = canonicalOpenApiAuthority({
-    apiRoot: ROOT,
-    openapiPath: OPENAPI_PATH,
-    runtimeOpenapiPath: path.join(OPENAPI_DIR, "frontend-runtime-routes.generated.yaml"),
-  }).files;
+  const files = canonicalOpenApiAuthority(ROOT);
   const ops = new Set();
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
