@@ -1,1 +1,0 @@
-Temporary never-merge trigger revision 5. The governed writer removes this marker from the final tree.
