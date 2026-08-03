@@ -298,8 +298,9 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
     const requestId = createId();
     let phase = "before_code_consumption";
     let codeConsumed = false;
+    let terminalEvidenceRecorded = false;
     let tokenQuery = null;
-    let tokenLogContext = {
+    const tokenLogContext = {
       request_id: requestId,
       grant_type: req.body?.grant_type || null,
       code: safeCodeEvidence(req.body?.code, startedAtMs),
@@ -319,6 +320,11 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         ...tokenLogContext,
         ...event,
       });
+    };
+    const recordTerminal = (event) => {
+      if (terminalEvidenceRecorded) return;
+      terminalEvidenceRecorded = true;
+      log(event);
     };
     const sendDecision = (decision) => {
       const body = buildTenantGptOAuthTokenErrorResponse(decision, { request_id: requestId });
@@ -510,16 +516,31 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         expires_in: USER_TOKEN_TTL_SECONDS,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
-      log({
-        status: "success",
-        classification: "token_response_committed",
-        failure_reason: null,
-        http_status: 200,
+
+      res.once("finish", () => {
+        recordTerminal({
+          phase: "response_committed",
+          status: "success",
+          classification: "token_response_committed",
+          failure_reason: null,
+          http_status: 200,
+        });
+      });
+      res.once("close", () => {
+        if (res.writableFinished) return;
+        recordTerminal({
+          phase: "after_code_consumption",
+          status: "unknown",
+          classification: "response_transport_interrupted",
+          failure_reason: "oauth_response_transport_interrupted",
+          http_status: null,
+        });
       });
       return res.status(200).json(tokenResponse);
     } catch (error) {
       if (res.headersSent) {
-        log({
+        recordTerminal({
+          phase: "after_code_consumption",
           status: "unknown",
           classification: "response_transport_interrupted",
           failure_reason: "oauth_response_transport_interrupted",
