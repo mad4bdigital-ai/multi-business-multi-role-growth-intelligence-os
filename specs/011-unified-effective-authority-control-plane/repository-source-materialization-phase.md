@@ -50,7 +50,11 @@ The output status is only `ready_for_repository_review`. It does not claim that 
 - `--report-file`
 - optional `--repository-root`
 
-It writes only new regular files beneath the selected repository root and refuses to overwrite an existing path. It performs no Git add, commit, push, API call, database query, provider call, credential read, or external publication.
+Before writing, the CLI validates every destination as one unique safe repository-relative path, rejects existing files, and rejects any existing intermediate component that is a symbolic link or non-directory. No output file is created until the complete output set passes preflight.
+
+The CLI writes each completed temporary file through an exclusive hard-link publication step, never overwrites a raced destination, and removes every file and newly created empty directory when a later publication fails. Therefore the eight documents and report are published as one fail-closed local batch rather than a partially materialized review set.
+
+It performs no Git add, commit, push, API call, database query, provider call, credential read, or external publication.
 
 ## Reviewed commit boundary
 
@@ -82,7 +86,7 @@ Only after those checks does it emit a canonical repository manifest using:
 
 `mad4b.ueacp.authority-evidence-repository-manifest.v1`
 
-The CLI refuses to overwrite an existing manifest and performs no Git mutation.
+The manifest destination is separately preflighted for lexical containment, intermediate symlinks/non-directories, and overwrite races. Publication uses an exclusive temporary-file link and rolls back the new file and any newly created empty directories on failure. The CLI performs no Git mutation.
 
 ## Review and execution sequence
 
@@ -102,7 +106,7 @@ successful no-secret source snapshot artifact
 
 ## Fail-closed conditions
 
-The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate families, missing files, symlinks, path escapes, oversized documents, stale report hashes, malformed source JSON, source contract mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
+The phase blocks for incomplete or conflicting snapshots, sensitive values, unsafe paths, duplicate output paths, existing destinations, intermediate symlinks/non-directories, partial publication, missing files, source symlinks, path escapes, oversized documents, stale report hashes, malformed source JSON, source contract mismatch, invalid or non-ancestor reviewed refs, missing reviewed blobs, or any difference between reviewed and current source bytes.
 
 ## Safety and task state
 
