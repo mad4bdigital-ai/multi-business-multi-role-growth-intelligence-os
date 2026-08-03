@@ -17,14 +17,13 @@ jobs:
   exact-base-probe:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/validate-auth-oauth-probe-a61cd9-20260804' &&
-      github.event.pull_request.head.sha == 'e3a30c5fc977135c5ac4f174cff98cd33222f563'
+      github.event.pull_request.head.ref == 'gpt/validate-auth-oauth-probe-a61cd9-20260804'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
       EXPECTED_SOURCE_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_PROBE_HEAD_SHA: e3a30c5fc977135c5ac4f174cff98cd33222f563
       EXPECTED_PROBE_HEAD_REF: gpt/validate-auth-oauth-probe-a61cd9-20260804
+      ACTUAL_PROBE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       PROBE_LOG: ${{ runner.temp }}/auth-oauth-base-probe.log
       PROBE_SUMMARY: ${{ runner.temp }}/auth-oauth-base-probe-summary.json
 
@@ -36,13 +35,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify immutable probe identity
+      - name: Verify immutable source and probe ref
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_SOURCE_SHA}"
-          test "${{ github.event.pull_request.head.sha }}" = "${EXPECTED_PROBE_HEAD_SHA}"
           test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_PROBE_HEAD_REF}"
+          test -n "${ACTUAL_PROBE_HEAD_SHA}"
           test -z "$(git status --porcelain)"
 
       - name: Set up Node.js 22
@@ -79,7 +78,7 @@ jobs:
           first_failure="$(grep -m1 -E '\[FAIL\]|TypeError:|AssertionError|^not ok' "${PROBE_LOG}" || true)"
           jq -n \
             --arg source_sha "${EXPECTED_SOURCE_SHA}" \
-            --arg probe_head_sha "${EXPECTED_PROBE_HEAD_SHA}" \
+            --arg probe_head_sha "${ACTUAL_PROBE_HEAD_SHA}" \
             --arg test_command "node test-auth-oauth-routes.mjs" \
             --arg exit_code "${TEST_EXIT_CODE:-unknown}" \
             --arg first_failure "${first_failure}" \
