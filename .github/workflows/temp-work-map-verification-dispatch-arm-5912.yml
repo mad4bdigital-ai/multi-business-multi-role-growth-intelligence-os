@@ -79,10 +79,19 @@ jobs:
           git diff --check -- test-auth-oauth-routes.mjs
           git diff --name-only | grep -Fxq 'http-generic-api/test-auth-oauth-routes.mjs'
 
-      - name: Verify targeted test passes with injected pool
+      - name: Capture targeted test after injected pool
+        id: patched
+        continue-on-error: true
         working-directory: http-generic-api
         shell: bash
-        run: node test-auth-oauth-routes.mjs
+        run: |
+          set +e
+          node test-auth-oauth-routes.mjs > "$RUNNER_TEMP/oauth-patched.log" 2>&1
+          status=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/oauth-patched.log"
+          exit "$status"
 
       - name: Restore and verify candidate unchanged
         if: always()
@@ -96,6 +105,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: oauth-baseline-diagnostic-5990-${{ github.run_id }}
-          path: ${{ runner.temp }}/oauth-baseline.log
-          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/oauth-baseline.log
+            ${{ runner.temp }}/oauth-patched.log
+          if-no-files-found: error
           retention-days: 14
+
+      - name: Fail after diagnostic capture
+        if: steps.patched.outcome != 'success'
+        shell: bash
+        run: |
+          echo "Injected-pool test remains failing; inspect oauth-patched.log."
+          exit 1
