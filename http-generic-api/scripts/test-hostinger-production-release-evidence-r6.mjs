@@ -39,7 +39,7 @@ assert.match(workflow, /trigger mode: `internal_draft_pull_request_read_only`/);
 assert.match(workflow, /provider method: `GET` only/);
 assert.match(workflow, /HOSTINGER_API_TOKEN: \$\{\{ secrets\.HOSTINGER_API_TOKEN \}\}/);
 assert.match(workflow, /node scripts\/test-hostinger-nodejs-build-evidence\.mjs/);
-assert.match(workflow, /node scripts\/hostinger-nodejs-build-evidence\.mjs/);
+assert.match(workflow, /node http-generic-api\/scripts\/hostinger-nodejs-build-evidence\.mjs/);
 assert.match(workflow, /https:\/\/auth\.mad4b\.com\/health/);
 assert.match(workflow, /https:\/\/auth\.mad4b\.com\/version/);
 assert.match(workflow, /https:\/\/auth\.mad4b\.com\/deployment-info/);
@@ -48,21 +48,37 @@ assert.match(workflow, /test -z "\$\{EXISTING\}"/);
 assert.match(workflow, /persist-credentials: false/);
 assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
-assert.match(workflow, /repository_read_only:true/);
+assert.match(workflow, /repository_read_only: true/);
+
+const jobEnv = workflow.match(/    env:\n(?<env>[\s\S]*?)\n\n    steps:/)?.groups?.env ?? "";
+assert.ok(jobEnv, "R6 job-level env block must be present");
+assert.doesNotMatch(
+  jobEnv,
+  /\$\{\{\s*runner\./,
+  "runner context is unavailable in job-level env and prevents workflow registration",
+);
+assert.match(
+  workflow,
+  /- name: Collect and scrub R6 evidence[\s\S]*?env:\n(?:[\s\S]*?)EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6/,
+);
+assert.match(
+  workflow,
+  /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/,
+);
 
 for (const marker of [
-  "repository_write_performed:false",
-  "provider_mutation_performed:false",
-  "build_creation_performed:false",
-  "deployment_performed:false",
-  "release_activation_performed:false",
-  "restart_performed:false",
-  "sql_execution_performed:false",
-  "migration_apply_performed:false",
-  "database_mutation_performed:false",
-  "external_send_performed:false",
-  "secrets_included:false",
-]) assert.match(workflow, new RegExp(marker));
+  "repository_write_performed: false",
+  "provider_mutation_performed: false",
+  "build_creation_performed: false",
+  "deployment_performed: false",
+  "release_activation_performed: false",
+  "restart_performed: false",
+  "sql_execution_performed: false",
+  "migration_apply_performed: false",
+  "database_mutation_performed: false",
+  "external_send_performed: false",
+  "secrets_included: false",
+]) assert.match(workflow, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
 assert.doesNotMatch(workflow, /permissions:\n(?:.|\n)*?contents:\s+write/);
 assert.doesNotMatch(workflow, /(?:^|\n)\s*[A-Za-z][A-Za-z-]*:\s+write\b/);
