@@ -45,30 +45,31 @@ jobs:
           git fetch origin "refs/heads/${INTEGRATION_REF}:refs/remotes/origin/surface-integration"
           test "$(git rev-parse refs/remotes/origin/surface-integration)" = "$PINNED_INTEGRATION"
 
-      - name: Materialize bounded product through fail-closed three-way merge
+      - name: Materialize bounded product with verified one-sided changes
         shell: bash
         run: |
           set -euo pipefail
           BASE=$(git merge-base "$PINNED_MAIN" "$PINNED_INTEGRATION")
+          test "$BASE" = "5709c1a518b3632bbf9b830cd63ccd7d829ef621"
           echo "merge_base=$BASE"
 
-          merge_path() {
+          copy_verified_one_sided_path() {
             local path="$1"
-            local safe
-            safe=$(printf '%s' "$path" | tr '/.' '__')
-            mkdir -p "$(dirname "$path")"
-            git show "$PINNED_MAIN:$path" > "$path"
-            git show "$BASE:$path" > "/tmp/${safe}.base"
-            git show "$PINNED_INTEGRATION:$path" > "/tmp/${safe}.theirs"
-            set +e
-            git merge-file "$path" "/tmp/${safe}.base" "/tmp/${safe}.theirs"
-            status=$?
-            set -e
-            if [[ $status -ne 0 ]]; then
-              echo "three_way_conflict:$path" >&2
-              git diff -- "$path" || true
+            local base_blob main_blob integration_blob
+            base_blob=$(git rev-parse "$BASE:$path")
+            main_blob=$(git rev-parse "$PINNED_MAIN:$path")
+            integration_blob=$(git rev-parse "$PINNED_INTEGRATION:$path")
+            echo "materialize:$path base=$base_blob main=$main_blob integration=$integration_blob"
+            if [[ "$base_blob" != "$main_blob" ]]; then
+              echo "not_one_sided_against_main:$path" >&2
               exit 1
             fi
+            if [[ "$integration_blob" = "$base_blob" ]]; then
+              echo "missing_surface_change:$path" >&2
+              exit 1
+            fi
+            mkdir -p "$(dirname "$path")"
+            git show "$PINNED_INTEGRATION:$path" > "$path"
           }
 
           copy_new_path() {
@@ -86,7 +87,7 @@ jobs:
           }
 
           while IFS= read -r path; do
-            [[ -n "$path" ]] && merge_path "$path"
+            [[ -n "$path" ]] && copy_verified_one_sided_path "$path"
           done <<'FILES'
           http-generic-api/agentSurfaceRuntimeService.js
           http-generic-api/routes/agentSurfaceRoutes.js
