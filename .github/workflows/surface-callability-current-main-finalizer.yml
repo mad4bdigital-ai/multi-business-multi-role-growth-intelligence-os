@@ -69,7 +69,7 @@ jobs:
           ! grep -Fq 'workspace_invitations_expire_stale_failed' http-generic-api/routes/tenantLifecycleRoutes.js
           grep -Fq 'repository_main_moved_trigger_policy_v1' http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
           ! grep -Fq 'hostinger_production_resync_policy_v1' http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
-          grep -Fq 'source.match(/^PREPARE\\s+/gim)' http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+          grep -Fq 'source.match(/^PREPARE\s+/gim)' http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
       - name: Generate and persist closure evidence
         working-directory: http-generic-api
