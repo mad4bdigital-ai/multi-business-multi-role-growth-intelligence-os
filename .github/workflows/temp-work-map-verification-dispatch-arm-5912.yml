@@ -1,4 +1,4 @@
-name: TEMP Full ARM Validation 5990
+name: TEMP OAuth Baseline Diagnostic 5990
 
 on:
   pull_request:
@@ -10,14 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Full exact-head ARM validation
+  diagnose:
+    name: Prove OAuth route test baseline dependency injection
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 25
     env:
       EXPECTED_HEAD_SHA: 0a2265ff40ee8cb3e220e547bb658598d34ce05f
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      TARGET_BRANCH: gpt/ci-work-map-exact-verification-dispatch-final-a61cd9e8-20260804
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -26,40 +25,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify exact identity, topology, scope, and blobs
+      - name: Verify immutable candidate identity
         shell: bash
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
           test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-full-5990"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin \
-            "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/candidate"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse refs/remotes/origin/candidate)" = "${EXPECTED_HEAD_SHA}"
           test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-list --count refs/remotes/origin/main..HEAD)" = "1"
-
-          cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
-          .changes/e2e/work-map-post-write-exact-verification-dispatch.json
-          .github/workflows/ci.yml
-          .github/workflows/spec-kit-work-map-autofix.yml
-          .github/workflows/spec-kit-work-map-integration.yml
-          docs/work-maps/README.md
-          docs/work-maps/repository-automation-map.md
-          http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          EOF
-          git diff --name-only refs/remotes/origin/main...HEAD | sort > "$RUNNER_TEMP/actual-files.txt"
-          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/actual-files.txt"
-
-          test "$(git rev-parse HEAD:.changes/e2e/work-map-post-write-exact-verification-dispatch.json)" = "517a0b4ec5df195330eb0b044ac0a36a28bf03b9"
-          test "$(git rev-parse HEAD:.github/workflows/ci.yml)" = "a09247d50e52fe00e94b54d1a98abe822e9346e5"
-          test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-autofix.yml)" = "663b64ee84221ad27e2702ec90c826b5dbaa1c3c"
-          test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-integration.yml)" = "ff41bb0c48df07d40baea2de91ec1303859c46b4"
-          test "$(git rev-parse HEAD:docs/work-maps/README.md)" = "4968d49be455d4064eecc073677131a8a79fdbf8"
-          test "$(git rev-parse HEAD:docs/work-maps/repository-automation-map.md)" = "10a8512e8418bc0a2a4ddbae5ce90026a083b3c4"
-          test "$(git rev-parse HEAD:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs)" = "d5cad261ed259dc527403eca39b2d01de6fd4f55"
+          test "$(git diff --name-only refs/remotes/origin/main...HEAD | grep -Ec '^(http-generic-api/test-auth-oauth-routes\.mjs|http-generic-api/routes/tenantGptOAuthMetadataRoutes\.js|http-generic-api/tenantGptOAuthTokenExchangeBindingGuard\.js)$')" = "0"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -72,76 +48,54 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Verify focused dispatch regression
+      - name: Reproduce current baseline failure
+        id: baseline
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          node test-auth-oauth-routes.mjs > "$RUNNER_TEMP/oauth-baseline.log" 2>&1
+          status=$?
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'oauth_token_exchange_preconsumption_unavailable' "$RUNNER_TEMP/oauth-baseline.log"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Apply in-run test dependency injection only
         working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          node --check test-work-map-post-write-exact-verification-dispatch.mjs
-          node test-work-map-post-write-exact-verification-dispatch.mjs
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('test-auth-oauth-routes.mjs')
+          text = path.read_text()
+          old = 'app.use(buildTenantGptOAuthMetadataRoutes());'
+          new = 'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one replacement target, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check -- test-auth-oauth-routes.mjs
+          git diff --name-only | grep -Fxq 'http-generic-api/test-auth-oauth-routes.mjs'
 
-      - name: Verify E2E contract JSON
-        shell: bash
-        run: node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
-
-      - name: Verify Spec Kit completion governance against main
-        shell: bash
-        env:
-          GITHUB_BASE_REF: main
-          GITHUB_HEAD_REF: ${{ env.TARGET_BRANCH }}
-        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs
-
-      - name: Verify generated Work Map currentness
-        shell: bash
-        run: node http-generic-api/scripts/platform-work-map-generator.mjs --check
-
-      - name: Verify diff hygiene
-        shell: bash
-        run: git diff --check "${EXPECTED_MAIN_SHA}"...HEAD
-
-      - name: Run context-kernel changed-file ratchet
+      - name: Verify targeted test passes with injected pool
         working-directory: http-generic-api
+        shell: bash
+        run: node test-auth-oauth-routes.mjs
+
+      - name: Restore and verify candidate unchanged
+        if: always()
         shell: bash
         run: |
-          set -euo pipefail
-          git diff --name-only "${EXPECTED_MAIN_SHA}"...HEAD > "$RUNNER_TEMP/context-kernel-changed-files.txt"
-          node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from="$RUNNER_TEMP/context-kernel-changed-files.txt"
+          git checkout -- http-generic-api/test-auth-oauth-routes.mjs
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
 
-      - name: Guard interruption readiness
-        working-directory: http-generic-api
-        run: node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file "$RUNNER_TEMP/interruption-readiness-baseline.json"
-
-      - name: Run complete Unit and Integration suite
-        working-directory: http-generic-api
-        env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-        run: |
-          set -euo pipefail
-          actual_sha="$(git rev-parse HEAD)"
-          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
-          GITHUB_SHA="$actual_sha" npm test
-
-      - name: Prove deployment manifest generation
-        working-directory: http-generic-api
-        env:
-          FORCE_ROUTE_RUNTIME_TESTS: 'true'
-          DEPLOYMENT_BRANCH: ${{ env.TARGET_BRANCH }}
-          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_HEAD_SHA }}
-        run: |
-          node test-deployment-manifest-generator.mjs
-          npm run manifest:deployment
-
-      - name: Upload ordered test progress reports
+      - name: Upload diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: full-arm-unit-integration-progress-5990-${{ github.run_id }}
-          path: ${{ runner.temp }}/test-suite-reports/*.json
+          name: oauth-baseline-diagnostic-5990-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-baseline.log
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Verify clean checkout
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -z "$(git status --porcelain=v1 --untracked-files=all)"
