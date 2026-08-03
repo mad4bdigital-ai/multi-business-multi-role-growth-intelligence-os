@@ -31,7 +31,9 @@ requireFragment("['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef]"
 requireFragment("'refs/remotes/origin/main'", 'canonical remote main ref');
 requireFragment('process.env.HEAD_REPOSITORY === process.env.REPOSITORY', 'same-repository release requirement');
 requireFragment('(directMainRelease || immutableMainSnapshot)', 'direct or immutable release classification');
+requireFragment('const releaseIdentity = isGovernedRelease', 'accepted-release identity gating');
 requireFragment("? 'immutable_main_snapshot'", 'immutable release identity');
+requireFragment('const modeSource = isGovernedRelease && immutableMainSnapshot', 'ancestry source gating');
 requireFragment("? 'governed_phase_contract_and_git_ancestry'", 'ancestry-backed classification source');
 requireFragment("isGovernedRelease ? 'release' : 'feature'", 'governed release classification');
 requireFragment('CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}', 'candidate mode output binding');
@@ -69,10 +71,12 @@ assert.equal(source.includes('git push'), false, 'workflow must not mutate repos
 
 const classification = source.indexOf('Classify governed candidate mode');
 const ancestryCheck = source.indexOf("['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef]");
+const releaseIdentityGate = source.indexOf('const releaseIdentity = isGovernedRelease');
 const featureScopeGate = source.indexOf('if [[ "${candidate_mode}" == "feature" ]]');
 const contentBoundary = source.indexOf("grep -q 'CONTRACT-LOCAL DDL ONLY'");
 assert(classification >= 0 && ancestryCheck > classification, 'Git ancestry proof must remain inside candidate classification');
-assert(featureScopeGate > ancestryCheck, 'Contract classification must precede scope enforcement');
+assert(releaseIdentityGate > ancestryCheck, 'Release identity must be derived after accepted release classification');
+assert(featureScopeGate > releaseIdentityGate, 'Contract classification must precede scope enforcement');
 assert(contentBoundary > featureScopeGate, 'DDL content boundary must run in feature, Integration, and Release modes');
 
 console.log(JSON.stringify({
@@ -84,6 +88,7 @@ console.log(JSON.stringify({
   release_requires_main_to_production_or_immutable_main_snapshot: true,
   immutable_release_branch_bound_to_head_sha: true,
   immutable_release_requires_main_ancestry: true,
+  rejected_release_identity_is_none: true,
   release_requires_same_repository: true,
   branch_specific_workflow_literals: false,
   integration_rollup_scope_supported: true,
