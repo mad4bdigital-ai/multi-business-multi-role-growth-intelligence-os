@@ -129,12 +129,6 @@ jobs:
           }));
           JS
 
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs")
-          path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
-          PY
-
           mkdir -p .changes/e2e
           cat > .changes/e2e/ci-workflow-registration-context-fix.json <<'JSON'
           {
@@ -227,12 +221,16 @@ jobs:
 
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
+
           for name in [
               "http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs",
               ".changes/e2e/ci-workflow-registration-context-fix.json",
           ]:
               path = Path(name)
-              path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
+              normalized = dedent(path.read_text())
+              normalized = "\n".join(line.rstrip() for line in normalized.splitlines()).lstrip("\n") + "\n"
+              path.write_text(normalized)
           PY
 
           node http-generic-api/scripts/ci-workflow-registration-context-self-test.mjs
