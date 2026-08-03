@@ -6,6 +6,7 @@ const requestPath = "../.github/workflows/hostinger-production-release-evidence-
 const dispatcherPath = "../.github/workflows/hostinger-production-release-evidence-r5-pr-request-dispatcher.yml";
 const request = fs.readFileSync(requestPath, "utf8");
 const dispatcher = fs.readFileSync(dispatcherPath, "utf8");
+const workBranchLiteral = /gpt\/trigger-hostinger-production-release-evidence-r5-20260803/u;
 
 assert.match(request, /^name:\s*Hostinger Production R5 PR Target Request$/mu);
 assert.match(request, /^\s*pull_request_target:\s*$/mu);
@@ -21,7 +22,10 @@ assert.doesNotMatch(request, /contents:\s*write/u);
 assert.doesNotMatch(request, /uses:\s*actions\/checkout/u);
 assert.doesNotMatch(request, /secrets\./u);
 assert.doesNotMatch(request, /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)/u);
+assert.doesNotMatch(request, workBranchLiteral);
 assert.match(request, /github\.actor != 'github-actions\[bot\]'/u);
+assert.match(request, /\^\(gpt\|cert\|fix\|feat\|chore\|docs\|release\)\//u);
+assert.match(request, /invalid_governed_work_branch/u);
 assert.match(request, /cross_repository_pull_request_forbidden/u);
 assert.match(request, /protected_branch_mutation_forbidden/u);
 assert.match(request, /pull_request_head_mismatch/u);
@@ -54,14 +58,17 @@ assert.match(dispatcher, /pull-requests:\s*read/u);
 assert.doesNotMatch(dispatcher, /contents:\s*write/u);
 assert.doesNotMatch(dispatcher, /secrets\./u);
 assert.doesNotMatch(dispatcher, /\bgit\s+push\b/u);
+assert.doesNotMatch(dispatcher, workBranchLiteral);
 assert.match(dispatcher, /Resolve and revalidate exact-head R5 request before dispatch/u);
 assert.match(dispatcher, /gh run download/u);
 assert.match(dispatcher, /report_source_run_id.*SOURCE_RUN_ID/su);
+assert.match(dispatcher, /target_ref/u);
+assert.match(dispatcher, /\^\(gpt\|cert\|fix\|feat\|chore\|docs\|release\)\//u);
 assert.match(dispatcher, /current_main_sha.*expected_main_sha/su);
 assert.match(dispatcher, /current_production_sha.*EXPECTED_PRODUCTION_SHA/su);
-assert.match(dispatcher, /EXPECTED_HEAD_REF.*main.*Production/su);
+assert.match(dispatcher, /target_ref.*main.*Production/su);
 assert.match(dispatcher, /protected_branch_mutation_forbidden/u);
-assert.match(dispatcher, /marker_file_scope_mismatch|MARKER_PATH/u);
+assert.match(dispatcher, /MARKER_PATH/u);
 assert.match(dispatcher, /target_workflow_blob/u);
 assert.match(dispatcher, /HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=claiming/u);
 assert.match(dispatcher, /hostinger-production-release-evidence-r5\.yml\/dispatches/u);
@@ -91,11 +98,12 @@ assert.ok(claimIndex >= 0 && claimIndex < dispatchIndex);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 78,
+  tests: 84,
   gate: "hostinger_production_release_evidence_r5_pr_bridge",
   request_contract: "mad4b.hostinger-production-release-evidence-r5-pr-request.v1",
   pull_request_stage_read_only: true,
   trusted_workflow_run_dispatcher: true,
+  permanent_workflows_branch_agnostic: true,
   exact_head_bound: true,
   production_bound: true,
   target_workflow_blob_bound: true,
