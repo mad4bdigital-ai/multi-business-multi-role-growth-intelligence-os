@@ -1,0 +1,163 @@
+name: Exact Work Map Schema Classification Patch Applier
+
+on:
+  pull_request:
+    branches:
+      - gpt/apply-work-map-schema-classification-base-c7f7be81
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: exact-work-map-schema-classification-patch-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply exact bounded repair
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    env:
+      TARGET_BRANCH: gpt/work-map-schema-classification-repair-20260803
+      EXPECTED_HEAD_SHA: c7c10a4a8ae649e361b63531baeffbae1b677ced
+      EXPECTED_MAIN_SHA: c7f7be81b811caf3c1112372ab1089fc5ee3714c
+      PATCH_PATH: .changes/patches/work-map-schema-classification-repair.patch
+      PATCH_SHA256: 3909733ff9d3f42432ab220ada2b4090bfaeaa5d9c17091d4decf49326b732be
+    steps:
+      - name: Initialize evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/work-map-schema-classification-patch"
+          mkdir -p "$root"
+          printf 'EVIDENCE_ROOT=%s\n' "$root" >> "$GITHUB_ENV"
+          cat > "$root/report.md" <<EOF
+          # Exact Work Map schema classification patch
+
+          - Expected main: \`${EXPECTED_MAIN_SHA}\`
+          - Expected candidate: \`${EXPECTED_HEAD_SHA}\`
+          - Target branch: \`${TARGET_BRANCH}\`
+          - Patch SHA-256: \`${PATCH_SHA256}\`
+          EOF
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable authority
+        shell: bash
+        env:
+          EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$EVENT_HEAD_REF" = "$TARGET_BRANCH"
+          test "$EVENT_HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "1"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")" = "$PATCH_PATH"
+          test "$(sha256sum "$PATCH_PATH" | awk '{print $1}')" = "$PATCH_SHA256"
+
+      - name: Apply patch and validate exact scope
+        id: apply_patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check --whitespace=error-all "$PATCH_PATH"
+          git apply --whitespace=error-all "$PATCH_PATH"
+          rm "$PATCH_PATH"
+
+          actual="$RUNNER_TEMP/actual-files.txt"
+          expected="$RUNNER_TEMP/expected-files.txt"
+          git diff --name-only | sort > "$actual"
+          printf '%s\n' \
+            '.changes/e2e/work-map-schema-classification-growth-control.json' \
+            '.changes/patches/work-map-schema-classification-repair.patch' \
+            '.specify/work-map-schema-classification-registry.json' \
+            'http-generic-api/test-work-map-schema-classification.mjs' \
+            | sort > "$expected"
+          diff -u "$expected" "$actual"
+          test -z "$(git diff --name-only | grep '^docs/work-maps/' || true)"
+          git diff --check
+
+          node -e "JSON.parse(require('node:fs').readFileSync('.specify/work-map-schema-classification-registry.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-schema-classification-growth-control.json','utf8'))"
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
+      - name: Commit exact repair and run E2E governance
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(work-maps): classify Growth Control analytics schema"
+          result_sha="$(git rev-parse HEAD)"
+
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${result_sha}" | wc -l | tr -d ' ')" = "3"
+          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}...${result_sha}" | grep -vE '^(\.changes/e2e/work-map-schema-classification-growth-control\.json|\.specify/work-map-schema-classification-registry\.json|http-generic-api/test-work-map-schema-classification\.mjs)$' || true)"
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$result_sha" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$result_sha" \
+            --report-file "$EVIDENCE_ROOT/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_ROOT/e2e-phase-execution.json"
+
+          printf 'result_sha=%s\n' "$result_sha" >> "$GITHUB_OUTPUT"
+          printf '\n- Result SHA: `%s`\n' "$result_sha" >> "$EVIDENCE_ROOT/report.md"
+
+      - name: Push non-force after remote-head readback
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.commit.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_HEAD_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$RESULT_SHA"
+          printf '%s\n' \
+            '- Direct protected-branch mutation: `false`' \
+            '- Force push: `false`' \
+            '- Generated Work Map mutation: `false`' \
+            '- Database/runtime/provider/deployment mutation: `false`' \
+            >> "$EVIDENCE_ROOT/report.md"
+
+      - name: Upload patch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-schema-classification-patch-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-schema-classification-patch
+          if-no-files-found: error
+          retention-days: 14
