@@ -169,6 +169,15 @@ function expectCode(fn, code) {
 }
 
 {
+  const sensitive = snapshots();
+  sensitive[0].records[0].auth_header = "forbidden";
+  expectCode(
+    () => build({ snapshots: sensitive }),
+    "authority_evidence_repository_candidate_sensitive_value_forbidden",
+  );
+}
+
+{
   const oversizedRows = snapshots();
   oversizedRows[0].records = Array.from({ length: 8193 }, (_, index) => ({ path_key: `row.${index}` }));
   oversizedRows[0].pagination.expected_count = 8193;
@@ -182,6 +191,13 @@ function expectCode(fn, code) {
 {
   expectCode(
     () => build({ observed_ref: "not-a-sha" }),
+    "authority_evidence_repository_candidate_invalid_commit_sha",
+  );
+}
+
+{
+  expectCode(
+    () => build({ observed_ref: "A".repeat(40) }),
     "authority_evidence_repository_candidate_invalid_commit_sha",
   );
 }
