@@ -15,7 +15,8 @@ export const TENANT_GPT_AUDIENCE_COMPATIBILITY_CLASSIFICATIONS = Object.freeze({
   RESOURCE_MISMATCH: "token_resource_mismatch_rejected",
 });
 
-const DEFAULT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const DEFAULT_CLOCK_SKEW_MS = MAX_CLOCK_SKEW_MS;
 
 function finiteMs(value, fallback = 0) {
   const normalized = Number(value);
@@ -84,7 +85,10 @@ export function classifyTenantGptAudienceCompatibility({
   const legacy = String(legacyAudience || "").trim();
   const normalizedCutoffMs = finiteMs(cutoffMs, 0);
   const normalizedNowMs = finiteMs(nowMs, Date.now());
-  const normalizedClockSkewMs = Math.max(0, finiteMs(clockSkewMs, DEFAULT_CLOCK_SKEW_MS));
+  const normalizedClockSkewMs = Math.min(
+    MAX_CLOCK_SKEW_MS,
+    Math.max(0, finiteMs(clockSkewMs, DEFAULT_CLOCK_SKEW_MS)),
+  );
   const legacyAudiencePresent = Boolean(legacy && audiences.includes(legacy));
 
   if (audiences.length !== 1) {
@@ -234,4 +238,4 @@ export function recordTenantGptAudienceCompatibilityEvidence(input, {
   return true;
 }
 
-export { DEFAULT_CLOCK_SKEW_MS };
+export { DEFAULT_CLOCK_SKEW_MS, MAX_CLOCK_SKEW_MS };
