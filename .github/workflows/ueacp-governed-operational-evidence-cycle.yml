@@ -111,11 +111,7 @@ jobs:
           [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
           [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
           test -f "${SOURCE_MANIFEST_FILE}"
-          MANIFEST_REF="$(node --input-type=module -e "import fs from 'node:fs'; const v=JSON.parse(fs.readFileSync(process.env.SOURCE_MANIFEST_FILE,'utf8')); process.stdout.write(String(v.observed_ref||''));")"
-          [[ "${MANIFEST_REF}" =~ ^[a-f0-9]{40}$ ]]
-          git cat-file -e "${MANIFEST_REF}^{commit}"
-          git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
-          node --input-type=module - <<'NODE'
+          MANIFEST_REF="$(node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
           const root = fs.realpathSync('.');
@@ -130,7 +126,12 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync(realManifestPath, 'utf8'));
           if (manifest.contract !== 'mad4b.ueacp.authority-evidence-repository-manifest.v1') throw new Error('invalid source manifest contract');
           if (manifest.repository !== process.env.REPOSITORY) throw new Error('source manifest repository mismatch');
+          process.stdout.write(String(manifest.observed_ref || ''));
           NODE
+          )"
+          [[ "${MANIFEST_REF}" =~ ^[a-f0-9]{40}$ ]]
+          git cat-file -e "${MANIFEST_REF}^{commit}"
+          git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
           mkdir -p "${EVIDENCE_DIR}"
       - name: Create short-lived read-only authorization
         shell: bash
