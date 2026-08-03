@@ -1,23 +1,24 @@
 name: Spec 013 Final Contract Closure
 
 on:
-  push:
-    branches:
-      - fix/spec-013-final-contract-closure-20260803
-    paths:
-      - .github/workflows/spec-013-final-contract-closure.yml
+  pull_request:
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: spec-013-final-contract-closure-${{ github.ref }}
+  group: spec-013-final-contract-closure-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   close-contracts:
-    if: github.ref_name == 'fix/spec-013-final-contract-closure-20260803'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/spec-013-final-contract-closure-20260803') ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'fix/spec-013-final-contract-closure-20260803' &&
+       github.actor != 'github-actions[bot]')
     runs-on: ubuntu-slim
     timeout-minutes: 20
     steps:
