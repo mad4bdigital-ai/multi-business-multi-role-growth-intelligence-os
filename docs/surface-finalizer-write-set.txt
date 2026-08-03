@@ -1,0 +1,10 @@
+M	docs/surface-contract-discovery-status.json
+M	docs/surface-contract-discovery-status.md
+M	docs/surface-contract-gap-queue.json
+M	docs/surface-contract-gap-queue.md
+M	docs/surface-contract-safety-attestations.json
+M	http-generic-api/frontend-operation-governance.generated.json
+M	http-generic-api/frontend-surface-dispatch.generated.json
+M	http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+M	http-generic-api/surface-contract-classification-evidence.json
+M	http-generic-api/test-surface-callability-full-closure.mjs
