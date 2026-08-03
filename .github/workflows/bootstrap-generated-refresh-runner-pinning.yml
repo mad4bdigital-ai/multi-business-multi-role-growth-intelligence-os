@@ -1,0 +1,226 @@
+name: Bootstrap Generated Refresh Runner Pinning
+
+on:
+  push:
+    branches:
+      - gpt/ci/generated-refresh-runner-pinning-20260804
+    paths:
+      - .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-generated-refresh-runner-pinning
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      EXPECTED_BASE_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      TARGET_BRANCH: gpt/ci/generated-refresh-runner-pinning-20260804
+      BOOTSTRAP_PATH: .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
+    steps:
+      - name: Checkout exact bootstrap commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify bootstrap identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_BASE_SHA}"
+          test "$(git diff --name-only HEAD^ HEAD)" = "${BOOTSTRAP_PATH}"
+
+      - name: Apply bounded runner pinning patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+          import json
+
+          workflow_paths = [
+              Path('.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml'),
+              Path('.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml'),
+              Path('.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml'),
+              Path('.github/workflows/governed-generated-artifact-refresh.yml'),
+              Path('.github/workflows/pr-generated-artifact-refresh.yml'),
+          ]
+
+          for path in workflow_paths:
+              text = path.read_text(encoding='utf-8')
+              old = 'runs-on: ubuntu-latest'
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one {old!r}, found {text.count(old)}')
+              path.write_text(text.replace(old, 'runs-on: ubuntu-24.04'), encoding='utf-8')
+
+          test_path = Path('http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs')
+          test_text = test_path.read_text(encoding='utf-8')
+
+          path_anchor = 'const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";\n'
+          path_insert = (
+              'const delegatedDecisionWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";\n'
+              'const writerWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";\n'
+              'const verificationWorkflowPath = "../.github/workflows/pr-generated-artifact-refresh.yml";\n'
+          )
+          if test_text.count(path_anchor) != 1:
+              raise SystemExit('test path anchor mismatch')
+          test_text = test_text.replace(path_anchor, path_anchor + path_insert, 1)
+
+          read_anchor = 'const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");\n'
+          read_insert = (
+              'const delegatedDecisionWorkflow = fs.readFileSync(delegatedDecisionWorkflowPath, "utf8");\n'
+              'const writerWorkflow = fs.readFileSync(writerWorkflowPath, "utf8");\n'
+              'const verificationWorkflow = fs.readFileSync(verificationWorkflowPath, "utf8");\n'
+          )
+          if test_text.count(read_anchor) != 1:
+              raise SystemExit('test read anchor mismatch')
+          test_text = test_text.replace(read_anchor, read_anchor + read_insert, 1)
+
+          assertion_anchor = 'assert.equal(fs.existsSync(retiredRequestWorkflowPath), false, "retired request bridge path must remain absent");\n'
+          assertion_insert = '''const pinnedRunnerWorkflows = [
+            ["read-only request", requestWorkflow],
+            ["trusted request dispatcher", dispatcherWorkflow],
+            ["V2 decision dispatcher", delegatedDecisionWorkflow],
+            ["governed writer", writerWorkflow],
+            ["read-only verification", verificationWorkflow],
+          ];
+          for (const [name, workflow] of pinnedRunnerWorkflows) {
+            assert.match(workflow, /^\\s*runs-on:\\s*ubuntu-24\\.04\\s*$/mu, `${name} must use the explicit ubuntu-24.04 runner`);
+            assert.doesNotMatch(workflow, /^\\s*runs-on:\\s*ubuntu-latest\\s*$/mu, `${name} must not depend on the mutable ubuntu-latest alias`);
+          }
+
+          '''
+          if test_text.count(assertion_anchor) != 1:
+              raise SystemExit('test assertion anchor mismatch')
+          test_text = test_text.replace(assertion_anchor, assertion_insert + assertion_anchor, 1)
+
+          if test_text.count('tests: 81') != 1:
+              raise SystemExit('test count anchor mismatch')
+          test_text = test_text.replace('tests: 81', 'tests: 91', 1)
+          test_path.write_text(test_text, encoding='utf-8')
+
+          contract = {
+              '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+              'schema_version': 1,
+              'feature_key': 'governed-generated-artifact-refresh-runner-pinning',
+              'title': 'Pin the governed generated-artifact refresh chain to an explicit hosted runner',
+              'delivery_mode': 'multi_pr',
+              'current_phase': 'mvp',
+              'scope': {
+                  'include': [
+                      '.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml',
+                      '.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml',
+                      '.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml',
+                      '.github/workflows/governed-generated-artifact-refresh.yml',
+                      '.github/workflows/pr-generated-artifact-refresh.yml',
+                      'http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs',
+                      '.changes/e2e/governed-generated-artifact-refresh-runner-pinning.json',
+                  ]
+              },
+              'merge_contract': {'minimum_phase': 'mvp'},
+              'phases': [
+                  {
+                      'id': 'mvp',
+                      'status': 'implemented',
+                      'objective': 'Remove the mutable ubuntu-latest dependency from every load-bearing stage of the governed generated-artifact refresh request, decision, writer, and verification chain.',
+                      'e2e_journeys': [
+                          {
+                              'id': 'explicit-runner-generated-refresh-chain',
+                              'end_to_end': True,
+                              'level': 'synthetic_runtime',
+                              'actor': 'trusted request, dispatch, writer, and verification workflows',
+                              'entrypoint': 'An eligible exact-head generated-artifact refresh request enters the read-only pull_request_target evaluator.',
+                              'terminal_outcome': 'Every load-bearing stage requests ubuntu-24.04 explicitly, preserves the existing authorization and exact-head contracts, and delegates repository mutation only to the governed writer.',
+                              'steps': [
+                                  'Evaluate the same-repository exact-head request on ubuntu-24.04.',
+                                  'Consume the run-bound request artifact in the trusted dispatcher on ubuntu-24.04.',
+                                  'Execute the V2 decision dispatcher on ubuntu-24.04.',
+                                  'Run the registered generated-artifact writer on ubuntu-24.04.',
+                                  'Run the read-only post-write verification on ubuntu-24.04.',
+                              ],
+                              'assertions': [
+                                  'No load-bearing workflow in the governed refresh chain uses ubuntu-latest.',
+                                  'The request stage remains read-only and performs no candidate checkout or API mutation.',
+                                  'Dispatchers remain exact-head bound and reject protected branches before mutation.',
+                                  'Only the governed writer retains contents:write authority.',
+                                  'No Production, provider, credential, database, migration, protected-ref, force-push, or external-send authority is introduced.',
+                              ],
+                              'tests': [
+                                  {
+                                      'id': 'generated-artifact-refresh-runner-pinning-contract',
+                                      'runner': 'node',
+                                      'working_directory': 'http-generic-api',
+                                      'path': 'test-governed-generated-artifact-refresh-pr-target-bridge.mjs',
+                                      'args': [],
+                                  }
+                              ],
+                              'evidence_paths': [str(path) for path in workflow_paths] + [str(test_path)],
+                          }
+                      ],
+                  },
+                  {
+                      'id': 'operational',
+                      'status': 'planned',
+                      'objective': 'Observe one exact-head request traverse request, dispatcher, writer, and verification with concrete run IDs.',
+                  },
+                  {
+                      'id': 'resilient',
+                      'status': 'planned',
+                      'objective': 'Confirm stale heads, drafts, forks, missing labels, invalid branches, and protected refs continue to fail closed.',
+                  },
+                  {
+                      'id': 'canary',
+                      'status': 'not_applicable',
+                      'objective': 'This repository automation patch performs no provider or deployment canary.',
+                  },
+                  {
+                      'id': 'production',
+                      'status': 'not_applicable',
+                      'objective': 'The patch grants no Production, migration, database, provider, credential, or deployment authority.',
+                  },
+              ],
+              'secrets_included': False,
+          }
+          contract_path = Path('.changes/e2e/governed-generated-artifact-refresh-runner-pinning.json')
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n', encoding='utf-8')
+
+          Path('.github/workflows/bootstrap-generated-refresh-runner-pinning.yml').unlink()
+          PY
+
+      - name: Verify bounded patch and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs)
+          git diff --check "${EXPECTED_BASE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}" | sort > "${RUNNER_TEMP}/actual-files.txt"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
+          .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml
+          .github/workflows/governed-generated-artifact-refresh.yml
+          .github/workflows/pr-generated-artifact-refresh.yml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          EOF
+          sort -o "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/expected-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+
+      - name: Commit and push bounded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(ci): pin generated refresh chain runners"
+          git push origin "HEAD:${TARGET_BRANCH}"
