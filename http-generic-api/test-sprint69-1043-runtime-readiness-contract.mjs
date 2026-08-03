@@ -100,6 +100,8 @@ assert.match(backfillRunner, /per_page=100&page=\$\{page\}/);
 assert.match(backfillRunner, /reachedCommentBoundary/);
 assert.match(backfillRunner, /nonSkippedCandidates/);
 assert.match(backfillRunner, /function safeBoolean/);
+assert.match(backfillRunner, /authorization_created: safeBoolean\(failure\.authorization_created\)/, 'legacy failure booleans remain unverified');
+assert.match(backfillRunner, /secrets_included: failureSecretsIncluded/);
 assert.doesNotMatch(backfillRunner, /per_page=50/);
 assert.match(runner, /SAFE_EVIDENCE_KEYS/);
 assert.match(backfillRunner, /SAFE_EVIDENCE_KEYS/);
