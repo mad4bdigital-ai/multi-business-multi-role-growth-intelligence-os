@@ -1,0 +1,166 @@
+name: Exact OAuth Full-Suite Repair Writer 5937
+
+on:
+  pull_request_target:
+    branches:
+      - gpt/patch-oauth-fullsuite-base-a61cd9e8-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-oauth-fullsuite-repair-writer-5937
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Repair OAuth composition and v2 diagnostics regression
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-fullsuite-fix-a61cd9e8-v1' &&
+      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_TARGET_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      TARGET_BRANCH: gpt/spec012-oauth-fullsuite-fix-a61cd9e8-v1
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact immutable starting state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
+          case "$TARGET_BRANCH" in main|Production) exit 1 ;; esac
+
+      - name: Apply exact OAuth composition and v2 evidence repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = [
+              (
+                  Path('http-generic-api/routes/index.js'),
+                  '  app.use(buildTenantGptOAuthMetadataRoutes());',
+                  '  app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+              ),
+              (
+                  Path('http-generic-api/test-auth-oauth-routes.mjs'),
+                  'app.use(buildTenantGptOAuthMetadataRoutes());',
+                  'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));',
+              ),
+              (
+                  Path('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'),
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");',
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");',
+              ),
+              (
+                  Path('http-generic-api/test-auth-oauth-routes.mjs'),
+                  '  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));',
+                  '  assert("invalid client diagnostic uses governed OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));',
+              ),
+              (
+                  Path('http-generic-api/test-auth-oauth-routes.mjs'),
+                  '''  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));''',
+                  '''  assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds), JSON.stringify(invalidClientDiagnostic));
+  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));''',
+              ),
+              (
+                  Path('http-generic-api/test-auth-oauth-routes.mjs'),
+                  '''  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));''',
+                  '''  assert("success diagnostic records committed response phase", successDiagnostic?.runtime_evidence_json?.phase === "response_committed", JSON.stringify(successDiagnostic));
+  assert("success diagnostic records governed committed classification", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed", JSON.stringify(successDiagnostic));
+  assert("success diagnostic records access-token preparation only", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures activation context storage only", successDiagnostic?.runtime_evidence_json?.activation_context?.stored === true, JSON.stringify(successDiagnostic));
+  assert("success diagnostic captures atomic code consumption only", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));''',
+              ),
+          ]
+
+          for path, old, new in replacements:
+              source = path.read_text(encoding='utf-8')
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one exact replacement target, found {count}: {old[:120]!r}')
+              path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+
+          mapfile -t files < <(git diff --name-only)
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = 'http-generic-api/routes/index.js'
+          test "${files[1]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
+          test "${files[2]}" = 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+          git diff --check
+          git diff --exit-code -- . \
+            ':!http-generic-api/routes/index.js' \
+            ':!http-generic-api/test-auth-oauth-routes.mjs' \
+            ':!http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p validation-output
+          node test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee validation-output/spec012-t031.log
+          node test-auth-oauth-routes.mjs 2>&1 | tee validation-output/auth-oauth-routes.log
+
+      - name: Run canonical complete manifest
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:manifest 2>&1 | tee validation-output/test-manifest.log
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-fullsuite-repair-${{ github.run_id }}
+          path: http-generic-api/validation-output
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit exact bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-auth-oauth-routes.mjs \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
+          git commit -m 'fix(spec-012): restore OAuth full-suite composition'
+
+      - name: Push without force after final compare-and-swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
