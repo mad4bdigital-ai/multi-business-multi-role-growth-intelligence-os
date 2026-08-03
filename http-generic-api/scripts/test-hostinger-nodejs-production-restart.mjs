@@ -249,7 +249,7 @@ function testWorkflowContract() {
   assert.match(workflow, /cross_object_composition=\$\{report\.runtime_identity_authority\?\.cross_object_composition_allowed === true/u);
   assert.match(workflow, /restart_attempted=\$\{restartAttempted\}/u);
   assert.match(workflow, /provider_mutation_attempted=\$\{report\.side_effects\?\.provider_mutation_attempted === true\}/u);
-  assert.match(workflow, /contains\('restart_attempted=true'\)/u);
+  assert.match(workflow, /includes\('restart_attempted=true'\)/u);
   assert.match(workflow, /const retryableWithoutProviderMutation = report\.outcome !== 'passed' && !restartAttempted/u);
   assert.match(workflow, /HOSTINGER_API_TOKEN/u);
   assert.match(workflow, /issues: write/u);
