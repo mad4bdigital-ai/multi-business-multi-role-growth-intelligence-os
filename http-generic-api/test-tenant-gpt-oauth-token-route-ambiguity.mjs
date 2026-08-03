@@ -111,7 +111,16 @@ function createHarness() {
       }
 
       if (sql.includes("INSERT INTO `tenant_gpt_activation_contexts`")) {
-        contexts.push({ params });
+        contexts.push({ source: "tenant_gpt_activation_contexts", params });
+        return [{ affectedRows: 1 }];
+      }
+
+      if (sql.includes("CREATE TABLE IF NOT EXISTS `tenant_activation_contexts`")) {
+        return [{ affectedRows: 0 }];
+      }
+
+      if (sql.includes("INSERT INTO `tenant_activation_contexts`")) {
+        contexts.push({ source: "tenant_activation_contexts", params });
         return [{ affectedRows: 1 }];
       }
 
