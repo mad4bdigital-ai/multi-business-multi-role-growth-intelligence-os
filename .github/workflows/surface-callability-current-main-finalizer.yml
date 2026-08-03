@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/pr5210-surface-source-clean-20260803
-      BASE_SHA: a9660046e9d7169d90a418752c4045edae469516
+      BASE_SHA: ae26acbb7cd640ca9670c7b26b267aca45e3b337
       WORKFLOW_PATH: .github/workflows/surface-callability-current-main-finalizer.yml
     steps:
       - name: Checkout exact target branch
@@ -134,7 +134,6 @@ jobs:
         working-directory: http-generic-api
         run: node test-frontend-auth-openapi-parity.mjs
 
-      # The route-coverage guard now consumes canonicalOpenApiAuthority(ROOT) as an array.
       - name: OpenAPI route coverage
         working-directory: http-generic-api
         run: node test-openapi-route-coverage.mjs
