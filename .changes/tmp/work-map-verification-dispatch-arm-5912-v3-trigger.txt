@@ -1,0 +1,1 @@
+Temporary never-merge v3 trigger for focused regression diagnostics on canonical PR #5912.
