@@ -1,0 +1,109 @@
+name: Incident 5021 refreshed exact-head approval builder
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/exact-head-approval-guard-v3-20260803
+    paths:
+      - .github/workflows/incident-5021-exact-head-approval-v3-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-5021-exact-head-approval-v3-builder
+  cancel-in-progress: false
+
+jobs:
+  cherry-pick-test-publish:
+    name: Reapply source commits on refreshed base
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: gpt/incident-5021/exact-head-approval-guard-v3-20260803
+      SOURCE_BRANCH: gpt/incident-5021/exact-head-approval-guard-20260803
+      EXPECTED_TARGET_SHA: 1e77e241280be25295a12c07797ac69bb167378e
+      SOURCE_COMMIT_1: 677fa9e8a38257f8a27bd7ce9e302fae6fd1e8d8
+      SOURCE_COMMIT_2: 67a07736b30721a7306c96bba1da4eb42c9f331b
+      SOURCE_COMMIT_3: 12e5297b99be0be67c178d51815c945432d045d4
+    steps:
+      - name: Checkout immutable refreshed target
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify exact target and fetch source history
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git status --porcelain)" = ""
+          git fetch --no-tags origin "$TARGET_BRANCH" "$SOURCE_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          for commit in "$SOURCE_COMMIT_1" "$SOURCE_COMMIT_2" "$SOURCE_COMMIT_3"; do
+            git cat-file -e "${commit}^{commit}"
+          done
+
+      - name: Reapply three bounded source commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git cherry-pick "$SOURCE_COMMIT_1"
+          git cherry-pick "$SOURCE_COMMIT_2"
+          git cherry-pick "$SOURCE_COMMIT_3"
+
+      - name: Run focused tests and enforce six-file source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-github-repository-lifecycle.mjs
+          node http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          node http-generic-api/test-repository-automation-control-plane.mjs
+          git diff --check "$EXPECTED_TARGET_SHA"...HEAD
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_TARGET_SHA"...HEAD | sort)
+          expected=(
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json
+            http-generic-api/githubRepositoryLifecycle.js
+            http-generic-api/openapi/operation-capability-lifecycle.yaml
+            http-generic-api/operationCapabilityLifecycleService.js
+            http-generic-api/test-github-repository-lifecycle.mjs
+            http-generic-api/test-gpt-tools-route-syntax-regression.mjs
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+          test "${#changed[@]}" -eq 6
+
+      - name: Publish refreshed candidate without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$(git status --porcelain)" = ""
+          git push origin "HEAD:${TARGET_BRANCH}"
+          git fetch --no-tags origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$candidate_sha"
+          printf '{"schema_version":1,"status":"published","base_sha":"%s","candidate_sha":"%s","target_branch":"%s","source_commit_count":3,"changed_file_count":6,"tests_passed":true,"diff_check_passed":true,"force_push":false,"generated_refresh_deferred":true,"secrets_included":false}\n' "$EXPECTED_TARGET_SHA" "$candidate_sha" "$TARGET_BRANCH" > /tmp/incident-5021-v3-builder-result.json
+
+      - name: Upload builder evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-exact-head-approval-v3-builder-${{ github.sha }}
+          path: /tmp/incident-5021-v3-builder-result.json
+          if-no-files-found: warn
+          retention-days: 7
