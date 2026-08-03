@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - gpt/fix-production-promotion-launcher-registration-20260803
+  pull_request:
+    branches:
+      - gpt/fix-production-promotion-launcher-registration-base-20260803
+    types: [opened, reopened, synchronize]
 
 permissions:
   actions: write
@@ -117,8 +121,9 @@ assert.match(
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
           node --check http-generic-api/test-production-promotion-convergence-workflows.mjs
           ! grep -A20 '^  converge-source-pinned-candidate:' .github/workflows/governed-production-promotion-request-launcher.yml | grep -q 'EVIDENCE_PATH:.*runner.temp'
-          grep -A8 'id: converge' .github/workflows/governed-production-promotion-request-launcher.yml | grep -Fq 'EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-convergence.json'
-          grep -A6 'name: Upload convergence evidence' .github/workflows/governed-production-promotion-request-launcher.yml | grep -Fq 'path: ${{ runner.temp }}/governed-production-promotion-convergence.json'
+          runner_expr='$'"{{ runner.temp }}"
+          grep -A8 'id: converge' .github/workflows/governed-production-promotion-request-launcher.yml | grep -Fq "EVIDENCE_PATH: ${runner_expr}/governed-production-promotion-convergence.json"
+          grep -A6 'name: Upload convergence evidence' .github/workflows/governed-production-promotion-request-launcher.yml | grep -Fq "path: ${runner_expr}/governed-production-promotion-convergence.json"
           git diff --check
           mapfile -t effective < <(git diff --name-only origin/main)
           printf '%s\n' "${effective[@]}"
