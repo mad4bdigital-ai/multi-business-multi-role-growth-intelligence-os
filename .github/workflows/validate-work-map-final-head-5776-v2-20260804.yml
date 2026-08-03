@@ -1,0 +1,151 @@
+name: Validate Work Map Final Head 5776 V2 20260804
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/validate-work-map-final-head-5776-v2-20260804.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: validate-work-map-final-head-5776-v2-20260804
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact committed Work Map head
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-work-map-final-head-5776-v2-20260804' &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      VALIDATOR_PR: ${{ github.event.pull_request.number }}
+      VALIDATOR_WORKFLOW: .github/workflows/validate-work-map-final-head-5776-v2-20260804.yml
+      TARGET_PR: '5776'
+      TARGET_BRANCH: gpt/work-map-currentness-refresh-20260804
+      TARGET_SHA: f0274156d64b0b134e67ef667feaf82cf4aae284
+      EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_FINGERPRINT: f81e65d2452c2c04a1281d1537f2aec58a5a2228d6faa06f72faaa454d963fda
+
+    steps:
+      - name: Verify one-file validator and exact target snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mapfile -t files < <(gh api --paginate "/repos/${REPOSITORY}/pulls/${VALIDATOR_PR}/files?per_page=100" --jq '.[].filename')
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${VALIDATOR_WORKFLOW}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          target="$(gh api "/repos/${REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = open
+          test "$(jq -r '.base.sha' <<<"${target}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${TARGET_SHA}"
+
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate topology, exact scope, and committed governance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          log="${RUNNER_TEMP}/work-map-final-head.log"
+          set +e
+          (
+            set -Eeuo pipefail
+            test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+            test "$(git merge-base "${TARGET_SHA}" "${EXPECTED_MAIN_SHA}")" = "${EXPECTED_MAIN_SHA}"
+            mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${TARGET_SHA}" | sort)
+            expected=(
+              'docs/work-maps/README.md'
+              'docs/work-maps/repository-automation-map.md'
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
+            )
+            test "${#changed[@]}" -eq "${#expected[@]}"
+            for index in "${!expected[@]}"; do test "${changed[$index]}" = "${expected[$index]}"; done
+
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification.mjs
+            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+            (
+              cd http-generic-api
+              node test-work-map-schema-classification.mjs
+              node test-work-map-schema-classification-contract.mjs
+              node test-spec-kit-work-map-governance-gate.mjs
+            )
+
+            report="${RUNNER_TEMP}/final-work-map-readback.json"
+            REPORT_PATH="${report}" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${RUNNER_TEMP}/final-work-map-readback.stdout.json"
+            jq -e --arg fp "${EXPECTED_FINGERPRINT}" '
+              .ok == true and
+              .findings == [] and
+              .current_registry.fingerprint == $fp and
+              .manifest_registry.fingerprint == $fp
+            ' "${report}"
+
+            node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+            node http-generic-api/test-e2e-contract-reference-integrity.mjs
+            node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+            node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+            node build-canonicals.mjs --check
+            git diff --check
+            test -z "$(git status --short)"
+          ) >"${log}" 2>&1
+          status=$?
+          set -e
+          cat "${log}"
+
+          if [[ "${status}" -ne 0 ]]; then
+            {
+              echo '## Exact committed Work Map validation failed'
+              echo
+              echo "- Target head: \`${TARGET_SHA}\`"
+              echo "- Exact main base: \`${EXPECTED_MAIN_SHA}\`"
+              echo
+              echo '```text'
+              tail -n 240 "${log}"
+              echo '```'
+            } > "${RUNNER_TEMP}/failure.md"
+            gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure.md"
+            gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/failure.md"
+            exit "${status}"
+          fi
+
+          {
+            echo '## Exact committed Work Map validation passed'
+            echo
+            echo "- Target head: \`${TARGET_SHA}\`"
+            echo "- Exact main base: \`${EXPECTED_MAIN_SHA}\`"
+            echo '- Scope: exactly two generated Work Maps plus the Spec 014 binding manifest'
+            echo '- Generator currentness and schema classification: passed'
+            echo '- Committed changed-scope Work Map governance: passed'
+            echo "- Spec 014 current/manifest fingerprint: \`${EXPECTED_FINGERPRINT}\`"
+            echo '- Final readback: zero findings'
+            echo '- Work Map regressions, E2E/reference integrity, Spec Kit completion, and canonical sources: passed'
+            echo '- Final worktree: clean'
+            echo '- No protected-ref mutation, Production action, force push, SQL, migration, database, provider, deployment, credential, secret, or external-send action occurred'
+          } > "${RUNNER_TEMP}/success.md"
+          gh pr comment "${TARGET_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/success.md"
+          gh pr comment "${VALIDATOR_PR}" --repo "${REPOSITORY}" --body-file "${RUNNER_TEMP}/success.md"
