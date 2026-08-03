@@ -32,6 +32,7 @@
             "Load the workflow only from protected main on an internal pull_request opened, reopened, or synchronize event targeting main.",
             "Require the trigger pull request to originate from the same repository, repository owner user ID, and remain Draft.",
             "Checkout the exact pull request base SHA with persisted credentials disabled and require it to remain current main.",
+            "Initialize the evidence directory at step runtime through RUNNER_TEMP and GITHUB_ENV; never reference runner.temp from job-level env evaluation.",
             "Require the trigger pull request to change exactly .github/ops/hostinger-production-release-evidence-r6-trigger.json and no other path, replacing the unreliable outer paths filter with an explicit in-job fail-closed check.",
             "Read the trigger JSON by exact head SHA and validate its contract, dynamic exact trigger branch, nonce, current tooling SHA, Production SHA, Production merge timestamp, reporter blobs, authorization comment ID, and all no-mutation flags.",
             "Verify the authorization comment owner, R6 token, read-only internal Draft PR trigger mode, exact identities, dynamic trigger branch, nonce, and provider GET-only boundary.",
@@ -43,6 +44,7 @@
           "assertions": [
             "R6 has no issue_comment or workflow_dispatch trigger.",
             "R6 observes opened, reopened, and synchronize pull-request events without a paths filter, then enforces the exact one-file trigger scope inside the trusted job.",
+            "The workflow contains no job-level runner.temp expression; runtime-only runner context is consumed inside a step and the Artifact path uses step-level runner.temp.",
             "The pull_request workflow has no write permission and performs no GitHub API mutation.",
             "The trigger PR must originate from the same repository, be owned by the repository owner ID, and remain Draft.",
             "The permanent workflow embeds no work-branch literal; the exact trigger branch and nonce are supplied by the governed trigger JSON and matched against the authorization comment.",
@@ -77,7 +79,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the R6 registration repair to main, synchronize one authorized internal Draft trigger PR, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
+      "objective": "Merge the R6 runner-context registration repair to main, create a fresh authorization and one internal Draft trigger PR, inspect the resulting Artifact, publish the bounded evidence decision administratively to Incident #4953, and close the trigger PR without merge."
     }
   ],
   "secrets_included": false
