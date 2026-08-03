@@ -57,10 +57,13 @@ assert.equal(record.validation.binding_guard_regression_complete_on_current_head
 assert.equal(record.validation.binding_hardening_regression_complete_on_current_head, true);
 assert.equal(record.validation.validation_head_sha, "eda807dbe78840a1216c5232f01ddbe049700636");
 assert.equal(record.validation.validation_run_id, 30859693853);
+assert.equal(record.validation.validation_job_id, 91838743197);
 assert.equal(record.validation.api_dependencies_installed_from_lockfile, true);
 assert.equal(record.validation.http_integration_complete, true);
 assert.equal(record.validation.shared_canary_complete, true);
-assert.equal(record.validation.temporary_workflow_change_retired_before_ready, false);
+assert.equal(record.validation.temporary_workflow_change_retired_before_ready, true);
+assert.equal(record.validation.post_validation_workflow_restore_commit, "5f8e9068c67db39f719b0955bd6691ac59322eec");
+assert.equal(record.validation.production_code_changed_by_workflow_restore, false);
 assert.equal(record.completion_gate.route_wiring_complete, true);
 assert.equal(record.completion_gate.route_level_regression_complete, true);
 assert.equal(record.completion_gate.binding_guard_regression_complete, true);
@@ -69,7 +72,14 @@ assert.equal(record.completion_gate.exact_head_ci_complete, false);
 assert.equal(record.completion_gate.production_deployed, false);
 assert.equal(record.completion_gate.live_success_exchange_readback_complete, false);
 assert.equal(record.completion_gate.task_completion_allowed, false);
-assert.equal(record.completion_gate.required_before_completion.length >= 9, true);
+assert.equal(record.completion_gate.required_before_completion.length >= 8, true);
+assert.equal(
+  record.completion_gate.required_before_completion.includes(
+    "retire the temporary validation workflow change before Ready review",
+  ),
+  false,
+  "temporary workflow retirement must no longer remain an open completion item",
+);
 assert.match(tasks, /^- \[ \] \*\*T031\*\*/mu,
   "T031 must remain open until deployment and live readback");
 assert.match(narrative, /does \*\*not\*\* close T031/u);
