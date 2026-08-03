@@ -1,4 +1,4 @@
-name: TEMP Patch Pipeline Connectivity 5983
+name: TEMP Diagnose Pipeline Connectivity 5983
 
 on:
   pull_request:
@@ -7,16 +7,16 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
-  group: temp-patch-pipeline-connectivity-5983-${{ github.event.pull_request.number }}
+  group: temp-diagnose-pipeline-connectivity-5983-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  patch:
-    name: Patch V3 pipeline connectivity and verify
+  diagnose:
+    name: Diagnose V3 pipeline connectivity repair
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     env:
@@ -24,13 +24,14 @@ jobs:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       EXPECTED_HEAD_SHA: c95aa1e6578d863b5caa199b643018f30fd47853
       EXPECTED_HEAD_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
+      REPORT_DIR: ${{ runner.temp }}/pipeline-connectivity-diagnostic
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
           ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
-          token: ${{ github.token }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v6
         with:
@@ -43,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-patch-pipeline-connectivity-5983"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-diagnose-pipeline-connectivity-5983-v2"
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
           test "$(jq -r '.state' <<<"${pr}")" = 'open'
@@ -54,7 +55,7 @@ jobs:
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${EXPECTED_HEAD_REF}" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
 
-      - name: Patch connectivity contract, regression, and E2E scope
+      - name: Patch connectivity contract, regression, and E2E scope in worktree
         shell: bash
         run: |
           set -euo pipefail
@@ -113,7 +114,6 @@ jobs:
           const edge = contract.edges.find((item) => item.from === 'spec-kit-work-map-autofix' && item.to === 'spec-kit-work-map-integration');
           if (!edge) throw new Error('writer-to-integration edge missing');
           edge.type = 'dispatches_observable_exact_head_validation';
-
           fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
 
           const testPath = 'http-generic-api/test-pipeline-connectivity-check.mjs';
@@ -151,38 +151,61 @@ jobs:
           fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\n`);
           NODE
 
-      - name: Verify focused and pipeline contracts
+      - name: Run each contract and capture independent diagnostics
+        id: contracts
         shell: bash
         run: |
-          set -euo pipefail
-          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          node --check http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
-          git diff --check
-          changed="$(git diff --name-only)"
-          printf '%s\n' "${changed}"
-          test "$(printf '%s\n' "${changed}" | sed '/^$/d' | wc -l)" -eq 3
-          grep -Fxq '.changes/e2e/work-map-post-write-exact-verification-dispatch.json' <<<"${changed}"
-          grep -Fxq '.specify/pipeline-connectivity-contract.json' <<<"${changed}"
-          grep -Fxq 'http-generic-api/test-pipeline-connectivity-check.mjs' <<<"${changed}"
+          set -uo pipefail
+          mkdir -p "${REPORT_DIR}"
 
-      - name: Commit and push source repair
+          run_check() {
+            local key="$1"
+            shift
+            set +e
+            "$@" >"${REPORT_DIR}/${key}.stdout" 2>"${REPORT_DIR}/${key}.stderr"
+            local status=$?
+            set -e
+            printf '%s\n' "${status}" >"${REPORT_DIR}/${key}.exit-code"
+            echo "===== ${key} (exit ${status}) ====="
+            cat "${REPORT_DIR}/${key}.stdout" || true
+            cat "${REPORT_DIR}/${key}.stderr" || true
+            return 0
+          }
+
+          run_check focused node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          run_check connectivity-check node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_check connectivity-regression node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_check test-syntax node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          run_check e2e-json node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
+          run_check diff-hygiene git diff --check
+
+          changed="$(git diff --name-only)"
+          printf '%s\n' "${changed}" >"${REPORT_DIR}/changed-files.txt"
+          jq -n \
+            --arg focused "$(cat "${REPORT_DIR}/focused.exit-code")" \
+            --arg checker "$(cat "${REPORT_DIR}/connectivity-check.exit-code")" \
+            --arg regression "$(cat "${REPORT_DIR}/connectivity-regression.exit-code")" \
+            --arg syntax "$(cat "${REPORT_DIR}/test-syntax.exit-code")" \
+            --arg e2e_json "$(cat "${REPORT_DIR}/e2e-json.exit-code")" \
+            --arg diff_hygiene "$(cat "${REPORT_DIR}/diff-hygiene.exit-code")" \
+            --arg changed_files "${changed}" \
+            '{contract:"mad4b.pipeline-connectivity-v3-patch-diagnostic.v1",focused_exit_code:($focused|tonumber),connectivity_check_exit_code:($checker|tonumber),connectivity_regression_exit_code:($regression|tonumber),test_syntax_exit_code:($syntax|tonumber),e2e_json_exit_code:($e2e_json|tonumber),diff_hygiene_exit_code:($diff_hygiene|tonumber),changed_files:($changed_files|split("\n")|map(select(length>0))),candidate_mutated:false,main_mutated:false,production_mutated:false,secrets_included:false}' \
+            >"${REPORT_DIR}/summary.json"
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-connectivity-v3-patch-diagnostic-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail after diagnostic capture
         shell: bash
         run: |
           set -euo pipefail
-          remote_head="$(git ls-remote --exit-code origin "refs/heads/${EXPECTED_HEAD_REF}" | awk '{print $1}')"
-          test "${remote_head}" = "${EXPECTED_HEAD_SHA}"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            .specify/pipeline-connectivity-contract.json \
-            http-generic-api/test-pipeline-connectivity-check.mjs \
-            .changes/e2e/work-map-post-write-exact-verification-dispatch.json
-          git commit -m 'fix(ci): align pipeline connectivity with observable Work Map dispatch'
-          git push origin "HEAD:refs/heads/${EXPECTED_HEAD_REF}"
-          result_head="$(git rev-parse HEAD)"
-          test "$(git ls-remote --exit-code origin "refs/heads/${EXPECTED_HEAD_REF}" | awk '{print $1}')" = "${result_head}"
-          echo "Patched candidate head: ${result_head}"
+          for file in "${REPORT_DIR}"/*.exit-code; do
+            test "$(cat "${file}")" = '0'
+          done
+          echo 'All diagnostic contracts passed.'
