@@ -1,0 +1,144 @@
+name: Production Runtime Parity Comment Bridge
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: production-runtime-parity-comment-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  parity:
+    name: Run exact current Production parity readback
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 4953 &&
+      github.event.issue.state == 'open' &&
+      github.event.comment.user.id == 271942579 &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      startsWith(github.event.comment.body, 'RUN_PRODUCTION_RUNTIME_PARITY expected_sha=')
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 12
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      EXPECTED_BRANCH: Production
+      AUTH_URL: https://auth.mad4b.com/version
+      REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-comment-bridge
+      TRIGGER_BODY: ${{ github.event.comment.body }}
+
+    steps:
+      - name: Resolve exact trigger bindings
+        id: trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${TRIGGER_BODY}" =~ ^RUN_PRODUCTION_RUNTIME_PARITY[[:space:]]expected_sha=([0-9a-f]{40})[[:space:]]tooling_sha=([0-9a-f]{40})$ ]]; then
+            echo 'Invalid governed runtime parity trigger.' >&2
+            exit 1
+          fi
+          echo "expected_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+          echo "tooling_sha=${BASH_REMATCH[2]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout exact trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.trigger.outputs.tooling_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify current immutable repository bindings
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.trigger.outputs.expected_sha }}
+          TOOLING_SHA: ${{ steps.trigger.outputs.tooling_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${TOOLING_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = open
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${TOOLING_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_SHA}"
+          test -f .github/workflows/production-runtime-parity-comment-bridge.yml
+          test -f http-generic-api/scripts/production-runtime-parity-evidence.mjs
+          test -f http-generic-api/scripts/test-production-runtime-parity-evidence.mjs
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate canonical runtime parity reporter
+        working-directory: http-generic-api
+        run: node scripts/test-production-runtime-parity-evidence.mjs
+
+      - name: Generate public GET-only runtime parity evidence
+        id: parity
+        continue-on-error: true
+        shell: bash
+        working-directory: http-generic-api
+        env:
+          EXPECTED_SHA: ${{ steps.trigger.outputs.expected_sha }}
+        run: |
+          set -Eeuo pipefail
+          node scripts/production-runtime-parity-evidence.mjs \
+            --expected-sha "${EXPECTED_SHA}" \
+            --expected-branch "${EXPECTED_BRANCH}" \
+            --endpoint "auth=${AUTH_URL}" \
+            --output-dir "${REPORT_DIR}"
+
+      - name: Print bounded parity summary
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REPORT="${REPORT_DIR}/production-runtime-parity-evidence.json"
+          if [[ -s "${REPORT}" ]]; then
+            jq '{contract,outcome,identity,endpoints,first_failure,routing,side_effects,secrets_included}' "${REPORT}"
+          else
+            echo '{"outcome":"error","first_failure":{"code":"production_runtime_parity_report_missing"},"secrets_included":false}'
+          fi
+
+      - name: Upload structured runtime parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-runtime-parity-comment-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce bounded runtime parity decision
+        if: always()
+        shell: bash
+        env:
+          PARITY_STEP_OUTCOME: ${{ steps.parity.outcome }}
+          EXPECTED_SHA: ${{ steps.trigger.outputs.expected_sha }}
+          TOOLING_SHA: ${{ steps.trigger.outputs.tooling_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "${PARITY_STEP_OUTCOME}" = success
+          REPORT="${REPORT_DIR}/production-runtime-parity-evidence.json"
+          test -s "${REPORT}"
+          jq -e --arg expected "${EXPECTED_SHA}" --arg tooling "${TOOLING_SHA}" '
+            .contract == "mad4b.production-runtime-parity-evidence.v1" and
+            .outcome == "passed" and
+            .identity.expected_sha == $expected and
+            .identity.expected_branch == "Production" and
+            .identity.tooling_sha == $tooling and
+            ([.endpoints[] | select(.name == "auth" and .required == true and .status == "passed")] | length) == 1 and
+            .first_failure == null and
+            .routing.consult_job_logs == false and
+            .side_effects.repository_mutation_performed == false and
+            .side_effects.provider_dispatch_performed == false and
+            .side_effects.credential_access_performed == false and
+            .side_effects.sql_execution_performed == false and
+            .side_effects.migration_apply_performed == false and
+            .side_effects.external_send_performed == false and
+            .secrets_included == false
+          ' "${REPORT}" >/dev/null
