@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 
 const taxonomy = JSON.parse(readFileSync(new URL("./scripts/taxonomy/script-taxonomy.json", import.meta.url), "utf8"));
 const relocator = readFileSync(new URL("./scripts/fanout-relocation-ci.mjs", import.meta.url), "utf8");
-const workflow = readFileSync(new URL("../.github/workflows/http-generic-api-fanout-relocation.yml", import.meta.url), "utf8");
+const reportWorkflow = readFileSync(new URL("../.github/workflows/http-generic-api-fanout-relocation.yml", import.meta.url), "utf8");
+const applyWorkflow = readFileSync(new URL("../.github/workflows/http-generic-api-fanout-relocation-apply.yml", import.meta.url), "utf8");
 
 const categories = new Set(taxonomy.categories.map((category) => category.key));
 for (const expected of [
@@ -38,10 +39,25 @@ assert.match(relocator, /manual_review/);
 assert.match(relocator, /relative_sibling_script_import/);
 assert.match(relocator, /safe_to_move/);
 assert.match(relocator, /updateReferences/);
-assert.match(workflow, /workflow_dispatch/);
-assert.match(workflow, /mode == 'apply'/);
-assert.match(workflow, /Refusing to apply relocation on protected branch/);
-assert.match(workflow, /git push/);
+
+assert.match(reportWorkflow, /pull_request:/);
+assert.match(reportWorkflow, /workflow_dispatch:/);
+assert.match(reportWorkflow, /permissions:\s+[\s\S]*contents: read/);
+assert.match(reportWorkflow, /FANOUT_RELOCATION_MODE: report/);
+assert.doesNotMatch(reportWorkflow, /contents: write/);
+assert.doesNotMatch(reportWorkflow, /mode == 'apply'/);
+assert.doesNotMatch(reportWorkflow, /git push/);
+
+assert.match(applyWorkflow, /workflow_dispatch:/);
+assert.match(applyWorkflow, /expected_head_sha:/);
+assert.match(applyWorkflow, /EXPECTED_HEAD_SHA/);
+assert.match(applyWorkflow, /current_head_sha/);
+assert.match(applyWorkflow, /TARGET_BRANCH/);
+assert.match(applyWorkflow, /"main"/);
+assert.match(applyWorkflow, /"Production"/);
+assert.match(applyWorkflow, /git push origin "HEAD:refs\/heads\/\$\{TARGET_BRANCH\}"/);
+assert.doesNotMatch(applyWorkflow, /pull_request:/);
+assert.doesNotMatch(applyWorkflow, /--force(?:-with-lease)?/);
 assert.doesNotMatch(relocator, /process\.env\.(TOKEN|SECRET|PASSWORD|API_KEY)/i);
 
-console.log("fanout relocation CI contract test passed");
+console.log("fanout relocation split workflow contract passed");

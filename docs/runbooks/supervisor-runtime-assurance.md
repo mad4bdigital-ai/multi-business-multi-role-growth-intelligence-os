@@ -26,7 +26,7 @@ It runs:
 4. JSON contract validation.
 5. Evidence artifact upload with 14-day retention.
 
-Scheduled or manually dispatched failures open or update a GitHub issue labeled `supervisor-runtime-assurance`. A later successful run comments on and closes the open issue.
+Scheduled and manually dispatched runs publish bounded evidence artifacts. Issue mutation is intentionally excluded from this pull-request-capable workflow; operational escalation is handled outside this read-only assurance surface.
 
 ## Generated documentation controls
 
