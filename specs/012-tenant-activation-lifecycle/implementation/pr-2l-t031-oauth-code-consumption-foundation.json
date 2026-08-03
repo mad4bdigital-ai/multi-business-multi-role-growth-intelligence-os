@@ -24,6 +24,7 @@
     "classified_consumption_readback_active": true,
     "zero_row_conflict_readback_active": true,
     "transport_error_readback_active": true,
+    "transport_error_rethrown_with_safe_readback": true,
     "route_policy_runtime_wired": false,
     "oauth_response_contract_changed": false
   },
@@ -35,8 +36,11 @@
     "issued_only": true,
     "unconsumed_only": true,
     "unexpired_only": true,
+    "expiry_clock_authority": "database_utc_timestamp_3",
     "readback_after_zero_affected_rows": true,
     "readback_after_store_transport_error": true,
+    "store_transport_error_preserved": true,
+    "safe_readback_attached_to_error": true,
     "outcomes": [
       "consumed",
       "not_found",
@@ -68,12 +72,12 @@
     "replay is classified already_consumed",
     "concurrent exchange produces exactly one winner",
     "wrong client or callback is binding_mismatch",
-    "expired code is classified expired",
-    "disconnect after commit is consumption_outcome_unknown",
-    "disconnect before commit with issued readback permits bounded retry",
-    "unavailable update and readback fail closed",
+    "expired code is classified by database clock",
+    "disconnect after commit rethrows with consumption_outcome_unknown readback",
+    "disconnect before commit rethrows with issued readback and bounded retry metadata",
+    "unavailable update and readback rethrow and fail closed",
     "post-consumption response failure forbids same-code replay",
-    "OAuth error bodies contain no raw code, token, header, or secret"
+    "OAuth error and store-readback evidence contain no raw code, token, header, or secret"
   ],
   "runtime_integration_gate": {
     "auth_token_route_reordered_before_consumption": false,
@@ -85,8 +89,8 @@
     "required_before_completion": [
       "validate user and active membership before code consumption",
       "prepare token claims before the atomic consume gate",
-      "wire classified consumption outcomes into stable OAuth errors",
-      "return temporarily_unavailable for unknown consumption outcomes",
+      "wire classified consumption outcomes and attached store-error readback into stable OAuth errors",
+      "return temporarily_unavailable for unknown outcomes",
       "forbid same-code replay after consumed or unknown outcomes",
       "record consumed-without-committed-response evidence",
       "preserve no-store and pragma no-cache behavior",
