@@ -93,7 +93,13 @@ jobs:
           test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = "open"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_HEAD_SHA}"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
-          duplicate_count="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" --jq ".[] | select(.body | contains(\"HOSTINGER_PRODUCTION_NODEJS_RESTART status=\")) | select(.body | contains(\"binding=${BINDING_ID}\")) | .id" | wc -l | tr -d ' ')"
+          duplicate_count="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
+            --jq ".[]
+              | select(.body | contains(\"HOSTINGER_PRODUCTION_NODEJS_RESTART status=\"))
+              | select(.body | contains(\"binding=${BINDING_ID}\"))
+              | select((.body | contains(\"status=completed\")) or (.body | contains(\"restart_performed=true\")))
+              | .id" \
+            | wc -l | tr -d ' ')"
           test "${duplicate_count}" = "0"
 
       - name: Checkout trusted main tooling
@@ -141,6 +147,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.authorization.outputs.expected_head_sha }}
           REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-production-restart/hostinger-nodejs-production-restart.json
         shell: bash
         run: |
@@ -158,12 +165,15 @@ jobs:
             secrets_included: false,
           };
           const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : fallback;
+          const retryableWithoutProviderMutation = report.outcome !== 'passed' && report.restart?.performed !== true;
           const fields = [
             'HOSTINGER_PRODUCTION_NODEJS_RESTART',
             `status=${report.outcome === 'passed' ? 'completed' : 'failed'}`,
             `binding=${process.env.BINDING_ID}`,
+            `expected_head_sha=${process.env.EXPECTED_HEAD_SHA || 'missing'}`,
             `classification=${report.classification || 'unknown'}`,
             `restart_performed=${report.restart?.performed === true}`,
+            `retryable_without_provider_mutation=${retryableWithoutProviderMutation}`,
             `runtime_current=${report.post_runtime?.current === true || report.pre_runtime?.current === true}`,
             `identity_authority=${report.runtime_identity_authority?.mode || 'missing'}`,
             `cross_endpoint_composition=${report.runtime_identity_authority?.cross_endpoint_composition_allowed === true}`,
