@@ -55,7 +55,7 @@ jobs:
           set -Eeuo pipefail
           git fetch --no-tags origin "${EXPECTED_MAIN}" --depth=1
           test "$(git rev-parse FETCH_HEAD)" = "${EXPECTED_MAIN}"
-          git checkout "${EXPECTED_MAIN}" -- "${GENERATED_PATH}"
+          git show "${EXPECTED_MAIN}:${GENERATED_PATH}" > "${GENERATED_PATH}"
           expected_blob="$(git rev-parse "${EXPECTED_MAIN}:${GENERATED_PATH}")"
           actual_blob="$(git hash-object "${GENERATED_PATH}")"
           test "$actual_blob" = "$expected_blob"
