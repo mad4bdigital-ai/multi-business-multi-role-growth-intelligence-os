@@ -111,6 +111,8 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "$TARGET_BRANCH"
           test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "$EXPECTED_TARGET_SHA"
+          cp "$REPORT_PATH" "/tmp/$REPORT_PATH"
+          rm -f "$REPORT_PATH"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -150,7 +152,7 @@ jobs:
         with:
           name: incident-5021-exact-head-approval-publisher-${{ github.sha }}
           path: |
-            incident-5021-builder-diagnostic-v11.json
+            /tmp/incident-5021-builder-diagnostic-v11.json
             incident-5021-publisher-result.json
           if-no-files-found: warn
           retention-days: 7
