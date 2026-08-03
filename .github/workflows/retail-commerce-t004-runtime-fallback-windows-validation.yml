@@ -19,24 +19,39 @@ jobs:
   focused-validation:
     name: Validate exact T004 fallback candidate on Windows
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPECTED_VALIDATION_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CANDIDATE_CODE_SHA: 5ae2e980d1a9bab9d50386af2e9fed9f92a9fbb5
+      CANDIDATE_BASE_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+      CANDIDATE_HEAD_REF: gpt/retail-commerce-t004-runtime-readback-fallback-20260803
+      CANDIDATE_BASE_REF: main
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout exact validation head
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_HEAD_SHA }}
-          fetch-depth: 1
+          ref: ${{ env.EXPECTED_VALIDATION_HEAD_SHA }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify exact checked-out head
+      - name: Verify exact checked-out validation head
         shell: pwsh
         run: |
           $actual = (git rev-parse HEAD).Trim()
-          if ($actual -ne $env:EXPECTED_HEAD_SHA) {
-            throw "Checked-out SHA $actual does not match expected $env:EXPECTED_HEAD_SHA"
+          if ($actual -ne $env:EXPECTED_VALIDATION_HEAD_SHA) {
+            throw "Checked-out SHA $actual does not match expected validation head $env:EXPECTED_VALIDATION_HEAD_SHA"
           }
+          git merge-base --is-ancestor $env:CANDIDATE_CODE_SHA $env:EXPECTED_VALIDATION_HEAD_SHA
+          if ($LASTEXITCODE -ne 0) {
+            throw "Candidate code SHA is not an ancestor of the validation head"
+          }
+
+      - name: Initialize bounded validation directory
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'retail-commerce-t004-runtime-fallback-validation'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          "VALIDATION_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -74,6 +89,36 @@ jobs:
         working-directory: http-generic-api
         run: node test-retail-commerce-specification-baseline.mjs
 
+      - name: Classify exact candidate E2E mode
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check `
+            --head-ref $env:CANDIDATE_HEAD_REF `
+            --base-ref $env:CANDIDATE_BASE_REF `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_CODE_SHA `
+            --report-file (Join-Path $env:VALIDATION_DIR 'e2e-parallel-work-evaluation.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Evaluate exact candidate E2E phase contract
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs check `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_CODE_SHA `
+            --report-file (Join-Path $env:VALIDATION_DIR 'e2e-phase-evaluation.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Execute exact candidate E2E journeys
+        shell: pwsh
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs run `
+            --base $env:CANDIDATE_BASE_SHA `
+            --head $env:CANDIDATE_CODE_SHA `
+            --report-file (Join-Path $env:VALIDATION_DIR 'e2e-phase-evaluation.json') `
+            --execution-report-file (Join-Path $env:VALIDATION_DIR 'e2e-phase-execution.json')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Validate E2E phase JSON
         shell: pwsh
         run: |
@@ -83,17 +128,20 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          $dir = Join-Path $env:RUNNER_TEMP 'retail-commerce-t004-runtime-fallback-validation'
-          New-Item -ItemType Directory -Force -Path $dir | Out-Null
           $report = [ordered]@{
             contract = 'mad4b.retail-commerce-t004-runtime-fallback-validation.v1'
-            candidate_sha = $env:EXPECTED_HEAD_SHA
+            candidate_sha = $env:CANDIDATE_CODE_SHA
+            candidate_base_sha = $env:CANDIDATE_BASE_SHA
+            validation_head_sha = $env:EXPECTED_VALIDATION_HEAD_SHA
             platform = 'windows-latest'
             focused_tests_requested = @(
               'test-retail-commerce-production-schema-baseline.mjs',
               'test-retail-commerce-production-schema-runtime-gap-readback.mjs',
               'test-retail-commerce-production-schema-baseline-pr-trigger.mjs',
-              'test-retail-commerce-specification-baseline.mjs'
+              'test-retail-commerce-specification-baseline.mjs',
+              'e2e-parallel-pr-gate.mjs check',
+              'e2e-phase-governance.mjs check',
+              'e2e-phase-governance.mjs run'
             )
             production_call_executed = $false
             credential_values_read = $false
@@ -104,8 +152,7 @@ jobs:
             external_write = $false
             secrets_included = $false
           }
-          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $dir 'validation.json')
-          "VALIDATION_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $env:VALIDATION_DIR 'validation.json')
 
       - name: Upload bounded validation evidence
         if: always()
