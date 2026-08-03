@@ -10,15 +10,23 @@ const invalidGrantOutcomes = [
   "expired",
   "already_consumed",
   "revoked",
+  "invalid",
+  "payload_invalid",
+  "client_mismatch",
+  "resource_invalid",
+  "redirect_mismatch",
+  "user_inactive",
+  "membership_inactive",
 ];
 
 for (const outcome of invalidGrantOutcomes) {
   const decision = classifyTenantGptOAuthTokenExchangeOutcome({
-    phase: "code_consumption",
+    phase: "before_code_consumption",
     consumption: { consumed: false, outcome, replay_allowed: false },
   });
   assert.equal(decision.http_status, 400);
   assert.equal(decision.oauth_error, "invalid_grant");
+  assert.equal(decision.error_code, `oauth_code_${outcome}`);
   assert.equal(decision.retry_same_code, false);
   assert.equal(decision.restart_authorization, true);
   assert.equal(decision.outcome_unknown, false);
@@ -44,10 +52,23 @@ assert.deepEqual(committed, {
   secrets_included: false,
 });
 
+const preConsumption = classifyTenantGptOAuthTokenExchangeOutcome({
+  phase: "before_code_consumption",
+  failure_reason: "subject_store_unavailable",
+});
+assert.equal(preConsumption.classification, "token_exchange_preconsumption_dependency_unavailable");
+assert.equal(preConsumption.http_status, 503);
+assert.equal(preConsumption.oauth_error, "temporarily_unavailable");
+assert.equal(preConsumption.error_code, "oauth_token_exchange_preconsumption_unavailable");
+assert.equal(preConsumption.retry_same_code, true);
+assert.equal(preConsumption.restart_authorization, false);
+assert.equal(preConsumption.outcome_unknown, false);
+assert.equal(preConsumption.operator_reconciliation_required, false);
+
 const postConsumption = classifyTenantGptOAuthTokenExchangeOutcome({
   phase: "after_code_consumption",
   consumption: { consumed: true, outcome: "consumed", replay_allowed: false },
-  failure_reason: "jwt_issuer_unavailable",
+  failure_reason: "jwt_response_unavailable",
 });
 assert.equal(postConsumption.classification, "consumed_without_committed_token_response");
 assert.equal(postConsumption.http_status, 503);
@@ -89,6 +110,15 @@ assert.equal(issuedReadback.restart_authorization, false);
 assert.equal(issuedReadback.outcome_unknown, false);
 assert.equal(issuedReadback.operator_reconciliation_required, false);
 
+const preConsumptionBody = buildTenantGptOAuthTokenErrorResponse(preConsumption, {
+  request_id: "request-safe-pre",
+});
+assert.equal(preConsumptionBody.error, "temporarily_unavailable");
+assert.equal(preConsumptionBody.error_code, "oauth_token_exchange_preconsumption_unavailable");
+assert.equal(preConsumptionBody.retry_same_code, true);
+assert.equal(preConsumptionBody.restart_authorization, false);
+assert.equal(preConsumptionBody.outcome_unknown, false);
+
 const unknownBody = buildTenantGptOAuthTokenErrorResponse(unknownConsumption, {
   request_id: "request-safe-123",
 });
@@ -113,7 +143,7 @@ assert.equal(issuedBody.restart_authorization, false);
 assert.equal(issuedBody.outcome_unknown, false);
 
 const invalidDecision = classifyTenantGptOAuthTokenExchangeOutcome({
-  phase: "code_consumption",
+  phase: "before_code_consumption",
   consumption: { consumed: false, outcome: "expired" },
 });
 const invalidBody = buildTenantGptOAuthTokenErrorResponse(invalidDecision, {
@@ -124,7 +154,7 @@ assert.equal(invalidBody.restart_authorization, true);
 assert.equal(invalidBody.retry_same_code, false);
 assert.equal(invalidBody.outcome_unknown, false);
 
-for (const value of [unknownBody, issuedBody, invalidBody]) {
+for (const value of [preConsumptionBody, unknownBody, issuedBody, invalidBody]) {
   const serialized = JSON.stringify(value);
   assert.equal(serialized.includes("Bearer"), false);
   assert.equal(serialized.includes("client_secret"), false);
