@@ -9,32 +9,21 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: temp-work-map-verification-dispatch-arm-5912-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   validate:
     name: Exact dispatch contract validation
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/trigger-work-map-verification-dispatch-arm-5912'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
-    env:
-      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
-      EXPECTED_HEAD_SHA: afcc533fc59903aac7c1f80e3e5d7bf1f425335e
-      EXPECTED_HEAD_REF: gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804
-      REPORT_DIR: ${{ runner.temp }}/work-map-verification-dispatch-5912
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          ref: afcc533fc59903aac7c1f80e3e5d7bf1f425335e
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -42,23 +31,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${EXPECTED_HEAD_REF}:refs/remotes/origin/${EXPECTED_HEAD_REF}"
-          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse "refs/remotes/origin/${EXPECTED_HEAD_REF}")" = "${EXPECTED_HEAD_SHA}"
-          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 1
-          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
-          printf '%s\n' "${files[@]}"
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912"
+          test "$(git rev-parse HEAD)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804:refs/remotes/origin/candidate"
+          test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
+          test "$(git merge-base 97e4ee7ec790844ad20ee2349125579353c693d5 afcc533fc59903aac7c1f80e3e5d7bf1f425335e)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+          test "$(git rev-list --count 97e4ee7ec790844ad20ee2349125579353c693d5..afcc533fc59903aac7c1f80e3e5d7bf1f425335e)" -eq 1
+          mapfile -t files < <(git diff --name-only 97e4ee7ec790844ad20ee2349125579353c693d5...afcc533fc59903aac7c1f80e3e5d7bf1f425335e)
           test "${#files[@]}" -eq 4
           test "${files[0]}" = '.changes/e2e/work-map-post-write-exact-verification-dispatch.json'
           test "${files[1]}" = '.github/workflows/ci.yml'
           test "${files[2]}" = '.github/workflows/spec-kit-work-map-integration.yml'
           test "${files[3]}" = 'http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci.yml")" = 'a09247d50e52fe00e94b54d1a98abe822e9346e5'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/spec-kit-work-map-integration.yml")" = 'ff41bb0c48df07d40baea2de91ec1303859c46b4'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs")" = 'd5cad261ed259dc527403eca39b2d01de6fd4f55'
-          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/work-map-post-write-exact-verification-dispatch.json")" = '7652a4bb0ddc45f997388bc006d5144f9647248b'
+          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.github/workflows/ci.yml)" = 'a09247d50e52fe00e94b54d1a98abe822e9346e5'
+          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.github/workflows/spec-kit-work-map-integration.yml)" = 'ff41bb0c48df07d40baea2de91ec1303859c46b4'
+          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs)" = 'd5cad261ed259dc527403eca39b2d01de6fd4f55'
+          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.changes/e2e/work-map-post-write-exact-verification-dispatch.json)" = '7652a4bb0ddc45f997388bc006d5144f9647248b'
 
       - name: Run focused dispatch regression
         working-directory: http-generic-api
@@ -76,20 +66,3 @@ jobs:
           node build-canonicals.mjs --check
           node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
           git diff --check
-
-      - name: Publish no-secret summary
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${REPORT_DIR}"
-          jq -n --arg base_sha "${EXPECTED_MAIN_SHA}" --arg head_sha "${EXPECTED_HEAD_SHA}" --arg run_id "${GITHUB_RUN_ID}" '{contract:"mad4b.work-map-verification-dispatch-arm.v3",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
-
-      - name: Upload validation evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: work-map-verification-dispatch-arm-5912-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/summary.json
-          if-no-files-found: error
-          retention-days: 14
