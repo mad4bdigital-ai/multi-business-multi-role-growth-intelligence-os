@@ -206,6 +206,11 @@ assert.deepEqual(openApi.paths["/internal/control-plane/operations/samples"].pos
   { backendBearerAuth: [] },
   { backendApiKeyAuth: [] },
 ]);
+for (const path of [
+  "/internal/control-plane/analytics/observations",
+  "/internal/control-plane/operations/samples",
+  "/internal/control-plane/operations/decision-evidence",
+]) assert.ok(openApi.paths[path].post.responses["403"], `Missing forbidden response for ${path}`);
 assert.equal(openApi.components.securitySchemes.backendBearerAuth.bearerFormat, "Backend API key");
 const operationIds = Object.values(openApi.paths).flatMap((pathItem) => Object.values(pathItem).map((operation) => operation.operationId));
 assert.equal(new Set(operationIds).size, operationIds.length);
