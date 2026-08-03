@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-autofix-v2-contract-regression",
+  "title": "Work Map Autofix v2 governance contract regression",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-autofix-v2-contract-regression.json",
+      ".specify/pipeline-connectivity-contract.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align the repository governance graph, runbook, and executable regressions with the existing Work Map Autofix v2 exact-dispatch writer without changing the writer or granting new authority.",
+      "e2e_journeys": [
+        {
+          "id": "work-map-autofix-v2-contract-to-regression",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer",
+          "entrypoint": "The current Spec Kit Work Map Autofix v2 workflow and its central pipeline connectivity contract",
+          "terminal_outcome": "The reviewer receives deterministic passing evidence only when workflow dispatch, exact-head identity, same-repository pull-request binding, branch exclusions, sole-writer boundaries, idempotent generation, bounded diagnostics, and no-force-push controls agree across policy, documentation, and tests.",
+          "steps": [
+            "Load the current Work Map Autofix v2 workflow without modifying it.",
+            "Validate the central writer policy and pipeline declaration against strings and permissions present in the workflow.",
+            "Validate the Supervisor runbook describes only the current workflow-dispatch exact-head authorization path.",
+            "Run the Pipeline Connectivity and Supervisor Runtime Assurance regressions against the same repository tree."
+          ],
+          "assertions": [
+            "Work Map Autofix remains the sole remote writer for docs/work-maps.",
+            "The writer is started by workflow_dispatch with an existing same-repository pull-request branch and exact expected_head_sha.",
+            "main and Production are rejected as targets, and local plus remote head identity is verified before generation and push.",
+            "The removed reopened-pull-request body marker is not treated as an authorization path.",
+            "Generation remains idempotent and rejects changes outside docs/work-maps.",
+            "The writer uses no force push and publishes bounded v2 diagnostic evidence.",
+            "This change modifies governance, documentation, and regressions only; it does not execute the writer or mutate Work Maps."
+          ],
+          "tests": [
+            {
+              "id": "work-map-autofix-v2-pipeline-connectivity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-autofix-v2-supervisor-assurance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-autofix-v2-contract-regression.json",
+            ".specify/pipeline-connectivity-contract.json",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            "docs/runbooks/supervisor-runtime-assurance.md",
+            "http-generic-api/test-pipeline-connectivity-check.mjs",
+            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the next explicitly authorized Work Map Autofix v2 dispatch and confirm exact-head readback and diagnostic evidence under its existing governance boundary."
+    }
+  ],
+  "secrets_included": false
+}
