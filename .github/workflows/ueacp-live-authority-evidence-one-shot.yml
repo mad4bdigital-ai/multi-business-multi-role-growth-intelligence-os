@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ueacp-live-authority-evidence-one-shot
-  cancel-in-progress: false
+  group: ueacp-live-authority-evidence-one-shot-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
   collect-live-authority-evidence:
