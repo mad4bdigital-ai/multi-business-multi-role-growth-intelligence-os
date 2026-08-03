@@ -1,8 +1,8 @@
 {
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
-  "feature_key": "hostinger-nodejs-build-evidence-r2-dispatch",
-  "title": "Dispatch fresh authenticated Hostinger build evidence after secret configuration",
+  "feature_key": "hostinger-nodejs-build-evidence-r3-dispatch",
+  "title": "Dispatch completed-build Hostinger log evidence R3",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -20,36 +20,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a fresh single-use authorization bridge with an explicit expected-main-SHA dispatch input that starts the existing trusted-main GET-only Hostinger Node.js build-history workflow after the repository secret is configured.",
+      "objective": "Rotate the existing single-use bridge to a fresh R3 authorization that dispatches the trusted-main GET-only reporter for the completed build whose runtime activation is unresolved.",
       "e2e_journeys": [
         {
-          "id": "dispatch-fresh-hostinger-build-history-readback",
+          "id": "dispatch-completed-build-log-readback-r3",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
-          "entrypoint": "An explicit repository-owner workflow dispatch or an exact governed issue comment supplies the current trusted main SHA while Incident #4953 remains open.",
-          "terminal_outcome": "Before the first metadata write, the bridge resolves and validates an explicit expected main SHA, verifies the immutable authorization comment, workflow blob, current main head, protected Production SHA, and one-time marker absence; then it dispatches the unchanged GET-only evidence workflow and records its run ID without performing any provider mutation.",
+          "entrypoint": "An explicit repository-owner workflow dispatch or exact R3 issue comment supplies the current trusted main SHA while Incident #4953 remains open.",
+          "terminal_outcome": "Before any metadata write, the bridge validates the explicit main SHA, fresh R3 authorization comment, unchanged target workflow blob, exact completed build UUID, current protected Production SHA, and absence of prior R3 markers; then it dispatches the unchanged GET-only evidence workflow and records its run ID.",
           "steps": [
-            "Resolve the explicit expected main SHA from the required workflow_dispatch input or the exact governed issue-comment token.",
-            "Validate the operator identity, issue number when applicable, and exact 40-character expected main SHA before any write.",
-            "Validate the fresh authorization comment and its workflow blob, account, domain, Production SHA, merge timestamp, and GET-only boundaries.",
-            "Reject execution if main, Production, the workflow blob, or incident state changed.",
-            "Record a one-time claim in Issue #4953.",
-            "Dispatch the unchanged trusted-main Hostinger evidence workflow with bounded inputs.",
-            "Resolve the newly created workflow run and record its run ID for evidence collection."
+            "Resolve and validate the explicit expected main SHA before the first write.",
+            "Validate authorization comment 5162200620, account, domain, exact build UUID, Production SHA, merge timestamp, GET-only methods, and false mutation boundaries.",
+            "Verify the target workflow blob and open incident state.",
+            "Reject execution if main, Production, workflow blob, authorization, incident state, or one-time R3 markers diverge.",
+            "Record one R3 claim, dispatch the trusted workflow with bounded inputs, and record the target run ID."
           ],
           "assertions": [
-            "Every write-capable execution path requires an explicit expected main SHA and checks it against current main before the first metadata write.",
-            "The issue-comment trigger remains exact-token, exact-operator, and exact-issue bounded, while workflow_dispatch is repository-owner bounded.",
+            "Every write-capable execution path requires and verifies an explicit expected main SHA.",
+            "The exact completed build UUID is bound in authorization and R3 metadata markers.",
             "The bridge never receives or references the Hostinger secret value.",
             "The target workflow alone reads secrets.HOSTINGER_API_TOKEN on trusted main.",
-            "The Hostinger provider operation is GET-only and performs no build creation, deployment, restart, or provider mutation.",
-            "No repository contents mutation, protected-ref update, force push, SQL, migration Apply, database mutation, or external send is introduced.",
-            "The authorization binding cannot be reused after a claim or dispatch marker exists."
+            "Provider operations remain GET-only with no build creation, deployment, restart, or provider mutation.",
+            "No repository contents mutation outside the reviewed PR, protected-ref mutation, force push, SQL, migration Apply, database mutation, or external send occurs.",
+            "The R3 authorization cannot be reused after a claim or dispatch marker exists."
           ],
           "tests": [
             {
-              "id": "hostinger-nodejs-build-evidence-r2-dispatch-contract",
+              "id": "hostinger-nodejs-build-log-evidence-r3-dispatch-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs",
@@ -67,22 +65,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one fresh authenticated Hostinger build-history artifact and record its bounded classification in Incident #4953."
+      "objective": "Produce one authenticated artifact containing redacted logs and source/activation signals for build 019fc51c-3947-7255-aa4d-f55cb8df7658."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Confirm the bridge fails closed when the explicit head input, main, Production, authorization, workflow blob, incident state, or one-time markers diverge."
+      "objective": "Confirm fail-closed behavior for changed main, Production, workflow blob, build UUID authorization, incident state, or R3 markers."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This workflow reads build history only and performs no Hostinger canary or provider mutation."
+      "objective": "This bridge dispatches evidence only and performs no provider canary."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This workflow does not deploy, restart, or mutate Production."
+      "objective": "This bridge does not deploy, restart, or mutate Production."
     }
   ],
   "secrets_included": false
