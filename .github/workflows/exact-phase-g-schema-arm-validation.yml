@@ -14,14 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  phase-g-contract-diagnostic:
-    name: Exact Phase G Contract Diagnostic
+  unresolved-provenance:
+    name: Exact unresolved schema provenance
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/work-map-phase-g-schema-classification-20260803' &&
       github.event.pull_request.head.sha == '198c1c6f0d77cd162ffe472a56e76cf9f22e025b'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
       EXPECTED_HEAD_SHA: 198c1c6f0d77cd162ffe472a56e76cf9f22e025b
@@ -33,84 +33,59 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-
-      - name: Verify immutable identity and exact scope
+      - name: Verify immutable identity
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
-          cat > /tmp/expected.txt <<'EOF'
-          .specify/work-map-schema-classification-registry.json
-          docs/work-maps/README.md
-          docs/work-maps/activation-access-map.md
-          docs/work-maps/connector-provider-map.md
-          docs/work-maps/data-model-domain-map.md
-          docs/work-maps/delivery-support-map.md
-          docs/work-maps/observability-release-map.md
-          docs/work-maps/platform-resource-graph-map.md
-          docs/work-maps/policy-authority-map.md
-          docs/work-maps/repository-automation-map.md
-          docs/work-maps/work-map-coverage-matrix.md
-          docs/work-maps/workflow-task-orchestration-map.md
-          http-generic-api/test-work-map-schema-classification.mjs
-          specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json
-          EOF
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual.txt
-          diff -u /tmp/expected.txt /tmp/actual.txt
           test -z "$(git status --porcelain --untracked-files=no)"
 
-      - name: Install HTTP API dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Run every Phase G contract with captured result
+      - name: Capture source and contract provenance
         shell: bash
         run: |
-          set -uo pipefail
-          report="${RUNNER_TEMP}/phase-g-contract-diagnostic.txt"
+          set -euo pipefail
+          report="${RUNNER_TEMP}/unresolved-schema-provenance.txt"
           : > "${report}"
-          failed=0
 
-          run_check() {
-            local label="$1"
-            shift
-            echo "===== ${label} =====" | tee -a "${report}"
-            "$@" 2>&1 | tee -a "${report}"
-            local rc=${PIPESTATUS[0]}
-            echo "exit_code=${rc}" | tee -a "${report}"
-            if [ "${rc}" -ne 0 ]; then failed=1; fi
+          for object in \
+            managed_execution_bindings \
+            managed_execution_events \
+            storage_authorized_injection_rollbacks \
+            storage_authorized_injection_states \
+            v_storage_cleanup_operation_readback
+          do
+            echo "===== ${object} =====" | tee -a "${report}"
+            git grep -n -C 10 -F "${object}" -- \
+              ':!docs/work-maps/**' \
+              ':!http-generic-api/frontend-surface-dispatch.generated.json' \
+              ':!http-generic-api/frontend-operation-governance.generated.json' \
+              ':!openapi/**' \
+              2>/dev/null | tee -a "${report}" || true
             echo | tee -a "${report}"
+          done
+
+          echo '===== RELATED REGISTRY RULES =====' | tee -a "${report}"
+          node --input-type=module <<'NODE' | tee -a "${report}"
+          import fs from 'node:fs';
+          const registry = JSON.parse(fs.readFileSync('.specify/work-map-schema-classification-registry.json', 'utf8'));
+          const terms = ['managed_execution', 'storage_', 'cleanup', 'injection'];
+          for (const rule of registry.rules ?? []) {
+            const text = JSON.stringify(rule);
+            if (terms.some((term) => text.includes(term))) console.log(JSON.stringify(rule, null, 2));
           }
+          NODE
 
-          run_check syntax-generator node --check http-generic-api/scripts/platform-work-map-generator.mjs
-          run_check syntax-intelligence node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
-          run_check syntax-classification node --check http-generic-api/scripts/work-map-schema-classification.mjs
-          run_check syntax-classification-contract node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          run_check syntax-pipeline-connectivity node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
-          run_check pipeline-connectivity node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          run_check pipeline-connectivity-test node http-generic-api/test-pipeline-connectivity-check.mjs
-          run_check classification-contract-script node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          run_check classification-script node http-generic-api/scripts/work-map-schema-classification.mjs
-          run_check classification-test node http-generic-api/test-work-map-schema-classification.mjs
-          run_check classification-contract-test node http-generic-api/test-work-map-schema-classification-contract.mjs
+          echo '===== RELATED SPEC AND MIGRATION FILENAMES =====' | tee -a "${report}"
+          git grep -l -E 'managed_execution|authorized_injection|storage_cleanup_operation_readback' -- \
+            'specs/**' 'http-generic-api/migrations/**' '.specify/**' \
+            2>/dev/null | sort -u | tee -a "${report}" || true
 
-          echo '===== TRACKED STATUS =====' | tee -a "${report}"
-          git status --porcelain --untracked-files=no | tee -a "${report}"
-          exit "${failed}"
-
-      - name: Upload Phase G contract diagnostics
-        if: always()
+      - name: Upload provenance
         uses: actions/upload-artifact@v4
         with:
-          name: exact-phase-g-contract-diagnostic-${{ github.run_id }}
-          path: ${{ runner.temp }}/phase-g-contract-diagnostic.txt
+          name: exact-unresolved-schema-provenance-${{ github.run_id }}
+          path: ${{ runner.temp }}/unresolved-schema-provenance.txt
           if-no-files-found: error
           retention-days: 14
