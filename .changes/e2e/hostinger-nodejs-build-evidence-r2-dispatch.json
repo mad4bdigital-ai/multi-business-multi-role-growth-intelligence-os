@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-nodejs-build-evidence-r2-dispatch",
+  "title": "Dispatch fresh authenticated Hostinger build evidence after secret configuration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-build-evidence-r2-dispatch.json",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml",
+      "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a fresh single-use authorization bridge that dispatches the existing trusted-main GET-only Hostinger Node.js build-history workflow after the repository secret is configured.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-fresh-hostinger-build-history-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository operator",
+          "entrypoint": "An exact issue comment carries the R2 trigger token and the current trusted main SHA while Incident #4953 remains open.",
+          "terminal_outcome": "The bridge verifies the immutable authorization comment, workflow blob, current main head, protected Production SHA, and one-time marker absence; then it dispatches the unchanged GET-only evidence workflow and records its run ID without performing any provider mutation.",
+          "steps": [
+            "Validate the exact trigger token, operator identity, issue number, and expected main SHA.",
+            "Validate the fresh authorization comment and its workflow blob, account, domain, Production SHA, merge timestamp, and GET-only boundaries.",
+            "Reject execution if main, Production, the workflow blob, or incident state changed.",
+            "Record a one-time claim in Issue #4953.",
+            "Dispatch the unchanged trusted-main Hostinger evidence workflow with bounded inputs.",
+            "Resolve the newly created workflow run and record its run ID for evidence collection."
+          ],
+          "assertions": [
+            "The bridge never receives or references the Hostinger secret value.",
+            "The target workflow alone reads secrets.HOSTINGER_API_TOKEN on trusted main.",
+            "The Hostinger provider operation is GET-only and performs no build creation, deployment, restart, or provider mutation.",
+            "No repository contents mutation, protected-ref update, force push, SQL, migration Apply, database mutation, or external send is introduced.",
+            "The authorization binding cannot be reused after a claim or dispatch marker exists."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-nodejs-build-evidence-r2-dispatch-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml",
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one fresh authenticated Hostinger build-history artifact and record its bounded classification in Incident #4953."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Confirm the bridge fails closed when main, Production, authorization, workflow blob, incident state, or one-time markers diverge."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This workflow reads build history only and performs no Hostinger canary or provider mutation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This workflow does not deploy, restart, or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}
