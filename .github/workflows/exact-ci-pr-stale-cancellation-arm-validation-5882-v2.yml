@@ -33,9 +33,15 @@ jobs:
       EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
       EXPECTED_HEAD_SHA: 440ceb3dfe3c05cf48144b5fdc4fc4ac454115f1
       EXPECTED_HEAD_REF: gpt/ci-pr-stale-cancellation-main-97e4ee7e-20260804
-      REPORT_DIR: ${{ runner.temp }}/exact-ci-validation-5921
 
     steps:
+      - name: Initialize report directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "REPORT_DIR=${RUNNER_TEMP}/exact-ci-validation-5921" >> "$GITHUB_ENV"
+          mkdir -p "${RUNNER_TEMP}/exact-ci-validation-5921"
+
       - name: Verify validator surface and canonical PR identity
         shell: bash
         env:
@@ -186,7 +192,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "${REPORT_DIR}"
           node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${REPORT_DIR}/e2e-phase-evaluation.json"
           node http-generic-api/scripts/e2e-phase-governance.mjs run --base "${EXPECTED_MAIN_SHA}" --head "${EXPECTED_HEAD_SHA}" --report-file "${REPORT_DIR}/e2e-phase-evaluation-run.json" --execution-report-file "${REPORT_DIR}/e2e-phase-execution.json"
 
@@ -196,7 +201,6 @@ jobs:
         working-directory: http-generic-api
         shell: bash
         run: |
-          mkdir -p "${REPORT_DIR}"
           failures=0
           for entry in 'repository-tool-lifecycle:test-repository-tool-lifecycle.mjs' 'repo-lock-governance:test-repo-lock-governance.mjs' 'e2e-contract-reference-integrity:test-e2e-contract-reference-integrity.mjs'; do
             name="${entry%%:*}"
