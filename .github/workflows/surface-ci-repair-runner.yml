@@ -1,0 +1,190 @@
+name: Surface CI Repair Runner
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surface-ci-repair-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair-validate-and-push:
+    if: >-
+      github.event.pull_request.head.ref == 'gpt/surface-callability-main-reconstruction-20260803' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TARGET_BRANCH: gpt/surface-callability-main-reconstruction-20260803
+      PINNED_SOURCE_HEAD: 36cc5245116fdbfb26208e8e0e40bc3b75f92ef3
+      RUNNER_PATH: .github/workflows/surface-ci-repair-runner.yml
+    steps:
+      - name: Check out exact Surface branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify exact repair trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$PINNED_SOURCE_HEAD"
+          test "$(git diff --name-only HEAD^ HEAD)" = "$RUNNER_PATH"
+
+      - name: Apply bounded runtime and E2E repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(path_value, old, new, label):
+              path = Path(path_value)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}_marker_count:{count}')
+              path.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              '    if (!Array.isArray(rows) || rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              '    if (!Array.isArray(rows)) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row.");\n    if (rows.length !== 1) throw error(409, "tenant_agent_surface_deployment_readback_invalid", "Agent surface deployment readback must resolve exactly one row."); // MUTATION_READBACK: tenant_agent_surface_deployment_upsert\n',
+              'deployment_readback_cardinality',
+          )
+
+          replace_once(
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              '  const pool = deps.pool || getPool();\n  const executionFacade = deps.executionFacade || null;\n',
+              '''  let resolvedPool = deps.pool || null;
+  const pool = new Proxy({}, {
+    get(_target, property) {
+      if (!resolvedPool) resolvedPool = getPool();
+      const value = Reflect.get(resolvedPool, property, resolvedPool);
+      return typeof value === "function" ? value.bind(resolvedPool) : value;
+    },
+  });
+  const executionFacade = deps.executionFacade || null;
+''',
+              'tenant_infrastructure_lazy_pool',
+          )
+
+          contract_path = Path('.changes/e2e/surface-callability-main-reconstruction.json')
+          contract = json.loads(contract_path.read_text())
+          journey = contract['phases'][0]['e2e_journeys'][0]
+          startup_test = {
+              'id': 'surface-server-startup-without-database-environment',
+              'runner': 'node',
+              'working_directory': 'http-generic-api',
+              'path': 'test-server-startup-smoke.mjs',
+              'args': [],
+          }
+          tests = journey['tests']
+          if not any(item.get('id') == startup_test['id'] for item in tests):
+              tests.append(startup_test)
+          startup_assertion = 'Building and starting the HTTP API without database environment variables still exposes the deployment identity endpoints; tenant infrastructure database access is resolved lazily only when an authenticated infrastructure route is invoked.'
+          if startup_assertion not in journey['assertions']:
+              journey['assertions'].append(startup_assertion)
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate deterministic frontend dispatch
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate
+
+      - name: Remove runner and create local product commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_PATH"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: close Surface startup, selection, and dispatch CI gaps'
+
+      - name: Validate exact bounded write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$PINNED_SOURCE_HEAD" HEAD > /tmp/surface-ci-repair-files.txt
+          python3 - <<'PY'
+          from pathlib import Path
+
+          changed = {line.strip() for line in Path('/tmp/surface-ci-repair-files.txt').read_text().splitlines() if line.strip()}
+          expected = {
+              '.changes/e2e/surface-callability-main-reconstruction.json',
+              '.github/workflows/surface-ci-repair-runner.yml',
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+          }
+          if changed != expected:
+              raise SystemExit('surface_ci_repair_write_set_mismatch:' + ','.join(sorted(changed ^ expected)))
+          print({'changed_files': len(changed), 'unexpected': 0})
+          PY
+
+      - name: Validate syntax and focused Surface regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check agentSurfaceRuntimeService.js
+          node --check routes/tenantInfrastructureRoutes.js
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-multi-surface-agent-runtime.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-test-manifest-runner.mjs
+
+      - name: Prove startup without database environment
+        working-directory: http-generic-api
+        env:
+          DB_HOST: ''
+          DB_NAME: ''
+          DB_USER: ''
+          DB_PASSWORD: ''
+        run: node test-server-startup-smoke.mjs
+
+      - name: Prove hardcoding ratchet on exact branch scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "${{ github.event.pull_request.base.sha }}"...HEAD > /tmp/context-kernel-changed-files.txt
+          cd http-generic-api
+          node test-context-kernel-hardcoding-scan.mjs
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --changed-files-from=/tmp/context-kernel-changed-files.txt \
+            --fail-on=runtime \
+            --output=/tmp/context-kernel-hardcoding-repair.json
+
+      - name: Prove deterministic frontend output
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate
+          git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+
+      - name: Push certified repair commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:${TARGET_BRANCH}"
