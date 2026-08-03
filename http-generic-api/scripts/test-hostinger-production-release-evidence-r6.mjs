@@ -87,6 +87,15 @@ assert.match(workflow, /classification:"topology_evidence_missing"/);
 assert.match(workflow, /request:\{method:"GET",token_returned:false\}/);
 assert.match(workflow, /echo "- deployed_at: \$\{DEPLOYED_AT\}"/);
 
+assert.match(workflow, /\.key == "secrets_included"/);
+assert.match(workflow, /\(\.value \| type\) == "boolean"/);
+assert.match(workflow, /manifest_secret_free:deployment\?\.evidence\?\.secrets_included===false/);
+assert.match(
+  workflow,
+  /authorization\|cookie\|password\|secret\|token\|api\[_-\]\?key\|private\[_-\]\?key\|credential/,
+);
+assert.match(workflow, /\.value = "\[REDACTED\]"/);
+
 for (const marker of [
   "repository_write_performed:false",
   "provider_mutation_performed:false",
