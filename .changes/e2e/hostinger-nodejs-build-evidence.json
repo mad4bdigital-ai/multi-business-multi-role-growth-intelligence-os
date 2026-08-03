@@ -25,7 +25,7 @@
         {
           "id": "inspect-hostinger-nodejs-build-history",
           "end_to_end": true,
-          "level": "synthetic_provider",
+          "level": "synthetic_runtime",
           "actor": "trusted release operator and GitHub Actions",
           "entrypoint": "Hostinger Node.js Build Evidence workflow contract test or trusted workflow dispatch from main",
           "terminal_outcome": "A structured JSON and Markdown artifact classifies whether a Hostinger Node.js build exists after the protected Production merge, identifies its state and bounded source provenance when exposed, and includes a redacted log excerpt only for the newest failed build.",
