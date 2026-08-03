@@ -1,0 +1,17 @@
+{
+  "contract": "mad4b.retail-commerce-production-schema-baseline-trigger.v1",
+  "expected_main_sha": "435c00121a27f8ebbc435e15f08a1bb86f1a5ce3",
+  "expected_trigger_branch": "gpt/retail-commerce-production-schema-baseline-trigger-20260803-07",
+  "confirmation": "READ_ONLY_RETAIL_COMMERCE_SCHEMA_BASELINE",
+  "trigger_nonce": "retail-commerce-t004-20260803-435c00121a27-runtime-fallback",
+  "select_only": true,
+  "row_data_read": false,
+  "freeform_sql_accepted": false,
+  "migration_dry_run": false,
+  "migration_apply": false,
+  "database_mutation": false,
+  "provider_call": false,
+  "credential_values_returned": false,
+  "external_send": false,
+  "secrets_included": false
+}
