@@ -55,7 +55,7 @@ jobs:
             REF=$(jq -r '.ref // ""' "$GITHUB_EVENT_PATH")
             if [[ "$REF" == "refs/heads/main" && "$MESSAGE" == *"$CLOSURE_TOKEN"* ]]; then
               EXECUTE=true
-              TRIGGER=main-push-v16
+              TRIGGER=main-push-v17
             fi
           fi
           echo "execute=$EXECUTE" >> "$GITHUB_OUTPUT"
