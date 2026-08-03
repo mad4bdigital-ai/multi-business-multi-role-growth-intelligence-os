@@ -35,14 +35,15 @@
             "Fetch health, version, deployment-info, and connector-agent version through bounded public HTTPS GET requests.",
             "Scrub sensitive response keys and derive exact SHA, branch, HTTP, and classification evidence.",
             "Re-read the protected Production ref after collection to reject ref movement during the evidence cycle.",
-            "Upload bounded evidence, publish a secret-free repository comment, and fail closed unless production_current is true."
+            "Publish exactly one bounded GitHub result comment, mark that comment mutation explicitly in the summary, upload the resulting evidence, and fail closed unless production_current is true."
           ],
           "assertions": [
             "Only the repository owner numeric identity can trigger the workflow.",
             "The command must contain exactly one lowercase 40-hex expected Production SHA.",
             "The protected Production ref is read before and after public runtime collection and must remain exact.",
             "The workflow uses no Hostinger credential or provider API token.",
-            "The workflow performs no build creation, deployment, release activation, restart, SQL, Migration Apply, database mutation, protected-ref mutation, force push, or external business send.",
+            "Repository content and protected refs remain read-only; one bounded GitHub issue or pull-request result comment is the only authorized repository mutation.",
+            "The workflow performs no build creation, deployment, release activation, restart, SQL, Migration Apply, database mutation, force push, or external business send.",
             "Runtime currentness requires HTTP 200 for all four endpoints, exact SHA parity in version and deployment-info, and exact Production branch provenance.",
             "All persisted evidence is bounded, scrubbed, and secret-free."
           ],
@@ -66,12 +67,12 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Allow an exact owner comment to generate same-cycle public runtime evidence and a bounded repository decision comment."
+      "objective": "Allow an exact owner comment to generate same-cycle public runtime evidence and one bounded GitHub result comment."
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on malformed commands, protected-ref movement, DNS or HTTP failure, non-JSON or oversized responses, runtime SHA mismatch, and branch provenance mismatch."
+      "objective": "Fail closed on malformed commands, protected-ref movement, DNS or HTTP failure, non-JSON or oversized responses, runtime SHA mismatch, branch provenance mismatch, or result-comment publication failure."
     },
     {
       "id": "canary",
