@@ -171,49 +171,19 @@ jobs:
           node --check scripts/resource-api-callability-contracts.mjs
           node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
-      - name: Workspace invitation controls
+      - name: Focused Surface contract gates
         working-directory: http-generic-api
-        run: node test-workspace-invitation-controls.mjs
-
-      - name: SQL registry extractor
-        working-directory: http-generic-api
-        run: node test-surface-contract-sql-registry-extractor.mjs
-
-      - name: Surface contract classification
-        working-directory: http-generic-api
-        run: node test-surface-contract-classification.mjs
-
-      - name: Resource effect classes
-        working-directory: http-generic-api
-        run: node test-resource-api-callability-effect-classes.mjs
-
-      - name: Resource API coverage
-        working-directory: http-generic-api
-        run: node test-resource-api-coverage.mjs
-
-      - name: Surface full closure
-        working-directory: http-generic-api
-        run: node test-surface-callability-full-closure.mjs
-
-      - name: Frontend Surface dispatch
-        working-directory: http-generic-api
-        run: node test-frontend-surface-dispatch.mjs
-
-      - name: Frontend auth OpenAPI parity
-        working-directory: http-generic-api
-        run: node test-frontend-auth-openapi-parity.mjs
-
-      - name: OpenAPI route coverage
-        working-directory: http-generic-api
-        run: node test-openapi-route-coverage.mjs
-
-      - name: Hostinger full-closure safety
-        working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
-
-      - name: OpenAPI auth parity
-        working-directory: http-generic-api
-        run: npm run openapi:auth:check
+        run: |
+          node test-workspace-invitation-controls.mjs
+          node test-surface-contract-sql-registry-extractor.mjs
+          node test-resource-api-callability-effect-classes.mjs
+          node test-resource-api-coverage.mjs
+          node test-surface-callability-full-closure.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+          npm run openapi:auth:check
 
       - name: Prove scoped queue closure
         working-directory: http-generic-api
