@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '.changes/e2e/hostinger-production-nodejs-restart.json'
+      - '.changes/e2e/hostinger-production-nodejs-production-restart.json'
       - '.github/workflows/hostinger-nodejs-production-restart.yml'
       - '.github/workflows/hostinger-nodejs-production-restart-contract.yml'
       - 'http-generic-api/scripts/hostinger-nodejs-production-restart.mjs'
@@ -38,3 +38,49 @@ jobs:
       - name: Validate restart workflow and implementation
         working-directory: http-generic-api
         run: node scripts/test-hostinger-nodejs-production-restart.mjs
+
+      - name: Validate strict trusted-marker parser
+        working-directory: http-generic-api
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import { parseTrustedRestartMarker } from './scripts/hostinger-nodejs-production-restart-coherent.mjs';
+
+          const trusted = (body, overrides = {}) => ({
+            id: 42,
+            body,
+            user: { login: 'github-actions[bot]', type: 'Bot' },
+            ...overrides,
+          });
+          const exact = parseTrustedRestartMarker(trusted(
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=sha:build expected_head_sha=abc run_id=123 restart_attempted=false',
+          ));
+          assert.equal(exact.id, 42);
+          assert.equal(exact.fields.status, 'claiming');
+          assert.equal(exact.fields.binding, 'sha:build');
+          assert.equal(exact.fields.run_id, '123');
+
+          assert.equal(parseTrustedRestartMarker(trusted(
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming status=completed binding=sha:build',
+          )), null, 'duplicate fields must fail closed');
+          assert.equal(parseTrustedRestartMarker(trusted(
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=sha:build\nrestart_attempted=true',
+          )), null, 'multi-line markers must fail closed');
+          assert.equal(parseTrustedRestartMarker(trusted(
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=sha:build',
+            { user: { login: 'mad4bdigital-ai', type: 'User' } },
+          )), null, 'non-bot markers must be ignored');
+          assert.equal(parseTrustedRestartMarker(trusted(
+            'prefix HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming binding=sha:build',
+          )), null, 'prefix smuggling must fail closed');
+          assert.equal(parseTrustedRestartMarker(trusted(
+            'HOSTINGER_PRODUCTION_NODEJS_RESTART status=claiming Binding=sha:build',
+          )), null, 'non-canonical field names must fail closed');
+
+          const productionWorkflow = fs.readFileSync('../.github/workflows/hostinger-nodejs-production-restart.yml', 'utf8');
+          assert.match(productionWorkflow, /Object\.hasOwn\(fields, key\)/u);
+          assert.match(productionWorkflow, /marker_parser=strict_single_line_exact_fields_v1/u);
+          assert.doesNotMatch(productionWorkflow, /body\.includes\(['"]status=/u);
+          console.log('strict trusted-marker parser tests: passed');
+          NODE
